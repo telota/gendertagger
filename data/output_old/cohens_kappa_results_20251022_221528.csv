@@ -1,0 +1,11 @@
+Classifier 1,Classifier 2,N,Cohen's Kappa,Interpretation
+gender_guesser,nomquamgender,7197,0.907,Almost perfect
+hf_genderize,hf_gender_classification,7197,0.874,Almost perfect
+hf_gender_classification,llm_gpt_oss_120b,7197,0.594,Moderate
+nomquamgender,llm_gpt_oss_120b,7197,0.577,Moderate
+gender_guesser,llm_gpt_oss_120b,7197,0.57,Moderate
+hf_genderize,llm_gpt_oss_120b,7197,0.54,Moderate
+gender_guesser,hf_gender_classification,7197,0.439,Moderate
+nomquamgender,hf_gender_classification,7197,0.43,Moderate
+gender_guesser,hf_genderize,7197,0.403,Moderate
+nomquamgender,hf_genderize,7197,0.393,Fair

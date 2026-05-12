@@ -1,0 +1,29 @@
+Classifier 1,Classifier 2,N,Cohen's Kappa,Interpretation
+HIVOTO,HIVOTO-XGBoost,6024,0.891,Almost perfect
+HIVOTO-XGBoost,NQG,6024,0.88,Almost perfect
+HIVOTO,NQG,6133,0.879,Almost perfect
+gender_guesser,Wiki-Gendersort,6074,0.87,Almost perfect
+gender_guesser,NQG,6133,0.87,Almost perfect
+HIVOTO,Wiki-Gendersort,6074,0.862,Almost perfect
+gender_guesser,HIVOTO,6133,0.851,Almost perfect
+HIVOTO-XGBoost,Wiki-Gendersort,5983,0.833,Almost perfect
+gender_guesser,HIVOTO-XGBoost,6024,0.821,Almost perfect
+NQG,Wiki-Gendersort,6074,0.82,Almost perfect
+HF ClassifyGender,HF Genderize,6133,0.801,Almost perfect
+HIVOTO-XGBoost,LLM,6028,0.777,Substantial
+HF ClassifyGender,Wiki-Gendersort,6074,0.761,Substantial
+NQG,LLM,6133,0.754,Substantial
+HIVOTO,LLM,6133,0.734,Substantial
+HF ClassifyGender,HIVOTO-XGBoost,6024,0.732,Substantial
+gender_guesser,HF ClassifyGender,6133,0.71,Substantial
+HF Genderize,Wiki-Gendersort,6074,0.7,Substantial
+Wiki-Gendersort,LLM,6074,0.699,Substantial
+gender_guesser,LLM,6133,0.695,Substantial
+HF ClassifyGender,HIVOTO,6133,0.691,Substantial
+HF ClassifyGender,NQG,6133,0.687,Substantial
+HF Genderize,HIVOTO-XGBoost,6024,0.666,Substantial
+gender_guesser,HF Genderize,6133,0.641,Substantial
+HF Genderize,HIVOTO,6133,0.626,Substantial
+HF ClassifyGender,LLM,6133,0.624,Substantial
+HF Genderize,NQG,6133,0.621,Substantial
+HF Genderize,LLM,6133,0.564,Moderate

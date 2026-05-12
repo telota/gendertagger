@@ -1,0 +1,12 @@
+,gender_guesser,HF ClassifyGender,HF Genderize,HIVOTO,HIVOTO-XGBoost,NQG,Wiki-Gendersort,LLM
+male,4327,4570,4653,4372,4487,4380,4458,5466
+female,1276,1115,924,1444,1514,1378,1290,1933
+mostly_male,6,0,0,42,0,0,0,0
+mostly_female,0,0,0,11,0,0,0,0
+organisation,0,0,0,0,0,0,0,391
+conflict,115,448,556,38,0,33,178,0
+unknown,408,0,0,176,0,217,102,483
+uncertain,0,0,0,0,0,125,0,0
+andy,1,0,0,50,27,0,0,0
+unisex,0,0,0,0,0,0,46,0
+no_answer,2140,2140,2140,2140,2245,2140,2199,0

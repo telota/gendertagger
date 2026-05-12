@@ -1,93 +1,119 @@
-# GenderTagger
+# genderTagger
+
+A playful RSE tool for gender annotation in Digital Humanities projects.
+
+**genderTagger** is a web-based application for gender classification in TEI-XML person registers. It combines **multiple automated classification methods** with a **gamified web interface** for human annotation, developed by TELOTA's [KI-Lab](https://www.bbaw.de/bbaw-digital/ki) and the [Gender & Data](https://www.bbaw.de/gender-data) initiative at the Berlin-Brandenburg Academy of Sciences and Humanities (BBAW).
+
+## Overview
+
+Person registers are the backbone of digital scholarly editions — they link actors, create context, and open perspectives on social and intellectual networks. Yet gender information is often missing, making the **Gender Data Gap** invisible. genderTagger addresses this by providing:
+
+- **9 classification methods** ranging from authority file lookups to transformer models and local LLMs
+- **A gamified web UI** with browse/annotate mode, a timed game mode with scoring and leaderboards, and statistics dashboards
+- **TEI-XML import/export** so enriched data flows back into existing edition workflows
+- **Benchmark tooling** to evaluate and compare classifier performance
+
+The primary development case study is _schleiermacher digital_, whose person register contains ~8,000 entries.
+
+## Quick Start
+
+1. **Install dependencies**:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+
+[TODO]
+
+
+## Classification Methods
+
+genderTagger ships with nine independent classification approaches:
+
+| Method                       | Type                         | Source / Model                                                                                                                        |
+| ---------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **GND API**                  | Authority file lookup        | [lobid-gnd](https://lobid.org/gnd) (Gemeinsame Normdatei)                                                                             |
+| **GND Local Lookup**         | Authority file (offline)     | Pre-built SQLite DB from GND MARC XML                                                                                                 |
+| **gender-guesser**           | Rule-based heuristic         | [`gender-guesser`](https://pypi.org/project/gender-guesser/) library                                                                  |
+| **nomquamgender**            | Statistical ML               | [`nomquamgender`](https://pypi.org/project/nomquamgender/) library                                                                    |
+| **HF Gender-Classification** | DistilBERT transformer       | [`padmajabfrl/Gender-Classification`](https://huggingface.co/padmajabfrl/Gender-Classification)                                       |
+| **HF Genderize**             | BERT transformer             | [`imranali291/genderize`](https://huggingface.co/imranali291/genderize)                                                               |
+| **HIVOTO**                   | Historical name lookup       | [HIVOTO v1.0.0](https://www.geschichte.hu-berlin.de/de/bereiche-und-lehrstuehle/digital/forschung/hivoto) (Historisches Vornamentool) |
+| **HIVOTO-XGBoost**           | XGBoost + char n-gram TF-IDF | Trained on HIVOTO dataset                                                                                                             |
+| **LLM (Ollama)**             | Local large language model   | Configurable model via Ollama REST API                                                                                                |
+
+Five of these classifiers (gender-guesser, nomquamgender, HF Gender-Classification, GND API, and optionally Ollama LLM) are integrated directly into the web UI to assist human annotators.
+
+All nine methods were first developed and tested as **standalone scripts** (in `methods/`) to validate their accuracy and coverage independently before integration.
+
+## Architecture
+
+### Planned: FastAPI + Vue.js
+
+The project is being refactored into a decoupled client-server architecture:
+
+- **Backend** (`src/gendertagger/backend/`) — a **FastAPI** REST API exposing classification endpoints, TEI-XML import/export, annotation management, and user/session handling. All nine classifiers will be accessible through a unified API.
+- **Frontend** (`src/gendertagger/frontend/`) — a **Vue.js** single-page application providing the gamified annotation UI, statistics dashboards, and team leaderboards.
+
+This separation enables independent scaling, easier testing, and a richer interactive frontend.
+
+## Project Structure
+
+
+[TODO]
 
 
 
-## Getting started
+## Benchmark and Evaluation
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+The `scripts/` directory provides tools for systematic evaluation:
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+- **benchmark.py** — compares all nine methods against GND as ground truth; computes coverage, classification distributions, and accuracy metrics
+- **agreements.py** — inter-annotator agreement: pairwise Cohen's κ, Fleiss' κ, Krippendorff's α
+- **coverage.py** — coverage and classification distribution report across three tiers (binary, substantive, overall)
 
-## Add your files
-
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitup.uni-potsdam.de/TELOTA/sonstige-vorhaben-und-projekte/genderTagger.git
-git branch -M main
-git push -uf origin main
-```
-
-## Integrate with your tools
-
-* [Set up project integrations](https://gitup.uni-potsdam.de/TELOTA/sonstige-vorhaben-und-projekte/genderTagger/-/settings/integrations)
-
-## Collaborate with your team
-
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+Poster visualisation scripts (`poster_benchmark_chart.py`, `poster_pies.py`, `poster_example_badges.py`) generate figures for presentations.
 
 ## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+### Requirements
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+[TODO]
+
+
+### Setup
+
+
+[TODO]
+
+
+## Limitations
+
+- Gender classification is based on historical names and uses a binary scheme (Male / Female) plus the categories Uncertain and Institution. Non-binary, trans\*, or agender categories are not currently supported.
+- Name-based classification has inherent limitations and cultural biases.
+- Classifications represent a statistical estimate and do not reflect individual gender identity.
+- Results require validation, especially for ambiguous or culturally diverse names.
+
+## Research Context
+
+This work was presented at **deRSE26** (German Conference on Research Software Engineering, University of Stuttgart, March 3–5, 2026). The submitted abstract is available [here](https://events.hifis.net/event/2945/contributions/21353/).
 
 ## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+This project is part of ongoing research. For questions or collaboration inquiries, please open an issue or contact the project team.
 
 ## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+This project is licensed under the [MIT License](LICENSE).
+
+Copyright (c) 2026 TELOTA – The Electronic Life Of The Academy.
+
+## Acknowledgments
+
+Developed by the [KI-Lab](https://www.bbaw.de/bbaw-digital/ki) and [Gender & Data](https://www.bbaw.de/gender-data) initiative at TELOTA, Berlin-Brandenburg Academy of Sciences and Humanities (BBAW).
+
+## Further Documentation
+
+- [docs/references/](docs/references/) — reference documentation for tools and APIs

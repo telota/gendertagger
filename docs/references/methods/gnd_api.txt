@@ -1,0 +1,92 @@
+lobid-gnd API
+Suche: /gnd/search?q=text
+
+Alles
+    /gnd/search?q=*&format=json
+Alle Felder
+    /gnd/search?q=london&format=json
+Feldsuche
+    /gnd/search?q=preferredName:Twain&format=json
+Filter
+    /gnd/search?q=preferredName:Twain&filter=type:Person&format=json
+Paginierung
+    /gnd/search?q=london&from=50&size=100&format=json
+Sortierung
+    /gnd/search?q=scholl&sort=preferredName.keyword:asc&format=json
+ASCII
+    /gnd/search?q=preferredName.ascii:Chor OR variantName.ascii:Chor&format=json
+
+Direktzugriff: /gnd/<id>.json
+
+London
+    /gnd/4074335-4.json
+hbz
+    /gnd/2047974-8.json
+Goethe
+    /gnd/118540238.json
+
+Inhaltstypen
+
+Standardmäßig liefert dieser Dienst strukturierte API-Antworten (als JSON):
+
+curl https://lobid.org/gnd/4074335-4
+
+Er unterstützt Content-Negotiation über den Accept-Header für JSON (application/json) und HTML (text/html):
+
+curl --header "Accept: application/json" https://lobid.org/gnd/search?q=london
+
+Der Query-Parameter "format" (Werte: html,json,jsonl) kann verwendet werden, um den Accept-Header aufzuheben, z.B. zur Anzeige von JSON im Browser:
+
+/gnd/4074335-4?format=json
+
+Der Wert des Format-Parameters kann für Einzeltreffer auch in URLs als Dateiendung verwendet werden:
+
+/gnd/4074335-4.json
+
+Einzeltreffer unterstützen zudem verschiedene RDF-Serialisierungen (siehe Abschnitt zu JSON-LD).
+Bulk-Downloads
+
+Bulk-Downloads können im Format JSON lines (Accept: application/x-jsonlines oder format=jsonl) bezogen werden:
+
+curl --header "Accept: application/x-jsonlines" "https://lobid.org/gnd/search?q=type:Country" > countries.jsonl
+
+Für größere Anfragen kann die Antwort als gzip komprimiert werden:
+
+curl --header "Accept-Encoding: gzip" "https://lobid.org/gnd/search?q=type:Company&format=jsonl" > companies.gz
+
+Siehe auch diesen Abschnitt zu Bulk-Downloads in unserem Blog.
+Autovervollständigung
+
+Die API unterstützt ein spezielles Antwortformat mit Vorschlägen zur Autovervollständigung.
+Standardformat für Vorschläge verwenden: "format=json:suggest"
+    /gnd/search?q=Twain&format=json:suggest
+Bestimmtes Feld für Vorschläge verwenden: "format=json:preferredName"
+    /gnd/search?q=Twain&format=json:preferredName
+Vorschläge aus mehreren Feldern zusammenbauen: "format=json:preferredName,professionOrOccupation"
+    /gnd/search?q=Twain&format=json:preferredName,professionOrOccupation
+Feld-Templates zur Anpassung und Gruppierung: "format=json:preferredName,*_dateOfBirth in_placeOfBirth,†_dateOfDeath in_placeOfDeath"
+    /gnd/search?q=Twain&format=json:preferredName,*_dateOfBirth in_placeOfBirth,†_dateOfDeath in_placeOfDeath
+
+Damit kann z.B. eine Autovervollständigung umgesetzt werden, bei der zur Suche an Stelle des gewählten Labels die entsprechende ID verwendet werden kann:
+
+Dieses Beispiel ist folgendermaßen mit JavaScript und jQuery UI implementiert:
+
+$('input.search-gnd').autocomplete({
+  source : function(request, response) {
+    $.ajax({
+      //  use full URL in your code, i.e. https://lobid.org/gnd/search
+      url : "/gnd/search",
+      dataType : "jsonp",
+      data : {
+        q : request.term,
+        format : "json:preferredName,professionOrOccupation"
+      },
+      success : function(data) {
+        response(data);
+      }
+    });
+  },
+  select: function(event, ui) {
+    $('#id').val('id:"'+ui.item.id+'"');
+  }
+});

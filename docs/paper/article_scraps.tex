@@ -1,0 +1,130 @@
+\documentclass{eceasst}
+% This is an empty ECEASST article that can be used as a template
+% by authors.
+
+% Required packages
+% =================
+% Your \usepackage commands go here.
+\usepackage{orcidlink}
+\usepackage{booktabs}
+\usepackage{graphicx}
+
+% Use for your first submission the lineno package. Do not forget to remove it for the camera-ready version!!!!
+\usepackage{lineno}
+\linenumbers
+
+%Mathematical formula accessibility and machine-readability: if you add
+\usepackage[accsupp]{axessibility}
+\pdfcompresslevel=1
+%in the article preamble, you can select an equation and copy-paste it to a text file to recover the TeX math
+
+% PDF accessibility and PDF metadata
+\newcommand{\authorRef}[1]{\texorpdfstring{\autref{#1}}{}}
+\newcommand{\authorOrcid}[1]{\texorpdfstring{\thinspace\orcidlink{#1}\thinspace}{}}
+\newcommand{\geprislink}[1]{\href{https://gepris.dfg.de/gepris/projekt/#1?language=en}{#1}}
+
+\newcommand{\Eg}{E.\,g.}
+\newcommand{\eg}{e.\,g.}
+
+% ================================
+% Environment for AI Use
+% ================================
+\newenvironment{aiuse}{%
+  \par\vspace{11pt}%
+  \noindent\textbf{Declaration on the use of AI:}\enspace}{%
+  \par\vspace{11pt}}
+
+% ================================
+% Environment for Data availability
+% ================================
+\newenvironment{data}{%
+  \par\vspace{11pt}%
+  \noindent\textbf{Data availability:}\enspace}{%
+  \par\vspace{11pt}}
+
+
+% Article frontmatter
+% ===================
+\title{% Title of the article
+GENDERTAGGER: Bridging the Gender Data Gap in Digital Editions through Multi-Method Annotation Workflows}
+\short{% Short title of the article (optional)
+GENDERTAGGER}
+\author{% Authors and references to addresses
+Frederike Neuber\autref{1},
+Lou Klappenbach\autref{2} and
+Tim Westphal\autref{3}}
+\institute{% Institutes with labels
+\autlabel{1} \email{neuber@bbaw.de}\\
+\autlabel{2} \email{klappenbach@bbaw.de}\\
+\autlabel{3} \email{westphal@bbaw.de}\\
+%TELOTA, \url{https://www.bbaw.de/bbaw-digital/telota}\\
+TELOTA, Berlin-Brandenburg Academy of Sciences and Humanities}
+\abstract{% Abstract of the article
+Digital scholarly editions frequently rely on person registers to reconstruct historical networks and contextualize sources. However, gender information in such registers is often incomplete, making structural imbalances within historical datasets difficult to analyze. To address this challenge, we developed genderTagger, a web-based application for semi-automated gender annotation of TEI/XML person registers.\par
+
+The system combines multiple classification approaches, including authority data queries, heuristic methods, statistical models, Transformer-based classifiers, and locally operated language models. Rather than relying on fully automated classification, genderTagger integrates these methods into a human-in-the-loop workflow that supports editorial review, uncertainty-aware decision-making, and direct reintegration into existing TEI/XML workflows.\par
+
+In addition to a tabular annotation interface, the tool provides a gamified mode with score tracking and leaderboards to support collaborative metadata curation. Using the schleiermacher digital edition as a case study, the paper discusses methodological challenges of automated gender annotation in historical corpora, including incomplete authority data, ambiguous naming practices, and algorithmic bias.\par
+
+The project demonstrates how interoperable and uncertainty-aware research software can support Digital Humanities workflows while critically engaging with the limitations of computational gender classification.}
+\keywords{% Keywords for the article
+gender data gap, digital humanities, digital scholarly editions}
+
+
+% PDF/A compliance
+% ========================
+% This is an optional step to help with archiving and long-term preservation
+% of electronic documents. It stores XMP metadata, machine-readable content,
+% and color profiles in the PDF file. When used, it must appear last in the
+% preamble to avoid conflicts with other packages (the pdfx package loads
+% hyperref and xcolor).
+%\usepackage[a-3u]{pdfx}
+%\begin{filecontents}[overwrite]{\jobname.xmpdata}
+%\Author{Kim Doe}
+%\Title{My Title}
+%\Language{English}
+%\Subject{Software Science and Technology}
+%\end{filecontents}
+
+\begin{document}
+\maketitle
+
+% Main part of your article
+% =========================
+\section{Introduction}
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore
+\section{Annotation Modes}
+\label{sec:modes}
+
+The interface provides two complementary annotation modes over the same underlying state. A tabular review mode supports systematic editorial verification through sortable metadata views, confidence scores, and manual correction options. Additionally, a timer-based game mode introduces gamified mechanics including score tracking, streaks, and leaderboards to encourage faster annotation and collaborative engagement.
+
+\begin{description}
+  \item[Browse \& Annotate] is a tabular view of the imported register. Each row aggregates the per-classifier labels, the combined classification, an agreement score, and editor controls. Filtering and sorting target the obvious operational questions --- ``show me all entries where classifiers disagree'', ``show me all institutional candidates'', ``show me everything still unconfirmed''. This mode is the workhorse for systematic review.
+  \item[Game Mode] presents single entries in rapid succession against a timer, with keyboard shortcuts for the four output categories, a streak counter, a session score, and a team leaderboard persisted across sessions. The gamified framing is a deliberate engagement design decision rather than a gimmick: editor fatigue is the practical bottleneck for any annotation campaign at the scale of an 8,000-entry register, and shortening the per-decision cycle measurably increases throughput. [TODO: if you have throughput numbers from your own sessions, slot in here --- \eg{} average entries/minute in each mode]
+\end{description}
+
+Both modes write to the same annotation state store, and editors switch between them freely within a session.
+
+% [FEHLT: Screenshot/Figure der UI für beide Modi]
+% [FEHLT: Daten oder Beobachtungen zur tatsächlichen Nutzung des Game Modes --- Sessions, Annotator:innen, Durchsatz]
+
+% Acknowledgements for colleagues, referees, ...
+% ==============================================
+\begin{acknowledge}
+KD acknowledges support by DFG Project \geprislink{000000000}.
+\end{acknowledge}
+
+\begin{data}
+My data is publicly available on zenodo.
+\end{data}
+
+\begin{aiuse}
+No AI hallucinations over here.
+\end{aiuse}
+
+% Bibliography with BibTeX
+% ========================
+%\bibliographystyle{eceasst}
+%\bibliography{}
+
+\end{document}

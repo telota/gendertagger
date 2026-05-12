@@ -1,0 +1,11 @@
+Classifier 1,Classifier 2,N,Cohen's Kappa,Interpretation
+HIVOTO,NQG,6133,0.879,Almost perfect
+gender_guesser,NQG,6133,0.87,Almost perfect
+gender_guesser,HIVOTO,6133,0.851,Almost perfect
+HF ClassifyGender,HF Genderize,6133,0.801,Almost perfect
+gender_guesser,HF ClassifyGender,6133,0.71,Substantial
+HF ClassifyGender,HIVOTO,6133,0.691,Substantial
+HF ClassifyGender,NQG,6133,0.687,Substantial
+gender_guesser,HF Genderize,6133,0.641,Substantial
+HF Genderize,HIVOTO,6133,0.626,Substantial
+HF Genderize,NQG,6133,0.621,Substantial
