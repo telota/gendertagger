@@ -1,6 +1,6 @@
 \documentclass{eceasst}
 % This is an empty ECEASST article that can be used as a template
-% by authors.
+% by authors
 
 % Required packages
 % =================
@@ -50,9 +50,9 @@ GENDERTAGGER: Bridging the Gender Data Gap in Digital Editions through Multi-Met
 \short{% Short title of the article (optional)
 GENDERTAGGER}
 \author{% Authors and references to addresses
-Frederike Neuber\autref{1},
-Lou Klappenbach\autref{2} and
-Tim Westphal\autref{3}}
+Frederike Neuber\authorOrcid{ 0000-0001-8279-9298}\autref{1},
+Lou Klappenbach\authorOrcid{0000-0001-6587-3353}\autref{2} and
+Tim Westphal\authorOrcid{0000-0003-0000-0000}\autref{3}}
 \institute{% Institutes with labels
 \autlabel{1} \email{neuber@bbaw.de}\\
 \autlabel{2} \email{klappenbach@bbaw.de}\\
@@ -93,45 +93,46 @@ gender data gap, digital humanities, digital scholarly editions}
 % =========================
 \section{Introduction}
 
-Digital scholarly editions rely heavily on structured metadata and person registers to contextualize historical actors and reconstruct intellectual, social, and institutional networks. In many editorial projects, however, metadata concerning gender remains incomplete or entirely absent, making structural imbalances within historical corpora difficult to analyze. This lack of representation contributes to the broader phenomenon commonly described as the gender data gap.
-**[FEHLT: Literatur zum Gender Data Gap und feminist DH ergänzen]**
+Digital scholarly editions as critical representations of historical sources \cite{sahle_digitale_2013} rely heavily on structured metadata and person registers. Such lists of persons serve to gather information about writers of the source itself, but also about people who are mentioned within the edited documents or who stand in some other relation to it. However, they are particularly affected by the gender data gap (Criado-Perez 2019), which does not only concern areas such as medicine or the work environment, but also humanities research. Person registers of digital editions frequently reflect a pronounced imbalance between male and female individuals. This imbalance is rooted partly in the structural asymmetry of the historical sources and their transmission, and partly because existing systems fall short in categorizing person data. Authority files, for instance, frequently lack entries for women and other marginalized persons altogether (Aleksander 2025).
 
-At the same time, the increasing scale of digital editions makes manual metadata enrichment increasingly time-consuming. Automated approaches to gender classification based on personal names therefore offer promising possibilities for supporting editorial workflows. However, such approaches remain methodologically challenging in historical contexts due to ambiguous names, inconsistent spelling variants, incomplete authority data, and the risk of reproducing historical and algorithmic biases.
-**[FEHLT: konkrete Beispiele oder Literatur zu Problemen historischer Namensklassifikation]**
+In most cases, the gender imbalance of digital edition corpora can neither be precisely quantified nor made visible, and editions rarely offer the means to filter or search for persons of a specific gender.\footnote{One example are the biographies in the digital edition \textit{Praktiken der Monarchie}, which allows users to filter entries by gender (female, male, unknown), see Akademienvorhaben Anpassungsstrategien der späten mitteleuropäischen Monarchie am preußischen Beispiel (1786–1918), ed. Berlin-Brandenburgische Akademie der Wissenschaften. Praktiken der Monarchie: Biogramme. Version 9, August 20, 2025. https://actaborussica.bbaw.de/P0006319.} One practical reason why gender metadata is so often absent is scale: the increasing size of digital editions makes manual enrichment of person registers a time-consuming and resource-intensive task. Automated approaches to gender classification based on personal names therefore offer promising possibilities for supporting editorial workflows. However, such approaches remain methodologically challenging in historical contexts, due to ambiguous names, inconsistent spelling variants, incomplete authority data, and the risk of reproducing historical and algorithmic biases. Beyond these technical difficulties, the modelling of gender information is itself a sensitive undertaking. In the context of current societal debates and political backlash around gender, any computational approach must navigate carefully between sensitivity to present-day understandings and the pragmatic realities of categorizing historical persons. 
 
-To address these challenges, we developed *genderTagger*, a web-based application for semi-automated gender annotation of TEI/XML person registers. The system combines multiple classification approaches—including authority data queries, heuristic methods, statistical models, Transformer-based models, and local large language models—within a human-in-the-loop workflow that preserves editorial oversight and uncertainty-aware review processes.
-**[FEHLT: klarer Research Gap – warum bestehende Tools/Ansätze nicht ausreichen]**
+To address these challenges, we developed genderTagger, a web-based application for semi-automated gender annotation of person registers in digital scholarly editions. Such registers are typically encoded in TEI/XML, where TEI refers to the Text Encoding Initiative, a community standard and vocabulary for the description of historical texts. To assign a gender to a person entry, genderTagger combines multiple classification approaches: authority data queries, heuristic methods, statistical models, Transformer-based models, and local large language models. These methods are embedded within a human-in-the-loop workflow that preserves editorial oversight and supports uncertainty-aware review processes. This workflow is conceptualized like gameification to increase motivation and annotation speed during collaborative curation tasks. 
 
-In addition to supporting systematic metadata enrichment, genderTagger introduces a gamified annotation mode designed to increase motivation and annotation speed during collaborative curation tasks.
-**[FEHLT: Motivation für Gamification + evtl. Literatur zu Annotation/Crowdsourcing/Gamification]**
+To address these challenges, we developed genderTagger, a web-based application for semi-automated gender annotation of person registers in digital scholarly editions. Such registers are typically encoded in TEI/XML, where TEI refers to the Text Encoding Initiative, a community standard and vocabulary for the description of historical texts. To assign a gender to a person entry, genderTagger combines multiple classification approaches: authority data queries, heuristic methods, statistical models, Transformer-based models, and local large language models. These methods are embedded within a human-in-the-loop workflow that preserves editorial oversight and supports uncertainty-aware review processes. To further lower the barrier to annotation, the workflow incorporates a gamified mode designed to increase motivation and throughput during collaborative curation tasks.
 
-Using the *schleiermacher digital* edition as a case study, this paper presents the system architecture, methodological design decisions, and initial observations regarding workflow integration and classification agreement.
-**[FEHLT: explizite Contributions als Bulletpoints oder klarer Absatz]**
+Using the schleiermacher digital edition as a case study, this paper makes the following contributions: it presents a TEI/XML modelling approach for gender annotations that encodes provenance, confidence, and editorial responsibility; it describes and evaluates a multi-method classification pipeline and the inter-method agreement measures used to triage editorial attention; and it reflects critically on the methodological and ethical challenges of computational gender classification in historical corpora.
+
 
 
 \section{Study Design}
 \label{sec:architecture}
 
-We treat the enrichment of a TEI/XML person register with gender annotations as a comparative methods study rather than as a software-engineering exercise. Three constraints typical of digital scholarly editions shape the design: (i)~registers contain heterogeneous entries, with some carrying GND identifiers but most relying only on a name string and biographical dates; (ii)~no single name-based classifier covers the spectrum of historical, multilingual, and ambiguous forms encountered in such a register; and (iii)~editors need agreement and disagreement between methods exposed as a triage signal, not collapsed into a single opaque label.
+Person registers of digital scholarly editions can impose a multitude of constraints on automated enrichment processes. Managing these constraints shaped the design of our approach.  First, register entries are heterogeneous in what amount of information they offer: a minority can carry identifiers that resolve to structured authority records, while the majority provide only a name string and ideally vital dates or a short biographical note; moreover, some entries refer not to individuals at all but to families, corporate bodies, or married couples. Some identify entities only by initials.  Second, no single classifier covers this spectrum: authority lookup, heuristic name dictionaries, statistical name models, transformer-based classifiers, and locally-hosted large language models each use different data points in their analysis and can differ on principled grounds, for example different training corpora, different operationalization of gender, different sources. The methods also differ in their raw outputs and can include binary male/female, \texttt{mostly\_male}, \texttt{andy}, \texttt{conflict}, \texttt{uneindeutig}, \texttt{organisation} or a silent answer by an authority record. For a meaningful comparison an explicit normalization onto a shared label was used. Which as a methodological choice is a limitation in itself. Third, a manual review of all automated data is not economical, so editors cannot check every automatically enriched entry. Therefore the system has to include a method to track and flag contested records and provide those for human quality assurance. In this process methods are checked against one another through inter-method agreement where the disagreement becomes a primary signal that is used to spot questionable results. Fourth, because gender attribution is a third-party historical act, every machine-assigned label must carry explicit provenance.
 
-The study is carried out on the Schleiermacher Digital person register (\S[TODO: dataset section]) and is implemented as a reproducible Python pipeline of independent scripts, each consuming a CSV of the register and producing a CSV of per-method results, together with a small interactive review prototype used to validate selected entries against the machine output.
+The study is carried out on the \textit{schleiermacher digital} person register (\S\ref{sec:dataset}) and is implemented as a reproducible Python pipeline of independent scripts, together with a small interactive review prototype used to validate selected entries of the machine output. All components run locally, including the large language model, so that no register data leaves the editorial environment, a constraint that projects with restrictive licensing or archival policies routinely face.
 
 \subsection{Components}
 
-The pipeline has three stages, each producing tabular artefacts that the next stage consumes.
+The pipeline arranges its components in three stages, each producing artifacts that the next stage consumes.
 
 \begin{description}
-  \item[Data preparation.] The source TEI/XML register is flattened into a single table with one row per person and the editorially relevant fields per entry --- identifier, surname and forename(s), vital dates, free-text biographical note, alternative name forms, and a GND identifier where present. Entries that carry a GND identifier are additionally resolved against the authority record, yielding a partial ground-truth table used both as a classifier in its own right and as the evaluation reference for the others.
-  \item[Classifier bank.] Each gender-classification method is applied independently to the prepared register and produces, per entry, a label drawn from a small shared vocabulary (\texttt{male}, \texttt{female}, \texttt{unknown}, with \texttt{institution} where the method can express it) together with a method-specific confidence score. The methods span five families --- authority lookup, dictionary heuristics, statistical name models, transformer classifiers, and a locally hosted LLM --- and are described individually in \S\ref{sec:pipeline}. Keeping the methods independent rather than chaining them keeps the comparison clean: any single method can be re-run, replaced, or removed without disturbing the others, and the slow methods can be run once and re-aggregated freely.
-  \item[Aggregation, agreement, and review.] Per-method labels are joined into a single table from which a combined label, the number of methods that returned a substantive answer, an inter-method agreement score, and a categorical certainty tier (\texttt{high}\,/\,\texttt{low}\,/\,\texttt{single}) are derived. Agreement is quantified at three levels --- pairwise between methods, jointly across all methods, and per record --- using the measures discussed in \S\ref{sec:agreement}. A lightweight review interface lets an editor verify or correct the entries flagged as low-certainty, and the verified annotations are folded back into the TEI source with provenance distinguishing human-reviewed from automated decisions.
+  \item[Data preparation] The source TEI-XML register is flattened into a single table with one row per person and the relevant fields per entry: identifier, surname and forename(s), vital dates, free-text biographical note, alternative name forms, and a GND identifier where present. Entries that provide a GND identifier are additionally resolved against the authority record, yielding a partial ground-truth table used both as a classifier in its own right and as the evaluation reference for the other methods.
+  \item[Classifier bank] Each gender-classification method is applied independently to the prepared register and produces, per entry, a label drawn from a controlled vocabulary (\texttt{male}, \texttt{female}, \texttt{unknown}, with \texttt{institution} where the method can express it) together with a method-specific confidence score. The methods contain authority data lookup, dictionary heuristics, statistical name models, transformer classifiers, and a locally hosted LLM. The methods were kept independent instead of chaining them, so each can be re-run, replaced or removed without affecting the whole pipeline. Slow methods can be run once and re-aggregated freely.
+  \item[Aggregation, agreement, and review] Per-method labels are joined into a single table from which a combined label, the number of methods that returned a substantive answer, an inter-method agreement score, and a categorical certainty tier (\texttt{high}\,/\,\texttt{low}\,/\,\texttt{single}) are derived. Agreement is quantified at three levels: pairwise between methods, jointly across all methods, and per record. A lightweight review interface lets an editor verify or correct the entries flagged as low-certainty, and the verified annotations are folded back into the TEI source with provenance distinguishing human-reviewed from automated decisions.
 \end{description}
 
-The interactive review component is intentionally kept light. The contribution of this paper lies in the methodological comparison and in the agreement-based triage of editorial attention (\S\ref{sec:aggregation}), not in the user interface; a fuller software description is left to a separate publication.
-
-\subsection{TEI Encoding}
+\subsection{Encoding Gender in TEI-XML}
 \label{sec:tei-encoding}
 
-Annotations are written into the source register as a TEI \texttt{<sex>} child element of \texttt{<person>}, inserted after the last \texttt{<persName>} and before any \texttt{<birth>}, \texttt{<death>}, or \texttt{<note>} children. We deliberately encode the result as an element rather than as the shorthand \texttt{@sex} attribute on \texttt{<person>}: only an element gives us a place to attach the provenance attributes (\texttt{@evidence}, \texttt{@resp}, \texttt{@cert}) that the rest of this section relies on, and only an element can later be extended --- with a date range, a source pointer, or alternative readings --- without breaking existing consumers.
+By “gender” we refer to the gender historically or culturally associated with a personal name within available metadata sources, rather than the self-identified gender of an individual.
+
+%irgendwas stimmt hier noch nicht im ersten Satzteil
+Accordingly, we deliberately use the term “gender” rather than “gender” in our data model, as the classifications generated by genderTagger are based on socially and historically inferred naming conventions derived from metadata, authority records, and computational models, rather than on biological characteristics or medically defined categories.
+
+As discussed in the section on data modelling, the system explicitly records these annotations as assigned or inferred categories in order to preserve transparency regarding their computational and editorial origin. This distinction is particularly important in the context of historical datasets, where the individuals concerned can no longer be consulted regarding their gender identity and where available metadata is often incomplete, ambiguous, or shaped by historical biases. Consequently, the assigned categories should be understood as operationalized metadata annotations intended to support the analysis of structural representation and imbalance within historical corpora, rather than definitive statements about the identities of historical persons.
+
+Annotations are written into the source register as a TEI \texttt{<gender>} child element of \texttt{<person>}, inserted after the last \texttt{<persName>} and before any \texttt{<birth>}, \texttt{<death>}, or \texttt{<note>} children. We deliberately encode the result as an element rather than as the shorthand \texttt{@gender} attribute on \texttt{<person>}: only an element gives us a place to attach the provenance attributes (\texttt{@evidence}, \texttt{@resp}, \texttt{@cert}) that the rest of this section relies on, and only an element can later be extended with a date range, a source pointer, or alternative readings.
 
 \begin{verbatim}
 <person xml:id="S2472345">
@@ -139,7 +140,7 @@ Annotations are written into the source register as a TEI \texttt{<sex>} child e
     <surname>Aaron</surname>
     <forename>L.</forename>
   </persName>
-  <sex value="male" evidence="assigned"
+  <gender value="male" evidence="assigned"
        resp="#gendertagger" cert="high"/>
 </person>
 \end{verbatim}
@@ -147,74 +148,89 @@ Annotations are written into the source register as a TEI \texttt{<sex>} child e
 The four attributes carry the editorial semantics of the annotation:
 
 \begin{description}
-  \item[\texttt{@value}.] The classified gender, restricted to \texttt{male} or \texttt{female}; entries the pipeline cannot resolve to one of these (\texttt{unknown}, \texttt{institution}, or empty) receive no \texttt{<sex>} element at all, so silence is meaningful and distinguishable from a positive assignment.
-  \item[\texttt{@evidence}.] Fixed to \texttt{assigned}, marking every annotation as a third-party historical assignment rather than a self-identification of the person referenced.
-  \item[\texttt{@resp}.] The agent responsible for the annotation: \texttt{\#gendertagger} for entries left in the state produced by the automated pipeline, and a human-editor identifier (\eg{} \texttt{\#fko}) for entries that were verified or corrected through the review interface. The same TEI mechanism that records human responsibility statements is reused, redirected at software where appropriate.
-  \item[\texttt{@cert}.] A two-level confidence band, \texttt{high} or \texttt{low}. Human-reviewed entries are always \texttt{high}; automated entries inherit the certainty tier produced by the aggregation step (\S\ref{sec:aggregation}), with the unanimous/strong agreement tiers mapped to \texttt{high} and the single-method tier mapped to \texttt{low}.
+  \item[\texttt{@value}.] The classified gender, restricted to \texttt{male} or \texttt{female}; entries the pipeline cannot resolve to one of these (\texttt{unknown}, \texttt{institution}, or empty) receive no \texttt{<gender>} element at all.
+  \item[\texttt{@evidence}.] Fixed to \texttt{assigned}, denoting every annotation as a third-party historical assignment rather than a self-identification of the referenced person.
+  \item[\texttt{@resp}.] The entity responsible for the annotation: \texttt{\#gendertagger} for entries left in the state produced by the automated pipeline, and a human-editor identifier (\eg{} \texttt{\#abc}) for entries that were verified or corrected through the review interface. The same TEI mechanism that records human responsibility statements is reused, redirected at software where appropriate.
+  \item[\texttt{@cert}.] Confidence is reduced to two levels, \texttt{high} or \texttt{low}. Human-reviewed entries are always \texttt{high}; automated entries inherit the certainty tier produced by the aggregation step (\S\ref{sec:aggregation}), with the unanimous/strong agreement tiers mapped to \texttt{high} and the single-method tier mapped to \texttt{low}.
 \end{description}
 
-This encoding is not novel in itself --- \texttt{<sex>}, \texttt{@cert}, and \texttt{@resp} are standard TEI mechanisms --- but applying them systematically to machine-generated annotations makes the resulting register filterable: downstream queries can target \emph{all entries classified female with high confidence} or, equally, \emph{all uncertain entries requiring human review}. Machine annotations cease to be invisible and become first-class, contestable editorial decisions.
+The elements and attributes \texttt{<gender>}, \texttt{@cert}, and \texttt{@resp} are standard TEI elements \cite{article-crossref}, applying them systematically to machine-generated annotations makes the resulting data filterable: downstream queries can target \emph{all entries classified female with high confidence} or, equally, \emph{all uncertain entries requiring human review}.
 
 \section{Annotation Pipeline}
 \label{sec:pipeline}
 
-The annotation pipeline combines five methodological families of automated gender classification, instantiated by nine independent classifiers in the current configuration (eight of which contribute to the combined label by default; HIVOTO-XGBoost is treated as experimental and reported in the agreement analysis but excluded from the vote):
+The annotation pipeline combines five methodological families of automated gender classification, instantiated by nine independent classifiers in the current configuration. Each method has its own strength and weaknesses. Authority lookups are deterministic and identifier-bound but can cover only parts of any historical register, also using external APIs can be time consuming. Dictionary methods are interpretable and fast but inherit the geographic and temporal bias of their underlying name lists. The LLM is the only method that can use the additional biographical context. Combining the families is not just a way to boost accuracy: the agreement, or disagreement is used as an marker to assess the results of the pipeline.
 
-\begin{itemize}
-  \item authority-data lookup (GND),
-  \item dictionary-based name lookups (gender-guesser, Wiki-Gendersort, HIVOTO),
-  \item statistical name models (nomquamgender, HIVOTO-XGBoost),
-  \item transformer-based name classifiers (DistilBERT, BERT-genderize), and
-  \item a locally hosted large language model (gpt-oss:20b via Ollama).
-\end{itemize}
+\begin{table}[tb]
+\small
+\caption{Classification methods in the genderTagger pipeline, evaluated on the Schleiermacher person register
+($n=8{,}277$ entries; ground-truth subset: GND-verified records with binary gender, $n=2{,}253$).
+\emph{Resp.}: share of all entries on which the method returned any non-abstention label.
+\emph{Binary}: share classified specifically as \texttt{male} or \texttt{female}; the gap to \emph{Resp.}\ reflects ambiguous, conflicting, \texttt{unknown}, or \texttt{organisation} outputs.
+\emph{Acc.}: share of correct predictions on the ground-truth subset.
+$\dagger$~HIVOTO-XGBoost is experimental and excluded from the combined vote.}
+\label{tab:methods}
+\setlength\tabcolsep{4pt}
+\begin{tabular}{llrrrll}
+\toprule
+Family & Method & Resp.\,(\%) & Binary\,(\%) & Acc.\,(\%) & Language scope\\
+\midrule
+Authority & GND & 27.2 & 27.2 & --- & German authority file \\
+\midrule
+\multirow Dictionary & gender-guesser & 74.1 & 67.7 & 99.5 & multilingual dict \\
+ & HIVOTO & 74.1 & 70.3 & 100.0 & German hist.\ names \\
+ & Wiki-Gendersort & 73.4 & 69.5 & 99.5 & multilingual (Wikipedia) \\
+\midrule
+\multirow Statistical & NQG & 74.1 & 69.6 & 100.0 & multilingual, probabilistic \\
+ & HIVOTO-XGBoost$^\dagger$ & 72.9 & 72.5 & 99.2 & German hist.\ char \textit{n}-gram \\
+\midrule
+\multirow Transformer & HF ClassifyGender & 74.1 & 68.7 & 98.6 & Western name corpus \\
+ & HF Genderize & 74.1 & 67.4 & 98.3 & Western name corpus \\
+\midrule
+LLM & gpt-oss:20b & 100.0 & 88.5 & 99.9 & any language; full text \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-Each family encodes different assumptions about what \emph{a name} is and what evidence licenses a gender assignment. Authority lookups are deterministic and identifier-bound but cover only a fraction of any historical register. Dictionary methods are interpretable and fast but inherit the geographic and temporal bias of their underlying name lists. Statistical models generalise to unseen forms but flatten the distribution of historical spellings into a smoothed surface. Transformer classifiers learn sub-word regularities that are robust to spelling variation but opaque to inspect. The LLM, finally, is the only method that can read the surrounding biographical context. Combining the families is therefore not just a way to boost accuracy: the agreement, or disagreement, between families becomes itself an editorial signal (\S\ref{sec:aggregation}).
 
-% [FEHLT: Tabelle mit Methodenvergleich --- coverage, precision, Sprachen, Laufzeit pro Familie]
 
 \subsection{Authority-Data Lookup}
 
-\textbf{GND.} For entries that carry a GND identifier, we resolve the gender field of the German Integrated Authority File (\emph{Gemeinsame Normdatei}) record. The lookup is deterministic and identifier-bound: it does not classify a name, it retrieves a curated assignment. This makes it the most trustworthy single signal in the pipeline and the natural reference against which the name-based methods are evaluated. Coverage on the Schleiermacher register is approximately 30\% of entries.
+\textbf{GND.} For entries that carry a GND identifier, we resolve the gender field of the German Integrated Authority File (\emph{Gemeinsame Normdatei}) record. Because it retrieves a curated assignment it is the most trustworthy single signal in the pipeline and the reference against which the other methods are evaluated. 27.2\% of entries in the Schleiermacher-register contain a GND-identifier.
 
 \subsection{Dictionary-Based Name Lookups}
 
-These methods reduce a forename to a key and look it up in a precompiled name list, returning either a categorical label or a frequency-derived assignment.
+\textbf{gender-guesser.} A Python package built around a large multilingual first-name dictionary, returning one of six categorical labels (\texttt{male}, \texttt{mostly\_male}, \texttt{andy}, \texttt{mostly\_female}, \texttt{female}, \texttt{unknown}). Multi-token forenames are resolved to a single label by token consensus.
 
-\textbf{gender-guesser.} A widely used Python package built around a large multilingual first-name dictionary, returning one of six categorical labels (\texttt{male}, \texttt{mostly\_male}, \texttt{andy}, \texttt{mostly\_female}, \texttt{female}, \texttt{unknown}). Multi-token forenames are resolved to a single label by token consensus.
+\textbf{Wiki-Gendersort.} A name-to-gender mapping derived from Wikipedia and Wikidata biographies, distributed as a flat-file lookup of several hundred thousand entries~\cite{berube2020}.
 
-\textbf{Wiki-Gendersort.} A name-to-gender mapping derived from Wikipedia and Wikidata biographies, distributed as a flat-file lookup of several hundred thousand entries~\cite{berube2020}. Included as a community-curated complement to the curated dictionaries.
-
-\textbf{HIVOTO.} The \emph{Historisches Vornamentool}, a German-language historical first-name database that records both the original spelling and a normalised classification per name, with a categorical assignment and a certainty tier. Of the dictionary methods this is the only one targeted at historical forms; on a register of late-eighteenth and nineteenth-century German correspondents it is the most directly applicable lookup we have.
+\textbf{HIVOTO.} The \emph{Historisches Vornamentool}, a German-language historical first-name database that records both the original spelling and a normalised classification per name, with a categorical assignment and a certainty tier. Of the dictionary methods this is the only one targeted at historical forms; for the corpus in this case study it is the most applicable form of reference data.
 
 \subsection{Statistical Name Models}
 
-\textbf{nomquamgender.} A probabilistic classifier returning, per name, the estimated probability $p(\text{female})$; we threshold the probability into a categorical label and retain $p$ as the confidence score. Van Buskirk reports accuracy comparable to commercial paid services~\cite{vanbuskirk2022}.
+\textbf{nomquamgender.} A probabilistic classifier returning, per name, the estimated probability $p(\text{female})$; we threshold the probability into a categorical label and retain $p$ as the confidence score.
 
-\textbf{HIVOTO-XGBoost.} A character-$n$-gram XGBoost model we trained on the HIVOTO database (n-grams of length 2--5). The model gives the dictionary method's coverage a generative extension: where the lookup fails on an unseen historical spelling, the n-gram model can still produce a probability from sub-word evidence learned on the same data.
+\textbf{HIVOTO-XGBoost.} A character-$n$-gram XGBoost model we trained on the HIVOTO database (n-grams of length 2--5).
 
 \subsection{Transformer-Based Name Classifiers}
 
-Both transformer methods consume a forename string token-by-token and emit a softmax distribution over \texttt{male}/\texttt{female}.
-
 \textbf{DistilBERT (\texttt{padmajabfrl/Gender-Classification}).} A DistilBERT model fine-tuned on a large name corpus for binary gender classification.
 
-\textbf{BERT-genderize (\texttt{imranali291/genderize}).} A BERT model fine-tuned for the same task, included alongside the DistilBERT model so that within-family disagreement is observable rather than hidden behind a single representative.
+\textbf{BERT-genderize (\texttt{imranali291/genderize}).} A BERT model fine-tuned for the same task.
 
 \subsection{Locally Hosted Large Language Model}
 
-\textbf{gpt-oss:20b.} An open-weight 20-billion-parameter LLM run locally via Ollama. Unlike all other methods, it is given the full register entry --- surname, forename(s), vital dates, biographical note, alternative name forms --- and asked to return a structured JSON object with a label drawn from \{\texttt{male}, \texttt{female}, \texttt{organisation}, \texttt{unknown}\}, a confidence value, and a free-text reason. The biographical context lets it resolve cases that defeat the name-only methods (initials with disambiguating dates, institutional names, non-German forms identified through their note text); the same context is also why it disagrees systematically with the rest of the bank, an effect we return to in \S\ref{sec:agreement}.
+\textbf{gpt-oss:20b.} An open-weight 20-billion-parameter LLM run locally via Ollama. Unlike all other methods, it is given the full register entry: surname, forename(s), vital dates, biographical note, alternative name forms. It is then used to return a structured JSON object with a label drawn from \{\texttt{male}, \texttt{female}, \texttt{organisation}, \texttt{unknown}\}, a confidence value, and a free-text reason. The biographical context lets it resolve cases that defeat the name-only methods (initials with disambiguating dates, institutional names, non-German forms identified through their note text).
 
-% [FEHLT: technische Details zu jedem Modell --- Modellgrößen, Trainingsdaten, Inferenzlatenz]
-% [FEHLT: warum genau diese fünf Methoden gewählt wurden --- explizite Begründung der Auswahl]
 
 \section{Aggregation and Inter-Method Agreement}
 \label{sec:aggregation}
 
 \subsection{Combination Strategy}
 
-The methods are run in parallel rather than as a strict cascade, and their per-method labels are combined in three explicit steps: normalisation, voting (with two override rules), and certainty assignment. By default eight of the nine methods enter the combination --- the experimental HIVOTO-XGBoost model is held out so that its agreement with the remainder can be measured cleanly. Of those eight, two (the parenthetical-qualifier rule and the GND authority lookup) are not pooled into the majority vote but applied as overrides on top of it; the actual majority count is therefore taken over the remaining six methods. The combination is unweighted: per-method confidence values are recorded alongside the labels for the editor's benefit but do not influence the vote.
+The methods are run in parallel and their per-method labels are combined in three explicit steps: normalization, voting (with two override rules), and certainty assignment. By default eight of the nine methods enter the combination \footnote{The experimental HIVOTO-XGBoost model is held out}. Of those eight, two (the additional parenthetical-qualifier rule and the GND authority lookup) are not pooled into the majority vote but applied as overrides on top of it; the actual majority count is taken over the remaining six methods. The combination is unweighted. The per-method confidence values are recorded but do not influence the vote.
 
-\paragraph{Normalisation.} The methods do not share a common label vocabulary --- gender-guesser distinguishes \texttt{male}/\texttt{mostly\_male}/\texttt{andy}, HIVOTO returns a German-language certainty tier alongside the label, the LLM emits \texttt{organisation}, and the statistical models return probabilities. Before voting, every per-method label is mapped onto a shared four-value alphabet \{\texttt{male}, \texttt{female}, \texttt{institution}, \texttt{unknown}\}: leaning labels (\texttt{mostly\_male}, \texttt{mostly\_female}) collapse to their definite counterpart, all genuinely ambiguous outputs (\texttt{andy}, \texttt{conflict}, \texttt{uncertain}) collapse to \texttt{unknown}, and absent or unparseable answers are recorded as abstentions rather than as \texttt{unknown} votes. The distinction matters: an abstention means the method had no input to work with (\eg{} an entry without a forename), whereas \texttt{unknown} means the method considered the input and could not decide.
+\paragraph{Normalisation.} The methods do not share a common label vocabulary. gender-guesser distinguishes \texttt{male}/\texttt{mostly\_male}/\texttt{andy}, HIVOTO returns a German-language certainty tier alongside the label, the LLM emits \texttt{organisation}, and the statistical models return probabilities. Before voting, every per-method label is mapped onto a shared four-value alphabet \{\texttt{male}, \texttt{female}, \texttt{institution}, \texttt{unknown}\}: leaning labels (\texttt{mostly\_male}, \texttt{mostly\_female}) collapse to their definite counterpart, all genuinely ambiguous outputs (\texttt{andy}, \texttt{conflict}, \texttt{uncertain}) collapse to \texttt{unknown}, and absent or unparseable answers are recorded as abstentions rather than as \texttt{unknown} votes. This is relevant because an abstention means the method had no input to work with (\eg{} an entry without a forename), while \texttt{unknown} means ambiguities in the input, because of which the method could not decide on a label.
 
 \paragraph{Voting.} The combined label is the plain (unweighted) majority of the substantive votes across the six pooled methods that did not abstain, with one tie-breaking rule: when \texttt{unknown} ties with \texttt{male}, \texttt{female}, or \texttt{institution}, the substantive label wins, since \texttt{unknown} encodes ``no information'' rather than positive evidence against the substantive option. Two authority overrides take precedence over the vote when applicable: a parenthetical-qualifier rule that scans the surname, forename, and biographical note for German kinship markers (\eg{} \textit{Frau des \dots}, \textit{Sohn der \dots}) and structural disambiguators in parentheses; and a non-\texttt{unknown} GND lookup result. When either override fires, its label replaces the majority verdict and the entry's certainty is forced to \texttt{high} on the grounds that both signals are deterministic (rule-based or authoritative) rather than probabilistic. The agreement score recorded for the entry is the share of votes carried by the winning label among the methods that did vote.
 
@@ -255,12 +271,12 @@ To quantify how strongly the methods agree we report three complementary measure
   \item[Krippendorff's $\alpha$] complements Fleiss' $\kappa$ by tolerating missing values without restricting the analysis to fully covered entries, and is reported as a second scalar over the full register. The two measures together separate the agreement \emph{when everyone speaks} (Fleiss') from the agreement \emph{across the whole register including abstentions} (Krippendorff).
 \end{description}
 
-The pattern that emerges on the Schleiermacher Digital register is structured rather than uniform. Across the methods, the pairwise Cohen's $\kappa$ values cover the range $[0.56, 0.89]$ with an unweighted average of $0.75$; Fleiss' $\kappa$ over the $5{,}984$ entries on which all methods returned a substantive label is $0.77$, and Krippendorff's $\alpha$ over the full register of $8{,}277$ entries is $0.75$. The pairwise matrix (Figure~\ref{fig:kappa-heatmap}, with numerical values in Table~\ref{tab:kappa-matrix}) shows three internally tight clusters. The two HIVOTO methods agree most strongly with one another ($\kappa = 0.89$) and both agree closely with nomquamgender ($\kappa = 0.88$, $0.88$); gender-guesser, Wiki-Gendersort, and nomquamgender form a second tight cluster of dictionary-and-statistical methods ($\kappa$ between $0.82$ and $0.87$); and the two transformer classifiers agree at $\kappa = 0.80$. The LLM sits apart from all three clusters, agreeing with the name-only methods at noticeably lower values: $\kappa$ between $0.62$ and $0.77$ across the eight pairs, with the lowest agreement against the BERT-genderize transformer ($\kappa = 0.56$). This is a property of the method rather than a defect: the LLM is the only classifier reasoning from biographical context rather than from name strings alone.
+The pattern that emerges on the schleiermacher digital register is structured rather than uniform. Across the methods, the pairwise Cohen's $\kappa$ values cover the range $[0.56, 0.89]$ with an unweighted average of $0.75$; Fleiss' $\kappa$ over the $5{,}984$ entries on which all methods returned a substantive label is $0.77$, and Krippendorff's $\alpha$ over the full register of $8{,}277$ entries is $0.75$. The pairwise matrix (Figure~\ref{fig:kappa-heatmap}, with numerical values in Table~\ref{tab:kappa-matrix}) shows three internally tight clusters. The two HIVOTO methods agree most strongly with one another ($\kappa = 0.89$) and both agree closely with nomquamgender ($\kappa = 0.88$, $0.88$); gender-guesser, Wiki-Gendersort, and nomquamgender form a second tight cluster of dictionary-and-statistical methods ($\kappa$ between $0.82$ and $0.87$); and the two transformer classifiers agree at $\kappa = 0.80$. The LLM sits apart from all three clusters, agreeing with the name-only methods at noticeably lower values: $\kappa$ between $0.62$ and $0.77$ across the eight pairs, with the lowest agreement against the BERT-genderize transformer ($\kappa = 0.56$). This is a property of the method rather than a defect: the LLM is the only classifier reasoning from biographical context rather than from name strings alone.
 
 \begin{figure}[h]
   \centering
   \includegraphics[width=0.85\linewidth]{figures/kappa_heatmap.pdf}
-  \caption{Pairwise inter-method agreement (Cohen's $\kappa$) on the Schleiermacher Digital register. Three internally tight clusters are visible (HIVOTO/HIVOTO-XGB/nomquamgender, the dictionary methods gender-guesser/Wiki-Gendersort, and the two transformers); the LLM sits apart from all three. GND and the parenthetical-qualifier rule are excluded because their coverage overlap with the name-based methods is too small for a stable pairwise estimate.}
+  \caption{Pairwise inter-method agreement (Cohen's $\kappa$) on the schleiermacher digital register. Three internally tight clusters are visible (HIVOTO/HIVOTO-XGB/nomquamgender, the dictionary methods gender-guesser/Wiki-Gendersort, and the two transformers); the LLM sits apart from all three. GND and the parenthetical-qualifier rule are excluded because their coverage overlap with the name-based methods is too small for a stable pairwise estimate.}
   \label{fig:kappa-heatmap}
 \end{figure}
 
@@ -334,12 +350,12 @@ These are precisely the entries flagged for editorial review: disagreement funct
 
 \subsection{Output Categories}
 
-genderTagger uses four output categories: \texttt{male}, \texttt{female}, \texttt{uncertain}, and \texttt{institution}. The binary main classification reflects what name-based methods can in principle resolve --- a statistical association between historical name forms and recorded gender. Non-binary, trans, and agender identities are not addressable from name strings alone and are deliberately not represented as classifier output categories. This is a limit we record rather than work around: the tool documents what it does not know, in the same spirit that \texttt{@cert} records what it is uncertain about. We return to this question in \S[TODO: discussion / limitations section].
+genderTagger uses four output categories: \texttt{male}, \texttt{female}, \texttt{uncertain}, and \texttt{institution}. The binary main classification reflects what name-based methods can in principle resolve --- a statistical association between historical name forms and implied gender. Non-binary, trans, and agender identities are not addressable from name strings alone and are deliberately not represented as classifier output categories. This is a limit we record rather than work around: the tool documents what it does not know, in the same spirit that \texttt{@cert} records what it is uncertain about. We return to this question in \S[TODO: discussion / limitations section].
 
-\section{Case Study: Schleiermacher Digital}
+\section{Case Study: schleiermacher digital}
 \label{sec:case-study}
 
-The development of genderTagger was conducted in collaboration with the \emph{Schleiermacher Digital} edition, which provides digital access to the correspondence, lectures, and diaries of the theologian Friedrich Schleiermacher (1768--1834).
+The development of genderTagger was conducted in collaboration with the \emph{schleiermacher digital} edition, which provides digital access to the correspondence, lectures, and diaries of the theologian Friedrich Schleiermacher (1768--1834).
 % [FEHLT: kurze Beschreibung der Edition und ihres wissenschaftlichen Kontexts]
 
 \paragraph{The register.} The edition's person register contains $8{,}277$ entries at the time of writing. Only $2{,}253$ of those entries ($27.2\%$) carry a GND identifier resolvable to a gendered authority record; the remaining $6{,}024$ entries ($72.8\%$) require alternative classification approaches. This distribution is representative of the practical limits of authority-file-based enrichment for a register of this size and historical scope: even a relatively well-curated GND attachment leaves nearly three quarters of the entries without an authoritative gender signal, motivating the multi-method approach described in \S\ref{sec:aggregation}.
@@ -391,7 +407,7 @@ The development of genderTagger was conducted in collaboration with the \emph{Sc
     GND authority lookup           & $2{,}253$ & $27.2\%$  \\
     \bottomrule
   \end{tabular}
-  \caption{Per-method coverage on the Schleiermacher Digital person register ($N = 8{,}277$). Coverage is the number of entries on which the method returned a substantive label (not an abstention).}
+  \caption{Per-method coverage on the schleiermacher digital person register ($N = 8{,}277$). Coverage is the number of entries on which the method returned a substantive label (not an abstention).}
   \label{tab:coverage}
 \end{table}
 
@@ -427,7 +443,7 @@ The development of genderTagger was conducted in collaboration with the \emph{Sc
 \section{Human-in-the-Loop Workflow}
 \label{sec:hitl}
 
-Rather than treating automated classifications as definitive assignments, genderTagger is explicitly designed as a human-in-the-loop workflow in which editorial decisions remain subject to human interpretation and revision. A typical session runs: import TEI $\to$ batch-classify with all methods $\to$ inspect agreement and disagreement $\to$ annotate (confirm or override) $\to$ export. Classifier execution is decoupled from the user interface: long-running methods such as transformer models and the local LLM run in the background, while editors can already begin reviewing entries that the faster methods have classified. This matters in practice --- running a 20-billion-parameter local LLM over several thousand register entries takes hours, and a blocking UI would make the tool unusable on registers of realistic size.
+Rather than treating automated classifications as definitive assignments, genderTagger is explicitly designed as a human-in-the-loop workflow in which editorial decisions remain subject to human interpretation and revision. A typical session runs:  \texttt{import TEI $\to$ batch-classify with all methods $\to$ inspect agreement and disagreement $\to$ annotate (confirm or override) $\to$ export}. Classifier execution is decoupled from the user interface: long-running methods such as transformer models and the local LLM run in the background, while editors can already begin reviewing entries that the faster methods have classified. This matters in practice --- running a 20-billion-parameter local LLM over several thousand register entries takes hours, and a blocking UI would make the tool unusable on registers of realistic size.
 
 % [FEHLT: Workflow-Diagramm (Import -> Klassifikation -> Triage über Agreement -> Review/Override -> Export) als Abbildung]
 % [FEHLT: Beschreibung der konkreten editorischen Review-Prozesse: Wer entscheidet wann? Vier-Augen-Prinzip? Umgang mit \texttt{cert="low"}-Einträgen? Versionierung der editorischen Overrides?]
@@ -437,6 +453,12 @@ Rather than treating automated classifications as definitive assignments, gender
 \label{sec:conclusion}
 
 genderTagger demonstrates how semi-automated gender annotation can support metadata enrichment workflows in TEI/XML-based digital editions while preserving editorial oversight and interpretative responsibility. By combining multiple classification methods, integrating uncertainty-aware review mechanisms, and embedding annotation directly into existing editorial infrastructures, the system contributes both methodological and infrastructural perspectives to ongoing discussions surrounding bias, metadata enrichment, and human-centered AI in the Digital Humanities.
+
+As geographer Joni Seager (2016) remarked, albeit in a different context: "what gets counted counts". The same applies in digital editions. If gender is not a category to be captured and explored, the imbalances it encodes remain invisible, and invisible imbalances cannot be analyzed or studied further. By building a genderTagger and integrating gender as a searchable category in the registers of digital editions, we take a small but meaningful step toward creating gender visibility.
+
+If gender is a documented category, researchers can, for instance, systematically ask which women were part of a literary network, how often they were mentioned compared to their male contemporaries, and in what roles they appeared. They can also trace whether women and other marginalized groups wrote about different topics or in different styles, and whether those differences reflect genuine creative choices or the constraints imposed on them by society. All these are further researches which only can be carried out if gender is modelled in the first place.
+
+But the implications reach beyond academic research. When gender becomes a legible category in our digital cultural heritage, it sends a signal about what we consider worth knowing. It insists that the stories of women and other marginalized groups are not footnotes to history, but part of its fabric. And it gives future readers the tools to ask questions that previous generations simply could not.
 
 % [FEHLT: klare Zusammenfassung der wichtigsten Ergebnisse]
 
@@ -462,6 +484,6 @@ No AI hallucinations over here.
 % Bibliography with BibTeX
 % ========================
 %\bibliographystyle{eceasst}
-%\bibliography{}
+\bibliography{gendertagger}
 
 \end{document}
