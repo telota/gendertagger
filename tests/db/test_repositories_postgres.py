@@ -150,6 +150,8 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
             method_execution_id=execution.id,
             batch_index=0,
             queue_name="cpu",
+            record_offset=0,
+            record_count=1,
         )
     )
     prediction_result = PredictionResult(

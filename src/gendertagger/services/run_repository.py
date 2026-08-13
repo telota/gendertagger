@@ -13,6 +13,7 @@ from gendertagger.models.run import (
     RunCreate,
     TaskBatch,
     TaskBatchCreate,
+    TaskBatchPlan,
 )
 
 
@@ -41,6 +42,14 @@ class RunRepository(Protocol):
 
     def get_task_batch(self, task_batch_id: UUID) -> TaskBatch | None:
         """Return a task batch by ID, or ``None`` when absent."""
+        ...
+
+    def create_task_batches(
+        self,
+        method_execution_id: UUID,
+        plans: Sequence[TaskBatchPlan],
+    ) -> list[TaskBatch]:
+        """Idempotently persist a planned batch set for a method execution."""
         ...
 
     def add_predictions(

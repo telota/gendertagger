@@ -158,6 +158,16 @@ class MethodExecution(BaseModel):
         return self
 
 
+class TaskBatchPlan(BaseModel):
+    """Deterministic person slice covered by one planned task batch."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    batch_index: int = Field(ge=0)
+    record_offset: int = Field(ge=0)
+    record_count: int = Field(ge=1)
+
+
 class TaskBatchCreate(BaseModel):
     """Validated identity and routing used to create a retryable task batch."""
 
@@ -166,6 +176,8 @@ class TaskBatchCreate(BaseModel):
     method_execution_id: UUID
     batch_index: int = Field(ge=0)
     queue_name: str = Field(pattern=QUEUE_NAME_PATTERN, max_length=100)
+    record_offset: int = Field(ge=0)
+    record_count: int = Field(ge=1)
 
 
 class TaskBatch(TaskBatchCreate):

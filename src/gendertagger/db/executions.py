@@ -180,6 +180,8 @@ class TaskBatchRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
         CheckConstraint("success_count >= 0", name="success_count_nonnegative"),
         CheckConstraint("abstain_count >= 0", name="abstain_count_nonnegative"),
         CheckConstraint("error_count >= 0", name="error_count_nonnegative"),
+        CheckConstraint("record_offset >= 0", name="record_offset_nonnegative"),
+        CheckConstraint("record_count > 0", name="record_count_positive"),
         CheckConstraint(
             "finished_at IS NULL OR started_at IS NOT NULL",
             name="batch_timing_order_present",
@@ -193,6 +195,8 @@ class TaskBatchRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
         nullable=False,
     )
     batch_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    record_offset: Mapped[int] = mapped_column(Integer, nullable=False)
+    record_count: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[TaskBatchStatus] = mapped_column(
         stored_enum(TaskBatchStatus, name="task_batch_status"),
         nullable=False,

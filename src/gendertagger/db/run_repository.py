@@ -26,6 +26,7 @@ from gendertagger.models.run import (
     RunCreate,
     TaskBatch,
     TaskBatchCreate,
+    TaskBatchPlan,
 )
 from gendertagger.services.persistence_errors import (
     ImmutableResourceError,
@@ -135,6 +136,8 @@ class SqlAlchemyRunRepository:
             batch_index=command.batch_index,
             status=TaskBatchStatus.pending,
             queue_name=command.queue_name,
+            record_offset=command.record_offset,
+            record_count=command.record_count,
             worker_task_id=None,
             attempt_count=0,
             success_count=0,
@@ -153,6 +156,51 @@ class SqlAlchemyRunRepository:
         """Return a task batch contract by ID without exposing its row."""
         row = self._session.get(TaskBatchRow, task_batch_id)
         return None if row is None else self._task_batch_from_row(row)
+
+    def create_task_batches(
+        self,
+        method_execution_id: UUID,
+        plans: Sequence[TaskBatchPlan],
+    ) -> list[TaskBatch]:
+        """Idempotently persist a planned batch set and return it in index order.
+
+        Re-planning with an identical batch size is a no-op: conflicting
+        ``(method_execution_id, batch_index)`` rows are kept, not rewritten.
+        """
+        execution = self._session.get(MethodExecutionRow, method_execution_id)
+        if execution is None:
+            msg = f"method execution {method_execution_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        if plans:
+            if len({plan.batch_index for plan in plans}) != len(plans):
+                msg = "a batch plan must contain each batch index at most once"
+                raise ValueError(msg)
+            payloads: list[dict[str, object]] = [
+                {
+                    "id": uuid4(),
+                    "method_execution_id": method_execution_id,
+                    "batch_index": plan.batch_index,
+                    "status": TaskBatchStatus.pending,
+                    "queue_name": execution.queue_name,
+                    "record_offset": plan.record_offset,
+                    "record_count": plan.record_count,
+                }
+                for plan in plans
+            ]
+            task_batch_table = cast(Table, TaskBatchRow.__table__)
+            statement = (
+                insert(task_batch_table)
+                .values(payloads)
+                .on_conflict_do_nothing(constraint="execution_batch_index")
+            )
+            self._session.execute(statement)
+            self._session.flush()
+        rows = self._session.scalars(
+            select(TaskBatchRow)
+            .where(TaskBatchRow.method_execution_id == method_execution_id)
+            .order_by(TaskBatchRow.batch_index)
+        )
+        return [self._task_batch_from_row(row) for row in rows]
 
     def add_predictions(
         self,
@@ -327,6 +375,8 @@ class SqlAlchemyRunRepository:
             batch_index=row.batch_index,
             status=row.status,
             queue_name=row.queue_name,
+            record_offset=row.record_offset,
+            record_count=row.record_count,
             worker_task_id=row.worker_task_id,
             attempt_count=row.attempt_count,
             success_count=row.success_count,
