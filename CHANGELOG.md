@@ -50,6 +50,9 @@ the phased plan that resumes application code.
   frontend, and persistence placeholders in [`frontend/README.md`](frontend/README.md), `migrations/`, and
   `deploy/`.
 - Reproducible dependency management via `uv.lock`, hatchling builds, and PEP 735 dependency groups.
+- Authenticated FastAPI `/api/v1` resources for projects, immutable TEI snapshot imports, runs, the method
+  registry, aggregations/results, append-only annotations, and server-filtered review lists; public contracts
+  include cursor pagination, normalized error envelopes, a committed OpenAPI snapshot, and typed `CurrentUser`.
 
 ### Changed
 

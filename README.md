@@ -38,10 +38,17 @@ The design preserves the published multi-method workflow while adding persistent
 
 ## Repository state
 
-Phase 1 is complete: canonical contracts, typed method adapters, all ten versioned normalization profiles,
-pure `reference_v1` aggregation, agreement/certainty assignment, and two approved golden scientific oracles
-are implemented without database, API, or queue dependencies. The golden suite exercises observed raw method
-labels through the complete Phase 1 result and records the one approved difference from legacy behavior.
+Phases 1 through 3 are complete:
+
+- Phase 1 establishes canonical contracts, typed method adapters, all ten versioned normalization profiles,
+  pure `reference_v1` aggregation, agreement/certainty assignment, and two approved scientific oracles.
+- Phase 2 provides SQLAlchemy persistence, repository/unit-of-work boundaries, Alembic migrations, and
+  PostgreSQL integration coverage without leaking ORM types into application services.
+- Phase 3 provides the authenticated `/api/v1` FastAPI vertical slice for projects, immutable snapshot
+  imports, runs, methods, aggregations/results, annotations, and filtered review lists, with a committed
+  OpenAPI contract and typed `CurrentUser` boundary.
+
+Celery execution, production method migration, evaluation/export, and the Vue client remain later phases.
 
 ## Development checks
 
