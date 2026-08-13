@@ -12,8 +12,10 @@ license = "MIT"
 license-files = ["LICENSE"]
 dependencies = [
   "alembic>=1.16,<2",
+  "fastapi>=0.116,<1",
   "psycopg[binary]>=3.2,<4",
   "pydantic>=2.13.4,<3",
+  "pydantic-settings>=2.11,<3",
   "pyyaml>=6.0.3,<7",
   "sqlalchemy>=2.0,<3",
 ]
@@ -50,6 +52,7 @@ lint = [
 ]
 test = [
   "coverage[toml]==7.15.4",
+  "httpx2>=2,<3",
   "hypothesis==6.165.5",
   "pytest==9.1.1",
   "pytest-cov==7.1.0",

@@ -1,7 +1,8 @@
 """Application transaction boundary contracts."""
 
+from collections.abc import Callable
 from types import TracebackType
-from typing import Protocol, Self
+from typing import Protocol, Self, TypeAlias
 
 from gendertagger.services.aggregation_repository import AggregationRepository
 from gendertagger.services.artifact_repository import ArtifactRepository
@@ -64,3 +65,6 @@ class UnitOfWork(Protocol):
     def rollback(self) -> None:
         """Roll back all repository writes in the current transaction."""
         ...
+
+
+UnitOfWorkFactory: TypeAlias = Callable[[], UnitOfWork]
