@@ -12,6 +12,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 dependencies = [
   "alembic>=1.16,<2",
+  "celery>=5.4,<6",
   "fastapi>=0.116,<1",
   "lxml>=5.4,<7",
   "psycopg[binary]>=3.2,<4",
@@ -19,6 +20,7 @@ dependencies = [
   "pydantic-settings>=2.11,<3",
   "python-multipart>=0.0.20,<1",
   "pyyaml>=6.0.3,<7",
+  "redis>=5,<7",
   "sqlalchemy>=2.0,<3",
 ]
 
@@ -156,6 +158,11 @@ enable_error_code = [
   "truthy-iterable",
   "unused-awaitable",
 ]
+
+# Celery and kombu ship no py.typed marker; confine the untyped boundary to their imports.
+[[tool.mypy.overrides]]
+module = ["celery.*", "kombu.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 minversion = "9.1"
