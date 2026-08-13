@@ -23,6 +23,7 @@ from gendertagger.db.base import (
     CreatedAtMixin,
     UpdatedAtMixin,
     UuidPrimaryKeyMixin,
+    enum_check,
     stored_enum,
 )
 from gendertagger.models.classification import CanonicalLabel
@@ -46,7 +47,10 @@ class UserRoleRow(Base):
     """Persistence row assigning one global authorization role to a user."""
 
     __tablename__ = "user_roles"
-    __table_args__ = (PrimaryKeyConstraint("user_id", "role", name="pk_user_roles"),)
+    __table_args__ = (
+        PrimaryKeyConstraint("user_id", "role", name="pk_user_roles"),
+        enum_check("role", Role, name="role_allowed"),
+    )
 
     user_id: Mapped[UUID] = mapped_column(
         POSTGRESQL_UUID(as_uuid=True),
@@ -64,6 +68,8 @@ class AnnotationRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
 
     __tablename__ = "annotations"
     __table_args__ = (
+        enum_check("action", ReviewAction, name="action_allowed"),
+        enum_check("label", CanonicalLabel, name="label_allowed"),
         ForeignKeyConstraint(
             ["person_record_id", "dataset_snapshot_id"],
             ["person_records.id", "person_records.dataset_snapshot_id"],
@@ -120,6 +126,7 @@ class ReviewStateRow(UpdatedAtMixin, Base):
 
     __tablename__ = "review_states"
     __table_args__ = (
+        enum_check("workflow_state", ReviewWorkflowState, name="workflow_state_allowed"),
         PrimaryKeyConstraint(
             "dataset_snapshot_id",
             "person_record_id",

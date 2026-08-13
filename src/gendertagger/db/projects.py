@@ -19,7 +19,13 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.dialects.postgresql import UUID as POSTGRESQL_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from gendertagger.db.base import Base, CreatedAtMixin, UuidPrimaryKeyMixin, stored_enum
+from gendertagger.db.base import (
+    Base,
+    CreatedAtMixin,
+    UuidPrimaryKeyMixin,
+    enum_check,
+    stored_enum,
+)
 from gendertagger.models.lifecycle import DatasetSnapshotStatus
 
 
@@ -29,7 +35,7 @@ class ProjectRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
     __tablename__ = "projects"
     __table_args__ = (
         CheckConstraint(
-            "slug ~ '^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$'",
+            "slug ~ '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'",
             name="slug_format",
         ),
     )
@@ -44,6 +50,7 @@ class DatasetSnapshotRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
 
     __tablename__ = "dataset_snapshots"
     __table_args__ = (
+        enum_check("status", DatasetSnapshotStatus, name="status_allowed"),
         CheckConstraint(
             "source_sha256 ~ '^[0-9a-f]{64}$'",
             name="source_sha256_format",
@@ -138,7 +145,7 @@ class PersonExternalIdRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
     __table_args__ = (
         UniqueConstraint("person_record_id", "scheme", name="person_scheme"),
         CheckConstraint(
-            "scheme ~ '^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$'",
+            "scheme ~ '^[a-z][a-z0-9]*(_[a-z0-9]+)*$'",
             name="scheme_format",
         ),
         CheckConstraint("btrim(value) <> ''", name="value_nonblank"),

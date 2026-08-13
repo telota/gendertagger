@@ -21,7 +21,13 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as POSTGRESQL_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from gendertagger.db.base import Base, CreatedAtMixin, UuidPrimaryKeyMixin, stored_enum
+from gendertagger.db.base import (
+    Base,
+    CreatedAtMixin,
+    UuidPrimaryKeyMixin,
+    enum_check,
+    stored_enum,
+)
 from gendertagger.models.classification import CanonicalLabel, PredictionStatus
 from gendertagger.models.lifecycle import MethodExecutionStatus, RunStatus, TaskBatchStatus
 
@@ -31,6 +37,7 @@ class RunRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
 
     __tablename__ = "runs"
     __table_args__ = (
+        enum_check("status", RunStatus, name="status_allowed"),
         CheckConstraint(
             "config_sha256 ~ '^[0-9a-f]{64}$'",
             name="config_sha256_format",
@@ -79,9 +86,10 @@ class MethodExecutionRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
 
     __tablename__ = "method_executions"
     __table_args__ = (
+        enum_check("status", MethodExecutionStatus, name="status_allowed"),
         UniqueConstraint("run_id", "method_name", name="run_method_name"),
         CheckConstraint(
-            "method_name ~ '^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$'",
+            "method_name ~ '^[a-z][a-z0-9]*(_[a-z0-9]+)*$'",
             name="method_name_format",
         ),
         CheckConstraint(
@@ -165,6 +173,7 @@ class TaskBatchRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
 
     __tablename__ = "task_batches"
     __table_args__ = (
+        enum_check("status", TaskBatchStatus, name="status_allowed"),
         UniqueConstraint("method_execution_id", "batch_index", name="execution_batch_index"),
         CheckConstraint("batch_index >= 0", name="batch_index_nonnegative"),
         CheckConstraint("attempt_count >= 0", name="attempt_count_nonnegative"),
@@ -213,6 +222,8 @@ class PredictionRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
 
     __tablename__ = "predictions"
     __table_args__ = (
+        enum_check("label", CanonicalLabel, name="label_allowed"),
+        enum_check("status", PredictionStatus, name="status_allowed"),
         UniqueConstraint(
             "method_execution_id",
             "person_record_id",

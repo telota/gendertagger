@@ -17,7 +17,7 @@ class ArtifactRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
     __tablename__ = "artifacts"
     __table_args__ = (
         CheckConstraint(
-            "logical_type ~ '^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$'",
+            "logical_type ~ '^[a-z][a-z0-9]*(_[a-z0-9]+)*$'",
             name="logical_type_format",
         ),
         CheckConstraint(

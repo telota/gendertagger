@@ -22,7 +22,13 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.dialects.postgresql import UUID as POSTGRESQL_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from gendertagger.db.base import Base, CreatedAtMixin, UuidPrimaryKeyMixin, stored_enum
+from gendertagger.db.base import (
+    Base,
+    CreatedAtMixin,
+    UuidPrimaryKeyMixin,
+    enum_check,
+    stored_enum,
+)
 from gendertagger.models.aggregation import AggregationOutcome, OverrideSource
 from gendertagger.models.classification import AgreementTier, CanonicalLabel, CertaintyTier
 from gendertagger.models.lifecycle import AggregationExecutionStatus
@@ -33,8 +39,9 @@ class AggregationExecutionRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
 
     __tablename__ = "aggregation_executions"
     __table_args__ = (
+        enum_check("status", AggregationExecutionStatus, name="status_allowed"),
         CheckConstraint(
-            "strategy ~ '^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$'",
+            "strategy ~ '^[a-z][a-z0-9]*(_[a-z0-9]+)*$'",
             name="strategy_format",
         ),
         CheckConstraint(
@@ -109,6 +116,11 @@ class AggregatedResultRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
 
     __tablename__ = "aggregated_results"
     __table_args__ = (
+        enum_check("outcome", AggregationOutcome, name="outcome_allowed"),
+        enum_check("label", CanonicalLabel, name="label_allowed"),
+        enum_check("override_source", OverrideSource, name="override_source_allowed"),
+        enum_check("agreement_tier", AgreementTier, name="agreement_tier_allowed"),
+        enum_check("certainty_tier", CertaintyTier, name="certainty_tier_allowed"),
         UniqueConstraint(
             "aggregation_execution_id",
             "person_record_id",

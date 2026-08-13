@@ -6,7 +6,7 @@ from enum import StrEnum
 from typing import TypeVar
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Enum, MetaData, func
+from sqlalchemy import CheckConstraint, DateTime, Enum, MetaData, column, func
 from sqlalchemy.dialects.postgresql import UUID as POSTGRESQL_UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -26,15 +26,25 @@ def _enum_values(enum_class: type[StrEnum]) -> Sequence[str]:
 
 
 def stored_enum(enum_class: type[EnumType], *, name: str) -> Enum:
-    """Build a constrained string enum without a PostgreSQL enum type."""
+    """Build a validated string enum without a PostgreSQL enum type."""
     return Enum(
         enum_class,
         name=name,
         native_enum=False,
-        create_constraint=True,
+        create_constraint=False,
         validate_strings=True,
         values_callable=_enum_values,
     )
+
+
+def enum_check(
+    column_name: str,
+    enum_class: type[StrEnum],
+    *,
+    name: str,
+) -> CheckConstraint:
+    """Build an explicit, Alembic-comparable enum value constraint."""
+    return CheckConstraint(column(column_name).in_(_enum_values(enum_class)), name=name)
 
 
 class Base(DeclarativeBase):
