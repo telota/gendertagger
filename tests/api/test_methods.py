@@ -1,4 +1,3 @@
-from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi.testclient import TestClient
@@ -10,7 +9,7 @@ from gendertagger.api.dependencies import get_method_registry
 from gendertagger.api.settings import AppSettings
 from gendertagger.methods.base import MethodConfig
 from gendertagger.models.method import MethodDescriptor
-from gendertagger.models.user import Role, User
+from gendertagger.models.user import CurrentUser, Role
 from gendertagger.services.method_registry import (
     MethodRegistration,
     MethodRegistry,
@@ -20,7 +19,6 @@ from gendertagger.services.unit_of_work import UnitOfWork
 DATABASE_URL = "postgresql+psycopg://api:secret@localhost/gendertagger"
 CODE_GIT_COMMIT = "a" * 40
 DEPENDENCY_LOCK_SHA256 = "b" * 64
-NOW = datetime(2026, 8, 13, tzinfo=UTC)
 
 
 class EmptyMethodConfig(MethodConfig):
@@ -31,14 +29,11 @@ def _unused_unit_of_work_factory() -> UnitOfWork:
     raise AssertionError("dependency override must bypass persistence")
 
 
-def _authenticated_user() -> User:
-    return User(
+def _authenticated_user() -> CurrentUser:
+    return CurrentUser(
         id=UUID("a2f03480-77a7-4f24-82cb-07604d5c2483"),
         display_name="Method viewer",
         roles={Role.viewer},
-        is_active=True,
-        created_at=NOW,
-        updated_at=NOW,
     )
 
 

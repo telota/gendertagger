@@ -9,7 +9,7 @@ from gendertagger.api.authorization import require_operator, require_viewer
 from gendertagger.api.dependencies import get_run_service
 from gendertagger.api.errors import ApiRequestError
 from gendertagger.models.run import Run, RunCreateRequest
-from gendertagger.models.user import User
+from gendertagger.models.user import CurrentUser
 from gendertagger.services.method_registry import MethodRegistryError
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
@@ -24,7 +24,7 @@ router = APIRouter(tags=["runs"])
 def create_run(
     command: RunCreateRequest,
     service: Annotated[RunService, Depends(get_run_service)],
-    _: Annotated[User, Depends(require_operator)],
+    _: Annotated[CurrentUser, Depends(require_operator)],
 ) -> Run:
     """Persist a validated created run without exposing queue internals."""
     try:
@@ -50,7 +50,7 @@ def create_run(
 def get_run(
     run_id: UUID,
     service: Annotated[RunService, Depends(get_run_service)],
-    _: Annotated[User, Depends(require_viewer)],
+    _: Annotated[CurrentUser, Depends(require_viewer)],
 ) -> Run:
     """Read current persisted run state."""
     try:

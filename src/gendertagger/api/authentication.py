@@ -3,14 +3,15 @@
 from typing import Annotated, Protocol, cast
 from uuid import UUID
 
-from fastapi import Depends, Request, status
+from fastapi import APIRouter, Depends, Request, status
 
 from gendertagger.api.dependencies import get_unit_of_work_factory
 from gendertagger.api.errors import ApiRequestError
-from gendertagger.models.user import User
+from gendertagger.models.user import CurrentUser
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 
 _SAFE_REQUEST_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "TRACE"})
+router = APIRouter(tags=["authentication"])
 
 
 class AuthenticationBackend(Protocol):
@@ -52,8 +53,8 @@ def require_authenticated_user(
         UnitOfWorkFactory,
         Depends(get_unit_of_work_factory),
     ],
-) -> User:
-    """Resolve one active persisted user or return an indistinguishable 401."""
+) -> CurrentUser:
+    """Resolve one active user as a provider-neutral public principal."""
     user_id = authentication_backend.authenticate(request)
     if user_id is None:
         raise _authentication_required()
@@ -62,12 +63,12 @@ def require_authenticated_user(
         user = unit_of_work.users.get_user(user_id)
     if user is None or not user.is_active:
         raise _authentication_required()
-    return user
+    return CurrentUser(id=user.id, display_name=user.display_name, roles=user.roles)
 
 
 def require_csrf_protection(
     request: Request,
-    authenticated_user: Annotated[User, Depends(require_authenticated_user)],
+    authenticated_user: Annotated[CurrentUser, Depends(require_authenticated_user)],
     authentication_backend: Annotated[
         AuthenticationBackend,
         Depends(get_authentication_backend),
@@ -82,6 +83,14 @@ def require_csrf_protection(
             code="forbidden",
             message="CSRF validation failed.",
         )
+
+
+@router.get("/me", response_model=CurrentUser)
+def read_current_user(
+    current_user: Annotated[CurrentUser, Depends(require_authenticated_user)],
+) -> CurrentUser:
+    """Return the authenticated principal without persistence-only fields."""
+    return current_user
 
 
 def _authentication_required() -> ApiRequestError:

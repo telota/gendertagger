@@ -15,7 +15,7 @@ from gendertagger.api.authentication import (
 )
 from gendertagger.api.router import create_api_router
 from gendertagger.api.settings import AppSettings
-from gendertagger.models.user import Role, User
+from gendertagger.models.user import CurrentUser, Role, User
 from gendertagger.services.unit_of_work import UnitOfWork
 from gendertagger.services.user_repository import UserRepository
 
@@ -107,7 +107,7 @@ def _protected_client(
 
     @protected_router.get("/protected")
     def _read_protected(
-        authenticated_user: Annotated[User, Depends(require_authenticated_user)],
+        authenticated_user: Annotated[CurrentUser, Depends(require_authenticated_user)],
     ) -> dict[str, str]:
         return {"user_id": str(authenticated_user.id)}
 
@@ -149,6 +149,20 @@ def test_authenticated_safe_request_returns_persisted_user_without_csrf_check() 
     assert response.status_code == 200
     assert response.json() == {"user_id": str(USER_ID)}
     assert backend.csrf_check_count == 0
+
+
+def test_me_exposes_typed_principal_without_persistence_fields() -> None:
+    backend = StubAuthenticationBackend(user_id=USER_ID)
+    client, _ = _protected_client(user=_user(), authentication_backend=backend)
+
+    response = client.get("/api/v1/me")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": str(USER_ID),
+        "display_name": "API Reviewer",
+        "roles": [Role.reviewer.value],
+    }
 
 
 def test_unsafe_request_requires_backend_csrf_validation() -> None:

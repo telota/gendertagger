@@ -17,6 +17,24 @@ class Role(StrEnum):
     admin = "admin"
 
 
+class CurrentUser(BaseModel):
+    """Authenticated principal exposed at the public API boundary."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    id: UUID
+    display_name: str = Field(min_length=1, max_length=200)
+    roles: set[Role]
+
+    @field_validator("display_name")
+    @classmethod
+    def _validate_display_name(cls, value: str) -> str:
+        if not value.strip():
+            msg = "display_name must not be blank"
+            raise ValueError(msg)
+        return value
+
+
 class UserCreate(BaseModel):
     """Provider-neutral values used to create an attributable user."""
 

@@ -17,7 +17,7 @@ from gendertagger.models.project import (
     SnapshotImportRequest,
     TeiImportProfile,
 )
-from gendertagger.models.user import User
+from gendertagger.models.user import CurrentUser
 from gendertagger.services.pagination import InvalidCursorError
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
@@ -33,7 +33,7 @@ router = APIRouter(tags=["projects"])
 def create_project(
     command: ProjectCreate,
     service: Annotated[ProjectService, Depends(get_project_service)],
-    _: Annotated[User, Depends(require_operator)],
+    _: Annotated[CurrentUser, Depends(require_operator)],
 ) -> Project:
     """Create one editorial project as an operator."""
     return service.create_project(command)
@@ -43,7 +43,7 @@ def create_project(
 def get_project(
     project_id: UUID,
     service: Annotated[ProjectService, Depends(get_project_service)],
-    _: Annotated[User, Depends(require_viewer)],
+    _: Annotated[CurrentUser, Depends(require_viewer)],
 ) -> Project:
     """Read one project without exposing persistence models."""
     try:
@@ -64,7 +64,7 @@ def import_snapshot(
         File(description="Exact TEI XML source retained as an immutable artifact."),
     ],
     service: Annotated[ProjectService, Depends(get_project_service)],
-    _: Annotated[User, Depends(require_operator)],
+    _: Annotated[CurrentUser, Depends(require_operator)],
     profile: Annotated[TeiImportProfile, Form()] = (TeiImportProfile.tei_p5_person_register_v1),
 ) -> DatasetSnapshot:
     """Preserve and synchronously import a bounded TEI upload."""
@@ -88,7 +88,7 @@ def import_snapshot(
 def get_snapshot(
     snapshot_id: UUID,
     service: Annotated[ProjectService, Depends(get_project_service)],
-    _: Annotated[User, Depends(require_viewer)],
+    _: Annotated[CurrentUser, Depends(require_viewer)],
 ) -> DatasetSnapshot:
     """Read one immutable dataset snapshot lifecycle resource."""
     try:
@@ -104,7 +104,7 @@ def get_snapshot(
 def list_people(
     snapshot_id: UUID,
     service: Annotated[ProjectService, Depends(get_project_service)],
-    _: Annotated[User, Depends(require_viewer)],
+    _: Annotated[CurrentUser, Depends(require_viewer)],
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
     cursor: Annotated[str | None, Query(max_length=2048)] = None,
 ) -> CursorPage[PersonRecord]:

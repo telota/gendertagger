@@ -296,10 +296,9 @@ class CurrentUser(BaseModel):
     id: UUID
     display_name: str
     roles: set[Role]
-    project_permissions: dict[UUID, set[Permission]] = Field(default_factory=dict)
 ```
 
-The exact identity provider is infrastructure. Services consume an explicit authenticated principal.
+The exact identity provider is infrastructure. Phase 3 exposes global roles only; project-scoped permissions remain deferred until their semantics are defined. Services consume this explicit authenticated principal.
 
 ### Review concurrency
 ```python

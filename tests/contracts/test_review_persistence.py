@@ -14,7 +14,7 @@ from gendertagger.models.review import (
     ReviewState,
     ReviewWorkflowState,
 )
-from gendertagger.models.user import Role, User, UserCreate
+from gendertagger.models.user import CurrentUser, Role, User, UserCreate
 from gendertagger.services.persistence_errors import ReviewConflictError
 
 USER_ID = UUID("a0000000-0000-0000-0000-000000000001")
@@ -40,6 +40,20 @@ def test_provider_neutral_user_preserves_global_roles() -> None:
 
     assert user.roles == {Role.viewer, Role.reviewer}
     assert user.is_active is True
+
+
+def test_current_user_exposes_only_public_principal_fields() -> None:
+    principal = CurrentUser(
+        id=USER_ID,
+        display_name="Reviewer",
+        roles={Role.viewer, Role.reviewer},
+    )
+
+    assert principal.model_dump() == {
+        "id": USER_ID,
+        "display_name": "Reviewer",
+        "roles": {Role.viewer, Role.reviewer},
+    }
 
 
 def test_user_rejects_blank_display_name() -> None:

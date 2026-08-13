@@ -8,7 +8,7 @@ from gendertagger.api.authorization import require_reviewer
 from gendertagger.api.dependencies import get_annotation_service
 from gendertagger.api.errors import ApiRequestError
 from gendertagger.models.review import Annotation, AnnotationCreate
-from gendertagger.models.user import User
+from gendertagger.models.user import CurrentUser
 from gendertagger.services.annotations import AnnotationService
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
@@ -27,7 +27,7 @@ router = APIRouter(tags=["annotations"])
 def create_annotation(
     command: AnnotationCreate,
     service: Annotated[AnnotationService, Depends(get_annotation_service)],
-    reviewer: Annotated[User, Depends(require_reviewer)],
+    reviewer: Annotated[CurrentUser, Depends(require_reviewer)],
 ) -> Annotation:
     """Append an attributable decision when the observed revision is current."""
     try:

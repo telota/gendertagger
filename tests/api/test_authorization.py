@@ -1,22 +1,16 @@
-from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
 
 from gendertagger.api.authorization import has_role
-from gendertagger.models.user import Role, User
-
-NOW = datetime(2026, 8, 13, tzinfo=UTC)
+from gendertagger.models.user import CurrentUser, Role
 
 
-def _user(role: Role) -> User:
-    return User(
+def _user(role: Role) -> CurrentUser:
+    return CurrentUser(
         id=UUID("a2f03480-77a7-4f24-82cb-07604d5c2483"),
         display_name="Role fixture",
         roles={role},
-        is_active=True,
-        created_at=NOW,
-        updated_at=NOW,
     )
 
 

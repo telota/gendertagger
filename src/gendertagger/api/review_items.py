@@ -9,7 +9,7 @@ from gendertagger.api.dependencies import get_review_item_service
 from gendertagger.api.errors import ApiRequestError
 from gendertagger.models.api import CursorPage
 from gendertagger.models.review import ReviewItem, ReviewItemQuery
-from gendertagger.models.user import User
+from gendertagger.models.user import CurrentUser
 from gendertagger.services.pagination import InvalidCursorError
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
@@ -24,7 +24,7 @@ router = APIRouter(tags=["review"])
 def list_review_items(
     query: Annotated[ReviewItemQuery, Query()],
     service: Annotated[ReviewItemService, Depends(get_review_item_service)],
-    _: Annotated[User, Depends(require_viewer)],
+    _: Annotated[CurrentUser, Depends(require_viewer)],
 ) -> CursorPage[ReviewItem]:
     """List one aggregation's candidates using explicit server-side filters."""
     try:

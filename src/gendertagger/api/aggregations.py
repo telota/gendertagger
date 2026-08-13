@@ -14,7 +14,7 @@ from gendertagger.models.aggregation import (
     AggregationExecution,
 )
 from gendertagger.models.api import CursorPage
-from gendertagger.models.user import User
+from gendertagger.models.user import CurrentUser
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.pagination import InvalidCursorError
 from gendertagger.services.persistence_errors import (
@@ -34,7 +34,7 @@ def create_aggregation(
     run_id: UUID,
     command: AggregationCreateRequest,
     service: Annotated[AggregationService, Depends(get_aggregation_service)],
-    _: Annotated[User, Depends(require_operator)],
+    _: Annotated[CurrentUser, Depends(require_operator)],
 ) -> AggregationExecution:
     """Persist a pending aggregation over exact completed method executions."""
     try:
@@ -53,7 +53,7 @@ def create_aggregation(
 def get_aggregation(
     aggregation_id: UUID,
     service: Annotated[AggregationService, Depends(get_aggregation_service)],
-    _: Annotated[User, Depends(require_viewer)],
+    _: Annotated[CurrentUser, Depends(require_viewer)],
 ) -> AggregationExecution:
     """Read one current aggregation lifecycle resource."""
     try:
@@ -69,7 +69,7 @@ def get_aggregation(
 def list_aggregation_results(
     aggregation_id: UUID,
     service: Annotated[AggregationService, Depends(get_aggregation_service)],
-    _: Annotated[User, Depends(require_viewer)],
+    _: Annotated[CurrentUser, Depends(require_viewer)],
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
     cursor: Annotated[str | None, Query(max_length=2048)] = None,
 ) -> CursorPage[AggregatedResult]:
@@ -95,7 +95,7 @@ def get_aggregation_result(
     aggregation_id: UUID,
     result_id: UUID,
     service: Annotated[AggregationService, Depends(get_aggregation_service)],
-    _: Annotated[User, Depends(require_viewer)],
+    _: Annotated[CurrentUser, Depends(require_viewer)],
 ) -> AggregatedResult:
     """Read one immutable result under its owning aggregation."""
     try:

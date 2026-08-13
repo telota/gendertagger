@@ -570,6 +570,38 @@
         "title": "CertaintyTier",
         "type": "string"
       },
+      "CurrentUser": {
+        "additionalProperties": false,
+        "description": "Authenticated principal exposed at the public API boundary.",
+        "properties": {
+          "display_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/Role"
+            },
+            "title": "Roles",
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "id",
+          "display_name",
+          "roles"
+        ],
+        "title": "CurrentUser",
+        "type": "object"
+      },
       "CursorPage_AggregatedResult_": {
         "additionalProperties": false,
         "properties": {
@@ -1283,6 +1315,17 @@
           "deferred"
         ],
         "title": "ReviewWorkflowState",
+        "type": "string"
+      },
+      "Role": {
+        "description": "Global v1 authorization role assigned to a user.",
+        "enum": [
+          "viewer",
+          "reviewer",
+          "operator",
+          "admin"
+        ],
+        "title": "Role",
         "type": "string"
       },
       "Run": {
@@ -2014,6 +2057,108 @@
         "summary": "Create Annotation",
         "tags": [
           "annotations"
+        ]
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "description": "Return the authenticated principal without persistence-only fields.",
+        "operationId": "read_current_user_api_v1_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentUser"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Read Current User",
+        "tags": [
+          "authentication"
         ]
       }
     },

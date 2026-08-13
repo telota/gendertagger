@@ -1,4 +1,3 @@
-from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import FastAPI
@@ -9,27 +8,23 @@ from gendertagger.api.app import create_app
 from gendertagger.api.authentication import require_authenticated_user
 from gendertagger.api.settings import AppSettings
 from gendertagger.models.api import ApiErrorEnvelope
-from gendertagger.models.user import Role, User
+from gendertagger.models.user import CurrentUser, Role
 from gendertagger.services.unit_of_work import UnitOfWork
 
 DATABASE_URL = "postgresql+psycopg://api:secret@localhost/gendertagger"
 CODE_GIT_COMMIT = "a" * 40
 DEPENDENCY_LOCK_SHA256 = "b" * 64
-NOW = datetime(2026, 8, 13, tzinfo=UTC)
 
 
 def _unused_unit_of_work_factory() -> UnitOfWork:
     raise AssertionError("the request must not open persistence")
 
 
-def _authenticated_user() -> User:
-    return User(
+def _authenticated_user() -> CurrentUser:
+    return CurrentUser(
         id=UUID("a2f03480-77a7-4f24-82cb-07604d5c2483"),
         display_name="Error contract viewer",
         roles={Role.viewer},
-        is_active=True,
-        created_at=NOW,
-        updated_at=NOW,
     )
 
 
