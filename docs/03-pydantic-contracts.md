@@ -111,16 +111,49 @@ Batch-first design avoids a task per person while allowing adapters to use vecto
 
 ## Run configuration
 
-A YAML file is input, but the **resolved Pydantic object** is authoritative for a run and is persisted with a canonical JSON representation and hash.
+A YAML file is input, but the **resolved Pydantic object** is authoritative for a run and is persisted with
+a canonical JSON representation and hash. Parsing performs structural envelope validation: the central
+wrapper validates stable method identifiers and JSON-compatible configuration values. Before creating a Run,
+the server-side method registry must validate every method name, apply adapter-specific defaults, and validate
+each nested method configuration against its adapter contract. Only that fully resolved result is persisted
+and hashed.
 
 ```python
+class AggregationStrategy(StrEnum):
+    reference_v1 = "reference_v1"
+
+
+class MethodRunConfig(BaseModel):
+    name: str
+    enabled: bool = True
+    config: dict[str, JsonValue] = Field(default_factory=dict)
+
+
+class AggregationConfig(BaseModel):
+    strategy: AggregationStrategy = AggregationStrategy.reference_v1
+
+
+class ExecutionConfig(BaseModel):
+    fail_run_on_optional_method_error: bool = False
+
+
 class RunConfig(BaseModel):
     methods: list[MethodRunConfig]
-    aggregation: AggregationConfig
-    execution: ExecutionConfig
+    aggregation: AggregationConfig = Field(default_factory=AggregationConfig)
+    execution: ExecutionConfig = Field(default_factory=ExecutionConfig)
 ```
 
-No service should read arbitrary YAML after a Run has been created. Workers consume the persisted resolved configuration.
+Every configuration model rejects unknown fields. Method identifiers are lowercase snake case and unique
+within a run, including disabled methods. Configuration mappings contain finite JSON values only. YAML is
+loaded with safe standard-tag construction, and duplicate mapping keys are rejected.
+
+Canonical JSON is the resolved model dump, including defaults and nulls, encoded with sorted object keys,
+compact separators, unescaped Unicode, and no non-finite numbers. Its provenance hash is the lowercase
+SHA-256 digest of those UTF-8 JSON bytes. Object-key order, comments, and omitted-versus-explicit defaults do
+not affect the hash; list order remains significant.
+
+No service should read arbitrary YAML after a Run has been created. Workers consume the persisted resolved
+configuration.
 
 ## Celery task envelopes
 

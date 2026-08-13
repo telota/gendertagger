@@ -12,6 +12,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 dependencies = [
   "pydantic>=2.13.4,<3",
+  "pyyaml>=6.0.3,<7",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -42,6 +43,7 @@ lint = [
   "import-linter==2.13",
   "mypy==2.3.0",
   "ruff==0.16.2",
+  "types-pyyaml==6.0.12.20260518",
 ]
 test = [
   "coverage[toml]==7.15.4",

@@ -28,13 +28,16 @@ the phased plan that resumes application code.
   `evaluation`, `export`, `ingestion`, `methods`, `models`, `services`, `storage`, and `tasks` modules.
 - Canonical Pydantic v2 person and prediction contracts, including the label, status, certainty, and
   agreement vocabularies and validation of prediction-result invariants.
+- Validated run configuration contracts with safe YAML loading, duplicate-key detection, canonical JSON,
+  and deterministic SHA-256 provenance hashes.
 - Contract tests for validation, serialization, source-string preservation, isolated mutable defaults,
   and the semantic distinction between `unknown`, `abstain`, and `error`.
 - Repository policy gates: `scripts/check_documentation.py`, `scripts/check_contract_naming.py`,
   `scripts/check_package_initializers.py`, and `scripts/check_distribution.py`.
 - Test scaffold under [`tests/`](tests/) with a packaging smoke test and policy-script regression tests.
-- Deployment and configuration placeholders: [`config/example.yaml`](config/example.yaml),
-  [`frontend/README.md`](frontend/README.md), `migrations/`, and `deploy/`.
+- A validated example run configuration at [`config/example.yaml`](config/example.yaml), plus deployment,
+  frontend, and persistence placeholders in [`frontend/README.md`](frontend/README.md), `migrations/`, and
+  `deploy/`.
 - Reproducible dependency management via `uv.lock`, hatchling builds, and PEP 735 dependency groups.
 
 ### Changed
