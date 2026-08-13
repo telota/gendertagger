@@ -246,10 +246,10 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
             tei_id=person.tei_id,
             action=ReviewAction.verify,
             label=CanonicalLabel.unknown,
+            aggregated_result_id=aggregated_result.id,
             expected_revision=0,
         ),
         reviewer_user_id=reviewer.id,
-        aggregated_result_id=aggregated_result.id,
     )
     with pytest.raises(ReviewConflictError) as conflict:
         reviews.add_annotation(
@@ -268,10 +268,10 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
             action=ReviewAction.correct,
             label=CanonicalLabel.female,
             comment="Synthetic correction",
+            aggregated_result_id=aggregated_result.id,
             expected_revision=1,
         ),
         reviewer_user_id=reviewer.id,
-        aggregated_result_id=aggregated_result.id,
     )
     review_state = reviews.get_review_state(snapshot.id, person.tei_id)
     assert review_state is not None

@@ -36,6 +36,7 @@ class AnnotationCreate(BaseModel):
     action: ReviewAction
     label: CanonicalLabel | None = None
     comment: str | None = None
+    aggregated_result_id: UUID | None = None
     expected_revision: int = Field(ge=0)
 
     @model_validator(mode="after")

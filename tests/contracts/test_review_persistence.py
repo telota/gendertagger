@@ -20,6 +20,7 @@ USER_ID = UUID("a0000000-0000-0000-0000-000000000001")
 SNAPSHOT_ID = UUID("20000000-0000-0000-0000-000000000001")
 PERSON_ID = UUID("40000000-0000-0000-0000-000000000001")
 ANNOTATION_ID = UUID("b0000000-0000-0000-0000-000000000001")
+AGGREGATED_RESULT_ID = UUID("90000000-0000-0000-0000-000000000001")
 ARTIFACT_ID = UUID("30000000-0000-0000-0000-000000000001")
 CREATED_AT = datetime(2026, 8, 13, 10, 0, tzinfo=UTC)
 
@@ -110,6 +111,19 @@ def test_defer_action_rejects_label() -> None:
             label=CanonicalLabel.unknown,
             expected_revision=0,
         )
+
+
+def test_annotation_command_preserves_optional_machine_result_link() -> None:
+    command = AnnotationCreate(
+        snapshot_id=SNAPSHOT_ID,
+        tei_id="p1",
+        action=ReviewAction.verify,
+        label=CanonicalLabel.female,
+        aggregated_result_id=AGGREGATED_RESULT_ID,
+        expected_revision=0,
+    )
+
+    assert command.aggregated_result_id == AGGREGATED_RESULT_ID
 
 
 def test_annotation_preserves_append_only_revision_provenance() -> None:

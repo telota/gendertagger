@@ -33,7 +33,6 @@ class SqlAlchemyReviewRepository:
         command: AnnotationCreate,
         *,
         reviewer_user_id: UUID,
-        aggregated_result_id: UUID | None = None,
     ) -> Annotation:
         """Lock one person stream, compare revision, append, and advance its head."""
         person = self._session.scalar(
@@ -56,10 +55,13 @@ class SqlAlchemyReviewRepository:
             msg = f"reviewer user {reviewer_user_id} is inactive"
             raise InvalidResourceStateError(msg)
 
-        if aggregated_result_id is not None:
-            aggregated_result = self._session.get(AggregatedResultRow, aggregated_result_id)
+        if command.aggregated_result_id is not None:
+            aggregated_result = self._session.get(
+                AggregatedResultRow,
+                command.aggregated_result_id,
+            )
             if aggregated_result is None:
-                msg = f"aggregated result {aggregated_result_id} does not exist"
+                msg = f"aggregated result {command.aggregated_result_id} does not exist"
                 raise ResourceNotFoundError(msg)
             if aggregated_result.person_record_id != person.id:
                 msg = "referenced aggregated result belongs to a different person"
@@ -97,7 +99,7 @@ class SqlAlchemyReviewRepository:
             label=command.label,
             reviewer_user_id=reviewer_user_id,
             comment=command.comment,
-            aggregated_result_id=aggregated_result_id,
+            aggregated_result_id=command.aggregated_result_id,
             supersedes_annotation_id=state.current_annotation_id,
             resulting_revision=state.revision + 1,
         )

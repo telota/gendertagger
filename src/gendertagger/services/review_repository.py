@@ -14,7 +14,6 @@ class ReviewRepository(Protocol):
         command: AnnotationCreate,
         *,
         reviewer_user_id: UUID,
-        aggregated_result_id: UUID | None = None,
     ) -> Annotation:
         """Append one annotation when the expected review revision is current."""
         ...

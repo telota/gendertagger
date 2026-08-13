@@ -20,6 +20,7 @@ from gendertagger.db.session import create_database_engine, create_session_facto
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.services.aggregations import AggregationService
+from gendertagger.services.annotations import AnnotationService
 from gendertagger.services.method_registry import MethodRegistry
 from gendertagger.services.projects import ProjectService
 from gendertagger.services.runs import RunProvenance, RunService
@@ -76,6 +77,7 @@ def create_app(
         ),
     )
     aggregation_service = AggregationService(unit_of_work_factory)
+    annotation_service = AnnotationService(unit_of_work_factory)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -96,6 +98,7 @@ def create_app(
     application.state.authentication_backend = authentication_backend
     application.state.project_service = project_service
     application.state.aggregation_service = aggregation_service
+    application.state.annotation_service = annotation_service
     application.state.method_registry = method_registry
     application.state.run_service = run_service
     return application

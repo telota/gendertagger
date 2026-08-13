@@ -28,6 +28,13 @@ def require_viewer(
     return _require_role(user, Role.viewer)
 
 
+def require_reviewer(
+    user: Annotated[User, Depends(require_authenticated_user)],
+) -> User:
+    """Return an authenticated user allowed to append annotations."""
+    return _require_role(user, Role.reviewer)
+
+
 def require_operator(
     user: Annotated[User, Depends(require_authenticated_user)],
 ) -> User:

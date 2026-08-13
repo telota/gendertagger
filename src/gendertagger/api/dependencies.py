@@ -5,6 +5,7 @@ from typing import cast
 from fastapi import Request
 
 from gendertagger.services.aggregations import AggregationService
+from gendertagger.services.annotations import AnnotationService
 from gendertagger.services.method_registry import MethodRegistry
 from gendertagger.services.projects import ProjectService
 from gendertagger.services.runs import RunService
@@ -24,6 +25,11 @@ def get_project_service(request: Request) -> ProjectService:
 def get_aggregation_service(request: Request) -> AggregationService:
     """Return the composed aggregation application service."""
     return cast(AggregationService, request.app.state.aggregation_service)
+
+
+def get_annotation_service(request: Request) -> AnnotationService:
+    """Return the composed annotation application service."""
+    return cast(AnnotationService, request.app.state.annotation_service)
 
 
 def get_method_registry(request: Request) -> MethodRegistry:
