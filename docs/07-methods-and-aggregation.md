@@ -121,18 +121,29 @@ The remaining seven published methods enter an unweighted vote:
 
 The experimental HIVOTO-XGBoost does not enter the reference vote.
 
+`reference_v1` requires a result envelope for both override methods and all seven pooled methods. Persisted
+`abstain` and `error` results satisfy that completeness requirement but cast no vote. A missing required method
+fails aggregation rather than silently changing the ensemble. HIVOTO-XGBoost may be present as provenance but
+is ignored.
+
 ### Priority chain
 
 For each record:
 
-1. If the parenthetical-qualifier rule fires, its label becomes the combined label.
-2. Else, if GND returns a substantive non-`unknown` label, that becomes the combined label.
-3. Else, use the plain unweighted majority of substantive votes among the seven pooled methods.
+1. If the parenthetical-qualifier rule returns `success`, its label becomes the combined label, including
+   canonical `unknown`.
+2. Else, if GND returns a successful non-`unknown` label, that becomes the combined label.
+3. Else, use the plain unweighted majority of successful labels among the seven pooled methods.
 
 Tie rule:
 
-- if `unknown` ties with `male`, `female`, or `institution`, the substantive label wins
-- other unresolved ties must be represented transparently by the aggregation result rather than resolved through an undocumented ordering
+- if `unknown` ties with one of `male`, `female`, or `institution`, the substantive label wins;
+- if multiple substantive labels remain tied, return `outcome=unresolved_tie`, `label=null`, deterministic
+  canonical-order `tied_labels`, and the complete vote counts;
+- if no pooled method casts a vote, return `outcome=no_data` and `label=null`.
+
+No decision may depend on prediction insertion or iteration order. See
+[ADR-0008](decisions/ADR-0008-reference-aggregation-edge-contract.md).
 
 ### Agreement score
 

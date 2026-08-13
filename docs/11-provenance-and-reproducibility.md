@@ -51,8 +51,9 @@ Persist:
 - strategy ID/version
 - exact MethodExecution IDs included
 - strategy config/hash
-- override source
-- vote counts
+- decision outcome, canonical label, and any tied labels
+- override source plus agreeing/comparison counts
+- complete pooled vote counts
 - agreement score/tier
 - certainty tier
 

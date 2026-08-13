@@ -1,0 +1,183 @@
+from __future__ import annotations
+
+import pytest
+from pydantic import ValidationError
+
+from gendertagger.models.aggregation import (
+    AggregationOutcome,
+    OverrideSource,
+    ReferenceAggregationDecision,
+    VoteCounts,
+)
+from gendertagger.models.classification import CanonicalLabel
+
+pytestmark = pytest.mark.contract
+
+
+def test_aggregation_enums_expose_exact_public_values() -> None:
+    assert {name: member.value for name, member in AggregationOutcome.__members__.items()} == {
+        "decided": "decided",
+        "unresolved_tie": "unresolved_tie",
+        "no_data": "no_data",
+    }
+    assert {name: member.value for name, member in OverrideSource.__members__.items()} == {
+        "parenthetical_qualifier": "parenthetical_qualifier",
+        "gnd": "gnd",
+    }
+
+
+def test_vote_counts_expose_complete_fixed_label_shape() -> None:
+    counts = VoteCounts(male=2, female=1, unknown=3, institution=4)
+
+    assert counts.total == 10
+    assert {label: counts.for_label(label) for label in CanonicalLabel} == {
+        CanonicalLabel.male: 2,
+        CanonicalLabel.female: 1,
+        CanonicalLabel.unknown: 3,
+        CanonicalLabel.institution: 4,
+    }
+    assert counts.model_dump(mode="json") == {
+        "male": 2,
+        "female": 1,
+        "unknown": 3,
+        "institution": 4,
+    }
+
+
+def test_reference_aggregation_decision_serializes_override_evidence() -> None:
+    decision = ReferenceAggregationDecision(
+        outcome=AggregationOutcome.decided,
+        label=CanonicalLabel.female,
+        pooled_vote_counts=VoteCounts(male=1, female=2, unknown=1),
+        override_source=OverrideSource.gnd,
+        override_agreeing_count=2,
+        override_comparison_count=4,
+    )
+
+    assert decision.model_dump(mode="json") == {
+        "outcome": "decided",
+        "label": "female",
+        "pooled_vote_counts": {
+            "male": 1,
+            "female": 2,
+            "unknown": 1,
+            "institution": 0,
+        },
+        "tied_labels": [],
+        "override_source": "gnd",
+        "override_agreeing_count": 2,
+        "override_comparison_count": 4,
+    }
+
+
+def test_reference_aggregation_decision_serializes_transparent_tie() -> None:
+    decision = ReferenceAggregationDecision(
+        outcome=AggregationOutcome.unresolved_tie,
+        label=None,
+        pooled_vote_counts=VoteCounts(male=2, female=2, unknown=1),
+        tied_labels=(CanonicalLabel.male, CanonicalLabel.female),
+    )
+
+    assert decision.model_dump(mode="json")["tied_labels"] == ["male", "female"]
+    assert decision.label is None
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"outcome": "decided", "label": None},
+        {"outcome": "decided", "label": "male", "tied_labels": ["male", "female"]},
+        {"outcome": "decided", "label": "male"},
+        {"outcome": "unresolved_tie", "label": "unknown", "tied_labels": ["male", "female"]},
+        {"outcome": "unresolved_tie", "label": None, "tied_labels": ["male"]},
+        {
+            "outcome": "unresolved_tie",
+            "label": None,
+            "tied_labels": ["male", "female"],
+        },
+        {
+            "outcome": "unresolved_tie",
+            "label": None,
+            "pooled_vote_counts": {"male": 1, "female": 1},
+            "tied_labels": ["male", "male"],
+        },
+        {"outcome": "no_data", "label": None, "pooled_vote_counts": {"male": 1}},
+        {"outcome": "no_data", "label": None, "override_source": "gnd"},
+    ],
+)
+def test_reference_aggregation_decision_rejects_inconsistent_outcomes(
+    payload: dict[str, object],
+) -> None:
+    with pytest.raises(ValidationError):
+        ReferenceAggregationDecision.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {
+            "outcome": "decided",
+            "label": "male",
+            "pooled_vote_counts": {"male": 1},
+            "override_agreeing_count": 1,
+            "override_comparison_count": 1,
+        },
+        {
+            "outcome": "decided",
+            "label": "male",
+            "override_source": "gnd",
+        },
+        {
+            "outcome": "decided",
+            "label": "male",
+            "override_source": "gnd",
+            "override_agreeing_count": 2,
+            "override_comparison_count": 1,
+        },
+    ],
+)
+def test_reference_aggregation_decision_rejects_inconsistent_override_support(
+    payload: dict[str, object],
+) -> None:
+    with pytest.raises(ValidationError):
+        ReferenceAggregationDecision.model_validate(payload)
+
+
+def test_reference_aggregation_decision_accepts_unsupported_override() -> None:
+    decision = ReferenceAggregationDecision(
+        outcome=AggregationOutcome.decided,
+        label=CanonicalLabel.institution,
+        override_source=OverrideSource.parenthetical_qualifier,
+        override_agreeing_count=0,
+        override_comparison_count=0,
+    )
+
+    assert decision.override_agreeing_count == 0
+    assert decision.override_comparison_count == 0
+
+
+def test_aggregation_contracts_reject_unknown_fields_and_negative_counts() -> None:
+    with pytest.raises(ValidationError):
+        VoteCounts.model_validate({"male": -1})
+
+    with pytest.raises(ValidationError):
+        ReferenceAggregationDecision.model_validate(
+            {"outcome": "no_data", "label": None, "agreement": 1.0}
+        )
+
+
+def test_reference_aggregation_json_schema_exposes_stable_shape() -> None:
+    schema = ReferenceAggregationDecision.model_json_schema()
+
+    assert set(schema["properties"]) == {
+        "outcome",
+        "label",
+        "pooled_vote_counts",
+        "tied_labels",
+        "override_source",
+        "override_agreeing_count",
+        "override_comparison_count",
+    }
+    assert schema["required"] == ["outcome", "label"]
+    assert schema["additionalProperties"] is False
+    assert schema["$defs"]["VoteCounts"]["additionalProperties"] is False

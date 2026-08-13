@@ -29,7 +29,8 @@
     "docs/decisions/ADR-0004-postgres-celery-redis.md",
     "docs/decisions/ADR-0005-local-first-data-processing.md",
     "docs/decisions/ADR-0006-vue-browser-client-boundary.md",
-    "docs/decisions/ADR-0007-versioned-normalization-outcomes.md"
+    "docs/decisions/ADR-0007-versioned-normalization-outcomes.md",
+    "docs/decisions/ADR-0008-reference-aggregation-edge-contract.md"
   ],
   "top_level_entrypoints": [
     "README.md",

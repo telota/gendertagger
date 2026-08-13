@@ -137,6 +137,45 @@ cardinality and any reported value against the inclusive declared `method_confid
 
 Batch-first design avoids a task per person while allowing adapters to use vectorized/GPU inference.
 
+## Reference aggregation decision
+
+The pure `reference_v1` priority and voting step returns an immutable decision before agreement and certainty
+are derived:
+
+```python
+class AggregationOutcome(StrEnum):
+    decided = "decided"
+    unresolved_tie = "unresolved_tie"
+    no_data = "no_data"
+
+
+class OverrideSource(StrEnum):
+    parenthetical_qualifier = "parenthetical_qualifier"
+    gnd = "gnd"
+
+
+class VoteCounts(BaseModel):
+    male: int = 0
+    female: int = 0
+    unknown: int = 0
+    institution: int = 0
+
+
+class ReferenceAggregationDecision(BaseModel):
+    outcome: AggregationOutcome
+    label: CanonicalLabel | None
+    pooled_vote_counts: VoteCounts
+    tied_labels: tuple[CanonicalLabel, ...] = ()
+    override_source: OverrideSource | None = None
+    override_agreeing_count: int | None = None
+    override_comparison_count: int | None = None
+```
+
+A decided result has one label. An unresolved substantive tie and a no-data result have `label=None`; they
+remain distinct through `outcome`, and a tie also carries deterministic `tied_labels`. Vote counts always use
+the fixed four-label shape. Override decisions carry both agreeing and comparison counts so agreement can be
+derived without re-reading Predictions.
+
 ## Run configuration
 
 A YAML file is input, but the **resolved Pydantic object** is authoritative for a run and is persisted with

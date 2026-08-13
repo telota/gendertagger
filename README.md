@@ -38,10 +38,10 @@ The design preserves the published multi-method workflow while adding persistent
 
 ## Repository state
 
-Implementation has begun with canonical Pydantic person, prediction, run-configuration, and typed method
-adapter contracts. All ten methods now have dependency-free, versioned raw-label normalization profiles and
-scientific contract tests. Reference aggregation is the next Phase 1 implementation step; the legacy golden
-fixture remains required before Phase 1 regression completion.
+Implementation has begun with canonical contracts, typed method adapters, and versioned normalization for all
+ten methods. The pure `reference_v1` priority and unweighted-vote step now produces explicit override, no-data,
+and unresolved-tie evidence. Agreement and certainty rules are the next Phase 1 implementation step; the
+legacy golden fixture remains required before Phase 1 regression completion.
 
 ## Development checks
 

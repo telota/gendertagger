@@ -35,6 +35,8 @@ the phased plan that resumes application code.
   record-level versus batch-level failure semantics.
 - Pure, versioned raw-label normalization profiles for all ten methods, preserving raw evidence and the
   canonical distinction among substantive `unknown`, abstention, and technical failure.
+- Pure `reference_v1` aggregation with strict reference-method completeness, authority priority, unweighted
+  pooled votes, deterministic unknown tie-breaking, transparent substantive ties, and override support counts.
 - Contract tests for validation, serialization, source-string preservation, isolated mutable defaults,
   and the semantic distinction between `unknown`, `abstain`, and `error`.
 - Repository policy gates: `scripts/check_documentation.py`, `scripts/check_contract_naming.py`,
