@@ -30,6 +30,9 @@ the phased plan that resumes application code.
   agreement vocabularies and validation of prediction-result invariants.
 - Validated run configuration contracts with safe YAML loading, duplicate-key detection, canonical JSON,
   and deterministic SHA-256 provenance hashes.
+- Typed method-adapter protocol and frozen minimal method descriptors, including adapter-owned Pydantic
+  configuration models, result-cardinality checks, declared confidence-range validation, and explicit
+  record-level versus batch-level failure semantics.
 - Contract tests for validation, serialization, source-string preservation, isolated mutable defaults,
   and the semantic distinction between `unknown`, `abstain`, and `error`.
 - Repository policy gates: `scripts/check_documentation.py`, `scripts/check_contract_naming.py`,

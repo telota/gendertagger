@@ -38,9 +38,10 @@ The design preserves the published multi-method workflow while adding persistent
 
 ## Repository state
 
-Implementation has begun with canonical Pydantic person, prediction, and reproducible run-configuration
-contracts and their contract tests. The remaining application packages are still placeholders. Preserving the
-legacy scientific fixture remains the next Phase 0 task before further state-machine, persistence, and API work.
+Implementation has begun with canonical Pydantic person, prediction, run-configuration, and typed method
+adapter contracts plus their contract tests. The remaining application packages are still placeholders.
+Adapter-owned normalization is the next Phase 1 implementation step; the legacy golden fixture remains
+required before Phase 1 regression completion.
 
 ## Development checks
 

@@ -14,7 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator, m
 from yaml.constructor import ConstructorError
 from yaml.nodes import MappingNode
 
-_METHOD_NAME_PATTERN = r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
+from gendertagger.models.method import METHOD_NAME_PATTERN
 
 
 class _ClosedConfigModel(BaseModel):
@@ -31,7 +31,7 @@ class MethodRunConfig(_ClosedConfigModel):
     """Configuration envelope for one method in a run."""
 
     name: str = Field(
-        pattern=_METHOD_NAME_PATTERN,
+        pattern=METHOD_NAME_PATTERN,
         description="Stable lowercase snake-case method identifier.",
     )
     enabled: bool = True

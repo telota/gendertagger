@@ -87,25 +87,53 @@ Validation invariants:
 
 - `status=success` requires a canonical `label`.
 - `status in {abstain,error}` requires `label=None`.
-- `method_confidence`, if present, must be finite and in the method's declared range; adapters enforce the
-  declared range. `[0,1]` is preferred but not assumed globally unless the adapter declares it.
+- `method_confidence`, if present, must be finite and in the method's declared range; the adapter boundary
+  enforces the declared range. `[0,1]` is preferred but not assumed globally unless the adapter declares it.
 
 ## Method contract
 
-Method implementations live in code and register a stable method identifier. Runtime configuration is YAML parsed through Pydantic.
-
-Conceptual interface:
+Method implementations live in code and register a stable lowercase snake-case method identifier. Runtime
+configuration is YAML parsed through Pydantic. A frozen `MethodDescriptor` carries only scientific provenance
+needed at the adapter boundary:
 
 ```python
-class GenderMethod(Protocol):
+class MethodConfidenceRange(BaseModel):
+    minimum: float
+    maximum: float
+
+
+class MethodDescriptor(BaseModel):
+    name: str
+    implementation_version: str
+    normalization_version: str
+    method_confidence_range: MethodConfidenceRange | None = None
+```
+
+Operational routing, UI display metadata, and reference-aggregation membership are separate concerns and do
+not belong in this descriptor.
+
+Every adapter exposes its concrete Pydantic `config_model`. The server-side registry applies defaults and
+validates raw configuration through that model before invoking the typed, batch-first interface:
+
+```python
+MethodConfigT = TypeVar("MethodConfigT", bound=MethodConfig)
+
+
+class GenderMethod(Protocol[MethodConfigT]):
     descriptor: MethodDescriptor
+    config_model: type[MethodConfigT]
 
     def predict_batch(
         self,
         people: list[PersonInput],
-        config: MethodConfig,
+        config: MethodConfigT,
     ) -> list[PredictionResult]: ...
 ```
+
+The returned list contains exactly one result per input in the same order. Record-specific scientific or
+input failures are returned with `status=error`; batch-wide infrastructure failures and invalid adapter or
+configuration state raise so orchestration can apply retry policy. The adapter boundary validates result
+cardinality and any reported value against the inclusive declared `method_confidence_range`.
 
 Batch-first design avoids a task per person while allowing adapters to use vectorized/GPU inference.
 
