@@ -1,6 +1,7 @@
 """SQLAlchemy repository for runs, method executions, batches, and predictions."""
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
+from datetime import datetime
 from typing import cast
 from uuid import UUID, uuid4
 
@@ -33,6 +34,18 @@ from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )
+
+_RUN_TERMINAL_STATUSES = frozenset(
+    {RunStatus.completed, RunStatus.completed_with_errors, RunStatus.failed}
+)
+_EXECUTION_TERMINAL_STATUSES = frozenset(
+    {
+        MethodExecutionStatus.completed,
+        MethodExecutionStatus.completed_with_errors,
+        MethodExecutionStatus.failed,
+    }
+)
+_BATCH_TERMINAL_STATUSES = frozenset({TaskBatchStatus.completed, TaskBatchStatus.failed})
 
 
 class SqlAlchemyRunRepository:
@@ -201,6 +214,200 @@ class SqlAlchemyRunRepository:
             .order_by(TaskBatchRow.batch_index)
         )
         return [self._task_batch_from_row(row) for row in rows]
+
+    def mark_run_queued(self, run_id: UUID) -> Run:
+        """Transition a created run to queued when its execution is scheduled."""
+        row = self._require_run(run_id)
+        self._require_source("run", run_id, row.status, {RunStatus.created}, RunStatus.queued)
+        row.status = RunStatus.queued
+        self._session.flush()
+        return self._run_from_row(row)
+
+    def mark_run_started(self, run_id: UUID, *, started_at: datetime) -> Run:
+        """Transition a queued run to running and record its start time."""
+        row = self._require_run(run_id)
+        self._require_source("run", run_id, row.status, {RunStatus.queued}, RunStatus.running)
+        row.status = RunStatus.running
+        row.started_at = started_at
+        self._session.flush()
+        return self._run_from_row(row)
+
+    def mark_run_finished(
+        self,
+        run_id: UUID,
+        *,
+        status: RunStatus,
+        finished_at: datetime,
+        failure_diagnostic: str | None = None,
+    ) -> Run:
+        """Transition a running run to a terminal outcome."""
+        if status not in _RUN_TERMINAL_STATUSES:
+            msg = f"{status} is not a terminal run status"
+            raise ValueError(msg)
+        row = self._require_run(run_id)
+        self._require_source("run", run_id, row.status, {RunStatus.running}, status)
+        if status is RunStatus.failed and not (failure_diagnostic and failure_diagnostic.strip()):
+            msg = "a failed run requires a failure diagnostic"
+            raise ValueError(msg)
+        row.status = status
+        row.finished_at = finished_at
+        row.failure_diagnostic = failure_diagnostic if status is RunStatus.failed else None
+        self._session.flush()
+        return self._run_from_row(row)
+
+    def mark_execution_queued(self, method_execution_id: UUID) -> MethodExecution:
+        """Transition a pending method execution to queued."""
+        row = self._require_execution(method_execution_id)
+        self._require_source(
+            "method execution",
+            method_execution_id,
+            row.status,
+            {MethodExecutionStatus.pending},
+            MethodExecutionStatus.queued,
+        )
+        row.status = MethodExecutionStatus.queued
+        self._session.flush()
+        return self._method_execution_from_row(row)
+
+    def mark_execution_started(
+        self, method_execution_id: UUID, *, started_at: datetime
+    ) -> MethodExecution:
+        """Transition a queued method execution to running."""
+        row = self._require_execution(method_execution_id)
+        self._require_source(
+            "method execution",
+            method_execution_id,
+            row.status,
+            {MethodExecutionStatus.queued},
+            MethodExecutionStatus.running,
+        )
+        row.status = MethodExecutionStatus.running
+        row.started_at = started_at
+        self._session.flush()
+        return self._method_execution_from_row(row)
+
+    def mark_execution_finished(
+        self,
+        method_execution_id: UUID,
+        *,
+        status: MethodExecutionStatus,
+        finished_at: datetime,
+        failure_class: str | None = None,
+        failure_diagnostic: str | None = None,
+    ) -> MethodExecution:
+        """Transition a running method execution to a terminal outcome."""
+        if status not in _EXECUTION_TERMINAL_STATUSES:
+            msg = f"{status} is not a terminal method-execution status"
+            raise ValueError(msg)
+        row = self._require_execution(method_execution_id)
+        self._require_source(
+            "method execution",
+            method_execution_id,
+            row.status,
+            {MethodExecutionStatus.running},
+            status,
+        )
+        failed = status is MethodExecutionStatus.failed
+        if failed and not (failure_diagnostic and failure_diagnostic.strip()):
+            msg = "a failed method execution requires a failure diagnostic"
+            raise ValueError(msg)
+        row.status = status
+        row.finished_at = finished_at
+        row.failure_class = failure_class if failed else None
+        row.failure_diagnostic = failure_diagnostic if failed else None
+        self._session.flush()
+        return self._method_execution_from_row(row)
+
+    def mark_batch_started(
+        self,
+        task_batch_id: UUID,
+        *,
+        worker_task_id: str,
+        started_at: datetime,
+        attempt_count: int,
+    ) -> TaskBatch:
+        """Claim a not-yet-completed batch for one worker attempt."""
+        row = self._require_batch(task_batch_id)
+        self._require_source(
+            "task batch",
+            task_batch_id,
+            row.status,
+            {TaskBatchStatus.pending, TaskBatchStatus.queued, TaskBatchStatus.failed},
+            TaskBatchStatus.running,
+        )
+        row.status = TaskBatchStatus.running
+        row.worker_task_id = worker_task_id
+        row.started_at = started_at
+        row.attempt_count = attempt_count
+        self._session.flush()
+        return self._task_batch_from_row(row)
+
+    def mark_batch_finished(
+        self,
+        task_batch_id: UUID,
+        *,
+        status: TaskBatchStatus,
+        finished_at: datetime,
+        success_count: int = 0,
+        abstain_count: int = 0,
+        error_count: int = 0,
+        failure_class: str | None = None,
+        failure_diagnostic: str | None = None,
+    ) -> TaskBatch:
+        """Transition a running batch to a terminal outcome with its tallies."""
+        if status not in _BATCH_TERMINAL_STATUSES:
+            msg = f"{status} is not a terminal task-batch status"
+            raise ValueError(msg)
+        row = self._require_batch(task_batch_id)
+        self._require_source(
+            "task batch", task_batch_id, row.status, {TaskBatchStatus.running}, status
+        )
+        failed = status is TaskBatchStatus.failed
+        if failed and not (failure_diagnostic and failure_diagnostic.strip()):
+            msg = "a failed task batch requires a failure diagnostic"
+            raise ValueError(msg)
+        row.status = status
+        row.finished_at = finished_at
+        row.success_count = success_count
+        row.abstain_count = abstain_count
+        row.error_count = error_count
+        row.failure_class = failure_class if failed else None
+        row.failure_diagnostic = failure_diagnostic if failed else None
+        self._session.flush()
+        return self._task_batch_from_row(row)
+
+    def _require_run(self, run_id: UUID) -> RunRow:
+        row = self._session.get(RunRow, run_id)
+        if row is None:
+            msg = f"run {run_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        return row
+
+    def _require_execution(self, method_execution_id: UUID) -> MethodExecutionRow:
+        row = self._session.get(MethodExecutionRow, method_execution_id)
+        if row is None:
+            msg = f"method execution {method_execution_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        return row
+
+    def _require_batch(self, task_batch_id: UUID) -> TaskBatchRow:
+        row = self._session.get(TaskBatchRow, task_batch_id)
+        if row is None:
+            msg = f"task batch {task_batch_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        return row
+
+    @staticmethod
+    def _require_source(
+        resource: str,
+        resource_id: UUID,
+        current: object,
+        allowed: Collection[object],
+        target: object,
+    ) -> None:
+        if current not in allowed:
+            msg = f"{resource} {resource_id} cannot transition from {current} to {target}"
+            raise InvalidResourceStateError(msg)
 
     def add_predictions(
         self,
