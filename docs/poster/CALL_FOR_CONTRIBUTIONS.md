@@ -1,5 +1,5 @@
 
-deRSE26 Call for Contributions
+# deRSE26 Call for Contributions
 
 deRSE26, the sixth German Conference on Research Software Engineering will be held at University of Stuttgart on 03.-05. March 2026. As a venue for the diverse community of people concerned with research software, it values contributions from all levels of experience and across scientific disciplines, geographic locations, genders, and ethnicities. The organising committee invites submissions for talks, posters, and demos, as well as interactive formats like tutorials, workshops, meet-ups and hackathons. We aim for a well-balanced programme that includes a wide variety of perspectives to reflect the diversity of the RSE community and its activities, emphasising that software can be a language that furthers communication across the established domain boundaries.
 

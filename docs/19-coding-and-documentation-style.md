@@ -97,6 +97,8 @@ Maintained project documentation consists of the top-level contributor/specifica
 below `docs/`, and `frontend/README.md`. Each maintained document has:
 
 - exactly one H1 as its first content line;
+- optional closed YAML front matter may precede the H1 in non-ADR documents and is treated as metadata
+  rather than document content;
 - headings that descend one level at a time;
 - balanced fenced code blocks with a language identifier where one is meaningful;
 - portable relative links for repository content and HTTPS links for external content.

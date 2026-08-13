@@ -65,7 +65,12 @@ target-version = "py311"
 line-length = 100
 src = ["src", "tests", "scripts"]
 force-exclude = true
-extend-exclude = ["__scrap", "frontend"]
+extend-exclude = [
+  "__scrap",
+  "frontend",
+  "notebooks", # Legacy research notebooks are preserved as evidence, not maintained Python.
+  "docs/references", # Upstream reference snapshots retain their original code snippets.
+]
 
 [tool.ruff.lint]
 select = [

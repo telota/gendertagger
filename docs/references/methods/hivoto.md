@@ -1,6 +1,6 @@
 
-Dokumentation zum
-Historischen Vornamentool – hivoto.
+# Dokumentation zum Historischen Vornamentool – hivoto.
+
 Datensatz für die Normierung und Geschlechtszuweisung anhand
 von historischen, deutschsprachigen Vornamen und abgekürzten
 Vornamen (1630-1965)

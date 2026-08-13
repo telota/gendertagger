@@ -1,0 +1,81 @@
+minimum_pre_commit_version: "4.6.2"
+default_install_hook_types:
+  - pre-commit
+  - pre-push
+default_stages: [pre-commit]
+
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: Ruff format
+        entry: uv run --locked ruff format
+        language: system
+        files: ".*\\.(?:py|pyi|ipynb)$"
+        require_serial: true
+      - id: ruff-check
+        name: Ruff lint
+        entry: uv run --locked ruff check
+        language: system
+        files: ".*\\.(?:py|pyi|ipynb)$"
+        require_serial: true
+      - id: lockfile
+        name: Lockfile consistency
+        entry: uv lock --check
+        language: system
+        files: "^(?:pyproject\\.toml|uv\\.lock)$"
+        pass_filenames: false
+      - id: documentation-policy
+        name: Documentation policy
+        entry: uv run --locked python scripts/check_documentation.py
+        language: system
+        files: >-
+          (?x)^(?:
+            [^/]+\.md|docs/.*\.md|frontend/README\.md|SCAFFOLD\.json|
+            scripts/check_documentation\.py|tests/tooling/test_policy_scripts\.py
+          )$
+        pass_filenames: false
+      - id: contract-naming-policy
+        name: Contract naming policy
+        entry: uv run --locked python scripts/check_contract_naming.py
+        language: system
+        files: >-
+          (?x)^(?:
+            src/gendertagger/(?:models|config)/.*\.py|
+            scripts/check_contract_naming\.py|tests/tooling/test_policy_scripts\.py|pyproject\.toml
+          )$
+        pass_filenames: false
+      - id: package-initializer-policy
+        name: Package initializer policy
+        entry: uv run --locked python scripts/check_package_initializers.py
+        language: system
+        files: >-
+          (?x)^(?:
+            src/gendertagger/.*\.py|scripts/check_package_initializers\.py|
+            tests/tooling/test_policy_scripts\.py|pyproject\.toml
+          )$
+        pass_filenames: false
+      - id: mypy
+        name: Strict mypy
+        entry: uv run --locked mypy
+        language: system
+        stages: [pre-push]
+        always_run: true
+        pass_filenames: false
+      - id: import-linter
+        name: Import boundaries
+        entry: uv run --locked lint-imports
+        language: system
+        stages: [pre-push]
+        always_run: true
+        pass_filenames: false
+      - id: fast-tests
+        name: Fast tests
+        entry: >-
+          uv run --locked pytest
+          -m "not integration and not postgres and not redis and not e2e and not slow and not gpu and not external"
+          --hypothesis-profile=ci --cov --cov-report=term-missing --cov-report=xml
+        language: system
+        stages: [pre-push]
+        always_run: true
+        pass_filenames: false

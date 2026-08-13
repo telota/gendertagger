@@ -39,6 +39,9 @@ the phased plan that resumes application code.
 
 ### Changed
 
+- Restored the documented local quality gates with repository-owned pre-commit/pre-push hooks, YAML
+  front-matter-aware documentation validation, valid headings in maintained Markdown, and explicit Ruff
+  exclusions for preserved research notebooks and upstream reference snapshots.
 - [`README.md`](README.md) rewritten to describe the scaffold, its architectural baseline, and the local
   development checks, replacing the legacy pipeline usage instructions.
 - Paper `docs/paper/article.tex` substantially revised in response to two peer reviews: the method section

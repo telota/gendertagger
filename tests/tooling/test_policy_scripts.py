@@ -70,6 +70,31 @@ def test_documentation_policy_accepts_a_complete_repository(tmp_path: Path) -> N
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+def test_documentation_policy_accepts_yaml_front_matter_before_h1(tmp_path: Path) -> None:
+    _write_minimal_documentation(tmp_path)
+    _write(
+        tmp_path / "docs/01-topic.md",
+        "---\ntitle: Topic metadata\n---\n\n# Topic\n",
+    )
+
+    result = _run_policy("check_documentation.py", tmp_path)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_documentation_policy_rejects_unclosed_yaml_front_matter(tmp_path: Path) -> None:
+    _write_minimal_documentation(tmp_path)
+    _write(
+        tmp_path / "docs/01-topic.md",
+        "---\ntitle: Topic metadata\n\n# Topic\n",
+    )
+
+    result = _run_policy("check_documentation.py", tmp_path)
+
+    assert result.returncode == 1
+    assert "DOC105" in result.stdout
+
+
 def test_documentation_policy_reports_structure_and_link_errors(tmp_path: Path) -> None:
     _write_minimal_documentation(tmp_path)
     _write(

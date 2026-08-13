@@ -54,9 +54,24 @@ class MarkdownDocument:
     links: tuple[tuple[str, int], ...]
     first_content_line: int | None
     unclosed_fence_line: int | None
+    unclosed_front_matter: bool
 
 
 def _parse_markdown(text: str) -> MarkdownDocument:
+    lines = text.splitlines()
+    front_matter_end = 0
+    unclosed_front_matter = False
+    if lines and lines[0].strip() == "---":
+        front_matter_end = next(
+            (
+                line_number
+                for line_number, line in enumerate(lines[1:], start=2)
+                if line.strip() == "---"
+            ),
+            0,
+        )
+        unclosed_front_matter = front_matter_end == 0
+
     headings: list[tuple[int, str, int]] = []
     links: list[tuple[str, int]] = []
     first_content_line: int | None = None
@@ -64,7 +79,10 @@ def _parse_markdown(text: str) -> MarkdownDocument:
     fence_length = 0
     fence_line: int | None = None
 
-    for line_number, line in enumerate(text.splitlines(), start=1):
+    for line_number, line in enumerate(lines, start=1):
+        if front_matter_end and line_number <= front_matter_end:
+            continue
+
         stripped = line.strip()
         if first_content_line is None and stripped:
             first_content_line = line_number
@@ -108,6 +126,7 @@ def _parse_markdown(text: str) -> MarkdownDocument:
         links=tuple(links),
         first_content_line=first_content_line,
         unclosed_fence_line=fence_line,
+        unclosed_front_matter=unclosed_front_matter,
     )
 
 
@@ -187,7 +206,7 @@ def check_markdown_file(root: Path, path: Path) -> tuple[MarkdownDocument, list[
     try:
         document = _parse_markdown(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError) as error:
-        empty = MarkdownDocument((), (), None, None)
+        empty = MarkdownDocument((), (), None, None, False)
         return empty, [Diagnostic(relative_path, 1, "DOC002", f"cannot read document: {error}")]
 
     diagnostics: list[Diagnostic] = []
@@ -228,6 +247,16 @@ def check_markdown_file(root: Path, path: Path) -> tuple[MarkdownDocument, list[
                 document.unclosed_fence_line,
                 "DOC104",
                 "fenced code block is not closed",
+            )
+        )
+
+    if document.unclosed_front_matter:
+        diagnostics.append(
+            Diagnostic(
+                relative_path,
+                1,
+                "DOC105",
+                "YAML front matter is not closed",
             )
         )
 

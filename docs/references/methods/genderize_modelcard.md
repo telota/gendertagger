@@ -12,17 +12,17 @@ tags:
 
 # Gender Classification by Name
 
-### Model Details
+## Model Details
 - **Model Name**: Genderize
 - **Developed By**: Imran Ali
 - **Model Type**: Text Classification
 - **Language**: English
 - **License**: MIT
 
-### Description
+## Description
 This model classifies gender based on the input name. It uses a pre-trained BERT model as the base and has been fine-tuned on a dataset of names and their associated genders.
 
-### Training Details
+## Training Details
 - **Training Data**: Dataset of names and genders (e.g., Dannel gender-name dataset)
 - **Training Procedure**: Fine-tuned using BERT model with a classification head
 - **Training Hyperparameters**:
@@ -32,25 +32,25 @@ This model classifies gender based on the input name. It uses a pre-trained BERT
   - Total steps: 20,005
   - Number of trainable parameters: 109,483,778 (1.9M)
 
-### Evaluation
+## Evaluation
 - **Testing Data**: Split from the training dataset
 - **Metrics**: Accuracy, Precision, Recall, F1 Score
 
-### Uses
+## Uses
 - **Direct Use**: Classifying the gender of a given name
 - **Downstream Use**: Enhancing applications that require gender identification based on names (e.g., personalized marketing, user profiling)
 - **Out-of-Scope Use**: Using the model for purposes other than gender classification without proper validation
 
-### Bias, Risks, and Limitations
+## Bias, Risks, and Limitations
 - **Bias**: The model may reflect biases present in the training data. It is important to validate its performance across diverse datasets.
 - **Risks**: Misclassification can occur, especially for names that are unisex or less common.
 - **Limitations**: The model's accuracy may vary depending on the cultural and linguistic context of the names.
 
-### Recommendations
+## Recommendations
 - Users should be aware of the potential biases and limitations of the model.
 - Further validation is recommended for specific use cases and datasets.
 
-### How to Get Started with the Model
+## How to Get Started with the Model
 ```python
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
@@ -69,4 +69,3 @@ def predict_gender(name):
 print(predict_gender("Alex"))  # Example output: 'M'
 print(predict_gender("Maria"))  # Example output: 'F'
 ```
-

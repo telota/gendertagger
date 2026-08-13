@@ -1,4 +1,4 @@
-
+# Submitted Abstract
 
 Wer in digitalen Editionen mit historischen Quellen arbeitet, begegnet ihnen überall: Personen, die Geschichte geprägt haben – und die über Personenregister miteinander verknüpft werden. Diese Register bilden das Rückgrat digitaler Editionsarbeit: Sie machen Beziehungen zwischen Akteur:innen sichtbar, schaffen Kontext und eröffnen neue Perspektiven auf soziale und wissenschaftliche Netzwerke. Gleichzeitig offenbaren sie, wo Datenlücken bestehen – etwa beim Gender der erfassten Personen. In vielen Fällen zeigt sich hier ein Ungleichgewicht zulasten von Frauen und anderen marginalisierten Gruppen. Der sogenannte Gender-Data-Gap wird jedoch erst sichtbar, wenn Genderinformationen systematisch erfasst und ausgewertet werden – eine Voraussetzung dafür, ihm gezielt entgegenzuwirken.
 

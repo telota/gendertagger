@@ -44,6 +44,8 @@ uv run --locked python scripts/check_distribution.py dist/*
 ```
 
 Use `uv run --locked pre-commit run --all-files` to exercise all pre-commit-stage hooks manually.
+Use `uv run --locked pre-commit run --all-files --hook-stage pre-push` to exercise the strict typing,
+import-boundary, and fast-test hooks without pushing.
 
 ## Change discipline
 
