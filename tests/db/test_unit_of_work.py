@@ -2,6 +2,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from gendertagger.db.project_repository import SqlAlchemyProjectRepository
+from gendertagger.db.run_repository import SqlAlchemyRunRepository
 from gendertagger.db.session import create_database_engine, create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork, UnitOfWorkNotActiveError
 
@@ -74,13 +75,16 @@ def test_unit_of_work_rejects_nested_entry() -> None:
         unit_of_work.__enter__()
 
 
-def test_unit_of_work_binds_project_repository_to_active_session() -> None:
+def test_unit_of_work_binds_repositories_to_active_session() -> None:
     unit_of_work = SqlAlchemyUnitOfWork(TrackingSessionFactory(TrackingSession()))
 
     with pytest.raises(UnitOfWorkNotActiveError, match="not active"):
         _ = unit_of_work.projects
+    with pytest.raises(UnitOfWorkNotActiveError, match="not active"):
+        _ = unit_of_work.runs
     with unit_of_work:
         assert isinstance(unit_of_work.projects, SqlAlchemyProjectRepository)
+        assert isinstance(unit_of_work.runs, SqlAlchemyRunRepository)
 
 
 def test_session_composition_accepts_only_postgresql() -> None:

@@ -4,6 +4,7 @@ from types import TracebackType
 from typing import Protocol, Self
 
 from gendertagger.services.project_repository import ProjectRepository
+from gendertagger.services.run_repository import RunRepository
 
 
 class UnitOfWork(Protocol):
@@ -25,6 +26,11 @@ class UnitOfWork(Protocol):
     @property
     def projects(self) -> ProjectRepository:
         """Return project persistence bound to the current transaction."""
+        ...
+
+    @property
+    def runs(self) -> RunRepository:
+        """Return execution persistence bound to the current transaction."""
         ...
 
     def commit(self) -> None:

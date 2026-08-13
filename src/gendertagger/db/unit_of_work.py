@@ -6,6 +6,7 @@ from typing import Self
 from sqlalchemy.orm import Session
 
 from gendertagger.db.project_repository import SqlAlchemyProjectRepository
+from gendertagger.db.run_repository import SqlAlchemyRunRepository
 from gendertagger.db.session import SessionFactory
 from gendertagger.services.unit_of_work import UnitOfWork
 
@@ -45,6 +46,11 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
     def projects(self) -> SqlAlchemyProjectRepository:
         """Return project persistence bound to the active session."""
         return SqlAlchemyProjectRepository(self._require_session())
+
+    @property
+    def runs(self) -> SqlAlchemyRunRepository:
+        """Return execution persistence bound to the active session."""
+        return SqlAlchemyRunRepository(self._require_session())
 
     def commit(self) -> None:
         """Commit every repository write made through the active session."""
