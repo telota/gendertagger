@@ -125,6 +125,16 @@ class RunRepository(Protocol):
         """Transition a running batch to a terminal outcome with its tallies."""
         ...
 
+    def finalize_execution_if_complete(
+        self, method_execution_id: UUID, *, finished_at: datetime
+    ) -> MethodExecution:
+        """Finalize a running execution once all its batches are terminal."""
+        ...
+
+    def finalize_run_if_complete(self, run_id: UUID, *, finished_at: datetime) -> Run:
+        """Finalize a running run once all its method executions are terminal."""
+        ...
+
     def add_predictions(
         self,
         method_execution_id: UUID,

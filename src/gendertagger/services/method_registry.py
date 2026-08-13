@@ -10,8 +10,13 @@ from pydantic import ValidationError
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.methods.base import GenderMethod, MethodConfig
+from gendertagger.methods.parenthetical_qualifier import ParentheticalQualifierMethod
 from gendertagger.models.method import MethodDescriptor
+from gendertagger.models.queues import CPU_QUEUE
 from gendertagger.models.run import QUEUE_NAME_PATTERN
+
+# CPU rule/lookup batch size within the docs/06-task-queue.md 100-500 range.
+_CPU_BATCH_SIZE = 200
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +73,10 @@ class MethodRegistry:
         """Return registrations in stable method-name order."""
         return tuple(self._registrations[name] for name in sorted(self._registrations))
 
+    def registration_for(self, method_name: str) -> MethodRegistration | None:
+        """Return the registration for one method name, or ``None`` when absent."""
+        return self._registrations.get(method_name)
+
     def resolve_run_config(self, config: RunConfig) -> RunConfig:
         """Apply adapter defaults and reject every unknown or invalid method config."""
         resolved_methods: list[MethodRunConfig] = []
@@ -84,3 +93,18 @@ class MethodRegistry:
                 raise InvalidMethodConfigError(method_config.name) from error
             resolved_methods.append(method_config.model_copy(update={"config": resolved_config}))
         return config.model_copy(update={"methods": resolved_methods})
+
+
+def default_method_registry() -> MethodRegistry:
+    """Register every classification adapter runnable on this server."""
+    return MethodRegistry(
+        [
+            MethodRegistration(
+                descriptor=ParentheticalQualifierMethod.descriptor,
+                config_model=ParentheticalQualifierMethod.config_model,
+                adapter=ParentheticalQualifierMethod(),
+                queue_name=CPU_QUEUE,
+                batch_size=_CPU_BATCH_SIZE,
+            )
+        ]
+    )

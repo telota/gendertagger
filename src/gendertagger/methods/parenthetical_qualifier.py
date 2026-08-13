@@ -10,6 +10,7 @@ raw method output and normalization provenance stay separable.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final
 
@@ -174,7 +175,7 @@ class ParentheticalQualifierMethod:
 
     def predict_batch(
         self,
-        people: list[PersonInput],
+        people: Sequence[PersonInput],
         config: ParentheticalQualifierConfig,
     ) -> list[PredictionResult]:
         """Classify each person from its relational qualifier evidence in order."""

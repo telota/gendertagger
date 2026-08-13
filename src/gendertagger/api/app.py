@@ -21,35 +21,18 @@ from gendertagger.api.settings import AppSettings, load_settings
 from gendertagger.db.session import create_database_engine, create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.ingestion.tei import TeiPersonParser
-from gendertagger.methods.parenthetical_qualifier import ParentheticalQualifierMethod
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.annotations import AnnotationService
-from gendertagger.services.method_registry import MethodRegistration, MethodRegistry
+from gendertagger.services.execution import BatchDispatcher, RunScheduler
+from gendertagger.services.method_registry import default_method_registry
 from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.projects import ProjectService
 from gendertagger.services.review_items import ReviewItemService
 from gendertagger.services.runs import RunProvenance, RunService
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
-from gendertagger.tasks.celery_app import CPU_QUEUE
-
-# CPU rule/lookup batch size within the docs/06-task-queue.md 100-500 range.
-_CPU_BATCH_SIZE = 200
-
-
-def default_method_registry() -> MethodRegistry:
-    """Register every classification adapter runnable on this server."""
-    return MethodRegistry(
-        [
-            MethodRegistration(
-                descriptor=ParentheticalQualifierMethod.descriptor,
-                config_model=ParentheticalQualifierMethod.config_model,
-                adapter=ParentheticalQualifierMethod(),
-                queue_name=CPU_QUEUE,
-                batch_size=_CPU_BATCH_SIZE,
-            )
-        ]
-    )
+from gendertagger.tasks.celery_app import create_celery_app
+from gendertagger.tasks.dispatch import CeleryBatchDispatcher
 
 
 def create_app(
@@ -58,6 +41,7 @@ def create_app(
     unit_of_work_factory: UnitOfWorkFactory | None = None,
     authentication_backend: AuthenticationBackend | None = None,
     request_id_factory: Callable[[], str] | None = None,
+    batch_dispatcher: BatchDispatcher | None = None,
 ) -> FastAPI:
     """Compose the API without opening a database connection.
 
@@ -66,6 +50,7 @@ def create_app(
         unit_of_work_factory: Optional application boundary override for tests.
         authentication_backend: Provider-neutral authentication implementation.
         request_id_factory: Optional server-owned correlation-ID generator.
+        batch_dispatcher: Optional asynchronous dispatcher override for tests.
 
     Returns:
         A configured FastAPI application whose owned engine is disposed at shutdown.
@@ -113,6 +98,13 @@ def create_app(
         unit_of_work_factory=unit_of_work_factory,
         cursor_codec=cursor_codec,
     )
+    run_scheduler = RunScheduler(
+        unit_of_work_factory=unit_of_work_factory,
+        method_registry=method_registry,
+        clock=partial(datetime.now, UTC),
+    )
+    if batch_dispatcher is None:
+        batch_dispatcher = CeleryBatchDispatcher(create_celery_app())
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -142,4 +134,6 @@ def create_app(
     application.state.method_registry = method_registry
     application.state.run_service = run_service
     application.state.review_item_service = review_item_service
+    application.state.run_scheduler = run_scheduler
+    application.state.batch_dispatcher = batch_dispatcher
     return application

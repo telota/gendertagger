@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 import pytest
 from pydantic import Field
 
@@ -28,7 +30,7 @@ class _DemoMethod:
     config_model = DemoMethodConfig
 
     def predict_batch(
-        self, people: list[PersonInput], config: DemoMethodConfig
+        self, people: Sequence[PersonInput], config: DemoMethodConfig
     ) -> list[PredictionResult]:
         del config
         return [

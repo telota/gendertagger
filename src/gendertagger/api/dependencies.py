@@ -6,6 +6,7 @@ from fastapi import Request
 
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.annotations import AnnotationService
+from gendertagger.services.execution import BatchDispatcher, RunScheduler
 from gendertagger.services.method_registry import MethodRegistry
 from gendertagger.services.projects import ProjectService
 from gendertagger.services.review_items import ReviewItemService
@@ -46,3 +47,13 @@ def get_run_service(request: Request) -> RunService:
 def get_review_item_service(request: Request) -> ReviewItemService:
     """Return the composed review-item query service."""
     return cast(ReviewItemService, request.app.state.review_item_service)
+
+
+def get_run_scheduler(request: Request) -> RunScheduler:
+    """Return the composed run-scheduling application service."""
+    return cast(RunScheduler, request.app.state.run_scheduler)
+
+
+def get_batch_dispatcher(request: Request) -> BatchDispatcher:
+    """Return the composed asynchronous batch dispatcher."""
+    return cast(BatchDispatcher, request.app.state.batch_dispatcher)

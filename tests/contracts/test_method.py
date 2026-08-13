@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 
 import pytest
 from pydantic import ValidationError
@@ -37,7 +38,7 @@ class _StubMethod:
 
     def predict_batch(
         self,
-        people: list[PersonInput],
+        people: Sequence[PersonInput],
         config: _StubConfig,
     ) -> list[PredictionResult]:
         return [

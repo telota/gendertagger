@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -14,6 +15,7 @@ from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.models.lifecycle import RunStatus
 from gendertagger.models.user import Role, UserCreate
+from gendertagger.services.execution import BatchDispatcher, ScheduledBatch
 from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
@@ -46,7 +48,12 @@ def _unit_of_work_factory(engine: Engine) -> UnitOfWorkFactory:
     return factory
 
 
-def _client(postgres_engine: Engine, artifact_root: Path) -> TestClient:
+def _client(
+    postgres_engine: Engine,
+    artifact_root: Path,
+    *,
+    batch_dispatcher: BatchDispatcher | None = None,
+) -> TestClient:
     unit_of_work_factory = _unit_of_work_factory(postgres_engine)
     with unit_of_work_factory() as unit_of_work:
         operator = unit_of_work.users.add_user(
@@ -62,6 +69,7 @@ def _client(postgres_engine: Engine, artifact_root: Path) -> TestClient:
         ),
         unit_of_work_factory=unit_of_work_factory,
         authentication_backend=StaticAuthenticationBackend(operator.id),
+        batch_dispatcher=batch_dispatcher,
     )
     return TestClient(application)
 
@@ -140,3 +148,53 @@ def test_run_creation_rejects_unregistered_method_and_client_provenance(
 
     assert unknown_method_response.status_code == 422
     assert client_provenance_response.status_code == 422
+
+
+class _RecordingDispatcher:
+    def __init__(self) -> None:
+        self.batches: list[ScheduledBatch] = []
+
+    def dispatch(self, batches: Sequence[ScheduledBatch]) -> None:
+        self.batches.extend(batches)
+
+
+def test_run_executions_are_scheduled_and_dispatched(
+    postgres_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    dispatcher = _RecordingDispatcher()
+    client = _client(postgres_engine, tmp_path, batch_dispatcher=dispatcher)
+    snapshot_id = _ready_snapshot_id(client)
+    create_response = client.post(
+        "/api/v1/runs",
+        json={
+            "dataset_snapshot_id": str(snapshot_id),
+            "config": {"methods": [{"name": "parenthetical_qualifier"}]},
+        },
+    )
+    run_id = create_response.json()["id"]
+
+    start_response = client.post(f"/api/v1/runs/{run_id}/executions")
+
+    assert start_response.status_code == 202
+    body = start_response.json()
+    assert body["status"] == RunStatus.running.value
+    assert "task_id" not in body
+    assert len(dispatcher.batches) == 1
+    assert dispatcher.batches[0].queue_name == "cpu"
+
+    # A run already scheduled cannot be scheduled again.
+    conflict = client.post(f"/api/v1/runs/{run_id}/executions")
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "resource_conflict"
+
+
+def test_start_executions_rejects_unknown_run(
+    postgres_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    client = _client(postgres_engine, tmp_path)
+
+    response = client.post(f"/api/v1/runs/{uuid4()}/executions")
+
+    assert response.status_code == 404

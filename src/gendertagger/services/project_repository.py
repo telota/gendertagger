@@ -68,6 +68,16 @@ class ProjectRepository(Protocol):
         """Return one stable ``(tei_id, id)`` keyset slice."""
         ...
 
+    def list_person_records_slice(
+        self,
+        snapshot_id: UUID,
+        *,
+        offset: int,
+        limit: int,
+    ) -> Sequence[PersonRecord]:
+        """Return one contiguous ``(tei_id, id)``-ordered person slice by offset."""
+        ...
+
     def complete_snapshot_import(
         self,
         snapshot_id: UUID,

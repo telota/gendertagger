@@ -197,6 +197,18 @@ class TaskBatch(TaskBatchCreate):
     created_at: UtcDatetime
 
 
+class TaskBatchMessage(BaseModel):
+    """Small validated Celery envelope identifying one batch to execute.
+
+    Task messages carry only identifiers, never person data or predictions.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    method_execution_id: UUID
+    task_batch_id: UUID
+
+
 class PredictionWrite(BaseModel):
     """Validated immutable method output prepared for persistence."""
 

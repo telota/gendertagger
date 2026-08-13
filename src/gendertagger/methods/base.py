@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Protocol, TypeVar
 
 from pydantic import BaseModel, ConfigDict
@@ -28,7 +29,7 @@ class GenderMethod(Protocol[MethodConfigT]):
 
     def predict_batch(
         self,
-        people: list[PersonInput],
+        people: Sequence[PersonInput],
         config: MethodConfigT,
     ) -> list[PredictionResult]:
         """Classify people and return one result per input in the same order.
@@ -46,7 +47,7 @@ class MethodContractError(ValueError):
 
 def validate_prediction_batch(
     descriptor: MethodDescriptor,
-    people: list[PersonInput],
+    people: Sequence[PersonInput],
     predictions: list[PredictionResult],
 ) -> list[PredictionResult]:
     """Validate adapter result cardinality and declared confidence semantics.

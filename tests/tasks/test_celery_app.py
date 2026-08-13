@@ -3,12 +3,8 @@ from __future__ import annotations
 import pytest
 from pydantic import SecretStr
 
-from gendertagger.tasks.celery_app import (
-    CLASSIFICATION_QUEUES,
-    CPU_QUEUE,
-    CelerySettings,
-    create_celery_app,
-)
+from gendertagger.models.queues import CLASSIFICATION_QUEUES, CPU_QUEUE
+from gendertagger.tasks.celery_app import CelerySettings, create_celery_app
 
 
 @pytest.mark.unit

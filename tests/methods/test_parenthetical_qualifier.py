@@ -6,7 +6,11 @@ from gendertagger.methods.parenthetical_qualifier import (
     ParentheticalQualifierConfig,
     ParentheticalQualifierMethod,
 )
-from gendertagger.models.classification import CanonicalLabel, PredictionStatus
+from gendertagger.models.classification import (
+    CanonicalLabel,
+    PredictionResult,
+    PredictionStatus,
+)
 from gendertagger.models.person import PersonInput
 
 pytestmark = [pytest.mark.unit, pytest.mark.scientific]
@@ -21,7 +25,7 @@ def _person(
     return PersonInput(tei_id="p1", surname=surname, forenames=forenames or [], note=note)
 
 
-def _predict(person: PersonInput) -> object:
+def _predict(person: PersonInput) -> PredictionResult:
     (result,) = _METHOD.predict_batch([person], _CONFIG)
     return result
 

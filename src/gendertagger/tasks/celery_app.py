@@ -14,24 +14,9 @@ from kombu import Queue
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-_REDIS_SCHEMES = frozenset({"redis", "rediss"})
+from gendertagger.models.queues import CLASSIFICATION_QUEUES, DEFAULT_QUEUE
 
-DEFAULT_QUEUE = "default"
-CPU_QUEUE = "cpu"
-GPU_QUEUE = "gpu"
-LLM_QUEUE = "llm"
-EXTERNAL_QUEUE = "external"
-EXPORT_QUEUE = "export"
-# Operational routing classes; methods are routed to one of these, never a
-# per-method queue. See docs/06-task-queue.md.
-CLASSIFICATION_QUEUES: tuple[str, ...] = (
-    DEFAULT_QUEUE,
-    CPU_QUEUE,
-    GPU_QUEUE,
-    LLM_QUEUE,
-    EXTERNAL_QUEUE,
-    EXPORT_QUEUE,
-)
+_REDIS_SCHEMES = frozenset({"redis", "rediss"})
 
 
 class CelerySettings(BaseSettings):
@@ -73,6 +58,9 @@ def create_celery_app(settings: CelerySettings | None = None) -> Celery:
         "gendertagger",
         broker=resolved.celery_broker_url.get_secret_value(),
         backend=backend.get_secret_value() if backend is not None else None,
+        # Imported lazily on worker finalize, so API clients that only send by
+        # name never pull the execution module's heavy imports.
+        include=["gendertagger.tasks.execution"],
     )
     configuration: dict[str, Any] = {
         # JSON only: never deserialize pickled payloads from the broker.

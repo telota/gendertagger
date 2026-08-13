@@ -376,6 +376,68 @@ class SqlAlchemyRunRepository:
         self._session.flush()
         return self._task_batch_from_row(row)
 
+    def finalize_execution_if_complete(
+        self, method_execution_id: UUID, *, finished_at: datetime
+    ) -> MethodExecution:
+        """Finalize a running execution once all its batches are terminal.
+
+        Locks the execution row so concurrent batch workers cannot both finalize
+        it; a no-op while batches are outstanding or the execution is terminal.
+        """
+        row = self._session.get(MethodExecutionRow, method_execution_id, with_for_update=True)
+        if row is None:
+            msg = f"method execution {method_execution_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        if row.status is not MethodExecutionStatus.running:
+            return self._method_execution_from_row(row)
+        batches = tuple(
+            self._session.scalars(
+                select(TaskBatchRow).where(TaskBatchRow.method_execution_id == method_execution_id)
+            )
+        )
+        if any(batch.status not in _BATCH_TERMINAL_STATUSES for batch in batches):
+            return self._method_execution_from_row(row)
+        row.completed_count = sum(batch.success_count + batch.abstain_count for batch in batches)
+        row.failed_count = sum(batch.error_count for batch in batches)
+        any_failed_batch = any(batch.status is TaskBatchStatus.failed for batch in batches)
+        row.status = (
+            MethodExecutionStatus.completed_with_errors
+            if any_failed_batch or row.failed_count > 0
+            else MethodExecutionStatus.completed
+        )
+        row.finished_at = finished_at
+        self._session.flush()
+        return self._method_execution_from_row(row)
+
+    def finalize_run_if_complete(self, run_id: UUID, *, finished_at: datetime) -> Run:
+        """Finalize a running run once all its method executions are terminal.
+
+        Locks the run row so concurrent workers cannot both finalize it; a no-op
+        while any execution is outstanding or the run is terminal.
+        """
+        row = self._session.get(RunRow, run_id, with_for_update=True)
+        if row is None:
+            msg = f"run {run_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        if row.status is not RunStatus.running:
+            return self._run_from_row(row)
+        executions = tuple(
+            self._session.scalars(
+                select(MethodExecutionRow).where(MethodExecutionRow.run_id == run_id)
+            )
+        )
+        if any(item.status not in _EXECUTION_TERMINAL_STATUSES for item in executions):
+            return self._run_from_row(row)
+        any_errors = any(
+            item.status
+            in {MethodExecutionStatus.completed_with_errors, MethodExecutionStatus.failed}
+            for item in executions
+        )
+        row.status = RunStatus.completed_with_errors if any_errors else RunStatus.completed
+        row.finished_at = finished_at
+        self._session.flush()
+        return self._run_from_row(row)
+
     def _require_run(self, run_id: UUID) -> RunRow:
         row = self._session.get(RunRow, run_id)
         if row is None:

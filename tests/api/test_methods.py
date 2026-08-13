@@ -1,9 +1,10 @@
+from collections.abc import Sequence
 from uuid import UUID
 
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
-from gendertagger.api.app import create_app, default_method_registry
+from gendertagger.api.app import create_app
 from gendertagger.api.authentication import require_authenticated_user
 from gendertagger.api.dependencies import get_method_registry
 from gendertagger.api.settings import AppSettings
@@ -15,6 +16,7 @@ from gendertagger.models.user import CurrentUser, Role
 from gendertagger.services.method_registry import (
     MethodRegistration,
     MethodRegistry,
+    default_method_registry,
 )
 from gendertagger.services.unit_of_work import UnitOfWork
 
@@ -36,7 +38,7 @@ class _StubMethod:
     config_model = EmptyMethodConfig
 
     def predict_batch(
-        self, people: list[PersonInput], config: EmptyMethodConfig
+        self, people: Sequence[PersonInput], config: EmptyMethodConfig
     ) -> list[PredictionResult]:
         del config
         return [

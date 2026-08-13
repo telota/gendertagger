@@ -2,6 +2,7 @@
 
 import os
 from collections.abc import Callable, Iterator
+from functools import partial
 from typing import TypeAlias
 from uuid import uuid4
 
@@ -11,9 +12,12 @@ from alembic import command
 from alembic.config import Config
 from hypothesis import settings
 from psycopg import sql
-from sqlalchemy import Engine, create_engine
+from sqlalchemy import Connection, Engine, create_engine
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.orm import Session
+
+from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
+from gendertagger.services.unit_of_work import UnitOfWorkFactory
 
 settings.register_profile(
     "ci",
@@ -99,5 +103,33 @@ def db_session(postgres_engine: Engine) -> Iterator[Session]:
             yield session
         finally:
             session.close()
+            if transaction.is_active:
+                transaction.rollback()
+
+
+@pytest.fixture
+def postgres_unit_of_work(
+    postgres_engine: Engine,
+) -> Iterator[tuple[UnitOfWorkFactory, Connection]]:
+    """Yield a real unit-of-work factory (and its connection) that rolls back.
+
+    Each unit of work opens its own session on one shared connection using
+    savepoints, so services that own their transaction boundaries run unchanged
+    while the outer transaction discards every write when the test ends.
+    """
+    with postgres_engine.connect() as connection:
+        transaction = connection.begin()
+
+        def session_factory() -> Session:
+            return Session(
+                bind=connection,
+                join_transaction_mode="create_savepoint",
+                autoflush=False,
+                expire_on_commit=False,
+            )
+
+        try:
+            yield partial(SqlAlchemyUnitOfWork, session_factory), connection
+        finally:
             if transaction.is_active:
                 transaction.rollback()

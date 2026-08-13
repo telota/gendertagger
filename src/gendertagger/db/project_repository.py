@@ -180,6 +180,32 @@ class SqlAlchemyProjectRepository:
         identifiers = self._external_ids_for([row.id for row in rows])
         return tuple(self._person_from_row(row, identifiers.get(row.id, ())) for row in rows)
 
+    def list_person_records_slice(
+        self,
+        snapshot_id: UUID,
+        *,
+        offset: int,
+        limit: int,
+    ) -> Sequence[PersonRecord]:
+        """Return one contiguous ``(tei_id, id)``-ordered person slice by offset."""
+        if offset < 0:
+            msg = "offset must not be negative"
+            raise ValueError(msg)
+        if limit <= 0:
+            msg = "limit must be positive"
+            raise ValueError(msg)
+        rows = tuple(
+            self._session.scalars(
+                select(PersonRecordRow)
+                .where(PersonRecordRow.dataset_snapshot_id == snapshot_id)
+                .order_by(PersonRecordRow.tei_id, PersonRecordRow.id)
+                .offset(offset)
+                .limit(limit)
+            )
+        )
+        identifiers = self._external_ids_for([row.id for row in rows])
+        return tuple(self._person_from_row(row, identifiers.get(row.id, ())) for row in rows)
+
     def complete_snapshot_import(
         self,
         snapshot_id: UUID,
