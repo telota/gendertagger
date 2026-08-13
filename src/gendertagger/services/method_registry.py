@@ -1,14 +1,17 @@
 """Server-side method registration and configuration resolution."""
 
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from types import MappingProxyType
+from typing import Any
 
 from pydantic import ValidationError
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
-from gendertagger.methods.base import MethodConfig
+from gendertagger.methods.base import GenderMethod, MethodConfig
 from gendertagger.models.method import MethodDescriptor
+from gendertagger.models.run import QUEUE_NAME_PATTERN
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,6 +20,18 @@ class MethodRegistration:
 
     descriptor: MethodDescriptor
     config_model: type[MethodConfig]
+    adapter: GenderMethod[Any]
+    queue_name: str
+    batch_size: int
+
+    def __post_init__(self) -> None:
+        """Reject operational routing values a worker could not honor."""
+        if re.fullmatch(QUEUE_NAME_PATTERN, self.queue_name) is None:
+            msg = f"queue name {self.queue_name!r} is not a valid routing class"
+            raise MethodRegistryError(msg)
+        if self.batch_size <= 0:
+            msg = "batch_size must be positive"
+            raise MethodRegistryError(msg)
 
 
 class MethodRegistryError(ValueError):

@@ -3,12 +3,14 @@ from uuid import UUID
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
-from gendertagger.api.app import create_app
+from gendertagger.api.app import create_app, default_method_registry
 from gendertagger.api.authentication import require_authenticated_user
 from gendertagger.api.dependencies import get_method_registry
 from gendertagger.api.settings import AppSettings
 from gendertagger.methods.base import MethodConfig
+from gendertagger.models.classification import PredictionResult, PredictionStatus
 from gendertagger.models.method import MethodDescriptor
+from gendertagger.models.person import PersonInput
 from gendertagger.models.user import CurrentUser, Role
 from gendertagger.services.method_registry import (
     MethodRegistration,
@@ -23,6 +25,37 @@ DEPENDENCY_LOCK_SHA256 = "b" * 64
 
 class EmptyMethodConfig(MethodConfig):
     pass
+
+
+class _StubMethod:
+    descriptor = MethodDescriptor(
+        name="stub_method",
+        implementation_version="stub_v1",
+        normalization_version="stub_normalization_v1",
+    )
+    config_model = EmptyMethodConfig
+
+    def predict_batch(
+        self, people: list[PersonInput], config: EmptyMethodConfig
+    ) -> list[PredictionResult]:
+        del config
+        return [
+            PredictionResult(label=None, status=PredictionStatus.abstain, raw_label=None)
+            for _ in people
+        ]
+
+
+_STUB = _StubMethod()
+
+
+def _registration(descriptor: MethodDescriptor) -> MethodRegistration:
+    return MethodRegistration(
+        descriptor=descriptor,
+        config_model=EmptyMethodConfig,
+        adapter=_STUB,
+        queue_name="cpu",
+        batch_size=100,
+    )
 
 
 def _unused_unit_of_work_factory() -> UnitOfWork:
@@ -52,31 +85,38 @@ def _application_client(registry: MethodRegistry | None = None) -> TestClient:
     return TestClient(application)
 
 
-def test_methods_endpoint_is_empty_before_adapters_are_runnable() -> None:
+def test_methods_endpoint_lists_the_runnable_parenthetical_qualifier() -> None:
     response = _application_client().get("/api/v1/methods")
 
     assert response.status_code == 200
-    assert response.json() == []
+    names = [method["name"] for method in response.json()]
+    assert names == ["parenthetical_qualifier"]
+
+
+def test_default_registry_routes_parenthetical_qualifier_to_cpu() -> None:
+    registration = default_method_registry().registrations[0]
+
+    assert registration.descriptor.name == "parenthetical_qualifier"
+    assert registration.queue_name == "cpu"
+    assert registration.batch_size > 0
 
 
 def test_methods_endpoint_returns_descriptors_in_stable_name_order() -> None:
     registry = MethodRegistry(
         [
-            MethodRegistration(
-                descriptor=MethodDescriptor(
+            _registration(
+                MethodDescriptor(
                     name="z_method",
                     implementation_version="z_v1",
                     normalization_version="z_normalization_v1",
-                ),
-                config_model=EmptyMethodConfig,
+                )
             ),
-            MethodRegistration(
-                descriptor=MethodDescriptor(
+            _registration(
+                MethodDescriptor(
                     name="a_method",
                     implementation_version="a_v1",
                     normalization_version="a_normalization_v1",
-                ),
-                config_model=EmptyMethodConfig,
+                )
             ),
         ]
     )

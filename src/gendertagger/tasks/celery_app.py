@@ -10,10 +10,28 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from celery import Celery
+from kombu import Queue
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _REDIS_SCHEMES = frozenset({"redis", "rediss"})
+
+DEFAULT_QUEUE = "default"
+CPU_QUEUE = "cpu"
+GPU_QUEUE = "gpu"
+LLM_QUEUE = "llm"
+EXTERNAL_QUEUE = "external"
+EXPORT_QUEUE = "export"
+# Operational routing classes; methods are routed to one of these, never a
+# per-method queue. See docs/06-task-queue.md.
+CLASSIFICATION_QUEUES: tuple[str, ...] = (
+    DEFAULT_QUEUE,
+    CPU_QUEUE,
+    GPU_QUEUE,
+    LLM_QUEUE,
+    EXTERNAL_QUEUE,
+    EXPORT_QUEUE,
+)
 
 
 class CelerySettings(BaseSettings):
@@ -68,7 +86,8 @@ def create_celery_app(settings: CelerySettings | None = None) -> Celery:
         "task_reject_on_worker_lost": True,
         "worker_prefetch_multiplier": 1,
         "task_track_started": True,
-        "task_default_queue": "default",
+        "task_default_queue": DEFAULT_QUEUE,
+        "task_queues": tuple(Queue(name) for name in CLASSIFICATION_QUEUES),
         "task_ignore_result": backend is None,
         "broker_connection_retry_on_startup": True,
     }

@@ -21,15 +21,35 @@ from gendertagger.api.settings import AppSettings, load_settings
 from gendertagger.db.session import create_database_engine, create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.ingestion.tei import TeiPersonParser
+from gendertagger.methods.parenthetical_qualifier import ParentheticalQualifierMethod
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.annotations import AnnotationService
-from gendertagger.services.method_registry import MethodRegistry
+from gendertagger.services.method_registry import MethodRegistration, MethodRegistry
 from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.projects import ProjectService
 from gendertagger.services.review_items import ReviewItemService
 from gendertagger.services.runs import RunProvenance, RunService
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
+from gendertagger.tasks.celery_app import CPU_QUEUE
+
+# CPU rule/lookup batch size within the docs/06-task-queue.md 100-500 range.
+_CPU_BATCH_SIZE = 200
+
+
+def default_method_registry() -> MethodRegistry:
+    """Register every classification adapter runnable on this server."""
+    return MethodRegistry(
+        [
+            MethodRegistration(
+                descriptor=ParentheticalQualifierMethod.descriptor,
+                config_model=ParentheticalQualifierMethod.config_model,
+                adapter=ParentheticalQualifierMethod(),
+                queue_name=CPU_QUEUE,
+                batch_size=_CPU_BATCH_SIZE,
+            )
+        ]
+    )
 
 
 def create_app(
@@ -72,7 +92,7 @@ def create_app(
         max_upload_bytes=resolved_settings.max_tei_upload_bytes,
         import_batch_record_count=resolved_settings.tei_import_batch_record_count,
     )
-    method_registry = MethodRegistry()
+    method_registry = default_method_registry()
     run_service = RunService(
         unit_of_work_factory=unit_of_work_factory,
         method_registry=method_registry,

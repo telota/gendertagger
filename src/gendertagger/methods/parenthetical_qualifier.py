@@ -165,12 +165,12 @@ def _match_qualifier(person: PersonInput) -> _QualifierMatch | None:
 class ParentheticalQualifierMethod:
     """Structural :class:`~gendertagger.methods.base.GenderMethod` implementation."""
 
-    descriptor: Final = MethodDescriptor(
+    descriptor = MethodDescriptor(
         name="parenthetical_qualifier",
         implementation_version="parenthetical_qualifier_v1",
         normalization_version=PARENTHETICAL_QUALIFIER_NORMALIZATION.normalization_version,
     )
-    config_model: Final = ParentheticalQualifierConfig
+    config_model = ParentheticalQualifierConfig
 
     def predict_batch(
         self,

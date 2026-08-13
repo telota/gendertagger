@@ -3,7 +3,9 @@ from pydantic import Field
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.methods.base import MethodConfig
+from gendertagger.models.classification import PredictionResult, PredictionStatus
 from gendertagger.models.method import MethodDescriptor
+from gendertagger.models.person import PersonInput
 from gendertagger.services.method_registry import (
     InvalidMethodConfigError,
     MethodRegistration,
@@ -17,14 +19,34 @@ class DemoMethodConfig(MethodConfig):
     threshold: float = Field(default=0.5, gt=0, lt=1)
 
 
+class _DemoMethod:
+    descriptor = MethodDescriptor(
+        name="demo_method",
+        implementation_version="demo_v1",
+        normalization_version="demo_normalization_v1",
+    )
+    config_model = DemoMethodConfig
+
+    def predict_batch(
+        self, people: list[PersonInput], config: DemoMethodConfig
+    ) -> list[PredictionResult]:
+        del config
+        return [
+            PredictionResult(label=None, status=PredictionStatus.abstain, raw_label=None)
+            for _ in people
+        ]
+
+
+_DEMO_ADAPTER = _DemoMethod()
+
+
 def _registration() -> MethodRegistration:
     return MethodRegistration(
-        descriptor=MethodDescriptor(
-            name="demo_method",
-            implementation_version="demo_v1",
-            normalization_version="demo_normalization_v1",
-        ),
+        descriptor=_DemoMethod.descriptor,
         config_model=DemoMethodConfig,
+        adapter=_DEMO_ADAPTER,
+        queue_name="cpu",
+        batch_size=100,
     )
 
 
