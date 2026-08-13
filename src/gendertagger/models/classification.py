@@ -45,6 +45,14 @@ class AgreementTier(StrEnum):
     no_answer = "no_answer"
 
 
+class LlmSelfReportedCertainty(StrEnum):
+    """Method-specific certainty category emitted by the local LLM."""
+
+    high = "high"
+    low = "low"
+    uncertain = "uncertain"
+
+
 class PredictionResult(BaseModel):
     """Validated output from one method for one person.
 

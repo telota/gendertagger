@@ -145,41 +145,45 @@ Tie rule:
 No decision may depend on prediction insertion or iteration order. See
 [ADR-0008](decisions/ADR-0008-reference-aggregation-edge-contract.md).
 
-### Agreement score
+### Agreement score and tiers
 
-For majority-vote results:
+For a decided majority-vote result:
 
 ```text
-votes for winning label / number of methods that cast a vote
+votes for winning label / number of pooled methods that cast a vote
 ```
 
-For authority-override results, record the share of remaining methods agreeing with the override, in addition to the fact that the label came from an override.
+Scores are rounded to three decimal places. The associated tiers are:
 
-## Agreement tiers
+- `unanimous`: score = 1.0;
+- `strong_majority`: score >= 0.75;
+- `weak_majority`: score >= 0.50;
+- `no_consensus`: score < 0.50;
+- `single_rater`: exactly one useful result;
+- `no_answer`: no useful result.
 
-Per-record agreement:
+An unresolved substantive tie retains the maximum vote share as its score but is always `no_consensus`.
+An authority override records the share of comparison methods agreeing with it. With no comparator, its score
+is 1.0 and its tier is `single_rater`, not `unanimous`. A no-data result has a null score and `no_answer`.
 
-- `unanimous`
-- `strong_majority` >= 0.75
-- `weak_majority` >= 0.50
-- `no_consensus` < 0.50
-- `single_rater`
-- `no_answer`
-
-Pairwise method agreement is evaluated with Cohen's kappa on records where both methods provide substantive non-abstention answers.
+Pairwise Cohen's kappa remains a Phase 7 evaluation metric over records where both methods provide successful
+answers; it is not part of the per-record aggregation result.
 
 ## Pipeline certainty tiers
 
 Reference tiers:
 
-- `high`: at least two methods voted and >= 0.75 agreement, or authority override according to reference policy
-- `low`: at least two voted and >= 0.50 agreement
-- `contested`: at least two voted and < 0.50 agreement
-- `single`: only one useful method result and that method is the LLM with self-reported high confidence
-- `uncertain`: lone LLM result with low/uncertain self-confidence
-- `no_data`: no usable vote
+- `high`: at least two pooled methods voted and agreement is >= 0.75, or any authority override;
+- `low`: at least two pooled methods voted and agreement is >= 0.50;
+- `contested`: at least two pooled methods voted and agreement is < 0.50, or the vote is unresolved;
+- `single`: the local LLM is the only voter and reports typed self-certainty `high`;
+- `uncertain`: a lone local LLM reports `low`/`uncertain`, or any non-authority method is the lone voter;
+- `no_data`: no usable vote.
 
-Certainty tier is distinct from `method_confidence`.
+A lone local-LLM result without valid self-reported certainty fails assessment rather than guessing. A lone
+authority has `single_rater` agreement but `high` certainty. Certainty tier is distinct from
+`method_confidence`, which never changes the reference vote, agreement, or certainty. See
+[ADR-0009](decisions/ADR-0009-reference-agreement-certainty.md).
 
 ## Human review
 

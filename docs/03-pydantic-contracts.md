@@ -50,6 +50,12 @@ class AgreementTier(str, Enum):
     no_consensus = "no_consensus"
     single_rater = "single_rater"
     no_answer = "no_answer"
+
+
+class LlmSelfReportedCertainty(str, Enum):
+    high = "high"
+    low = "low"
+    uncertain = "uncertain"
 ```
 
 ## Person input contract
@@ -169,12 +175,20 @@ class ReferenceAggregationDecision(BaseModel):
     override_source: OverrideSource | None = None
     override_agreeing_count: int | None = None
     override_comparison_count: int | None = None
+
+
+class ReferenceAggregationResult(ReferenceAggregationDecision):
+    agreement_score: float | None
+    agreement_tier: AgreementTier
+    certainty_tier: CertaintyTier
 ```
 
 A decided result has one label. An unresolved substantive tie and a no-data result have `label=None`; they
 remain distinct through `outcome`, and a tie also carries deterministic `tied_labels`. Vote counts always use
 the fixed four-label shape. Override decisions carry both agreeing and comparison counts so agreement can be
-derived without re-reading Predictions.
+derived without re-reading Predictions. The final result adds the versioned agreement score/tier and certainty
+tier. A lone local-LLM vote must carry a valid `LlmSelfReportedCertainty` value in
+`metadata.self_reported_certainty`; its numeric `method_confidence` is not used for certainty.
 
 ## Run configuration
 

@@ -9,6 +9,7 @@ from gendertagger.models.classification import (
     AgreementTier,
     CanonicalLabel,
     CertaintyTier,
+    LlmSelfReportedCertainty,
     PredictionResult,
     PredictionStatus,
 )
@@ -44,6 +45,13 @@ def test_classification_enums_expose_exact_member_and_value_mappings() -> None:
         "no_consensus": "no_consensus",
         "single_rater": "single_rater",
         "no_answer": "no_answer",
+    }
+    assert {
+        name: member.value for name, member in LlmSelfReportedCertainty.__members__.items()
+    } == {
+        "high": "high",
+        "low": "low",
+        "uncertain": "uncertain",
     }
 
 

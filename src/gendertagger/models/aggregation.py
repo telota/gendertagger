@@ -5,7 +5,11 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from gendertagger.models.classification import CanonicalLabel
+from gendertagger.models.classification import (
+    AgreementTier,
+    CanonicalLabel,
+    CertaintyTier,
+)
 
 
 class AggregationOutcome(StrEnum):
@@ -119,4 +123,44 @@ class ReferenceAggregationDecision(BaseModel):
                 msg = "override agreeing count must not exceed comparison count"
                 raise ValueError(msg)
 
+        return self
+
+
+class ReferenceAggregationResult(ReferenceAggregationDecision):
+    """Fully assessed ``reference_v1`` result with agreement and certainty."""
+
+    agreement_score: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
+    agreement_tier: AgreementTier
+    certainty_tier: CertaintyTier
+
+    @model_validator(mode="after")
+    def _validate_assessment_invariants(self) -> Self:
+        if self.outcome is AggregationOutcome.no_data:
+            if self.agreement_score is not None:
+                msg = "a no-data result must not have an agreement score"
+                raise ValueError(msg)
+            if self.agreement_tier is not AgreementTier.no_answer:
+                msg = "a no-data result requires the no-answer agreement tier"
+                raise ValueError(msg)
+            if self.certainty_tier is not CertaintyTier.no_data:
+                msg = "a no-data result requires the no-data certainty tier"
+                raise ValueError(msg)
+            return self
+
+        if self.agreement_score is None:
+            msg = "a result with usable evidence requires an agreement score"
+            raise ValueError(msg)
+        if self.agreement_tier is AgreementTier.no_answer:
+            msg = "a result with usable evidence must not use the no-answer agreement tier"
+            raise ValueError(msg)
+        if self.outcome is AggregationOutcome.unresolved_tie:
+            if self.agreement_tier is not AgreementTier.no_consensus:
+                msg = "an unresolved tie requires the no-consensus agreement tier"
+                raise ValueError(msg)
+            if self.certainty_tier is not CertaintyTier.contested:
+                msg = "an unresolved tie requires the contested certainty tier"
+                raise ValueError(msg)
+        if self.override_source is not None and self.certainty_tier is not CertaintyTier.high:
+            msg = "a reference authority override requires high certainty"
+            raise ValueError(msg)
         return self

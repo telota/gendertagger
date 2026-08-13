@@ -38,10 +38,10 @@ The design preserves the published multi-method workflow while adding persistent
 
 ## Repository state
 
-Implementation has begun with canonical contracts, typed method adapters, and versioned normalization for all
-ten methods. The pure `reference_v1` priority and unweighted-vote step now produces explicit override, no-data,
-and unresolved-tie evidence. Agreement and certainty rules are the next Phase 1 implementation step; the
-legacy golden fixture remains required before Phase 1 regression completion.
+Implementation has begun with canonical contracts, typed method adapters, versioned normalization for all ten
+methods, and pure `reference_v1` aggregation. Per-record agreement and certainty now cover authority support,
+transparent ties, and conservative typed handling of lone voters. The frozen end-to-end golden fixture and
+domain regression suite are the remaining Phase 1 deliverable.
 
 ## Development checks
 

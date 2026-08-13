@@ -7,9 +7,10 @@ from gendertagger.models.aggregation import (
     AggregationOutcome,
     OverrideSource,
     ReferenceAggregationDecision,
+    ReferenceAggregationResult,
     VoteCounts,
 )
-from gendertagger.models.classification import CanonicalLabel
+from gendertagger.models.classification import AgreementTier, CanonicalLabel, CertaintyTier
 
 pytestmark = pytest.mark.contract
 
@@ -103,6 +104,7 @@ def test_reference_aggregation_decision_serializes_transparent_tie() -> None:
         },
         {"outcome": "no_data", "label": None, "pooled_vote_counts": {"male": 1}},
         {"outcome": "no_data", "label": None, "override_source": "gnd"},
+        {"outcome": "no_data", "label": None, "tied_labels": ["male", "female"]},
     ],
 )
 def test_reference_aggregation_decision_rejects_inconsistent_outcomes(
@@ -181,3 +183,123 @@ def test_reference_aggregation_json_schema_exposes_stable_shape() -> None:
     assert schema["required"] == ["outcome", "label"]
     assert schema["additionalProperties"] is False
     assert schema["$defs"]["VoteCounts"]["additionalProperties"] is False
+
+
+def test_reference_aggregation_result_serializes_assessment() -> None:
+    result = ReferenceAggregationResult(
+        outcome=AggregationOutcome.decided,
+        label=CanonicalLabel.female,
+        pooled_vote_counts=VoteCounts(male=1, female=2),
+        agreement_score=0.667,
+        agreement_tier=AgreementTier.weak_majority,
+        certainty_tier=CertaintyTier.low,
+    )
+
+    assert result.model_dump(mode="json") == {
+        "outcome": "decided",
+        "label": "female",
+        "pooled_vote_counts": {
+            "male": 1,
+            "female": 2,
+            "unknown": 0,
+            "institution": 0,
+        },
+        "tied_labels": [],
+        "override_source": None,
+        "override_agreeing_count": None,
+        "override_comparison_count": None,
+        "agreement_score": 0.667,
+        "agreement_tier": "weak_majority",
+        "certainty_tier": "low",
+    }
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {
+            "outcome": "no_data",
+            "label": None,
+            "agreement_score": 0.0,
+            "agreement_tier": "no_answer",
+            "certainty_tier": "no_data",
+        },
+        {
+            "outcome": "no_data",
+            "label": None,
+            "agreement_score": None,
+            "agreement_tier": "single_rater",
+            "certainty_tier": "no_data",
+        },
+        {
+            "outcome": "no_data",
+            "label": None,
+            "agreement_score": None,
+            "agreement_tier": "no_answer",
+            "certainty_tier": "uncertain",
+        },
+        {
+            "outcome": "decided",
+            "label": "male",
+            "pooled_vote_counts": {"male": 1},
+            "agreement_score": None,
+            "agreement_tier": "unanimous",
+            "certainty_tier": "high",
+        },
+        {
+            "outcome": "decided",
+            "label": "male",
+            "pooled_vote_counts": {"male": 1},
+            "agreement_score": 1.0,
+            "agreement_tier": "no_answer",
+            "certainty_tier": "uncertain",
+        },
+        {
+            "outcome": "unresolved_tie",
+            "label": None,
+            "pooled_vote_counts": {"male": 1, "female": 1},
+            "tied_labels": ["male", "female"],
+            "agreement_score": 0.5,
+            "agreement_tier": "weak_majority",
+            "certainty_tier": "contested",
+        },
+        {
+            "outcome": "unresolved_tie",
+            "label": None,
+            "pooled_vote_counts": {"male": 1, "female": 1},
+            "tied_labels": ["male", "female"],
+            "agreement_score": 0.5,
+            "agreement_tier": "no_consensus",
+            "certainty_tier": "low",
+        },
+        {
+            "outcome": "decided",
+            "label": "male",
+            "override_source": "gnd",
+            "override_agreeing_count": 0,
+            "override_comparison_count": 0,
+            "agreement_score": 1.0,
+            "agreement_tier": "single_rater",
+            "certainty_tier": "low",
+        },
+    ],
+)
+def test_reference_aggregation_result_rejects_inconsistent_assessment(
+    payload: dict[str, object],
+) -> None:
+    with pytest.raises(ValidationError):
+        ReferenceAggregationResult.model_validate(payload)
+
+
+def test_reference_aggregation_result_rejects_invalid_score() -> None:
+    with pytest.raises(ValidationError):
+        ReferenceAggregationResult.model_validate(
+            {
+                "outcome": "decided",
+                "label": "male",
+                "pooled_vote_counts": {"male": 1},
+                "agreement_score": 1.01,
+                "agreement_tier": "unanimous",
+                "certainty_tier": "high",
+            }
+        )
