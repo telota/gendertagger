@@ -1,7 +1,8 @@
-# gendertagger infrastructure scaffold
+# gendertagger
 
-This repository is a **code-empty implementation scaffold** for the next generation of `gendertagger`.
-It captures the agreed architecture and the scientific behavior of the existing Python pipeline before implementation begins.
+This repository is the architecture-first implementation of the next generation of `gendertagger`.
+It captures the agreed architecture and scientific behavior of the existing Python pipeline while the
+new application is built in tested phases.
 
 The target system is a reproducible, human-in-the-loop service for semi-automated gender annotation of TEI/XML person registers.
 The design preserves the published multi-method workflow while adding persistent storage, an API, task orchestration, annotation, evaluation, provenance, and deployable infrastructure.
@@ -37,10 +38,9 @@ The design preserves the published multi-method workflow while adding persistent
 
 ## Repository state
 
-There is intentionally **no application implementation yet**. The repository contains a minimal importable
-package, development tooling, a packaging smoke test, and policy-script regression tests; application packages
-remain placeholders. The next implementation task is to preserve the legacy scientific fixture, then
-establish Pydantic contracts and state machines before deriving persistence and API layers.
+Implementation has begun with canonical Pydantic person and prediction contracts and their contract tests.
+The remaining application packages are still placeholders. Preserving the legacy scientific fixture remains
+the next Phase 0 task before further state-machine, persistence, and API work.
 
 ## Development checks
 

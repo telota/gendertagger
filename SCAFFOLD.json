@@ -1,7 +1,7 @@
 {
   "name": "gendertagger-infra-scaffold",
   "generated": "2026-08-13",
-  "status": "tooling-ready design scaffold; no application implementation",
+  "status": "implementation started with canonical Pydantic contracts; Phase 0 fixture pending",
   "design_docs": [
     "docs/00-design-index.md",
     "docs/01-architecture.md",

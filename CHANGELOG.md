@@ -24,9 +24,12 @@ the phased plan that resumes application code.
 - Six Architecture Decision Records under [`docs/decisions/`](docs/decisions/), recording the choice of a
   Pydantic/FastAPI core, immutable dataset snapshots, the reference aggregation strategy, the
   PostgreSQL/Celery/Redis stack, local-first data processing, and the Vue browser-client boundary.
-- Placeholder package layout under `src/gendertagger/` for the planned `api`, `cli`, `config`, `db`,
-  `domain`, `evaluation`, `export`, `ingestion`, `methods`, `models`, `services`, `storage`, and `tasks`
-  modules. These contain no application implementation.
+- Package layout under `src/gendertagger/` for the planned `api`, `cli`, `config`, `db`, `domain`,
+  `evaluation`, `export`, `ingestion`, `methods`, `models`, `services`, `storage`, and `tasks` modules.
+- Canonical Pydantic v2 person and prediction contracts, including the label, status, certainty, and
+  agreement vocabularies and validation of prediction-result invariants.
+- Contract tests for validation, serialization, source-string preservation, isolated mutable defaults,
+  and the semantic distinction between `unknown`, `abstain`, and `error`.
 - Repository policy gates: `scripts/check_documentation.py`, `scripts/check_contract_naming.py`,
   `scripts/check_package_initializers.py`, and `scripts/check_distribution.py`.
 - Test scaffold under [`tests/`](tests/) with a packaging smoke test and policy-script regression tests.

@@ -56,7 +56,7 @@ class AgreementTier(str, Enum):
 
 ```python
 class PersonInput(BaseModel):
-    tei_id: str
+    tei_id: str = Field(min_length=1)
     surname: str | None = None
     forenames: list[str] = Field(default_factory=list)
     birth: str | None = None
@@ -68,6 +68,8 @@ class PersonInput(BaseModel):
 ```
 
 Do not over-normalize historical values on ingestion. Preserve source strings and add normalized helper fields only where necessary.
+`tei_id` is required and must not be empty or contain only whitespace; validation does not trim or otherwise
+normalize the source identifier.
 
 ## Prediction result contract
 
@@ -75,7 +77,7 @@ Do not over-normalize historical values on ingestion. Preserve source strings an
 class PredictionResult(BaseModel):
     label: CanonicalLabel | None
     status: PredictionStatus
-    method_confidence: float | None = None
+    method_confidence: float | None = Field(default=None, allow_inf_nan=False)
     raw_label: str | None = None
     raw_output: dict[str, Any] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -85,7 +87,8 @@ Validation invariants:
 
 - `status=success` requires a canonical `label`.
 - `status in {abstain,error}` requires `label=None`.
-- `method_confidence`, if present, must be in the method's declared range; `[0,1]` is preferred but not assumed globally unless adapter declares it.
+- `method_confidence`, if present, must be finite and in the method's declared range; adapters enforce the
+  declared range. `[0,1]` is preferred but not assumed globally unless the adapter declares it.
 
 ## Method contract
 
