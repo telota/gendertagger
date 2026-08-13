@@ -17,11 +17,17 @@ if config.config_file_name is not None:
 
 
 def _database_url() -> str:
-    database_url = os.environ.get("GENDERTAGGER_DATABASE_URL")
-    if database_url is None:
+    configured_url = config.attributes.get("database_url")
+    if configured_url is not None:
+        if not isinstance(configured_url, str):
+            msg = "Alembic database_url attribute must be a string"
+            raise TypeError(msg)
+        return configured_url
+    environment_url = os.environ.get("GENDERTAGGER_DATABASE_URL")
+    if environment_url is None:
         msg = "GENDERTAGGER_DATABASE_URL is required for Alembic commands"
         raise RuntimeError(msg)
-    return database_url
+    return environment_url
 
 
 def run_migrations_offline() -> None:

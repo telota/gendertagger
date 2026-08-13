@@ -39,9 +39,18 @@ uv audit --locked
 uv run --locked pytest \
   -m "not integration and not postgres and not redis and not e2e and not slow and not gpu and not external" \
   --hypothesis-profile=ci --cov --cov-report=term-missing --cov-report=xml
+GENDERTAGGER_DATABASE_URL=postgresql+psycopg://user:password@localhost/gendertagger \
+  uv run --locked alembic upgrade head
+GENDERTAGGER_DATABASE_URL=postgresql+psycopg://user:password@localhost/gendertagger \
+  uv run --locked alembic check
+GENDERTAGGER_TEST_DATABASE_URL=postgresql+psycopg://user:password@localhost/postgres \
+  uv run --locked pytest -m "integration and postgres" --hypothesis-profile=ci
 uv build --no-sources
 uv run --locked python scripts/check_distribution.py dist/*
 ```
+
+The PostgreSQL test role must be allowed to create temporary databases. The integration suite creates a
+randomly named database per migration/repository scope and removes it after the session.
 
 Use `uv run --locked pre-commit run --all-files` to exercise all pre-commit-stage hooks manually.
 Use `uv run --locked pre-commit run --all-files --hook-stage pre-push` to exercise the strict typing,

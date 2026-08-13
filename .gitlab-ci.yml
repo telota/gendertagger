@@ -17,3 +17,25 @@ variables:
   SECRET_DETECTION_ENABLED: 'true'
 secret_detection:
   stage: secret-detection
+
+
+postgres_persistence:
+  stage: test
+  image: python:3.11.9-slim-bookworm@sha256:8fb099199b9f2d70342674bd9dbccd3ed03a258f26bbd1d556822c6dfc60c317
+  services:
+  - name: postgres:16.14-bookworm@sha256:64154d0babcb1741988719e703419af0382b19953706149f9872fbd0f438efa8
+    alias: postgres
+  variables:
+    POSTGRES_DB: gendertagger_ci
+    POSTGRES_USER: gendertagger
+    POSTGRES_PASSWORD: gendertagger_ci
+    GENDERTAGGER_DATABASE_URL: postgresql+psycopg://gendertagger:gendertagger_ci@postgres:5432/gendertagger_ci
+    GENDERTAGGER_TEST_DATABASE_URL: postgresql+psycopg://gendertagger:gendertagger_ci@postgres:5432/gendertagger_ci
+    PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  before_script:
+  - python -m pip install --no-cache-dir "uv==0.12.3"
+  - uv sync --locked
+  script:
+  - uv run --locked alembic upgrade head
+  - uv run --locked alembic check
+  - uv run --locked pytest -m "integration and postgres" --hypothesis-profile=ci
