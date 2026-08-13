@@ -171,6 +171,22 @@ class ReferenceAggregationResult(ReferenceAggregationDecision):
         return self
 
 
+class AggregationCreateRequest(BaseModel):
+    """Public command selecting one strategy and exact method executions."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    strategy: AggregationStrategy = AggregationStrategy.reference_v1
+    method_execution_ids: tuple[UUID, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _validate_unique_method_executions(self) -> Self:
+        if len(set(self.method_execution_ids)) != len(self.method_execution_ids):
+            msg = "method_execution_ids must not contain duplicates"
+            raise ValueError(msg)
+        return self
+
+
 class AggregationExecutionCreate(BaseModel):
     """Validated strategy and exact method selection for one aggregation."""
 

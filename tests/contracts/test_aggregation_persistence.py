@@ -6,6 +6,7 @@ from pydantic import ValidationError
 
 from gendertagger.models.aggregation import (
     AggregatedResult,
+    AggregationCreateRequest,
     AggregationExecution,
     AggregationExecutionCreate,
     AggregationOutcome,
@@ -59,6 +60,17 @@ def decided_result() -> ReferenceAggregationResult:
         agreement_tier=AgreementTier.unanimous,
         certainty_tier=CertaintyTier.high,
     )
+
+
+def test_aggregation_create_request_uses_exact_unique_execution_ids() -> None:
+    command = AggregationCreateRequest(method_execution_ids=(EXECUTION_ID, SECOND_EXECUTION_ID))
+
+    assert command.model_dump(mode="json") == {
+        "strategy": "reference_v1",
+        "method_execution_ids": [str(EXECUTION_ID), str(SECOND_EXECUTION_ID)],
+    }
+    with pytest.raises(ValidationError, match="must not contain duplicates"):
+        AggregationCreateRequest(method_execution_ids=(EXECUTION_ID, EXECUTION_ID))
 
 
 def test_aggregation_execution_requires_unique_method_selection() -> None:
