@@ -6,7 +6,13 @@ from pydantic import ValidationError
 
 from gendertagger.models.lifecycle import DatasetSnapshotStatus
 from gendertagger.models.person import PersonRecord
-from gendertagger.models.project import DatasetSnapshot, DatasetSnapshotCreate, ProjectCreate
+from gendertagger.models.project import (
+    DatasetSnapshot,
+    DatasetSnapshotCreate,
+    ProjectCreate,
+    SnapshotImportRequest,
+    TeiImportProfile,
+)
 
 PROJECT_ID = UUID("10000000-0000-0000-0000-000000000001")
 SNAPSHOT_ID = UUID("20000000-0000-0000-0000-000000000001")
@@ -23,7 +29,7 @@ def snapshot_payload(**overrides: object) -> dict[str, object]:
         "source_artifact_id": ARTIFACT_ID,
         "source_sha256": SHA256,
         "parser_version": "tei_parser_v1",
-        "import_config": {"profile": "reference_v1"},
+        "import_config": {"profile": TeiImportProfile.tei_p5_person_register_v1.value},
         "status": DatasetSnapshotStatus.pending,
         "record_count": None,
         "ready_at": None,
@@ -41,6 +47,16 @@ def test_project_create_rejects_blank_display_name_and_unknown_fields() -> None:
         ProjectCreate.model_validate(
             {"slug": "edition", "display_name": "Edition", "unexpected": True}
         )
+
+
+def test_snapshot_import_request_uses_one_versioned_closed_profile() -> None:
+    command = SnapshotImportRequest()
+
+    assert command.model_dump(mode="json") == {
+        "profile": TeiImportProfile.tei_p5_person_register_v1.value
+    }
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        SnapshotImportRequest.model_validate({"unknown_option": True})
 
 
 @pytest.mark.parametrize("slug", ["Uppercase", "two_words", "-leading", "trailing-"])

@@ -1,5 +1,6 @@
 """Canonical project and dataset-snapshot resource contracts."""
 
+from enum import StrEnum
 from typing import Self
 from uuid import UUID
 
@@ -10,6 +11,20 @@ from gendertagger.models.lifecycle import DatasetSnapshotStatus
 
 SHA256_PATTERN = r"^[0-9a-f]{64}$"
 PROJECT_SLUG_PATTERN = r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+
+
+class TeiImportProfile(StrEnum):
+    """Versioned TEI extraction profile selected for a snapshot import."""
+
+    tei_p5_person_register_v1 = "tei_p5_person_register_v1"
+
+
+class SnapshotImportRequest(BaseModel):
+    """Public multipart options for one source-preserving TEI import."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    profile: TeiImportProfile = TeiImportProfile.tei_p5_person_register_v1
 
 
 class ProjectCreate(BaseModel):

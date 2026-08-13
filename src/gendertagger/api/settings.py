@@ -1,5 +1,7 @@
 """Environment-backed FastAPI application settings."""
 
+from pathlib import Path
+
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
@@ -21,6 +23,9 @@ class AppSettings(BaseSettings):
         default=False,
         description="Emit SQLAlchemy SQL logs for local diagnostics.",
     )
+    artifact_root: Path = Path("data/artifacts")
+    max_tei_upload_bytes: int = Field(default=100 * 1024 * 1024, gt=0)
+    tei_import_batch_record_count: int = Field(default=500, gt=0, le=10_000)
 
     @field_validator("database_url")
     @classmethod

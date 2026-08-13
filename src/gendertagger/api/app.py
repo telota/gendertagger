@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from functools import partial
 from importlib.metadata import version
 
@@ -16,7 +17,10 @@ from gendertagger.api.router import create_api_router
 from gendertagger.api.settings import AppSettings, load_settings
 from gendertagger.db.session import create_database_engine, create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
+from gendertagger.ingestion.tei import TeiPersonParser
+from gendertagger.services.projects import ProjectService
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.storage.local import LocalArtifactStorage
 
 
 def create_app(
@@ -46,6 +50,14 @@ def create_app(
         unit_of_work_factory = partial(SqlAlchemyUnitOfWork, session_factory)
     if authentication_backend is None:
         authentication_backend = RejectAllAuthenticationBackend()
+    project_service = ProjectService(
+        unit_of_work_factory=unit_of_work_factory,
+        artifact_storage=LocalArtifactStorage(resolved_settings.artifact_root),
+        parser=TeiPersonParser(),
+        clock=partial(datetime.now, UTC),
+        max_upload_bytes=resolved_settings.max_tei_upload_bytes,
+        import_batch_record_count=resolved_settings.tei_import_batch_record_count,
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -64,4 +76,5 @@ def create_app(
     application.state.settings = resolved_settings
     application.state.unit_of_work_factory = unit_of_work_factory
     application.state.authentication_backend = authentication_backend
+    application.state.project_service = project_service
     return application
