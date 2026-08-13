@@ -1,0 +1,162 @@
+from datetime import UTC, datetime
+from uuid import UUID
+
+import pytest
+from pydantic import ValidationError
+
+from gendertagger.models.artifact import Artifact, ArtifactCreate
+from gendertagger.models.classification import CanonicalLabel
+from gendertagger.models.review import (
+    Annotation,
+    AnnotationCreate,
+    ReviewAction,
+    ReviewState,
+    ReviewWorkflowState,
+)
+from gendertagger.models.user import Role, User, UserCreate
+from gendertagger.services.persistence_errors import ReviewConflictError
+
+USER_ID = UUID("a0000000-0000-0000-0000-000000000001")
+SNAPSHOT_ID = UUID("20000000-0000-0000-0000-000000000001")
+PERSON_ID = UUID("40000000-0000-0000-0000-000000000001")
+ANNOTATION_ID = UUID("b0000000-0000-0000-0000-000000000001")
+ARTIFACT_ID = UUID("30000000-0000-0000-0000-000000000001")
+CREATED_AT = datetime(2026, 8, 13, 10, 0, tzinfo=UTC)
+
+
+def test_provider_neutral_user_preserves_global_roles() -> None:
+    command = UserCreate(
+        display_name="Reviewer",
+        roles={Role.viewer, Role.reviewer},
+    )
+    user = User(
+        id=USER_ID,
+        created_at=CREATED_AT,
+        updated_at=CREATED_AT,
+        **command.model_dump(),
+    )
+
+    assert user.roles == {Role.viewer, Role.reviewer}
+    assert user.is_active is True
+
+
+def test_user_rejects_blank_display_name() -> None:
+    with pytest.raises(ValidationError, match="display_name must not be blank"):
+        UserCreate(display_name="   ")
+
+
+def test_artifact_contract_preserves_checksum_and_internal_locator() -> None:
+    command = ArtifactCreate(
+        logical_type="source_tei",
+        storage_uri="file:///srv/gendertagger/artifacts/source.xml",
+        sha256="a" * 64,
+        byte_size=42,
+        media_type="application/xml",
+        dataset_snapshot_id=SNAPSHOT_ID,
+        metadata={"profile": "reference_v1"},
+    )
+    artifact = Artifact(
+        id=ARTIFACT_ID,
+        created_at=CREATED_AT,
+        **command.model_dump(),
+    )
+
+    assert artifact.sha256 == "a" * 64
+    assert artifact.storage_uri.startswith("file://")
+    assert artifact.metadata == {"profile": "reference_v1"}
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"logical_type": "Source TEI"},
+        {"storage_uri": "  "},
+        {"sha256": "invalid"},
+        {"byte_size": -1},
+        {"media_type": ""},
+    ],
+)
+def test_artifact_rejects_invalid_metadata(overrides: dict[str, object]) -> None:
+    payload: dict[str, object] = {
+        "logical_type": "source_tei",
+        "storage_uri": "file:///source.xml",
+        "sha256": "a" * 64,
+        "byte_size": 42,
+        "media_type": "application/xml",
+    }
+    payload.update(overrides)
+
+    with pytest.raises(ValidationError):
+        ArtifactCreate.model_validate(payload)
+
+
+@pytest.mark.parametrize("action", [ReviewAction.verify, ReviewAction.correct])
+def test_labeled_review_actions_require_canonical_label(action: ReviewAction) -> None:
+    with pytest.raises(ValidationError, match="require a canonical label"):
+        AnnotationCreate(
+            snapshot_id=SNAPSHOT_ID,
+            tei_id="p1",
+            action=action,
+            expected_revision=0,
+        )
+
+
+def test_defer_action_rejects_label() -> None:
+    with pytest.raises(ValidationError, match="must not have a label"):
+        AnnotationCreate(
+            snapshot_id=SNAPSHOT_ID,
+            tei_id="p1",
+            action=ReviewAction.defer,
+            label=CanonicalLabel.unknown,
+            expected_revision=0,
+        )
+
+
+def test_annotation_preserves_append_only_revision_provenance() -> None:
+    annotation = Annotation(
+        id=ANNOTATION_ID,
+        snapshot_id=SNAPSHOT_ID,
+        person_record_id=PERSON_ID,
+        tei_id="p1",
+        action=ReviewAction.correct,
+        label=CanonicalLabel.female,
+        reviewer_user_id=USER_ID,
+        comment="Checked against the source",
+        aggregated_result_id=None,
+        supersedes_annotation_id=None,
+        resulting_revision=1,
+        created_at=CREATED_AT,
+    )
+
+    assert annotation.resulting_revision == 1
+    assert annotation.label is CanonicalLabel.female
+
+
+def test_review_state_requires_head_after_first_revision() -> None:
+    initial = ReviewState(
+        snapshot_id=SNAPSHOT_ID,
+        person_record_id=PERSON_ID,
+        tei_id="p1",
+        revision=0,
+        workflow_state=ReviewWorkflowState.unreviewed,
+        current_annotation_id=None,
+    )
+    assert initial.current_annotation_id is None
+
+    with pytest.raises(ValidationError, match="requires a current annotation"):
+        ReviewState(
+            snapshot_id=SNAPSHOT_ID,
+            person_record_id=PERSON_ID,
+            tei_id="p1",
+            revision=1,
+            workflow_state=ReviewWorkflowState.reviewed,
+            current_annotation_id=None,
+        )
+
+
+def test_review_conflict_exposes_expected_and_current_revisions() -> None:
+    error = ReviewConflictError(expected_revision=1, current_revision=2)
+
+    assert error.expected_revision == 1
+    assert error.current_revision == 2
+    assert str(error) == "stale review revision 1; current revision is 2"

@@ -6,9 +6,12 @@ from typing import Self
 from sqlalchemy.orm import Session
 
 from gendertagger.db.aggregation_repository import SqlAlchemyAggregationRepository
+from gendertagger.db.artifact_repository import SqlAlchemyArtifactRepository
 from gendertagger.db.project_repository import SqlAlchemyProjectRepository
+from gendertagger.db.review_repository import SqlAlchemyReviewRepository
 from gendertagger.db.run_repository import SqlAlchemyRunRepository
 from gendertagger.db.session import SessionFactory
+from gendertagger.db.user_repository import SqlAlchemyUserRepository
 from gendertagger.services.unit_of_work import UnitOfWork
 
 
@@ -57,6 +60,21 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
     def aggregations(self) -> SqlAlchemyAggregationRepository:
         """Return aggregation persistence bound to the active session."""
         return SqlAlchemyAggregationRepository(self._require_session())
+
+    @property
+    def artifacts(self) -> SqlAlchemyArtifactRepository:
+        """Return artifact persistence bound to the active session."""
+        return SqlAlchemyArtifactRepository(self._require_session())
+
+    @property
+    def users(self) -> SqlAlchemyUserRepository:
+        """Return user persistence bound to the active session."""
+        return SqlAlchemyUserRepository(self._require_session())
+
+    @property
+    def reviews(self) -> SqlAlchemyReviewRepository:
+        """Return review persistence bound to the active session."""
+        return SqlAlchemyReviewRepository(self._require_session())
 
     def commit(self) -> None:
         """Commit every repository write made through the active session."""

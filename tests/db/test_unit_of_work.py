@@ -2,10 +2,13 @@ import pytest
 from sqlalchemy.orm import Session
 
 from gendertagger.db.aggregation_repository import SqlAlchemyAggregationRepository
+from gendertagger.db.artifact_repository import SqlAlchemyArtifactRepository
 from gendertagger.db.project_repository import SqlAlchemyProjectRepository
+from gendertagger.db.review_repository import SqlAlchemyReviewRepository
 from gendertagger.db.run_repository import SqlAlchemyRunRepository
 from gendertagger.db.session import create_database_engine, create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork, UnitOfWorkNotActiveError
+from gendertagger.db.user_repository import SqlAlchemyUserRepository
 
 
 class TrackingSession(Session):
@@ -85,10 +88,19 @@ def test_unit_of_work_binds_repositories_to_active_session() -> None:
         _ = unit_of_work.runs
     with pytest.raises(UnitOfWorkNotActiveError, match="not active"):
         _ = unit_of_work.aggregations
+    with pytest.raises(UnitOfWorkNotActiveError, match="not active"):
+        _ = unit_of_work.artifacts
+    with pytest.raises(UnitOfWorkNotActiveError, match="not active"):
+        _ = unit_of_work.users
+    with pytest.raises(UnitOfWorkNotActiveError, match="not active"):
+        _ = unit_of_work.reviews
     with unit_of_work:
         assert isinstance(unit_of_work.projects, SqlAlchemyProjectRepository)
         assert isinstance(unit_of_work.runs, SqlAlchemyRunRepository)
         assert isinstance(unit_of_work.aggregations, SqlAlchemyAggregationRepository)
+        assert isinstance(unit_of_work.artifacts, SqlAlchemyArtifactRepository)
+        assert isinstance(unit_of_work.users, SqlAlchemyUserRepository)
+        assert isinstance(unit_of_work.reviews, SqlAlchemyReviewRepository)
 
 
 def test_session_composition_accepts_only_postgresql() -> None:

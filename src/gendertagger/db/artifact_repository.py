@@ -1,0 +1,57 @@
+"""SQLAlchemy repository for immutable checksummed artifact records."""
+
+from uuid import UUID
+
+from sqlalchemy.orm import Session
+
+from gendertagger.db.artifacts import ArtifactRow
+from gendertagger.models.artifact import Artifact, ArtifactCreate
+
+
+class SqlAlchemyArtifactRepository:
+    """Map artifact contracts to rows within a caller-owned SQLAlchemy session."""
+
+    def __init__(self, session: Session) -> None:
+        self._session = session
+
+    def add_artifact(self, command: ArtifactCreate) -> Artifact:
+        """Persist and flush immutable artifact metadata without committing."""
+        row = ArtifactRow(
+            logical_type=command.logical_type,
+            storage_uri=command.storage_uri,
+            sha256=command.sha256,
+            byte_size=command.byte_size,
+            media_type=command.media_type,
+            project_id=command.project_id,
+            dataset_snapshot_id=command.dataset_snapshot_id,
+            run_id=command.run_id,
+            method_execution_id=command.method_execution_id,
+            aggregation_execution_id=command.aggregation_execution_id,
+            artifact_metadata=command.metadata,
+        )
+        self._session.add(row)
+        self._session.flush()
+        return self._artifact_from_row(row)
+
+    def get_artifact(self, artifact_id: UUID) -> Artifact | None:
+        """Return an artifact contract by ID without exposing its row."""
+        row = self._session.get(ArtifactRow, artifact_id)
+        return None if row is None else self._artifact_from_row(row)
+
+    @staticmethod
+    def _artifact_from_row(row: ArtifactRow) -> Artifact:
+        return Artifact(
+            id=row.id,
+            logical_type=row.logical_type,
+            storage_uri=row.storage_uri,
+            sha256=row.sha256,
+            byte_size=row.byte_size,
+            media_type=row.media_type,
+            project_id=row.project_id,
+            dataset_snapshot_id=row.dataset_snapshot_id,
+            run_id=row.run_id,
+            method_execution_id=row.method_execution_id,
+            aggregation_execution_id=row.aggregation_execution_id,
+            metadata=row.artifact_metadata,
+            created_at=row.created_at,
+        )
