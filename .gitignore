@@ -155,3 +155,9 @@ data/raw/
 *.pth
 *.bin
 *.safetensors
+
+# Local scratch (drafts, reviews, notes — not part of the paper)
+__scrap/
+
+# Claude Code agent definitions and local config
+.claude/
