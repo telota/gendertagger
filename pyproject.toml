@@ -11,6 +11,7 @@ requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
 dependencies = [
+  "psycopg[binary]>=3.2,<4",
   "pydantic>=2.13.4,<3",
   "pyyaml>=6.0.3,<7",
   "sqlalchemy>=2.0,<3",

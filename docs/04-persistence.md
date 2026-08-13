@@ -7,6 +7,18 @@ Redis is not durable scientific storage.
 
 Use SQLAlchemy 2.x and Alembic from the first schema revision.
 
+## Transaction and repository boundaries
+
+Application services own a unit of work. One unit of work owns one SQLAlchemy session and therefore one
+database transaction. Repositories share that session, flush when generated identifiers or constraint results
+are needed, and never commit independently. Leaving a unit-of-work context rolls back any uncommitted work and
+closes the session; successful commands call `commit()` explicitly.
+
+Repository interfaces belong to the application boundary. Their inputs and outputs are canonical Pydantic
+contracts or explicit scalar identifiers, never SQLAlchemy rows. The implementations under `gendertagger.db`
+perform the row/contract mapping and may use SQLAlchemy internally. Services receive a unit-of-work factory so
+tests and non-HTTP entry points use the same transaction semantics.
+
 ## Suggested tables
 
 - `projects`
