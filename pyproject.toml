@@ -18,6 +18,7 @@ packages = ["src/gendertagger"]
 [tool.hatch.build.targets.sdist]
 include = [
   "/AGENTS.md",
+  "/CHANGELOG.md",
   "/CONTRIBUTING.md",
   "/LICENSE",
   "/README.md",
