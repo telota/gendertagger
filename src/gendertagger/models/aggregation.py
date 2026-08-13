@@ -2,14 +2,19 @@
 
 from enum import StrEnum
 from typing import Self
+from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
+from gendertagger.config.run import AggregationStrategy
 from gendertagger.models.classification import (
     AgreementTier,
     CanonicalLabel,
     CertaintyTier,
 )
+from gendertagger.models.common import UtcDatetime, canonical_json_sha256
+from gendertagger.models.lifecycle import AggregationExecutionStatus
+from gendertagger.models.project import SHA256_PATTERN
 
 
 class AggregationOutcome(StrEnum):
@@ -164,3 +169,96 @@ class ReferenceAggregationResult(ReferenceAggregationDecision):
             msg = "a reference authority override requires high certainty"
             raise ValueError(msg)
         return self
+
+
+class AggregationExecutionCreate(BaseModel):
+    """Validated strategy and exact method selection for one aggregation."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    run_id: UUID
+    strategy: AggregationStrategy = AggregationStrategy.reference_v1
+    resolved_config: dict[str, JsonValue] = Field(default_factory=dict)
+    method_execution_ids: tuple[UUID, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _validate_unique_method_executions(self) -> Self:
+        if len(set(self.method_execution_ids)) != len(self.method_execution_ids):
+            msg = "method_execution_ids must not contain duplicates"
+            raise ValueError(msg)
+        return self
+
+    def canonical_config_sha256(self) -> str:
+        """Hash the versioned strategy and its resolved configuration."""
+        return canonical_json_sha256(
+            {
+                "strategy": self.strategy.value,
+                "config": self.resolved_config,
+            }
+        )
+
+
+class AggregationExecution(AggregationExecutionCreate):
+    """Canonical read model for one independently rerunnable aggregation."""
+
+    id: UUID
+    config_sha256: str = Field(pattern=SHA256_PATTERN)
+    status: AggregationExecutionStatus
+    started_at: UtcDatetime | None = None
+    finished_at: UtcDatetime | None = None
+    failure_class: str | None = None
+    failure_diagnostic: str | None = None
+    created_at: UtcDatetime
+
+    @model_validator(mode="after")
+    def _validate_lifecycle_fields(self) -> Self:
+        terminal_statuses = {
+            AggregationExecutionStatus.completed,
+            AggregationExecutionStatus.failed,
+            AggregationExecutionStatus.cancelled,
+        }
+        if self.status in terminal_statuses:
+            if self.finished_at is None:
+                msg = "a terminal aggregation requires finished_at"
+                raise ValueError(msg)
+        elif self.finished_at is not None:
+            msg = "a non-terminal aggregation must not have finished_at"
+            raise ValueError(msg)
+        if (
+            self.status
+            in {
+                AggregationExecutionStatus.running,
+                AggregationExecutionStatus.completed,
+            }
+            and self.started_at is None
+        ):
+            msg = "a running or completed aggregation requires started_at"
+            raise ValueError(msg)
+        if self.status is AggregationExecutionStatus.failed:
+            if self.failure_diagnostic is None or not self.failure_diagnostic.strip():
+                msg = "a failed aggregation requires a failure diagnostic"
+                raise ValueError(msg)
+        elif self.failure_class is not None or self.failure_diagnostic is not None:
+            msg = "only a failed aggregation may have failure details"
+            raise ValueError(msg)
+        return self
+
+
+class AggregationResultWrite(BaseModel):
+    """Validated immutable per-person aggregation output prepared for persistence."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    person_record_id: UUID
+    result: ReferenceAggregationResult
+    metadata: dict[str, JsonValue] = Field(default_factory=dict)
+
+
+class AggregatedResult(ReferenceAggregationResult):
+    """Canonical read model for one immutable persisted aggregation output."""
+
+    id: UUID
+    aggregation_execution_id: UUID
+    person_record_id: UUID
+    metadata: dict[str, JsonValue] = Field(default_factory=dict)
+    created_at: UtcDatetime

@@ -3,6 +3,7 @@
 from types import TracebackType
 from typing import Protocol, Self
 
+from gendertagger.services.aggregation_repository import AggregationRepository
 from gendertagger.services.project_repository import ProjectRepository
 from gendertagger.services.run_repository import RunRepository
 
@@ -31,6 +32,11 @@ class UnitOfWork(Protocol):
     @property
     def runs(self) -> RunRepository:
         """Return execution persistence bound to the current transaction."""
+        ...
+
+    @property
+    def aggregations(self) -> AggregationRepository:
+        """Return aggregation persistence bound to the current transaction."""
         ...
 
     def commit(self) -> None:

@@ -5,6 +5,7 @@ from typing import Self
 
 from sqlalchemy.orm import Session
 
+from gendertagger.db.aggregation_repository import SqlAlchemyAggregationRepository
 from gendertagger.db.project_repository import SqlAlchemyProjectRepository
 from gendertagger.db.run_repository import SqlAlchemyRunRepository
 from gendertagger.db.session import SessionFactory
@@ -51,6 +52,11 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
     def runs(self) -> SqlAlchemyRunRepository:
         """Return execution persistence bound to the active session."""
         return SqlAlchemyRunRepository(self._require_session())
+
+    @property
+    def aggregations(self) -> SqlAlchemyAggregationRepository:
+        """Return aggregation persistence bound to the active session."""
+        return SqlAlchemyAggregationRepository(self._require_session())
 
     def commit(self) -> None:
         """Commit every repository write made through the active session."""
