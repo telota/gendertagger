@@ -24,6 +24,7 @@ from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.annotations import AnnotationService
 from gendertagger.services.method_registry import MethodRegistry
+from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.projects import ProjectService
 from gendertagger.services.runs import RunProvenance, RunService
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
@@ -60,10 +61,12 @@ def create_app(
         unit_of_work_factory = partial(SqlAlchemyUnitOfWork, session_factory)
     if authentication_backend is None:
         authentication_backend = RejectAllAuthenticationBackend()
+    cursor_codec = CursorCodec()
     project_service = ProjectService(
         unit_of_work_factory=unit_of_work_factory,
         artifact_storage=LocalArtifactStorage(resolved_settings.artifact_root),
         parser=TeiPersonParser(),
+        cursor_codec=cursor_codec,
         clock=partial(datetime.now, UTC),
         max_upload_bytes=resolved_settings.max_tei_upload_bytes,
         import_batch_record_count=resolved_settings.tei_import_batch_record_count,
@@ -80,7 +83,10 @@ def create_app(
             container_image_digest=resolved_settings.container_image_digest,
         ),
     )
-    aggregation_service = AggregationService(unit_of_work_factory)
+    aggregation_service = AggregationService(
+        unit_of_work_factory=unit_of_work_factory,
+        cursor_codec=cursor_codec,
+    )
     annotation_service = AnnotationService(unit_of_work_factory)
 
     @asynccontextmanager

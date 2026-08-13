@@ -8,6 +8,8 @@ from gendertagger.models.aggregation import (
     AggregationExecution,
     AggregationExecutionCreate,
 )
+from gendertagger.models.api import CursorPage
+from gendertagger.services.pagination import CursorCodec, InvalidCursorError
 from gendertagger.services.persistence_errors import ResourceNotFoundError
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 
@@ -15,8 +17,14 @@ from gendertagger.services.unit_of_work import UnitOfWorkFactory
 class AggregationService:
     """Persist pending aggregation commands and read immutable outputs."""
 
-    def __init__(self, unit_of_work_factory: UnitOfWorkFactory) -> None:
+    def __init__(
+        self,
+        *,
+        unit_of_work_factory: UnitOfWorkFactory,
+        cursor_codec: CursorCodec,
+    ) -> None:
         self._unit_of_work_factory = unit_of_work_factory
+        self._cursor_codec = cursor_codec
 
     def create_aggregation(
         self,
@@ -54,3 +62,46 @@ class AggregationService:
             msg = f"aggregation result {result_id} does not exist under {aggregation_id}"
             raise ResourceNotFoundError(msg)
         return result
+
+    def list_results(
+        self,
+        aggregation_id: UUID,
+        *,
+        limit: int,
+        cursor: str | None,
+    ) -> CursorPage[AggregatedResult]:
+        """Return one stable opaque-cursor page of immutable results."""
+        if limit <= 0:
+            msg = "limit must be positive"
+            raise ValueError(msg)
+        self.get_aggregation(aggregation_id)
+        resource = f"aggregation_results:{aggregation_id}"
+        position = (
+            self._cursor_codec.decode(cursor, expected_resource=resource)
+            if cursor is not None
+            else None
+        )
+        after_person_record_id = None
+        if position is not None:
+            try:
+                after_person_record_id = UUID(position.sort_value)
+            except ValueError as error:
+                raise InvalidCursorError("result cursor sort value is invalid") from error
+        with self._unit_of_work_factory() as unit_of_work:
+            results = unit_of_work.aggregations.list_results(
+                aggregation_id,
+                limit=limit + 1,
+                after_person_record_id=after_person_record_id,
+                after_result_id=position.id if position is not None else None,
+            )
+        has_more = len(results) > limit
+        items = list(results[:limit])
+        next_cursor = None
+        if has_more:
+            last_item = items[-1]
+            next_cursor = self._cursor_codec.encode(
+                resource=resource,
+                sort_value=str(last_item.person_record_id),
+                resource_id=last_item.id,
+            )
+        return CursorPage(items=items, next_cursor=next_cursor, has_more=has_more)

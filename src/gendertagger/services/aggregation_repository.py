@@ -34,3 +34,14 @@ class AggregationRepository(Protocol):
     def get_result(self, aggregated_result_id: UUID) -> AggregatedResult | None:
         """Return an aggregated result by ID, or ``None`` when absent."""
         ...
+
+    def list_results(
+        self,
+        aggregation_execution_id: UUID,
+        *,
+        limit: int,
+        after_person_record_id: UUID | None = None,
+        after_result_id: UUID | None = None,
+    ) -> Sequence[AggregatedResult]:
+        """Return one stable ``(person_record_id, id)`` keyset slice."""
+        ...

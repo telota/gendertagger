@@ -57,6 +57,17 @@ class ProjectRepository(Protocol):
         """Return one person occurrence by snapshot-scoped TEI identity."""
         ...
 
+    def list_person_records(
+        self,
+        snapshot_id: UUID,
+        *,
+        limit: int,
+        after_tei_id: str | None = None,
+        after_person_record_id: UUID | None = None,
+    ) -> Sequence[PersonRecord]:
+        """Return one stable ``(tei_id, id)`` keyset slice."""
+        ...
+
     def complete_snapshot_import(
         self,
         snapshot_id: UUID,

@@ -3,11 +3,13 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 
 from gendertagger.api.authorization import require_operator, require_viewer
 from gendertagger.api.dependencies import get_project_service
 from gendertagger.api.errors import ApiRequestError
+from gendertagger.models.api import CursorPage
+from gendertagger.models.person import PersonRecord
 from gendertagger.models.project import (
     DatasetSnapshot,
     Project,
@@ -16,7 +18,11 @@ from gendertagger.models.project import (
     TeiImportProfile,
 )
 from gendertagger.models.user import User
-from gendertagger.services.persistence_errors import ResourceNotFoundError
+from gendertagger.services.pagination import InvalidCursorError
+from gendertagger.services.persistence_errors import (
+    InvalidResourceStateError,
+    ResourceNotFoundError,
+)
 from gendertagger.services.projects import ProjectService
 from gendertagger.storage.local import ArtifactTooLargeError
 
@@ -89,6 +95,37 @@ def get_snapshot(
         return service.get_snapshot(snapshot_id)
     except ResourceNotFoundError as error:
         raise _not_found() from error
+
+
+@router.get(
+    "/snapshots/{snapshot_id}/people",
+    response_model=CursorPage[PersonRecord],
+)
+def list_people(
+    snapshot_id: UUID,
+    service: Annotated[ProjectService, Depends(get_project_service)],
+    _: Annotated[User, Depends(require_viewer)],
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    cursor: Annotated[str | None, Query(max_length=2048)] = None,
+) -> CursorPage[PersonRecord]:
+    """List snapshot people in stable TEI-ID order."""
+    try:
+        return service.list_people(snapshot_id, limit=limit, cursor=cursor)
+    except ResourceNotFoundError as error:
+        raise _not_found() from error
+    except InvalidResourceStateError as error:
+        raise ApiRequestError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="resource_conflict",
+            message="The dataset snapshot is not ready.",
+        ) from error
+    except InvalidCursorError as error:
+        raise ApiRequestError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            code="validation_error",
+            message="The cursor is invalid.",
+            details={"reason": "invalid_cursor"},
+        ) from error
 
 
 def _not_found() -> ApiRequestError:

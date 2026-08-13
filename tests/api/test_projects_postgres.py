@@ -27,9 +27,15 @@ DEPENDENCY_LOCK_SHA256 = "b" * 64
 VALID_TEI = b"""<?xml version="1.0" encoding="UTF-8"?>
 <TEI xmlns="http://www.tei-c.org/ns/1.0">
   <text><body><listPerson>
+    <person xml:id="p3">
+      <persName type="reg"><surname>Third</surname></persName>
+    </person>
     <person xml:id="p1">
       <persName type="reg"><surname>Example</surname><forename>Anna</forename></persName>
       <idno type="uri">https://d-nb.info/gnd/123456789</idno>
+    </person>
+    <person xml:id="p2">
+      <persName type="reg"><surname>Second</surname></persName>
     </person>
   </listPerson></body></text>
 </TEI>
@@ -112,7 +118,7 @@ def test_project_and_ready_snapshot_round_trip_through_http(
     assert import_response.status_code == 202
     snapshot_body = import_response.json()
     assert snapshot_body["status"] == DatasetSnapshotStatus.ready.value
-    assert snapshot_body["record_count"] == 1
+    assert snapshot_body["record_count"] == 3
     assert snapshot_body["source_sha256"] == hashlib.sha256(VALID_TEI).hexdigest()
     assert "storage_uri" not in snapshot_body
 
@@ -120,6 +126,39 @@ def test_project_and_ready_snapshot_round_trip_through_http(
     source_artifact_id = UUID(snapshot_body["source_artifact_id"])
     assert client.get(f"/api/v1/projects/{project_id}").status_code == 200
     assert client.get(f"/api/v1/snapshots/{snapshot_id}").json() == snapshot_body
+    assert snapshot_body["created_at"].endswith("Z")
+
+    first_page_response = client.get(
+        f"/api/v1/snapshots/{snapshot_id}/people",
+        params={"limit": 2},
+    )
+    first_page = first_page_response.json()
+    assert first_page_response.status_code == 200
+    assert [person["tei_id"] for person in first_page["items"]] == ["p1", "p2"]
+    assert first_page["has_more"] is True
+    assert first_page["next_cursor"]
+
+    second_page = client.get(
+        f"/api/v1/snapshots/{snapshot_id}/people",
+        params={"limit": 2, "cursor": first_page["next_cursor"]},
+    ).json()
+    assert [person["tei_id"] for person in second_page["items"]] == ["p3"]
+    assert second_page["has_more"] is False
+    assert second_page["next_cursor"] is None
+
+    invalid_cursor_response = client.get(
+        f"/api/v1/snapshots/{snapshot_id}/people",
+        params={"cursor": "invalid+cursor"},
+    )
+    assert invalid_cursor_response.status_code == 422
+    assert invalid_cursor_response.json()["error"]["details"] == {"reason": "invalid_cursor"}
+
+    oversized_limit_response = client.get(
+        f"/api/v1/snapshots/{snapshot_id}/people",
+        params={"limit": 201},
+    )
+    assert oversized_limit_response.status_code == 422
+    assert oversized_limit_response.json()["error"]["code"] == "validation_error"
 
     with unit_of_work_factory() as unit_of_work:
         person = unit_of_work.projects.get_person_record_by_tei_id(snapshot_id, "p1")

@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from gendertagger.db.projects import (
@@ -143,6 +143,42 @@ class SqlAlchemyProjectRepository:
         if row is None:
             return None
         return self._person_from_row(row, self._external_ids_for([row.id]).get(row.id, ()))
+
+    def list_person_records(
+        self,
+        snapshot_id: UUID,
+        *,
+        limit: int,
+        after_tei_id: str | None = None,
+        after_person_record_id: UUID | None = None,
+    ) -> Sequence[PersonRecord]:
+        """Return people in stable TEI-ID order using keyset continuation."""
+        if limit <= 0:
+            msg = "limit must be positive"
+            raise ValueError(msg)
+        if (after_tei_id is None) != (after_person_record_id is None):
+            msg = "person cursor fields must be supplied together"
+            raise ValueError(msg)
+        statement = select(PersonRecordRow).where(
+            PersonRecordRow.dataset_snapshot_id == snapshot_id
+        )
+        if after_tei_id is not None and after_person_record_id is not None:
+            statement = statement.where(
+                or_(
+                    PersonRecordRow.tei_id > after_tei_id,
+                    and_(
+                        PersonRecordRow.tei_id == after_tei_id,
+                        PersonRecordRow.id > after_person_record_id,
+                    ),
+                )
+            )
+        rows = tuple(
+            self._session.scalars(
+                statement.order_by(PersonRecordRow.tei_id, PersonRecordRow.id).limit(limit)
+            )
+        )
+        identifiers = self._external_ids_for([row.id for row in rows])
+        return tuple(self._person_from_row(row, identifiers.get(row.id, ())) for row in rows)
 
     def complete_snapshot_import(
         self,

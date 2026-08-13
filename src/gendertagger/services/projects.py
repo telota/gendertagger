@@ -6,8 +6,10 @@ from typing import BinaryIO
 from uuid import UUID
 
 from gendertagger.ingestion.tei import TeiImportError, TeiPersonParser
+from gendertagger.models.api import CursorPage
 from gendertagger.models.artifact import ArtifactCreate
-from gendertagger.models.person import PersonInput
+from gendertagger.models.lifecycle import DatasetSnapshotStatus
+from gendertagger.models.person import PersonInput, PersonRecord
 from gendertagger.models.project import (
     DatasetSnapshot,
     DatasetSnapshotCreate,
@@ -16,7 +18,11 @@ from gendertagger.models.project import (
     SnapshotImportRequest,
 )
 from gendertagger.services.artifact_storage import ArtifactStorage
-from gendertagger.services.persistence_errors import ResourceNotFoundError
+from gendertagger.services.pagination import CursorCodec
+from gendertagger.services.persistence_errors import (
+    InvalidResourceStateError,
+    ResourceNotFoundError,
+)
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 
 
@@ -29,6 +35,7 @@ class ProjectService:
         unit_of_work_factory: UnitOfWorkFactory,
         artifact_storage: ArtifactStorage,
         parser: TeiPersonParser,
+        cursor_codec: CursorCodec,
         clock: Callable[[], datetime],
         max_upload_bytes: int,
         import_batch_record_count: int,
@@ -42,6 +49,7 @@ class ProjectService:
         self._unit_of_work_factory = unit_of_work_factory
         self._artifact_storage = artifact_storage
         self._parser = parser
+        self._cursor_codec = cursor_codec
         self._clock = clock
         self._max_upload_bytes = max_upload_bytes
         self._import_batch_record_count = import_batch_record_count
@@ -70,6 +78,46 @@ class ProjectService:
             msg = f"dataset snapshot {snapshot_id} does not exist"
             raise ResourceNotFoundError(msg)
         return snapshot
+
+    def list_people(
+        self,
+        snapshot_id: UUID,
+        *,
+        limit: int,
+        cursor: str | None,
+    ) -> CursorPage[PersonRecord]:
+        """Return one stable opaque-cursor page of snapshot people."""
+        if limit <= 0:
+            msg = "limit must be positive"
+            raise ValueError(msg)
+        snapshot = self.get_snapshot(snapshot_id)
+        if snapshot.status is not DatasetSnapshotStatus.ready:
+            msg = f"dataset snapshot {snapshot_id} is not ready"
+            raise InvalidResourceStateError(msg)
+        resource = f"snapshot_people:{snapshot_id}"
+        position = (
+            self._cursor_codec.decode(cursor, expected_resource=resource)
+            if cursor is not None
+            else None
+        )
+        with self._unit_of_work_factory() as unit_of_work:
+            records = unit_of_work.projects.list_person_records(
+                snapshot_id,
+                limit=limit + 1,
+                after_tei_id=position.sort_value if position is not None else None,
+                after_person_record_id=position.id if position is not None else None,
+            )
+        has_more = len(records) > limit
+        items = list(records[:limit])
+        next_cursor = None
+        if has_more:
+            last_item = items[-1]
+            next_cursor = self._cursor_codec.encode(
+                resource=resource,
+                sort_value=last_item.tei_id,
+                resource_id=last_item.id,
+            )
+        return CursorPage(items=items, next_cursor=next_cursor, has_more=has_more)
 
     def import_snapshot(
         self,

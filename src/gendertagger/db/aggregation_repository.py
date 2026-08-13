@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from gendertagger.config.run import AggregationStrategy
@@ -174,6 +174,42 @@ class SqlAlchemyAggregationRepository:
         """Return one immutable aggregated result without exposing its row."""
         row = self._session.get(AggregatedResultRow, aggregated_result_id)
         return None if row is None else self._result_from_row(row)
+
+    def list_results(
+        self,
+        aggregation_execution_id: UUID,
+        *,
+        limit: int,
+        after_person_record_id: UUID | None = None,
+        after_result_id: UUID | None = None,
+    ) -> Sequence[AggregatedResult]:
+        """Return results in stable person-ID order using keyset continuation."""
+        if limit <= 0:
+            msg = "limit must be positive"
+            raise ValueError(msg)
+        if (after_person_record_id is None) != (after_result_id is None):
+            msg = "result cursor fields must be supplied together"
+            raise ValueError(msg)
+        statement = select(AggregatedResultRow).where(
+            AggregatedResultRow.aggregation_execution_id == aggregation_execution_id
+        )
+        if after_person_record_id is not None and after_result_id is not None:
+            statement = statement.where(
+                or_(
+                    AggregatedResultRow.person_record_id > after_person_record_id,
+                    and_(
+                        AggregatedResultRow.person_record_id == after_person_record_id,
+                        AggregatedResultRow.id > after_result_id,
+                    ),
+                )
+            )
+        rows = self._session.scalars(
+            statement.order_by(
+                AggregatedResultRow.person_record_id,
+                AggregatedResultRow.id,
+            ).limit(limit)
+        )
+        return tuple(self._result_from_row(row) for row in rows)
 
     @staticmethod
     def _aggregation_from_row(

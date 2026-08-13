@@ -1,8 +1,11 @@
 """Canonical transport-wide API support contracts."""
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue
+from typing import Generic, Self, TypeVar
+
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
 API_ERROR_CODE_PATTERN = r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
+T = TypeVar("T")
 
 
 class ApiErrorDetail(BaseModel):
@@ -22,3 +25,20 @@ class ApiErrorEnvelope(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     error: ApiErrorDetail
+
+
+class CursorPage(BaseModel, Generic[T]):
+    """Opaque-cursor page for a stable server-ordered resource collection."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    items: list[T]
+    next_cursor: str | None = Field(default=None, min_length=1)
+    has_more: bool
+
+    @model_validator(mode="after")
+    def _validate_cursor_consistency(self) -> Self:
+        if self.has_more != (self.next_cursor is not None):
+            msg = "has_more and next_cursor must describe the same continuation state"
+            raise ValueError(msg)
+        return self

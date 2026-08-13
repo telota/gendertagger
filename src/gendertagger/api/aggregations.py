@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from gendertagger.api.authorization import require_operator, require_viewer
 from gendertagger.api.dependencies import get_aggregation_service
@@ -13,8 +13,10 @@ from gendertagger.models.aggregation import (
     AggregationCreateRequest,
     AggregationExecution,
 )
+from gendertagger.models.api import CursorPage
 from gendertagger.models.user import User
 from gendertagger.services.aggregations import AggregationService
+from gendertagger.services.pagination import InvalidCursorError
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
@@ -58,6 +60,31 @@ def get_aggregation(
         return service.get_aggregation(aggregation_id)
     except ResourceNotFoundError as error:
         raise _not_found() from error
+
+
+@router.get(
+    "/aggregations/{aggregation_id}/results",
+    response_model=CursorPage[AggregatedResult],
+)
+def list_aggregation_results(
+    aggregation_id: UUID,
+    service: Annotated[AggregationService, Depends(get_aggregation_service)],
+    _: Annotated[User, Depends(require_viewer)],
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    cursor: Annotated[str | None, Query(max_length=2048)] = None,
+) -> CursorPage[AggregatedResult]:
+    """List immutable aggregation results in stable person-ID order."""
+    try:
+        return service.list_results(aggregation_id, limit=limit, cursor=cursor)
+    except ResourceNotFoundError as error:
+        raise _not_found() from error
+    except InvalidCursorError as error:
+        raise ApiRequestError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            code="validation_error",
+            message="The cursor is invalid.",
+            details={"reason": "invalid_cursor"},
+        ) from error
 
 
 @router.get(

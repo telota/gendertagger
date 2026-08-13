@@ -6,14 +6,13 @@ import pytest
 from fastapi import Request
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
-from sqlalchemy import Engine, select
+from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from gendertagger.api.app import create_app
 from gendertagger.api.authentication import AuthenticationBackend
 from gendertagger.api.settings import AppSettings
 from gendertagger.config.run import MethodRunConfig, RunConfig
-from gendertagger.db.aggregations import AggregatedResultRow
 from gendertagger.db.executions import MethodExecutionRow
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
@@ -66,7 +65,7 @@ def _unit_of_work_factory(
 def _seed_completed_execution(
     unit_of_work_factory: UnitOfWorkFactory,
     session_factory: sessionmaker[Session],
-) -> tuple[UUID, UUID, UUID, UUID]:
+) -> tuple[UUID, UUID, UUID, tuple[UUID, UUID]]:
     with unit_of_work_factory() as unit_of_work:
         user = unit_of_work.users.add_user(
             UserCreate(display_name="Aggregation operator", roles={Role.operator})
@@ -97,7 +96,10 @@ def _seed_completed_execution(
         unit_of_work.projects.begin_snapshot_import(snapshot.id)
         unit_of_work.projects.add_person_records(
             snapshot.id,
-            [PersonInput(tei_id="p1", surname="Example")],
+            [
+                PersonInput(tei_id="p1", surname="Example"),
+                PersonInput(tei_id="p2", surname="Second"),
+            ],
         )
         unit_of_work.projects.complete_snapshot_import(snapshot.id, ready_at=NOW)
         run = unit_of_work.runs.add_run(
@@ -119,11 +121,13 @@ def _seed_completed_execution(
                     normalization_version="demo_normalization_v1",
                 ),
                 queue_name="cpu",
-                total_count=1,
+                total_count=2,
             )
         )
-        person = unit_of_work.projects.get_person_record_by_tei_id(snapshot.id, "p1")
-        assert person is not None
+        first_person = unit_of_work.projects.get_person_record_by_tei_id(snapshot.id, "p1")
+        second_person = unit_of_work.projects.get_person_record_by_tei_id(snapshot.id, "p2")
+        assert first_person is not None
+        assert second_person is not None
         unit_of_work.commit()
 
     with session_factory() as session:
@@ -132,9 +136,9 @@ def _seed_completed_execution(
         execution_row.status = MethodExecutionStatus.completed
         execution_row.started_at = NOW
         execution_row.finished_at = NOW
-        execution_row.completed_count = 1
+        execution_row.completed_count = 2
         session.commit()
-    return user.id, run.id, execution.id, person.id
+    return user.id, run.id, execution.id, (first_person.id, second_person.id)
 
 
 def test_pending_aggregation_and_immutable_result_round_trip_through_http(
@@ -142,7 +146,7 @@ def test_pending_aggregation_and_immutable_result_round_trip_through_http(
     tmp_path: Path,
 ) -> None:
     unit_of_work_factory, session_factory = _unit_of_work_factory(postgres_engine)
-    user_id, run_id, execution_id, person_id = _seed_completed_execution(
+    user_id, run_id, execution_id, person_ids = _seed_completed_execution(
         unit_of_work_factory,
         session_factory,
     )
@@ -177,7 +181,7 @@ def test_pending_aggregation_and_immutable_result_round_trip_through_http(
                 aggregation_id,
                 [
                     AggregationResultWrite(
-                        person_record_id=person_id,
+                        person_record_id=person_ids[0],
                         result=ReferenceAggregationResult(
                             outcome=AggregationOutcome.decided,
                             label=CanonicalLabel.female,
@@ -186,23 +190,51 @@ def test_pending_aggregation_and_immutable_result_round_trip_through_http(
                             agreement_tier=AgreementTier.single_rater,
                             certainty_tier=CertaintyTier.uncertain,
                         ),
-                    )
+                    ),
+                    AggregationResultWrite(
+                        person_record_id=person_ids[1],
+                        result=ReferenceAggregationResult(
+                            outcome=AggregationOutcome.decided,
+                            label=CanonicalLabel.male,
+                            pooled_vote_counts=VoteCounts(male=1),
+                            agreement_score=1.0,
+                            agreement_tier=AgreementTier.single_rater,
+                            certainty_tier=CertaintyTier.uncertain,
+                        ),
+                    ),
                 ],
             )
-            == 1
+            == 2
         )
         unit_of_work.commit()
-    with session_factory() as session:
-        result_id = session.scalar(
-            select(AggregatedResultRow.id).where(
-                AggregatedResultRow.aggregation_execution_id == aggregation_id
-            )
+    with unit_of_work_factory() as unit_of_work:
+        persisted_results = unit_of_work.aggregations.list_results(
+            aggregation_id,
+            limit=10,
         )
-    assert result_id is not None
+    assert len(persisted_results) == 2
+    result_id = persisted_results[0].id
+
+    first_page = client.get(
+        f"/api/v1/aggregations/{aggregation_id}/results",
+        params={"limit": 1},
+    ).json()
+    second_page = client.get(
+        f"/api/v1/aggregations/{aggregation_id}/results",
+        params={"limit": 1, "cursor": first_page["next_cursor"]},
+    ).json()
+    assert [item["id"] for item in first_page["items"] + second_page["items"]] == [
+        str(result.id) for result in persisted_results
+    ]
+    assert first_page["has_more"] is True
+    assert second_page["has_more"] is False
+    assert second_page["next_cursor"] is None
 
     result_response = client.get(f"/api/v1/aggregations/{aggregation_id}/results/{result_id}")
 
     assert result_response.status_code == 200
-    assert result_response.json()["label"] == CanonicalLabel.female.value
+    expected_label = persisted_results[0].label
+    assert expected_label is not None
+    assert result_response.json()["label"] == expected_label.value
     wrong_owner_response = client.get(f"/api/v1/aggregations/{uuid4()}/results/{result_id}")
     assert wrong_owner_response.status_code == 404
