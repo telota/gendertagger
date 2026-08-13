@@ -26,6 +26,7 @@ from gendertagger.services.annotations import AnnotationService
 from gendertagger.services.method_registry import MethodRegistry
 from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.projects import ProjectService
+from gendertagger.services.review_items import ReviewItemService
 from gendertagger.services.runs import RunProvenance, RunService
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
@@ -88,6 +89,10 @@ def create_app(
         cursor_codec=cursor_codec,
     )
     annotation_service = AnnotationService(unit_of_work_factory)
+    review_item_service = ReviewItemService(
+        unit_of_work_factory=unit_of_work_factory,
+        cursor_codec=cursor_codec,
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -116,4 +121,5 @@ def create_app(
     application.state.annotation_service = annotation_service
     application.state.method_registry = method_registry
     application.state.run_service = run_service
+    application.state.review_item_service = review_item_service
     return application

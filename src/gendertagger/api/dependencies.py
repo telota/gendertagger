@@ -8,6 +8,7 @@ from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.annotations import AnnotationService
 from gendertagger.services.method_registry import MethodRegistry
 from gendertagger.services.projects import ProjectService
+from gendertagger.services.review_items import ReviewItemService
 from gendertagger.services.runs import RunService
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 
@@ -40,3 +41,8 @@ def get_method_registry(request: Request) -> MethodRegistry:
 def get_run_service(request: Request) -> RunService:
     """Return the composed run application service."""
     return cast(RunService, request.app.state.run_service)
+
+
+def get_review_item_service(request: Request) -> ReviewItemService:
+    """Return the composed review-item query service."""
+    return cast(ReviewItemService, request.app.state.review_item_service)

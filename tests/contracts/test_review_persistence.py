@@ -10,6 +10,7 @@ from gendertagger.models.review import (
     Annotation,
     AnnotationCreate,
     ReviewAction,
+    ReviewItemQuery,
     ReviewState,
     ReviewWorkflowState,
 )
@@ -124,6 +125,16 @@ def test_annotation_command_preserves_optional_machine_result_link() -> None:
     )
 
     assert command.aggregated_result_id == AGGREGATED_RESULT_ID
+
+
+def test_review_query_requires_method_name_for_method_outcome_filters() -> None:
+    with pytest.raises(ValidationError, match="require method_name"):
+        ReviewItemQuery(
+            aggregation_id=AGGREGATED_RESULT_ID,
+            method_label=CanonicalLabel.female,
+        )
+    with pytest.raises(ValidationError, match="q must not be blank"):
+        ReviewItemQuery(aggregation_id=AGGREGATED_RESULT_ID, q="   ")
 
 
 def test_annotation_preserves_append_only_revision_provenance() -> None:

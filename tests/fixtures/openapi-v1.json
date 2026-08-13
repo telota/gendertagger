@@ -638,6 +638,40 @@
         "title": "CursorPage[PersonRecord]",
         "type": "object"
       },
+      "CursorPage_ReviewItem_": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "has_more"
+        ],
+        "title": "CursorPage[ReviewItem]",
+        "type": "object"
+      },
       "DatasetSnapshot": {
         "additionalProperties": false,
         "description": "Canonical read model for one imported snapshot lifecycle.",
@@ -968,6 +1002,16 @@
         "title": "PersonRecord",
         "type": "object"
       },
+      "PredictionStatus": {
+        "description": "Outcome status of one method prediction.",
+        "enum": [
+          "success",
+          "abstain",
+          "error"
+        ],
+        "title": "PredictionStatus",
+        "type": "string"
+      },
       "Project": {
         "additionalProperties": false,
         "description": "Canonical read model for a persisted project.",
@@ -1058,6 +1102,187 @@
           "defer"
         ],
         "title": "ReviewAction",
+        "type": "string"
+      },
+      "ReviewItem": {
+        "additionalProperties": false,
+        "description": "Queryable person, machine decision, and current review projection.",
+        "properties": {
+          "aggregated_result_id": {
+            "format": "uuid",
+            "title": "Aggregated Result Id",
+            "type": "string"
+          },
+          "aggregation_execution_id": {
+            "format": "uuid",
+            "title": "Aggregation Execution Id",
+            "type": "string"
+          },
+          "aggregation_outcome": {
+            "$ref": "#/components/schemas/AggregationOutcome"
+          },
+          "agreement_tier": {
+            "$ref": "#/components/schemas/AgreementTier"
+          },
+          "certainty_tier": {
+            "$ref": "#/components/schemas/CertaintyTier"
+          },
+          "current_annotation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Annotation Id"
+          },
+          "final_label": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CanonicalLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "forenames": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Forenames",
+            "type": "array"
+          },
+          "has_authority_conflict": {
+            "title": "Has Authority Conflict",
+            "type": "boolean"
+          },
+          "has_prediction_error": {
+            "title": "Has Prediction Error",
+            "type": "boolean"
+          },
+          "machine_label": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CanonicalLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "override_source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OverrideSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "person_record_id": {
+            "format": "uuid",
+            "title": "Person Record Id",
+            "type": "string"
+          },
+          "review_revision": {
+            "minimum": 0.0,
+            "title": "Review Revision",
+            "type": "integer"
+          },
+          "selected_method_result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewMethodResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "snapshot_id": {
+            "format": "uuid",
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "surname": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Surname"
+          },
+          "tei_id": {
+            "title": "Tei Id",
+            "type": "string"
+          },
+          "workflow_state": {
+            "$ref": "#/components/schemas/ReviewWorkflowState"
+          }
+        },
+        "required": [
+          "aggregation_execution_id",
+          "aggregated_result_id",
+          "snapshot_id",
+          "person_record_id",
+          "tei_id",
+          "aggregation_outcome",
+          "agreement_tier",
+          "certainty_tier",
+          "has_authority_conflict",
+          "has_prediction_error",
+          "workflow_state",
+          "review_revision"
+        ],
+        "title": "ReviewItem",
+        "type": "object"
+      },
+      "ReviewMethodResult": {
+        "additionalProperties": false,
+        "description": "Selected method outcome included in a review-item summary.",
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CanonicalLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "method_name": {
+            "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+            "title": "Method Name",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PredictionStatus"
+          }
+        },
+        "required": [
+          "method_name",
+          "status"
+        ],
+        "title": "ReviewMethodResult",
+        "type": "object"
+      },
+      "ReviewWorkflowState": {
+        "description": "Current rebuildable workflow projection for a review stream.",
+        "enum": [
+          "unreviewed",
+          "reviewed",
+          "deferred"
+        ],
+        "title": "ReviewWorkflowState",
         "type": "string"
       },
       "Run": {
@@ -2245,6 +2470,313 @@
         "summary": "Import Snapshot",
         "tags": [
           "projects"
+        ]
+      }
+    },
+    "/api/v1/review-items": {
+      "get": {
+        "description": "List one aggregation's candidates using explicit server-side filters.",
+        "operationId": "list_review_items_api_v1_review_items_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "aggregation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Aggregation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "final_label",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CanonicalLabel"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Final Label"
+            }
+          },
+          {
+            "in": "query",
+            "name": "certainty_tier",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CertaintyTier"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Certainty Tier"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agreement_tier",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AgreementTier"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agreement Tier"
+            }
+          },
+          {
+            "in": "query",
+            "name": "workflow_state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ReviewWorkflowState"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workflow State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "has_authority_conflict",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Has Authority Conflict"
+            }
+          },
+          {
+            "in": "query",
+            "name": "method_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Method Name"
+            }
+          },
+          {
+            "in": "query",
+            "name": "method_label",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CanonicalLabel"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Method Label"
+            }
+          },
+          {
+            "in": "query",
+            "name": "prediction_status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/PredictionStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Prediction Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "has_prediction_error",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Has Prediction Error"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 2048,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_ReviewItem_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List Review Items",
+        "tags": [
+          "review"
         ]
       }
     },
