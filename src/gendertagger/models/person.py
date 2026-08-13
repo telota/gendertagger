@@ -1,6 +1,10 @@
 """Canonical person input contracts."""
 
+from uuid import UUID
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from gendertagger.models.common import UtcDatetime
 
 
 class PersonInput(BaseModel):
@@ -28,3 +32,11 @@ class PersonInput(BaseModel):
             msg = "tei_id must not be empty"
             raise ValueError(msg)
         return value
+
+
+class PersonRecord(PersonInput):
+    """Canonical read model for one person occurrence in an exact snapshot."""
+
+    id: UUID
+    dataset_snapshot_id: UUID
+    created_at: UtcDatetime

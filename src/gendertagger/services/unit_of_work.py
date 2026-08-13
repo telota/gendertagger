@@ -3,6 +3,8 @@
 from types import TracebackType
 from typing import Protocol, Self
 
+from gendertagger.services.project_repository import ProjectRepository
+
 
 class UnitOfWork(Protocol):
     """Caller-controlled transaction spanning application repositories."""
@@ -18,6 +20,11 @@ class UnitOfWork(Protocol):
         traceback: TracebackType | None,
     ) -> None:
         """Roll back uncommitted work and close the transaction context."""
+        ...
+
+    @property
+    def projects(self) -> ProjectRepository:
+        """Return project persistence bound to the current transaction."""
         ...
 
     def commit(self) -> None:
