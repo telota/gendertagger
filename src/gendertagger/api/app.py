@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from functools import partial
 from importlib.metadata import version
+from platform import python_version
 
 from fastapi import FastAPI
 from sqlalchemy import Engine
@@ -18,7 +19,9 @@ from gendertagger.api.settings import AppSettings, load_settings
 from gendertagger.db.session import create_database_engine, create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.ingestion.tei import TeiPersonParser
+from gendertagger.services.method_registry import MethodRegistry
 from gendertagger.services.projects import ProjectService
+from gendertagger.services.runs import RunProvenance, RunService
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
 
@@ -40,6 +43,7 @@ def create_app(
         A configured FastAPI application whose owned engine is disposed at shutdown.
     """
     resolved_settings = settings or load_settings()
+    application_version = version("gendertagger")
     engine: Engine | None = None
     if unit_of_work_factory is None:
         engine = create_database_engine(
@@ -58,6 +62,18 @@ def create_app(
         max_upload_bytes=resolved_settings.max_tei_upload_bytes,
         import_batch_record_count=resolved_settings.tei_import_batch_record_count,
     )
+    method_registry = MethodRegistry()
+    run_service = RunService(
+        unit_of_work_factory=unit_of_work_factory,
+        method_registry=method_registry,
+        provenance=RunProvenance(
+            code_git_commit=resolved_settings.code_git_commit,
+            application_version=application_version,
+            python_version=python_version(),
+            dependency_lock_sha256=resolved_settings.dependency_lock_sha256,
+            container_image_digest=resolved_settings.container_image_digest,
+        ),
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -69,7 +85,7 @@ def create_app(
 
     application = FastAPI(
         title="gendertagger API",
-        version=version("gendertagger"),
+        version=application_version,
         lifespan=lifespan,
     )
     application.include_router(create_api_router())
@@ -77,4 +93,6 @@ def create_app(
     application.state.unit_of_work_factory = unit_of_work_factory
     application.state.authentication_backend = authentication_backend
     application.state.project_service = project_service
+    application.state.method_registry = method_registry
+    application.state.run_service = run_service
     return application

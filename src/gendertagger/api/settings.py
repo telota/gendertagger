@@ -7,6 +7,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
 
+from gendertagger.models.project import SHA256_PATTERN
+
 
 class AppSettings(BaseSettings):
     """Validated process settings loaded from ``GENDERTAGGER_*`` variables."""
@@ -19,6 +21,9 @@ class AppSettings(BaseSettings):
     )
 
     database_url: SecretStr
+    code_git_commit: str = Field(min_length=1, max_length=100)
+    dependency_lock_sha256: str = Field(pattern=SHA256_PATTERN)
+    container_image_digest: str | None = None
     database_echo: bool = Field(
         default=False,
         description="Emit SQLAlchemy SQL logs for local diagnostics.",
@@ -37,6 +42,14 @@ class AppSettings(BaseSettings):
             raise ValueError(msg) from error
         if database_url.drivername != "postgresql+psycopg":
             msg = "database_url must use the postgresql+psycopg driver"
+            raise ValueError(msg)
+        return value
+
+    @field_validator("code_git_commit")
+    @classmethod
+    def _validate_code_git_commit(cls, value: str) -> str:
+        if not value.strip():
+            msg = "code_git_commit must not be blank"
             raise ValueError(msg)
         return value
 

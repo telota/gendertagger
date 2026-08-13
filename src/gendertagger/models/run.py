@@ -15,6 +15,15 @@ from gendertagger.models.project import SHA256_PATTERN
 QUEUE_NAME_PATTERN = r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
 
 
+class RunCreateRequest(BaseModel):
+    """Public command selecting one snapshot and raw run configuration."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    dataset_snapshot_id: UUID
+    config: RunConfig
+
+
 class RunCreate(BaseModel):
     """Validated configuration and provenance used to create a run."""
 

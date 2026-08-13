@@ -22,6 +22,8 @@ from gendertagger.storage.local import LocalArtifactStorage
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 
 DATABASE_URL = "postgresql+psycopg://unused:unused@localhost/unused"
+CODE_GIT_COMMIT = "a" * 40
+DEPENDENCY_LOCK_SHA256 = "b" * 64
 VALID_TEI = b"""<?xml version="1.0" encoding="UTF-8"?>
 <TEI xmlns="http://www.tei-c.org/ns/1.0">
   <text><body><listPerson>
@@ -73,6 +75,8 @@ def _client(
     application = create_app(
         settings=AppSettings(
             database_url=SecretStr(DATABASE_URL),
+            code_git_commit=CODE_GIT_COMMIT,
+            dependency_lock_sha256=DEPENDENCY_LOCK_SHA256,
             artifact_root=artifact_root,
             tei_import_batch_record_count=1,
         ),

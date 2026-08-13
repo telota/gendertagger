@@ -20,6 +20,8 @@ from gendertagger.services.unit_of_work import UnitOfWork
 from gendertagger.services.user_repository import UserRepository
 
 DATABASE_URL = "postgresql+psycopg://api:secret@localhost/gendertagger"
+CODE_GIT_COMMIT = "a" * 40
+DEPENDENCY_LOCK_SHA256 = "b" * 64
 USER_ID = UUID("a2f03480-77a7-4f24-82cb-07604d5c2483")
 NOW = datetime(2026, 8, 13, tzinfo=UTC)
 
@@ -91,7 +93,11 @@ def _protected_client(
     def unit_of_work_factory() -> UnitOfWork:
         return cast(UnitOfWork, unit_of_work)
 
-    settings = AppSettings(database_url=SecretStr(DATABASE_URL))
+    settings = AppSettings(
+        database_url=SecretStr(DATABASE_URL),
+        code_git_commit=CODE_GIT_COMMIT,
+        dependency_lock_sha256=DEPENDENCY_LOCK_SHA256,
+    )
     application = create_app(
         settings=settings,
         unit_of_work_factory=unit_of_work_factory,

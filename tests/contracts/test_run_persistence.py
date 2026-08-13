@@ -14,6 +14,7 @@ from gendertagger.models.run import (
     Prediction,
     PredictionWrite,
     Run,
+    RunCreateRequest,
 )
 
 RUN_ID = UUID("50000000-0000-0000-0000-000000000001")
@@ -78,6 +79,26 @@ def execution_payload(**overrides: object) -> dict[str, object]:
     }
     payload.update(overrides)
     return payload
+
+
+def test_run_create_request_excludes_server_owned_provenance() -> None:
+    command = RunCreateRequest(
+        dataset_snapshot_id=SNAPSHOT_ID,
+        config=RUN_CONFIG,
+    )
+
+    assert command.model_dump(mode="json") == {
+        "dataset_snapshot_id": str(SNAPSHOT_ID),
+        "config": RUN_CONFIG.model_dump(mode="json"),
+    }
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        RunCreateRequest.model_validate(
+            {
+                "dataset_snapshot_id": SNAPSHOT_ID,
+                "config": RUN_CONFIG,
+                "code_git_commit": "untrusted",
+            }
+        )
 
 
 def test_run_accepts_created_and_completed_lifecycle_shapes() -> None:
