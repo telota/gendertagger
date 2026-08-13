@@ -108,10 +108,10 @@ def test_annotations_are_attributable_append_only_and_revision_checked(
     assert first_body["reviewer_user_id"] == str(reviewer_id)
     assert first_body["resulting_revision"] == 1
     assert stale_response.status_code == 409
-    assert stale_response.json()["detail"] == {
-        "code": "annotation_conflict",
-        "current_revision": 1,
-    }
+    stale_error = stale_response.json()["error"]
+    assert stale_error["code"] == "annotation_conflict"
+    assert stale_error["details"] == {"current_revision": 1}
+    assert stale_error["request_id"] == stale_response.headers["x-request-id"]
 
     defer_response = client.post(
         "/api/v1/annotations",

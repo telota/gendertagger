@@ -1,6 +1,6 @@
 """FastAPI application composition root."""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from functools import partial
@@ -14,6 +14,8 @@ from gendertagger.api.authentication import (
     AuthenticationBackend,
     RejectAllAuthenticationBackend,
 )
+from gendertagger.api.errors import install_error_handlers
+from gendertagger.api.request_ids import RequestIdMiddleware, generate_request_id
 from gendertagger.api.router import create_api_router
 from gendertagger.api.settings import AppSettings, load_settings
 from gendertagger.db.session import create_database_engine, create_session_factory
@@ -33,6 +35,7 @@ def create_app(
     settings: AppSettings | None = None,
     unit_of_work_factory: UnitOfWorkFactory | None = None,
     authentication_backend: AuthenticationBackend | None = None,
+    request_id_factory: Callable[[], str] | None = None,
 ) -> FastAPI:
     """Compose the API without opening a database connection.
 
@@ -40,6 +43,7 @@ def create_app(
         settings: Explicit settings, or environment-backed settings when omitted.
         unit_of_work_factory: Optional application boundary override for tests.
         authentication_backend: Provider-neutral authentication implementation.
+        request_id_factory: Optional server-owned correlation-ID generator.
 
     Returns:
         A configured FastAPI application whose owned engine is disposed at shutdown.
@@ -92,6 +96,11 @@ def create_app(
         version=application_version,
         lifespan=lifespan,
     )
+    application.add_middleware(
+        RequestIdMiddleware,
+        request_id_factory=request_id_factory or generate_request_id,
+    )
+    install_error_handlers(application)
     application.include_router(create_api_router())
     application.state.settings = resolved_settings
     application.state.unit_of_work_factory = unit_of_work_factory

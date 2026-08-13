@@ -3,10 +3,11 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
 from gendertagger.api.authorization import require_operator, require_viewer
 from gendertagger.api.dependencies import get_run_service
+from gendertagger.api.errors import ApiRequestError
 from gendertagger.models.run import Run, RunCreateRequest
 from gendertagger.models.user import User
 from gendertagger.services.method_registry import MethodRegistryError
@@ -29,16 +30,19 @@ def create_run(
     try:
         return service.create_run(command)
     except MethodRegistryError as error:
-        raise HTTPException(
+        raise ApiRequestError(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=str(error),
+            code="validation_error",
+            message="The run configuration is invalid.",
+            details={"reason": str(error)},
         ) from error
     except ResourceNotFoundError as error:
         raise _not_found() from error
     except InvalidResourceStateError as error:
-        raise HTTPException(
+        raise ApiRequestError(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Dataset snapshot is not ready",
+            code="resource_conflict",
+            message="The dataset snapshot is not ready.",
         ) from error
 
 
@@ -55,8 +59,9 @@ def get_run(
         raise _not_found() from error
 
 
-def _not_found() -> HTTPException:
-    return HTTPException(
+def _not_found() -> ApiRequestError:
+    return ApiRequestError(
         status_code=status.HTTP_404_NOT_FOUND,
-        detail="Resource not found",
+        code="resource_not_found",
+        message="The requested resource does not exist.",
     )

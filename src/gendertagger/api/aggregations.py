@@ -3,10 +3,11 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
 from gendertagger.api.authorization import require_operator, require_viewer
 from gendertagger.api.dependencies import get_aggregation_service
+from gendertagger.api.errors import ApiRequestError
 from gendertagger.models.aggregation import (
     AggregatedResult,
     AggregationCreateRequest,
@@ -39,9 +40,10 @@ def create_aggregation(
     except ResourceNotFoundError as error:
         raise _not_found() from error
     except InvalidResourceStateError as error:
-        raise HTTPException(
+        raise ApiRequestError(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Method execution selection is not aggregatable",
+            code="resource_conflict",
+            message="The method execution selection is not aggregatable.",
         ) from error
 
 
@@ -75,8 +77,9 @@ def get_aggregation_result(
         raise _not_found() from error
 
 
-def _not_found() -> HTTPException:
-    return HTTPException(
+def _not_found() -> ApiRequestError:
+    return ApiRequestError(
         status_code=status.HTTP_404_NOT_FOUND,
-        detail="Resource not found",
+        code="resource_not_found",
+        message="The requested resource does not exist.",
     )

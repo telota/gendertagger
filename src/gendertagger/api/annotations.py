@@ -2,10 +2,11 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
 from gendertagger.api.authorization import require_reviewer
 from gendertagger.api.dependencies import get_annotation_service
+from gendertagger.api.errors import ApiRequestError
 from gendertagger.models.review import Annotation, AnnotationCreate
 from gendertagger.models.user import User
 from gendertagger.services.annotations import AnnotationService
@@ -32,20 +33,21 @@ def create_annotation(
     try:
         return service.create_annotation(command, reviewer_user_id=reviewer.id)
     except ReviewConflictError as error:
-        raise HTTPException(
+        raise ApiRequestError(
             status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "code": "annotation_conflict",
-                "current_revision": error.current_revision,
-            },
+            code="annotation_conflict",
+            message="The review state has changed.",
+            details={"current_revision": error.current_revision},
         ) from error
     except ResourceNotFoundError as error:
-        raise HTTPException(
+        raise ApiRequestError(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Resource not found",
+            code="resource_not_found",
+            message="The requested resource does not exist.",
         ) from error
     except InvalidResourceStateError as error:
-        raise HTTPException(
+        raise ApiRequestError(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Annotation references an incompatible resource",
+            code="resource_conflict",
+            message="The annotation references an incompatible resource.",
         ) from error

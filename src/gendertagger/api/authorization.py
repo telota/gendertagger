@@ -2,9 +2,10 @@
 
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, status
 
 from gendertagger.api.authentication import require_authenticated_user
+from gendertagger.api.errors import ApiRequestError
 from gendertagger.models.user import Role, User
 
 _ROLE_RANK = {
@@ -44,8 +45,9 @@ def require_operator(
 
 def _require_role(user: User, required_role: Role) -> User:
     if not has_role(user, required_role):
-        raise HTTPException(
+        raise ApiRequestError(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient role",
+            code="forbidden",
+            message="The authenticated user lacks the required role.",
         )
     return user

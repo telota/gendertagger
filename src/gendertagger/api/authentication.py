@@ -3,9 +3,10 @@
 from typing import Annotated, Protocol, cast
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Request, status
 
 from gendertagger.api.dependencies import get_unit_of_work_factory
+from gendertagger.api.errors import ApiRequestError
 from gendertagger.models.user import User
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 
@@ -76,15 +77,17 @@ def require_csrf_protection(
     if request.method in _SAFE_REQUEST_METHODS:
         return
     if not authentication_backend.validate_csrf(request, user_id=authenticated_user.id):
-        raise HTTPException(
+        raise ApiRequestError(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="CSRF validation failed",
+            code="forbidden",
+            message="CSRF validation failed.",
         )
 
 
-def _authentication_required() -> HTTPException:
-    return HTTPException(
+def _authentication_required() -> ApiRequestError:
+    return ApiRequestError(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Authentication required",
+        code="authentication_required",
+        message="Authentication is required.",
         headers={"WWW-Authenticate": "Session"},
     )

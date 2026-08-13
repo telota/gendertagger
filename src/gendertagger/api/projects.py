@@ -3,10 +3,11 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 
 from gendertagger.api.authorization import require_operator, require_viewer
 from gendertagger.api.dependencies import get_project_service
+from gendertagger.api.errors import ApiRequestError
 from gendertagger.models.project import (
     DatasetSnapshot,
     Project,
@@ -70,9 +71,10 @@ def import_snapshot(
     except ResourceNotFoundError as error:
         raise _not_found() from error
     except ArtifactTooLargeError as error:
-        raise HTTPException(
+        raise ApiRequestError(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            detail=str(error),
+            code="payload_too_large",
+            message=str(error),
         ) from error
 
 
@@ -89,8 +91,9 @@ def get_snapshot(
         raise _not_found() from error
 
 
-def _not_found() -> HTTPException:
-    return HTTPException(
+def _not_found() -> ApiRequestError:
+    return ApiRequestError(
         status_code=status.HTTP_404_NOT_FOUND,
-        detail="Resource not found",
+        code="resource_not_found",
+        message="The requested resource does not exist.",
     )

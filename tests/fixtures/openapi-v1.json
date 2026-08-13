@@ -1,0 +1,2394 @@
+{
+  "components": {
+    "schemas": {
+      "AggregatedResult": {
+        "additionalProperties": false,
+        "description": "Canonical read model for one immutable persisted aggregation output.",
+        "properties": {
+          "aggregation_execution_id": {
+            "format": "uuid",
+            "title": "Aggregation Execution Id",
+            "type": "string"
+          },
+          "agreement_score": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agreement Score"
+          },
+          "agreement_tier": {
+            "$ref": "#/components/schemas/AgreementTier"
+          },
+          "certainty_tier": {
+            "$ref": "#/components/schemas/CertaintyTier"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CanonicalLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Metadata",
+            "type": "object"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/AggregationOutcome"
+          },
+          "override_agreeing_count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Override Agreeing Count"
+          },
+          "override_comparison_count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Override Comparison Count"
+          },
+          "override_source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OverrideSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "person_record_id": {
+            "format": "uuid",
+            "title": "Person Record Id",
+            "type": "string"
+          },
+          "pooled_vote_counts": {
+            "$ref": "#/components/schemas/VoteCounts"
+          },
+          "tied_labels": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CanonicalLabel"
+            },
+            "title": "Tied Labels",
+            "type": "array"
+          }
+        },
+        "required": [
+          "outcome",
+          "label",
+          "agreement_tier",
+          "certainty_tier",
+          "id",
+          "aggregation_execution_id",
+          "person_record_id",
+          "created_at"
+        ],
+        "title": "AggregatedResult",
+        "type": "object"
+      },
+      "AggregationConfig": {
+        "additionalProperties": false,
+        "description": "Resolved configuration for the selected aggregation strategy.",
+        "properties": {
+          "strategy": {
+            "$ref": "#/components/schemas/AggregationStrategy",
+            "default": "reference_v1"
+          }
+        },
+        "title": "AggregationConfig",
+        "type": "object"
+      },
+      "AggregationCreateRequest": {
+        "additionalProperties": false,
+        "description": "Public command selecting one strategy and exact method executions.",
+        "properties": {
+          "method_execution_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Method Execution Ids",
+            "type": "array"
+          },
+          "strategy": {
+            "$ref": "#/components/schemas/AggregationStrategy",
+            "default": "reference_v1"
+          }
+        },
+        "required": [
+          "method_execution_ids"
+        ],
+        "title": "AggregationCreateRequest",
+        "type": "object"
+      },
+      "AggregationExecution": {
+        "additionalProperties": false,
+        "description": "Canonical read model for one independently rerunnable aggregation.",
+        "properties": {
+          "config_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Config Sha256",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "failure_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Class"
+          },
+          "failure_diagnostic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Diagnostic"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "method_execution_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Method Execution Ids",
+            "type": "array"
+          },
+          "resolved_config": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Resolved Config",
+            "type": "object"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AggregationExecutionStatus"
+          },
+          "strategy": {
+            "$ref": "#/components/schemas/AggregationStrategy",
+            "default": "reference_v1"
+          }
+        },
+        "required": [
+          "run_id",
+          "method_execution_ids",
+          "id",
+          "config_sha256",
+          "status",
+          "created_at"
+        ],
+        "title": "AggregationExecution",
+        "type": "object"
+      },
+      "AggregationExecutionStatus": {
+        "description": "Lifecycle for one independently rerunnable aggregation.",
+        "enum": [
+          "pending",
+          "queued",
+          "running",
+          "completed",
+          "failed",
+          "cancelled"
+        ],
+        "title": "AggregationExecutionStatus",
+        "type": "string"
+      },
+      "AggregationOutcome": {
+        "description": "Decision state produced by reference aggregation before certainty assignment.",
+        "enum": [
+          "decided",
+          "unresolved_tie",
+          "no_data"
+        ],
+        "title": "AggregationOutcome",
+        "type": "string"
+      },
+      "AggregationStrategy": {
+        "description": "Supported versioned aggregation strategies.",
+        "enum": [
+          "reference_v1"
+        ],
+        "title": "AggregationStrategy",
+        "type": "string"
+      },
+      "AgreementTier": {
+        "description": "Categorical agreement among methods that supplied an answer.",
+        "enum": [
+          "unanimous",
+          "strong_majority",
+          "weak_majority",
+          "no_consensus",
+          "single_rater",
+          "no_answer"
+        ],
+        "title": "AgreementTier",
+        "type": "string"
+      },
+      "Annotation": {
+        "additionalProperties": false,
+        "description": "Canonical read model for one immutable human annotation.",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ReviewAction"
+          },
+          "aggregated_result_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aggregated Result Id"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CanonicalLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "person_record_id": {
+            "format": "uuid",
+            "title": "Person Record Id",
+            "type": "string"
+          },
+          "resulting_revision": {
+            "exclusiveMinimum": 0.0,
+            "title": "Resulting Revision",
+            "type": "integer"
+          },
+          "reviewer_user_id": {
+            "format": "uuid",
+            "title": "Reviewer User Id",
+            "type": "string"
+          },
+          "snapshot_id": {
+            "format": "uuid",
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "supersedes_annotation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedes Annotation Id"
+          },
+          "tei_id": {
+            "title": "Tei Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "snapshot_id",
+          "person_record_id",
+          "tei_id",
+          "action",
+          "reviewer_user_id",
+          "resulting_revision",
+          "created_at"
+        ],
+        "title": "Annotation",
+        "type": "object"
+      },
+      "AnnotationCreate": {
+        "additionalProperties": false,
+        "description": "Optimistically concurrent command that appends one human decision.",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ReviewAction"
+          },
+          "aggregated_result_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aggregated Result Id"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "expected_revision": {
+            "minimum": 0.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CanonicalLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "snapshot_id": {
+            "format": "uuid",
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "tei_id": {
+            "minLength": 1,
+            "title": "Tei Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "snapshot_id",
+          "tei_id",
+          "action",
+          "expected_revision"
+        ],
+        "title": "AnnotationCreate",
+        "type": "object"
+      },
+      "ApiErrorDetail": {
+        "additionalProperties": false,
+        "description": "Stable client-facing failure information for one HTTP request.",
+        "properties": {
+          "code": {
+            "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+            "title": "Code",
+            "type": "string"
+          },
+          "details": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Details",
+            "type": "object"
+          },
+          "message": {
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ApiErrorDetail",
+        "type": "object"
+      },
+      "ApiErrorEnvelope": {
+        "additionalProperties": false,
+        "description": "Uniform public wrapper for every API failure.",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ApiErrorDetail"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ApiErrorEnvelope",
+        "type": "object"
+      },
+      "Body_import_snapshot_api_v1_projects__project_id__snapshots_post": {
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/TeiImportProfile",
+            "default": "tei_p5_person_register_v1"
+          },
+          "source": {
+            "contentMediaType": "application/octet-stream",
+            "description": "Exact TEI XML source retained as an immutable artifact.",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "Body_import_snapshot_api_v1_projects__project_id__snapshots_post",
+        "type": "object"
+      },
+      "CanonicalLabel": {
+        "description": "Normalized labels shared by every classification method.",
+        "enum": [
+          "male",
+          "female",
+          "unknown",
+          "institution"
+        ],
+        "title": "CanonicalLabel",
+        "type": "string"
+      },
+      "CertaintyTier": {
+        "description": "Reference-pipeline certainty assigned to an aggregated result.",
+        "enum": [
+          "high",
+          "low",
+          "contested",
+          "single",
+          "uncertain",
+          "no_data"
+        ],
+        "title": "CertaintyTier",
+        "type": "string"
+      },
+      "DatasetSnapshot": {
+        "additionalProperties": false,
+        "description": "Canonical read model for one imported snapshot lifecycle.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "failure_diagnostic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Diagnostic"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "import_config": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Import Config",
+            "type": "object"
+          },
+          "parser_version": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Parser Version",
+            "type": "string"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "ready_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ready At"
+          },
+          "record_count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Count"
+          },
+          "source_artifact_id": {
+            "format": "uuid",
+            "title": "Source Artifact Id",
+            "type": "string"
+          },
+          "source_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Source Sha256",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DatasetSnapshotStatus"
+          }
+        },
+        "required": [
+          "project_id",
+          "source_artifact_id",
+          "source_sha256",
+          "parser_version",
+          "id",
+          "status",
+          "created_at"
+        ],
+        "title": "DatasetSnapshot",
+        "type": "object"
+      },
+      "DatasetSnapshotStatus": {
+        "description": "Import lifecycle for one immutable dataset snapshot.",
+        "enum": [
+          "pending",
+          "importing",
+          "ready",
+          "failed"
+        ],
+        "title": "DatasetSnapshotStatus",
+        "type": "string"
+      },
+      "ExecutionConfig": {
+        "additionalProperties": false,
+        "description": "Resolved orchestration behavior for a run.",
+        "properties": {
+          "fail_run_on_optional_method_error": {
+            "default": false,
+            "title": "Fail Run On Optional Method Error",
+            "type": "boolean"
+          }
+        },
+        "title": "ExecutionConfig",
+        "type": "object"
+      },
+      "JsonValue": {},
+      "MethodConfidenceRange": {
+        "additionalProperties": false,
+        "description": "Inclusive range for one method's uncalibrated confidence values.",
+        "properties": {
+          "maximum": {
+            "title": "Maximum",
+            "type": "number"
+          },
+          "minimum": {
+            "title": "Minimum",
+            "type": "number"
+          }
+        },
+        "required": [
+          "minimum",
+          "maximum"
+        ],
+        "title": "MethodConfidenceRange",
+        "type": "object"
+      },
+      "MethodDescriptor": {
+        "additionalProperties": false,
+        "description": "Stable scientific and provenance metadata for a method adapter.",
+        "properties": {
+          "implementation_version": {
+            "description": "Version of the adapter implementation used for predictions.",
+            "minLength": 1,
+            "title": "Implementation Version",
+            "type": "string"
+          },
+          "method_confidence_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MethodConfidenceRange"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inclusive range for method-specific confidence values, or null when the method does not report confidence."
+          },
+          "name": {
+            "description": "Stable lowercase snake-case method identifier.",
+            "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+            "title": "Name",
+            "type": "string"
+          },
+          "normalization_version": {
+            "description": "Version of the adapter-owned raw-label normalization behavior.",
+            "minLength": 1,
+            "title": "Normalization Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "implementation_version",
+          "normalization_version"
+        ],
+        "title": "MethodDescriptor",
+        "type": "object"
+      },
+      "MethodRunConfig": {
+        "additionalProperties": false,
+        "description": "Configuration envelope for one method in a run.",
+        "properties": {
+          "config": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "description": "Adapter values resolved and validated by the server-side method registry.",
+            "title": "Config",
+            "type": "object"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Stable lowercase snake-case method identifier.",
+            "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "MethodRunConfig",
+        "type": "object"
+      },
+      "OverrideSource": {
+        "description": "Authority source that superseded the pooled reference vote.",
+        "enum": [
+          "parenthetical_qualifier",
+          "gnd"
+        ],
+        "title": "OverrideSource",
+        "type": "string"
+      },
+      "Project": {
+        "additionalProperties": false,
+        "description": "Canonical read model for a persisted project.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "display_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "slug": {
+            "maxLength": 100,
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "display_name",
+          "id",
+          "created_at"
+        ],
+        "title": "Project",
+        "type": "object"
+      },
+      "ProjectCreate": {
+        "additionalProperties": false,
+        "description": "Validated values used to create a long-lived editorial project.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "display_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "slug": {
+            "maxLength": 100,
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "display_name"
+        ],
+        "title": "ProjectCreate",
+        "type": "object"
+      },
+      "ReviewAction": {
+        "description": "Append-only editorial action recorded by an annotation.",
+        "enum": [
+          "verify",
+          "correct",
+          "defer"
+        ],
+        "title": "ReviewAction",
+        "type": "string"
+      },
+      "Run": {
+        "additionalProperties": false,
+        "description": "Canonical read model for one reproducible run lifecycle.",
+        "properties": {
+          "application_version": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Application Version",
+            "type": "string"
+          },
+          "code_git_commit": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Code Git Commit",
+            "type": "string"
+          },
+          "config_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Config Sha256",
+            "type": "string"
+          },
+          "container_image_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Container Image Digest"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "dataset_snapshot_id": {
+            "format": "uuid",
+            "title": "Dataset Snapshot Id",
+            "type": "string"
+          },
+          "dependency_lock_artifact_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dependency Lock Artifact Id"
+          },
+          "dependency_lock_sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dependency Lock Sha256"
+          },
+          "failure_diagnostic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Diagnostic"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "python_version": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Python Version",
+            "type": "string"
+          },
+          "resolved_config": {
+            "$ref": "#/components/schemas/RunConfig"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          }
+        },
+        "required": [
+          "dataset_snapshot_id",
+          "resolved_config",
+          "code_git_commit",
+          "application_version",
+          "python_version",
+          "id",
+          "status",
+          "config_sha256",
+          "created_at"
+        ],
+        "title": "Run",
+        "type": "object"
+      },
+      "RunConfig": {
+        "additionalProperties": false,
+        "description": "Canonical configuration envelope for one run.",
+        "properties": {
+          "aggregation": {
+            "$ref": "#/components/schemas/AggregationConfig"
+          },
+          "execution": {
+            "$ref": "#/components/schemas/ExecutionConfig"
+          },
+          "methods": {
+            "items": {
+              "$ref": "#/components/schemas/MethodRunConfig"
+            },
+            "title": "Methods",
+            "type": "array"
+          }
+        },
+        "required": [
+          "methods"
+        ],
+        "title": "RunConfig",
+        "type": "object"
+      },
+      "RunCreateRequest": {
+        "additionalProperties": false,
+        "description": "Public command selecting one snapshot and raw run configuration.",
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/RunConfig"
+          },
+          "dataset_snapshot_id": {
+            "format": "uuid",
+            "title": "Dataset Snapshot Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dataset_snapshot_id",
+          "config"
+        ],
+        "title": "RunCreateRequest",
+        "type": "object"
+      },
+      "RunStatus": {
+        "description": "Lifecycle for one reproducible run.",
+        "enum": [
+          "created",
+          "queued",
+          "running",
+          "completed",
+          "completed_with_errors",
+          "failed",
+          "cancelled"
+        ],
+        "title": "RunStatus",
+        "type": "string"
+      },
+      "TeiImportProfile": {
+        "description": "Versioned TEI extraction profile selected for a snapshot import.",
+        "enum": [
+          "tei_p5_person_register_v1"
+        ],
+        "title": "TeiImportProfile",
+        "type": "string"
+      },
+      "VoteCounts": {
+        "additionalProperties": false,
+        "description": "Complete counts for the four canonical labels in the pooled vote.",
+        "properties": {
+          "female": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Female",
+            "type": "integer"
+          },
+          "institution": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Institution",
+            "type": "integer"
+          },
+          "male": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Male",
+            "type": "integer"
+          },
+          "unknown": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Unknown",
+            "type": "integer"
+          }
+        },
+        "title": "VoteCounts",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "gendertagger API",
+    "version": "0.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/aggregations/{aggregation_id}": {
+      "get": {
+        "description": "Read one current aggregation lifecycle resource.",
+        "operationId": "get_aggregation_api_v1_aggregations__aggregation_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "aggregation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Aggregation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AggregationExecution"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Aggregation",
+        "tags": [
+          "aggregations"
+        ]
+      }
+    },
+    "/api/v1/aggregations/{aggregation_id}/results/{result_id}": {
+      "get": {
+        "description": "Read one immutable result under its owning aggregation.",
+        "operationId": "get_aggregation_result_api_v1_aggregations__aggregation_id__results__result_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "aggregation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Aggregation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "result_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Result Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AggregatedResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Aggregation Result",
+        "tags": [
+          "aggregations"
+        ]
+      }
+    },
+    "/api/v1/annotations": {
+      "post": {
+        "description": "Append an attributable decision when the observed revision is current.",
+        "operationId": "create_annotation_api_v1_annotations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnotationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Annotation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Create Annotation",
+        "tags": [
+          "annotations"
+        ]
+      }
+    },
+    "/api/v1/methods": {
+      "get": {
+        "description": "List only adapters whose config contracts are runnable on this server.",
+        "operationId": "list_methods_api_v1_methods_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MethodDescriptor"
+                  },
+                  "title": "Response List Methods Api V1 Methods Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List Methods",
+        "tags": [
+          "methods"
+        ]
+      }
+    },
+    "/api/v1/projects": {
+      "post": {
+        "description": "Create one editorial project as an operator.",
+        "operationId": "create_project_api_v1_projects_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Create Project",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}": {
+      "get": {
+        "description": "Read one project without exposing persistence models.",
+        "operationId": "get_project_api_v1_projects__project_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Project",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/snapshots": {
+      "post": {
+        "description": "Preserve and synchronously import a bounded TEI upload.",
+        "operationId": "import_snapshot_api_v1_projects__project_id__snapshots_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_snapshot_api_v1_projects__project_id__snapshots_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Import Snapshot",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/v1/runs": {
+      "post": {
+        "description": "Persist a validated created run without exposing queue internals.",
+        "operationId": "create_run_api_v1_runs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Create Run",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/runs/{run_id}": {
+      "get": {
+        "description": "Read current persisted run state.",
+        "operationId": "get_run_api_v1_runs__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Run",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/runs/{run_id}/aggregations": {
+      "post": {
+        "description": "Persist a pending aggregation over exact completed method executions.",
+        "operationId": "create_aggregation_api_v1_runs__run_id__aggregations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AggregationCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AggregationExecution"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Create Aggregation",
+        "tags": [
+          "aggregations"
+        ]
+      }
+    },
+    "/api/v1/snapshots/{snapshot_id}": {
+      "get": {
+        "description": "Read one immutable dataset snapshot lifecycle resource.",
+        "operationId": "get_snapshot_api_v1_snapshots__snapshot_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Snapshot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Snapshot",
+        "tags": [
+          "projects"
+        ]
+      }
+    }
+  }
+}
