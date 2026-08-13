@@ -61,16 +61,38 @@ Per-method confidences are recorded but **do not influence the reference vote**.
 
 ## Normalization
 
-Raw classifier outputs are mapped onto the shared four-value alphabet.
+Raw classifier outputs are mapped onto the shared four-value alphabet by immutable, adapter-owned profiles.
+Each profile has a stable normalization version. Comparison strips surrounding whitespace and case-folds
+strings, but predictions retain the exact raw label and output.
 
-Reference principles:
+Outcome semantics are:
 
-- leaning labels such as `mostly_male` and `mostly_female` collapse to `male`/`female`
-- genuinely ambiguous outputs such as `andy`, `conflict`, `uncertain` collapse to `unknown`
-- absent/unparseable/no-input outputs become `abstain`, not `unknown`
-- raw output is retained so normalization remains inspectable
+| Raw-output category | Canonical result |
+|---|---|
+| known male, female, institution, or leaning label | `success` with the mapped canonical label |
+| known `andy`, `conflict`, `uncertain`, `unisex`, or `unknown` | `success + unknown` |
+| absent, blank, `nan`, `no_answer`, `no_gnd`, or `no_name` | `abstain + null` |
+| explicit technical `error` sentinel | `error + null` |
+| any other unparseable label | `abstain + null` |
 
-Normalization mappings belong to the method adapter/version and are provenance-bearing scientific behavior.
+The reference profiles are:
+
+| Adapter | Version | Additional raw-label behavior |
+|---|---|---|
+| parenthetical qualifier | `parenthetical_qualifier_v1` | canonical male/female/unknown values |
+| GND | `gnd_v1` | `Männlich`/`Weiblich`; `Unbekannt`; `organisation` |
+| gender-guesser | `gender_guesser_v1` | `mostly_*`; `andy`; `conflict` |
+| Wiki-Gendersort | `wiki_gendersort_v1` | `M`/`F`; `UNI`/`unisex`; `UNK`; `INI` abstains |
+| HIVOTO | `hivoto_v1` | `mostly_*`; `andy`; `conflict` |
+| nomquamgender | `nomquamgender_v1` | `uncertain`; `conflict` |
+| HF DistilBERT | `hf_distilbert_v1` | label/index 0 is male and 1 is female; `conflict` |
+| HF genderize | `hf_genderize_v1` | label/index 0 is female and 1 is male; `conflict` |
+| local LLM | `local_llm_v1` | `organisation` maps to `institution` |
+| HIVOTO-XGBoost | `hivoto_xgboost_v1` | `mostly_*`; `andy`; `conflict` |
+
+Every normalized prediction records the normalization version and outcome reason in metadata. This preserves
+the canonical distinction among a substantive `unknown`, abstention, and technical failure. See
+[ADR-0007](decisions/ADR-0007-versioned-normalization-outcomes.md).
 
 ## Reference aggregation
 

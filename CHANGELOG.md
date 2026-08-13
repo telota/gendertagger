@@ -33,6 +33,8 @@ the phased plan that resumes application code.
 - Typed method-adapter protocol and frozen minimal method descriptors, including adapter-owned Pydantic
   configuration models, result-cardinality checks, declared confidence-range validation, and explicit
   record-level versus batch-level failure semantics.
+- Pure, versioned raw-label normalization profiles for all ten methods, preserving raw evidence and the
+  canonical distinction among substantive `unknown`, abstention, and technical failure.
 - Contract tests for validation, serialization, source-string preservation, isolated mutable defaults,
   and the semantic distinction between `unknown`, `abstain`, and `error`.
 - Repository policy gates: `scripts/check_documentation.py`, `scripts/check_contract_naming.py`,

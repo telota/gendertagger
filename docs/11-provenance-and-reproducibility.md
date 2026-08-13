@@ -41,7 +41,7 @@ Persist:
 - normalized label/status
 - method_confidence
 - raw label/output
-- normalization version
+- normalization version and outcome reason
 - cache provenance if reused
 
 ## Aggregation provenance

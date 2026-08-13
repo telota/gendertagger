@@ -39,9 +39,9 @@ The design preserves the published multi-method workflow while adding persistent
 ## Repository state
 
 Implementation has begun with canonical Pydantic person, prediction, run-configuration, and typed method
-adapter contracts plus their contract tests. The remaining application packages are still placeholders.
-Adapter-owned normalization is the next Phase 1 implementation step; the legacy golden fixture remains
-required before Phase 1 regression completion.
+adapter contracts. All ten methods now have dependency-free, versioned raw-label normalization profiles and
+scientific contract tests. Reference aggregation is the next Phase 1 implementation step; the legacy golden
+fixture remains required before Phase 1 regression completion.
 
 ## Development checks
 
