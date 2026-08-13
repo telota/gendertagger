@@ -1,0 +1,221 @@
+{
+  "schema_version": 1,
+  "oracle": "legacy_characterization",
+  "description": "Minimal approved excerpt of observed legacy method and aggregation outputs.",
+  "source": {
+    "repository_commit": "36522b8",
+    "aggregator_blob": "9046e867fec577804ce72ddacae4881f07e9fc35",
+    "sha256": {
+      "data/input/schleiermacher_persons.csv": "f86c4bc35f4ae4de198c1cc749ecf1f39c059aa609e448f3c76f1338925fb3eb",
+      "data/output/gender_summary.csv": "ad838a70306316d6654d206dfa184596ea873966469605b8e062f4309b53ace5",
+      "data/results/gender_guesser_results.csv": "fd219a356dfae738cab5ed08ca00d3521748d1c90d6259aa8595257846df1520",
+      "data/results/gnd_gender_results.csv": "1726412da5d5e1059d148662935022dc5c6c3c703543fa01e8bab983776871c5",
+      "data/results/hf_gender_classification_results.csv": "5ecc6ec5a73735bdd07097727213d6cdccf43846ca0990f63ebd71aaf9d24f0d",
+      "data/results/hf_genderize_results.csv": "1dd6f571c9057b7ee8678eceff5569de6c8e82dce184e2ec2f971b60ae6076ab",
+      "data/results/hivoto_results.csv": "d20ca1f319f333369ea8b867c2d8911dab98c02863fa4fb0542015b3e69a0790",
+      "data/results/hivoto_xgboost_results.csv": "6c05d757b01cc98f6ca55965fed3b31300d3af503703c4761c68faa20163113c",
+      "data/results/llm_gender_results.csv": "301ec710230188c6f6f413b8539384900253cd72e498db26ad560bc9f2b1d2ad",
+      "data/results/nqg_results.csv": "46b7239d382d2320255ae720cce88e97c5bc35848be341ad9f7b8a0c046aeffa",
+      "data/results/wiki_gendersort_results.csv": "40a0a3740d5910bc038e72fd64fa71b2b967db1d2543f422bb89730e10a668db"
+    }
+  },
+  "redistribution_approval": {
+    "approved_on": "2026-08-13",
+    "scope": "tei_id_and_method_outputs_only",
+    "excluded_fields": [
+      "surname",
+      "forenames",
+      "birth",
+      "death",
+      "note",
+      "alt_names",
+      "llm_reasoning"
+    ]
+  },
+  "records": [
+    {
+      "case": "unanimous_pooled_vote",
+      "tei_id": "S0010005",
+      "raw_labels": {
+        "parenthetical_qualifier": null,
+        "gnd": "no_gnd",
+        "gender_guesser": "male",
+        "wiki_gendersort": "male",
+        "hivoto": "male",
+        "nomquamgender": "male",
+        "hf_distilbert": "male",
+        "hf_genderize": "male",
+        "local_llm": "male",
+        "hivoto_xgboost": "male"
+      },
+      "local_llm_self_reported_certainty": "high",
+      "expected_aggregation": {
+        "label": "male",
+        "answering_count": 7,
+        "agreement_score": 1.0,
+        "certainty_tier": "high"
+      }
+    },
+    {
+      "case": "parenthetical_unknown_override",
+      "tei_id": "S1083217",
+      "raw_labels": {
+        "parenthetical_qualifier": "unknown",
+        "gnd": "no_gnd",
+        "gender_guesser": "male",
+        "wiki_gendersort": "male",
+        "hivoto": "male",
+        "nomquamgender": "male",
+        "hf_distilbert": "male",
+        "hf_genderize": "male",
+        "local_llm": "unknown",
+        "hivoto_xgboost": "male"
+      },
+      "local_llm_self_reported_certainty": "low",
+      "expected_aggregation": {
+        "label": "unknown",
+        "answering_count": 8,
+        "agreement_score": 0.143,
+        "certainty_tier": "high"
+      }
+    },
+    {
+      "case": "gnd_override_against_female_majority",
+      "tei_id": "S8945539",
+      "raw_labels": {
+        "parenthetical_qualifier": null,
+        "gnd": "male",
+        "gender_guesser": "female",
+        "wiki_gendersort": "female",
+        "hivoto": "mostly_female",
+        "nomquamgender": "uncertain",
+        "hf_distilbert": "female",
+        "hf_genderize": "female",
+        "local_llm": "male",
+        "hivoto_xgboost": "female"
+      },
+      "local_llm_self_reported_certainty": "high",
+      "expected_aggregation": {
+        "label": "male",
+        "answering_count": 8,
+        "agreement_score": 0.143,
+        "certainty_tier": "high"
+      }
+    },
+    {
+      "case": "unknown_tie_loses_to_substantive_label",
+      "tei_id": "S1125482",
+      "raw_labels": {
+        "parenthetical_qualifier": null,
+        "gnd": "no_gnd",
+        "gender_guesser": "unknown",
+        "wiki_gendersort": "male",
+        "hivoto": "unknown",
+        "nomquamgender": "unknown",
+        "hf_distilbert": "male",
+        "hf_genderize": "male",
+        "local_llm": "organisation",
+        "hivoto_xgboost": "male"
+      },
+      "local_llm_self_reported_certainty": "high",
+      "expected_aggregation": {
+        "label": "male",
+        "answering_count": 7,
+        "agreement_score": 0.429,
+        "certainty_tier": "contested"
+      }
+    },
+    {
+      "case": "lone_high_certainty_llm_institution",
+      "tei_id": "S1125426",
+      "raw_labels": {
+        "parenthetical_qualifier": null,
+        "gnd": "no_gnd",
+        "gender_guesser": "no_name",
+        "wiki_gendersort": "no_name",
+        "hivoto": "no_name",
+        "nomquamgender": "no_name",
+        "hf_distilbert": "no_name",
+        "hf_genderize": "no_name",
+        "local_llm": "organisation",
+        "hivoto_xgboost": "no_name"
+      },
+      "local_llm_self_reported_certainty": "high",
+      "expected_aggregation": {
+        "label": "institution",
+        "answering_count": 1,
+        "agreement_score": 1.0,
+        "certainty_tier": "single"
+      }
+    },
+    {
+      "case": "lone_uncertain_llm_unknown",
+      "tei_id": "S0001049",
+      "raw_labels": {
+        "parenthetical_qualifier": null,
+        "gnd": "no_gnd",
+        "gender_guesser": "no_name",
+        "wiki_gendersort": "no_name",
+        "hivoto": "no_name",
+        "nomquamgender": "no_name",
+        "hf_distilbert": "no_name",
+        "hf_genderize": "no_name",
+        "local_llm": "unknown",
+        "hivoto_xgboost": "no_name"
+      },
+      "local_llm_self_reported_certainty": "uncertain",
+      "expected_aggregation": {
+        "label": "unknown",
+        "answering_count": 1,
+        "agreement_score": 1.0,
+        "certainty_tier": "uncertain"
+      }
+    },
+    {
+      "case": "leaning_and_ambiguous_normalization",
+      "tei_id": "S7944779",
+      "raw_labels": {
+        "parenthetical_qualifier": null,
+        "gnd": "male",
+        "gender_guesser": "mostly_male",
+        "wiki_gendersort": "male",
+        "hivoto": "andy",
+        "nomquamgender": "uncertain",
+        "hf_distilbert": "male",
+        "hf_genderize": "male",
+        "local_llm": "male",
+        "hivoto_xgboost": "male"
+      },
+      "local_llm_self_reported_certainty": "high",
+      "expected_aggregation": {
+        "label": "male",
+        "answering_count": 8,
+        "agreement_score": 0.714,
+        "certainty_tier": "high"
+      }
+    },
+    {
+      "case": "explicit_gnd_error",
+      "tei_id": "S0002324",
+      "raw_labels": {
+        "parenthetical_qualifier": null,
+        "gnd": "error",
+        "gender_guesser": "male",
+        "wiki_gendersort": "male",
+        "hivoto": "male",
+        "nomquamgender": "male",
+        "hf_distilbert": "male",
+        "hf_genderize": "male",
+        "local_llm": "male",
+        "hivoto_xgboost": "male"
+      },
+      "local_llm_self_reported_certainty": "high",
+      "expected_aggregation": {
+        "label": "male",
+        "answering_count": 7,
+        "agreement_score": 1.0,
+        "certainty_tier": "high"
+      }
+    }
+  ]
+}

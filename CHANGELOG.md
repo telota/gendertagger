@@ -39,6 +39,8 @@ the phased plan that resumes application code.
   pooled votes, deterministic unknown tie-breaking, transparent substantive ties, and override support counts.
 - Deterministic agreement scoring and certainty assignment for pooled votes, authority overrides, transparent
   ties, no-data outcomes, and lone voters with typed local-LLM self-reported certainty.
+- Paired `legacy_characterization` and `reference_v1` golden fixtures plus end-to-end domain regression tests
+  from observed raw labels through normalization, voting, agreement, and certainty.
 - Contract tests for validation, serialization, source-string preservation, isolated mutable defaults,
   and the semantic distinction between `unknown`, `abstain`, and `error`.
 - Repository policy gates: `scripts/check_documentation.py`, `scripts/check_contract_naming.py`,

@@ -38,10 +38,10 @@ The design preserves the published multi-method workflow while adding persistent
 
 ## Repository state
 
-Implementation has begun with canonical contracts, typed method adapters, versioned normalization for all ten
-methods, and pure `reference_v1` aggregation. Per-record agreement and certainty now cover authority support,
-transparent ties, and conservative typed handling of lone voters. The frozen end-to-end golden fixture and
-domain regression suite are the remaining Phase 1 deliverable.
+Phase 1 is complete: canonical contracts, typed method adapters, all ten versioned normalization profiles,
+pure `reference_v1` aggregation, agreement/certainty assignment, and two approved golden scientific oracles
+are implemented without database, API, or queue dependencies. The golden suite exercises observed raw method
+labels through the complete Phase 1 result and records the one approved difference from legacy behavior.
 
 ## Development checks
 

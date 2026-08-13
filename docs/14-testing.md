@@ -58,6 +58,18 @@ Maintain two explicit oracles:
 Differences between them require an explicit expectation and, when scientific semantics change, a design
 update and ADR. Tests never regenerate expected output as part of their normal execution.
 
+Phase 1 freezes these oracles under `tests/fixtures/scientific/`:
+
+- `legacy_characterization.json` contains eight approved observed cases, source artifact hashes, raw method
+  labels, LLM self-certainty, and legacy aggregate outputs;
+- `reference_v1.json` contains the expected normalized status/label for all ten profiles, the complete
+  reference aggregation result, and every approved difference from legacy behavior.
+
+The excerpt is deliberately limited to TEI IDs and scientific method outputs. It excludes names, dates,
+biographical text, alternative names, and LLM reasoning. The scientific regression test reads raw labels from
+the immutable legacy oracle and executes normalization, reference voting, agreement, and certainty before
+comparing against the independent `reference_v1` expectations.
+
 ## Migration tests
 
 CI should verify:

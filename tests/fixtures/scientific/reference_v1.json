@@ -1,0 +1,533 @@
+{
+  "schema_version": 1,
+  "oracle": "reference_v1",
+  "strategy": "reference_v1",
+  "source_oracle": "legacy_characterization.json",
+  "normalization_versions": {
+    "parenthetical_qualifier": "parenthetical_qualifier_v1",
+    "gnd": "gnd_v1",
+    "gender_guesser": "gender_guesser_v1",
+    "wiki_gendersort": "wiki_gendersort_v1",
+    "hivoto": "hivoto_v1",
+    "nomquamgender": "nomquamgender_v1",
+    "hf_distilbert": "hf_distilbert_v1",
+    "hf_genderize": "hf_genderize_v1",
+    "local_llm": "local_llm_v1",
+    "hivoto_xgboost": "hivoto_xgboost_v1"
+  },
+  "expected_differences": [
+    {
+      "tei_id": "S0002324",
+      "field": "predictions.gnd.status",
+      "legacy": "no_vote_after_unknown_fallback",
+      "reference_v1": "error",
+      "decision": "ADR-0007"
+    }
+  ],
+  "records": [
+    {
+      "case": "unanimous_pooled_vote",
+      "tei_id": "S0010005",
+      "expected_predictions": {
+        "parenthetical_qualifier": {
+          "label": null,
+          "status": "abstain"
+        },
+        "gnd": {
+          "label": null,
+          "status": "abstain"
+        },
+        "gender_guesser": {
+          "label": "male",
+          "status": "success"
+        },
+        "wiki_gendersort": {
+          "label": "male",
+          "status": "success"
+        },
+        "hivoto": {
+          "label": "male",
+          "status": "success"
+        },
+        "nomquamgender": {
+          "label": "male",
+          "status": "success"
+        },
+        "hf_distilbert": {
+          "label": "male",
+          "status": "success"
+        },
+        "hf_genderize": {
+          "label": "male",
+          "status": "success"
+        },
+        "local_llm": {
+          "label": "male",
+          "status": "success"
+        },
+        "hivoto_xgboost": {
+          "label": "male",
+          "status": "success"
+        }
+      },
+      "expected_aggregation": {
+        "outcome": "decided",
+        "label": "male",
+        "pooled_vote_counts": {
+          "male": 7,
+          "female": 0,
+          "unknown": 0,
+          "institution": 0
+        },
+        "tied_labels": [],
+        "override_source": null,
+        "override_agreeing_count": null,
+        "override_comparison_count": null,
+        "agreement_score": 1.0,
+        "agreement_tier": "unanimous",
+        "certainty_tier": "high"
+      }
+    },
+    {
+      "case": "parenthetical_unknown_override",
+      "tei_id": "S1083217",
+      "expected_predictions": {
+        "parenthetical_qualifier": {
+          "label": "unknown",
+          "status": "success"
+        },
+        "gnd": {
+          "label": null,
+          "status": "abstain"
+        },
+        "gender_guesser": {
+          "label": "male",
+          "status": "success"
+        },
+        "wiki_gendersort": {
+          "label": "male",
+          "status": "success"
+        },
+        "hivoto": {
+          "label": "male",
+          "status": "success"
+        },
+        "nomquamgender": {
+          "label": "male",
+          "status": "success"
+        },
+        "hf_distilbert": {
+          "label": "male",
+          "status": "success"
+        },
+        "hf_genderize": {
+          "label": "male",
+          "status": "success"
+        },
+        "local_llm": {
+          "label": "unknown",
+          "status": "success"
+        },
+        "hivoto_xgboost": {
+          "label": "male",
+          "status": "success"
+        }
+      },
+      "expected_aggregation": {
+        "outcome": "decided",
+        "label": "unknown",
+        "pooled_vote_counts": {
+          "male": 6,
+          "female": 0,
+          "unknown": 1,
+          "institution": 0
+        },
+        "tied_labels": [],
+        "override_source": "parenthetical_qualifier",
+        "override_agreeing_count": 1,
+        "override_comparison_count": 7,
+        "agreement_score": 0.143,
+        "agreement_tier": "no_consensus",
+        "certainty_tier": "high"
+      }
+    },
+    {
+      "case": "gnd_override_against_female_majority",
+      "tei_id": "S8945539",
+      "expected_predictions": {
+        "parenthetical_qualifier": {
+          "label": null,
+          "status": "abstain"
+        },
+        "gnd": {
+          "label": "male",
+          "status": "success"
+        },
+        "gender_guesser": {
+          "label": "female",
+          "status": "success"
+        },
+        "wiki_gendersort": {
+          "label": "female",
+          "status": "success"
+        },
+        "hivoto": {
+          "label": "female",
+          "status": "success"
+        },
+        "nomquamgender": {
+          "label": "unknown",
+          "status": "success"
+        },
+        "hf_distilbert": {
+          "label": "female",
+          "status": "success"
+        },
+        "hf_genderize": {
+          "label": "female",
+          "status": "success"
+        },
+        "local_llm": {
+          "label": "male",
+          "status": "success"
+        },
+        "hivoto_xgboost": {
+          "label": "female",
+          "status": "success"
+        }
+      },
+      "expected_aggregation": {
+        "outcome": "decided",
+        "label": "male",
+        "pooled_vote_counts": {
+          "male": 1,
+          "female": 5,
+          "unknown": 1,
+          "institution": 0
+        },
+        "tied_labels": [],
+        "override_source": "gnd",
+        "override_agreeing_count": 1,
+        "override_comparison_count": 7,
+        "agreement_score": 0.143,
+        "agreement_tier": "no_consensus",
+        "certainty_tier": "high"
+      }
+    },
+    {
+      "case": "unknown_tie_loses_to_substantive_label",
+      "tei_id": "S1125482",
+      "expected_predictions": {
+        "parenthetical_qualifier": {
+          "label": null,
+          "status": "abstain"
+        },
+        "gnd": {
+          "label": null,
+          "status": "abstain"
+        },
+        "gender_guesser": {
+          "label": "unknown",
+          "status": "success"
+        },
+        "wiki_gendersort": {
+          "label": "male",
+          "status": "success"
+        },
+        "hivoto": {
+          "label": "unknown",
+          "status": "success"
+        },
+        "nomquamgender": {
+          "label": "unknown",
+          "status": "success"
+        },
+        "hf_distilbert": {
+          "label": "male",
+          "status": "success"
+        },
+        "hf_genderize": {
+          "label": "male",
+          "status": "success"
+        },
+        "local_llm": {
+          "label": "institution",
+          "status": "success"
+        },
+        "hivoto_xgboost": {
+          "label": "male",
+          "status": "success"
+        }
+      },
+      "expected_aggregation": {
+        "outcome": "decided",
+        "label": "male",
+        "pooled_vote_counts": {
+          "male": 3,
+          "female": 0,
+          "unknown": 3,
+          "institution": 1
+        },
+        "tied_labels": [],
+        "override_source": null,
+        "override_agreeing_count": null,
+        "override_comparison_count": null,
+        "agreement_score": 0.429,
+        "agreement_tier": "no_consensus",
+        "certainty_tier": "contested"
+      }
+    },
+    {
+      "case": "lone_high_certainty_llm_institution",
+      "tei_id": "S1125426",
+      "expected_predictions": {
+        "parenthetical_qualifier": {
+          "label": null,
+          "status": "abstain"
+        },
+        "gnd": {
+          "label": null,
+          "status": "abstain"
+        },
+        "gender_guesser": {
+          "label": null,
+          "status": "abstain"
+        },
+        "wiki_gendersort": {
+          "label": null,
+          "status": "abstain"
+        },
+        "hivoto": {
+          "label": null,
+          "status": "abstain"
+        },
+        "nomquamgender": {
+          "label": null,
+          "status": "abstain"
+        },
+        "hf_distilbert": {
+          "label": null,
+          "status": "abstain"
+        },
+        "hf_genderize": {
+          "label": null,
+          "status": "abstain"
+        },
+        "local_llm": {
+          "label": "institution",
+          "status": "success"
+        },
+        "hivoto_xgboost": {
+          "label": null,
+          "status": "abstain"
+        }
+      },
+      "expected_aggregation": {
+        "outcome": "decided",
+        "label": "institution",
+        "pooled_vote_counts": {
+          "male": 0,
+          "female": 0,
+          "unknown": 0,
+          "institution": 1
+        },
+        "tied_labels": [],
+        "override_source": null,
+        "override_agreeing_count": null,
+        "override_comparison_count": null,
+        "agreement_score": 1.0,
+        "agreement_tier": "single_rater",
+        "certainty_tier": "single"
+      }
+    },
+    {
+      "case": "lone_uncertain_llm_unknown",
+      "tei_id": "S0001049",
+      "expected_predictions": {
+        "parenthetical_qualifier": {
+          "label": null,
+          "status": "abstain"
+        },
+        "gnd": {
+          "label": null,
+          "status": "abstain"
+        },
+        "gender_guesser": {
+          "label": null,
+          "status": "abstain"
+        },
+        "wiki_gendersort": {
+          "label": null,
+          "status": "abstain"
+        },
+        "hivoto": {
+          "label": null,
+          "status": "abstain"
+        },
+        "nomquamgender": {
+          "label": null,
+          "status": "abstain"
+        },
+        "hf_distilbert": {
+          "label": null,
+          "status": "abstain"
+        },
+        "hf_genderize": {
+          "label": null,
+          "status": "abstain"
+        },
+        "local_llm": {
+          "label": "unknown",
+          "status": "success"
+        },
+        "hivoto_xgboost": {
+          "label": null,
+          "status": "abstain"
+        }
+      },
+      "expected_aggregation": {
+        "outcome": "decided",
+        "label": "unknown",
+        "pooled_vote_counts": {
+          "male": 0,
+          "female": 0,
+          "unknown": 1,
+          "institution": 0
+        },
+        "tied_labels": [],
+        "override_source": null,
+        "override_agreeing_count": null,
+        "override_comparison_count": null,
+        "agreement_score": 1.0,
+        "agreement_tier": "single_rater",
+        "certainty_tier": "uncertain"
+      }
+    },
+    {
+      "case": "leaning_and_ambiguous_normalization",
+      "tei_id": "S7944779",
+      "expected_predictions": {
+        "parenthetical_qualifier": {
+          "label": null,
+          "status": "abstain"
+        },
+        "gnd": {
+          "label": "male",
+          "status": "success"
+        },
+        "gender_guesser": {
+          "label": "male",
+          "status": "success"
+        },
+        "wiki_gendersort": {
+          "label": "male",
+          "status": "success"
+        },
+        "hivoto": {
+          "label": "unknown",
+          "status": "success"
+        },
+        "nomquamgender": {
+          "label": "unknown",
+          "status": "success"
+        },
+        "hf_distilbert": {
+          "label": "male",
+          "status": "success"
+        },
+        "hf_genderize": {
+          "label": "male",
+          "status": "success"
+        },
+        "local_llm": {
+          "label": "male",
+          "status": "success"
+        },
+        "hivoto_xgboost": {
+          "label": "male",
+          "status": "success"
+        }
+      },
+      "expected_aggregation": {
+        "outcome": "decided",
+        "label": "male",
+        "pooled_vote_counts": {
+          "male": 5,
+          "female": 0,
+          "unknown": 2,
+          "institution": 0
+        },
+        "tied_labels": [],
+        "override_source": "gnd",
+        "override_agreeing_count": 5,
+        "override_comparison_count": 7,
+        "agreement_score": 0.714,
+        "agreement_tier": "weak_majority",
+        "certainty_tier": "high"
+      }
+    },
+    {
+      "case": "explicit_gnd_error",
+      "tei_id": "S0002324",
+      "expected_predictions": {
+        "parenthetical_qualifier": {
+          "label": null,
+          "status": "abstain"
+        },
+        "gnd": {
+          "label": null,
+          "status": "error"
+        },
+        "gender_guesser": {
+          "label": "male",
+          "status": "success"
+        },
+        "wiki_gendersort": {
+          "label": "male",
+          "status": "success"
+        },
+        "hivoto": {
+          "label": "male",
+          "status": "success"
+        },
+        "nomquamgender": {
+          "label": "male",
+          "status": "success"
+        },
+        "hf_distilbert": {
+          "label": "male",
+          "status": "success"
+        },
+        "hf_genderize": {
+          "label": "male",
+          "status": "success"
+        },
+        "local_llm": {
+          "label": "male",
+          "status": "success"
+        },
+        "hivoto_xgboost": {
+          "label": "male",
+          "status": "success"
+        }
+      },
+      "expected_aggregation": {
+        "outcome": "decided",
+        "label": "male",
+        "pooled_vote_counts": {
+          "male": 7,
+          "female": 0,
+          "unknown": 0,
+          "institution": 0
+        },
+        "tied_labels": [],
+        "override_source": null,
+        "override_agreeing_count": null,
+        "override_comparison_count": null,
+        "agreement_score": 1.0,
+        "agreement_tier": "unanimous",
+        "certainty_tier": "high"
+      }
+    }
+  ]
+}
