@@ -1,0 +1,40 @@
+{
+  "name": "gendertagger-infra-scaffold",
+  "generated": "2026-08-13",
+  "status": "tooling-ready design scaffold; no application implementation",
+  "design_docs": [
+    "docs/00-design-index.md",
+    "docs/01-architecture.md",
+    "docs/02-domain-model.md",
+    "docs/03-pydantic-contracts.md",
+    "docs/04-persistence.md",
+    "docs/05-api.md",
+    "docs/06-task-queue.md",
+    "docs/07-methods-and-aggregation.md",
+    "docs/08-ingestion-and-export.md",
+    "docs/09-annotation-and-review.md",
+    "docs/10-evaluation.md",
+    "docs/11-provenance-and-reproducibility.md",
+    "docs/12-deployment-and-operations.md",
+    "docs/13-auth-and-security.md",
+    "docs/14-testing.md",
+    "docs/15-implementation-plan.md",
+    "docs/16-open-questions.md",
+    "docs/17-frontend-integration.md",
+    "docs/18-engineering-and-quality.md",
+    "docs/19-coding-and-documentation-style.md",
+    "docs/decisions/ADR-0001-pydantic-fastapi-central.md",
+    "docs/decisions/ADR-0002-immutable-dataset-snapshots.md",
+    "docs/decisions/ADR-0003-reference-aggregation.md",
+    "docs/decisions/ADR-0004-postgres-celery-redis.md",
+    "docs/decisions/ADR-0005-local-first-data-processing.md",
+    "docs/decisions/ADR-0006-vue-browser-client-boundary.md"
+  ],
+  "top_level_entrypoints": [
+    "README.md",
+    "SPEC.md",
+    "PLAN.md",
+    "AGENTS.md"
+  ],
+  "frontend_target": "Vue 3 + TypeScript + Vite (Phase 6; OpenAPI-generated client; same-origin production)"
+}

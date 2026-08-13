@@ -1,0 +1,241 @@
+# FastAPI design
+
+## Principles
+
+FastAPI is the canonical public interface. The browser UI, CLI where remote operation is desired, and external edition integrations consume the same application semantics.
+
+Version the public API under `/api/v1`.
+
+Favor resource-oriented endpoints over classifier-specific or page-specific RPC endpoints. A Vue screen is not an API resource; a Run, ReviewItem, Annotation, Export, or Evaluation is.
+
+The API exposes explicit Pydantic request/response models and never SQLAlchemy instances. OpenAPI is a public machine-readable contract and should be used to generate TypeScript transport types/client code for the future Vue application.
+
+## JSON conventions
+
+Public `/api/v1` JSON uses:
+
+- `snake_case` field names;
+- stable lowercase string enum values;
+- UUID strings for service resource IDs;
+- canonical TEI `xml:id` strings for person identity within a project;
+- timezone-aware ISO 8601 UTC timestamps;
+- `null` for absent optional values, never magic strings.
+
+The scientific `unknown` label is never represented by `null`.
+
+## Resource outline
+
+```text
+/api/v1/projects
+/api/v1/projects/{project_id}
+/api/v1/projects/{project_id}/snapshots
+/api/v1/snapshots/{snapshot_id}
+/api/v1/snapshots/{snapshot_id}/people
+/api/v1/review-items
+/api/v1/runs
+/api/v1/runs/{run_id}
+/api/v1/runs/{run_id}/executions
+/api/v1/runs/{run_id}/predictions
+/api/v1/runs/{run_id}/aggregations
+/api/v1/runs/{run_id}/events
+/api/v1/aggregations/{aggregation_id}/results
+/api/v1/annotations
+/api/v1/evaluations
+/api/v1/exports
+/api/v1/exports/{export_id}/download
+/api/v1/methods
+/api/v1/me
+```
+
+## Long-running commands
+
+Imports, runs, method execution, evaluations, and exports are asynchronous resources. Do not keep an HTTP request open while scientific computation executes.
+
+Representative flow:
+
+```text
+POST /api/v1/runs
+  -> 202 Accepted
+  -> Run(id=..., status="queued")
+
+GET /api/v1/runs/{run_id}
+  -> persisted current state
+```
+
+Return domain resource IDs, never Celery task IDs. Celery is an internal execution mechanism and can change without changing the public API.
+
+## Representative commands
+
+### Create snapshot import
+
+`POST /api/v1/projects/{project_id}/snapshots`
+
+Accept TEI upload or an artifact reference plus import configuration. Return `202 Accepted` with a pending snapshot/import resource.
+
+### Create run
+
+`POST /api/v1/runs`
+
+Input:
+
+- `dataset_snapshot_id`;
+- run configuration or named server-side config.
+
+Result: persisted Run with resolved config hash and queued/runnable state.
+
+### Start/run executions
+
+Prefer explicit state transitions or a create-run option rather than method-named endpoints. For example:
+
+`POST /api/v1/runs/{run_id}/executions`
+
+### Aggregate
+
+`POST /api/v1/runs/{run_id}/aggregations`
+
+Aggregation must be independently rerunnable without classifier execution.
+
+### Annotate
+
+`POST /api/v1/annotations`
+
+Creates a new immutable human decision. The command contains the review revision observed by the client. A stale revision returns `409 Conflict`; no historical annotation is overwritten.
+
+### Export
+
+`POST /api/v1/exports`
+
+Creates an asynchronous export resource referencing a snapshot plus selected aggregation/final-decision policy. Downloads use artifact/export IDs, never server paths.
+
+## List endpoints
+
+Potentially large or changing collections use cursor pagination by default.
+
+Representative query:
+
+```text
+GET /api/v1/snapshots/{snapshot_id}/people
+    ?limit=100
+    &cursor=...
+    &q=Johann
+    &sort=tei_id
+```
+
+A shared cursor page contract should contain at least:
+
+```python
+T = TypeVar("T")
+
+
+class CursorPage(BaseModel, Generic[T]):
+    items: list[T]
+    next_cursor: str | None
+    has_more: bool
+```
+
+Do not expose total counts by default when calculating them would make ordinary navigation expensive. Endpoints that can provide a cheap/meaningful count may add it explicitly.
+
+Filtering/search/sorting is performed server-side. Review-oriented filters should include, where applicable:
+
+- final/canonical label;
+- certainty tier;
+- agreement tier;
+- reviewed/unreviewed/deferred state;
+- authority-vs-ensemble disagreement;
+- selected method result;
+- prediction status/errors;
+- text search over names/identifiers.
+
+List responses should include enough summary data to render a table/card list without one detail request per row. Keep large raw outputs on detail endpoints.
+
+## Review items
+
+A dedicated `review-items` resource is allowed because review triage is a domain concept. It should project the relevant person, final/aggregated result, disagreement/certainty information, and current review revision into a queryable summary.
+
+Avoid page-specific endpoints such as `/getDashboardStuff` or `/getDataForRunPage`.
+
+## Progress/events
+
+Use Server-Sent Events initially for server-to-client progress:
+
+```text
+GET /api/v1/runs/{run_id}/events
+```
+
+Suggested stable event names:
+
+- `run.state_changed`;
+- `run.progress`;
+- `method_execution.state_changed`;
+- `method_execution.progress`;
+- `aggregation.completed`;
+- `run.completed`;
+- `run.failed`.
+
+Event payloads are Pydantic contracts. Persist authoritative task/run state in PostgreSQL. SSE events are a convenience view, not the only state channel. Clients must be able to reconnect and recover by GETting the current resource state.
+
+Support `Last-Event-ID`/resume when event persistence exists; it is not required for the first asynchronous slice.
+
+## Progress model
+
+Expose progress in Run and MethodExecution summaries.
+
+```python
+class Progress(BaseModel):
+    total: int | None
+    completed: int
+    failed: int
+    percentage: float | None
+```
+
+`total=None` is valid before work can be counted. Percentage is derived and is not the authoritative completion condition.
+
+## Error model
+
+Define one Pydantic error envelope with:
+
+- stable error code;
+- human-readable message;
+- optional details;
+- correlation/request ID.
+
+Representative body:
+
+```json
+{
+  "error": {
+    "code": "annotation_conflict",
+    "message": "The review state has changed.",
+    "details": {"current_revision": 5},
+    "request_id": "..."
+  }
+}
+```
+
+Normalize framework validation errors into the documented public error shape where practical. Do not expose worker tracebacks to ordinary API users.
+
+## Concurrency
+
+Ordinary immutable resources do not need client-side locking. Annotation/review commands use optimistic concurrency through a monotonically increasing review revision scoped to the person/snapshot decision stream.
+
+Stale writes return `409 Conflict` with code `annotation_conflict`. This protects multi-user review without mutating append-only annotation history.
+
+## Authentication surface
+
+Expose `/api/v1/me` using a typed `CurrentUser` contract. Authorization belongs in FastAPI dependencies/application services, never only in the Vue UI.
+
+For the same-origin browser application, prefer secure HTTP-only session cookies plus CSRF protection for state-changing requests. External machine clients may later use a separate token/OIDC mechanism.
+
+## CORS
+
+Production should prefer a single origin for Vue and FastAPI, making general CORS unnecessary.
+
+Development may explicitly allow the Vite origin (for example `http://localhost:5173`). Never use wildcard origins with credentialed requests.
+
+## OpenAPI
+
+Treat generated OpenAPI as part of the public contract.
+
+Tests/CI should detect unintended schema changes. When the Vue frontend exists, its generated TypeScript client/types should be regenerated or checked from this schema. Do not maintain duplicate handwritten transport models.
+
+See `17-frontend-integration.md` and `decisions/ADR-0006-vue-browser-client-boundary.md`.

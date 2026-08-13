@@ -1,0 +1,24 @@
+# Design document index
+
+| Document | Purpose |
+|---|---|
+| [`01-architecture.md`](01-architecture.md) | System boundaries and component architecture |
+| [`02-domain-model.md`](02-domain-model.md) | Core entities, identity, immutability, state machines |
+| [`03-pydantic-contracts.md`](03-pydantic-contracts.md) | Canonical typed contracts and model boundaries |
+| [`04-persistence.md`](04-persistence.md) | PostgreSQL/SQLAlchemy schema strategy |
+| [`05-api.md`](05-api.md) | FastAPI resource model, endpoints, progress API |
+| [`06-task-queue.md`](06-task-queue.md) | Celery/Redis execution, queues, idempotency, retries |
+| [`07-methods-and-aggregation.md`](07-methods-and-aggregation.md) | Normative scientific pipeline behavior |
+| [`08-ingestion-and-export.md`](08-ingestion-and-export.md) | TEI import snapshots and reproducible exports |
+| [`09-annotation-and-review.md`](09-annotation-and-review.md) | Human review/game behavior and audit trail |
+| [`10-evaluation.md`](10-evaluation.md) | Benchmarks, metrics, agreement analysis |
+| [`11-provenance-and-reproducibility.md`](11-provenance-and-reproducibility.md) | Provenance model and run manifests |
+| [`12-deployment-and-operations.md`](12-deployment-and-operations.md) | Compose topology, storage, health, backup |
+| [`13-auth-and-security.md`](13-auth-and-security.md) | Authentication, authorization, data boundaries |
+| [`14-testing.md`](14-testing.md) | Test strategy and scientific regression fixtures |
+| [`15-implementation-plan.md`](15-implementation-plan.md) | Ordered build plan for the IDE/coding agent |
+| [`16-open-questions.md`](16-open-questions.md) | Remaining non-blocking decisions |
+| [`17-frontend-integration.md`](17-frontend-integration.md) | Vue/browser client contract and backend readiness |
+| [`18-engineering-and-quality.md`](18-engineering-and-quality.md) | Toolchain, quality gates, CI, and delivery policy |
+| [`19-coding-and-documentation-style.md`](19-coding-and-documentation-style.md) | Naming, docstrings, Markdown, and ADR style |
+| [Architecture Decision Records](decisions/) | Accepted decisions and ADR template |

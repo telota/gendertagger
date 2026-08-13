@@ -1,0 +1,36 @@
+# Illustrative only. The implementation must validate this through Pydantic
+# and persist the fully resolved configuration for every Run.
+
+methods:
+  - name: parenthetical_qualifier
+    enabled: true
+  - name: gnd
+    enabled: true
+    snapshot: "REPLACE_WITH_ARTIFACT_OR_VERSION"
+  - name: gender_guesser
+    enabled: true
+  - name: wiki_gendersort
+    enabled: true
+  - name: hivoto
+    enabled: true
+  - name: nomquamgender
+    enabled: true
+    threshold: 0.5
+  - name: hf_distilbert
+    enabled: true
+    model: "padmajabfrl/Gender-Classification"
+  - name: hf_genderize
+    enabled: true
+    model: "imranali291/genderize"
+  - name: local_llm
+    enabled: true
+    model: "gpt-oss:20b"
+  - name: hivoto_xgboost
+    enabled: false
+    experimental: true
+
+aggregation:
+  strategy: reference_v1
+
+execution:
+  fail_run_on_optional_method_error: false

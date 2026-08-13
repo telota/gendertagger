@@ -1,0 +1,1 @@
+"""Versioned classification method adapters."""

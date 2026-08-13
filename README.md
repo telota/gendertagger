@@ -1,119 +1,81 @@
-# genderTagger
+# gendertagger infrastructure scaffold
 
-A playful RSE tool for gender annotation in Digital Humanities projects.
+This repository is a **code-empty implementation scaffold** for the next generation of `gendertagger`.
+It captures the agreed architecture and the scientific behavior of the existing Python pipeline before implementation begins.
 
-**genderTagger** is a web-based application for gender classification in TEI-XML person registers. It combines **multiple automated classification methods** with a **gamified web interface** for human annotation, developed by TELOTA's [KI-Lab](https://www.bbaw.de/bbaw-digital/ki) and the [Gender & Data](https://www.bbaw.de/gender-data) initiative at the Berlin-Brandenburg Academy of Sciences and Humanities (BBAW).
+The target system is a reproducible, human-in-the-loop service for semi-automated gender annotation of TEI/XML person registers.
+The design preserves the published multi-method workflow while adding persistent storage, an API, task orchestration, annotation, evaluation, provenance, and deployable infrastructure.
 
-## Overview
+## Architectural baseline
 
-Person registers are the backbone of digital scholarly editions — they link actors, create context, and open perspectives on social and intellectual networks. Yet gender information is often missing, making the **Gender Data Gap** invisible. genderTagger addresses this by providing:
+- **FastAPI** is the canonical public/application entry point.
+- **Pydantic** is the canonical language for API, domain, configuration, task-envelope, and service contracts.
+- **SQLAlchemy + PostgreSQL** provide persistence; ORM models are not the domain model.
+- **Celery + Redis** provide asynchronous task execution.
+- CPU, GPU, and external/slow workloads are routed to separate queues.
+- Original TEI/XML and generated artifacts live behind a storage abstraction; a shared filesystem is the initial backend.
+- Projects contain immutable **DatasetSnapshots**. A run always targets one immutable snapshot.
+- The TEI `xml:id` is the canonical person identifier inside a project.
+- Per-method predictions are immutable scientific evidence. Aggregation and human annotations never overwrite them.
+- The published aggregation strategy remains the default reference strategy.
+- The review/game UI is an annotation client, not a separate source of truth.
+- The planned UI stack is **Vue 3 + TypeScript + Vite**, consuming `/api/v1` through OpenAPI-generated transport contracts.
+- Long-running work is exposed as persisted asynchronous resources with optional SSE progress; Celery remains invisible to clients.
+- Production should prefer same-origin Vue/FastAPI routing and secure HTTP-only browser sessions.
 
-- **9 classification methods** ranging from authority file lookups to transformer models and local LLMs
-- **A gamified web UI** with browse/annotate mode, a timed game mode with scoring and leaderboards, and statistics dashboards
-- **TEI-XML import/export** so enriched data flows back into existing edition workflows
-- **Benchmark tooling** to evaluate and compare classifier performance
+## Start here
 
-The primary development case study is _schleiermacher digital_, whose person register contains ~8,000 entries.
+1. Read [`AGENTS.md`](AGENTS.md).
+2. Read [`docs/01-architecture.md`](docs/01-architecture.md).
+3. Read [`docs/02-domain-model.md`](docs/02-domain-model.md).
+4. Read [`docs/03-pydantic-contracts.md`](docs/03-pydantic-contracts.md).
+5. Read [`docs/17-frontend-integration.md`](docs/17-frontend-integration.md) for the later Vue boundary.
+6. Follow [`docs/15-implementation-plan.md`](docs/15-implementation-plan.md).
+7. Follow [`docs/18-engineering-and-quality.md`](docs/18-engineering-and-quality.md) for local and CI checks.
+8. Follow [`docs/19-coding-and-documentation-style.md`](docs/19-coding-and-documentation-style.md) for naming,
+   docstrings, Markdown, and ADRs.
 
-## Quick Start
+## Repository state
 
-1. **Install dependencies**:
+There is intentionally **no application implementation yet**. The repository contains a minimal importable
+package, development tooling, a packaging smoke test, and policy-script regression tests; application packages
+remain placeholders. The next implementation task is to preserve the legacy scientific fixture, then
+establish Pydantic contracts and state machines before deriving persistence and API layers.
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Development checks
 
+Install the uv version required by `pyproject.toml`, then run:
 
-[TODO]
+```bash
+uv sync --locked
+uv run --locked python scripts/check_documentation.py
+uv run --locked python scripts/check_contract_naming.py
+uv run --locked python scripts/check_package_initializers.py
+uv run --locked pre-commit run --all-files
+uv run --locked pytest \
+  -m "not integration and not postgres and not redis and not e2e and not slow and not gpu and not external" \
+  --hypothesis-profile=ci --cov
+uv build --no-sources
+uv run --locked python scripts/check_distribution.py dist/*
+```
 
+Install Git hooks after `git init` with `uv run --locked pre-commit install --install-hooks`. Full contributor
+policy and individual CI commands are in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
-## Classification Methods
+## Scientific reference behavior
 
-genderTagger ships with nine independent classification approaches:
+The published workflow uses the canonical labels:
 
-| Method                       | Type                         | Source / Model                                                                                                                        |
-| ---------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| **GND API**                  | Authority file lookup        | [lobid-gnd](https://lobid.org/gnd) (Gemeinsame Normdatei)                                                                             |
-| **GND Local Lookup**         | Authority file (offline)     | Pre-built SQLite DB from GND MARC XML                                                                                                 |
-| **gender-guesser**           | Rule-based heuristic         | [`gender-guesser`](https://pypi.org/project/gender-guesser/) library                                                                  |
-| **nomquamgender**            | Statistical ML               | [`nomquamgender`](https://pypi.org/project/nomquamgender/) library                                                                    |
-| **HF Gender-Classification** | DistilBERT transformer       | [`padmajabfrl/Gender-Classification`](https://huggingface.co/padmajabfrl/Gender-Classification)                                       |
-| **HF Genderize**             | BERT transformer             | [`imranali291/genderize`](https://huggingface.co/imranali291/genderize)                                                               |
-| **HIVOTO**                   | Historical name lookup       | [HIVOTO v1.0.0](https://www.geschichte.hu-berlin.de/de/bereiche-und-lehrstuehle/digital/forschung/hivoto) (Historisches Vornamentool) |
-| **HIVOTO-XGBoost**           | XGBoost + char n-gram TF-IDF | Trained on HIVOTO dataset                                                                                                             |
-| **LLM (Ollama)**             | Local large language model   | Configurable model via Ollama REST API                                                                                                |
+- `male`
+- `female`
+- `unknown`
+- `institution`
 
-Five of these classifiers (gender-guesser, nomquamgender, HF Gender-Classification, GND API, and optionally Ollama LLM) are integrated directly into the web UI to assist human annotators.
+It distinguishes a method's substantive `unknown` result from an `abstain` status. Per-method confidences are preserved as `method_confidence` but do **not** influence the reference majority vote.
 
-All nine methods were first developed and tested as **standalone scripts** (in `methods/`) to validate their accuracy and coverage independently before integration.
-
-## Architecture
-
-### Planned: FastAPI + Vue.js
-
-The project is being refactored into a decoupled client-server architecture:
-
-- **Backend** (`src/gendertagger/backend/`) — a **FastAPI** REST API exposing classification endpoints, TEI-XML import/export, annotation management, and user/session handling. All nine classifiers will be accessible through a unified API.
-- **Frontend** (`src/gendertagger/frontend/`) — a **Vue.js** single-page application providing the gamified annotation UI, statistics dashboards, and team leaderboards.
-
-This separation enables independent scaling, easier testing, and a richer interactive frontend.
-
-## Project Structure
-
-
-[TODO]
-
-
-
-## Benchmark and Evaluation
-
-The `scripts/` directory provides tools for systematic evaluation:
-
-- **benchmark.py** — compares all nine methods against GND as ground truth; computes coverage, classification distributions, and accuracy metrics
-- **agreements.py** — inter-annotator agreement: pairwise Cohen's κ, Fleiss' κ, Krippendorff's α
-- **coverage.py** — coverage and classification distribution report across three tiers (binary, substantive, overall)
-
-Poster visualisation scripts (`poster_benchmark_chart.py`, `poster_pies.py`, `poster_example_badges.py`) generate figures for presentations.
-
-## Installation
-
-### Requirements
-
-
-[TODO]
-
-
-### Setup
-
-
-[TODO]
-
-
-## Limitations
-
-- Gender classification is based on historical names and uses a binary scheme (Male / Female) plus the categories Uncertain and Institution. Non-binary, trans\*, or agender categories are not currently supported.
-- Name-based classification has inherent limitations and cultural biases.
-- Classifications represent a statistical estimate and do not reflect individual gender identity.
-- Results require validation, especially for ambiguous or culturally diverse names.
-
-## Research Context
-
-This work was presented at **deRSE26** (German Conference on Research Software Engineering, University of Stuttgart, March 3–5, 2026). The submitted abstract is available [here](https://events.hifis.net/event/2945/contributions/21353/).
-
-## Contributing
-
-This project is part of ongoing research. For questions or collaboration inquiries, please open an issue or contact the project team.
+See [`docs/07-methods-and-aggregation.md`](docs/07-methods-and-aggregation.md) for the normative reference behavior.
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
-
-Copyright (c) 2026 TELOTA – The Electronic Life Of The Academy.
-
-## Acknowledgments
-
-Developed by the [KI-Lab](https://www.bbaw.de/bbaw-digital/ki) and [Gender & Data](https://www.bbaw.de/gender-data) initiative at TELOTA, Berlin-Brandenburg Academy of Sciences and Humanities (BBAW).
-
-## Further Documentation
-
-- [docs/references/](docs/references/) — reference documentation for tools and APIs
+The project source is licensed under the [MIT License](LICENSE). Bundled or referenced datasets, model
+artifacts, and scientific fixtures require their own compatibility and redistribution review.

@@ -1,0 +1,202 @@
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+_SCRIPTS_ROOT = _REPOSITORY_ROOT / "scripts"
+
+
+def _run_policy(script_name: str, root: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(  # noqa: S603 -- the interpreter and script paths are repository-controlled.
+        [sys.executable, str(_SCRIPTS_ROOT / script_name), "--root", str(root)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _write(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def _write_minimal_documentation(root: Path) -> None:
+    for name in ("README.md", "CONTRIBUTING.md", "PLAN.md", "SPEC.md", "AGENTS.md"):
+        _write(root / name, f"# {Path(name).stem}\n")
+    _write(root / "frontend/README.md", "# Frontend\n")
+    _write(
+        root / "docs/00-design-index.md",
+        "# Design document index\n\n[Topic](01-topic.md)\n",
+    )
+    _write(root / "docs/01-topic.md", "# Topic\n")
+    _write(root / "docs/decisions/TEMPLATE.md", "# ADR-NNNN: Short decision title\n")
+    _write(
+        root / "docs/decisions/ADR-0001-example.md",
+        """# ADR-0001: Example
+
+**Status:** Accepted
+
+## Context
+
+Context.
+
+## Decision
+
+Decision.
+
+## Consequences
+
+Consequences.
+""",
+    )
+    scaffold = {
+        "design_docs": [
+            "docs/00-design-index.md",
+            "docs/01-topic.md",
+            "docs/decisions/ADR-0001-example.md",
+        ]
+    }
+    _write(root / "SCAFFOLD.json", f"{json.dumps(scaffold)}\n")
+
+
+def test_documentation_policy_accepts_a_complete_repository(tmp_path: Path) -> None:
+    _write_minimal_documentation(tmp_path)
+
+    result = _run_policy("check_documentation.py", tmp_path)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_documentation_policy_reports_structure_and_link_errors(tmp_path: Path) -> None:
+    _write_minimal_documentation(tmp_path)
+    _write(
+        tmp_path / "docs/01-topic.md",
+        "# Topic\n\n### Jumped heading\n\n[Missing](missing.md)\n",
+    )
+
+    result = _run_policy("check_documentation.py", tmp_path)
+
+    assert result.returncode == 1
+    assert "DOC103" in result.stdout
+    assert "DOC202" in result.stdout
+
+
+def test_documentation_policy_reports_manifest_and_adr_errors(tmp_path: Path) -> None:
+    _write_minimal_documentation(tmp_path)
+    _write(
+        tmp_path / "docs/decisions/ADR-0001-example.md",
+        """# ADR-0001: Example
+
+**Status:** Accepted
+
+## Decision
+
+Decision.
+
+## Consequences
+
+Consequences.
+""",
+    )
+    _write(
+        tmp_path / "SCAFFOLD.json",
+        '{"design_docs": ["docs/00-design-index.md", "docs/decisions/ADR-0001-example.md"]}\n',
+    )
+
+    result = _run_policy("check_documentation.py", tmp_path)
+
+    assert result.returncode == 1
+    assert "DOC403" in result.stdout
+    assert "DOC503" in result.stdout
+
+
+def test_contract_naming_policy_accepts_explicit_semantics(tmp_path: Path) -> None:
+    _write(
+        tmp_path / "src/gendertagger/models/contracts.py",
+        """from datetime import datetime
+from typing import Annotated, ClassVar
+from uuid import UUID
+
+
+class Contract:
+    id: UUID
+    project_id: Annotated[UUID | None, "identifier"]
+    related_ids: Annotated[list[UUID] | None, "identifiers"]
+    created_at: Annotated[datetime | None, "UTC"]
+    timeout_seconds: float
+    method_confidence: float
+    descriptor: ClassVar[datetime]
+""",
+    )
+
+    result = _run_policy("check_contract_naming.py", tmp_path)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_contract_naming_policy_reports_ambiguous_fields(tmp_path: Path) -> None:
+    _write(
+        tmp_path / "src/gendertagger/models/contracts.py",
+        """from datetime import datetime
+from uuid import UUID
+
+
+class Contract:
+    confidence: float
+    created: datetime
+    project: UUID
+    related: list[UUID]
+    timeout: int
+""",
+    )
+
+    result = _run_policy("check_contract_naming.py", tmp_path)
+
+    assert result.returncode == 1
+    assert [code for code in result.stdout.split() if code.startswith("GTN")] == [
+        "GTN001",
+        "GTN002",
+        "GTN003",
+        "GTN003",
+        "GTN004",
+    ]
+
+
+def test_package_initializer_policy_accepts_docstring_only_packages(tmp_path: Path) -> None:
+    _write(tmp_path / "src/gendertagger/__init__.py", '"""Package contract."""\n')
+    _write(tmp_path / "src/gendertagger/domain/__init__.py", '"""Domain package."""\n')
+
+    result = _run_policy("check_package_initializers.py", tmp_path)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_package_initializer_policy_requires_a_docstring(tmp_path: Path) -> None:
+    _write(tmp_path / "src/gendertagger/__init__.py", "")
+
+    result = _run_policy("check_package_initializers.py", tmp_path)
+
+    assert result.returncode == 1
+    assert "PKG101" in result.stdout
+
+
+def test_package_initializer_policy_rejects_behavior_and_namespace_packages(
+    tmp_path: Path,
+) -> None:
+    _write(
+        tmp_path / "src/gendertagger/__init__.py",
+        '"""Package contract."""\n\nfrom .domain.service import Service\n\nVERSION = "1"\n',
+    )
+    _write(tmp_path / "src/gendertagger/domain/service.py", "class Service: ...\n")
+
+    result = _run_policy("check_package_initializers.py", tmp_path)
+
+    assert result.returncode == 1
+    assert [code for code in result.stdout.split() if code.startswith("PKG")] == [
+        "PKG102",
+        "PKG102",
+        "PKG103",
+    ]
