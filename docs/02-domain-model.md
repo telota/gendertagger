@@ -124,7 +124,8 @@ pending -> importing -> ready
 ```text
 created -> queued -> running -> completed
                          |       -> completed_with_errors
-                         \------> failed
+                         |------> failed
+                         \------> cancelled
 ```
 
 ### MethodExecution
@@ -132,7 +133,16 @@ created -> queued -> running -> completed
 ```text
 pending -> queued -> running -> completed
                          |       -> completed_with_errors
-                         \------> failed
+                         |------> failed
+                         \------> cancelled
+```
+
+### AggregationExecution and TaskBatch
+
+```text
+pending -> queued -> running -> completed
+                         |------> failed
+                         \------> cancelled
 ```
 
 Retries do not create duplicate Predictions for the same execution/person/batch identity.

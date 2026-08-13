@@ -282,6 +282,16 @@ Use summary response models for list views and detail response models for large/
 ### Current user
 
 ```python
+class Role(StrEnum):
+    viewer = "viewer"
+    reviewer = "reviewer"
+    operator = "operator"
+    admin = "admin"
+```
+
+Roles are persisted independently of the concrete authentication provider.
+
+```python
 class CurrentUser(BaseModel):
     id: UUID
     display_name: str
@@ -292,6 +302,22 @@ class CurrentUser(BaseModel):
 The exact identity provider is infrastructure. Services consume an explicit authenticated principal.
 
 ### Review concurrency
+```python
+class ReviewAction(StrEnum):
+    verify = "verify"
+    correct = "correct"
+    defer = "defer"
+
+
+class ReviewWorkflowState(StrEnum):
+    unreviewed = "unreviewed"
+    reviewed = "reviewed"
+    deferred = "deferred"
+```
+
+`verify` and `correct` record an explicit canonical label. `defer` records no label and leaves the item in
+the deferred workflow state.
+
 
 ```python
 class AnnotationCreate(BaseModel):
