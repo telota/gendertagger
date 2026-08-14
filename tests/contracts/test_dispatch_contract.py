@@ -2,12 +2,16 @@ from datetime import UTC, datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
+from gendertagger.models.aggregation import AggregationTaskMessage
 from gendertagger.models.dispatch import (
+    AggregationDispatchCreate,
     BatchDispatch,
     BatchDispatchCreate,
     BatchDispatchStatus,
+    DispatchCreate,
+    DispatchTarget,
 )
 from gendertagger.models.run import TaskBatchMessage
 
@@ -23,6 +27,33 @@ def test_dispatch_create_requires_matching_task_batch_identity() -> None:
             ),
             available_at=datetime.now(UTC),
         )
+
+
+def test_aggregation_dispatch_requires_matching_execution_identity() -> None:
+    with pytest.raises(ValidationError, match="aggregation_execution_id must match"):
+        AggregationDispatchCreate(
+            aggregation_execution_id=uuid4(),
+            queue_name="cpu",
+            payload=AggregationTaskMessage(aggregation_execution_id=uuid4()),
+            available_at=datetime.now(UTC),
+        )
+
+
+def test_dispatch_create_union_is_discriminated_by_target() -> None:
+    aggregation_execution_id = uuid4()
+
+    command: DispatchCreate = TypeAdapter(DispatchCreate).validate_python(
+        {
+            "target": DispatchTarget.aggregation_execution,
+            "aggregation_execution_id": aggregation_execution_id,
+            "queue_name": "cpu",
+            "payload": {"aggregation_execution_id": aggregation_execution_id},
+            "available_at": datetime.now(UTC),
+        }
+    )
+
+    assert isinstance(command, AggregationDispatchCreate)
+    assert command.target_id == aggregation_execution_id
 
 
 def test_dispatch_create_normalizes_available_time_to_utc() -> None:

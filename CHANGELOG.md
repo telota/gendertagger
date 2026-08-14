@@ -58,6 +58,9 @@ the phased plan that resumes application code.
   batch execution with retry/backoff and permanent-versus-transient failure classification, guarded run and
   method-execution lifecycle transitions, aggregate progress on run and execution resources, a
   `POST /runs/{run_id}/executions` trigger, and a reconnect-safe `GET /runs/{run_id}/events` SSE stream.
+- Generic asynchronous aggregation execution through the transactional outbox, with identifier-only CPU work,
+  at-least-once publication and atomic claims, strict per-person reference-method completeness, no synthetic
+  Prediction evidence, and atomic complete-result persistence for the current corpus scale.
 
 ### Changed
 

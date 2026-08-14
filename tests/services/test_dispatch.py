@@ -6,7 +6,13 @@ from uuid import UUID
 
 import pytest
 
-from gendertagger.models.dispatch import BatchDispatch, BatchDispatchStatus
+from gendertagger.models.aggregation import AggregationTaskMessage
+from gendertagger.models.dispatch import (
+    AggregationDispatch,
+    BatchDispatch,
+    BatchDispatchStatus,
+    DispatchMessage,
+)
 from gendertagger.models.run import TaskBatchMessage
 from gendertagger.services.dispatch import (
     DispatchReconciler,
@@ -28,6 +34,7 @@ BATCH_ID = UUID("20000000-0000-0000-0000-000000000001")
 EXECUTION_ID = UUID("30000000-0000-0000-0000-000000000001")
 OTHER_DISPATCH_ID = UUID("10000000-0000-0000-0000-000000000002")
 OTHER_BATCH_ID = UUID("20000000-0000-0000-0000-000000000002")
+AGGREGATION_ID = UUID("40000000-0000-0000-0000-000000000001")
 
 
 class _TransactionTracker:
@@ -74,11 +81,11 @@ class _RecordingPublisher:
     def __init__(self, tracker: _TransactionTracker, *, error: Exception | None = None) -> None:
         self._tracker = tracker
         self._error = error
-        self.calls: list[tuple[TaskBatchMessage, str, UUID]] = []
+        self.calls: list[tuple[DispatchMessage, str, UUID]] = []
 
     def publish(
         self,
-        message: TaskBatchMessage,
+        message: DispatchMessage,
         *,
         queue_name: str,
         task_id: UUID,
@@ -106,6 +113,22 @@ def _dispatch(
         payload=message,
         status=BatchDispatchStatus.pending,
         attempt_count=attempt_count,
+        available_at=NOW,
+        lease_owner="relay-1",
+        lease_until=NOW + timedelta(seconds=30),
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+
+def _aggregation_dispatch() -> AggregationDispatch:
+    return AggregationDispatch(
+        id=OTHER_DISPATCH_ID,
+        aggregation_execution_id=AGGREGATION_ID,
+        queue_name="cpu",
+        payload=AggregationTaskMessage(aggregation_execution_id=AGGREGATION_ID),
+        status=BatchDispatchStatus.pending,
+        attempt_count=1,
         available_at=NOW,
         lease_owner="relay-1",
         lease_until=NOW + timedelta(seconds=30),
@@ -144,6 +167,24 @@ def test_relay_publishes_outside_transaction_then_records_success() -> None:
     repository.release_after_failure.assert_not_called()
     assert tracker.commit_count == 2
     assert tracker.active_count == 0
+
+
+def test_relay_uses_aggregation_target_as_stable_broker_task_id() -> None:
+    repository = Mock(spec=DispatchRepository)
+    repository.claim_available.return_value = [_aggregation_dispatch()]
+    tracker = _TransactionTracker()
+    publisher = _RecordingPublisher(tracker)
+    relay = OutboxRelay(
+        unit_of_work_factory=_UnitOfWorkFactory(repository, tracker),
+        publisher=cast(MessagePublisher, publisher),
+        relay_id="relay-1",
+        clock=lambda: NOW,
+    )
+
+    result = relay.run_once()
+
+    assert result == RelayCycleResult(claimed=1, published=1, failed=0)
+    assert publisher.calls == [(_aggregation_dispatch().payload, "cpu", AGGREGATION_ID)]
 
 
 def test_relay_releases_failed_publish_with_bounded_retry() -> None:

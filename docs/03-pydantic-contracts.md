@@ -238,15 +238,26 @@ configuration.
 
 ## Celery task envelopes
 
-Use small Pydantic envelopes, for example:
+Use small Pydantic envelopes:
 
 ```python
-class MethodBatchTask(BaseModel):
+class TaskBatchMessage(BaseModel):
     method_execution_id: UUID
-    batch_id: UUID
+    task_batch_id: UUID
+
+
+class AggregationTaskMessage(BaseModel):
+    aggregation_execution_id: UUID
 ```
 
-Workers load authoritative state from PostgreSQL. Do not serialize thousands of PersonInput objects into Redis.
+Workers load authoritative state from PostgreSQL. Do not serialize PersonInput objects, Predictions, or
+aggregation result data into Redis.
+
+The durable outbox contract is generic but typed. Its target kind is `task_batch` or
+`aggregation_execution`; its matching owner ID is unique, and its payload validates as the corresponding
+message model. Exactly one typed owner is present. A closed publisher mapping derives the Celery task name;
+queue, target kind, owner, payload, and derived task name cannot disagree. See
+[ADR-0016](decisions/ADR-0016-asynchronous-aggregation-outbox.md).
 
 
 ## Browser/API support contracts

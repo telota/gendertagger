@@ -23,6 +23,7 @@ from gendertagger.models.dispatch import (
     BatchDispatch,
     BatchDispatchCreate,
     BatchDispatchStatus,
+    DispatchMessage,
 )
 from gendertagger.models.lifecycle import MethodExecutionStatus, RunStatus, TaskBatchStatus
 from gendertagger.models.person import PersonInput
@@ -54,7 +55,7 @@ class _FailOncePublisher:
 
     def publish(
         self,
-        message: TaskBatchMessage,
+        message: DispatchMessage,
         *,
         queue_name: str,
         task_id: UUID,

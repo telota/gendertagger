@@ -11,6 +11,7 @@ from gendertagger.models.classification import (
     AgreementTier,
     CanonicalLabel,
     CertaintyTier,
+    PredictionResult,
 )
 from gendertagger.models.common import UtcDatetime, canonical_json_sha256
 from gendertagger.models.lifecycle import AggregationExecutionStatus
@@ -187,6 +188,14 @@ class AggregationCreateRequest(BaseModel):
         return self
 
 
+class AggregationTaskMessage(BaseModel):
+    """Small validated envelope requesting one persisted aggregation execution."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    aggregation_execution_id: UUID
+
+
 class AggregationExecutionCreate(BaseModel):
     """Validated strategy and exact method selection for one aggregation."""
 
@@ -268,6 +277,20 @@ class AggregationResultWrite(BaseModel):
     person_record_id: UUID
     result: ReferenceAggregationResult
     metadata: dict[str, JsonValue] = Field(default_factory=dict)
+
+
+class AggregationPersonPredictions(BaseModel):
+    """Present method outputs for one person in an aggregation snapshot.
+
+    The mapping intentionally contains only persisted predictions. An absent
+    required method therefore remains distinguishable from an explicit
+    ``abstain`` or ``error`` prediction.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    person_record_id: UUID
+    predictions: dict[str, PredictionResult] = Field(default_factory=dict)
 
 
 class AggregatedResult(ReferenceAggregationResult):

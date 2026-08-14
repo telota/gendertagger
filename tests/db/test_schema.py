@@ -36,3 +36,21 @@ def test_schema_compiles_as_postgresql_ddl() -> None:
     for table in metadata.tables.values():
         statement = str(CreateTable(table).compile(dialect=dialect))
         assert f"CREATE TABLE {table.name}" in statement
+
+
+def test_dispatch_schema_has_exactly_one_unique_foreign_key_owner() -> None:
+    table = metadata.tables["batch_dispatches"]
+
+    assert table.c.task_batch_id.nullable
+    assert table.c.aggregation_execution_id.nullable
+    assert {constraint.name for constraint in table.constraints} >= {
+        "task_batch_single_dispatch",
+        "aggregation_execution_single_dispatch",
+        "ck_batch_dispatches_exactly_one_target",
+        "fk_batch_dispatches_task_batch_id_task_batches",
+        "fk_batch_dispatches_aggregation_execution_id_aggregation_executions",
+    }
+    assert {foreign_key.target_fullname for foreign_key in table.foreign_keys} >= {
+        "task_batches.id",
+        "aggregation_executions.id",
+    }

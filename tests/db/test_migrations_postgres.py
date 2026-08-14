@@ -1,4 +1,6 @@
+import json
 from collections.abc import Callable
+from uuid import uuid4
 
 import pytest
 from alembic import command
@@ -87,3 +89,157 @@ def test_initial_migration_upgrades_downgrades_and_has_no_drift(
 
     command.upgrade(config, "head")
     command.check(config)
+
+
+def test_aggregation_outbox_migration_preserves_existing_batch_dispatches(
+    postgres_database_factory: Callable[[], str],
+) -> None:
+    database_url = postgres_database_factory()
+    config = alembic_config(database_url)
+    command.upgrade(config, "20260814_0003")
+    artifact_id = uuid4()
+    project_id = uuid4()
+    snapshot_id = uuid4()
+    run_id = uuid4()
+    execution_id = uuid4()
+    batch_id = uuid4()
+    batch_dispatch_id = uuid4()
+
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """INSERT INTO artifacts
+                    (id, logical_type, storage_uri, sha256, byte_size, media_type)
+                    VALUES (:id, 'source_tei', 'local-sha256:test', :sha256, 1,
+                            'application/tei+xml')"""
+                ),
+                {"id": artifact_id, "sha256": "a" * 64},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO projects (id, slug, display_name)
+                    VALUES (:id, 'migration-fixture', 'Migration fixture')"""
+                ),
+                {"id": project_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO dataset_snapshots
+                    (id, project_id, source_artifact_id, source_sha256, parser_version)
+                    VALUES (:id, :project_id, :artifact_id, :sha256, 'tei_parser_v1')"""
+                ),
+                {
+                    "id": snapshot_id,
+                    "project_id": project_id,
+                    "artifact_id": artifact_id,
+                    "sha256": "a" * 64,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO runs
+                    (id, dataset_snapshot_id, resolved_config, config_sha256,
+                     code_git_commit, application_version, python_version)
+                    VALUES (:id, :snapshot_id, CAST(:config AS jsonb), :sha256,
+                            'c', '0.0.0', '3.13')"""
+                ),
+                {
+                    "id": run_id,
+                    "snapshot_id": snapshot_id,
+                    "config": json.dumps({"methods": []}),
+                    "sha256": "b" * 64,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO method_executions
+                    (id, run_id, method_name, implementation_version,
+                     normalization_version, config_sha256, queue_name)
+                    VALUES (:id, :run_id, 'fixture_method', 'fixture_v1',
+                            'fixture_v1', :sha256, 'cpu')"""
+                ),
+                {"id": execution_id, "run_id": run_id, "sha256": "c" * 64},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO task_batches
+                    (id, method_execution_id, batch_index, record_offset,
+                     record_count, queue_name)
+                    VALUES (:id, :execution_id, 0, 0, 1, 'cpu')"""
+                ),
+                {"id": batch_id, "execution_id": execution_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO batch_dispatches
+                    (id, task_batch_id, queue_name, payload, available_at)
+                    VALUES (:id, :batch_id, 'cpu', CAST(:payload AS jsonb), now())"""
+                ),
+                {
+                    "id": batch_dispatch_id,
+                    "batch_id": batch_id,
+                    "payload": json.dumps(
+                        {
+                            "method_execution_id": str(execution_id),
+                            "task_batch_id": str(batch_id),
+                        }
+                    ),
+                },
+            )
+    finally:
+        engine.dispose()
+
+    command.upgrade(config, "20260814_0004")
+    aggregation_id = uuid4()
+    aggregation_dispatch_id = uuid4()
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            preserved_batch_id = connection.execute(
+                text(
+                    """SELECT task_batch_id FROM batch_dispatches
+                    WHERE id = :dispatch_id"""
+                ),
+                {"dispatch_id": batch_dispatch_id},
+            ).scalar_one()
+            assert preserved_batch_id == batch_id
+            connection.execute(
+                text(
+                    """INSERT INTO aggregation_executions
+                    (id, run_id, strategy, config_sha256, status)
+                    VALUES (:id, :run_id, 'reference_v1', :sha256, 'queued')"""
+                ),
+                {"id": aggregation_id, "run_id": run_id, "sha256": "d" * 64},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO batch_dispatches
+                    (id, aggregation_execution_id, queue_name, payload, available_at)
+                    VALUES (:id, :aggregation_id, 'cpu', CAST(:payload AS jsonb), now())"""
+                ),
+                {
+                    "id": aggregation_dispatch_id,
+                    "aggregation_id": aggregation_id,
+                    "payload": json.dumps({"aggregation_execution_id": str(aggregation_id)}),
+                },
+            )
+    finally:
+        engine.dispose()
+
+    command.downgrade(config, "20260814_0003")
+    engine = create_engine(database_url)
+    try:
+        with engine.connect() as connection:
+            remaining_dispatch_ids = set(
+                connection.execute(text("SELECT id FROM batch_dispatches")).scalars()
+            )
+        assert remaining_dispatch_ids == {batch_dispatch_id}
+        columns = {
+            column["name"]: column for column in inspect(engine).get_columns("batch_dispatches")
+        }
+        assert "aggregation_execution_id" not in columns
+        assert columns["task_batch_id"]["nullable"] is False
+    finally:
+        engine.dispose()

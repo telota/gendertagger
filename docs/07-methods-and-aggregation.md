@@ -126,6 +126,29 @@ The experimental HIVOTO-XGBoost does not enter the reference vote.
 fails aggregation rather than silently changing the ensemble. HIVOTO-XGBoost may be present as provenance but
 is ignored.
 
+### Persisted completeness boundary
+
+The asynchronous executor applies that requirement to persisted evidence before it calls the pure aggregator.
+For every PersonRecord in the run's immutable snapshot, the selected MethodExecutions must provide exactly one
+Prediction from each of the nine required reference methods. The selected executions and predictions must
+belong to the same run, snapshot, person, and method identities recorded by the AggregationExecution.
+
+Presence and scientific outcome are separate:
+
+- `success` is present and may contribute a label;
+- `abstain` is present and contributes no vote;
+- `error` is present and contributes no vote;
+- no Prediction row is missing evidence and fails the AggregationExecution.
+
+The executor does not convert absence into a synthetic `abstain` or `error` Prediction. Doing so would invent a
+method output, obscure failed batch coverage, and violate Prediction immutability. A valid complete input set
+may still produce `outcome=no_data`; that is a completed scientific result, not an execution failure.
+
+For the current corpus scale, the executor persists exactly one AggregatedResult per snapshot person and marks
+the AggregationExecution completed in the same transaction. A permanent completeness or contract failure
+leaves no result rows and marks the execution failed. See
+[ADR-0016](decisions/ADR-0016-asynchronous-aggregation-outbox.md).
+
 ### Priority chain
 
 For each record:

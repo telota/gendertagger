@@ -61,7 +61,10 @@ def create_celery_app(settings: CelerySettings | None = None) -> Celery:
         backend=backend.get_secret_value() if backend is not None else None,
         # Imported lazily on worker finalize, so API clients that only send by
         # name never pull the execution module's heavy imports.
-        include=["gendertagger.tasks.execution"],
+        include=[
+            "gendertagger.tasks.execution",
+            "gendertagger.tasks.aggregation",
+        ],
     )
     configuration: dict[str, Any] = {
         # JSON only: never deserialize pickled payloads from the broker.

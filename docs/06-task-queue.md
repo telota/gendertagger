@@ -29,17 +29,24 @@ Initial tuning ranges, not normative values:
 
 ## Transactional dispatch handoff
 
-Scheduling must not commit a task batch and then publish its Celery message from the API. PostgreSQL and
-Redis cannot make those two operations atomic, so a broker failure between them would strand durable work.
+Scheduling must not commit durable work and then publish its Celery message from the API. PostgreSQL and Redis
+cannot make those two operations atomic, so a broker failure between them would strand a task batch or
+aggregation execution.
 
-The scheduler instead creates each `TaskBatch` and a corresponding `BatchDispatch` outbox record in the same
-PostgreSQL transaction. The `batch_dispatches` table owns the small validated `TaskBatchMessage`, queue name,
-`pending`/`published` status, retry metadata, and relay lease. `task_batch_id` is unique. A committed scheduling
-transaction therefore means both the work and its dispatch intent are durable; a rolled-back transaction
-contains neither.
+The outbox is a generic application mechanism with two typed targets: `task_batch` and
+`aggregation_execution`. The existing outbox storage has nullable `task_batch_id` and
+`aggregation_execution_id` foreign keys plus an exactly-one-owner check. Each non-null owner is unique. A
+closed publisher mapping derives the Celery task name from the typed target and payload. Target, queue, owner,
+payload, and derived task name must agree; an ownerless, multiply owned, or mismatched dispatch is invalid.
 
-FastAPI never publishes batch messages to Redis. Its asynchronous response represents the persisted run,
-not confirmation that a broker accepted every message.
+Method scheduling creates each `TaskBatch` and its `TaskBatchMessage` intent in one PostgreSQL transaction.
+Aggregation creation similarly creates one `AggregationExecution` and its identifier-only aggregation intent
+in one transaction. The outbox also stores `pending`/`published` state, retry metadata, and a relay lease. A
+committed asynchronous command therefore means both the work and dispatch intent are durable; a rolled-back
+transaction contains neither.
+
+FastAPI never publishes task messages to Redis. Its asynchronous response represents the persisted run or
+aggregation, not confirmation that a broker accepted every message.
 
 ## Dispatch coordinator
 
@@ -47,12 +54,14 @@ One separately started dispatch-coordinator process runs both dispatch services:
 
 - `OutboxRelay` frequently claims available `pending` dispatches under short leases, commits those claims,
   publishes outside the database transaction, and records `published` or schedules a retry with backoff;
-- `DispatchReconciler` runs less frequently and repairs durable intent for active pending batches when an
-  intent is missing, a relay lease expired, or a published message is stale without a worker claim.
+- `DispatchReconciler` runs less frequently and repairs durable intent for queued task batches and aggregation
+  executions when an intent is missing, a relay lease expired, or a published message is stale without a
+  worker claim.
 
-The reconciler creates or rearms `BatchDispatch` records; it does not publish to Redis itself. This leaves one
-component responsible for broker interaction and makes reconciliation idempotent under the unique
-`task_batch_id` constraint.
+The reconciler creates or rearms typed dispatch records; it does not publish to Redis itself. This leaves one
+component responsible for broker interaction and makes reconciliation idempotent under the unique owner
+constraints. Reconciliation locks both the dispatch and its target with `FOR UPDATE SKIP LOCKED`, so it does
+not rearm a target currently held by a worker transaction.
 
 The coordinator is an ordinary process in this application, started with
 `python -m gendertagger.tasks.relay`. It must not run as a Celery task because it is responsible for making
@@ -66,10 +75,11 @@ Every task must be safe to retry.
 Use persisted batch IDs and uniqueness constraints. A retry should upsert/confirm the same scientific result rather than append duplicates.
 
 Outbox publication is intentionally at least once. The relay can publish successfully and crash before it
-records `published`, so an expired lease may cause the same message to be published again. A worker claims a
-batch through one conditional, ownership-aware database operation that verifies both the batch and method
-execution IDs and transitions only a dispatchable non-terminal state to `running`. One competing delivery
-wins; duplicates and terminal batches do not invoke the method adapter. A failed batch is not silently
+records `published`, so an expired lease may cause the same message to be published again. A method worker
+claims a batch through one conditional, ownership-aware database operation that verifies both the batch and
+method execution IDs and transitions only a dispatchable non-terminal state to `running`. An aggregation
+worker applies the same pattern to the exact aggregation execution ID. One competing delivery wins;
+duplicates and terminal resources do not invoke scientific computation. A failed resource is not silently
 reopened by redelivery.
 
 Method predictions should be committed in bounded batches so a worker failure does not discard thousands of completed classifications.
@@ -90,6 +100,24 @@ A Run may complete with method-level errors. Do not make one failed optional cla
 Aggregation can require a configurable minimum set of completed MethodExecutions.
 The reference configuration should fail clearly if required published-reference methods are unavailable.
 
+## Aggregation execution
+
+Aggregation runs on the existing `cpu` queue through the generic outbox. Its small task envelope contains only
+`aggregation_execution_id`. The worker loads the exact selected MethodExecutions, snapshot people,
+Predictions, strategy, and resolved configuration from PostgreSQL.
+
+For `reference_v1`, every person must have one persisted Prediction from each required reference execution.
+An explicit `success`, `abstain`, or `error` prediction satisfies presence; abstentions and errors cast no vote.
+A missing row is a permanent completeness failure, not an implicit abstention. The worker never creates a
+synthetic Prediction because only a MethodExecution may produce that immutable evidence.
+
+At the current dataset scale, one worker transaction conditionally claims the aggregation, validates complete
+evidence, computes every result, inserts the complete person-result set, and marks the aggregation completed.
+A rollback exposes no partial results and returns a transient attempt to its queueable state. Permanent
+completeness or contract failures produce a terminal failed aggregation with no result rows. Duplicate
+deliveries become no-ops after the first transaction completes. See
+[ADR-0016](decisions/ADR-0016-asynchronous-aggregation-outbox.md).
+
 ## Cancellation
 
 Cancellation should mark future batches cancelled and revoke queued work where practical. Already persisted Predictions remain as provenance and are not deleted silently.
@@ -107,6 +135,7 @@ Record:
 - exception class and sanitized diagnostic
 
 Structured logs should carry `run_id`, `method_execution_id`, and `batch_id` when applicable.
+Aggregation work carries `aggregation_execution_id` and its owning `run_id`.
 
 Coordinator observability should include pending-dispatch count and age, publish attempts and failures,
 expired leases, relay lag, and reconciliation repairs. Redis queue depth alone is insufficient because

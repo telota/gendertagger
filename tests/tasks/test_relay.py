@@ -7,6 +7,7 @@ from uuid import UUID
 import pytest
 from pydantic import SecretStr, ValidationError
 
+from gendertagger.models.aggregation import AggregationTaskMessage
 from gendertagger.models.run import TaskBatchMessage
 from gendertagger.services.dispatch import (
     DispatchReconciler,
@@ -14,6 +15,7 @@ from gendertagger.services.dispatch import (
     ReconciliationResult,
     RelayCycleResult,
 )
+from gendertagger.tasks.aggregation import EXECUTE_AGGREGATION_TASK_NAME
 from gendertagger.tasks.dispatch import CeleryMessagePublisher
 from gendertagger.tasks.execution import EXECUTE_BATCH_TASK_NAME
 from gendertagger.tasks.relay import DispatchCoordinator, DispatchCoordinatorSettings
@@ -22,6 +24,7 @@ pytestmark = pytest.mark.unit
 
 BATCH_ID = UUID("20000000-0000-0000-0000-000000000001")
 EXECUTION_ID = UUID("30000000-0000-0000-0000-000000000001")
+AGGREGATION_ID = UUID("40000000-0000-0000-0000-000000000001")
 
 
 class _FakeRelay:
@@ -65,6 +68,30 @@ def test_celery_publisher_sends_small_envelope_with_stable_task_id() -> None:
         task_id=str(BATCH_ID),
         retry=False,
     )
+
+
+def test_celery_publisher_routes_aggregation_envelope_by_stable_task_id() -> None:
+    celery_app = Mock()
+    publisher = CeleryMessagePublisher(celery_app)
+    message = AggregationTaskMessage(aggregation_execution_id=AGGREGATION_ID)
+
+    publisher.publish(message, queue_name="cpu", task_id=AGGREGATION_ID)
+
+    celery_app.send_task.assert_called_once_with(
+        EXECUTE_AGGREGATION_TASK_NAME,
+        kwargs={"aggregation_execution_id": str(AGGREGATION_ID)},
+        queue="cpu",
+        task_id=str(AGGREGATION_ID),
+        retry=False,
+    )
+
+
+def test_celery_publisher_rejects_a_mismatched_stable_task_id() -> None:
+    publisher = CeleryMessagePublisher(Mock())
+    message = AggregationTaskMessage(aggregation_execution_id=AGGREGATION_ID)
+
+    with pytest.raises(ValueError, match="must match the aggregation"):
+        publisher.publish(message, queue_name="cpu", task_id=BATCH_ID)
 
 
 def test_coordinator_relays_frequently_and_reconciles_on_slower_schedule() -> None:

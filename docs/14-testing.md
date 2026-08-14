@@ -37,6 +37,29 @@ FastAPI TestClient/httpx tests for authentication, lifecycle, validation, pagina
 ### Celery integration tests
 Test idempotent retries, batch completion, partial failure, and run completion logic. Avoid eager-mode-only confidence; include at least one real broker integration test in CI or a dedicated profile.
 
+### Asynchronous aggregation tests
+
+Exercise aggregation at the contract, PostgreSQL, service, API, relay, and real-worker boundaries:
+
+- creating an aggregation and its typed dispatch intent commits atomically and returns a persisted queued
+  resource without a Celery ID;
+- the generic outbox enforces exactly one `task_batch` or `aggregation_execution` owner and rejects a mismatched
+  kind, owner, task name, or payload;
+- relay publication is at least once, duplicate aggregation messages have one atomic claim winner, and terminal
+  resources are no-ops;
+- reconciliation repairs missing aggregation intent but skips a target locked by an active worker;
+- one `success`, `abstain`, or `error` Prediction from every required execution satisfies completeness, while
+  one absent required Prediction fails the aggregation;
+- completeness failure never inserts a synthetic Prediction and leaves zero AggregatedResults;
+- injected transient failure rolls back the claim and every result so retry can start cleanly;
+- successful completion atomically exposes exactly one result per snapshot person and a completed lifecycle;
+- retry exhaustion and permanent contract failures expose sanitized terminal diagnostics without partial
+  results.
+
+At least one non-eager Redis/Celery test must publish the identifier-only aggregation message through the
+coordinator and execute it on a CPU worker. PostgreSQL concurrency tests must use separate transactions to
+prove claim and reconciliation locking rather than relying on sequential mocks.
+
 ### End-to-end fixture
 A tiny TEI file should travel through:
 
@@ -82,6 +105,8 @@ CI should verify:
 
 - rerunning the same idempotent batch does not create duplicate Predictions
 - aggregation never mutates Predictions
+- duplicate aggregation delivery never creates duplicate or partial AggregatedResults
+- removing one required Prediction fails reference aggregation rather than changing its vote
 - an immutable ready snapshot cannot change
 - `abstain` never contributes a vote
 - human annotation precedence does not alter historical machine output
@@ -96,6 +121,8 @@ Before Vue implementation, add backend tests for:
 - server-side review filters;
 - shared error envelope and stable error codes;
 - asynchronous `202 Accepted` resource creation without Celery IDs in public responses;
+- aggregation creation persists its outbox intent atomically and broker failure leaves it queued;
+- completed aggregation result cardinality equals snapshot person cardinality;
 - Run/MethodExecution progress serialization;
 - SSE reconnect safety via persisted GET state;
 - annotation stale-write `409 Conflict`;
@@ -129,7 +156,7 @@ upward from the configured baseline instead of manufacturing tests solely to hit
 | 2 | PostgreSQL repositories plus Alembic clean-head and drift checks |
 | 3 | API/auth/error/pagination/OpenAPI contract tests |
 | 4 | Redis and at least one real non-eager Celery worker path |
-| 5 | adapter conformance; heavy models only on protected/scheduled runners |
+| 5 | adapter conformance and asynchronous reference-aggregation completeness; heavy models only on protected/scheduled runners |
 | 6 | frontend lint/type/unit/build plus generated-client drift |
 | 7 | complete tiny-fixture workflow and reproducibility/export checks |
 | 8 | image/Compose smoke, previous-release migration, backup/restore, SBOM/security gates |

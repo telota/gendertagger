@@ -6,17 +6,17 @@ import pytest
 from fastapi import Request
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
-from sqlalchemy import Engine
+from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from gendertagger.api.app import create_app
 from gendertagger.api.authentication import AuthenticationBackend
 from gendertagger.api.settings import AppSettings
 from gendertagger.config.run import MethodRunConfig, RunConfig
-from gendertagger.db.aggregations import AggregationExecutionRow
 from gendertagger.db.executions import MethodExecutionRow
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
+from gendertagger.domain.aggregation import REFERENCE_REQUIRED_METHODS
 from gendertagger.models.aggregation import (
     AggregationExecutionCreate,
     AggregationOutcome,
@@ -124,23 +124,16 @@ def _seed_review_items(
         run = unit_of_work.runs.add_run(
             RunCreate(
                 dataset_snapshot_id=snapshot.id,
-                resolved_config=RunConfig(methods=[MethodRunConfig(name="demo_method")]),
+                resolved_config=RunConfig(
+                    methods=[
+                        MethodRunConfig(name=method_name)
+                        for method_name in REFERENCE_REQUIRED_METHODS
+                    ]
+                ),
                 code_git_commit=CODE_GIT_COMMIT,
                 application_version="0.0.0",
                 python_version="3.13.14",
                 dependency_lock_sha256=DEPENDENCY_LOCK_SHA256,
-            )
-        )
-        execution = unit_of_work.runs.add_method_execution(
-            MethodExecutionCreate(
-                run_id=run.id,
-                descriptor=MethodDescriptor(
-                    name="demo_method",
-                    implementation_version="demo_v1",
-                    normalization_version="demo_normalization_v1",
-                ),
-                queue_name="cpu",
-                total_count=3,
             )
         )
         person_one = people["p1"]
@@ -149,58 +142,93 @@ def _seed_review_items(
         assert person_one is not None
         assert person_two is not None
         assert person_three is not None
-        unit_of_work.runs.add_predictions(
-            execution.id,
-            [
-                PredictionWrite(
-                    person_record_id=person_one.id,
-                    input_fingerprint="1" * 64,
-                    result=PredictionResult(
+        people_in_order = (person_one, person_two, person_three)
+        execution_ids: list[UUID] = []
+        for method_name in REFERENCE_REQUIRED_METHODS:
+            execution = unit_of_work.runs.add_method_execution(
+                MethodExecutionCreate(
+                    run_id=run.id,
+                    descriptor=MethodDescriptor(
+                        name=method_name,
+                        implementation_version=f"{method_name}_v1",
+                        normalization_version=f"{method_name}_v1",
+                    ),
+                    queue_name="cpu",
+                    total_count=3,
+                )
+            )
+            execution_ids.append(execution.id)
+            results: tuple[PredictionResult, ...]
+            if method_name == "gender_guesser":
+                results = (
+                    PredictionResult(
                         label=None,
                         status=PredictionStatus.error,
                         raw_label="error",
                         raw_output={"diagnostic": "synthetic"},
                     ),
-                ),
-                PredictionWrite(
-                    person_record_id=person_two.id,
-                    input_fingerprint="2" * 64,
-                    result=PredictionResult(
+                    PredictionResult(
                         status=PredictionStatus.success,
                         label=CanonicalLabel.male,
                         raw_label="male",
                     ),
-                ),
-                PredictionWrite(
-                    person_record_id=person_three.id,
-                    input_fingerprint="3" * 64,
-                    result=PredictionResult(
+                    PredictionResult(
                         status=PredictionStatus.success,
                         label=CanonicalLabel.female,
                         raw_label="female",
                     ),
-                ),
-            ],
-        )
+                )
+            else:
+                results = tuple(
+                    PredictionResult(label=None, status=PredictionStatus.abstain)
+                    for _person in people_in_order
+                )
+            unit_of_work.runs.add_predictions(
+                execution.id,
+                [
+                    PredictionWrite(
+                        person_record_id=person.id,
+                        input_fingerprint=str(index) * 64,
+                        result=result,
+                    )
+                    for index, (person, result) in enumerate(
+                        zip(people_in_order, results, strict=True),
+                        start=1,
+                    )
+                ],
+            )
         unit_of_work.commit()
 
     with session_factory() as session:
-        execution_row = session.get(MethodExecutionRow, execution.id)
-        assert execution_row is not None
-        execution_row.status = MethodExecutionStatus.completed
-        execution_row.started_at = NOW
-        execution_row.finished_at = NOW
-        execution_row.completed_count = 2
-        execution_row.failed_count = 1
+        execution_rows = tuple(
+            session.scalars(
+                select(MethodExecutionRow).where(MethodExecutionRow.id.in_(execution_ids))
+            )
+        )
+        assert len(execution_rows) == len(REFERENCE_REQUIRED_METHODS)
+        for execution_row in execution_rows:
+            execution_row.status = MethodExecutionStatus.completed
+            execution_row.started_at = NOW
+            execution_row.finished_at = NOW
+            if execution_row.method_name == "gender_guesser":
+                execution_row.completed_count = 2
+                execution_row.failed_count = 1
+            else:
+                execution_row.completed_count = 3
         session.commit()
 
     with unit_of_work_factory() as unit_of_work:
         aggregation = unit_of_work.aggregations.add_aggregation(
             AggregationExecutionCreate(
                 run_id=run.id,
-                method_execution_ids=(execution.id,),
+                method_execution_ids=tuple(execution_ids),
             )
         )
+        claimed = unit_of_work.aggregations.claim_aggregation(
+            aggregation.id,
+            started_at=NOW,
+        )
+        assert claimed is not None
         unit_of_work.aggregations.add_results(
             aggregation.id,
             [
@@ -243,6 +271,11 @@ def _seed_review_items(
                 ),
             ],
         )
+        unit_of_work.aggregations.mark_aggregation_finished(
+            aggregation.id,
+            status=AggregationExecutionStatus.completed,
+            finished_at=NOW,
+        )
         persisted_results = unit_of_work.aggregations.list_results(aggregation.id, limit=10)
         results_by_person = {result.person_record_id: result for result in persisted_results}
         unit_of_work.reviews.add_annotation(
@@ -267,14 +300,6 @@ def _seed_review_items(
             reviewer_user_id=reviewer.id,
         )
         unit_of_work.commit()
-
-    with session_factory() as session:
-        aggregation_row = session.get(AggregationExecutionRow, aggregation.id)
-        assert aggregation_row is not None
-        aggregation_row.status = AggregationExecutionStatus.completed
-        aggregation_row.started_at = NOW
-        aggregation_row.finished_at = NOW
-        session.commit()
     return reviewer.id, aggregation.id
 
 
@@ -350,8 +375,8 @@ def test_review_item_filters_are_server_side_and_composable(
         ({"workflow_state": ReviewWorkflowState.reviewed.value}, ["p2"]),
         ({"has_authority_conflict": "true"}, ["p3"]),
         ({"has_prediction_error": "true"}, ["p1"]),
-        ({"method_name": "demo_method", "prediction_status": "error"}, ["p1"]),
-        ({"method_name": "demo_method", "method_label": "male"}, ["p2"]),
+        ({"method_name": "gender_guesser", "prediction_status": "error"}, ["p1"]),
+        ({"method_name": "gender_guesser", "method_label": "male"}, ["p2"]),
         ({"q": "Second"}, ["p2"]),
         ({"q": "QSearch"}, ["p3"]),
     ]
@@ -366,10 +391,10 @@ def test_review_item_filters_are_server_side_and_composable(
 
     method_response = client.get(
         "/api/v1/review-items",
-        params={**base, "method_name": "demo_method", "method_label": "male"},
+        params={**base, "method_name": "gender_guesser", "method_label": "male"},
     ).json()
     assert method_response["items"][0]["selected_method_result"] == {
-        "method_name": "demo_method",
+        "method_name": "gender_guesser",
         "status": PredictionStatus.success.value,
         "label": CanonicalLabel.male.value,
     }

@@ -24,9 +24,10 @@ workers
   -> local model/data volumes
 ```
 
-The API commits task batches and their dispatch intent to PostgreSQL; it does not publish to Redis. A distinct
-dispatch-coordinator process runs the fast outbox relay and slower dispatch reconciler. This process is not a
-Celery task, because it must remain able to retry durable intent while the broker is unavailable.
+The API commits task batches or aggregation executions and their typed dispatch intent to PostgreSQL; it does
+not publish to Redis. A distinct dispatch-coordinator process runs the fast generic outbox relay and slower
+dispatch reconciler. This process is not a Celery task, because it must remain able to retry durable intent
+while the broker is unavailable.
 
 ## Process topology and startup
 
@@ -37,22 +38,26 @@ different startup commands:
 |---|---|---|
 | API | `uvicorn gendertagger.api.app:create_app --factory` | HTTP composition and persisted resources |
 | Dispatch coordinator | `python -m gendertagger.tasks.relay` | Outbox relay and reconciliation |
-| CPU worker | `celery -A gendertagger.tasks.celery_app worker -Q default,cpu` | CPU batch execution |
+| CPU worker | `celery -A gendertagger.tasks.celery_app worker -Q default,cpu` | CPU method batches and aggregation |
 | LLM worker | `celery -A gendertagger.tasks.celery_app worker -Q llm` | Isolated local LLM work |
 
 A GPU image may extend the backend image with accelerator dependencies, but it runs the same application
 worker entry point. Queue-specific processes can scale and restart independently without changing the API
 contract.
 
+Aggregation does not add a service, image, queue class, or public port. The API creates its persisted resource,
+the existing coordinator relays its identifier-only message, and an existing CPU worker executes it. This is
+the same topology used for method batches with a different typed outbox owner and Celery task name.
+
 Deployment runs `alembic upgrade head` as a one-shot migration step before starting the long-running
 processes. After PostgreSQL is ready, API and coordinator may start independently of Redis readiness. When
-Redis is unavailable, the API can continue accepting valid scheduling commands because dispatch intent is
-durable; the coordinator retries publication and workers resume consumption after Redis recovers.
+Redis is unavailable, the API can continue accepting valid method and aggregation commands because dispatch
+intent is durable; the coordinator retries publication and workers resume consumption after Redis recovers.
 
 Set `GENDERTAGGER_DISPATCH_PUBLISHED_STALE_SECONDS` above the deployment's normal worst-case queue latency.
 The default is 600 seconds. A shorter threshold, or an extended worker outage, intentionally causes duplicate
-publication of still-pending batches; atomic worker claims keep execution correct, but unnecessary duplicates
-can amplify a Redis backlog.
+publication of still-queued targets; atomic task-batch and aggregation claims keep execution correct, but
+unnecessary duplicates can amplify a Redis backlog.
 
 For the final Compose deployment, operators start the reverse proxy/frontend, API, dispatch coordinator,
 workers, PostgreSQL, Redis, and artifact storage together. The coordinator is an internal service and has no
@@ -87,6 +92,7 @@ Structured JSON logs with correlation identifiers. Include relevant:
 - run_id
 - method_execution_id
 - batch_id
+- aggregation_execution_id
 
 Never rely on logs as the only scientific provenance store.
 
@@ -119,6 +125,8 @@ Useful initial operational metrics:
 - relay publication latency, attempts, and failures
 - expired dispatch leases and reconciliation repairs
 - batch duration
+- aggregation queue latency, duration, completion, and failure counts
+- aggregation result count versus snapshot person count
 - prediction throughput
 - success/abstain/error counts
 - DB pool saturation

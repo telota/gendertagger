@@ -19,6 +19,7 @@ from gendertagger.db.review_repository import SqlAlchemyReviewRepository
 from gendertagger.db.reviews import AnnotationRow
 from gendertagger.db.run_repository import SqlAlchemyRunRepository
 from gendertagger.db.user_repository import SqlAlchemyUserRepository
+from gendertagger.domain.aggregation import REFERENCE_REQUIRED_METHODS
 from gendertagger.models.aggregation import (
     AggregatedResult,
     AggregationExecutionCreate,
@@ -35,7 +36,7 @@ from gendertagger.models.classification import (
     PredictionResult,
     PredictionStatus,
 )
-from gendertagger.models.lifecycle import MethodExecutionStatus
+from gendertagger.models.lifecycle import AggregationExecutionStatus, MethodExecutionStatus
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.person import PersonInput, PersonRecord
 from gendertagger.models.project import DatasetSnapshotCreate, Project, ProjectCreate
@@ -121,7 +122,9 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
     reviewer = users.add_user(UserCreate(display_name="Synthetic reviewer", roles={Role.reviewer}))
 
     runs = SqlAlchemyRunRepository(db_session)
-    run_config = RunConfig(methods=[MethodRunConfig(name="demo_method")])
+    run_config = RunConfig(
+        methods=[MethodRunConfig(name=method_name) for method_name in REFERENCE_REQUIRED_METHODS]
+    )
     run = runs.add_run(
         RunCreate(
             dataset_snapshot_id=snapshot.id,
@@ -136,9 +139,9 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
         MethodExecutionCreate(
             run_id=run.id,
             descriptor=MethodDescriptor(
-                name="demo_method",
+                name="gender_guesser",
                 implementation_version="1.0.0",
-                normalization_version="demo_v1",
+                normalization_version="gender_guesser_v1",
             ),
             resolved_config={"threshold": 0.5},
             queue_name="cpu",
@@ -160,7 +163,10 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
         method_confidence=0.75,
         raw_label="uncertain",
         raw_output={"label": "uncertain", "score": 0.75},
-        metadata={"normalization_version": "demo_v1", "outcome_reason": "mapped_unknown"},
+        metadata={
+            "normalization_version": "gender_guesser_v1",
+            "outcome_reason": "mapped_unknown",
+        },
     )
     prediction_write = PredictionWrite(
         person_record_id=person.id,
@@ -194,20 +200,62 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
     prediction = runs.get_prediction(prediction_id)
     assert prediction is not None
 
-    execution_row = db_session.get(MethodExecutionRow, execution.id)
-    assert execution_row is not None
-    execution_row.status = MethodExecutionStatus.completed
-    execution_row.started_at = now
-    execution_row.finished_at = now
+    execution_ids = [execution.id]
+    for method_name in REFERENCE_REQUIRED_METHODS:
+        if method_name == "gender_guesser":
+            continue
+        additional_execution = runs.add_method_execution(
+            MethodExecutionCreate(
+                run_id=run.id,
+                descriptor=MethodDescriptor(
+                    name=method_name,
+                    implementation_version=f"{method_name}_v1",
+                    normalization_version=f"{method_name}_v1",
+                ),
+                queue_name="cpu",
+                total_count=1,
+            )
+        )
+        execution_ids.append(additional_execution.id)
+        runs.add_predictions(
+            additional_execution.id,
+            [
+                PredictionWrite(
+                    person_record_id=person.id,
+                    input_fingerprint="c" * 64,
+                    result=PredictionResult(
+                        label=None,
+                        status=PredictionStatus.abstain,
+                    ),
+                )
+            ],
+        )
+
+    execution_rows = tuple(
+        db_session.scalars(
+            select(MethodExecutionRow).where(MethodExecutionRow.id.in_(execution_ids))
+        )
+    )
+    assert len(execution_rows) == len(REFERENCE_REQUIRED_METHODS)
+    for execution_row in execution_rows:
+        execution_row.status = MethodExecutionStatus.completed
+        execution_row.started_at = now
+        execution_row.finished_at = now
+        execution_row.completed_count = 1
     db_session.flush()
 
     aggregations = SqlAlchemyAggregationRepository(db_session)
     aggregation = aggregations.add_aggregation(
         AggregationExecutionCreate(
             run_id=run.id,
-            method_execution_ids=(execution.id,),
+            method_execution_ids=tuple(execution_ids),
         )
     )
+    claimed_aggregation = aggregations.claim_aggregation(
+        aggregation.id,
+        started_at=now,
+    )
+    assert claimed_aggregation is not None
     scientific_result = ReferenceAggregationResult(
         outcome=AggregationOutcome.decided,
         label=CanonicalLabel.unknown,
@@ -228,6 +276,11 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
             ],
         )
         == 1
+    )
+    aggregation = aggregations.mark_aggregation_finished(
+        aggregation.id,
+        status=AggregationExecutionStatus.completed,
+        finished_at=now,
     )
     aggregated_result_id = db_session.scalar(
         select(AggregatedResultRow.id).where(
@@ -301,7 +354,7 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
         )
         == prediction_result.model_dump()
     )
-    assert aggregation.method_execution_ids == (execution.id,)
+    assert aggregation.method_execution_ids == tuple(execution_ids)
     assert aggregated_result.pooled_vote_counts == VoteCounts(unknown=1)
     assert conflict.value.current_revision == 1
     assert second_annotation.supersedes_annotation_id == first_annotation.id

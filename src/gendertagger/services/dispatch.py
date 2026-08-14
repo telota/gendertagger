@@ -1,4 +1,4 @@
-"""Reliable publication and reconciliation of persisted batch dispatches."""
+"""Reliable publication and reconciliation of persisted task dispatches."""
 
 import random
 import re
@@ -9,7 +9,7 @@ from typing import Protocol
 from uuid import UUID
 
 from gendertagger.models.common import UtcDatetime
-from gendertagger.models.run import TaskBatchMessage
+from gendertagger.models.dispatch import DispatchMessage
 from gendertagger.services.persistence_errors import InvalidResourceStateError
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 
@@ -25,12 +25,12 @@ class MessagePublisher(Protocol):
 
     def publish(
         self,
-        message: TaskBatchMessage,
+        message: DispatchMessage,
         *,
         queue_name: str,
         task_id: UUID,
     ) -> None:
-        """Publish one batch message using a stable task identifier."""
+        """Publish one task message using its stable work identifier."""
         ...
 
 
@@ -158,7 +158,7 @@ class OutboxRelay:
                 self._publisher.publish(
                     dispatch.payload,
                     queue_name=dispatch.queue_name,
-                    task_id=dispatch.task_batch_id,
+                    task_id=dispatch.target_id,
                 )
             except Exception as error:
                 failed_count += 1

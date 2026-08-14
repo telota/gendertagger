@@ -22,6 +22,10 @@ def test_celery_app_uses_json_only_durable_friendly_defaults() -> None:
     assert app.conf.task_reject_on_worker_lost is True
     assert app.conf.worker_prefetch_multiplier == 1
     assert app.conf.task_default_queue == "default"
+    assert set(app.conf.include) == {
+        "gendertagger.tasks.aggregation",
+        "gendertagger.tasks.execution",
+    }
 
 
 @pytest.mark.unit

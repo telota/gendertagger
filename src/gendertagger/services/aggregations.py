@@ -1,5 +1,6 @@
 """Application use cases for independently rerunnable aggregations."""
 
+from collections.abc import Callable
 from uuid import UUID
 
 from gendertagger.models.aggregation import (
@@ -7,24 +8,32 @@ from gendertagger.models.aggregation import (
     AggregationCreateRequest,
     AggregationExecution,
     AggregationExecutionCreate,
+    AggregationTaskMessage,
 )
 from gendertagger.models.api import CursorPage
+from gendertagger.models.common import UtcDatetime
+from gendertagger.models.dispatch import AggregationDispatchCreate
+from gendertagger.models.queues import CPU_QUEUE
 from gendertagger.services.pagination import CursorCodec, InvalidCursorError
 from gendertagger.services.persistence_errors import ResourceNotFoundError
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 
+Clock = Callable[[], UtcDatetime]
+
 
 class AggregationService:
-    """Persist pending aggregation commands and read immutable outputs."""
+    """Persist durable aggregation commands and read immutable outputs."""
 
     def __init__(
         self,
         *,
         unit_of_work_factory: UnitOfWorkFactory,
         cursor_codec: CursorCodec,
+        clock: Clock,
     ) -> None:
         self._unit_of_work_factory = unit_of_work_factory
         self._cursor_codec = cursor_codec
+        self._clock = clock
 
     def create_aggregation(
         self,
@@ -32,7 +41,7 @@ class AggregationService:
         run_id: UUID,
         command: AggregationCreateRequest,
     ) -> AggregationExecution:
-        """Persist one pending aggregation over exact completed executions."""
+        """Persist one aggregation and its durable dispatch intent atomically."""
         with self._unit_of_work_factory() as unit_of_work:
             aggregation = unit_of_work.aggregations.add_aggregation(
                 AggregationExecutionCreate(
@@ -42,6 +51,17 @@ class AggregationService:
                     method_execution_ids=command.method_execution_ids,
                 )
             )
+            unit_of_work.dispatches.ensure_dispatch(
+                AggregationDispatchCreate(
+                    aggregation_execution_id=aggregation.id,
+                    queue_name=CPU_QUEUE,
+                    payload=AggregationTaskMessage(
+                        aggregation_execution_id=aggregation.id,
+                    ),
+                    available_at=self._clock(),
+                )
+            )
+            aggregation = unit_of_work.aggregations.mark_aggregation_queued(aggregation.id)
             unit_of_work.commit()
         return aggregation
 

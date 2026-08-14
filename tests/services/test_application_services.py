@@ -26,6 +26,7 @@ from gendertagger.models.classification import (
     CanonicalLabel,
     CertaintyTier,
 )
+from gendertagger.models.dispatch import AggregationDispatchCreate
 from gendertagger.models.lifecycle import (
     AggregationExecutionStatus,
     DatasetSnapshotStatus,
@@ -52,6 +53,7 @@ from gendertagger.services.aggregation_repository import AggregationRepository
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.annotations import AnnotationService
 from gendertagger.services.artifact_repository import ArtifactRepository
+from gendertagger.services.dispatch_repository import DispatchRepository
 from gendertagger.services.method_registry import MethodRegistry
 from gendertagger.services.pagination import CursorCodec, InvalidCursorError
 from gendertagger.services.persistence_errors import (
@@ -104,6 +106,7 @@ class StubUnitOfWork:
         artifacts: object | None = None,
         runs: object | None = None,
         aggregations: object | None = None,
+        dispatches: object | None = None,
         reviews: object | None = None,
     ) -> None:
         self._projects = projects if projects is not None else Mock(spec=ProjectRepository)
@@ -112,6 +115,7 @@ class StubUnitOfWork:
         self._aggregations = (
             aggregations if aggregations is not None else Mock(spec=AggregationRepository)
         )
+        self._dispatches = dispatches if dispatches is not None else Mock(spec=DispatchRepository)
         self._reviews = reviews if reviews is not None else Mock(spec=ReviewRepository)
         self.commit_count = 0
         self.rollback_count = 0
@@ -142,6 +146,10 @@ class StubUnitOfWork:
     @property
     def aggregations(self) -> AggregationRepository:
         return cast(AggregationRepository, self._aggregations)
+
+    @property
+    def dispatches(self) -> DispatchRepository:
+        return cast(DispatchRepository, self._dispatches)
 
     @property
     def reviews(self) -> ReviewRepository:
@@ -501,14 +509,29 @@ def _aggregation_result(
 def test_aggregation_service_creates_and_scopes_resources() -> None:
     aggregation_repository = Mock(spec=AggregationRepository)
     aggregation_repository.add_aggregation.side_effect = _aggregation
-    unit_of_work = StubUnitOfWork(aggregations=aggregation_repository)
+    aggregation_repository.mark_aggregation_queued.side_effect = lambda _aggregation_id: (
+        _aggregation(
+            AggregationExecutionCreate(
+                run_id=RUN_ID,
+                method_execution_ids=(EXECUTION_ID,),
+            ),
+            status=AggregationExecutionStatus.queued,
+        )
+    )
+    dispatch_repository = Mock(spec=DispatchRepository)
+    unit_of_work = StubUnitOfWork(
+        aggregations=aggregation_repository,
+        dispatches=dispatch_repository,
+    )
     service = AggregationService(
         unit_of_work_factory=unit_of_work.factory,
         cursor_codec=CursorCodec(),
+        clock=lambda: NOW,
     )
     command = AggregationCreateRequest(method_execution_ids=(EXECUTION_ID,))
 
     created = service.create_aggregation(run_id=RUN_ID, command=command)
+    assert created.status is AggregationExecutionStatus.queued
     aggregation_repository.get_aggregation.side_effect = [created, None]
     assert service.get_aggregation(AGGREGATION_ID) == created
     with pytest.raises(ResourceNotFoundError, match=str(AGGREGATION_ID)):
@@ -528,7 +551,41 @@ def test_aggregation_service_creates_and_scopes_resources() -> None:
     aggregation_repository.get_result.return_value = None
     with pytest.raises(ResourceNotFoundError, match=str(RESULT_IDS[0])):
         service.get_result(aggregation_id=AGGREGATION_ID, result_id=RESULT_IDS[0])
+    dispatch_repository.ensure_dispatch.assert_called_once()
+    dispatch_command = cast(
+        AggregationDispatchCreate,
+        dispatch_repository.ensure_dispatch.call_args.args[0],
+    )
+    assert dispatch_command.aggregation_execution_id == AGGREGATION_ID
+    assert dispatch_command.payload.aggregation_execution_id == AGGREGATION_ID
+    assert dispatch_command.queue_name == "cpu"
+    assert dispatch_command.available_at == NOW
     assert unit_of_work.commit_count == 1
+
+
+def test_aggregation_service_does_not_queue_or_commit_without_durable_dispatch() -> None:
+    aggregation_repository = Mock(spec=AggregationRepository)
+    aggregation_repository.add_aggregation.side_effect = _aggregation
+    dispatch_repository = Mock(spec=DispatchRepository)
+    dispatch_repository.ensure_dispatch.side_effect = RuntimeError("dispatch persistence failed")
+    unit_of_work = StubUnitOfWork(
+        aggregations=aggregation_repository,
+        dispatches=dispatch_repository,
+    )
+    service = AggregationService(
+        unit_of_work_factory=unit_of_work.factory,
+        cursor_codec=CursorCodec(),
+        clock=lambda: NOW,
+    )
+
+    with pytest.raises(RuntimeError, match="dispatch persistence failed"):
+        service.create_aggregation(
+            run_id=RUN_ID,
+            command=AggregationCreateRequest(method_execution_ids=(EXECUTION_ID,)),
+        )
+
+    aggregation_repository.mark_aggregation_queued.assert_not_called()
+    assert unit_of_work.commit_count == 0
 
 
 def test_aggregation_service_paginates_and_rejects_malformed_cursor_position() -> None:
@@ -545,6 +602,7 @@ def test_aggregation_service_paginates_and_rejects_malformed_cursor_position() -
     service = AggregationService(
         unit_of_work_factory=unit_of_work.factory,
         cursor_codec=cursor_codec,
+        clock=lambda: NOW,
     )
 
     first_page = service.list_results(AGGREGATION_ID, limit=2, cursor=None)

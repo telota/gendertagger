@@ -30,12 +30,20 @@ from gendertagger.models.dispatch import BatchDispatchStatus
 
 
 class BatchDispatchRow(UuidPrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, Base):
-    """Mutable outbox delivery state for one unique task batch."""
+    """Mutable outbox delivery state for one unique application-work target."""
 
     __tablename__ = "batch_dispatches"
     __table_args__ = (
         enum_check("status", BatchDispatchStatus, name="status_allowed"),
         UniqueConstraint("task_batch_id", name="task_batch_single_dispatch"),
+        UniqueConstraint(
+            "aggregation_execution_id",
+            name="aggregation_execution_single_dispatch",
+        ),
+        CheckConstraint(
+            "(task_batch_id IS NOT NULL) <> (aggregation_execution_id IS NOT NULL)",
+            name="exactly_one_target",
+        ),
         CheckConstraint(
             "queue_name ~ '^[a-z][a-z0-9]*(_[a-z0-9]+)*$'",
             name="queue_name_format",
@@ -59,10 +67,13 @@ class BatchDispatchRow(UuidPrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, Base
         Index("ix_batch_dispatches_status_published_at", "status", "published_at"),
     )
 
-    task_batch_id: Mapped[UUID] = mapped_column(
+    task_batch_id: Mapped[UUID | None] = mapped_column(
         POSTGRESQL_UUID(as_uuid=True),
         ForeignKey("task_batches.id", ondelete="RESTRICT"),
-        nullable=False,
+    )
+    aggregation_execution_id: Mapped[UUID | None] = mapped_column(
+        POSTGRESQL_UUID(as_uuid=True),
+        ForeignKey("aggregation_executions.id", ondelete="RESTRICT"),
     )
     queue_name: Mapped[str] = mapped_column(String(100), nullable=False)
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)

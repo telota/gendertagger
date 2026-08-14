@@ -61,7 +61,9 @@ Exit criterion: one run can be created and inspected through HTTP using synchron
 
 - Redis/Celery configuration
 - persisted task batches
+- generic transactional dispatch outbox, relay, and reconciliation
 - CPU queue
+- atomic ownership-aware batch claims under at-least-once delivery
 - idempotent batch execution
 - progress/state transitions
 - retries/partial failures
@@ -71,6 +73,16 @@ Exit criterion: one run can be created and inspected through HTTP using synchron
 Exit criterion: at least one cheap method runs asynchronously end-to-end.
 
 ## Phase 5: method migration
+
+Complete the asynchronous reference-aggregation path alongside method migration:
+
+- generalize the existing outbox to typed `task_batch` and `aggregation_execution` owners
+- add the identifier-only aggregation task envelope and CPU-worker entry point
+- atomically create and queue each AggregationExecution with its dispatch intent
+- atomically claim duplicate-safe aggregation work
+- enforce required per-person Prediction completeness without synthesizing method outputs
+- persist the complete result set and terminal lifecycle atomically at the current dataset scale
+- test permanent completeness failure, transient rollback/retry, duplicate delivery, and reconciliation
 
 Migrate adapters incrementally:
 
@@ -86,7 +98,8 @@ Migrate adapters incrementally:
 
 Do not wait for all methods before exercising the architecture.
 
-Exit criterion: reference ensemble reproduces golden outputs.
+Exit criterion: the reference ensemble reproduces golden outputs through the API, generic dispatch
+coordinator, CPU worker, persisted AggregationExecution, and complete immutable result set.
 
 ## Phase 6: Vue annotation/review UI
 

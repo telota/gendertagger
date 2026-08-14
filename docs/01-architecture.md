@@ -22,8 +22,9 @@ flowchart LR
     CLI[CLI] --> SVC[Application services]
     API --> SVC
     SVC --> DB[(PostgreSQL)]
-    SVC --> Q[Celery broker: Redis]
     SVC --> STORE[Artifact storage]
+    DISPATCH[Dispatch coordinator] --> DB
+    DISPATCH --> Q[Celery broker: Redis]
     Q --> CPU[CPU workers]
     Q --> GPU[GPU workers]
     Q --> EXT[External/slow workers]
@@ -51,7 +52,10 @@ Normalization, classifier adapters, aggregation, certainty assignment, agreement
 SQLAlchemy repositories and PostgreSQL. Persistence concerns must not leak into domain contracts.
 
 ### Async execution
-Celery workers execute method batches, aggregation/evaluation jobs, and exports. Workers call application/domain services directly.
+Application services persist typed work and dispatch intent in PostgreSQL. The dispatch coordinator relays
+that generic outbox to Redis. Celery workers execute method batches, aggregation/evaluation jobs, and exports;
+workers call application/domain services directly. API requests never publish Celery tasks. Method batches
+and aggregations use the same coordinator and CPU-worker topology.
 
 ### Artifact storage
 Original TEI, exported TEI, model artifacts, cached local datasets, large raw outputs, and generated reports are referenced by checksummed artifact records.
@@ -64,6 +68,7 @@ The planned Vue 3 + TypeScript + Vite UI consumes the public `/api/v1` interface
 One Compose project is enough initially:
 
 - `api`
+- `dispatch-coordinator`
 - `worker-cpu`
 - `worker-gpu` (optional on machines without GPU)
 - `worker-external` (optional)

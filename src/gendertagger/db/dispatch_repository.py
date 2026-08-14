@@ -1,23 +1,36 @@
-"""SQLAlchemy repository for durable task-batch dispatches."""
+"""SQLAlchemy repository for durable application-work dispatches."""
 
 from collections.abc import Sequence
 from datetime import datetime
-from typing import cast
+from typing import cast, overload
 from uuid import UUID, uuid4
 
-from sqlalchemy import Table, or_, select
+from sqlalchemy import Table, literal, or_, select, union_all
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
+from gendertagger.db.aggregations import AggregationExecutionRow
 from gendertagger.db.dispatches import BatchDispatchRow
 from gendertagger.db.executions import MethodExecutionRow, RunRow, TaskBatchRow
+from gendertagger.models.aggregation import AggregationTaskMessage
 from gendertagger.models.common import normalize_utc_datetime
 from gendertagger.models.dispatch import (
+    AggregationDispatch,
+    AggregationDispatchCreate,
     BatchDispatch,
     BatchDispatchCreate,
     BatchDispatchStatus,
+    Dispatch,
+    DispatchCreate,
+    DispatchTarget,
 )
-from gendertagger.models.lifecycle import MethodExecutionStatus, RunStatus, TaskBatchStatus
+from gendertagger.models.lifecycle import (
+    AggregationExecutionStatus,
+    MethodExecutionStatus,
+    RunStatus,
+    TaskBatchStatus,
+)
+from gendertagger.models.queues import CPU_QUEUE
 from gendertagger.models.run import TaskBatchMessage
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
@@ -29,6 +42,9 @@ _DISPATCHABLE_EXECUTION_STATUSES = frozenset(
     {MethodExecutionStatus.queued, MethodExecutionStatus.running}
 )
 _DISPATCHABLE_BATCH_STATUSES = frozenset({TaskBatchStatus.pending, TaskBatchStatus.queued})
+_DISPATCHABLE_AGGREGATION_STATUSES = frozenset(
+    {AggregationExecutionStatus.pending, AggregationExecutionStatus.queued}
+)
 _STALE_REARM_DIAGNOSTIC = "published dispatch was not claimed before reconciliation timeout"
 
 
@@ -38,8 +54,22 @@ class SqlAlchemyDispatchRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def ensure_dispatch(self, command: BatchDispatchCreate) -> BatchDispatch:
-        """Idempotently persist one exact dispatch without committing."""
+    @overload
+    def ensure_dispatch(self, command: BatchDispatchCreate) -> BatchDispatch: ...
+
+    @overload
+    def ensure_dispatch(
+        self,
+        command: AggregationDispatchCreate,
+    ) -> AggregationDispatch: ...
+
+    def ensure_dispatch(self, command: DispatchCreate) -> Dispatch:
+        """Idempotently persist one exact target-aware dispatch without committing."""
+        if isinstance(command, BatchDispatchCreate):
+            return self._ensure_batch_dispatch(command)
+        return self._ensure_aggregation_dispatch(command)
+
+    def _ensure_batch_dispatch(self, command: BatchDispatchCreate) -> BatchDispatch:
         batch = self._session.get(TaskBatchRow, command.task_batch_id)
         if batch is None:
             msg = f"task batch {command.task_batch_id} does not exist"
@@ -60,6 +90,7 @@ class SqlAlchemyDispatchRepository:
             .values(
                 id=uuid4(),
                 task_batch_id=command.task_batch_id,
+                aggregation_execution_id=None,
                 queue_name=command.queue_name,
                 payload=command.payload.model_dump(mode="json"),
                 status=BatchDispatchStatus.pending,
@@ -81,9 +112,73 @@ class SqlAlchemyDispatchRepository:
             msg = f"dispatch for task batch {batch.id} could not be persisted"
             raise RuntimeError(msg)
         self._require_matching_intent(row, command)
-        return self._dispatch_from_row(row)
+        dispatch = self._dispatch_from_row(row)
+        if not isinstance(dispatch, BatchDispatch):  # pragma: no cover - database invariant.
+            msg = f"dispatch for task batch {batch.id} has the wrong target type"
+            raise RuntimeError(msg)
+        return dispatch
 
-    def get_dispatch(self, dispatch_id: UUID) -> BatchDispatch | None:
+    def _ensure_aggregation_dispatch(
+        self,
+        command: AggregationDispatchCreate,
+    ) -> AggregationDispatch:
+        aggregation = self._session.get(
+            AggregationExecutionRow,
+            command.aggregation_execution_id,
+        )
+        if aggregation is None:
+            msg = f"aggregation execution {command.aggregation_execution_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        if aggregation.status not in _DISPATCHABLE_AGGREGATION_STATUSES:
+            msg = (
+                f"aggregation execution {aggregation.id} is not dispatchable "
+                f"from {aggregation.status}"
+            )
+            raise InvalidResourceStateError(msg)
+        if command.queue_name != CPU_QUEUE:
+            msg = f"aggregation dispatches must use the {CPU_QUEUE} queue"
+            raise InvalidResourceStateError(msg)
+
+        dispatch_table = cast(Table, BatchDispatchRow.__table__)
+        statement = (
+            insert(dispatch_table)
+            .values(
+                id=uuid4(),
+                task_batch_id=None,
+                aggregation_execution_id=command.aggregation_execution_id,
+                queue_name=command.queue_name,
+                payload=command.payload.model_dump(mode="json"),
+                status=BatchDispatchStatus.pending,
+                attempt_count=0,
+                available_at=command.available_at,
+                lease_owner=None,
+                lease_until=None,
+                published_at=None,
+                last_error=None,
+            )
+            .on_conflict_do_nothing(constraint="aggregation_execution_single_dispatch")
+        )
+        self._session.execute(statement)
+        self._session.flush()
+        row = self._session.scalar(
+            select(BatchDispatchRow).where(
+                BatchDispatchRow.aggregation_execution_id == aggregation.id
+            )
+        )
+        if row is None:  # pragma: no cover - guarded by insert/select in one transaction.
+            msg = f"dispatch for aggregation execution {aggregation.id} could not be persisted"
+            raise RuntimeError(msg)
+        self._require_matching_intent(row, command)
+        dispatch = self._dispatch_from_row(row)
+        if not isinstance(
+            dispatch,
+            AggregationDispatch,
+        ):  # pragma: no cover - database invariant.
+            msg = f"dispatch for aggregation execution {aggregation.id} has the wrong target type"
+            raise RuntimeError(msg)
+        return dispatch
+
+    def get_dispatch(self, dispatch_id: UUID) -> Dispatch | None:
         """Return a dispatch contract by ID without exposing its row."""
         row = self._session.get(BatchDispatchRow, dispatch_id)
         return None if row is None else self._dispatch_from_row(row)
@@ -93,7 +188,34 @@ class SqlAlchemyDispatchRepository:
         row = self._session.scalar(
             select(BatchDispatchRow).where(BatchDispatchRow.task_batch_id == task_batch_id)
         )
-        return None if row is None else self._dispatch_from_row(row)
+        if row is None:
+            return None
+        dispatch = self._dispatch_from_row(row)
+        if not isinstance(dispatch, BatchDispatch):  # pragma: no cover - query invariant.
+            msg = f"dispatch for task batch {task_batch_id} has the wrong target type"
+            raise RuntimeError(msg)
+        return dispatch
+
+    def get_dispatch_for_aggregation(
+        self,
+        aggregation_execution_id: UUID,
+    ) -> AggregationDispatch | None:
+        """Return the unique dispatch contract for one aggregation execution."""
+        row = self._session.scalar(
+            select(BatchDispatchRow).where(
+                BatchDispatchRow.aggregation_execution_id == aggregation_execution_id
+            )
+        )
+        if row is None:
+            return None
+        dispatch = self._dispatch_from_row(row)
+        if not isinstance(dispatch, AggregationDispatch):  # pragma: no cover - query invariant.
+            msg = (
+                f"dispatch for aggregation execution {aggregation_execution_id} "
+                "has the wrong target type"
+            )
+            raise RuntimeError(msg)
+        return dispatch
 
     def claim_available(
         self,
@@ -102,7 +224,7 @@ class SqlAlchemyDispatchRepository:
         lease_owner: str,
         lease_until: datetime,
         limit: int,
-    ) -> Sequence[BatchDispatch]:
+    ) -> Sequence[Dispatch]:
         """Lease an ordered available slice without waiting on other relays."""
         claim_time = normalize_utc_datetime(now)
         lease_expiry = normalize_utc_datetime(lease_until)
@@ -141,7 +263,7 @@ class SqlAlchemyDispatchRepository:
         *,
         lease_owner: str,
         published_at: datetime,
-    ) -> BatchDispatch:
+    ) -> Dispatch:
         """Record broker acceptance when the caller still owns the lease."""
         owner = self._validate_lease_owner(lease_owner)
         publication_time = normalize_utc_datetime(published_at)
@@ -161,7 +283,7 @@ class SqlAlchemyDispatchRepository:
         lease_owner: str,
         available_at: datetime,
         last_error: str,
-    ) -> BatchDispatch:
+    ) -> Dispatch:
         """Release a failed publication attempt without committing."""
         owner = self._validate_lease_owner(lease_owner)
         retry_time = normalize_utc_datetime(available_at)
@@ -177,42 +299,86 @@ class SqlAlchemyDispatchRepository:
         return self._dispatch_from_row(row)
 
     def ensure_missing(self, *, now: datetime, limit: int) -> int:
-        """Persist missing intents for active batches using skip-locked repair."""
+        """Persist missing intents for dispatchable work using target row locks."""
         available_at = normalize_utc_datetime(now)
         self._validate_limit(limit)
+        batch_candidates = (
+            select(
+                literal(DispatchTarget.task_batch.value).label("target"),
+                TaskBatchRow.id.label("target_id"),
+                TaskBatchRow.created_at.label("created_at"),
+            )
+            .join(MethodExecutionRow, MethodExecutionRow.id == TaskBatchRow.method_execution_id)
+            .join(RunRow, RunRow.id == MethodExecutionRow.run_id)
+            .outerjoin(
+                BatchDispatchRow,
+                BatchDispatchRow.task_batch_id == TaskBatchRow.id,
+            )
+            .where(
+                BatchDispatchRow.id.is_(None),
+                TaskBatchRow.status.in_(_DISPATCHABLE_BATCH_STATUSES),
+                MethodExecutionRow.status.in_(_DISPATCHABLE_EXECUTION_STATUSES),
+                RunRow.status.in_(_ACTIVE_RUN_STATUSES),
+            )
+        )
+        aggregation_candidates = (
+            select(
+                literal(DispatchTarget.aggregation_execution.value).label("target"),
+                AggregationExecutionRow.id.label("target_id"),
+                AggregationExecutionRow.created_at.label("created_at"),
+            )
+            .outerjoin(
+                BatchDispatchRow,
+                BatchDispatchRow.aggregation_execution_id == AggregationExecutionRow.id,
+            )
+            .where(
+                BatchDispatchRow.id.is_(None),
+                AggregationExecutionRow.status.in_(_DISPATCHABLE_AGGREGATION_STATUSES),
+            )
+        )
+        candidates = union_all(batch_candidates, aggregation_candidates).subquery()
         rows = tuple(
-            self._session.scalars(
-                select(TaskBatchRow)
-                .join(MethodExecutionRow, MethodExecutionRow.id == TaskBatchRow.method_execution_id)
-                .join(RunRow, RunRow.id == MethodExecutionRow.run_id)
-                .outerjoin(
-                    BatchDispatchRow,
-                    BatchDispatchRow.task_batch_id == TaskBatchRow.id,
-                )
-                .where(
-                    BatchDispatchRow.id.is_(None),
-                    TaskBatchRow.status.in_(_DISPATCHABLE_BATCH_STATUSES),
-                    MethodExecutionRow.status.in_(_DISPATCHABLE_EXECUTION_STATUSES),
-                    RunRow.status.in_(_ACTIVE_RUN_STATUSES),
-                )
-                .order_by(TaskBatchRow.created_at, TaskBatchRow.id)
-                .with_for_update(skip_locked=True, of=TaskBatchRow)
+            self._session.execute(
+                select(candidates.c.target, candidates.c.target_id)
+                .order_by(candidates.c.created_at, candidates.c.target, candidates.c.target_id)
                 .limit(limit)
             )
         )
-        for row in rows:
-            self.ensure_dispatch(
-                BatchDispatchCreate(
-                    task_batch_id=row.id,
-                    queue_name=row.queue_name,
-                    payload=TaskBatchMessage(
-                        method_execution_id=row.method_execution_id,
-                        task_batch_id=row.id,
-                    ),
-                    available_at=available_at,
+
+        created_count = 0
+        for target, target_id in rows:
+            if target == DispatchTarget.task_batch.value:
+                batch = self._lock_dispatchable_batch(target_id)
+                if batch is None or self.get_dispatch_for_batch(batch.id) is not None:
+                    continue
+                self.ensure_dispatch(
+                    BatchDispatchCreate(
+                        task_batch_id=batch.id,
+                        queue_name=batch.queue_name,
+                        payload=TaskBatchMessage(
+                            method_execution_id=batch.method_execution_id,
+                            task_batch_id=batch.id,
+                        ),
+                        available_at=available_at,
+                    )
                 )
-            )
-        return len(rows)
+            else:
+                aggregation = self._lock_dispatchable_aggregation(target_id)
+                if (
+                    aggregation is None
+                    or self.get_dispatch_for_aggregation(aggregation.id) is not None
+                ):
+                    continue
+                self.ensure_dispatch(
+                    AggregationDispatchCreate(
+                        aggregation_execution_id=aggregation.id,
+                        queue_name=CPU_QUEUE,
+                        payload=AggregationTaskMessage(aggregation_execution_id=aggregation.id),
+                        available_at=available_at,
+                    )
+                )
+            created_count += 1
+        return created_count
 
     def rearm_stale_published(
         self,
@@ -221,7 +387,7 @@ class SqlAlchemyDispatchRepository:
         published_before: datetime,
         limit: int,
     ) -> int:
-        """Rearm stale publication records only while their batches are unclaimed."""
+        """Rearm stale publications only while their target work remains unclaimed."""
         rearm_time = normalize_utc_datetime(now)
         stale_before = normalize_utc_datetime(published_before)
         self._validate_limit(limit)
@@ -229,36 +395,111 @@ class SqlAlchemyDispatchRepository:
             msg = "published_before must not be later than now"
             raise ValueError(msg)
 
+        batch_candidates = (
+            select(
+                BatchDispatchRow.id.label("dispatch_id"),
+                literal(DispatchTarget.task_batch.value).label("target"),
+                TaskBatchRow.id.label("target_id"),
+                BatchDispatchRow.published_at.label("published_at"),
+            )
+            .join(TaskBatchRow, TaskBatchRow.id == BatchDispatchRow.task_batch_id)
+            .join(MethodExecutionRow, MethodExecutionRow.id == TaskBatchRow.method_execution_id)
+            .join(RunRow, RunRow.id == MethodExecutionRow.run_id)
+            .where(
+                BatchDispatchRow.status == BatchDispatchStatus.published,
+                BatchDispatchRow.published_at <= stale_before,
+                TaskBatchRow.status.in_(_DISPATCHABLE_BATCH_STATUSES),
+                MethodExecutionRow.status.in_(_DISPATCHABLE_EXECUTION_STATUSES),
+                RunRow.status.in_(_ACTIVE_RUN_STATUSES),
+            )
+        )
+        aggregation_candidates = (
+            select(
+                BatchDispatchRow.id.label("dispatch_id"),
+                literal(DispatchTarget.aggregation_execution.value).label("target"),
+                AggregationExecutionRow.id.label("target_id"),
+                BatchDispatchRow.published_at.label("published_at"),
+            )
+            .join(
+                AggregationExecutionRow,
+                AggregationExecutionRow.id == BatchDispatchRow.aggregation_execution_id,
+            )
+            .where(
+                BatchDispatchRow.status == BatchDispatchStatus.published,
+                BatchDispatchRow.published_at <= stale_before,
+                AggregationExecutionRow.status.in_(_DISPATCHABLE_AGGREGATION_STATUSES),
+            )
+        )
+        candidates = union_all(batch_candidates, aggregation_candidates).subquery()
         rows = tuple(
-            self._session.scalars(
-                select(BatchDispatchRow)
-                .join(TaskBatchRow, TaskBatchRow.id == BatchDispatchRow.task_batch_id)
-                .join(MethodExecutionRow, MethodExecutionRow.id == TaskBatchRow.method_execution_id)
-                .join(RunRow, RunRow.id == MethodExecutionRow.run_id)
-                .where(
-                    BatchDispatchRow.status == BatchDispatchStatus.published,
-                    BatchDispatchRow.published_at <= stale_before,
-                    TaskBatchRow.status.in_(_DISPATCHABLE_BATCH_STATUSES),
-                    MethodExecutionRow.status.in_(_DISPATCHABLE_EXECUTION_STATUSES),
-                    RunRow.status.in_(_ACTIVE_RUN_STATUSES),
+            self._session.execute(
+                select(
+                    candidates.c.dispatch_id,
+                    candidates.c.target,
+                    candidates.c.target_id,
                 )
-                .order_by(BatchDispatchRow.published_at, BatchDispatchRow.id)
-                .with_for_update(
-                    skip_locked=True,
-                    of=(BatchDispatchRow, TaskBatchRow),
-                )
+                .order_by(candidates.c.published_at, candidates.c.dispatch_id)
                 .limit(limit)
             )
         )
-        for row in rows:
+
+        rearmed_count = 0
+        for dispatch_id, target, target_id in rows:
+            if target == DispatchTarget.task_batch.value:
+                if self._lock_dispatchable_batch(target_id) is None:
+                    continue
+            else:
+                if self._lock_dispatchable_aggregation(target_id) is None:
+                    continue
+            row = self._session.scalar(
+                select(BatchDispatchRow)
+                .where(
+                    BatchDispatchRow.id == dispatch_id,
+                    BatchDispatchRow.status == BatchDispatchStatus.published,
+                    BatchDispatchRow.published_at <= stale_before,
+                )
+                .with_for_update(skip_locked=True, of=BatchDispatchRow)
+            )
+            if row is None:
+                continue
             row.status = BatchDispatchStatus.pending
             row.available_at = rearm_time
             row.published_at = None
             row.lease_owner = None
             row.lease_until = None
             row.last_error = _STALE_REARM_DIAGNOSTIC
+            rearmed_count += 1
         self._session.flush()
-        return len(rows)
+        return rearmed_count
+
+    def _lock_dispatchable_batch(self, task_batch_id: UUID) -> TaskBatchRow | None:
+        """Lock one still-dispatchable batch without waiting on an active worker."""
+        return self._session.scalar(
+            select(TaskBatchRow)
+            .join(MethodExecutionRow, MethodExecutionRow.id == TaskBatchRow.method_execution_id)
+            .join(RunRow, RunRow.id == MethodExecutionRow.run_id)
+            .where(
+                TaskBatchRow.id == task_batch_id,
+                TaskBatchRow.status.in_(_DISPATCHABLE_BATCH_STATUSES),
+                MethodExecutionRow.status.in_(_DISPATCHABLE_EXECUTION_STATUSES),
+                RunRow.status.in_(_ACTIVE_RUN_STATUSES),
+            )
+            .with_for_update(skip_locked=True, of=TaskBatchRow)
+        )
+
+    def _lock_dispatchable_aggregation(
+        self,
+        aggregation_execution_id: UUID,
+    ) -> AggregationExecutionRow | None:
+        """Lock one pending aggregation without waiting on an active worker."""
+        return self._session.scalar(
+            select(AggregationExecutionRow)
+            .where(
+                AggregationExecutionRow.id == aggregation_execution_id,
+                AggregationExecutionRow.status.in_(_DISPATCHABLE_AGGREGATION_STATUSES),
+            )
+            .with_for_update(skip_locked=True, of=AggregationExecutionRow)
+        )
 
     def _require_claimed(self, dispatch_id: UUID, lease_owner: str) -> BatchDispatchRow:
         row = self._session.get(
@@ -278,11 +519,16 @@ class SqlAlchemyDispatchRepository:
     @staticmethod
     def _require_matching_intent(
         row: BatchDispatchRow,
-        command: BatchDispatchCreate,
+        command: DispatchCreate,
     ) -> None:
-        payload = TaskBatchMessage.model_validate(row.payload)
-        if row.queue_name != command.queue_name or payload != command.payload:
-            msg = f"task batch {command.task_batch_id} already has a different dispatch intent"
+        persisted = SqlAlchemyDispatchRepository._dispatch_from_row(row)
+        if (
+            persisted.target != command.target
+            or persisted.target_id != command.target_id
+            or persisted.queue_name != command.queue_name
+            or persisted.payload != command.payload
+        ):
+            msg = f"{command.target.value} {command.target_id} has a different dispatch intent"
             raise InvalidResourceStateError(msg)
 
     @staticmethod
@@ -302,19 +548,38 @@ class SqlAlchemyDispatchRepository:
             raise ValueError(msg)
 
     @staticmethod
-    def _dispatch_from_row(row: BatchDispatchRow) -> BatchDispatch:
-        return BatchDispatch(
-            id=row.id,
-            task_batch_id=row.task_batch_id,
-            queue_name=row.queue_name,
-            payload=TaskBatchMessage.model_validate(row.payload),
-            status=row.status,
-            attempt_count=row.attempt_count,
-            available_at=row.available_at,
-            lease_owner=row.lease_owner,
-            lease_until=row.lease_until,
-            published_at=row.published_at,
-            last_error=row.last_error,
-            created_at=row.created_at,
-            updated_at=row.updated_at,
-        )
+    def _dispatch_from_row(row: BatchDispatchRow) -> Dispatch:
+        if row.task_batch_id is not None and row.aggregation_execution_id is None:
+            return BatchDispatch(
+                id=row.id,
+                task_batch_id=row.task_batch_id,
+                queue_name=row.queue_name,
+                payload=TaskBatchMessage.model_validate(row.payload),
+                status=row.status,
+                attempt_count=row.attempt_count,
+                available_at=row.available_at,
+                lease_owner=row.lease_owner,
+                lease_until=row.lease_until,
+                published_at=row.published_at,
+                last_error=row.last_error,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+            )
+        if row.aggregation_execution_id is not None and row.task_batch_id is None:
+            return AggregationDispatch(
+                id=row.id,
+                aggregation_execution_id=row.aggregation_execution_id,
+                queue_name=row.queue_name,
+                payload=AggregationTaskMessage.model_validate(row.payload),
+                status=row.status,
+                attempt_count=row.attempt_count,
+                available_at=row.available_at,
+                lease_owner=row.lease_owner,
+                lease_until=row.lease_until,
+                published_at=row.published_at,
+                last_error=row.last_error,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+            )
+        msg = f"dispatch {row.id} does not reference exactly one work target"
+        raise RuntimeError(msg)

@@ -88,6 +88,7 @@ def create_app(
     aggregation_service = AggregationService(
         unit_of_work_factory=unit_of_work_factory,
         cursor_codec=cursor_codec,
+        clock=partial(datetime.now, UTC),
     )
     annotation_service = AnnotationService(unit_of_work_factory)
     review_item_service = ReviewItemService(

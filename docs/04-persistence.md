@@ -36,6 +36,7 @@ tests and non-HTTP entry points use the same transaction semantics.
 - `evaluations`
 - `artifacts`
 - `task_batches`
+- `batch_dispatches` (generic transactional outbox with typed task-batch and aggregation owners)
 - optional `method_cache_entries`
 
 ## Key constraints
@@ -70,7 +71,30 @@ Prediction records should include:
 
 ### Aggregation
 
-Aggregation executions reference the exact MethodExecutions included. Do not infer "all methods in run" later if a subset was selected.
+Aggregation executions reference the exact MethodExecutions included. Do not infer "all methods in run" later
+if a subset was selected.
+
+`aggregated_results` is unique on `(aggregation_execution_id, person_record_id)`. At the current dataset scale,
+the executor inserts the full person-result set and marks the AggregationExecution completed in one
+transaction. Completion requires result cardinality equal to the immutable snapshot's person cardinality.
+Failed or retried attempts expose no partial rows.
+
+### Transactional dispatch outbox
+
+One outbox row belongs to exactly one durable work target. Storage has nullable `task_batch_id` and
+`aggregation_execution_id` foreign keys with:
+
+- an exactly-one-owner check;
+- a unique constraint for each non-null owner;
+- a dispatch kind consistent with the selected owner and validated payload;
+- explicit `pending`/`published` state, availability time, attempt count, relay lease, publication time, and
+  sanitized last-error diagnostic.
+
+The outbox row is created in the same transaction as its target. Relay and reconciliation update delivery
+metadata without owning scientific results. Reconciliation locks both dispatch and target rows with
+`FOR UPDATE SKIP LOCKED`; it does not infer that an old timestamp alone proves a worker has stopped. See
+[ADR-0015](decisions/ADR-0015-transactional-batch-dispatch-outbox.md) and
+[ADR-0016](decisions/ADR-0016-asynchronous-aggregation-outbox.md).
 
 ### Annotations
 

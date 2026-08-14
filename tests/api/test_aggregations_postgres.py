@@ -6,7 +6,7 @@ import pytest
 from fastapi import Request
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
-from sqlalchemy import Engine
+from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from gendertagger.api.app import create_app
@@ -16,20 +16,23 @@ from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.db.executions import MethodExecutionRow
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
+from gendertagger.domain.aggregation import REFERENCE_REQUIRED_METHODS
 from gendertagger.models.aggregation import (
-    AggregationOutcome,
-    AggregationResultWrite,
-    ReferenceAggregationResult,
-    VoteCounts,
+    AggregationTaskMessage,
 )
 from gendertagger.models.artifact import ArtifactCreate
-from gendertagger.models.classification import AgreementTier, CanonicalLabel, CertaintyTier
+from gendertagger.models.classification import (
+    CanonicalLabel,
+    PredictionResult,
+    PredictionStatus,
+)
 from gendertagger.models.lifecycle import AggregationExecutionStatus, MethodExecutionStatus
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.person import PersonInput
 from gendertagger.models.project import DatasetSnapshotCreate, ProjectCreate
-from gendertagger.models.run import MethodExecutionCreate, RunCreate
+from gendertagger.models.run import MethodExecutionCreate, PredictionWrite, RunCreate
 from gendertagger.models.user import Role, UserCreate
+from gendertagger.services.aggregation_execution import AggregationExecutor
 from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
@@ -62,10 +65,10 @@ def _unit_of_work_factory(
     return factory, session_factory
 
 
-def _seed_completed_execution(
+def _seed_completed_reference_executions(
     unit_of_work_factory: UnitOfWorkFactory,
     session_factory: sessionmaker[Session],
-) -> tuple[UUID, UUID, UUID, tuple[UUID, UUID]]:
+) -> tuple[UUID, UUID, tuple[UUID, ...], tuple[UUID, UUID]]:
     with unit_of_work_factory() as unit_of_work:
         user = unit_of_work.users.add_user(
             UserCreate(display_name="Aggregation operator", roles={Role.operator})
@@ -105,48 +108,87 @@ def _seed_completed_execution(
         run = unit_of_work.runs.add_run(
             RunCreate(
                 dataset_snapshot_id=snapshot.id,
-                resolved_config=RunConfig(methods=[MethodRunConfig(name="demo_method")]),
+                resolved_config=RunConfig(
+                    methods=[
+                        MethodRunConfig(name=method_name)
+                        for method_name in REFERENCE_REQUIRED_METHODS
+                    ]
+                ),
                 code_git_commit=CODE_GIT_COMMIT,
                 application_version="0.0.0",
                 python_version="3.13.14",
                 dependency_lock_sha256=DEPENDENCY_LOCK_SHA256,
             )
         )
-        execution = unit_of_work.runs.add_method_execution(
-            MethodExecutionCreate(
-                run_id=run.id,
-                descriptor=MethodDescriptor(
-                    name="demo_method",
-                    implementation_version="demo_v1",
-                    normalization_version="demo_normalization_v1",
-                ),
-                queue_name="cpu",
-                total_count=2,
-            )
-        )
         first_person = unit_of_work.projects.get_person_record_by_tei_id(snapshot.id, "p1")
         second_person = unit_of_work.projects.get_person_record_by_tei_id(snapshot.id, "p2")
         assert first_person is not None
         assert second_person is not None
+        execution_ids: list[UUID] = []
+        for method_name in REFERENCE_REQUIRED_METHODS:
+            execution = unit_of_work.runs.add_method_execution(
+                MethodExecutionCreate(
+                    run_id=run.id,
+                    descriptor=MethodDescriptor(
+                        name=method_name,
+                        implementation_version=f"{method_name}_v1",
+                        normalization_version=f"{method_name}_v1",
+                    ),
+                    queue_name="cpu",
+                    total_count=2,
+                )
+            )
+            execution_ids.append(execution.id)
+            results = []
+            for index, person in enumerate((first_person, second_person), start=1):
+                if method_name == "local_llm":
+                    result = PredictionResult(
+                        label=(
+                            CanonicalLabel.female
+                            if person.id == first_person.id
+                            else CanonicalLabel.male
+                        ),
+                        status=PredictionStatus.success,
+                        raw_label="female" if person.id == first_person.id else "male",
+                        metadata={"self_reported_certainty": "high"},
+                    )
+                else:
+                    result = PredictionResult(
+                        label=None,
+                        status=PredictionStatus.abstain,
+                    )
+                results.append(
+                    PredictionWrite(
+                        person_record_id=person.id,
+                        input_fingerprint=str(index) * 64,
+                        result=result,
+                    )
+                )
+            unit_of_work.runs.add_predictions(execution.id, results)
         unit_of_work.commit()
 
     with session_factory() as session:
-        execution_row = session.get(MethodExecutionRow, execution.id)
-        assert execution_row is not None
-        execution_row.status = MethodExecutionStatus.completed
-        execution_row.started_at = NOW
-        execution_row.finished_at = NOW
-        execution_row.completed_count = 2
+        execution_rows = tuple(
+            session.scalars(
+                select(MethodExecutionRow).where(MethodExecutionRow.id.in_(execution_ids))
+            )
+        )
+        assert len(execution_rows) == len(REFERENCE_REQUIRED_METHODS)
+        for execution_row in execution_rows:
+            execution_row.status = MethodExecutionStatus.completed
+            execution_row.started_at = NOW
+            execution_row.finished_at = NOW
+            execution_row.completed_count = 2
         session.commit()
-    return user.id, run.id, execution.id, (first_person.id, second_person.id)
+    return user.id, run.id, tuple(execution_ids), (first_person.id, second_person.id)
 
 
-def test_pending_aggregation_and_immutable_result_round_trip_through_http(
+def test_queued_aggregation_executes_and_results_round_trip_through_http(
     postgres_engine: Engine,
     tmp_path: Path,
 ) -> None:
     unit_of_work_factory, session_factory = _unit_of_work_factory(postgres_engine)
-    user_id, run_id, execution_id, person_ids = _seed_completed_execution(
+    user_id, run_id, execution_ids, person_ids = _seed_completed_reference_executions(
         unit_of_work_factory,
         session_factory,
     )
@@ -164,55 +206,39 @@ def test_pending_aggregation_and_immutable_result_round_trip_through_http(
 
     create_response = client.post(
         f"/api/v1/runs/{run_id}/aggregations",
-        json={"method_execution_ids": [str(execution_id)]},
+        json={"method_execution_ids": [str(execution_id) for execution_id in execution_ids]},
     )
 
     assert create_response.status_code == 202
     aggregation_body = create_response.json()
-    assert aggregation_body["status"] == AggregationExecutionStatus.pending.value
+    assert aggregation_body["status"] == AggregationExecutionStatus.queued.value
     assert aggregation_body["run_id"] == str(run_id)
-    assert aggregation_body["method_execution_ids"] == [str(execution_id)]
+    assert aggregation_body["method_execution_ids"] == [
+        str(execution_id) for execution_id in execution_ids
+    ]
     aggregation_id = UUID(aggregation_body["id"])
     assert client.get(f"/api/v1/aggregations/{aggregation_id}").json() == aggregation_body
 
+    completed = AggregationExecutor(
+        unit_of_work_factory=unit_of_work_factory,
+        clock=lambda: NOW,
+    ).execute(
+        AggregationTaskMessage(aggregation_execution_id=aggregation_id),
+        attempt_count=1,
+    )
+    assert completed.status is AggregationExecutionStatus.completed
+
     with unit_of_work_factory() as unit_of_work:
-        assert (
-            unit_of_work.aggregations.add_results(
-                aggregation_id,
-                [
-                    AggregationResultWrite(
-                        person_record_id=person_ids[0],
-                        result=ReferenceAggregationResult(
-                            outcome=AggregationOutcome.decided,
-                            label=CanonicalLabel.female,
-                            pooled_vote_counts=VoteCounts(female=1),
-                            agreement_score=1.0,
-                            agreement_tier=AgreementTier.single_rater,
-                            certainty_tier=CertaintyTier.uncertain,
-                        ),
-                    ),
-                    AggregationResultWrite(
-                        person_record_id=person_ids[1],
-                        result=ReferenceAggregationResult(
-                            outcome=AggregationOutcome.decided,
-                            label=CanonicalLabel.male,
-                            pooled_vote_counts=VoteCounts(male=1),
-                            agreement_score=1.0,
-                            agreement_tier=AgreementTier.single_rater,
-                            certainty_tier=CertaintyTier.uncertain,
-                        ),
-                    ),
-                ],
-            )
-            == 2
-        )
-        unit_of_work.commit()
-    with unit_of_work_factory() as unit_of_work:
+        dispatch = unit_of_work.dispatches.get_dispatch_for_aggregation(aggregation_id)
         persisted_results = unit_of_work.aggregations.list_results(
             aggregation_id,
             limit=10,
         )
+    assert dispatch is not None
     assert len(persisted_results) == 2
+    results_by_person = {result.person_record_id: result for result in persisted_results}
+    assert results_by_person[person_ids[0]].label is CanonicalLabel.female
+    assert results_by_person[person_ids[1]].label is CanonicalLabel.male
     result_id = persisted_results[0].id
 
     first_page = client.get(

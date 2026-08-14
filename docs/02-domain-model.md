@@ -59,7 +59,10 @@ One method inside a Run, with method version/config, queue/resource class, state
 Immutable output of one MethodExecution for one PersonRecord. Stores normalized label/status plus raw output and method-specific confidence.
 
 ### AggregationExecution
-A versioned aggregation strategy applied to a selected set of completed MethodExecutions. Re-aggregation creates a new execution instead of modifying predictions.
+A versioned aggregation strategy applied asynchronously to a selected set of completed MethodExecutions.
+Re-aggregation creates a new execution instead of modifying predictions. A completed execution owns exactly
+one AggregatedResult for every PersonRecord in the run snapshot; a failed execution exposes no partial result
+set.
 
 ### AggregatedResult
 Combined result for one PersonRecord, including final machine label, vote counts, agreement score/tier, certainty tier, and override provenance.
@@ -146,3 +149,6 @@ pending -> queued -> running -> completed
 ```
 
 Retries do not create duplicate Predictions for the same execution/person/batch identity.
+Aggregation retries likewise do not create duplicate AggregatedResults. A complete input containing explicit
+record-level abstentions or errors may still complete; missing required Prediction evidence fails the
+AggregationExecution rather than producing a partial or synthetic result.

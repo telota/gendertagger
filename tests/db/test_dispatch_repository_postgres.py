@@ -8,13 +8,20 @@ from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
+from gendertagger.db.aggregations import AggregationExecutionRow
 from gendertagger.db.artifact_repository import SqlAlchemyArtifactRepository
 from gendertagger.db.dispatch_repository import SqlAlchemyDispatchRepository
 from gendertagger.db.executions import TaskBatchRow
 from gendertagger.db.project_repository import SqlAlchemyProjectRepository
 from gendertagger.db.run_repository import SqlAlchemyRunRepository
+from gendertagger.models.aggregation import AggregationTaskMessage
 from gendertagger.models.artifact import ArtifactCreate
-from gendertagger.models.dispatch import BatchDispatchCreate, BatchDispatchStatus
+from gendertagger.models.dispatch import (
+    AggregationDispatchCreate,
+    BatchDispatchCreate,
+    BatchDispatchStatus,
+)
+from gendertagger.models.lifecycle import AggregationExecutionStatus
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.person import PersonInput
 from gendertagger.models.project import DatasetSnapshotCreate, ProjectCreate
@@ -128,6 +135,37 @@ def _dispatch_command(
     )
 
 
+def _aggregation_context(
+    session: Session,
+    *,
+    status: AggregationExecutionStatus = AggregationExecutionStatus.pending,
+) -> AggregationExecutionRow:
+    _, run, _, _ = _execution_context(session)
+    row = AggregationExecutionRow(
+        run_id=run.id,
+        strategy="reference_v1",
+        resolved_config={},
+        config_sha256="a" * 64,
+        status=status,
+    )
+    session.add(row)
+    session.flush()
+    return row
+
+
+def _aggregation_dispatch_command(
+    aggregation: AggregationExecutionRow,
+    *,
+    available_at: datetime,
+) -> AggregationDispatchCreate:
+    return AggregationDispatchCreate(
+        aggregation_execution_id=aggregation.id,
+        queue_name="cpu",
+        payload=AggregationTaskMessage(aggregation_execution_id=aggregation.id),
+        available_at=available_at,
+    )
+
+
 def test_ensure_dispatch_is_idempotent_per_task_batch(db_session: Session) -> None:
     _, _, execution, batch = _execution_context(db_session)
     repository = SqlAlchemyDispatchRepository(db_session)
@@ -141,6 +179,33 @@ def test_ensure_dispatch_is_idempotent_per_task_batch(db_session: Session) -> No
     assert first.status is BatchDispatchStatus.pending
     assert repository.get_dispatch(first.id) == first
     assert repository.get_dispatch_for_batch(batch.id) == first
+
+
+def test_ensure_dispatch_is_exact_and_idempotent_per_aggregation(
+    db_session: Session,
+) -> None:
+    aggregation = _aggregation_context(db_session)
+    repository = SqlAlchemyDispatchRepository(db_session)
+    now = datetime.now(UTC)
+    command = _aggregation_dispatch_command(aggregation, available_at=now)
+
+    first = repository.ensure_dispatch(command)
+    second = repository.ensure_dispatch(command)
+
+    assert first.id == second.id
+    assert first.payload == command.payload
+    assert repository.get_dispatch(first.id) == first
+    assert repository.get_dispatch_for_aggregation(aggregation.id) == first
+
+    rescheduled = repository.ensure_dispatch(
+        _aggregation_dispatch_command(
+            aggregation,
+            available_at=now + timedelta(seconds=1),
+        )
+    )
+
+    assert rescheduled.id == first.id
+    assert rescheduled.available_at == now
 
 
 def test_ensure_dispatch_validates_batch_ownership(db_session: Session) -> None:
@@ -311,6 +376,83 @@ def test_reconciler_repairs_missing_and_rearms_stale_dispatches(
     assert rearmed.last_error is not None
 
 
+def test_reconciler_repairs_and_rearms_aggregation_dispatches(
+    db_session: Session,
+) -> None:
+    aggregation = _aggregation_context(
+        db_session,
+        status=AggregationExecutionStatus.queued,
+    )
+    repository = SqlAlchemyDispatchRepository(db_session)
+    now = datetime.now(UTC)
+
+    assert repository.ensure_missing(now=now, limit=10) == 1
+    assert repository.ensure_missing(now=now, limit=10) == 0
+    dispatch = repository.get_dispatch_for_aggregation(aggregation.id)
+    assert dispatch is not None
+
+    repository.claim_available(
+        now=now,
+        lease_owner="relay-1",
+        lease_until=now + timedelta(seconds=30),
+        limit=1,
+    )
+    repository.mark_published(
+        dispatch.id,
+        lease_owner="relay-1",
+        published_at=now,
+    )
+
+    rearm_time = now + timedelta(minutes=10)
+    assert (
+        repository.rearm_stale_published(
+            now=rearm_time,
+            published_before=now + timedelta(minutes=5),
+            limit=10,
+        )
+        == 1
+    )
+    rearmed = repository.get_dispatch_for_aggregation(aggregation.id)
+    assert rearmed is not None
+    assert rearmed.status is BatchDispatchStatus.pending
+    assert rearmed.available_at == rearm_time
+    assert rearmed.published_at is None
+
+
+def test_reconciler_does_not_rearm_an_aggregation_claimed_by_a_worker(
+    db_session: Session,
+) -> None:
+    aggregation = _aggregation_context(db_session)
+    repository = SqlAlchemyDispatchRepository(db_session)
+    now = datetime.now(UTC)
+    dispatch = repository.ensure_dispatch(
+        _aggregation_dispatch_command(aggregation, available_at=now)
+    )
+    repository.claim_available(
+        now=now,
+        lease_owner="relay-1",
+        lease_until=now + timedelta(seconds=30),
+        limit=1,
+    )
+    repository.mark_published(
+        dispatch.id,
+        lease_owner="relay-1",
+        published_at=now,
+    )
+    aggregation.status = AggregationExecutionStatus.running
+    aggregation.started_at = now
+    db_session.flush()
+
+    assert (
+        repository.rearm_stale_published(
+            now=now + timedelta(minutes=10),
+            published_before=now + timedelta(minutes=5),
+            limit=10,
+        )
+        == 0
+    )
+
+
 def test_reconciler_does_not_rearm_a_batch_already_claimed_by_a_worker(
     db_session: Session,
 ) -> None:
@@ -427,6 +569,49 @@ def test_rearm_skips_a_task_batch_locked_by_a_worker(postgres_engine: Engine) ->
             select(TaskBatchRow).where(TaskBatchRow.id == batch.id).with_for_update()
         )
         assert locked_batch is not None
+
+        rearmed_count = SqlAlchemyDispatchRepository(relay_session).rearm_stale_published(
+            now=now + timedelta(minutes=10),
+            published_before=now + timedelta(minutes=5),
+            limit=10,
+        )
+
+        assert rearmed_count == 0
+        worker_session.rollback()
+        relay_session.rollback()
+
+
+def test_rearm_skips_an_aggregation_locked_by_a_worker(postgres_engine: Engine) -> None:
+    now = datetime.now(UTC)
+    with Session(postgres_engine, autoflush=False, expire_on_commit=False) as seed_session:
+        aggregation = _aggregation_context(seed_session)
+        seed_repository = SqlAlchemyDispatchRepository(seed_session)
+        dispatch = seed_repository.ensure_dispatch(
+            _aggregation_dispatch_command(aggregation, available_at=now)
+        )
+        seed_repository.claim_available(
+            now=now,
+            lease_owner="relay-1",
+            lease_until=now + timedelta(seconds=30),
+            limit=1,
+        )
+        seed_repository.mark_published(
+            dispatch.id,
+            lease_owner="relay-1",
+            published_at=now,
+        )
+        seed_session.commit()
+
+    with (
+        Session(postgres_engine, autoflush=False, expire_on_commit=False) as worker_session,
+        Session(postgres_engine, autoflush=False, expire_on_commit=False) as relay_session,
+    ):
+        locked_aggregation = worker_session.scalar(
+            select(AggregationExecutionRow)
+            .where(AggregationExecutionRow.id == aggregation.id)
+            .with_for_update()
+        )
+        assert locked_aggregation is not None
 
         rearmed_count = SqlAlchemyDispatchRepository(relay_session).rearm_stale_published(
             now=now + timedelta(minutes=10),

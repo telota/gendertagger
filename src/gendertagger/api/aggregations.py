@@ -36,7 +36,7 @@ def create_aggregation(
     service: Annotated[AggregationService, Depends(get_aggregation_service)],
     _: Annotated[CurrentUser, Depends(require_operator)],
 ) -> AggregationExecution:
-    """Persist a pending aggregation over exact completed method executions."""
+    """Queue a durable aggregation over exact completed method executions."""
     try:
         return service.create_aggregation(run_id=run_id, command=command)
     except ResourceNotFoundError as error:

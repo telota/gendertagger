@@ -49,7 +49,8 @@ The scientific `unknown` label is never represented by `null`.
 
 ## Long-running commands
 
-Imports, runs, method execution, evaluations, and exports are asynchronous resources. Do not keep an HTTP request open while scientific computation executes.
+Imports, runs, method execution, aggregation, evaluations, and exports are asynchronous resources. Do not keep
+an HTTP request open while scientific computation executes.
 
 Representative flow:
 
@@ -64,10 +65,11 @@ GET /api/v1/runs/{run_id}
 
 Return domain resource IDs, never Celery task IDs. Celery is an internal execution mechanism and can change without changing the public API.
 
-Accepting an execution command atomically persists method executions, task batches, and one `BatchDispatch`
-intent per batch in PostgreSQL. The FastAPI process does not publish those messages to Redis. A `202 Accepted`
-response therefore confirms durable application state and dispatch intent, not immediate broker delivery;
-the dispatch coordinator relays and reconciles that intent asynchronously.
+Accepting an asynchronous command atomically persists its domain resource and one typed outbox intent in
+PostgreSQL. A dispatch owns exactly one task batch or aggregation execution and carries only its small validated
+identifier envelope. The FastAPI process does not publish those messages to Redis. A `202 Accepted` response
+therefore confirms durable application state and dispatch intent, not immediate broker delivery; the dispatch
+coordinator relays and reconciles that intent asynchronously.
 
 ## Representative commands
 
@@ -101,7 +103,21 @@ an otherwise successful durable scheduling command into an HTTP failure.
 
 `POST /api/v1/runs/{run_id}/aggregations`
 
-Aggregation must be independently rerunnable without classifier execution.
+Aggregation must be independently rerunnable without classifier execution. The command selects the exact
+completed MethodExecutions, then atomically creates a `queued` `AggregationExecution` and its CPU-queue outbox
+intent. It returns that resource with `202 Accepted`, never a Celery task ID, and does not compute results in
+the request.
+
+Clients read lifecycle state through:
+
+```text
+GET /api/v1/aggregations/{aggregation_id}
+```
+
+Only `status=completed` guarantees that the results collection contains exactly one immutable result for every
+person in the run snapshot. `status=failed` includes a sanitized diagnostic and exposes no partial result set.
+Broker downtime leaves the resource safely queued for the coordinator. See
+[ADR-0016](decisions/ADR-0016-asynchronous-aggregation-outbox.md).
 
 ### Annotate
 
@@ -176,7 +192,9 @@ Suggested stable event names:
 - `run.progress`;
 - `method_execution.state_changed`;
 - `method_execution.progress`;
+- `aggregation.state_changed`;
 - `aggregation.completed`;
+- `aggregation.failed`;
 - `run.completed`;
 - `run.failed`.
 
