@@ -22,7 +22,9 @@ dependencies = [
   "python-multipart>=0.0.20,<1",
   "pyyaml>=6.0.3,<7",
   "redis>=5,<7",
+  "scikit-learn>=1.9,<2",
   "sqlalchemy>=2.0,<3",
+  "statsmodels>=0.14,<1",
 ]
 
 [project.scripts]
@@ -31,12 +33,14 @@ gendertagger = "gendertagger.cli.main:main"
 # Method adapters declare heavy or method-specific runtime dependencies as
 # opt-in extras. Adapters lazily import them so the core install, API, and
 # lightweight workers stay slim; a missing extra fails only the affected method.
+# scikit-learn is a core dependency (Phase 6 evaluation needs cohen_kappa_score
+# unconditionally), so hivoto-xgboost only adds xgboost itself.
 [project.optional-dependencies]
 guesser = ["gender-guesser>=0.4,<1"]
 wiki = ["unidecode>=1.3,<2"]
 nomquam = ["nomquamgender>=0.1,<1"]
 transformers = ["transformers>=5.5,<6", "torch>=2.2,<3"]
-hivoto-xgboost = ["scikit-learn>=1.9,<2", "xgboost>=3.2,<4"]
+hivoto-xgboost = ["xgboost>=3.2,<4"]
 llm = ["httpx>=0.27,<1"]
 
 [tool.hatch.build.targets.wheel]
@@ -75,7 +79,7 @@ lint = [
 ]
 test = [
   "coverage[toml]==7.15.4",
-  "httpx>=0.27,<1",
+  "httpx2>=2,<3",
   "hypothesis==6.165.5",
   "pytest==9.1.1",
   "pytest-cov==7.1.0",
@@ -193,7 +197,9 @@ module = [
   "torch.*",
   "sklearn.*",
   "xgboost.*",
+  "httpx.*",
   "numpy.*",
+  "statsmodels.*",
 ]
 ignore_missing_imports = true
 
@@ -265,6 +271,32 @@ forbidden_modules = [
 name = "Domain logic is independent of entry points and infrastructure"
 type = "forbidden"
 source_modules = ["gendertagger.domain"]
+forbidden_modules = [
+  "gendertagger.api",
+  "gendertagger.cli",
+  "gendertagger.db",
+  "gendertagger.services",
+  "gendertagger.storage",
+  "gendertagger.tasks",
+]
+
+[[tool.importlinter.contracts]]
+name = "Evaluation logic is independent of entry points and infrastructure"
+type = "forbidden"
+source_modules = ["gendertagger.evaluation"]
+forbidden_modules = [
+  "gendertagger.api",
+  "gendertagger.cli",
+  "gendertagger.db",
+  "gendertagger.services",
+  "gendertagger.storage",
+  "gendertagger.tasks",
+]
+
+[[tool.importlinter.contracts]]
+name = "Export logic is independent of entry points and infrastructure"
+type = "forbidden"
+source_modules = ["gendertagger.export"]
 forbidden_modules = [
   "gendertagger.api",
   "gendertagger.cli",
