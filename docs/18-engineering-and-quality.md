@@ -16,8 +16,9 @@ does not precede a deployable, tested vertical slice.
   Python environment. JavaScript development tools are pinned exactly in `package.json`.
 - Runtime libraries belong in `[project.dependencies]`. Heavy method/model dependencies should use
   deliberate optional groups and must not enter ordinary CI accidentally.
-- CI exercises the minimum supported Python. A developer may use an ignored local `.python-version` for a
-  newer compatible interpreter; it is not the authoritative compatibility declaration.
+- CI exercises the minimum supported Python. The checked-in `.python-version` selects that interpreter for
+  local development; `requires-python` in `pyproject.toml` remains the authoritative compatibility
+  declaration.
 
 The canonical commands are listed in `CONTRIBUTING.md`. CI is the final arbiter; local hooks are a fast
 feedback mechanism.

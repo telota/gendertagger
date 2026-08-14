@@ -1,0 +1,18 @@
+* text=auto eol=lf
+
+*.db binary
+*.eps binary
+*.gz binary
+*.ico binary
+*.jpeg binary
+*.jpg binary
+*.parquet binary
+*.pdf binary
+*.png binary
+*.webp binary
+*.xlsx binary
+*.zip binary
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
