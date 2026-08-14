@@ -531,7 +531,7 @@
         "properties": {
           "profile": {
             "$ref": "#/components/schemas/TeiImportProfile",
-            "default": "tei_p5_person_register_v1"
+            "default": "tei_p5_person_register_v2"
           },
           "source": {
             "contentMediaType": "application/octet-stream",
@@ -1166,6 +1166,70 @@
         "title": "OverrideSource",
         "type": "string"
       },
+      "PersonNameForm": {
+        "additionalProperties": false,
+        "description": "Source-rich projection of one direct TEI ``persName`` in document order.\n\nA name form uses either an unstructured value (from TEI ``name`` or direct\n``persName`` text) or structured ``surname`` and ``forename`` components.\nInline markup remains preserved by the immutable source artifact; component\ntext is normalized only for whitespace by the import profile.",
+        "properties": {
+          "forenames": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Forenames",
+            "type": "array"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "subtype": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtype"
+          },
+          "surname": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Surname"
+          },
+          "type": {
+            "$ref": "#/components/schemas/PersonNameType"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "PersonNameForm",
+        "type": "object"
+      },
+      "PersonNameType": {
+        "description": "Supported direct TEI ``persName`` roles in the person-register profile.",
+        "enum": [
+          "reg",
+          "alt"
+        ],
+        "title": "PersonNameType",
+        "type": "string"
+      },
       "PersonRecord": {
         "additionalProperties": false,
         "description": "Canonical read model for one person occurrence in an exact snapshot.",
@@ -1238,6 +1302,21 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "name_forms": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PersonNameForm"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ordered direct TEI persName forms, or null when the import profile did not capture structured names.",
+            "title": "Name Forms"
           },
           "note": {
             "anyOf": [
@@ -1814,7 +1893,8 @@
       "TeiImportProfile": {
         "description": "Versioned TEI extraction profile selected for a snapshot import.",
         "enum": [
-          "tei_p5_person_register_v1"
+          "tei_p5_person_register_v1",
+          "tei_p5_person_register_v2"
         ],
         "title": "TeiImportProfile",
         "type": "string"

@@ -32,6 +32,8 @@ VALID_TEI = b"""<?xml version="1.0" encoding="UTF-8"?>
     </person>
     <person xml:id="p1">
       <persName type="reg"><surname>Example</surname><forename>Anna</forename></persName>
+      <persName type="alt" subtype="birthname"><surname>Earlier</surname><forename>Annette</forename></persName>
+      <persName type="alt"><name>A. Example</name></persName>
       <idno type="uri">https://d-nb.info/gnd/123456789</idno>
     </person>
     <person xml:id="p2">
@@ -111,7 +113,6 @@ def test_project_and_ready_snapshot_round_trip_through_http(
 
     import_response = client.post(
         f"/api/v1/projects/{project_id}/snapshots",
-        data={"profile": TeiImportProfile.tei_p5_person_register_v1.value},
         files={"source": ("register.xml", VALID_TEI, "application/xml")},
     )
 
@@ -119,6 +120,10 @@ def test_project_and_ready_snapshot_round_trip_through_http(
     snapshot_body = import_response.json()
     assert snapshot_body["status"] == DatasetSnapshotStatus.ready.value
     assert snapshot_body["record_count"] == 3
+    assert snapshot_body["parser_version"] == "tei_parser_v2"
+    assert snapshot_body["import_config"] == {
+        "profile": TeiImportProfile.tei_p5_person_register_v2.value
+    }
     assert snapshot_body["source_sha256"] == hashlib.sha256(VALID_TEI).hexdigest()
     assert "storage_uri" not in snapshot_body
 
@@ -135,6 +140,35 @@ def test_project_and_ready_snapshot_round_trip_through_http(
     first_page = first_page_response.json()
     assert first_page_response.status_code == 200
     assert [person["tei_id"] for person in first_page["items"]] == ["p1", "p2"]
+    assert first_page["items"][0]["surname"] == "Example"
+    assert first_page["items"][0]["forenames"] == ["Anna"]
+    assert first_page["items"][0]["alt_names"] == [
+        "Earlier Annette",
+        "A. Example",
+    ]
+    assert first_page["items"][0]["name_forms"] == [
+        {
+            "type": "reg",
+            "subtype": None,
+            "name": None,
+            "surname": "Example",
+            "forenames": ["Anna"],
+        },
+        {
+            "type": "alt",
+            "subtype": "birthname",
+            "name": None,
+            "surname": "Earlier",
+            "forenames": ["Annette"],
+        },
+        {
+            "type": "alt",
+            "subtype": None,
+            "name": "A. Example",
+            "surname": None,
+            "forenames": [],
+        },
+    ]
     assert first_page["has_more"] is True
     assert first_page["next_cursor"]
 
@@ -165,6 +199,13 @@ def test_project_and_ready_snapshot_round_trip_through_http(
         artifact = unit_of_work.artifacts.get_artifact(source_artifact_id)
     assert person is not None
     assert person.gnd_id == "123456789"
+    assert person.alt_names == ["Earlier Annette", "A. Example"]
+    assert person.name_forms is not None
+    assert [name_form.projected_text() for name_form in person.name_forms] == [
+        "Example Anna",
+        "Earlier Annette",
+        "A. Example",
+    ]
     assert artifact is not None
     assert artifact.project_id == project_id
     with LocalArtifactStorage(tmp_path).open(artifact.storage_uri) as stored_source:

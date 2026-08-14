@@ -243,3 +243,99 @@ def test_aggregation_outbox_migration_preserves_existing_batch_dispatches(
         assert columns["task_batch_id"]["nullable"] is False
     finally:
         engine.dispose()
+
+
+def test_structured_name_forms_migration_preserves_legacy_people_and_downgrades(
+    postgres_database_factory: Callable[[], str],
+) -> None:
+    database_url = postgres_database_factory()
+    config = alembic_config(database_url)
+    command.upgrade(config, "20260814_0004")
+    artifact_id = uuid4()
+    project_id = uuid4()
+    snapshot_id = uuid4()
+    person_id = uuid4()
+
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """INSERT INTO artifacts
+                    (id, logical_type, storage_uri, sha256, byte_size, media_type)
+                    VALUES (:id, 'source_tei', 'local-sha256:legacy', :sha256, 1,
+                            'application/tei+xml')"""
+                ),
+                {"id": artifact_id, "sha256": "e" * 64},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO projects (id, slug, display_name)
+                    VALUES (:id, 'structured-name-migration', 'Structured name migration')"""
+                ),
+                {"id": project_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO dataset_snapshots
+                    (id, project_id, source_artifact_id, source_sha256, parser_version,
+                     import_config)
+                    VALUES (:id, :project_id, :artifact_id, :sha256, 'tei_parser_v1',
+                            CAST(:import_config AS jsonb))"""
+                ),
+                {
+                    "id": snapshot_id,
+                    "project_id": project_id,
+                    "artifact_id": artifact_id,
+                    "sha256": "e" * 64,
+                    "import_config": json.dumps({"profile": "tei_p5_person_register_v1"}),
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO person_records
+                    (id, dataset_snapshot_id, tei_id, surname, forenames, alt_names)
+                    VALUES (:id, :snapshot_id, 'legacy-person', 'Example',
+                            ARRAY['Anna'], ARRAY['A. Example'])"""
+                ),
+                {"id": person_id, "snapshot_id": snapshot_id},
+            )
+    finally:
+        engine.dispose()
+
+    command.upgrade(config, "20260814_0005")
+    engine = create_engine(database_url)
+    try:
+        columns = {
+            column["name"]: column for column in inspect(engine).get_columns("person_records")
+        }
+        assert columns["name_forms"]["nullable"] is True
+        assert {
+            constraint["name"]
+            for constraint in inspect(engine).get_check_constraints("person_records")
+        } >= {"ck_person_records_name_forms_array"}
+        with engine.connect() as connection:
+            name_forms = connection.execute(
+                text("SELECT name_forms FROM person_records WHERE id = :person_id"),
+                {"person_id": person_id},
+            ).scalar_one()
+        assert name_forms is None
+    finally:
+        engine.dispose()
+
+    command.downgrade(config, "20260814_0004")
+    engine = create_engine(database_url)
+    try:
+        column_names = {column["name"] for column in inspect(engine).get_columns("person_records")}
+        assert "name_forms" not in column_names
+        with engine.connect() as connection:
+            legacy_person = connection.execute(
+                text(
+                    """SELECT surname, forenames, alt_names
+                    FROM person_records WHERE id = :person_id"""
+                ),
+                {"person_id": person_id},
+            ).one()
+        assert tuple(legacy_person) == ("Example", ["Anna"], ["A. Example"])
+    finally:
+        engine.dispose()

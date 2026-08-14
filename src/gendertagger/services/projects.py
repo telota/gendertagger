@@ -16,6 +16,7 @@ from gendertagger.models.project import (
     Project,
     ProjectCreate,
     SnapshotImportRequest,
+    TeiImportProfile,
 )
 from gendertagger.services.artifact_storage import ArtifactStorage
 from gendertagger.services.pagination import CursorCodec
@@ -155,7 +156,7 @@ class ProjectService:
                     project_id=project_id,
                     source_artifact_id=artifact.id,
                     source_sha256=artifact.sha256,
-                    parser_version=self._parser.version,
+                    parser_version=self._parser.version_for_profile(command.profile),
                     import_config=command.model_dump(mode="json"),
                 )
             )
@@ -166,7 +167,7 @@ class ProjectService:
             unit_of_work.commit()
 
         try:
-            self._import_people(snapshot.id, artifact.storage_uri)
+            self._import_people(snapshot.id, artifact.storage_uri, command.profile)
         except TeiImportError as error:
             with self._unit_of_work_factory() as unit_of_work:
                 failed_snapshot = unit_of_work.projects.fail_snapshot_import(
@@ -184,10 +185,15 @@ class ProjectService:
             unit_of_work.commit()
         return ready_snapshot
 
-    def _import_people(self, snapshot_id: UUID, storage_uri: str) -> None:
+    def _import_people(
+        self,
+        snapshot_id: UUID,
+        storage_uri: str,
+        profile: TeiImportProfile,
+    ) -> None:
         batch: list[PersonInput] = []
         with self._artifact_storage.open(storage_uri) as source:
-            for person in self._parser.iter_people(source):
+            for person in self._parser.iter_people(source, profile=profile):
                 batch.append(person)
                 if len(batch) == self._import_batch_record_count:
                     self._persist_person_batch(snapshot_id, batch)

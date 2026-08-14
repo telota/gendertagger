@@ -16,12 +16,13 @@ from gendertagger.db.projects import (
 )
 from gendertagger.models.common import normalize_utc_datetime
 from gendertagger.models.lifecycle import DatasetSnapshotStatus
-from gendertagger.models.person import PersonInput, PersonRecord
+from gendertagger.models.person import PersonInput, PersonNameForm, PersonRecord
 from gendertagger.models.project import (
     DatasetSnapshot,
     DatasetSnapshotCreate,
     Project,
     ProjectCreate,
+    TeiImportProfile,
 )
 from gendertagger.services.persistence_errors import (
     ImmutableResourceError,
@@ -90,6 +91,7 @@ class SqlAlchemyProjectRepository:
         """Persist one bounded person batch while the snapshot is importing."""
         snapshot = self._locked_snapshot(snapshot_id)
         self._require_snapshot_status(snapshot, DatasetSnapshotStatus.importing)
+        self._require_name_form_provenance(snapshot, people)
 
         person_rows = [
             PersonRecordRow(
@@ -101,6 +103,11 @@ class SqlAlchemyProjectRepository:
                 death=person.death,
                 note=person.note,
                 alt_names=person.alt_names,
+                name_forms=(
+                    [name_form.model_dump(mode="json") for name_form in person.name_forms]
+                    if person.name_forms is not None
+                    else None
+                ),
             )
             for person in people
         ]
@@ -120,6 +127,23 @@ class SqlAlchemyProjectRepository:
         self._session.add_all(external_rows)
         self._session.flush()
         return len(person_rows)
+
+    @staticmethod
+    def _require_name_form_provenance(
+        snapshot: DatasetSnapshotRow,
+        people: Sequence[PersonInput],
+    ) -> None:
+        profile = snapshot.import_config.get("profile")
+        if profile == TeiImportProfile.tei_p5_person_register_v1.value and any(
+            person.name_forms is not None for person in people
+        ):
+            msg = f"snapshot {snapshot.id} uses TEI profile v1 and requires name_forms=None"
+            raise InvalidResourceStateError(msg)
+        if profile == TeiImportProfile.tei_p5_person_register_v2.value and any(
+            person.name_forms is None for person in people
+        ):
+            msg = f"snapshot {snapshot.id} uses TEI profile v2 and requires captured name_forms"
+            raise InvalidResourceStateError(msg)
 
     def get_person_record(self, person_record_id: UUID) -> PersonRecord | None:
         """Return one person contract by persistence ID."""
@@ -340,6 +364,11 @@ class SqlAlchemyProjectRepository:
             death=row.death,
             note=row.note,
             alt_names=row.alt_names,
+            name_forms=(
+                [PersonNameForm.model_validate(name_form) for name_form in row.name_forms]
+                if row.name_forms is not None
+                else None
+            ),
             gnd_id=identifier_map.pop("gnd", None),
             external_ids=identifier_map,
             created_at=row.created_at,

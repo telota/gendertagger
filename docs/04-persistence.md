@@ -48,6 +48,21 @@ tests and non-HTTP entry points use the same transaction semantics.
 - unique `(dataset_snapshot_id, tei_id)` for person records.
 - retain `(project_id, tei_id)` as the cross-snapshot canonical identity lookup.
 
+`person_records` retains ordinary columns for the stable `surname`, `forenames`, and `alt_names` projections
+used by methods and browser search. It also has a nullable JSONB `name_forms` column for the ordered,
+Pydantic-validated direct TEI person-name forms defined by
+[ADR-0017](decisions/ADR-0017-structured-tei-person-name-forms.md). A database check should require a JSON array
+when the column is non-null. Null means the legacy import profile did not capture the structure. A v2 value is
+a populated array with exactly one regular form, as enforced at the Pydantic repository boundary.
+The repository also rejects non-null forms for a v1 TEI snapshot and missing forms for a v2 TEI snapshot, so
+alternate application callers cannot persist profile/projection provenance that disagrees.
+
+The migration adding `name_forms` does not backfill ready snapshots. Flat alternative-name strings cannot
+recover component boundaries, order metadata, or subtype, and reparsing into an existing ready snapshot would
+violate immutability. Re-importing the preserved source with the v2 profile creates a new snapshot. Because the
+structured value is stored on `person_records`, the existing ready-snapshot row-mutation protection applies to
+it without a separate child-table trigger.
+
 ### Predictions
 
 Recommended uniqueness:
@@ -148,7 +163,9 @@ Do not move these frequently queried fields into JSONB merely to avoid schema de
 
 ## JSONB policy
 
-Use JSONB for method-specific raw outputs, flexible provenance fragments, and configuration snapshots. Do not hide core queryable fields such as labels, states, IDs, timestamps, and agreement values inside JSONB.
+Use JSONB for method-specific raw outputs, flexible provenance fragments, bounded source structures such as
+`name_forms`, and configuration snapshots. Do not hide core queryable fields such as labels, states, IDs,
+timestamps, agreement values, or the flat name-search projection inside JSONB.
 
 ## Artifact storage
 

@@ -38,8 +38,18 @@ from gendertagger.models.classification import (
 )
 from gendertagger.models.lifecycle import AggregationExecutionStatus, MethodExecutionStatus
 from gendertagger.models.method import MethodDescriptor
-from gendertagger.models.person import PersonInput, PersonRecord
-from gendertagger.models.project import DatasetSnapshotCreate, Project, ProjectCreate
+from gendertagger.models.person import (
+    PersonInput,
+    PersonNameForm,
+    PersonNameType,
+    PersonRecord,
+)
+from gendertagger.models.project import (
+    DatasetSnapshotCreate,
+    Project,
+    ProjectCreate,
+    TeiImportProfile,
+)
 from gendertagger.models.review import AnnotationCreate, ReviewAction, ReviewWorkflowState
 from gendertagger.models.run import (
     MethodExecutionCreate,
@@ -49,7 +59,11 @@ from gendertagger.models.run import (
     TaskBatchCreate,
 )
 from gendertagger.models.user import Role, User, UserCreate
-from gendertagger.services.persistence_errors import ImmutableResourceError, ReviewConflictError
+from gendertagger.services.persistence_errors import (
+    ImmutableResourceError,
+    InvalidResourceStateError,
+    ReviewConflictError,
+)
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 
@@ -67,6 +81,69 @@ def assert_database_rejects_mutation(
         _mutate_and_flush(session, mutation)
     assert getattr(error.value.orig, "sqlstate", None) == "55000"
     session.expire_all()
+
+
+@pytest.mark.parametrize(
+    ("profile", "person"),
+    [
+        (
+            TeiImportProfile.tei_p5_person_register_v1,
+            PersonInput(
+                tei_id="p1",
+                surname="Example",
+                name_forms=[PersonNameForm(type=PersonNameType.regular, surname="Example")],
+            ),
+        ),
+        (
+            TeiImportProfile.tei_p5_person_register_v2,
+            PersonInput(tei_id="p1", surname="Example"),
+        ),
+    ],
+)
+def test_person_records_require_name_forms_matching_the_snapshot_profile(
+    db_session: Session,
+    profile: TeiImportProfile,
+    person: PersonInput,
+) -> None:
+    artifacts = SqlAlchemyArtifactRepository(db_session)
+    source_artifact = artifacts.add_artifact(
+        ArtifactCreate(
+            logical_type="source_tei",
+            storage_uri=f"file:///synthetic/{profile.value}.xml",
+            sha256="e" * 64,
+            byte_size=42,
+            media_type="application/xml",
+        )
+    )
+    projects = SqlAlchemyProjectRepository(db_session)
+    project = projects.add_project(
+        ProjectCreate(
+            slug=f"profile-{uuid4().hex}",
+            display_name="Profile consistency fixture",
+        )
+    )
+    snapshot = projects.add_snapshot(
+        DatasetSnapshotCreate(
+            project_id=project.id,
+            source_artifact_id=source_artifact.id,
+            source_sha256=source_artifact.sha256,
+            parser_version=f"tei_parser_{profile.value[-2:]}",
+            import_config={"profile": profile.value},
+        )
+    )
+    projects.begin_snapshot_import(snapshot.id)
+
+    with pytest.raises(InvalidResourceStateError, match="name_forms"):
+        projects.add_person_records(snapshot.id, [person])
+
+    assert (
+        db_session.scalar(
+            select(func.count())
+            .select_from(PersonRecordRow)
+            .where(PersonRecordRow.dataset_snapshot_id == snapshot.id)
+        )
+        == 0
+    )
 
 
 def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> None:
@@ -95,7 +172,8 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
             project_id=project.id,
             source_artifact_id=source_artifact.id,
             source_sha256=source_artifact.sha256,
-            parser_version="tei_parser_v1",
+            parser_version="tei_parser_v2",
+            import_config={"profile": "tei_p5_person_register_v2"},
         )
     )
     projects.begin_snapshot_import(snapshot.id)
@@ -107,6 +185,27 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
                     tei_id="p1",
                     surname="Example",
                     forenames=["Anna"],
+                    birth="1900",
+                    death="1980",
+                    note="Synthetic fixture",
+                    alt_names=["Earlier Annette", "A. Example"],
+                    name_forms=[
+                        PersonNameForm(
+                            type=PersonNameType.regular,
+                            surname="Example",
+                            forenames=["Anna"],
+                        ),
+                        PersonNameForm(
+                            type=PersonNameType.alternative,
+                            subtype="birthname",
+                            surname="Earlier",
+                            forenames=["Annette"],
+                        ),
+                        PersonNameForm(
+                            type=PersonNameType.alternative,
+                            name="A. Example",
+                        ),
+                    ],
                     gnd_id="123456789",
                     external_ids={"wikidata": "Q1"},
                 )
@@ -338,6 +437,29 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
     assert isinstance(prediction, Prediction)
     assert isinstance(aggregated_result, AggregatedResult)
     assert snapshot.record_count == 1
+    assert person.surname == "Example"
+    assert person.forenames == ["Anna"]
+    assert person.birth == "1900"
+    assert person.death == "1980"
+    assert person.note == "Synthetic fixture"
+    assert person.alt_names == ["Earlier Annette", "A. Example"]
+    assert person.name_forms == [
+        PersonNameForm(
+            type=PersonNameType.regular,
+            surname="Example",
+            forenames=["Anna"],
+        ),
+        PersonNameForm(
+            type=PersonNameType.alternative,
+            subtype="birthname",
+            surname="Earlier",
+            forenames=["Annette"],
+        ),
+        PersonNameForm(
+            type=PersonNameType.alternative,
+            name="A. Example",
+        ),
+    ]
     assert person.gnd_id == "123456789"
     assert person.external_ids == {"wikidata": "Q1"}
     assert run.config_sha256 == run_config.canonical_sha256()
@@ -397,6 +519,14 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
     assert_database_rejects_mutation(
         db_session,
         lambda: setattr(person_row, "surname", "Changed"),
+    )
+    assert_database_rejects_mutation(
+        db_session,
+        lambda: setattr(
+            person_row,
+            "name_forms",
+            [{"type": "reg", "surname": "Changed", "forenames": []}],
+        ),
     )
     assert_database_rejects_mutation(
         db_session,

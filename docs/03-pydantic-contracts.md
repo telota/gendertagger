@@ -61,6 +61,14 @@ class LlmSelfReportedCertainty(str, Enum):
 ## Person input contract
 
 ```python
+class PersonNameForm(BaseModel):
+    type: Literal["reg", "alt"]
+    subtype: str | None = None
+    name: str | None = None
+    surname: str | None = None
+    forenames: list[str] = Field(default_factory=list)
+
+
 class PersonInput(BaseModel):
     tei_id: str = Field(min_length=1)
     surname: str | None = None
@@ -69,13 +77,34 @@ class PersonInput(BaseModel):
     death: str | None = None
     note: str | None = None
     alt_names: list[str] = Field(default_factory=list)
+    name_forms: list[PersonNameForm] | None = None
     gnd_id: str | None = None
     external_ids: dict[str, str] = Field(default_factory=dict)
 ```
 
-Do not over-normalize historical values on ingestion. Preserve source strings and add normalized helper fields only where necessary.
+Do not over-normalize historical values on ingestion. Preserve source strings and add normalized helper fields
+only where necessary.
 `tei_id` is required and must not be empty or contain only whitespace; validation does not trim or otherwise
 normalize the source identifier.
+
+`surname`, `forenames`, and `alt_names` remain the stable flat classification, search, and tabular projections.
+`name_forms` is an additive source-rich representation of direct TEI `<person>/<persName>` children in document
+order. Each `PersonNameForm` preserves the TEI `type`, optional source `subtype`, and either an unstructured
+value from direct text or `<name>`, or the direct surname and ordered forenames. Nested `<persName>` references
+inside notes or events are not included. The contract rejects unknown fields; import profiles define which TEI
+structures they support.
+
+`name_forms=None` is a provenance value: it means the legacy parser profile did not capture the structured
+forms. A populated list means the selected profile did examine them; the v2 contract requires exactly one
+regular form. The v2 parser derives the flat fields deterministically from this ordered list, while legacy
+inputs may continue to supply only the flat fields. Alternative forenames are not added to regular `forenames`
+automatically. See
+[ADR-0017](decisions/ADR-0017-structured-tei-person-name-forms.md).
+
+Person-input fingerprints preserve this profile distinction. A null `name_forms` value uses the v1
+fingerprint projection and omits the new field. A populated list uses the v2 projection and includes the
+complete ordered structured value. This makes source structure reproducible without changing historical v1
+fingerprints.
 
 ## Prediction result contract
 

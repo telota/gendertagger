@@ -39,6 +39,7 @@ from gendertagger.models.project import (
     Project,
     ProjectCreate,
     SnapshotImportRequest,
+    TeiImportProfile,
 )
 from gendertagger.models.review import (
     Annotation,
@@ -371,6 +372,7 @@ def test_project_service_imports_valid_tei_in_bounded_batches(tmp_path: Path) ->
         terminal_status=DatasetSnapshotStatus.ready,
     )
     persisted_batches: list[list[str]] = []
+    persisted_people: list[PersonInput] = []
 
     def persist_batch(
         snapshot_id: UUID,
@@ -378,6 +380,7 @@ def test_project_service_imports_valid_tei_in_bounded_batches(tmp_path: Path) ->
     ) -> int:
         assert snapshot_id == SNAPSHOT_ID
         persisted_batches.append([person.tei_id for person in batch])
+        persisted_people.extend(batch)
         return len(batch)
 
     project_repository.add_person_records.side_effect = persist_batch
@@ -395,9 +398,15 @@ def test_project_service_imports_valid_tei_in_bounded_batches(tmp_path: Path) ->
 
     assert snapshot.status is DatasetSnapshotStatus.ready
     assert persisted_batches == [["p3", "p1"], ["p2"]]
+    assert all(person.name_forms is not None for person in persisted_people)
     artifact_command = artifact_repository.add_artifact.call_args.args[0]
     assert artifact_command.project_id == PROJECT_ID
     assert artifact_command.sha256 == snapshot.source_sha256
+    snapshot_command = project_repository.add_snapshot.call_args.args[0]
+    assert snapshot_command.parser_version == "tei_parser_v2"
+    assert snapshot_command.import_config == {
+        "profile": TeiImportProfile.tei_p5_person_register_v2.value
+    }
     assert unit_of_work.commit_count == 5
 
 

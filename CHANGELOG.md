@@ -53,6 +53,9 @@ the phased plan that resumes application code.
 - Authenticated FastAPI `/api/v1` resources for projects, immutable TEI snapshot imports, runs, the method
   registry, aggregations/results, append-only annotations, and server-filtered review lists; public contracts
   include cursor pagination, normalized error envelopes, a committed OpenAPI snapshot, and typed `CurrentUser`.
+- A versioned TEI v2 import profile that preserves ordered structured register and alternate name forms,
+  records name-form provenance in immutable snapshots, safely extracts direct GND and VIAF identifiers, and
+  retains parser-v1 fingerprint compatibility for existing records.
 - Celery/Redis asynchronous execution: a boundary-clean Celery app and worker composition, a runnable
   parenthetical-qualifier method adapter on the CPU queue, reproducible per-batch person slices, idempotent
   batch execution with retry/backoff and permanent-versus-transient failure classification, guarded run and

@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import JsonValue, ValidationError
+from pydantic import ValidationError
 
 from gendertagger.methods.base import (
     MethodContractError,
@@ -72,9 +72,14 @@ class ScheduledBatch:
 
 
 def _person_input_fingerprint(person: PersonRecord) -> str:
-    payload: dict[str, JsonValue] = {
-        field: getattr(person, field) for field in PersonInput.model_fields
-    }
+    payload = person.model_dump(
+        mode="json",
+        include=set(PersonInput.model_fields),
+    )
+    if payload["name_forms"] is None:
+        # Preserve the historical fingerprint for parser-v1 snapshots, whose
+        # contracts predate structured name capture.
+        del payload["name_forms"]
     return canonical_json_sha256(payload)
 
 
@@ -261,16 +266,21 @@ class BatchExecutor:
                 f"but loaded {len(records)}"
             )
             raise PermanentBatchError(msg)
+        persisted_inputs = [(record.id, _person_input_fingerprint(record)) for record in records]
         results = registration.adapter.predict_batch(records, config)
         validate_prediction_batch(registration.descriptor, records, results)
         writes = [
             PredictionWrite(
-                person_record_id=record.id,
+                person_record_id=person_record_id,
                 task_batch_id=batch.id,
-                input_fingerprint=_person_input_fingerprint(record),
+                input_fingerprint=input_fingerprint,
                 result=result,
             )
-            for record, result in zip(records, results, strict=True)
+            for (person_record_id, input_fingerprint), result in zip(
+                persisted_inputs,
+                results,
+                strict=True,
+            )
         ]
         unit_of_work.runs.add_predictions(execution.id, writes)
         return results

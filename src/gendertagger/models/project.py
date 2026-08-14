@@ -17,6 +17,10 @@ class TeiImportProfile(StrEnum):
     """Versioned TEI extraction profile selected for a snapshot import."""
 
     tei_p5_person_register_v1 = "tei_p5_person_register_v1"
+    tei_p5_person_register_v2 = "tei_p5_person_register_v2"
+
+
+DEFAULT_TEI_IMPORT_PROFILE = TeiImportProfile.tei_p5_person_register_v2
 
 
 class SnapshotImportRequest(BaseModel):
@@ -24,7 +28,7 @@ class SnapshotImportRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    profile: TeiImportProfile = TeiImportProfile.tei_p5_person_register_v1
+    profile: TeiImportProfile = DEFAULT_TEI_IMPORT_PROFILE
 
 
 class ProjectCreate(BaseModel):

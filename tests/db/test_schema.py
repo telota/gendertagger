@@ -54,3 +54,13 @@ def test_dispatch_schema_has_exactly_one_unique_foreign_key_owner() -> None:
         "task_batches.id",
         "aggregation_executions.id",
     }
+
+
+def test_person_schema_stores_optional_structured_name_forms_as_jsonb() -> None:
+    table = metadata.tables["person_records"]
+
+    assert table.c.name_forms.nullable
+    assert isinstance(table.c.name_forms.type, postgresql.JSONB)
+    assert {constraint.name for constraint in table.constraints} >= {
+        "ck_person_records_name_forms_array"
+    }

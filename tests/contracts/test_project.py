@@ -5,7 +5,7 @@ import pytest
 from pydantic import ValidationError
 
 from gendertagger.models.lifecycle import DatasetSnapshotStatus
-from gendertagger.models.person import PersonRecord
+from gendertagger.models.person import PersonNameForm, PersonNameType, PersonRecord
 from gendertagger.models.project import (
     DatasetSnapshot,
     DatasetSnapshotCreate,
@@ -49,12 +49,16 @@ def test_project_create_rejects_blank_display_name_and_unknown_fields() -> None:
         )
 
 
-def test_snapshot_import_request_uses_one_versioned_closed_profile() -> None:
+def test_snapshot_import_request_defaults_to_v2_and_keeps_v1_selectable() -> None:
     command = SnapshotImportRequest()
 
     assert command.model_dump(mode="json") == {
-        "profile": TeiImportProfile.tei_p5_person_register_v1.value
+        "profile": TeiImportProfile.tei_p5_person_register_v2.value
     }
+    assert (
+        SnapshotImportRequest(profile=TeiImportProfile.tei_p5_person_register_v1).profile
+        is TeiImportProfile.tei_p5_person_register_v1
+    )
     with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
         SnapshotImportRequest.model_validate({"unknown_option": True})
 
@@ -150,6 +154,18 @@ def test_person_record_preserves_snapshot_scoped_source_fields() -> None:
         death=None,
         note="Synthetic fixture",
         alt_names=["A. Example"],
+        name_forms=[
+            PersonNameForm(
+                type=PersonNameType.regular,
+                surname="Example",
+                forenames=["Anna"],
+            ),
+            PersonNameForm(
+                type=PersonNameType.alternative,
+                subtype="pseudonym",
+                name="A. Example",
+            ),
+        ],
         gnd_id="123456789",
         external_ids={"wikidata": "Q1"},
         created_at=CREATED_AT,
@@ -163,6 +179,22 @@ def test_person_record_preserves_snapshot_scoped_source_fields() -> None:
         "death": None,
         "note": "Synthetic fixture",
         "alt_names": ["A. Example"],
+        "name_forms": [
+            {
+                "type": "reg",
+                "subtype": None,
+                "name": None,
+                "surname": "Example",
+                "forenames": ["Anna"],
+            },
+            {
+                "type": "alt",
+                "subtype": "pseudonym",
+                "name": "A. Example",
+                "surname": None,
+                "forenames": [],
+            },
+        ],
         "gnd_id": "123456789",
         "external_ids": {"wikidata": "Q1"},
         "id": str(PERSON_ID),

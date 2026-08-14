@@ -11,6 +11,7 @@ from gendertagger.api.errors import ApiRequestError
 from gendertagger.models.api import CursorPage
 from gendertagger.models.person import PersonRecord
 from gendertagger.models.project import (
+    DEFAULT_TEI_IMPORT_PROFILE,
     DatasetSnapshot,
     Project,
     ProjectCreate,
@@ -65,7 +66,7 @@ def import_snapshot(
     ],
     service: Annotated[ProjectService, Depends(get_project_service)],
     _: Annotated[CurrentUser, Depends(require_operator)],
-    profile: Annotated[TeiImportProfile, Form()] = (TeiImportProfile.tei_p5_person_register_v1),
+    profile: Annotated[TeiImportProfile, Form()] = DEFAULT_TEI_IMPORT_PROFILE,
 ) -> DatasetSnapshot:
     """Preserve and synchronously import a bounded TEI upload."""
     try:

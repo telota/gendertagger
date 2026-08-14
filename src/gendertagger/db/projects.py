@@ -111,6 +111,10 @@ class PersonRecordRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
             name="id_snapshot",
         ),
         CheckConstraint("btrim(tei_id) <> ''", name="tei_id_nonblank"),
+        CheckConstraint(
+            "name_forms IS NULL OR jsonb_typeof(name_forms) = 'array'",
+            name="name_forms_array",
+        ),
         Index("ix_person_records_dataset_snapshot_id_surname", "dataset_snapshot_id", "surname"),
     )
 
@@ -136,6 +140,7 @@ class PersonRecordRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
         default=list,
         server_default=text("'{}'::text[]"),
     )
+    name_forms: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
 
 
 class PersonExternalIdRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
