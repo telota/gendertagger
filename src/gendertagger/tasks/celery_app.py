@@ -47,6 +47,7 @@ class CelerySettings(BaseSettings):
 
 from gendertagger.utils.logging import configure_logging
 
+
 def create_celery_app(settings: CelerySettings | None = None) -> Celery:
     """Build a Celery app with durable-friendly, JSON-only broker defaults.
 

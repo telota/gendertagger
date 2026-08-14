@@ -38,6 +38,7 @@ from gendertagger.storage.local import LocalArtifactStorage
 
 from gendertagger.utils.logging import configure_logging
 
+
 def create_app(
     *,
     settings: AppSettings | None = None,

@@ -83,8 +83,8 @@ class _SklearnXgboostModel:
     def __init__(self, directory: Path) -> None:
         try:
             import numpy as np
-            from sklearn.feature_extraction.text import TfidfVectorizer
-            from xgboost import XGBClassifier
+            from sklearn.feature_extraction.text import TfidfVectorizer  # pyright: ignore[reportMissingImports]
+            from xgboost import XGBClassifier  # pyright: ignore[reportMissingImports]
         except ImportError as error:  # pragma: no cover - exercised only without the extra
             msg = (
                 "hivoto_xgboost requires the 'hivoto-xgboost' extra (install scikit-learn, xgboost)"

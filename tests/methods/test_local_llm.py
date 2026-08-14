@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from typing import Any
 
-import httpx
+import httpx  # pyright: ignore[reportMissingImports]
 import pytest
 from pydantic import ValidationError
 

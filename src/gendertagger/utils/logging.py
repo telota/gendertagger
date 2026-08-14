@@ -24,9 +24,9 @@ def configure_logging() -> None:
     """Configure structured JSON logging for the application."""
     log_level_str = os.getenv("LOG_LEVEL", "INFO").upper()
     log_format = os.getenv("LOG_FORMAT", "text").lower()
-    
+
     log_level = getattr(logging, log_level_str, logging.INFO)
-    
+
     handler = logging.StreamHandler()
     if log_format == "json":
         handler.setFormatter(JsonFormatter())
@@ -41,7 +41,7 @@ def configure_logging() -> None:
         handlers=[handler],
         force=True,
     )
-    
+
     # Silence verbose loggers if necessary
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)

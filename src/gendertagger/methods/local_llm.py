@@ -180,7 +180,7 @@ class LocalLlmMethod(GenderMethod[LocalLlmConfig]):
             MethodDependencyError: If the ``llm`` extra is not installed.
         """
         try:
-            import httpx
+            import httpx  # pyright: ignore[reportMissingImports]
         except ImportError as error:
             msg = "local_llm requires the 'llm' extra (install httpx)"
             raise MethodDependencyError(msg) from error

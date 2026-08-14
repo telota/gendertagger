@@ -32,8 +32,8 @@ class _TransformersBackend:
 
     def __init__(self, directory: Path) -> None:
         try:
-            import torch
-            from transformers import AutoModelForSequenceClassification, AutoTokenizer
+            import torch  # pyright: ignore[reportMissingImports]
+            from transformers import AutoModelForSequenceClassification, AutoTokenizer  # pyright: ignore[reportMissingImports]
         except ImportError as error:  # pragma: no cover - exercised only without the extra
             msg = (
                 "hf transformer methods require the 'transformers' extra "
