@@ -248,3 +248,24 @@ class Prediction(PredictionResult):
     task_batch_id: UUID | None = None
     input_fingerprint: str = Field(pattern=SHA256_PATTERN)
     created_at: UtcDatetime
+
+
+class RunStateEvent(BaseModel):
+    """SSE payload projecting one run's current lifecycle state and progress."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    run_id: UUID
+    status: RunStatus
+    progress: Progress
+
+
+class MethodExecutionStateEvent(BaseModel):
+    """SSE payload projecting one method execution's state and progress."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    method_execution_id: UUID
+    method_name: str = Field(pattern=METHOD_NAME_PATTERN)
+    status: MethodExecutionStatus
+    progress: Progress

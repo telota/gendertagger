@@ -4,6 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
+from fastapi.responses import StreamingResponse
 
 from gendertagger.api.authorization import require_operator, require_viewer
 from gendertagger.api.dependencies import (
@@ -12,6 +13,7 @@ from gendertagger.api.dependencies import (
     get_run_service,
 )
 from gendertagger.api.errors import ApiRequestError
+from gendertagger.api.run_events import stream_run_events
 from gendertagger.models.run import MethodExecution, Run, RunCreateRequest
 from gendertagger.models.user import CurrentUser
 from gendertagger.services.execution import BatchDispatcher, RunScheduler
@@ -75,6 +77,24 @@ def list_run_executions(
         return service.list_executions(run_id)
     except ResourceNotFoundError as error:
         raise _not_found() from error
+
+
+@router.get("/runs/{run_id}/events")
+def stream_run_progress(
+    run_id: UUID,
+    service: Annotated[RunService, Depends(get_run_service)],
+    _: Annotated[CurrentUser, Depends(require_viewer)],
+) -> StreamingResponse:
+    """Stream persisted run progress as Server-Sent Events until the run ends."""
+    try:
+        service.get_run(run_id)
+    except ResourceNotFoundError as error:
+        raise _not_found() from error
+    return StreamingResponse(
+        stream_run_events(service, run_id),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post(

@@ -246,3 +246,39 @@ def test_list_executions_rejects_unknown_run(
     response = client.get(f"/api/v1/runs/{uuid4()}/executions")
 
     assert response.status_code == 404
+
+
+def test_run_events_stream_projects_terminal_state(
+    postgres_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    client = _client(postgres_engine, tmp_path, batch_dispatcher=_RecordingDispatcher())
+    snapshot_id = _ready_snapshot_id(client)
+    run_id = client.post(
+        "/api/v1/runs",
+        json={"dataset_snapshot_id": str(snapshot_id), "config": {"methods": []}},
+    ).json()["id"]
+    # A run with no methods completes as soon as it is scheduled.
+    client.post(f"/api/v1/runs/{run_id}/executions")
+
+    with client.stream("GET", f"/api/v1/runs/{run_id}/events") as response:
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/event-stream")
+        body = response.read().decode()
+
+    assert "event: run.state_changed" in body
+    assert "event: run.progress" in body
+    assert "event: run.completed" in body
+    # Reconnect-safe: the authoritative state is available via a plain GET.
+    assert client.get(f"/api/v1/runs/{run_id}").json()["status"] == RunStatus.completed.value
+
+
+def test_run_events_reject_unknown_run(
+    postgres_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    client = _client(postgres_engine, tmp_path)
+
+    response = client.get(f"/api/v1/runs/{uuid4()}/events")
+
+    assert response.status_code == 404
