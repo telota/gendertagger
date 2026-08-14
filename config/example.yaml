@@ -12,6 +12,8 @@ methods:
     enabled: true
   - name: wiki_gendersort
     enabled: true
+    config:
+      names_db_path: "REPLACE_WITH_NAMESOUT_TXT_PATH"
   - name: hivoto
     enabled: true
   - name: nomquamgender

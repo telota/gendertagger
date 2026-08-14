@@ -12,6 +12,7 @@ from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.methods.base import GenderMethod, MethodConfig
 from gendertagger.methods.gender_guesser import GenderGuesserMethod
 from gendertagger.methods.parenthetical_qualifier import ParentheticalQualifierMethod
+from gendertagger.methods.wiki_gendersort import WikiGendersortMethod
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.queues import CPU_QUEUE
 from gendertagger.models.run import QUEUE_NAME_PATTERN
@@ -111,6 +112,13 @@ def default_method_registry() -> MethodRegistry:
                 descriptor=GenderGuesserMethod.descriptor,
                 config_model=GenderGuesserMethod.config_model,
                 adapter=GenderGuesserMethod(),
+                queue_name=CPU_QUEUE,
+                batch_size=_CPU_BATCH_SIZE,
+            ),
+            MethodRegistration(
+                descriptor=WikiGendersortMethod.descriptor,
+                config_model=WikiGendersortMethod.config_model,
+                adapter=WikiGendersortMethod(),
                 queue_name=CPU_QUEUE,
                 batch_size=_CPU_BATCH_SIZE,
             ),
