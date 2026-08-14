@@ -70,13 +70,12 @@ def test_family_group_qualifier_is_substantive_unknown() -> None:
     assert result.raw_label == "unknown"
 
 
-def test_organisation_qualifier_abstains_but_preserves_raw_evidence() -> None:
-    # The frozen parenthetical_qualifier_v1 profile does not map institution (ADR-0010).
+def test_organisation_qualifier_is_substantive_institution() -> None:
     result = _predict(_person(surname="Reimer (Firma in Berlin)"))
-    assert result.status is PredictionStatus.abstain
-    assert result.label is None
+    assert result.status is PredictionStatus.success
+    assert result.label is CanonicalLabel.institution
     assert result.raw_label == "institution"
-    assert result.metadata["normalization_reason"] == "unparseable"
+    assert result.metadata["normalization_reason"] == "mapped"
     assert result.raw_output == {"matched_keyword": "firma", "matched_field": "surname"}
 
 

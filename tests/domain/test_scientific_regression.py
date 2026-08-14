@@ -108,6 +108,8 @@ _REFERENCE_RECORDS = {record.tei_id: record for record in _REFERENCE_FIXTURE.rec
 _EXPECTED_CASES = {
     "S0010005": "unanimous_pooled_vote",
     "S1083217": "parenthetical_unknown_override",
+    "S1122134": "parenthetical_institution_override_against_pooled_vote",
+    "S1619063": "parenthetical_institution_reinforces_llm",
     "S8945539": "gnd_override_against_female_majority",
     "S1125482": "unknown_tie_loses_to_substantive_label",
     "S1125426": "lone_high_certainty_llm_institution",

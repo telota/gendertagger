@@ -80,6 +80,52 @@
       }
     },
     {
+      "case": "parenthetical_institution_override_against_pooled_vote",
+      "tei_id": "S1122134",
+      "raw_labels": {
+        "parenthetical_qualifier": "institution",
+        "gnd": "no_gnd",
+        "gender_guesser": "unknown",
+        "wiki_gendersort": "unknown",
+        "hivoto": "unknown",
+        "nomquamgender": "unknown",
+        "hf_distilbert": "female",
+        "hf_genderize": "male",
+        "local_llm": "organisation",
+        "hivoto_xgboost": "female"
+      },
+      "local_llm_self_reported_certainty": "high",
+      "expected_aggregation": {
+        "label": "institution",
+        "answering_count": 8,
+        "agreement_score": 0.143,
+        "certainty_tier": "high"
+      }
+    },
+    {
+      "case": "parenthetical_institution_reinforces_llm",
+      "tei_id": "S1619063",
+      "raw_labels": {
+        "parenthetical_qualifier": "institution",
+        "gnd": "no_gnd",
+        "gender_guesser": "no_name",
+        "wiki_gendersort": "no_name",
+        "hivoto": "no_name",
+        "nomquamgender": "no_name",
+        "hf_distilbert": "no_name",
+        "hf_genderize": "no_name",
+        "local_llm": "organisation",
+        "hivoto_xgboost": "no_name"
+      },
+      "local_llm_self_reported_certainty": "high",
+      "expected_aggregation": {
+        "label": "institution",
+        "answering_count": 2,
+        "agreement_score": 1.0,
+        "certainty_tier": "high"
+      }
+    },
+    {
       "case": "gnd_override_against_female_majority",
       "tei_id": "S8945539",
       "raw_labels": {

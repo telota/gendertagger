@@ -152,6 +152,132 @@
       }
     },
     {
+      "case": "parenthetical_institution_override_against_pooled_vote",
+      "tei_id": "S1122134",
+      "expected_predictions": {
+        "parenthetical_qualifier": {
+          "label": "institution",
+          "status": "success"
+        },
+        "gnd": {
+          "label": null,
+          "status": "abstain"
+        },
+        "gender_guesser": {
+          "label": "unknown",
+          "status": "success"
+        },
+        "wiki_gendersort": {
+          "label": "unknown",
+          "status": "success"
+        },
+        "hivoto": {
+          "label": "unknown",
+          "status": "success"
+        },
+        "nomquamgender": {
+          "label": "unknown",
+          "status": "success"
+        },
+        "hf_distilbert": {
+          "label": "female",
+          "status": "success"
+        },
+        "hf_genderize": {
+          "label": "male",
+          "status": "success"
+        },
+        "local_llm": {
+          "label": "institution",
+          "status": "success"
+        },
+        "hivoto_xgboost": {
+          "label": "female",
+          "status": "success"
+        }
+      },
+      "expected_aggregation": {
+        "outcome": "decided",
+        "label": "institution",
+        "pooled_vote_counts": {
+          "male": 1,
+          "female": 1,
+          "unknown": 4,
+          "institution": 1
+        },
+        "tied_labels": [],
+        "override_source": "parenthetical_qualifier",
+        "override_agreeing_count": 1,
+        "override_comparison_count": 7,
+        "agreement_score": 0.143,
+        "agreement_tier": "no_consensus",
+        "certainty_tier": "high"
+      }
+    },
+    {
+      "case": "parenthetical_institution_reinforces_llm",
+      "tei_id": "S1619063",
+      "expected_predictions": {
+        "parenthetical_qualifier": {
+          "label": "institution",
+          "status": "success"
+        },
+        "gnd": {
+          "label": null,
+          "status": "abstain"
+        },
+        "gender_guesser": {
+          "label": null,
+          "status": "abstain"
+        },
+        "wiki_gendersort": {
+          "label": null,
+          "status": "abstain"
+        },
+        "hivoto": {
+          "label": null,
+          "status": "abstain"
+        },
+        "nomquamgender": {
+          "label": null,
+          "status": "abstain"
+        },
+        "hf_distilbert": {
+          "label": null,
+          "status": "abstain"
+        },
+        "hf_genderize": {
+          "label": null,
+          "status": "abstain"
+        },
+        "local_llm": {
+          "label": "institution",
+          "status": "success"
+        },
+        "hivoto_xgboost": {
+          "label": null,
+          "status": "abstain"
+        }
+      },
+      "expected_aggregation": {
+        "outcome": "decided",
+        "label": "institution",
+        "pooled_vote_counts": {
+          "male": 0,
+          "female": 0,
+          "unknown": 0,
+          "institution": 1
+        },
+        "tied_labels": [],
+        "override_source": "parenthetical_qualifier",
+        "override_agreeing_count": 1,
+        "override_comparison_count": 1,
+        "agreement_score": 1.0,
+        "agreement_tier": "unanimous",
+        "certainty_tier": "high"
+      }
+    },
+    {
       "case": "gnd_override_against_female_majority",
       "tei_id": "S8945539",
       "expected_predictions": {

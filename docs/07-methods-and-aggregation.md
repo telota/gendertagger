@@ -79,7 +79,7 @@ The reference profiles are:
 
 | Adapter | Version | Additional raw-label behavior |
 |---|---|---|
-| parenthetical qualifier | `parenthetical_qualifier_v1` | canonical male/female/unknown values |
+| parenthetical qualifier | `parenthetical_qualifier_v1` | canonical male/female/unknown/institution values |
 | GND | `gnd_v1` | `Männlich`/`Weiblich`; `Unbekannt`; `organisation` |
 | gender-guesser | `gender_guesser_v1` | `mostly_*`; `andy`; `conflict` |
 | Wiki-Gendersort | `wiki_gendersort_v1` | `M`/`F`; `UNI`/`unisex`; `UNK`; `INI` abstains |

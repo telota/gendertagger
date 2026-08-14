@@ -76,6 +76,11 @@ the phased plan that resumes application code.
   ensemble voting inside the plotting script. Superseded by the scaffold reset described below.
 - `.gitignore` now excludes the local `__scrap/` drafts directory and `.claude/` agent definitions.
 
+### Fixed
+
+- Restored the published parenthetical `institution` normalization and authority override in `reference_v1`,
+  with paired scientific regression cases for disagreement and agreement with the pooled methods.
+
 ### Removed
 
 - Legacy research pipeline: the classification implementation under `src/gendertagger/backend/`, and the

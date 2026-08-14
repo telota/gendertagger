@@ -144,6 +144,7 @@ PARENTHETICAL_QUALIFIER_NORMALIZATION = LabelNormalizationProfile(
     normalization_version="parenthetical_qualifier_v1",
     label_map={
         **_BINARY_LABELS,
+        "institution": CanonicalLabel.institution,
         "unknown": CanonicalLabel.unknown,
     },
     abstain_labels=_COMMON_ABSTAIN_LABELS,

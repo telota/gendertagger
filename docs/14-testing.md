@@ -60,7 +60,7 @@ update and ADR. Tests never regenerate expected output as part of their normal e
 
 Phase 1 freezes these oracles under `tests/fixtures/scientific/`:
 
-- `legacy_characterization.json` contains eight approved observed cases, source artifact hashes, raw method
+- `legacy_characterization.json` contains ten approved observed cases, source artifact hashes, raw method
   labels, LLM self-certainty, and legacy aggregate outputs;
 - `reference_v1.json` contains the expected normalized status/label for all ten profiles, the complete
   reference aggregation result, and every approved difference from legacy behavior.

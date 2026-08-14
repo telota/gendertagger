@@ -18,6 +18,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.scientific]
 _EXPECTED_MAPPINGS: Mapping[str, Mapping[str, CanonicalLabel]] = {
     "parenthetical_qualifier": {
         "female": CanonicalLabel.female,
+        "institution": CanonicalLabel.institution,
         "male": CanonicalLabel.male,
         "unknown": CanonicalLabel.unknown,
     },

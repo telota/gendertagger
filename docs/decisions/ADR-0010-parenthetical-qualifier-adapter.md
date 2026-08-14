@@ -1,6 +1,8 @@
 # ADR-0010: Parenthetical-qualifier rule adapter
 
-**Status:** Accepted
+**Status:** Superseded
+
+Superseded by [ADR-0014](ADR-0014-restore-parenthetical-institution-normalization.md).
 
 ## Context
 
