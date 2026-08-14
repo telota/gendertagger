@@ -53,6 +53,11 @@ the phased plan that resumes application code.
 - Authenticated FastAPI `/api/v1` resources for projects, immutable TEI snapshot imports, runs, the method
   registry, aggregations/results, append-only annotations, and server-filtered review lists; public contracts
   include cursor pagination, normalized error envelopes, a committed OpenAPI snapshot, and typed `CurrentUser`.
+- Celery/Redis asynchronous execution: a boundary-clean Celery app and worker composition, a runnable
+  parenthetical-qualifier method adapter on the CPU queue, reproducible per-batch person slices, idempotent
+  batch execution with retry/backoff and permanent-versus-transient failure classification, guarded run and
+  method-execution lifecycle transitions, aggregate progress on run and execution resources, a
+  `POST /runs/{run_id}/executions` trigger, and a reconnect-safe `GET /runs/{run_id}/events` SSE stream.
 
 ### Changed
 
