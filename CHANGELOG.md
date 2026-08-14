@@ -118,6 +118,9 @@ the phased plan that resumes application code.
 
 ### Fixed
 
+- `PersonRecord.name_forms` is persisted as SQL `NULL` rather than JSON `null` when a snapshot profile
+  captures no structured name forms. The JSONB column previously violated its own `name_forms_array` check
+  constraint, which made every TEI-profile-v1 person insert fail.
 - Restored the published parenthetical `institution` normalization and authority override in `reference_v1`,
   with paired scientific regression cases for disagreement and agreement with the pooled methods.
 - Made asynchronous run dispatch recoverable across broker and coordinator failures with a transactional

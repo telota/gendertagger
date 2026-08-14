@@ -202,7 +202,7 @@ class PersonRecordRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
         default=list,
         server_default=text("'{}'::text[]"),
     )
-    name_forms: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
+    name_forms: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB(none_as_null=True))
     source_member_name: Mapped[str | None] = mapped_column(String(1024))
     source_record_locator: Mapped[str | None] = mapped_column(Text)
 
