@@ -34,8 +34,6 @@ from gendertagger.services.review_items import ReviewItemService
 from gendertagger.services.runs import RunProvenance, RunService
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
-
-
 from gendertagger.utils.logging import configure_logging
 
 

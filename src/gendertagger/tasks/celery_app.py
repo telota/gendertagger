@@ -16,6 +16,7 @@ from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from gendertagger.models.queues import CLASSIFICATION_QUEUES, DEFAULT_QUEUE
+from gendertagger.utils.logging import configure_logging
 
 _REDIS_SCHEMES = frozenset({"redis", "rediss"})
 
@@ -45,7 +46,7 @@ class CelerySettings(BaseSettings):
         return value
 
 
-from gendertagger.utils.logging import configure_logging
+
 
 
 def create_celery_app(settings: CelerySettings | None = None) -> Celery:

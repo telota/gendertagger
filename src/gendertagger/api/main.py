@@ -1,8 +1,8 @@
 """Application entry point and healthchecks."""
 
-import os
+from pathlib import Path
 
-from fastapi import FastAPI, Response, status
+from fastapi import Response, status
 from sqlalchemy import text
 
 from gendertagger.api.app import create_app
@@ -21,7 +21,7 @@ def ready() -> Response:
     """Check if database and artifact storage are usable."""
     # Check artifact storage
     settings = app.state.settings
-    if not os.path.exists(settings.artifact_root):
+    if not Path(settings.artifact_root).exists():
         return Response(
             content="Artifact storage unavailable",
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
