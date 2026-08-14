@@ -71,7 +71,7 @@ pyright:
     - apt-get update
     - apt-get install --yes --no-install-recommends nodejs npm
     - python -m pip install --no-cache-dir "uv==0.12.3"
-    - uv sync --locked --extra guesser --extra wiki
+    - uv sync --locked --extra guesser --extra wiki --extra nomquam
   script:
     - npm ci --ignore-scripts --no-audit --no-fund
     - npm audit --audit-level=high

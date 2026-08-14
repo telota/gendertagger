@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Sequence
-from typing import Any, Final, Protocol
+from typing import Any, Final, Protocol, cast
 
 from pydantic import Field
 
@@ -61,8 +61,10 @@ def _default_annotator_factory() -> NomquamAnnotator:
     except ImportError as error:  # pragma: no cover - exercised only without the extra
         msg = "nomquamgender requires the 'nomquam' extra (install nomquamgender)"
         raise MethodDependencyError(msg) from error
-    annotator: NomquamAnnotator = nomquamgender.NBGC()
-    return annotator
+    # The dependency's annotation exposes a DataFrame-or-list union even though
+    # ``as_df=False`` (the default used here) returns the list rows this adapter
+    # consumes. Keep that incomplete third-party typing at this boundary.
+    return cast(NomquamAnnotator, nomquamgender.NBGC())
 
 
 def _pgf_value(row: Sequence[Any]) -> float | None:

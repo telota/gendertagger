@@ -10,7 +10,7 @@ Install [uv](https://docs.astral.sh/uv/) at the version required by `pyproject.t
 newer, then run:
 
 ```bash
-uv sync --locked --extra guesser --extra wiki
+uv sync --locked --extra guesser --extra wiki --extra nomquam
 npm ci --ignore-scripts --no-audit --no-fund
 ```
 
