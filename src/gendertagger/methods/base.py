@@ -45,6 +45,15 @@ class MethodContractError(ValueError):
     """Raised when an adapter violates its declared result contract."""
 
 
+class MethodDependencyError(RuntimeError):
+    """Raised when an adapter's optional runtime dependency or asset is absent.
+
+    A missing extra, model, or authority snapshot is an environment or
+    configuration fault that retrying cannot resolve, so orchestration treats it
+    as a permanent batch failure rather than a transient infrastructure error.
+    """
+
+
 def validate_prediction_batch(
     descriptor: MethodDescriptor,
     people: Sequence[PersonInput],

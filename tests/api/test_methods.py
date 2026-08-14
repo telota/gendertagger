@@ -87,20 +87,24 @@ def _application_client(registry: MethodRegistry | None = None) -> TestClient:
     return TestClient(application)
 
 
-def test_methods_endpoint_lists_the_runnable_parenthetical_qualifier() -> None:
+def test_methods_endpoint_lists_registered_methods_in_name_order() -> None:
     response = _application_client().get("/api/v1/methods")
 
     assert response.status_code == 200
     names = [method["name"] for method in response.json()]
-    assert names == ["parenthetical_qualifier"]
+    assert names == ["gender_guesser", "parenthetical_qualifier"]
 
 
-def test_default_registry_routes_parenthetical_qualifier_to_cpu() -> None:
-    registration = default_method_registry().registrations[0]
+def test_default_registry_routes_every_method_to_the_cpu_queue() -> None:
+    registrations = default_method_registry().registrations
 
-    assert registration.descriptor.name == "parenthetical_qualifier"
-    assert registration.queue_name == "cpu"
-    assert registration.batch_size > 0
+    assert [registration.descriptor.name for registration in registrations] == [
+        "gender_guesser",
+        "parenthetical_qualifier",
+    ]
+    for registration in registrations:
+        assert registration.queue_name == "cpu"
+        assert registration.batch_size > 0
 
 
 def test_methods_endpoint_returns_descriptors_in_stable_name_order() -> None:

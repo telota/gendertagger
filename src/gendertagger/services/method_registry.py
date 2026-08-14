@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.methods.base import GenderMethod, MethodConfig
+from gendertagger.methods.gender_guesser import GenderGuesserMethod
 from gendertagger.methods.parenthetical_qualifier import ParentheticalQualifierMethod
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.queues import CPU_QUEUE
@@ -105,6 +106,13 @@ def default_method_registry() -> MethodRegistry:
                 adapter=ParentheticalQualifierMethod(),
                 queue_name=CPU_QUEUE,
                 batch_size=_CPU_BATCH_SIZE,
-            )
+            ),
+            MethodRegistration(
+                descriptor=GenderGuesserMethod.descriptor,
+                config_model=GenderGuesserMethod.config_model,
+                adapter=GenderGuesserMethod(),
+                queue_name=CPU_QUEUE,
+                batch_size=_CPU_BATCH_SIZE,
+            ),
         ]
     )

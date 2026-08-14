@@ -8,7 +8,11 @@ from uuid import UUID
 
 from pydantic import JsonValue, ValidationError
 
-from gendertagger.methods.base import MethodContractError, validate_prediction_batch
+from gendertagger.methods.base import (
+    MethodContractError,
+    MethodDependencyError,
+    validate_prediction_batch,
+)
 from gendertagger.models.classification import PredictionResult, PredictionStatus
 from gendertagger.models.common import canonical_json_sha256
 from gendertagger.models.lifecycle import RunStatus, TaskBatchStatus
@@ -199,7 +203,12 @@ class BatchExecutor:
             )
             try:
                 results = self._classify(unit_of_work, execution=execution, run=run, batch=batch)
-            except (PermanentBatchError, MethodContractError, ValidationError) as error:
+            except (
+                PermanentBatchError,
+                MethodContractError,
+                MethodDependencyError,
+                ValidationError,
+            ) as error:
                 return self._fail_batch(unit_of_work, message, execution.id, run.id, error)
             except Exception as error:
                 # Unclassified failures are treated as transient: retry, then fail.

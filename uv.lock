@@ -387,6 +387,15 @@ wheels = [
 ]
 
 [[package]]
+name = "gender-guesser"
+version = "0.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a8/dc/69939b7af56b7adf3aa2736771b7c3e7191f7cd36fbc80b0727570c275fa/gender-guesser-0.4.0.tar.gz", hash = "sha256:1591c14592805ca7da06a46d5f7202511f7cb87547049a68dfccbeedb879f31b", size = 337238, upload-time = "2016-12-05T11:41:44.554Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/13/fb/3f2aac40cd2421e164cab1668e0ca10685fcf896bd6b3671088f8aab356e/gender_guesser-0.4.0-py2.py3-none-any.whl", hash = "sha256:7cb01ce5d8d43b94573498bc02c959b622872abd399622ca67d1b73ba6e7e222", size = 379297, upload-time = "2016-12-05T11:41:47.759Z" },
+]
+
+[[package]]
 name = "gendertagger"
 version = "0.0.0"
 source = { editable = "." }
@@ -402,6 +411,11 @@ dependencies = [
     { name = "pyyaml" },
     { name = "redis" },
     { name = "sqlalchemy" },
+]
+
+[package.optional-dependencies]
+guesser = [
+    { name = "gender-guesser" },
 ]
 
 [package.dev-dependencies]
@@ -438,6 +452,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.16,<2" },
     { name = "celery", specifier = ">=5.4,<6" },
     { name = "fastapi", specifier = ">=0.116,<1" },
+    { name = "gender-guesser", marker = "extra == 'guesser'", specifier = ">=0.4,<1" },
     { name = "lxml", specifier = ">=5.4,<7" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2,<4" },
     { name = "pydantic", specifier = ">=2.13.4,<3" },
@@ -447,6 +462,7 @@ requires-dist = [
     { name = "redis", specifier = ">=5,<7" },
     { name = "sqlalchemy", specifier = ">=2.0,<3" },
 ]
+provides-extras = ["guesser"]
 
 [package.metadata.requires-dev]
 dev = [

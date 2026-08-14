@@ -24,6 +24,12 @@ dependencies = [
   "sqlalchemy>=2.0,<3",
 ]
 
+# Method adapters declare heavy or method-specific runtime dependencies as
+# opt-in extras. Adapters lazily import them so the core install, API, and
+# lightweight workers stay slim; a missing extra fails only the affected method.
+[project.optional-dependencies]
+guesser = ["gender-guesser>=0.4,<1"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/gendertagger"]
 
@@ -162,6 +168,12 @@ enable_error_code = [
 # Celery and kombu ship no py.typed marker; confine the untyped boundary to their imports.
 [[tool.mypy.overrides]]
 module = ["celery.*", "kombu.*"]
+ignore_missing_imports = true
+
+# Optional classification-method dependencies ship no py.typed marker; confine
+# the untyped boundary to their lazily imported adapter modules.
+[[tool.mypy.overrides]]
+module = ["gender_guesser.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
