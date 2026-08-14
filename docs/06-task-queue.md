@@ -84,7 +84,12 @@ the exact pending DatasetSnapshot and owns its import transaction. One competing
 terminal resources do not invoke parsing or scientific computation. A failed resource is not silently
 reopened by redelivery.
 
-Method predictions should be committed in bounded batches so a worker failure does not discard thousands of completed classifications.
+Each claimed TaskBatch writes its exact deterministic person slice and marks the batch completed in one
+transaction. Batch sizing bounds the amount of work lost on rollback. No prediction is accepted without its
+TaskBatch provenance, while its Run, MethodExecution, or TaskBatch is outside `running`, or for a person outside
+that batch's slice. Deferred database checks prevent a caller from committing the outputs without the matching
+completed batch state. Conflicting output is never overwritten, and delivery after terminal completion is a
+no-op at claim time.
 
 ## Retry policy
 
@@ -147,7 +152,9 @@ At the current dataset scale, one worker transaction conditionally claims the ag
 evidence, computes every result, inserts the complete person-result set, and marks the aggregation completed.
 A rollback exposes no partial results and returns a transient attempt to its queueable state. Permanent
 completeness or contract failures produce a terminal failed aggregation with no result rows. Duplicate
-deliveries become no-ops after the first transaction completes. See
+deliveries become no-ops after the first transaction completes. Repository and database guards both require
+the inserted people to equal the Run snapshot's exact person set and reject output outside the aggregation's
+`running` transaction. See
 [ADR-0016](decisions/ADR-0016-asynchronous-aggregation-outbox.md).
 
 ## Cancellation

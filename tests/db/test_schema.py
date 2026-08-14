@@ -61,6 +61,15 @@ def test_dispatch_schema_has_exactly_one_unique_foreign_key_owner() -> None:
     }
 
 
+def test_prediction_schema_requires_task_batch_provenance() -> None:
+    table = metadata.tables["predictions"]
+
+    assert not table.c.task_batch_id.nullable
+    assert "task_batches.id" in {
+        foreign_key.target_fullname for foreign_key in table.c.task_batch_id.foreign_keys
+    }
+
+
 def test_person_schema_stores_optional_structured_name_forms_as_jsonb() -> None:
     table = metadata.tables["person_records"]
 

@@ -35,7 +35,7 @@ class RunRepository(Protocol):
         ...
 
     def add_method_execution(self, command: MethodExecutionCreate) -> MethodExecution:
-        """Persist one configured method execution within its run."""
+        """Persist one configured execution beneath a locked non-terminal run."""
         ...
 
     def get_method_execution(self, method_execution_id: UUID) -> MethodExecution | None:
@@ -47,7 +47,7 @@ class RunRepository(Protocol):
         ...
 
     def add_task_batch(self, command: TaskBatchCreate) -> TaskBatch:
-        """Persist one retryable task batch for a method execution."""
+        """Persist one task batch beneath a locked non-terminal execution."""
         ...
 
     def get_task_batch(self, task_batch_id: UUID) -> TaskBatch | None:
@@ -59,7 +59,7 @@ class RunRepository(Protocol):
         method_execution_id: UUID,
         plans: Sequence[TaskBatchPlan],
     ) -> list[TaskBatch]:
-        """Idempotently persist a planned batch set for a method execution."""
+        """Idempotently persist a batch plan beneath a locked non-terminal execution."""
         ...
 
     def mark_run_queued(self, run_id: UUID) -> Run:
@@ -149,7 +149,7 @@ class RunRepository(Protocol):
         method_execution_id: UUID,
         predictions: Sequence[PredictionWrite],
     ) -> int:
-        """Persist one bounded immutable prediction batch and return its count."""
+        """Persist one complete running-batch slice and return its logical count."""
         ...
 
     def get_prediction(self, prediction_id: UUID) -> Prediction | None:

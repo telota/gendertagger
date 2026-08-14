@@ -1,13 +1,20 @@
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import Engine
+from sqlalchemy import Engine, text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.db.aggregation_repository import SqlAlchemyAggregationRepository
+from gendertagger.db.aggregations import (
+    AggregatedResultRow,
+    AggregationExecutionRow,
+    AggregationMethodExecutionRow,
+)
 from gendertagger.db.artifact_repository import SqlAlchemyArtifactRepository
 from gendertagger.db.executions import MethodExecutionRow, RunRow
 from gendertagger.db.project_repository import SqlAlchemyProjectRepository
@@ -27,11 +34,17 @@ from gendertagger.models.classification import (
 from gendertagger.models.lifecycle import (
     AggregationExecutionStatus,
     MethodExecutionStatus,
+    TaskBatchStatus,
 )
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.person import PersonInput
 from gendertagger.models.project import DatasetSnapshotCreate, ProjectCreate
-from gendertagger.models.run import MethodExecutionCreate, PredictionWrite, RunCreate
+from gendertagger.models.run import (
+    MethodExecutionCreate,
+    PredictionWrite,
+    RunCreate,
+    TaskBatchCreate,
+)
 from gendertagger.services.persistence_errors import InvalidResourceStateError
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
@@ -39,10 +52,47 @@ pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 NOW = datetime(2026, 8, 14, 12, 0, tzinfo=UTC)
 
 
-def _seed_reference_run(
+def _mutate_and_flush(session: Session, mutation: Callable[[], object]) -> None:
+    mutation()
+    session.flush()
+
+
+def _force_deferred_constraints(
+    session: Session,
+    mutation: Callable[[], object] | None,
+) -> None:
+    if mutation is not None:
+        _mutate_and_flush(session, mutation)
+    session.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
+
+
+def _assert_database_rejects(
+    session: Session,
+    mutation: Callable[[], object],
+    *,
+    sqlstate: str,
+    message: str,
+) -> None:
+    with pytest.raises(DBAPIError, match=message) as error, session.begin_nested():
+        _mutate_and_flush(session, mutation)
+    assert getattr(error.value.orig, "sqlstate", None) == sqlstate
+    session.expire_all()
+
+
+def _assert_deferred_constraints_reject(
     session: Session,
     *,
-    omitted_prediction_method: str | None = None,
+    message: str,
+    mutation: Callable[[], object] | None = None,
+) -> None:
+    with pytest.raises(DBAPIError, match=message) as error, session.begin_nested():
+        _force_deferred_constraints(session, mutation)
+    assert getattr(error.value.orig, "sqlstate", None) == "23514"
+    session.expire_all()
+
+
+def _seed_reference_run(
+    session: Session,
 ) -> tuple[UUID, tuple[UUID, ...], UUID]:
     artifacts = SqlAlchemyArtifactRepository(session)
     source = artifacts.add_artifact(
@@ -94,6 +144,8 @@ def _seed_reference_run(
             dependency_lock_sha256="d" * 64,
         )
     )
+    runs.mark_run_queued(run.id)
+    runs.mark_run_started(run.id, started_at=NOW)
     execution_ids: list[UUID] = []
     for method_name in REFERENCE_REQUIRED_METHODS:
         execution = runs.add_method_execution(
@@ -109,39 +161,56 @@ def _seed_reference_run(
             )
         )
         execution_ids.append(execution.id)
-        if method_name != omitted_prediction_method:
-            result = PredictionResult(
-                label=(CanonicalLabel.female if method_name == "gender_guesser" else None),
-                status=(
-                    PredictionStatus.success
-                    if method_name == "gender_guesser"
-                    else PredictionStatus.error
-                    if method_name == "gnd"
-                    else PredictionStatus.abstain
-                ),
+        batch = runs.add_task_batch(
+            TaskBatchCreate(
+                method_execution_id=execution.id,
+                batch_index=0,
+                queue_name="cpu",
+                record_offset=0,
+                record_count=1,
             )
-            runs.add_predictions(
-                execution.id,
-                [
-                    PredictionWrite(
-                        person_record_id=person.id,
-                        input_fingerprint="e" * 64,
-                        result=result,
-                    )
-                ],
-            )
-        execution_row = session.get(MethodExecutionRow, execution.id)
-        assert execution_row is not None
-        execution_row.status = (
-            MethodExecutionStatus.completed_with_errors
-            if method_name == "gnd"
-            else MethodExecutionStatus.completed
         )
-        execution_row.started_at = NOW
-        execution_row.finished_at = NOW
-        execution_row.completed_count = 0 if method_name == "gnd" else 1
-        execution_row.failed_count = 1 if method_name == "gnd" else 0
-    session.flush()
+        runs.mark_execution_queued(execution.id)
+        runs.mark_execution_started(execution.id, started_at=NOW)
+        claimed = runs.claim_batch(
+            batch.id,
+            method_execution_id=execution.id,
+            worker_task_id=f"fixture-{method_name}",
+            started_at=NOW,
+            attempt_count=1,
+        )
+        assert claimed is not None
+        result = PredictionResult(
+            label=(CanonicalLabel.female if method_name == "gender_guesser" else None),
+            status=(
+                PredictionStatus.success
+                if method_name == "gender_guesser"
+                else PredictionStatus.error
+                if method_name == "gnd"
+                else PredictionStatus.abstain
+            ),
+        )
+        runs.add_predictions(
+            execution.id,
+            [
+                PredictionWrite(
+                    person_record_id=person.id,
+                    task_batch_id=batch.id,
+                    input_fingerprint="e" * 64,
+                    result=result,
+                )
+            ],
+        )
+        runs.mark_batch_finished(
+            batch.id,
+            status=TaskBatchStatus.completed,
+            finished_at=NOW,
+            success_count=int(result.status is PredictionStatus.success),
+            abstain_count=int(result.status is PredictionStatus.abstain),
+            error_count=int(result.status is PredictionStatus.error),
+        )
+        runs.finalize_execution_if_complete(execution.id, finished_at=NOW)
+    runs.finalize_run_if_complete(run.id, finished_at=NOW)
     return run.id, tuple(execution_ids), person.id
 
 
@@ -210,30 +279,7 @@ def test_repository_claims_and_completes_exactly_one_full_snapshot_result(
         repository.add_results(aggregation.id, [])
 
 
-def test_prediction_matrix_preserves_an_unexplained_missing_cell(
-    db_session: Session,
-) -> None:
-    run_id, execution_ids, _person_id = _seed_reference_run(
-        db_session,
-        omitted_prediction_method="gnd",
-    )
-    repository = SqlAlchemyAggregationRepository(db_session)
-    aggregation = repository.add_aggregation(
-        AggregationExecutionCreate(
-            run_id=run_id,
-            method_execution_ids=execution_ids,
-        )
-    )
-    repository.claim_aggregation(aggregation.id, started_at=NOW)
-
-    matrix = repository.load_prediction_matrix(aggregation.id)
-
-    assert len(matrix) == 1
-    assert "gnd" not in matrix[0].predictions
-    assert matrix[0].predictions["parenthetical_qualifier"].status is PredictionStatus.abstain
-
-
-def test_prediction_matrix_revalidates_selected_execution_completion(
+def test_database_rejects_reopening_a_selected_execution(
     db_session: Session,
 ) -> None:
     run_id, execution_ids, _person_id = _seed_reference_run(db_session)
@@ -247,18 +293,20 @@ def test_prediction_matrix_revalidates_selected_execution_completion(
     repository.claim_aggregation(aggregation.id, started_at=NOW)
     execution_row = db_session.get(MethodExecutionRow, execution_ids[0])
     assert execution_row is not None
-    execution_row.status = MethodExecutionStatus.running
-    execution_row.finished_at = None
-    db_session.flush()
 
-    with pytest.raises(
-        InvalidResourceStateError,
-        match="selected method executions are no longer complete: parenthetical_qualifier",
-    ):
-        repository.load_prediction_matrix(aggregation.id)
+    def reopen_execution() -> None:
+        execution_row.status = MethodExecutionStatus.running
+        execution_row.finished_at = None
+
+    _assert_database_rejects(
+        db_session,
+        reopen_execution,
+        sqlstate="23514",
+        message="illegal method_executions lifecycle transition",
+    )
 
 
-def test_prediction_matrix_revalidates_selected_execution_run_ownership(
+def test_database_rejects_changing_selected_execution_run_ownership(
     db_session: Session,
 ) -> None:
     run_id, execution_ids, _person_id = _seed_reference_run(db_session)
@@ -284,14 +332,12 @@ def test_prediction_matrix_revalidates_selected_execution_run_ownership(
     )
     execution_row = db_session.get(MethodExecutionRow, execution_ids[0])
     assert execution_row is not None
-    execution_row.run_id = other_run.id
-    db_session.flush()
-
-    with pytest.raises(
-        InvalidResourceStateError,
-        match="must still belong to the aggregation run",
-    ):
-        repository.load_prediction_matrix(aggregation.id)
+    _assert_database_rejects(
+        db_session,
+        lambda: setattr(execution_row, "run_id", other_run.id),
+        sqlstate="55000",
+        message="terminal method_executions rows are immutable",
+    )
 
 
 def test_repository_rejects_completion_with_partial_results(db_session: Session) -> None:
@@ -307,6 +353,12 @@ def test_repository_rejects_completion_with_partial_results(db_session: Session)
 
     with pytest.raises(
         InvalidResourceStateError,
+        match="aggregation results must exactly cover the run snapshot: expected 1 people, received 0",
+    ):
+        repository.add_results(aggregation.id, [])
+
+    with pytest.raises(
+        InvalidResourceStateError,
         match="requires exactly one result per snapshot person: expected 1, found 0",
     ):
         repository.mark_aggregation_finished(
@@ -314,6 +366,172 @@ def test_repository_rejects_completion_with_partial_results(db_session: Session)
             status=AggregationExecutionStatus.completed,
             finished_at=NOW,
         )
+
+
+def test_database_rejects_aggregation_provenance_mutation(db_session: Session) -> None:
+    run_id, execution_ids, _person_id = _seed_reference_run(db_session)
+    aggregation = SqlAlchemyAggregationRepository(db_session).add_aggregation(
+        AggregationExecutionCreate(
+            run_id=run_id,
+            method_execution_ids=execution_ids,
+        )
+    )
+    row = db_session.get(AggregationExecutionRow, aggregation.id)
+    assert row is not None
+    _assert_database_rejects(
+        db_session,
+        lambda: setattr(row, "strategy", "rewritten_v2"),
+        sqlstate="55000",
+        message="aggregation_executions provenance is immutable",
+    )
+
+
+def test_database_rejects_aggregation_membership_deletion(db_session: Session) -> None:
+    run_id, execution_ids, _person_id = _seed_reference_run(db_session)
+    repository = SqlAlchemyAggregationRepository(db_session)
+    aggregation = repository.add_aggregation(
+        AggregationExecutionCreate(
+            run_id=run_id,
+            method_execution_ids=execution_ids,
+        )
+    )
+    repository.mark_aggregation_queued(aggregation.id)
+    membership = db_session.get(
+        AggregationMethodExecutionRow,
+        (aggregation.id, execution_ids[0]),
+    )
+    assert membership is not None
+    _assert_database_rejects(
+        db_session,
+        lambda: db_session.delete(membership),
+        sqlstate="55000",
+        message="aggregation method-execution membership is immutable",
+    )
+
+
+def test_database_rejects_queuing_aggregation_without_membership(
+    db_session: Session,
+) -> None:
+    run_id, _execution_ids, _person_id = _seed_reference_run(db_session)
+    row = AggregationExecutionRow(
+        run_id=run_id,
+        strategy="reference_v1",
+        resolved_config={},
+        config_sha256="d" * 64,
+        status=AggregationExecutionStatus.pending,
+    )
+    db_session.add(row)
+    db_session.flush()
+
+    _assert_database_rejects(
+        db_session,
+        lambda: setattr(row, "status", AggregationExecutionStatus.queued),
+        sqlstate="23514",
+        message="queued aggregation requires nonempty contiguous membership",
+    )
+
+
+def test_deferred_guard_rejects_results_without_aggregation_completion(
+    db_session: Session,
+) -> None:
+    run_id, execution_ids, _person_id = _seed_reference_run(db_session)
+    repository = SqlAlchemyAggregationRepository(db_session)
+    aggregation = repository.add_aggregation(
+        AggregationExecutionCreate(
+            run_id=run_id,
+            method_execution_ids=execution_ids,
+        )
+    )
+    repository.claim_aggregation(aggregation.id, started_at=NOW)
+    (person_predictions,) = repository.load_prediction_matrix(aggregation.id)
+    repository.add_results(
+        aggregation.id,
+        [
+            AggregationResultWrite(
+                person_record_id=person_predictions.person_record_id,
+                result=assess_reference_predictions(person_predictions.predictions),
+            )
+        ],
+    )
+
+    _assert_deferred_constraints_reject(
+        db_session,
+        message="committed results require a completed aggregation",
+    )
+
+
+def test_deferred_guard_rejects_completed_aggregation_without_results(
+    db_session: Session,
+) -> None:
+    run_id, execution_ids, _person_id = _seed_reference_run(db_session)
+    repository = SqlAlchemyAggregationRepository(db_session)
+    aggregation = repository.add_aggregation(
+        AggregationExecutionCreate(
+            run_id=run_id,
+            method_execution_ids=execution_ids,
+        )
+    )
+    repository.claim_aggregation(aggregation.id, started_at=NOW)
+    row = db_session.get(AggregationExecutionRow, aggregation.id)
+    assert row is not None
+
+    def complete_without_results() -> None:
+        row.status = AggregationExecutionStatus.completed
+        row.finished_at = NOW
+
+    _assert_deferred_constraints_reject(
+        db_session,
+        message="completed aggregation requires one result per snapshot person",
+        mutation=complete_without_results,
+    )
+
+
+def test_database_rejects_raw_result_insert_after_aggregation_finished(
+    db_session: Session,
+) -> None:
+    run_id, execution_ids, _person_id = _seed_reference_run(db_session)
+    repository = SqlAlchemyAggregationRepository(db_session)
+    aggregation = repository.add_aggregation(
+        AggregationExecutionCreate(
+            run_id=run_id,
+            method_execution_ids=execution_ids,
+        )
+    )
+    repository.claim_aggregation(aggregation.id, started_at=NOW)
+    (person_predictions,) = repository.load_prediction_matrix(aggregation.id)
+    result = assess_reference_predictions(person_predictions.predictions)
+    repository.mark_aggregation_finished(
+        aggregation.id,
+        status=AggregationExecutionStatus.failed,
+        finished_at=NOW,
+        failure_class="PermanentAggregationError",
+        failure_diagnostic="synthetic failure",
+    )
+    row = AggregatedResultRow(
+        aggregation_execution_id=aggregation.id,
+        person_record_id=person_predictions.person_record_id,
+        outcome=result.outcome,
+        label=result.label,
+        male_vote_count=result.pooled_vote_counts.male,
+        female_vote_count=result.pooled_vote_counts.female,
+        unknown_vote_count=result.pooled_vote_counts.unknown,
+        institution_vote_count=result.pooled_vote_counts.institution,
+        tied_labels=[label.value for label in result.tied_labels],
+        override_source=result.override_source,
+        override_agreeing_count=result.override_agreeing_count,
+        override_comparison_count=result.override_comparison_count,
+        agreement_score=result.agreement_score,
+        agreement_tier=result.agreement_tier,
+        certainty_tier=result.certainty_tier,
+        result_metadata={},
+    )
+
+    _assert_database_rejects(
+        db_session,
+        lambda: db_session.add(row),
+        sqlstate="23514",
+        message="aggregation result writes require a running aggregation",
+    )
 
 
 def test_repository_does_not_reopen_a_failed_aggregation(db_session: Session) -> None:

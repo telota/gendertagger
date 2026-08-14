@@ -9,7 +9,7 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
-from gendertagger.db.aggregations import AggregationExecutionRow
+from gendertagger.db.aggregations import AggregationExecutionRow, AggregationMethodExecutionRow
 from gendertagger.db.artifact_repository import SqlAlchemyArtifactRepository
 from gendertagger.db.dispatch_repository import SqlAlchemyDispatchRepository
 from gendertagger.db.dispatches import BatchDispatchRow
@@ -94,7 +94,12 @@ def _execution_context(
     run = runs.add_run(
         RunCreate(
             dataset_snapshot_id=snapshot.id,
-            resolved_config=RunConfig(methods=[MethodRunConfig(name="demo_method")]),
+            resolved_config=RunConfig(
+                methods=[
+                    MethodRunConfig(name="demo_method"),
+                    MethodRunConfig(name="aggregation_fixture"),
+                ]
+            ),
             code_git_commit="abc123",
             application_version="0.0.0",
             python_version="3.11.0",
@@ -150,16 +155,46 @@ def _aggregation_context(
     *,
     status: AggregationExecutionStatus = AggregationExecutionStatus.pending,
 ) -> AggregationExecutionRow:
-    _, run, _, _ = _execution_context(session)
+    runs, run, _, _ = _execution_context(session)
+    member = runs.add_method_execution(
+        MethodExecutionCreate(
+            run_id=run.id,
+            descriptor=MethodDescriptor(
+                name="aggregation_fixture",
+                implementation_version="1.0.0",
+                normalization_version="aggregation_fixture_v1",
+            ),
+            queue_name="cpu",
+            total_count=0,
+        )
+    )
+    runs.mark_run_queued(run.id)
+    runs.mark_run_started(run.id, started_at=datetime.now(UTC))
+    runs.mark_execution_queued(member.id)
+    runs.mark_execution_started(member.id, started_at=datetime.now(UTC))
+    runs.finalize_execution_if_complete(member.id, finished_at=datetime.now(UTC))
     row = AggregationExecutionRow(
         run_id=run.id,
         strategy="reference_v1",
         resolved_config={},
         config_sha256="a" * 64,
-        status=status,
+        status=AggregationExecutionStatus.pending,
     )
     session.add(row)
     session.flush()
+    session.add(
+        AggregationMethodExecutionRow(
+            aggregation_execution_id=row.id,
+            method_execution_id=member.id,
+            position=0,
+        )
+    )
+    session.flush()
+    if status is not AggregationExecutionStatus.pending:
+        row.status = status
+        if status is AggregationExecutionStatus.running:
+            row.started_at = datetime.now(UTC)
+        session.flush()
     return row
 
 

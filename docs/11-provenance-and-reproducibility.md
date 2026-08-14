@@ -18,6 +18,9 @@ Persist at least:
 - dependency lockfile/artifact reference
 - start/end timestamps
 
+The Run's snapshot, resolved configuration/hash, code/application/runtime versions, and dependency provenance
+are sealed at creation. Only validated lifecycle fields may change afterward.
+
 ## DatasetSnapshot import provenance
 
 Persist enough information to re-run the exact importer over the exact accepted source collection:
@@ -49,18 +52,28 @@ Persist:
 - queue/resource class
 - worker/runtime metadata
 
+The owning Run and all scientific method/configuration/model/data/prompt/schema provenance, including captured
+worker metadata, are sealed at creation. Progress, timestamps, and sanitized failure details remain operational
+lifecycle fields only while execution is active. PostgreSQL rejects changes outside that allowlist and seals
+the entire row once it reaches a terminal state.
+
 For the reference study this includes, where applicable, local GND/HIVOTO snapshots, transformer model identifiers/revisions, NQG threshold, XGBoost training/model artifact details, and local LLM prompt/schema/model tag.
 
 ## Prediction provenance
 
 Persist:
 
+- required TaskBatch ID
 - person input fingerprint
 - normalized label/status
 - method_confidence
 - raw label/output
 - normalization version and outcome reason
 - cache provenance if reused
+
+A Prediction may be created only for the exact person slice of its running TaskBatch while the owning
+MethodExecution and Run are also running. Its creation and TaskBatch completion share one transaction. The
+row is immutable afterward, so its method and batch provenance cannot be detached from the output.
 
 ## Aggregation provenance
 
@@ -74,6 +87,11 @@ Persist:
 - complete pooled vote counts
 - agreement score/tier
 - certainty tier
+
+The aggregation's owning Run, strategy, resolved configuration/hash, and exact ordered MethodExecution
+membership are sealed before execution. Results may be created only while that aggregation is running, must
+exactly cover its Run snapshot, and are committed atomically with aggregation completion. Both membership and
+result rows are immutable after sealing/creation.
 
 ## Annotation provenance
 

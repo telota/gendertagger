@@ -47,6 +47,14 @@ _EXECUTION_TERMINAL_STATUSES = frozenset(
     }
 )
 _BATCH_TERMINAL_STATUSES = frozenset({TaskBatchStatus.completed, TaskBatchStatus.failed})
+_RUN_CHILD_CREATION_STATUSES = frozenset({RunStatus.created, RunStatus.queued, RunStatus.running})
+_EXECUTION_CHILD_CREATION_STATUSES = frozenset(
+    {
+        MethodExecutionStatus.pending,
+        MethodExecutionStatus.queued,
+        MethodExecutionStatus.running,
+    }
+)
 
 
 class SqlAlchemyRunRepository:
@@ -91,10 +99,18 @@ class SqlAlchemyRunRepository:
 
     def add_method_execution(self, command: MethodExecutionCreate) -> MethodExecution:
         """Persist and flush one configured method execution without committing."""
-        run = self._session.get(RunRow, command.run_id)
+        run = self._session.scalar(
+            select(RunRow)
+            .where(RunRow.id == command.run_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         if run is None:
             msg = f"run {command.run_id} does not exist"
             raise ResourceNotFoundError(msg)
+        if run.status not in _RUN_CHILD_CREATION_STATUSES:
+            msg = f"run {command.run_id} cannot add method executions from {run.status.value}"
+            raise InvalidResourceStateError(msg)
         run_config = RunConfig.model_validate(run.resolved_config)
         enabled_method_names = {method.name for method in run_config.methods if method.enabled}
         if command.descriptor.name not in enabled_method_names:
@@ -146,10 +162,21 @@ class SqlAlchemyRunRepository:
 
     def add_task_batch(self, command: TaskBatchCreate) -> TaskBatch:
         """Persist and flush one retryable task batch without committing."""
-        execution = self._session.get(MethodExecutionRow, command.method_execution_id)
+        execution = self._session.scalar(
+            select(MethodExecutionRow)
+            .where(MethodExecutionRow.id == command.method_execution_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         if execution is None:
             msg = f"method execution {command.method_execution_id} does not exist"
             raise ResourceNotFoundError(msg)
+        if execution.status not in _EXECUTION_CHILD_CREATION_STATUSES:
+            msg = (
+                f"method execution {command.method_execution_id} cannot add task batches "
+                f"from {execution.status.value}"
+            )
+            raise InvalidResourceStateError(msg)
         if execution.queue_name != command.queue_name:
             msg = "task batch queue must match its method execution queue"
             raise InvalidResourceStateError(msg)
@@ -190,10 +217,21 @@ class SqlAlchemyRunRepository:
         Re-planning with an identical batch size is a no-op: conflicting
         ``(method_execution_id, batch_index)`` rows are kept, not rewritten.
         """
-        execution = self._session.get(MethodExecutionRow, method_execution_id)
+        execution = self._session.scalar(
+            select(MethodExecutionRow)
+            .where(MethodExecutionRow.id == method_execution_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         if execution is None:
             msg = f"method execution {method_execution_id} does not exist"
             raise ResourceNotFoundError(msg)
+        if execution.status not in _EXECUTION_CHILD_CREATION_STATUSES:
+            msg = (
+                f"method execution {method_execution_id} cannot plan task batches "
+                f"from {execution.status.value}"
+            )
+            raise InvalidResourceStateError(msg)
         if plans:
             if len({plan.batch_index for plan in plans}) != len(plans):
                 msg = "a batch plan must contain each batch index at most once"
@@ -560,48 +598,82 @@ class SqlAlchemyRunRepository:
         method_execution_id: UUID,
         predictions: Sequence[PredictionWrite],
     ) -> int:
-        """Validate ownership and persist one bounded immutable prediction batch."""
-        execution = self._session.get(MethodExecutionRow, method_execution_id)
+        """Persist one complete running-batch slice with exact conflict verification."""
+        if not predictions:
+            msg = "a prediction batch must not be empty"
+            raise ValueError(msg)
+
+        task_batch_ids = {prediction.task_batch_id for prediction in predictions}
+        if len(task_batch_ids) != 1:
+            msg = "a prediction batch must target exactly one task batch"
+            raise ValueError(msg)
+        task_batch_id = next(iter(task_batch_ids))
+
+        batch = self._session.scalar(
+            select(TaskBatchRow)
+            .where(TaskBatchRow.id == task_batch_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if batch is None:
+            msg = f"task batch {task_batch_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        if batch.method_execution_id != method_execution_id:
+            msg = (
+                f"task batch {task_batch_id} does not belong to method execution "
+                f"{method_execution_id}"
+            )
+            raise InvalidResourceStateError(msg)
+        execution = self._session.scalar(
+            select(MethodExecutionRow)
+            .where(MethodExecutionRow.id == method_execution_id)
+            .execution_options(populate_existing=True)
+        )
         if execution is None:
             msg = f"method execution {method_execution_id} does not exist"
             raise ResourceNotFoundError(msg)
-        if not predictions:
-            return 0
+        run = self._session.scalar(
+            select(RunRow)
+            .where(RunRow.id == execution.run_id)
+            .execution_options(populate_existing=True)
+        )
+        if run is None:
+            msg = f"run {execution.run_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        if run.status is not RunStatus.running:
+            msg = f"run {run.id} must be running to add predictions"
+            raise InvalidResourceStateError(msg)
+        if execution.status is not MethodExecutionStatus.running:
+            msg = f"method execution {execution.id} must be running to add predictions"
+            raise InvalidResourceStateError(msg)
+        if batch.status is not TaskBatchStatus.running:
+            msg = f"task batch {batch.id} must be running to add predictions"
+            raise InvalidResourceStateError(msg)
 
         person_ids = {prediction.person_record_id for prediction in predictions}
         if len(person_ids) != len(predictions):
             msg = "a prediction batch must contain each person at most once"
             raise ValueError(msg)
-        run_snapshot_id = self._session.scalar(
-            select(RunRow.dataset_snapshot_id).where(RunRow.id == execution.run_id)
-        )
-        matching_person_ids = set(
+        expected_person_ids = tuple(
             self._session.scalars(
-                select(PersonRecordRow.id).where(
-                    PersonRecordRow.id.in_(person_ids),
-                    PersonRecordRow.dataset_snapshot_id == run_snapshot_id,
-                )
+                select(PersonRecordRow.id)
+                .where(PersonRecordRow.dataset_snapshot_id == run.dataset_snapshot_id)
+                .order_by(PersonRecordRow.tei_id, PersonRecordRow.id)
+                .offset(batch.record_offset)
+                .limit(batch.record_count)
             )
         )
-        if matching_person_ids != person_ids:
-            msg = "every prediction person must belong to the run snapshot"
+        if len(expected_person_ids) != batch.record_count:
+            msg = (
+                f"task batch {batch.id} declares {batch.record_count} records but its "
+                f"run snapshot slice contains {len(expected_person_ids)} people"
+            )
             raise InvalidResourceStateError(msg)
-
-        task_batch_ids = {
-            prediction.task_batch_id
-            for prediction in predictions
-            if prediction.task_batch_id is not None
-        }
-        matching_task_batch_ids = set(
-            self._session.scalars(
-                select(TaskBatchRow.id).where(
-                    TaskBatchRow.id.in_(task_batch_ids),
-                    TaskBatchRow.method_execution_id == method_execution_id,
-                )
+        if person_ids != set(expected_person_ids):
+            msg = (
+                f"prediction batch for task batch {batch.id} must exactly cover its "
+                f"person slice: expected {len(expected_person_ids)}, received {len(person_ids)}"
             )
-        )
-        if matching_task_batch_ids != task_batch_ids:
-            msg = "every prediction task batch must belong to the method execution"
             raise InvalidResourceStateError(msg)
 
         payloads: list[dict[str, object]] = [

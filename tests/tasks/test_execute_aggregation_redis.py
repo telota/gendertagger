@@ -8,11 +8,9 @@ from typing import cast
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import Engine, select
-from sqlalchemy.orm import Session
+from sqlalchemy import Engine
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
-from gendertagger.db.executions import MethodExecutionRow, RunRow
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.domain.aggregation import REFERENCE_REQUIRED_METHODS
@@ -25,13 +23,17 @@ from gendertagger.models.classification import (
 )
 from gendertagger.models.lifecycle import (
     AggregationExecutionStatus,
-    MethodExecutionStatus,
-    RunStatus,
+    TaskBatchStatus,
 )
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.person import PersonInput
 from gendertagger.models.project import DatasetSnapshotCreate, ProjectCreate
-from gendertagger.models.run import MethodExecutionCreate, PredictionWrite, RunCreate
+from gendertagger.models.run import (
+    MethodExecutionCreate,
+    PredictionWrite,
+    RunCreate,
+    TaskBatchCreate,
+)
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.dispatch import OutboxRelay
 from gendertagger.services.pagination import CursorCodec
@@ -50,7 +52,7 @@ _TERMINAL = {
 
 def _seed_completed_reference_run(
     factory: UnitOfWorkFactory,
-    postgres_engine: Engine,
+    _postgres_engine: Engine,
 ) -> tuple[UUID, tuple[UUID, ...]]:
     now = datetime.now(UTC)
     with factory() as unit_of_work:
@@ -101,6 +103,8 @@ def _seed_completed_reference_run(
                 dependency_lock_sha256="b" * 64,
             )
         )
+        unit_of_work.runs.mark_run_queued(run.id)
+        unit_of_work.runs.mark_run_started(run.id, started_at=now)
         execution_ids: list[UUID] = []
         for method_name in REFERENCE_REQUIRED_METHODS:
             execution = unit_of_work.runs.add_method_execution(
@@ -116,47 +120,58 @@ def _seed_completed_reference_run(
                 )
             )
             execution_ids.append(execution.id)
+            batch = unit_of_work.runs.add_task_batch(
+                TaskBatchCreate(
+                    method_execution_id=execution.id,
+                    batch_index=0,
+                    queue_name="cpu",
+                    record_offset=0,
+                    record_count=1,
+                )
+            )
+            unit_of_work.runs.mark_execution_queued(execution.id)
+            unit_of_work.runs.mark_execution_started(execution.id, started_at=now)
+            claimed_batch = unit_of_work.runs.claim_batch(
+                batch.id,
+                method_execution_id=execution.id,
+                worker_task_id=f"fixture-{method_name}",
+                started_at=now,
+                attempt_count=1,
+            )
+            assert claimed_batch is not None
+            result = (
+                PredictionResult(
+                    label=CanonicalLabel.female,
+                    status=PredictionStatus.success,
+                    raw_label="female",
+                )
+                if method_name == "gender_guesser"
+                else PredictionResult(
+                    label=None,
+                    status=PredictionStatus.abstain,
+                )
+            )
             unit_of_work.runs.add_predictions(
                 execution.id,
                 [
                     PredictionWrite(
                         person_record_id=person.id,
+                        task_batch_id=batch.id,
                         input_fingerprint="c" * 64,
-                        result=(
-                            PredictionResult(
-                                label=CanonicalLabel.female,
-                                status=PredictionStatus.success,
-                                raw_label="female",
-                            )
-                            if method_name == "gender_guesser"
-                            else PredictionResult(
-                                label=None,
-                                status=PredictionStatus.abstain,
-                            )
-                        ),
+                        result=result,
                     )
                 ],
             )
-        unit_of_work.commit()
-
-    with Session(postgres_engine, autoflush=False, expire_on_commit=False) as session:
-        run_row = session.get(RunRow, run.id)
-        assert run_row is not None
-        run_row.status = RunStatus.completed
-        run_row.started_at = now
-        run_row.finished_at = now
-        execution_rows = tuple(
-            session.scalars(
-                select(MethodExecutionRow).where(MethodExecutionRow.id.in_(execution_ids))
+            unit_of_work.runs.mark_batch_finished(
+                batch.id,
+                status=TaskBatchStatus.completed,
+                finished_at=now,
+                success_count=int(result.status is PredictionStatus.success),
+                abstain_count=int(result.status is PredictionStatus.abstain),
             )
-        )
-        assert len(execution_rows) == len(REFERENCE_REQUIRED_METHODS)
-        for execution_row in execution_rows:
-            execution_row.status = MethodExecutionStatus.completed
-            execution_row.completed_count = 1
-            execution_row.started_at = now
-            execution_row.finished_at = now
-        session.commit()
+            unit_of_work.runs.finalize_execution_if_complete(execution.id, finished_at=now)
+        unit_of_work.runs.finalize_run_if_complete(run.id, finished_at=now)
+        unit_of_work.commit()
     return run.id, tuple(execution_ids)
 
 

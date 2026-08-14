@@ -6,14 +6,13 @@ import pytest
 from fastapi import Request
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
-from sqlalchemy import Engine, select
+from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from gendertagger.api.app import create_app
 from gendertagger.api.authentication import AuthenticationBackend
 from gendertagger.api.settings import AppSettings
 from gendertagger.config.run import MethodRunConfig, RunConfig
-from gendertagger.db.executions import MethodExecutionRow
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.domain.aggregation import REFERENCE_REQUIRED_METHODS
@@ -26,11 +25,16 @@ from gendertagger.models.classification import (
     PredictionResult,
     PredictionStatus,
 )
-from gendertagger.models.lifecycle import AggregationExecutionStatus, MethodExecutionStatus
+from gendertagger.models.lifecycle import AggregationExecutionStatus, TaskBatchStatus
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.person import PersonInput
 from gendertagger.models.project import DatasetSnapshotCreate, ProjectCreate
-from gendertagger.models.run import MethodExecutionCreate, PredictionWrite, RunCreate
+from gendertagger.models.run import (
+    MethodExecutionCreate,
+    PredictionWrite,
+    RunCreate,
+    TaskBatchCreate,
+)
 from gendertagger.models.user import Role, UserCreate
 from gendertagger.services.aggregation_execution import AggregationExecutor
 from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
@@ -67,7 +71,7 @@ def _unit_of_work_factory(
 
 def _seed_completed_reference_executions(
     unit_of_work_factory: UnitOfWorkFactory,
-    session_factory: sessionmaker[Session],
+    _session_factory: sessionmaker[Session],
 ) -> tuple[UUID, UUID, tuple[UUID, ...], tuple[UUID, UUID]]:
     with unit_of_work_factory() as unit_of_work:
         user = unit_of_work.users.add_user(
@@ -121,6 +125,8 @@ def _seed_completed_reference_executions(
                 dependency_lock_sha256=DEPENDENCY_LOCK_SHA256,
             )
         )
+        unit_of_work.runs.mark_run_queued(run.id)
+        unit_of_work.runs.mark_run_started(run.id, started_at=NOW)
         first_person = unit_of_work.projects.get_person_record_by_tei_id(snapshot.id, "p1")
         second_person = unit_of_work.projects.get_person_record_by_tei_id(snapshot.id, "p2")
         assert first_person is not None
@@ -140,6 +146,25 @@ def _seed_completed_reference_executions(
                 )
             )
             execution_ids.append(execution.id)
+            batch = unit_of_work.runs.add_task_batch(
+                TaskBatchCreate(
+                    method_execution_id=execution.id,
+                    batch_index=0,
+                    queue_name="cpu",
+                    record_offset=0,
+                    record_count=2,
+                )
+            )
+            unit_of_work.runs.mark_execution_queued(execution.id)
+            unit_of_work.runs.mark_execution_started(execution.id, started_at=NOW)
+            claimed_batch = unit_of_work.runs.claim_batch(
+                batch.id,
+                method_execution_id=execution.id,
+                worker_task_id=f"fixture-{method_name}",
+                started_at=NOW,
+                attempt_count=1,
+            )
+            assert claimed_batch is not None
             results: list[PredictionWrite] = []
             for index, person in enumerate((first_person, second_person), start=1):
                 if method_name == "local_llm":
@@ -161,26 +186,22 @@ def _seed_completed_reference_executions(
                 results.append(
                     PredictionWrite(
                         person_record_id=person.id,
+                        task_batch_id=batch.id,
                         input_fingerprint=str(index) * 64,
                         result=result,
                     )
                 )
             unit_of_work.runs.add_predictions(execution.id, results)
-        unit_of_work.commit()
-
-    with session_factory() as session:
-        execution_rows = tuple(
-            session.scalars(
-                select(MethodExecutionRow).where(MethodExecutionRow.id.in_(execution_ids))
+            unit_of_work.runs.mark_batch_finished(
+                batch.id,
+                status=TaskBatchStatus.completed,
+                finished_at=NOW,
+                success_count=2 if method_name == "local_llm" else 0,
+                abstain_count=0 if method_name == "local_llm" else 2,
             )
-        )
-        assert len(execution_rows) == len(REFERENCE_REQUIRED_METHODS)
-        for execution_row in execution_rows:
-            execution_row.status = MethodExecutionStatus.completed
-            execution_row.started_at = NOW
-            execution_row.finished_at = NOW
-            execution_row.completed_count = 2
-        session.commit()
+            unit_of_work.runs.finalize_execution_if_complete(execution.id, finished_at=NOW)
+        unit_of_work.runs.finalize_run_if_complete(run.id, finished_at=NOW)
+        unit_of_work.commit()
     return user.id, run.id, tuple(execution_ids), (first_person.id, second_person.id)
 
 

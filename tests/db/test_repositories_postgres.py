@@ -44,7 +44,11 @@ from gendertagger.models.classification import (
     PredictionResult,
     PredictionStatus,
 )
-from gendertagger.models.lifecycle import AggregationExecutionStatus, MethodExecutionStatus
+from gendertagger.models.lifecycle import (
+    AggregationExecutionStatus,
+    MethodExecutionStatus,
+    TaskBatchStatus,
+)
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.person import (
     ImportedPerson,
@@ -964,6 +968,18 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
             record_count=1,
         )
     )
+    runs.mark_run_queued(run.id)
+    runs.mark_run_started(run.id, started_at=now)
+    runs.mark_execution_queued(execution.id)
+    runs.mark_execution_started(execution.id, started_at=now)
+    claimed_batch = runs.claim_batch(
+        batch.id,
+        method_execution_id=execution.id,
+        worker_task_id="fixture-gender-guesser",
+        started_at=now,
+        attempt_count=1,
+    )
+    assert claimed_batch is not None
     prediction_result = PredictionResult(
         label=CanonicalLabel.unknown,
         status=PredictionStatus.success,
@@ -988,6 +1004,13 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
     )
     with pytest.raises(ImmutableResourceError, match="different output or provenance"):
         runs.add_predictions(execution.id, [conflicting_write])
+    runs.mark_batch_finished(
+        batch.id,
+        status=TaskBatchStatus.completed,
+        finished_at=now,
+        success_count=1,
+    )
+    runs.finalize_execution_if_complete(execution.id, finished_at=now)
     prediction_count = db_session.scalar(
         select(func.count())
         .select_from(PredictionRow)
@@ -1024,11 +1047,31 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
             )
         )
         execution_ids.append(additional_execution.id)
+        additional_batch = runs.add_task_batch(
+            TaskBatchCreate(
+                method_execution_id=additional_execution.id,
+                batch_index=0,
+                queue_name="cpu",
+                record_offset=0,
+                record_count=1,
+            )
+        )
+        runs.mark_execution_queued(additional_execution.id)
+        runs.mark_execution_started(additional_execution.id, started_at=now)
+        claimed_additional_batch = runs.claim_batch(
+            additional_batch.id,
+            method_execution_id=additional_execution.id,
+            worker_task_id=f"fixture-{method_name}",
+            started_at=now,
+            attempt_count=1,
+        )
+        assert claimed_additional_batch is not None
         runs.add_predictions(
             additional_execution.id,
             [
                 PredictionWrite(
                     person_record_id=person.id,
+                    task_batch_id=additional_batch.id,
                     input_fingerprint="c" * 64,
                     result=PredictionResult(
                         label=None,
@@ -1037,6 +1080,13 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
                 )
             ],
         )
+        runs.mark_batch_finished(
+            additional_batch.id,
+            status=TaskBatchStatus.completed,
+            finished_at=now,
+            abstain_count=1,
+        )
+        runs.finalize_execution_if_complete(additional_execution.id, finished_at=now)
 
     execution_rows = tuple(
         db_session.scalars(
@@ -1044,12 +1094,8 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
         )
     )
     assert len(execution_rows) == len(REFERENCE_REQUIRED_METHODS)
-    for execution_row in execution_rows:
-        execution_row.status = MethodExecutionStatus.completed
-        execution_row.started_at = now
-        execution_row.finished_at = now
-        execution_row.completed_count = 1
-    db_session.flush()
+    assert all(row.status is MethodExecutionStatus.completed for row in execution_rows)
+    runs.finalize_run_if_complete(run.id, finished_at=now)
 
     aggregations = SqlAlchemyAggregationRepository(db_session)
     aggregation = aggregations.add_aggregation(

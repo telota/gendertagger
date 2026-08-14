@@ -244,7 +244,7 @@ class PredictionWrite(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     person_record_id: UUID
-    task_batch_id: UUID | None = None
+    task_batch_id: UUID
     input_fingerprint: str = Field(pattern=SHA256_PATTERN)
     result: PredictionResult
 
@@ -255,7 +255,7 @@ class Prediction(PredictionResult):
     id: UUID
     method_execution_id: UUID
     person_record_id: UUID
-    task_batch_id: UUID | None = None
+    task_batch_id: UUID
     input_fingerprint: str = Field(pattern=SHA256_PATTERN)
     created_at: UtcDatetime
 

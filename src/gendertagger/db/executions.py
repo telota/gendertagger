@@ -261,9 +261,10 @@ class PredictionRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
         ForeignKey("person_records.id", ondelete="RESTRICT"),
         nullable=False,
     )
-    task_batch_id: Mapped[UUID | None] = mapped_column(
+    task_batch_id: Mapped[UUID] = mapped_column(
         POSTGRESQL_UUID(as_uuid=True),
         ForeignKey("task_batches.id", ondelete="RESTRICT"),
+        nullable=False,
     )
     label: Mapped[CanonicalLabel | None] = mapped_column(
         stored_enum(CanonicalLabel, name="canonical_label"),

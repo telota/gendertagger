@@ -21,6 +21,7 @@ from gendertagger.models.run import (
 RUN_ID = UUID("50000000-0000-0000-0000-000000000001")
 SNAPSHOT_ID = UUID("20000000-0000-0000-0000-000000000001")
 EXECUTION_ID = UUID("60000000-0000-0000-0000-000000000001")
+BATCH_ID = UUID("65000000-0000-0000-0000-000000000001")
 PERSON_ID = UUID("40000000-0000-0000-0000-000000000001")
 PREDICTION_ID = UUID("70000000-0000-0000-0000-000000000001")
 CREATED_AT = datetime(2026, 8, 13, 10, 0, tzinfo=UTC)
@@ -175,6 +176,7 @@ def test_prediction_write_and_read_preserve_unknown_as_success() -> None:
     )
     write = PredictionWrite(
         person_record_id=PERSON_ID,
+        task_batch_id=BATCH_ID,
         input_fingerprint=SHA256,
         result=result,
     )
@@ -182,7 +184,7 @@ def test_prediction_write_and_read_preserve_unknown_as_success() -> None:
         id=PREDICTION_ID,
         method_execution_id=EXECUTION_ID,
         person_record_id=PERSON_ID,
-        task_batch_id=None,
+        task_batch_id=BATCH_ID,
         input_fingerprint=SHA256,
         created_at=CREATED_AT,
         **result.model_dump(),

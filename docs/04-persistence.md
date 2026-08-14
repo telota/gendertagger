@@ -123,6 +123,18 @@ Prediction records should include:
 - input fingerprint
 - created_at
 
+Every Prediction belongs to one persisted TaskBatch; `task_batch_id` is required rather than optional
+provenance. Prediction insertion locks the target TaskBatch and validates its owning Run and MethodExecution.
+All three must be `running`, the batch must belong to the execution, and the people supplied must exactly match
+the batch's deterministic `(record_offset, record_count)` slice of the Run's snapshot. A single write cannot
+mix TaskBatches.
+
+The complete prediction set and the completed TaskBatch state are committed in one transaction. Deferred
+database checks reject a commit when prediction rows remain beneath a running batch, when a completed batch
+does not have exactly its assigned people, or when its tallies disagree with those immutable outputs. Insert
+guards enforce the same lifecycle, ownership, and snapshot-slice rules for direct SQLAlchemy or SQL callers.
+Existing Prediction rows remain update/delete-immutable.
+
 ### Aggregation
 
 Aggregation executions reference the exact MethodExecutions included. Do not infer "all methods in run" later
@@ -131,7 +143,39 @@ if a subset was selected.
 `aggregated_results` is unique on `(aggregation_execution_id, person_record_id)`. At the current dataset scale,
 the executor inserts the full person-result set and marks the AggregationExecution completed in one
 transaction. Completion requires result cardinality equal to the immutable snapshot's person cardinality.
-Failed or retried attempts expose no partial rows.
+The repository requires the supplied unique person IDs to equal the snapshot's complete person set before
+insertion. Insert and deferred database guards apply the same rule to direct callers: results may be inserted
+only while the aggregation is `running`, every person must belong to its Run's snapshot, committed results
+must have a completed parent, and a completed aggregation must have exact coverage. Failed or retried attempts
+expose no partial rows. Existing AggregatedResult rows remain update/delete-immutable.
+
+### Execution lifecycle and provenance sealing
+
+PostgreSQL enforces legal lifecycle transitions for Runs, MethodExecutions, TaskBatches, and
+AggregationExecutions in addition to repository validation. Terminal execution resources cannot be reopened
+to admit late output. A MethodExecution cannot become terminal until all of its TaskBatches are terminal, and
+a Run cannot become terminal until all of its MethodExecutions are terminal. Lifecycle rows cannot be deleted,
+and status-specific start/finish timestamps and failure details are enforced at the database boundary.
+
+New MethodExecutions may be appended only while their Run is non-terminal, and new TaskBatches only while
+their MethodExecution is non-terminal. AggregationExecutions remain independently rerunnable and may be
+created for an existing terminal Run; their selected MethodExecutions must still be completed outputs from
+that Run.
+
+Creation-time scientific provenance is immutable. Updates to those rows are limited to operational fields:
+
+- Runs: lifecycle status, start/finish timestamps, and failure diagnostic;
+- MethodExecutions: lifecycle status, progress counts, timestamps, and failure details;
+- TaskBatches: lifecycle status, worker/attempt metadata, tallies, timestamps, and failure details;
+- AggregationExecutions: lifecycle status, timestamps, and failure details.
+
+Consequently, snapshot/configuration hashes, code/runtime versions, method/model/data identifiers, queue and
+batch-slice definitions, aggregation strategy/configuration, and owning-resource IDs cannot be rewritten.
+The ordered `aggregation_method_executions` membership may be inserted only while its aggregation is pending;
+before transition to queued or running it must be nonempty with contiguous positions starting at zero. After
+scheduling it is sealed, and existing membership rows cannot be updated or deleted. Once any execution
+resource reaches a terminal state, the entire row is sealed, including fields that were operationally mutable
+while work was active.
 
 ### Transactional dispatch outbox
 

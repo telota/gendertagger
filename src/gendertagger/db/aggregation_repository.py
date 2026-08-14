@@ -54,7 +54,12 @@ class SqlAlchemyAggregationRepository:
 
     def add_aggregation(self, command: AggregationExecutionCreate) -> AggregationExecution:
         """Persist an aggregation only for completed executions from one run."""
-        run = self._session.get(RunRow, command.run_id)
+        run = self._session.scalar(
+            select(RunRow)
+            .where(RunRow.id == command.run_id)
+            .with_for_update(read=True)
+            .execution_options(populate_existing=True)
+        )
         if run is None:
             msg = f"run {command.run_id} does not exist"
             raise ResourceNotFoundError(msg)
@@ -312,35 +317,53 @@ class SqlAlchemyAggregationRepository:
         aggregation_execution_id: UUID,
         results: Sequence[AggregationResultWrite],
     ) -> int:
-        """Validate snapshot ownership and persist immutable aggregation outputs."""
-        aggregation = self._require_aggregation(aggregation_execution_id)
+        """Persist one complete run-snapshot result set while aggregation is running."""
+        aggregation = self._session.scalar(
+            select(AggregationExecutionRow)
+            .where(AggregationExecutionRow.id == aggregation_execution_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if aggregation is None:
+            msg = f"aggregation execution {aggregation_execution_id} does not exist"
+            raise ResourceNotFoundError(msg)
         self._require_source(
             aggregation_execution_id,
             aggregation.status,
             {AggregationExecutionStatus.running},
             "add results",
         )
-        if not results:
-            return 0
 
         person_ids = {result.person_record_id for result in results}
         if len(person_ids) != len(results):
             msg = "an aggregation result batch must contain each person at most once"
             raise ValueError(msg)
-        run_snapshot_id = self._session.scalar(
-            select(RunRow.dataset_snapshot_id).where(RunRow.id == aggregation.run_id)
-        )
-        matching_person_ids = set(
+        run_snapshot_id = self._snapshot_id_for_run(aggregation.run_id)
+        snapshot = self._session.get(DatasetSnapshotRow, run_snapshot_id)
+        if snapshot is None or snapshot.record_count is None:
+            msg = f"dataset snapshot {run_snapshot_id} has no complete record count"
+            raise InvalidResourceStateError(msg)
+        snapshot_person_ids = set(
             self._session.scalars(
                 select(PersonRecordRow.id).where(
-                    PersonRecordRow.id.in_(person_ids),
-                    PersonRecordRow.dataset_snapshot_id == run_snapshot_id,
+                    PersonRecordRow.dataset_snapshot_id == run_snapshot_id
                 )
             )
         )
-        if matching_person_ids != person_ids:
-            msg = "every aggregated result person must belong to the run snapshot"
+        if len(snapshot_person_ids) != snapshot.record_count:
+            msg = (
+                f"dataset snapshot {run_snapshot_id} declares {snapshot.record_count} "
+                f"records but contains {len(snapshot_person_ids)} people"
+            )
             raise InvalidResourceStateError(msg)
+        if person_ids != snapshot_person_ids:
+            msg = (
+                "aggregation results must exactly cover the run snapshot: "
+                f"expected {len(snapshot_person_ids)} people, received {len(person_ids)}"
+            )
+            raise InvalidResourceStateError(msg)
+        if not results:
+            return 0
 
         rows: list[AggregatedResultRow] = []
         for result_write in results:

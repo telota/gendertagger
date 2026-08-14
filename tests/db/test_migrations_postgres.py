@@ -30,14 +30,29 @@ EXPECTED_APPLICATION_TABLES = {
     "users",
 }
 EXPECTED_IMMUTABILITY_TRIGGERS = {
+    "trg_aggregated_results_parent_completed",
+    "trg_aggregated_results_validate_insert",
     "trg_aggregated_results_immutable",
+    "trg_aggregation_executions_lifecycle",
+    "trg_aggregation_executions_provenance",
+    "trg_aggregation_executions_result_coverage",
+    "trg_aggregation_methods_validate_mutation",
     "trg_annotations_append_only",
     "trg_artifacts_immutable",
     "trg_dataset_snapshots_immutable_ready",
+    "trg_method_executions_lifecycle",
+    "trg_method_executions_provenance",
     "trg_person_external_ids_immutable_ready_snapshot",
     "trg_person_records_immutable_ready_snapshot",
+    "trg_predictions_parent_completed",
+    "trg_predictions_validate_insert",
     "trg_predictions_immutable",
+    "trg_runs_lifecycle",
+    "trg_runs_provenance",
     "trg_snapshot_source_members_immutable_ready_snapshot",
+    "trg_task_batches_lifecycle",
+    "trg_task_batches_prediction_coverage",
+    "trg_task_batches_provenance",
 }
 
 
@@ -68,6 +83,10 @@ def test_initial_migration_upgrades_downgrades_and_has_no_drift(
                 ).scalars()
             )
         assert trigger_names == EXPECTED_IMMUTABILITY_TRIGGERS
+        prediction_columns = {
+            column["name"]: column for column in inspect(engine).get_columns("predictions")
+        }
+        assert prediction_columns["task_batch_id"]["nullable"] is False
     finally:
         engine.dispose()
 

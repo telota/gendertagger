@@ -19,7 +19,7 @@ class AggregationRepository(Protocol):
     """Persist canonical aggregation resources without owning the transaction."""
 
     def add_aggregation(self, command: AggregationExecutionCreate) -> AggregationExecution:
-        """Persist an aggregation over an exact ordered execution selection."""
+        """Persist an aggregation over a locked run and exact completed selection."""
         ...
 
     def get_aggregation(self, aggregation_execution_id: UUID) -> AggregationExecution | None:
@@ -58,7 +58,7 @@ class AggregationRepository(Protocol):
         aggregation_execution_id: UUID,
         results: Sequence[AggregationResultWrite],
     ) -> int:
-        """Persist one immutable result batch while the aggregation is running."""
+        """Persist the complete snapshot result set while aggregation is running."""
         ...
 
     def mark_aggregation_finished(

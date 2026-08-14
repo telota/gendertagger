@@ -6,14 +6,13 @@ import pytest
 from fastapi import Request
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
-from sqlalchemy import Engine, select
+from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from gendertagger.api.app import create_app
 from gendertagger.api.authentication import AuthenticationBackend
 from gendertagger.api.settings import AppSettings
 from gendertagger.config.run import MethodRunConfig, RunConfig
-from gendertagger.db.executions import MethodExecutionRow
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.domain.aggregation import REFERENCE_REQUIRED_METHODS
@@ -35,13 +34,18 @@ from gendertagger.models.classification import (
 )
 from gendertagger.models.lifecycle import (
     AggregationExecutionStatus,
-    MethodExecutionStatus,
+    TaskBatchStatus,
 )
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.person import PersonInput
 from gendertagger.models.project import DatasetSnapshotCreate, ProjectCreate
 from gendertagger.models.review import AnnotationCreate, ReviewAction, ReviewWorkflowState
-from gendertagger.models.run import MethodExecutionCreate, PredictionWrite, RunCreate
+from gendertagger.models.run import (
+    MethodExecutionCreate,
+    PredictionWrite,
+    RunCreate,
+    TaskBatchCreate,
+)
 from gendertagger.models.user import Role, UserCreate
 from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
@@ -77,7 +81,7 @@ def _unit_of_work_factory(
 
 def _seed_review_items(
     unit_of_work_factory: UnitOfWorkFactory,
-    session_factory: sessionmaker[Session],
+    _session_factory: sessionmaker[Session],
 ) -> tuple[UUID, UUID]:
     with unit_of_work_factory() as unit_of_work:
         reviewer = unit_of_work.users.add_user(
@@ -137,6 +141,8 @@ def _seed_review_items(
                 dependency_lock_sha256=DEPENDENCY_LOCK_SHA256,
             )
         )
+        unit_of_work.runs.mark_run_queued(run.id)
+        unit_of_work.runs.mark_run_started(run.id, started_at=NOW)
         person_one = people["p1"]
         person_two = people["p2"]
         person_three = people["p3"]
@@ -159,6 +165,25 @@ def _seed_review_items(
                 )
             )
             execution_ids.append(execution.id)
+            batch = unit_of_work.runs.add_task_batch(
+                TaskBatchCreate(
+                    method_execution_id=execution.id,
+                    batch_index=0,
+                    queue_name="cpu",
+                    record_offset=0,
+                    record_count=3,
+                )
+            )
+            unit_of_work.runs.mark_execution_queued(execution.id)
+            unit_of_work.runs.mark_execution_started(execution.id, started_at=NOW)
+            claimed_batch = unit_of_work.runs.claim_batch(
+                batch.id,
+                method_execution_id=execution.id,
+                worker_task_id=f"fixture-{method_name}",
+                started_at=NOW,
+                attempt_count=1,
+            )
+            assert claimed_batch is not None
             results: tuple[PredictionResult, ...]
             if method_name == "gender_guesser":
                 results = (
@@ -189,6 +214,7 @@ def _seed_review_items(
                 [
                     PredictionWrite(
                         person_record_id=person.id,
+                        task_batch_id=batch.id,
                         input_fingerprint=str(index) * 64,
                         result=result,
                     )
@@ -198,25 +224,17 @@ def _seed_review_items(
                     )
                 ],
             )
-        unit_of_work.commit()
-
-    with session_factory() as session:
-        execution_rows = tuple(
-            session.scalars(
-                select(MethodExecutionRow).where(MethodExecutionRow.id.in_(execution_ids))
+            unit_of_work.runs.mark_batch_finished(
+                batch.id,
+                status=TaskBatchStatus.completed,
+                finished_at=NOW,
+                success_count=2 if method_name == "gender_guesser" else 0,
+                abstain_count=0 if method_name == "gender_guesser" else 3,
+                error_count=1 if method_name == "gender_guesser" else 0,
             )
-        )
-        assert len(execution_rows) == len(REFERENCE_REQUIRED_METHODS)
-        for execution_row in execution_rows:
-            execution_row.status = MethodExecutionStatus.completed
-            execution_row.started_at = NOW
-            execution_row.finished_at = NOW
-            if execution_row.method_name == "gender_guesser":
-                execution_row.completed_count = 2
-                execution_row.failed_count = 1
-            else:
-                execution_row.completed_count = 3
-        session.commit()
+            unit_of_work.runs.finalize_execution_if_complete(execution.id, finished_at=NOW)
+        unit_of_work.runs.finalize_run_if_complete(run.id, finished_at=NOW)
+        unit_of_work.commit()
 
     with unit_of_work_factory() as unit_of_work:
         aggregation = unit_of_work.aggregations.add_aggregation(
