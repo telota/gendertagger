@@ -232,6 +232,9 @@ def test_run_and_executions_expose_progress(
     assert execution["method_name"] == "parenthetical_qualifier"
     assert execution["progress"]["total"] == 1
     assert execution["progress"]["completed"] == 0  # dispatched but not executed
+    # Queue routing and worker provenance stay behind the public client boundary.
+    assert "queue_name" not in execution
+    assert "worker_metadata" not in execution
 
     run_progress = client.get(f"/api/v1/runs/{run_id}").json()["progress"]
     assert run_progress["total"] == 1

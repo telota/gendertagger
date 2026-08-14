@@ -109,6 +109,12 @@ the phased plan that resumes application code.
 - Snapshot creation now returns a durable pending resource instead of parsing and persisting the complete
   register inside a nominally asynchronous `202 Accepted` request. One endpoint now dispatches the declared
   supported format/packaging matrix without exposing Celery or artifact-storage details.
+- `GET /api/v1/runs/{run_id}/executions` now returns the public `MethodExecutionSummary` contract, which drops
+  the `queue_name` and `worker_metadata` fields previously served to every viewer. The canonical
+  `MethodExecution` model retains both for internal routing and worker provenance. This restores the client
+  boundary in [`docs/01-architecture.md`](docs/01-architecture.md), under which queue names and worker
+  identities are never part of the public contract, and removes both fields from the generated OpenAPI
+  document.
 
 ### Fixed
 

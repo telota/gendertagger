@@ -1,5 +1,6 @@
 """Reproducible run HTTP resources."""
 
+from collections.abc import Sequence
 from typing import Annotated
 from uuid import UUID
 
@@ -10,7 +11,7 @@ from gendertagger.api.authorization import require_operator, require_viewer
 from gendertagger.api.dependencies import get_run_scheduler, get_run_service
 from gendertagger.api.errors import ApiRequestError
 from gendertagger.api.run_events import stream_run_events
-from gendertagger.models.run import MethodExecution, Run, RunCreateRequest
+from gendertagger.models.run import MethodExecutionSummary, Run, RunCreateRequest
 from gendertagger.models.user import CurrentUser
 from gendertagger.services.execution import RunScheduler
 from gendertagger.services.method_registry import MethodRegistryError
@@ -62,13 +63,17 @@ def get_run(
         raise _not_found() from error
 
 
-@router.get("/runs/{run_id}/executions", response_model=list[MethodExecution])
+@router.get("/runs/{run_id}/executions", response_model=list[MethodExecutionSummary])
 def list_run_executions(
     run_id: UUID,
     service: Annotated[RunService, Depends(get_run_service)],
     _: Annotated[CurrentUser, Depends(require_viewer)],
-) -> list[MethodExecution]:
-    """List a run's method executions with their persisted progress."""
+) -> Sequence[MethodExecutionSummary]:
+    """List a run's method executions without exposing queue internals.
+
+    The service returns the internal ``MethodExecution``; the declared response
+    model narrows both the payload and the OpenAPI schema to the public summary.
+    """
     try:
         return service.list_executions(run_id)
     except ResourceNotFoundError as error:

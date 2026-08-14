@@ -391,6 +391,12 @@ class Progress(BaseModel):
 
 Run and MethodExecution read models expose progress without exposing Celery state.
 
+The method-execution contract is split along that boundary. `MethodExecutionSummary` is the public read model
+returned by `/api/v1`; `MethodExecution` extends it with the internal `queue_name` and `worker_metadata`
+routing and worker-provenance fields consumed by services, repositories, and workers. Endpoints declare the
+summary as their response model, so queue names and worker identities reach neither the JSON payload nor the
+generated OpenAPI document.
+
 ### Cursor pages
 
 ```python

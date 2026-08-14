@@ -232,7 +232,9 @@ Support `Last-Event-ID`/resume when event persistence exists; it is not required
 
 ## Progress model
 
-Expose progress in Run and MethodExecution summaries.
+Expose progress in `Run` and `MethodExecutionSummary` responses. The public execution summary carries
+scientific and lifecycle provenance only; queue routing and worker metadata remain internal to
+`MethodExecution`.
 
 ```python
 class Progress(BaseModel):

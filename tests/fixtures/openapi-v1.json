@@ -903,9 +903,23 @@
         "title": "MethodDescriptor",
         "type": "object"
       },
-      "MethodExecution": {
+      "MethodExecutionStatus": {
+        "description": "Lifecycle for one method execution within a run.",
+        "enum": [
+          "pending",
+          "queued",
+          "running",
+          "completed",
+          "completed_with_errors",
+          "failed",
+          "cancelled"
+        ],
+        "title": "MethodExecutionStatus",
+        "type": "string"
+      },
+      "MethodExecutionSummary": {
         "additionalProperties": false,
-        "description": "Canonical read model for one persisted method execution.",
+        "description": "Public read model for one method execution, free of queue internals.\n\nOperational routing and worker provenance are deliberately absent: clients\nof ``/api/v1`` never see queue names or worker identities. ``MethodExecution``\nadds those internal fields for services, repositories, and workers.",
         "properties": {
           "completed_count": {
             "minimum": 0.0,
@@ -1051,11 +1065,6 @@
             ],
             "title": "Prompt Version"
           },
-          "queue_name": {
-            "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
-            "title": "Queue Name",
-            "type": "string"
-          },
           "resolved_config": {
             "additionalProperties": {
               "$ref": "#/components/schemas/JsonValue"
@@ -1105,13 +1114,6 @@
               }
             ],
             "title": "Total Count"
-          },
-          "worker_metadata": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/JsonValue"
-            },
-            "title": "Worker Metadata",
-            "type": "object"
           }
         },
         "required": [
@@ -1123,28 +1125,13 @@
           "resolved_config",
           "config_sha256",
           "status",
-          "queue_name",
           "completed_count",
           "failed_count",
           "created_at",
           "progress"
         ],
-        "title": "MethodExecution",
+        "title": "MethodExecutionSummary",
         "type": "object"
-      },
-      "MethodExecutionStatus": {
-        "description": "Lifecycle for one method execution within a run.",
-        "enum": [
-          "pending",
-          "queued",
-          "running",
-          "completed",
-          "completed_with_errors",
-          "failed",
-          "cancelled"
-        ],
-        "title": "MethodExecutionStatus",
-        "type": "string"
       },
       "MethodRunConfig": {
         "additionalProperties": false,
@@ -3880,7 +3867,7 @@
     },
     "/api/v1/runs/{run_id}/executions": {
       "get": {
-        "description": "List a run's method executions with their persisted progress.",
+        "description": "List a run's method executions without exposing queue internals.\n\nThe service returns the internal ``MethodExecution``; the declared response\nmodel narrows both the payload and the OpenAPI schema to the public summary.",
         "operationId": "list_run_executions_api_v1_runs__run_id__executions_get",
         "parameters": [
           {
@@ -3900,7 +3887,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/MethodExecution"
+                    "$ref": "#/components/schemas/MethodExecutionSummary"
                   },
                   "title": "Response List Run Executions Api V1 Runs  Run Id  Executions Get",
                   "type": "array"

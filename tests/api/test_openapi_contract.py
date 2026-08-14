@@ -40,3 +40,5 @@ def test_openapi_matches_committed_public_contract() -> None:
     assert rendered_schema == OPENAPI_SNAPSHOT.read_text(encoding="utf-8")
     assert "storage_uri" not in rendered_schema
     assert "task_id" not in rendered_schema
+    assert "queue_name" not in rendered_schema
+    assert "worker_metadata" not in rendered_schema

@@ -134,8 +134,13 @@ class MethodExecutionCreate(BaseModel):
         return canonical_json_sha256(self.resolved_config)
 
 
-class MethodExecution(BaseModel):
-    """Canonical read model for one persisted method execution."""
+class MethodExecutionSummary(BaseModel):
+    """Public read model for one method execution, free of queue internals.
+
+    Operational routing and worker provenance are deliberately absent: clients
+    of ``/api/v1`` never see queue names or worker identities. ``MethodExecution``
+    adds those internal fields for services, repositories, and workers.
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -147,7 +152,6 @@ class MethodExecution(BaseModel):
     resolved_config: dict[str, JsonValue]
     config_sha256: str = Field(pattern=SHA256_PATTERN)
     status: MethodExecutionStatus
-    queue_name: str = Field(pattern=QUEUE_NAME_PATTERN)
     model_identifier: str | None = None
     model_revision: str | None = None
     model_checksum: str | None = Field(default=None, pattern=SHA256_PATTERN)
@@ -155,7 +159,6 @@ class MethodExecution(BaseModel):
     data_artifact_id: UUID | None = None
     prompt_version: str | None = None
     schema_version: str | None = None
-    worker_metadata: dict[str, JsonValue] = Field(default_factory=dict)
     total_count: int | None = Field(default=None, ge=0)
     completed_count: int = Field(ge=0)
     failed_count: int = Field(ge=0)
@@ -175,6 +178,13 @@ class MethodExecution(BaseModel):
             msg = "execution progress must not exceed total_count"
             raise ValueError(msg)
         return self
+
+
+class MethodExecution(MethodExecutionSummary):
+    """Canonical internal read model adding routing and worker provenance."""
+
+    queue_name: str = Field(pattern=QUEUE_NAME_PATTERN)
+    worker_metadata: dict[str, JsonValue] = Field(default_factory=dict)
 
 
 class TaskBatchPlan(BaseModel):
