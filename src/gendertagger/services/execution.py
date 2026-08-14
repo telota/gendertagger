@@ -26,6 +26,7 @@ from gendertagger.models.run import (
     TaskBatch,
     TaskBatchMessage,
 )
+from gendertagger.services.artifact_repository import AmbiguousArtifactError
 from gendertagger.services.method_registry import MethodRegistry
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
@@ -130,6 +131,26 @@ class RunScheduler:
                 if registration is None:
                     msg = f"method {method.name!r} is not registered"
                     raise InvalidResourceStateError(msg)
+                data_artifact_id: UUID | None = None
+                if registration.data_artifact_logical_type is not None:
+                    lookup_sha256 = method.config.get("lookup_sha256")
+                    if not isinstance(lookup_sha256, str):
+                        msg = f"method {method.name!r} lacks a resolved lookup_sha256"
+                        raise InvalidResourceStateError(msg)
+                    try:
+                        artifact = unit_of_work.artifacts.get_artifact_by_sha256(
+                            registration.data_artifact_logical_type,
+                            lookup_sha256,
+                        )
+                    except AmbiguousArtifactError as error:
+                        raise InvalidResourceStateError(str(error)) from error
+                    if artifact is None:
+                        msg = (
+                            f"lookup artifact for method {method.name!r} "
+                            f"and digest {lookup_sha256!r} is not registered"
+                        )
+                        raise InvalidResourceStateError(msg)
+                    data_artifact_id = artifact.id
                 execution = unit_of_work.runs.add_method_execution(
                     MethodExecutionCreate(
                         run_id=run_id,
@@ -137,6 +158,7 @@ class RunScheduler:
                         resolved_config=method.config,
                         queue_name=registration.queue_name,
                         total_count=total_count,
+                        data_artifact_id=data_artifact_id,
                     )
                 )
                 unit_of_work.runs.mark_execution_queued(execution.id)

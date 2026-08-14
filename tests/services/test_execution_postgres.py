@@ -108,6 +108,107 @@ def _seed_created_run(factory: UnitOfWorkFactory) -> UUID:
         return run.id
 
 
+def _seed_gnd_lookup_run(
+    factory: UnitOfWorkFactory,
+    *,
+    register_lookup: bool = True,
+) -> tuple[UUID, UUID | None]:
+    with factory() as unit_of_work:
+        source = unit_of_work.artifacts.add_artifact(
+            ArtifactCreate(
+                logical_type="source_tei",
+                storage_uri="file:///synthetic/gnd-source.xml",
+                sha256="d" * 64,
+                byte_size=1,
+                media_type="application/xml",
+            )
+        )
+        lookup_sha256 = "c" * 64
+        lookup = (
+            unit_of_work.artifacts.add_artifact(
+                ArtifactCreate(
+                    logical_type="gnd_lookup_snapshot",
+                    storage_uri=f"local-sha256:{lookup_sha256}",
+                    sha256=lookup_sha256,
+                    byte_size=1,
+                    media_type="application/vnd.sqlite3",
+                )
+            )
+            if register_lookup
+            else None
+        )
+        project = unit_of_work.projects.add_project(
+            ProjectCreate(slug=f"gnd-exec-{uuid4().hex}", display_name="GND execution")
+        )
+        snapshot = unit_of_work.projects.add_snapshot(
+            DatasetSnapshotCreate(
+                project_id=project.id,
+                source_artifact_id=source.id,
+                source_sha256=source.sha256,
+                parser_version="tei_parser_v1",
+                import_config={"profile": "tei_p5_person_register_v1"},
+            )
+        )
+        unit_of_work.projects.begin_snapshot_import(snapshot.id)
+        unit_of_work.projects.add_person_records(
+            snapshot.id,
+            [PersonInput(tei_id="p-gnd", gnd_id="123")],
+        )
+        unit_of_work.projects.complete_snapshot_import(snapshot.id, ready_at=NOW)
+        run = unit_of_work.runs.add_run(
+            RunCreate(
+                dataset_snapshot_id=snapshot.id,
+                resolved_config=RunConfig(
+                    methods=[
+                        MethodRunConfig(
+                            name="gnd",
+                            config={"lookup_sha256": lookup_sha256},
+                        )
+                    ]
+                ),
+                code_git_commit="abc123",
+                application_version="0.0.0",
+                python_version="3.11.0",
+                dependency_lock_sha256="b" * 64,
+            )
+        )
+        unit_of_work.commit()
+        return run.id, None if lookup is None else lookup.id
+
+
+def test_scheduler_seals_resolved_lookup_artifact_on_method_execution(
+    postgres_unit_of_work: tuple[UnitOfWorkFactory, Connection],
+) -> None:
+    factory, _ = postgres_unit_of_work
+    run_id, lookup_artifact_id = _seed_gnd_lookup_run(factory)
+    assert lookup_artifact_id is not None
+
+    (scheduled,) = RunScheduler(
+        unit_of_work_factory=factory,
+        method_registry=default_method_registry(),
+        clock=lambda: NOW,
+    ).schedule_run(run_id)
+
+    with factory() as unit_of_work:
+        execution = unit_of_work.runs.get_method_execution(scheduled.method_execution_id)
+        assert execution is not None
+        assert execution.data_artifact_id == lookup_artifact_id
+
+
+def test_scheduler_rejects_an_unregistered_lookup_digest(
+    postgres_unit_of_work: tuple[UnitOfWorkFactory, Connection],
+) -> None:
+    factory, _ = postgres_unit_of_work
+    run_id, _ = _seed_gnd_lookup_run(factory, register_lookup=False)
+
+    with pytest.raises(InvalidResourceStateError, match="is not registered"):
+        RunScheduler(
+            unit_of_work_factory=factory,
+            method_registry=default_method_registry(),
+            clock=lambda: NOW,
+        ).schedule_run(run_id)
+
+
 def test_run_executes_end_to_end_and_completes(
     postgres_unit_of_work: tuple[UnitOfWorkFactory, Connection],
 ) -> None:

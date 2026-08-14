@@ -1,12 +1,9 @@
-"""Adapter for the Wiki-Gendersort first-name lookup table.
+"""Adapter and SQLite compiler for the Wiki-Gendersort name table.
 
-The adapter tokenizes each person's forename with the shared name-token filter,
-resolves each token against a local ``NamesOut.txt`` snapshot through the ported
-Wiki-Gendersort ``nameclean``/``assign`` logic, maps the native label to the
-project alphabet, and reduces the per-token labels by the method's priority
-consensus. The raw label is normalized against the frozen ``wiki_gendersort_v1``
-profile. The snapshot path is resolved run configuration, so the exact authority
-table used is recorded in provenance. See ADR-0013.
+Provisioning compiles the published ``NamesOut.txt`` once into an immutable
+content-addressed lookup. Prediction preserves the ported Wiki-Gendersort
+``nameclean``/``assign`` behavior and frozen normalization. See ADR-0013 and
+ADR-0023.
 """
 
 from __future__ import annotations
@@ -15,11 +12,17 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Final, Protocol
 
-from pydantic import Field
-
-from gendertagger.methods.base import MethodConfig, MethodDependencyError
+from gendertagger.methods.base import LookupMethodConfig, MethodDependencyError
 from gendertagger.methods.name_tokens import consensus_label, usable_forename_tokens
 from gendertagger.methods.normalization import WIKI_GENDERSORT_NORMALIZATION, normalize_raw_label
+from gendertagger.methods.sqlite_lookup import (
+    LookupAssetResolver,
+    LookupDatabaseMetadata,
+    UnavailableLookupAssetResolver,
+    create_lookup_database,
+    finalize_lookup_database,
+    open_lookup_database,
+)
 from gendertagger.models.classification import PredictionResult
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.person import PersonInput
@@ -41,25 +44,26 @@ _UNKNOWN_NATIVE: Final = "UNK"
 _UNISEX_NATIVE: Final = "UNI"
 _INITIALS_NATIVE: Final = "INI"
 
+WIKI_GENDERSORT_LOOKUP_LOGICAL_TYPE: Final = "wiki_gendersort_lookup"
+WIKI_GENDERSORT_LOOKUP_SCHEMA_VERSION: Final = "wiki_gendersort_lookup_v1"
+WIKI_GENDERSORT_LOOKUP_COMPILER_VERSION: Final = "wiki_gendersort_lookup_compiler_v1"
+_SQLITE_PARAMETER_BATCH_SIZE: Final = 900
+_NATIVE_LABELS: Final = frozenset(_LABEL_MAP)
 
-class WikiGendersortConfig(MethodConfig):
-    """Resolved configuration selecting the Wiki-Gendersort name table snapshot."""
 
-    names_db_path: str = Field(
-        min_length=1,
-        description="Filesystem path to the Wiki-Gendersort NamesOut.txt snapshot.",
-    )
+class WikiGendersortConfig(LookupMethodConfig):
+    """Resolved configuration selecting a compiled Wiki-Gendersort lookup."""
 
 
 class NameAssigner(Protocol):
-    """Structural contract resolving one first-name token to a native label."""
+    """Structural contract resolving first-name tokens to native labels."""
 
-    def assign(self, name: str) -> tuple[str, str | None]:
-        """Return ``(native_label, matched_name)`` for one token."""
+    def assign_many(self, names: Sequence[str]) -> list[tuple[str, str | None]]:
+        """Return native labels and matched candidates in input order."""
         ...
 
 
-AssignerFactory = Callable[[str], NameAssigner]
+AssignerFactory = Callable[[Path], NameAssigner]
 
 Transliterate = Callable[[str], str]
 
@@ -169,33 +173,55 @@ def _clean_name(first_name: str, transliterate: Transliterate) -> list[str]:
 
 
 class WikiGendersortTable:
-    """Local ``NamesOut.txt`` lookup table with the ported ``assign`` behavior."""
+    """Read-only SQLite table with the ported Wiki-Gendersort assign behavior."""
 
-    def __init__(self, names_db_path: str) -> None:
+    def __init__(self, lookup_path: Path) -> None:
         self._transliterate = _load_transliterate()
-        self._names_key: dict[str, str] = {}
-        path = Path(names_db_path)
-        with path.open(encoding="utf-8") as handle:
-            for line in handle:
-                parts = line.rstrip("\n").split("\t")
-                if len(parts) >= 2:
-                    raw_name = "\t".join(parts[:-1]).upper()
-                    if raw_name:
-                        raw_name = raw_name[0] + raw_name[1:].lower()
-                    self._names_key[raw_name] = parts[-1]
+        self._connection = open_lookup_database(
+            lookup_path,
+            expected_method_name="wiki_gendersort",
+            expected_schema_version=WIKI_GENDERSORT_LOOKUP_SCHEMA_VERSION,
+        )
 
     def assign(self, name: str) -> tuple[str, str | None]:
-        """Resolve one first-name token to its native label and matched name."""
-        candidates = _clean_name(name, self._transliterate)
+        """Resolve one first-name token to a native label and matched name."""
+        return self.assign_many([name])[0]
+
+    def assign_many(self, names: Sequence[str]) -> list[tuple[str, str | None]]:
+        """Resolve tokens through one bulk candidate lookup."""
+        candidate_lists = [_clean_name(name, self._transliterate) for name in names]
+        unique_candidates = tuple(
+            dict.fromkeys(candidate for candidates in candidate_lists for candidate in candidates)
+        )
+        native_by_candidate: dict[str, str] = {}
+        for offset in range(0, len(unique_candidates), _SQLITE_PARAMETER_BATCH_SIZE):
+            batch = unique_candidates[offset : offset + _SQLITE_PARAMETER_BATCH_SIZE]
+            placeholders = ",".join("?" for _ in batch)
+            statement = (
+                "SELECT name, native_label FROM wiki_names "  # noqa: S608
+                f"WHERE name IN ({placeholders})"
+            )
+            rows = self._connection.execute(statement, batch)
+            native_by_candidate.update((str(row["name"]), str(row["native_label"])) for row in rows)
+        return [
+            self._assign_from_candidates(name, candidates, native_by_candidate)
+            for name, candidates in zip(names, candidate_lists, strict=True)
+        ]
+
+    @staticmethod
+    def _assign_from_candidates(
+        name: str,
+        candidates: Sequence[str],
+        native_by_candidate: dict[str, str],
+    ) -> tuple[str, str | None]:
         native = _UNKNOWN_NATIVE
         matched: str | None = None
         for candidate in candidates:
-            if candidate in self._names_key:
-                found = self._names_key[candidate]
-                if found != _UNKNOWN_NATIVE:
-                    if matched is None:
-                        matched = candidate
-                    native = found
+            found = native_by_candidate.get(candidate)
+            if found is not None and found != _UNKNOWN_NATIVE:
+                if matched is None:
+                    matched = candidate
+                native = found
             if native not in {_UNKNOWN_NATIVE, _UNISEX_NATIVE}:
                 matched = candidate
                 break
@@ -206,12 +232,63 @@ class WikiGendersortTable:
         return native, matched
 
 
-def _default_assigner_factory(names_db_path: str) -> NameAssigner:
-    return WikiGendersortTable(names_db_path)
+def compile_wiki_gendersort_lookup(
+    source_path: Path,
+    destination_path: Path,
+    *,
+    source_sha256: str,
+    source_version: str | None = None,
+) -> int:
+    """Compile one published ``NamesOut.txt`` into an immutable SQLite lookup."""
+    entries: dict[str, str] = {}
+    with source_path.open(encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            parts = line.rstrip("\n").split("\t")
+            if len(parts) < 2:
+                continue
+            raw_name = "\t".join(parts[:-1]).upper()
+            normalized_name = raw_name[0] + raw_name[1:].lower() if raw_name else raw_name
+            native_label = parts[-1]
+            if native_label not in _NATIVE_LABELS:
+                msg = f"unsupported Wiki-Gendersort label at source line {line_number}"
+                raise ValueError(msg)
+            entries[normalized_name] = native_label
+    if not entries:
+        msg = "Wiki-Gendersort source produced an empty lookup"
+        raise ValueError(msg)
+
+    connection = create_lookup_database(
+        destination_path,
+        LookupDatabaseMetadata(
+            method_name="wiki_gendersort",
+            lookup_schema_version=WIKI_GENDERSORT_LOOKUP_SCHEMA_VERSION,
+            compiler_version=WIKI_GENDERSORT_LOOKUP_COMPILER_VERSION,
+            source_sha256=source_sha256,
+            source_version=source_version,
+        ),
+    )
+    try:
+        connection.execute(
+            """CREATE TABLE wiki_names (
+                name TEXT PRIMARY KEY,
+                native_label TEXT NOT NULL
+            ) WITHOUT ROWID"""
+        )
+        connection.executemany(
+            "INSERT INTO wiki_names (name, native_label) VALUES (?, ?)",
+            ((name, entries[name]) for name in sorted(entries)),
+        )
+        finalize_lookup_database(connection, record_count=len(entries))
+    except BaseException:
+        connection.close()
+        destination_path.unlink(missing_ok=True)
+        raise
+    connection.close()
+    return len(entries)
 
 
 class WikiGendersortMethod:
-    """Structural :class:`~gendertagger.methods.base.GenderMethod` implementation."""
+    """Classify forename tokens through a compiled Wiki-Gendersort lookup."""
 
     descriptor = MethodDescriptor(
         name="wiki_gendersort",
@@ -220,8 +297,14 @@ class WikiGendersortMethod:
     )
     config_model = WikiGendersortConfig
 
-    def __init__(self, assigner_factory: AssignerFactory | None = None) -> None:
-        self._assigner_factory = assigner_factory or _default_assigner_factory
+    def __init__(
+        self,
+        *,
+        lookup_asset_resolver: LookupAssetResolver | None = None,
+        assigner_factory: AssignerFactory | None = None,
+    ) -> None:
+        self._lookup_asset_resolver = lookup_asset_resolver or UnavailableLookupAssetResolver()
+        self._assigner_factory = assigner_factory or WikiGendersortTable
         self._assigners: dict[str, NameAssigner] = {}
 
     def predict_batch(
@@ -229,32 +312,38 @@ class WikiGendersortMethod:
         people: Sequence[PersonInput],
         config: WikiGendersortConfig,
     ) -> list[PredictionResult]:
-        """Classify each person from its forename tokens in input order.
+        """Classify each person from its forename tokens in input order."""
+        assigner = self._get_assigner(config.lookup_sha256)
+        token_lists = [usable_forename_tokens(person.forenames) for person in people]
+        all_tokens = [token for tokens in token_lists for token in tokens]
+        assignments = assigner.assign_many(all_tokens)
+        results: list[PredictionResult] = []
+        offset = 0
+        for tokens in token_lists:
+            next_offset = offset + len(tokens)
+            results.append(self._predict_one(tokens, assignments[offset:next_offset]))
+            offset = next_offset
+        return results
 
-        Raises:
-            MethodDependencyError: If the ``wiki`` extra is not installed.
-        """
-        assigner = self._get_assigner(config.names_db_path)
-        return [self._predict_one(assigner, person) for person in people]
-
-    def _get_assigner(self, names_db_path: str) -> NameAssigner:
-        assigner = self._assigners.get(names_db_path)
+    def _get_assigner(self, lookup_sha256: str) -> NameAssigner:
+        assigner = self._assigners.get(lookup_sha256)
         if assigner is None:
-            assigner = self._assigner_factory(names_db_path)
-            self._assigners[names_db_path] = assigner
+            path = self._lookup_asset_resolver.materialize(
+                WIKI_GENDERSORT_LOOKUP_LOGICAL_TYPE,
+                lookup_sha256,
+            )
+            assigner = self._assigner_factory(path)
+            self._assigners[lookup_sha256] = assigner
         return assigner
 
     @staticmethod
-    def _predict_one(assigner: NameAssigner, person: PersonInput) -> PredictionResult:
-        tokens = usable_forename_tokens(person.forenames)
-        native_labels: list[str] = []
-        mapped_labels: list[str] = []
-        matched_names: list[str] = []
-        for token in tokens:
-            native, matched = assigner.assign(token)
-            native_labels.append(native)
-            mapped_labels.append(_LABEL_MAP.get(native, "unknown"))
-            matched_names.append(matched or "")
+    def _predict_one(
+        tokens: list[str],
+        assignments: Sequence[tuple[str, str | None]],
+    ) -> PredictionResult:
+        native_labels = [native for native, _ in assignments]
+        mapped_labels = [_LABEL_MAP.get(native, "unknown") for native in native_labels]
+        matched_names = [matched or "" for _, matched in assignments]
         raw_label = consensus_label(
             mapped_labels,
             priority=_PRIORITY,

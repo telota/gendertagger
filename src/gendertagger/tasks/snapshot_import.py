@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from functools import lru_cache, partial
 from pathlib import Path
 from typing import Any
+from weakref import finalize
 
 from celery import shared_task
 from pydantic import Field
@@ -49,13 +50,15 @@ def _snapshot_import_executor() -> SnapshotImportExecutor:
     engine = create_database_engine(settings.database_url.get_secret_value())
     session_factory = create_session_factory(engine)
     unit_of_work_factory: UnitOfWorkFactory = partial(SqlAlchemyUnitOfWork, session_factory)
-    return SnapshotImportExecutor(
+    executor = SnapshotImportExecutor(
         unit_of_work_factory=unit_of_work_factory,
         artifact_storage=LocalArtifactStorage(settings.artifact_root),
         parser=TeiPersonParser(),
         clock=partial(datetime.now, UTC),
         import_batch_record_count=settings.tei_import_batch_record_count,
     )
+    finalize(executor, engine.dispose)
+    return executor
 
 
 # Celery's shared_task is untyped; the task body below is fully annotated.

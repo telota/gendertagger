@@ -2,10 +2,12 @@
 
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from gendertagger.db.artifacts import ArtifactRow
 from gendertagger.models.artifact import Artifact, ArtifactCreate
+from gendertagger.services.artifact_repository import AmbiguousArtifactError
 
 
 class SqlAlchemyArtifactRepository:
@@ -37,6 +39,23 @@ class SqlAlchemyArtifactRepository:
         """Return an artifact contract by ID without exposing its row."""
         row = self._session.get(ArtifactRow, artifact_id)
         return None if row is None else self._artifact_from_row(row)
+
+    def get_artifact_by_sha256(self, logical_type: str, sha256: str) -> Artifact | None:
+        """Return one matching artifact without exposing its row."""
+        statement = (
+            select(ArtifactRow)
+            .where(
+                ArtifactRow.logical_type == logical_type,
+                ArtifactRow.sha256 == sha256,
+            )
+            .order_by(ArtifactRow.created_at, ArtifactRow.id)
+            .limit(2)
+        )
+        rows = tuple(self._session.scalars(statement))
+        if len(rows) > 1:
+            msg = f"artifact identity {logical_type}:{sha256} is ambiguous"
+            raise AmbiguousArtifactError(msg)
+        return None if not rows else self._artifact_from_row(rows[0])
 
     @staticmethod
     def _artifact_from_row(row: ArtifactRow) -> Artifact:

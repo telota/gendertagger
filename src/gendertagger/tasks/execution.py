@@ -10,7 +10,9 @@ from __future__ import annotations
 import random
 from datetime import UTC, datetime
 from functools import lru_cache, partial
+from pathlib import Path
 from typing import Any
+from weakref import finalize
 
 from celery import shared_task
 from pydantic import SecretStr, field_validator
@@ -26,8 +28,10 @@ from gendertagger.services.execution import (
     BatchExecutor,
     TransientBatchError,
 )
+from gendertagger.services.lookup_assets import RegisteredLookupAssetResolver
 from gendertagger.services.method_registry import default_method_registry
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.storage.local import LocalArtifactStorage
 
 EXECUTE_BATCH_TASK_NAME = "gendertagger.tasks.execute_batch"
 _RETRY_BASE_SECONDS = 2.0
@@ -51,6 +55,7 @@ class WorkerSettings(BaseSettings):
     )
 
     database_url: SecretStr
+    artifact_root: Path = Path("data/artifacts")
 
     @field_validator("database_url")
     @classmethod
@@ -73,11 +78,17 @@ def _batch_executor() -> BatchExecutor:
     engine = create_database_engine(settings.database_url.get_secret_value())
     session_factory = create_session_factory(engine)
     unit_of_work_factory: UnitOfWorkFactory = partial(SqlAlchemyUnitOfWork, session_factory)
-    return BatchExecutor(
+    lookup_resolver = RegisteredLookupAssetResolver(
         unit_of_work_factory=unit_of_work_factory,
-        method_registry=default_method_registry(),
+        artifact_storage=LocalArtifactStorage(settings.artifact_root),
+    )
+    executor = BatchExecutor(
+        unit_of_work_factory=unit_of_work_factory,
+        method_registry=default_method_registry(lookup_resolver),
         clock=partial(datetime.now, UTC),
     )
+    finalize(executor, engine.dispose)
+    return executor
 
 
 # Celery's shared_task is untyped; the task body below is fully annotated.

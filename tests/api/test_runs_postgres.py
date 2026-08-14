@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -14,10 +15,14 @@ from gendertagger.db.dispatches import BatchDispatchRow
 from gendertagger.db.executions import MethodExecutionRow, TaskBatchRow
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
+from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.models.dispatch import BatchDispatchStatus
 from gendertagger.models.lifecycle import RunStatus
+from gendertagger.models.project import SnapshotImportTaskMessage
 from gendertagger.models.user import Role, UserCreate
+from gendertagger.services.snapshot_import import SnapshotImportExecutor
 from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
+from gendertagger.storage.local import LocalArtifactStorage
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 
@@ -52,7 +57,7 @@ def _unit_of_work_factory(engine: Engine) -> UnitOfWorkFactory:
 def _client(
     postgres_engine: Engine,
     artifact_root: Path,
-) -> TestClient:
+) -> tuple[TestClient, UnitOfWorkFactory]:
     unit_of_work_factory = _unit_of_work_factory(postgres_engine)
     with unit_of_work_factory() as unit_of_work:
         operator = unit_of_work.users.add_user(
@@ -69,10 +74,14 @@ def _client(
         unit_of_work_factory=unit_of_work_factory,
         authentication_backend=StaticAuthenticationBackend(operator.id),
     )
-    return TestClient(application)
+    return TestClient(application), unit_of_work_factory
 
 
-def _ready_snapshot_id(client: TestClient) -> UUID:
+def _ready_snapshot_id(
+    client: TestClient,
+    unit_of_work_factory: UnitOfWorkFactory,
+    artifact_root: Path,
+) -> UUID:
     project_response = client.post(
         "/api/v1/projects",
         json={
@@ -85,15 +94,26 @@ def _ready_snapshot_id(client: TestClient) -> UUID:
         f"/api/v1/projects/{project_id}/snapshots",
         files={"source": ("register.xml", VALID_TEI, "application/xml")},
     )
-    return UUID(snapshot_response.json()["id"])
+    snapshot_id = UUID(snapshot_response.json()["id"])
+    SnapshotImportExecutor(
+        unit_of_work_factory=unit_of_work_factory,
+        artifact_storage=LocalArtifactStorage(artifact_root),
+        parser=TeiPersonParser(),
+        import_batch_record_count=1,
+        clock=lambda: datetime(2026, 8, 14, 12, tzinfo=UTC),
+    ).execute(
+        SnapshotImportTaskMessage(dataset_snapshot_id=snapshot_id),
+        attempt_count=1,
+    )
+    return snapshot_id
 
 
 def test_created_run_round_trips_with_server_owned_provenance(
     postgres_engine: Engine,
     tmp_path: Path,
 ) -> None:
-    client = _client(postgres_engine, tmp_path)
-    snapshot_id = _ready_snapshot_id(client)
+    client, unit_of_work_factory = _client(postgres_engine, tmp_path)
+    snapshot_id = _ready_snapshot_id(client, unit_of_work_factory, tmp_path)
 
     create_response = client.post(
         "/api/v1/runs",
@@ -125,8 +145,8 @@ def test_run_creation_rejects_unregistered_method_and_client_provenance(
     postgres_engine: Engine,
     tmp_path: Path,
 ) -> None:
-    client = _client(postgres_engine, tmp_path)
-    snapshot_id = _ready_snapshot_id(client)
+    client, unit_of_work_factory = _client(postgres_engine, tmp_path)
+    snapshot_id = _ready_snapshot_id(client, unit_of_work_factory, tmp_path)
 
     unknown_method_response = client.post(
         "/api/v1/runs",
@@ -152,8 +172,8 @@ def test_run_executions_are_scheduled_with_durable_dispatch_intent(
     postgres_engine: Engine,
     tmp_path: Path,
 ) -> None:
-    client = _client(postgres_engine, tmp_path)
-    snapshot_id = _ready_snapshot_id(client)
+    client, unit_of_work_factory = _client(postgres_engine, tmp_path)
+    snapshot_id = _ready_snapshot_id(client, unit_of_work_factory, tmp_path)
     create_response = client.post(
         "/api/v1/runs",
         json={
@@ -194,7 +214,7 @@ def test_start_executions_rejects_unknown_run(
     postgres_engine: Engine,
     tmp_path: Path,
 ) -> None:
-    client = _client(postgres_engine, tmp_path)
+    client, _ = _client(postgres_engine, tmp_path)
 
     response = client.post(f"/api/v1/runs/{uuid4()}/executions")
 
@@ -205,8 +225,8 @@ def test_run_and_executions_expose_progress(
     postgres_engine: Engine,
     tmp_path: Path,
 ) -> None:
-    client = _client(postgres_engine, tmp_path)
-    snapshot_id = _ready_snapshot_id(client)
+    client, unit_of_work_factory = _client(postgres_engine, tmp_path)
+    snapshot_id = _ready_snapshot_id(client, unit_of_work_factory, tmp_path)
     run_id = client.post(
         "/api/v1/runs",
         json={
@@ -245,7 +265,7 @@ def test_list_executions_rejects_unknown_run(
     postgres_engine: Engine,
     tmp_path: Path,
 ) -> None:
-    client = _client(postgres_engine, tmp_path)
+    client, _ = _client(postgres_engine, tmp_path)
 
     response = client.get(f"/api/v1/runs/{uuid4()}/executions")
 
@@ -256,8 +276,8 @@ def test_run_events_stream_projects_terminal_state(
     postgres_engine: Engine,
     tmp_path: Path,
 ) -> None:
-    client = _client(postgres_engine, tmp_path)
-    snapshot_id = _ready_snapshot_id(client)
+    client, unit_of_work_factory = _client(postgres_engine, tmp_path)
+    snapshot_id = _ready_snapshot_id(client, unit_of_work_factory, tmp_path)
     run_id = client.post(
         "/api/v1/runs",
         json={"dataset_snapshot_id": str(snapshot_id), "config": {"methods": []}},
@@ -281,7 +301,7 @@ def test_run_events_reject_unknown_run(
     postgres_engine: Engine,
     tmp_path: Path,
 ) -> None:
-    client = _client(postgres_engine, tmp_path)
+    client, _ = _client(postgres_engine, tmp_path)
 
     response = client.get(f"/api/v1/runs/{uuid4()}/events")
 

@@ -37,9 +37,9 @@ def test_example_run_config_loads_as_resolved_contract() -> None:
         "local_llm",
         "hivoto_xgboost",
     ]
-    assert config.methods[1].config == {"snapshot": "REPLACE_WITH_ARTIFACT_OR_VERSION"}
-    assert config.methods[3].config == {"names_db_path": "REPLACE_WITH_NAMESOUT_TXT_PATH"}
-    assert config.methods[4].config == {"dataset_path": "REPLACE_WITH_HIVOTO_CSV_PATH"}
+    assert config.methods[1].config == {"lookup_sha256": "a" * 64}
+    assert config.methods[3].config == {"lookup_sha256": "b" * 64}
+    assert config.methods[4].config == {"lookup_sha256": "c" * 64}
     assert config.methods[5].config == {"threshold": 0.1}
     assert config.methods[-1].enabled is False
     assert config.aggregation.strategy is AggregationStrategy.reference_v1

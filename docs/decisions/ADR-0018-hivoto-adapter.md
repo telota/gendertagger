@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+The direct-path dataset selection and per-worker source parsing in this decision are superseded by
+[ADR-0023](ADR-0023-content-addressed-sqlite-method-lookups.md). The frozen spelling expansion, majority vote,
+certainty reduction, and normalization behavior remain accepted.
+
 ## Context
 
 `hivoto` is the fourth Phase 5 method. It resolves forename tokens against a lookup index built from a

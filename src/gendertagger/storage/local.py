@@ -89,6 +89,13 @@ class LocalArtifactStorage(ArtifactStorage):
             raise ArtifactStorageError(msg) from error
         return os.fdopen(descriptor, "rb")
 
+    def materialize(self, storage_uri: str) -> Path:
+        """Return the verified private digest path for file-oriented consumers."""
+        digest = self._digest_from_uri(storage_uri)
+        path = self._path_for_digest(digest)
+        self._verify_path(path, expected_digest=digest)
+        return path
+
     @staticmethod
     def _copy_and_hash(
         source: BinaryIO,

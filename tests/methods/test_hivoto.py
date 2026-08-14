@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
@@ -7,7 +8,9 @@ import pytest
 from gendertagger.methods.hivoto import (
     HivotoConfig,
     HivotoMethod,
+    SqliteHivotoLookup,
     build_hivoto_index,
+    compile_hivoto_lookup,
     map_gender,
 )
 from gendertagger.methods.name_tokens import NO_NAME_LABEL
@@ -20,11 +23,32 @@ from gendertagger.models.person import PersonInput
 
 pytestmark = [pytest.mark.unit, pytest.mark.scientific]
 
-_CONFIG = HivotoConfig(dataset_path="/snapshots/hivoto.csv")
+_LOOKUP_SHA256 = "a" * 64
+_CONFIG = HivotoConfig(lookup_sha256=_LOOKUP_SHA256)
+
+
+class _Resolver:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str]] = []
+
+    def materialize(self, logical_type: str, sha256: str) -> Path:
+        self.calls.append((logical_type, sha256))
+        return Path("/verified/hivoto.sqlite3")
+
+
+class _Lookup:
+    def __init__(self, index: dict[str, tuple[str, str]]) -> None:
+        self._index = index
+
+    def get_many(self, names: Sequence[str]) -> dict[str, tuple[str, str]]:
+        return {name: self._index[name] for name in names if name in self._index}
 
 
 def _method(index: dict[str, tuple[str, str]]) -> HivotoMethod:
-    return HivotoMethod(index_factory=lambda _path: index)
+    return HivotoMethod(
+        lookup_asset_resolver=_Resolver(),
+        lookup_factory=lambda _path: _Lookup(index),
+    )
 
 
 def _person(*forenames: str) -> PersonInput:
@@ -44,9 +68,13 @@ def test_descriptor_declares_versioned_confidence_free_method() -> None:
     assert descriptor.method_confidence_range is None
 
 
-def test_config_requires_a_dataset_path() -> None:
-    with pytest.raises(ValueError, match="dataset_path"):
+def test_config_requires_a_lookup_digest_and_forbids_paths() -> None:
+    with pytest.raises(ValueError, match="lookup_sha256"):
         HivotoConfig.model_validate({})
+    with pytest.raises(ValueError, match="extra"):
+        HivotoConfig.model_validate(
+            {"lookup_sha256": _LOOKUP_SHA256, "dataset_path": "/mutable/hivoto.csv"}
+        )
 
 
 @pytest.mark.parametrize(
@@ -114,17 +142,20 @@ def test_predict_batch_returns_one_result_per_input_in_order() -> None:
     ]
 
 
-def test_index_is_built_once_per_dataset_path() -> None:
-    built: list[str] = []
+def test_lookup_is_materialized_and_opened_once_per_digest() -> None:
+    resolver = _Resolver()
+    built: list[Path] = []
 
-    def factory(path: str) -> dict[str, tuple[str, str]]:
+    def factory(path: Path) -> _Lookup:
         built.append(path)
-        return {"karl": ("male", "sicher")}
+        return _Lookup({"karl": ("male", "sicher")})
 
-    method = HivotoMethod(index_factory=factory)
+    method = HivotoMethod(lookup_asset_resolver=resolver, lookup_factory=factory)
     method.predict_batch([_person("Karl")], _CONFIG)
     method.predict_batch([_person("Karl")], _CONFIG)
-    assert built == ["/snapshots/hivoto.csv"]
+
+    assert resolver.calls == [("hivoto_lookup", _LOOKUP_SHA256)]
+    assert built == [Path("/verified/hivoto.sqlite3")]
 
 
 def test_build_index_aggregates_by_majority_vote_and_certainty(tmp_path: Path) -> None:
@@ -138,11 +169,46 @@ def test_build_index_aggregates_by_majority_vote_and_certainty(tmp_path: Path) -
         "Kim;Kim;weiblich (Q17);mittlere Sicherheit\n",
         encoding="utf-8",
     )
-    index = build_hivoto_index(str(snapshot))
+    index = build_hivoto_index(snapshot)
 
     assert index["karl"] == ("male", "sicher")
-    # The classified spelling "Maria." is keyed without its trailing period.
     assert index["maria"] == ("female", "sicher")
-    # A 1-1 male/female tie is broken by the index priority (female outranks male),
-    # and mixed certainties collapse to "mittlere Sicherheit".
     assert index["kim"] == ("female", "mittlere Sicherheit")
+
+
+def test_compiled_sqlite_lookup_preserves_the_frozen_index(tmp_path: Path) -> None:
+    source = tmp_path / "hivoto.csv"
+    source.write_text(
+        "Originalschreibung;Klassifizierte_Originalschreibung;"
+        "Namensgeschlecht;Sicherheit_Geschlechtszuordnung\n"
+        "Karl;Karl;männlich (Q6581097);sicher\n"
+        "Maria;Maria.;weiblich (Q17);sicher\n",
+        encoding="utf-8",
+    )
+    lookup_path = tmp_path / "hivoto.sqlite3"
+
+    record_count = compile_hivoto_lookup(
+        source,
+        lookup_path,
+        source_sha256="f" * 64,
+        source_version="1.0.0",
+    )
+    lookup = SqliteHivotoLookup(lookup_path)
+
+    assert record_count == 2
+    assert lookup.get_many(["maria", "missing", "karl"]) == {
+        "karl": ("male", "sicher"),
+        "maria": ("female", "sicher"),
+    }
+
+
+def test_hivoto_compiler_rejects_missing_required_columns(tmp_path: Path) -> None:
+    source = tmp_path / "hivoto.csv"
+    source.write_text("name;gender\nKarl;male\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="lacks required columns"):
+        compile_hivoto_lookup(
+            source,
+            tmp_path / "lookup.sqlite3",
+            source_sha256="f" * 64,
+        )

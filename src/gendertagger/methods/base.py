@@ -5,17 +5,27 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Protocol, TypeVar
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from gendertagger.models.classification import PredictionResult
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.person import PersonInput
+from gendertagger.models.project import SHA256_PATTERN
 
 
 class MethodConfig(BaseModel):
     """Closed base contract for adapter-specific resolved configuration."""
 
     model_config = ConfigDict(extra="forbid")
+
+
+class LookupMethodConfig(MethodConfig):
+    """Resolved configuration selecting one compiled lookup artifact by content."""
+
+    lookup_sha256: str = Field(
+        pattern=SHA256_PATTERN,
+        description="SHA-256 digest of the compiled immutable SQLite lookup artifact.",
+    )
 
 
 MethodConfigT = TypeVar("MethodConfigT", bound=MethodConfig)

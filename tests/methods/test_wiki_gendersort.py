@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
@@ -8,6 +9,8 @@ from gendertagger.methods.base import MethodDependencyError
 from gendertagger.methods.wiki_gendersort import (
     WikiGendersortConfig,
     WikiGendersortMethod,
+    WikiGendersortTable,
+    compile_wiki_gendersort_lookup,
 )
 from gendertagger.models.classification import (
     CanonicalLabel,
@@ -18,7 +21,18 @@ from gendertagger.models.person import PersonInput
 
 pytestmark = [pytest.mark.unit, pytest.mark.scientific]
 
-_CONFIG = WikiGendersortConfig(names_db_path="/snapshots/NamesOut.txt")
+_LOOKUP_SHA256 = "b" * 64
+_CONFIG = WikiGendersortConfig(lookup_sha256=_LOOKUP_SHA256)
+
+
+class _Resolver:
+    def __init__(self, path: Path = Path("/verified/wiki.sqlite3")) -> None:
+        self.path = path
+        self.calls: list[tuple[str, str]] = []
+
+    def materialize(self, logical_type: str, sha256: str) -> Path:
+        self.calls.append((logical_type, sha256))
+        return self.path
 
 
 class _FakeAssigner:
@@ -27,12 +41,15 @@ class _FakeAssigner:
     def __init__(self, mapping: dict[str, tuple[str, str | None]]) -> None:
         self._mapping = mapping
 
-    def assign(self, name: str) -> tuple[str, str | None]:
-        return self._mapping.get(name, ("UNK", None))
+    def assign_many(self, names: Sequence[str]) -> list[tuple[str, str | None]]:
+        return [self._mapping.get(name, ("UNK", None)) for name in names]
 
 
 def _method(mapping: dict[str, tuple[str, str | None]]) -> WikiGendersortMethod:
-    return WikiGendersortMethod(assigner_factory=lambda _path: _FakeAssigner(mapping))
+    return WikiGendersortMethod(
+        lookup_asset_resolver=_Resolver(),
+        assigner_factory=lambda _path: _FakeAssigner(mapping),
+    )
 
 
 def _person(*forenames: str) -> PersonInput:
@@ -52,11 +69,13 @@ def test_descriptor_declares_versioned_confidence_free_method() -> None:
     assert descriptor.method_confidence_range is None
 
 
-def test_config_requires_a_names_db_path() -> None:
-    with pytest.raises(ValueError, match="names_db_path"):
+def test_config_requires_a_lookup_digest_and_forbids_paths() -> None:
+    with pytest.raises(ValueError, match="lookup_sha256"):
         WikiGendersortConfig.model_validate({})
     with pytest.raises(ValueError, match="extra"):
-        WikiGendersortConfig.model_validate({"names_db_path": "x", "unexpected": 1})
+        WikiGendersortConfig.model_validate(
+            {"lookup_sha256": _LOOKUP_SHA256, "names_db_path": "/mutable/NamesOut.txt"}
+        )
 
 
 def test_native_male_and_female_labels_map_to_canonical_labels() -> None:
@@ -121,30 +140,36 @@ def test_predict_batch_returns_one_result_per_input_in_order() -> None:
     ]
 
 
-def test_assigner_is_built_once_per_snapshot_path() -> None:
-    built: list[str] = []
+def test_assigner_is_materialized_and_built_once_per_digest() -> None:
+    resolver = _Resolver()
+    built: list[Path] = []
 
-    def factory(path: str) -> _FakeAssigner:
+    def factory(path: Path) -> _FakeAssigner:
         built.append(path)
         return _FakeAssigner({"Karl": ("M", "Karl")})
 
-    method = WikiGendersortMethod(assigner_factory=factory)
+    method = WikiGendersortMethod(
+        lookup_asset_resolver=resolver,
+        assigner_factory=factory,
+    )
     method.predict_batch([_person("Karl")], _CONFIG)
     method.predict_batch([_person("Karl")], _CONFIG)
-    assert built == ["/snapshots/NamesOut.txt"]
+
+    assert resolver.calls == [("wiki_gendersort_lookup", _LOOKUP_SHA256)]
+    assert built == [Path("/verified/wiki.sqlite3")]
 
 
 def test_missing_dependency_is_a_permanent_failure() -> None:
-    def factory(_path: str) -> _FakeAssigner:
+    def factory(_path: Path) -> _FakeAssigner:
         msg = "wiki_gendersort requires the 'wiki' extra"
         raise MethodDependencyError(msg)
 
-    method = WikiGendersortMethod(assigner_factory=factory)
+    method = WikiGendersortMethod(
+        lookup_asset_resolver=_Resolver(),
+        assigner_factory=factory,
+    )
     with pytest.raises(MethodDependencyError):
         method.predict_batch([_person("Karl")], _CONFIG)
-
-
-# --- Real backend: nameclean and table lookup (require the wiki extra) --------
 
 
 def test_clean_name_ports_the_reference_candidate_generation() -> None:
@@ -155,18 +180,23 @@ def test_clean_name_ports_the_reference_candidate_generation() -> None:
     assert _clean_name("Anna", transliterate) == ["Anna"]
     assert _clean_name("J.", transliterate) == []
     assert _clean_name("Jean-Paul", transliterate) == ["Jean-paul", "Jean", "Paul"]
-    # A transliterated variant is appended when it differs from the normalized form.
     assert _clean_name("Élise", transliterate) == ["Élise", "Elise"]
 
 
-def test_table_assign_resolves_tokens_against_a_local_snapshot(tmp_path: Path) -> None:
+def test_compiled_table_assign_preserves_candidate_behavior(tmp_path: Path) -> None:
     pytest.importorskip("unidecode")
-    from gendertagger.methods.wiki_gendersort import WikiGendersortTable
+    source = tmp_path / "NamesOut.txt"
+    source.write_text("Karl\tM\nMaria\tF\nKim\tUNI\n", encoding="utf-8")
+    lookup_path = tmp_path / "wiki.sqlite3"
+    record_count = compile_wiki_gendersort_lookup(
+        source,
+        lookup_path,
+        source_sha256="f" * 64,
+        source_version="commit-abc",
+    )
+    table = WikiGendersortTable(lookup_path)
 
-    snapshot = tmp_path / "NamesOut.txt"
-    snapshot.write_text("Karl\tM\nMaria\tF\nKim\tUNI\n", encoding="utf-8")
-    table = WikiGendersortTable(str(snapshot))
-
+    assert record_count == 3
     assert table.assign("Karl") == ("M", "Karl")
     assert table.assign("maria") == ("F", "Maria")
     assert table.assign("Kim") == ("UNI", "Kim")
@@ -174,15 +204,27 @@ def test_table_assign_resolves_tokens_against_a_local_snapshot(tmp_path: Path) -
     assert table.assign("J.") == ("INI", None)
 
 
-def test_adapter_end_to_end_over_a_local_snapshot(tmp_path: Path) -> None:
+def test_adapter_end_to_end_over_a_compiled_lookup(tmp_path: Path) -> None:
     pytest.importorskip("unidecode")
+    source = tmp_path / "NamesOut.txt"
+    source.write_text("Karl\tM\nMaria\tF\n", encoding="utf-8")
+    lookup_path = tmp_path / "wiki.sqlite3"
+    compile_wiki_gendersort_lookup(source, lookup_path, source_sha256="f" * 64)
+    method = WikiGendersortMethod(lookup_asset_resolver=_Resolver(lookup_path))
 
-    snapshot = tmp_path / "NamesOut.txt"
-    snapshot.write_text("Karl\tM\nMaria\tF\n", encoding="utf-8")
-    method = WikiGendersortMethod()
-    config = WikiGendersortConfig(names_db_path=str(snapshot))
-
-    (male,) = method.predict_batch([_person("Karl")], config)
+    (male,) = method.predict_batch([_person("Karl")], _CONFIG)
     assert male.label is CanonicalLabel.male
-    (female,) = method.predict_batch([_person("Maria")], config)
+    (female,) = method.predict_batch([_person("Maria")], _CONFIG)
     assert female.label is CanonicalLabel.female
+
+
+def test_wiki_compiler_rejects_an_empty_source(tmp_path: Path) -> None:
+    source = tmp_path / "NamesOut.txt"
+    source.write_text("", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="empty lookup"):
+        compile_wiki_gendersort_lookup(
+            source,
+            tmp_path / "lookup.sqlite3",
+            source_sha256="f" * 64,
+        )

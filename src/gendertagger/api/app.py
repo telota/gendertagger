@@ -25,6 +25,7 @@ from gendertagger.models.project import SnapshotImportLimits
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.annotations import AnnotationService
 from gendertagger.services.execution import RunScheduler
+from gendertagger.services.lookup_assets import RegisteredLookupAssetResolver
 from gendertagger.services.method_registry import default_method_registry
 from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.projects import ProjectService
@@ -65,9 +66,10 @@ def create_app(
     if authentication_backend is None:
         authentication_backend = RejectAllAuthenticationBackend()
     cursor_codec = CursorCodec()
+    artifact_storage = LocalArtifactStorage(resolved_settings.artifact_root)
     project_service = ProjectService(
         unit_of_work_factory=unit_of_work_factory,
-        artifact_storage=LocalArtifactStorage(resolved_settings.artifact_root),
+        artifact_storage=artifact_storage,
         parser=TeiPersonParser(),
         cursor_codec=cursor_codec,
         clock=partial(datetime.now, UTC),
@@ -82,7 +84,12 @@ def create_app(
             max_cell_bytes=resolved_settings.max_tabular_cell_bytes,
         ),
     )
-    method_registry = default_method_registry()
+    method_registry = default_method_registry(
+        RegisteredLookupAssetResolver(
+            unit_of_work_factory=unit_of_work_factory,
+            artifact_storage=artifact_storage,
+        )
+    )
     run_service = RunService(
         unit_of_work_factory=unit_of_work_factory,
         method_registry=method_registry,

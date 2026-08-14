@@ -53,11 +53,47 @@ The repository is in Phase 5 method migration:
   typed `CurrentUser` boundary.
 - Phase 4 provides Celery/Redis execution, persisted batches, transactional dispatch outboxes, reconciliation,
   atomic worker claims, retries, progress, and reconnect-safe run events.
-- Phase 5 has asynchronous multi-format snapshot import and executable `reference_v1` aggregation. The
-  parenthetical-qualifier, gender-guesser, Wiki-Gendersort, HIVOTO, and nomquamgender adapters are registered;
-  GND, both transformer classifiers, the local LLM, and experimental HIVOTO-XGBoost remain to migrate.
+- Phase 5 has asynchronous multi-format snapshot import, executable `reference_v1` aggregation, immutable
+  lookup-asset provisioning, and registered parenthetical-qualifier, GND, gender-guesser, Wiki-Gendersort,
+  HIVOTO, and nomquamgender adapters. Both transformer classifiers, the local LLM, and experimental
+  HIVOTO-XGBoost remain to migrate.
 
 The Vue review client, evaluation/export workflows, and deployment hardening remain Phases 6 through 8.
+
+## Provision method lookup data
+
+GND, Wiki-Gendersort, and HIVOTO runs select compiled SQLite lookup artifacts by SHA-256, never by a mutable
+filesystem path. Configure `GENDERTAGGER_DATABASE_URL` and `GENDERTAGGER_ARTIFACT_ROOT`, then provision data
+before creating a run:
+
+```bash
+# HIVOTO must first be downloaded manually after accepting its RADAR license.
+gendertagger assets prepare-hivoto /private/HIVOTO.csv \
+  --source-version 2026-02-09 \
+  --license-identifier "REPLACE_WITH_ACCEPTED_LICENSE"
+
+# Register a checked-out Wiki-Gendersort NamesOut.txt.
+gendertagger assets prepare-wiki /private/Wiki-Gendersort/NamesOut.txt \
+  --source-version REPLACE_WITH_GIT_COMMIT \
+  --source-url https://github.com/nicolasberube/Wiki-Gendersort
+
+# Compile the person and corporate-body MARC21-XML files from one dated DNB release.
+# Additional entity files from the same release may be passed in the same command.
+gendertagger assets build-gnd \
+  /private/authorities-gnd-person_dnbmarc_YYYYMMDD.mrc.xml.gz \
+  /private/authorities-gnd-koerperschaft_dnbmarc_YYYYMMDD.mrc.xml.gz \
+  --source-version YYYY-MM-DD \
+  --source-url https://data.dnb.de/GND/
+```
+
+`fetch-wiki` accepts one explicit HTTPS URL plus `--expected-sha256`. `fetch-gnd` accepts one or more HTTPS
+URLs and requires one repeated `--expected-sha256` value for each URL. Use the dated MARC21-XML person and
+corporate-body files from the same [DNB GND release](https://data.dnb.de/GND/); runtime classification never
+accesses the network. Every preparation command prints one JSON object. Copy its `lookup_sha256` into the
+method's `config` in [`config/example.yaml`](config/example.yaml). Original source bytes and the compiled
+derivative are both retained as content-addressed artifacts. See
+[`ADR-0023`](docs/decisions/ADR-0023-content-addressed-sqlite-method-lookups.md) for provenance and licensing
+rules.
 
 ## Development checks
 

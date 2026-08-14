@@ -25,6 +25,9 @@ dependencies = [
   "sqlalchemy>=2.0,<3",
 ]
 
+[project.scripts]
+gendertagger = "gendertagger.cli.main:main"
+
 # Method adapters declare heavy or method-specific runtime dependencies as
 # opt-in extras. Adapters lazily import them so the core install, API, and
 # lightweight workers stay slim; a missing extra fails only the affected method.

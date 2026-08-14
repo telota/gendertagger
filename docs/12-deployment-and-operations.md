@@ -84,6 +84,12 @@ The default architecture supports an entirely local/private deployment. The refe
 
 Future external methods must be explicitly configured and visibly marked because sending historical register content outside the editorial environment can be unacceptable for licensing/privacy/policy reasons.
 
+Table-backed method datasets are content-addressed SQLite artifacts, not PostgreSQL lookup tables. Every API
+and classification worker must see the same artifact namespace or use a future digest-keyed host-local cache.
+Provisioning compiles and publishes lookup artifacts before a run is scheduled; classification opens the
+selected artifact read-only and never downloads from DNB, RADAR, Wikipedia, or another external provider.
+HIVOTO provisioning remains manual because acquiring its source requires interactive license acceptance.
+
 ## Health endpoints
 
 FastAPI:

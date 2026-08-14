@@ -46,6 +46,21 @@ The flattened TEI person representation includes where available:
 
 Name-only methods use the minimum fields they require. The local LLM may receive the full register entry/context according to method configuration.
 
+### Versioned lookup data
+
+GND, Wiki-Gendersort, and HIVOTO consume separate immutable SQLite lookup artifacts compiled from retained
+source artifacts. Their resolved configuration requires `lookup_sha256`; run scheduling resolves that digest
+together with the method-specific logical artifact type and records the resulting artifact on the
+MethodExecution. Direct filesystem paths are not scientific configuration. Workers materialize and validate
+the selected artifact locally, open it read-only, and bulk-resolve a task batch without external network
+access. See [ADR-0023](decisions/ADR-0023-content-addressed-sqlite-method-lookups.md).
+
+The GND lookup preserves source gender and entity-type evidence. No input GND ID or no matching row abstains
+as `no_gnd`; a corporate body emits `organisation`; a person emits the stable male/female lookup label when
+recognized; missing gender and other retained entity types emit `Unbekannt`. The exact source label, gender
+URI, preferred name, normalized and raw entity types, and source record status remain in raw output.
+
+
 ## Per-method result
 
 Every adapter returns:

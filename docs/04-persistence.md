@@ -265,6 +265,14 @@ Store bytes outside PostgreSQL initially. Each `Artifact` record contains:
 
 A filesystem backend is the v1 implementation. Define an interface that can later support S3-compatible storage without changing domain contracts.
 
+Large method lookup datasets remain artifacts rather than application tables. Wiki-Gendersort, HIVOTO, and
+GND use separate immutable SQLite files compiled from retained source artifacts; PostgreSQL stores their
+checksums, metadata, and MethodExecution references only. Workers validate and materialize a selected digest
+to a local read-only path. This keeps retained authority revisions out of application backups and replication
+while preserving exact method-data provenance. See
+[ADR-0023](decisions/ADR-0023-content-addressed-sqlite-method-lookups.md).
+
+
 ## Caching
 
 Caches are optimizations, not truth.

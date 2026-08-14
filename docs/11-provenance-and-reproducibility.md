@@ -59,6 +59,14 @@ the entire row once it reaches a terminal state.
 
 For the reference study this includes, where applicable, local GND/HIVOTO snapshots, transformer model identifiers/revisions, NQG threshold, XGBoost training/model artifact details, and local LLM prompt/schema/model tag.
 
+For table-backed methods, retain both the original source artifact(s) and the compiled lookup artifact. The
+resolved method configuration identifies the compiled artifact by `lookup_sha256`, and
+`MethodExecution.data_artifact_id` references those exact consumed bytes. Artifact metadata links the compiled
+lookup to every source artifact/checksum, the source release, compiler version, lookup-schema version, and
+applicable license or access restrictions. PostgreSQL stores this metadata, not the full
+GND/Wiki-Gendersort/HIVOTO lookup rows.
+
+
 ## Prediction provenance
 
 Persist:

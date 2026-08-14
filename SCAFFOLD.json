@@ -44,7 +44,8 @@
     "docs/decisions/ADR-0019-nomquamgender-adapter.md",
     "docs/decisions/ADR-0020-asynchronous-snapshot-import-outbox.md",
     "docs/decisions/ADR-0021-versioned-multi-format-snapshot-ingestion.md",
-    "docs/decisions/ADR-0022-uncertainty-first-review-ordering.md"
+    "docs/decisions/ADR-0022-uncertainty-first-review-ordering.md",
+    "docs/decisions/ADR-0023-content-addressed-sqlite-method-lookups.md"
   ],
   "top_level_entrypoints": [
     "README.md",

@@ -7,17 +7,17 @@ methods:
   - name: gnd
     enabled: true
     config:
-      snapshot: "REPLACE_WITH_ARTIFACT_OR_VERSION"
+      lookup_sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" # replace
   - name: gender_guesser
     enabled: true
   - name: wiki_gendersort
     enabled: true
     config:
-      names_db_path: "REPLACE_WITH_NAMESOUT_TXT_PATH"
+      lookup_sha256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" # replace
   - name: hivoto
     enabled: true
     config:
-      dataset_path: "REPLACE_WITH_HIVOTO_CSV_PATH"
+      lookup_sha256: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" # replace
   - name: nomquamgender
     enabled: true
     config:

@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+The direct-path snapshot selection in this decision is superseded by
+[ADR-0023](ADR-0023-content-addressed-sqlite-method-lookups.md). The frozen name cleaning, native labels, and
+normalization behavior remain accepted.
+
 ## Context
 
 `wiki_gendersort` is the third Phase 5 method and the first name-based adapter that depends on a local

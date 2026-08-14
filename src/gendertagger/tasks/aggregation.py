@@ -10,6 +10,7 @@ import random
 from datetime import UTC, datetime
 from functools import lru_cache, partial
 from typing import Any
+from weakref import finalize
 
 from celery import shared_task
 
@@ -42,10 +43,12 @@ def _aggregation_executor() -> AggregationExecutor:
     engine = create_database_engine(settings.database_url.get_secret_value())
     session_factory = create_session_factory(engine)
     unit_of_work_factory: UnitOfWorkFactory = partial(SqlAlchemyUnitOfWork, session_factory)
-    return AggregationExecutor(
+    executor = AggregationExecutor(
         unit_of_work_factory=unit_of_work_factory,
         clock=partial(datetime.now, UTC),
     )
+    finalize(executor, engine.dispose)
+    return executor
 
 
 # Celery's shared_task is untyped; the task body below is fully annotated.

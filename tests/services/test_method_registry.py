@@ -14,6 +14,7 @@ from gendertagger.services.method_registry import (
     MethodRegistry,
     MethodRegistryError,
     UnknownMethodError,
+    default_method_registry,
 )
 
 
@@ -72,6 +73,14 @@ def test_registry_rejects_unknown_and_invalid_method_configuration() -> None:
         registry.resolve_run_config(
             RunConfig(methods=[MethodRunConfig(name="demo_method", config={"threshold": 2.0})])
         )
+
+
+def test_default_registry_requires_content_digest_for_lookup_methods() -> None:
+    registry = default_method_registry()
+
+    for method_name in ("gnd", "wiki_gendersort", "hivoto"):
+        with pytest.raises(InvalidMethodConfigError, match=method_name):
+            registry.resolve_run_config(RunConfig(methods=[MethodRunConfig(name=method_name)]))
 
 
 def test_registry_rejects_duplicate_method_names() -> None:

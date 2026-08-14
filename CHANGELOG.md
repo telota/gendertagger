@@ -95,6 +95,10 @@ the phased plan that resumes application code.
 - `AggregatedResult.has_prediction_error`, a persisted projection of the immutable prediction evidence that
   makes the triage rank a function of one row instead of a correlated subquery. The accompanying migration
   backfills existing results from their member method executions.
+- Content-addressed method-data provisioning for Wiki-Gendersort, HIVOTO, and GND: retained source artifacts,
+  deterministic compiled SQLite lookups, digest-only run configuration, scheduler-sealed
+  `MethodExecution.data_artifact_id` provenance, verified read-only worker materialization, batched lookup
+  adapters, an offline MARC21-XML GND builder with entity-type evidence, and explicit CLI acquisition commands.
 
 ### Changed
 

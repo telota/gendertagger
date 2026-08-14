@@ -79,6 +79,7 @@ from gendertagger.models.run import (
     TaskBatchCreate,
 )
 from gendertagger.models.user import Role, User, UserCreate
+from gendertagger.services.artifact_repository import AmbiguousArtifactError
 from gendertagger.services.persistence_errors import (
     ImmutableResourceError,
     InvalidResourceStateError,
@@ -141,6 +142,23 @@ def assert_database_rejects_mutation(
         _mutate_and_flush(session, mutation)
     assert getattr(error.value.orig, "sqlstate", None) == "55000"
     session.expire_all()
+
+
+def test_artifact_content_identity_rejects_ambiguous_records(db_session: Session) -> None:
+    artifacts = SqlAlchemyArtifactRepository(db_session)
+    for storage_uri in ("file:///first.sqlite3", "file:///second.sqlite3"):
+        artifacts.add_artifact(
+            ArtifactCreate(
+                logical_type="test_lookup",
+                storage_uri=storage_uri,
+                sha256="e" * 64,
+                byte_size=1,
+                media_type="application/vnd.sqlite3",
+            )
+        )
+
+    with pytest.raises(AmbiguousArtifactError, match="is ambiguous"):
+        artifacts.get_artifact_by_sha256("test_lookup", "e" * 64)
 
 
 @pytest.mark.parametrize(
@@ -1237,6 +1255,10 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
     assert review_state.revision == 2
     assert review_state.workflow_state is ReviewWorkflowState.reviewed
     assert artifacts.get_artifact(source_artifact.id) == source_artifact
+    assert (
+        artifacts.get_artifact_by_sha256(source_artifact.logical_type, source_artifact.sha256)
+        == source_artifact
+    )
     assert users.get_user(reviewer.id) == reviewer
 
     with pytest.raises(ImmutableResourceError, match="ready and immutable"):

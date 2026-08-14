@@ -1,6 +1,7 @@
 """Application boundary for immutable binary artifact storage."""
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import BinaryIO, Protocol
 
 
@@ -22,4 +23,8 @@ class ArtifactStorage(Protocol):
 
     def open(self, storage_uri: str) -> BinaryIO:
         """Open a validated internal locator for binary reading."""
+        ...
+
+    def materialize(self, storage_uri: str) -> Path:
+        """Return a verified stable local path for file-oriented consumers."""
         ...

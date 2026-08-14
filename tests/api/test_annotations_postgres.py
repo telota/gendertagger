@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -12,10 +13,14 @@ from gendertagger.api.authentication import AuthenticationBackend
 from gendertagger.api.settings import AppSettings
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
+from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.models.classification import CanonicalLabel
+from gendertagger.models.project import SnapshotImportTaskMessage
 from gendertagger.models.review import ReviewAction, ReviewWorkflowState
 from gendertagger.models.user import Role, UserCreate
+from gendertagger.services.snapshot_import import SnapshotImportExecutor
 from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
+from gendertagger.storage.local import LocalArtifactStorage
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 
@@ -70,7 +75,11 @@ def _client(
     return TestClient(application), unit_of_work_factory, operator.id
 
 
-def _ready_snapshot_id(client: TestClient) -> UUID:
+def _ready_snapshot_id(
+    client: TestClient,
+    unit_of_work_factory: UnitOfWorkFactory,
+    artifact_root: Path,
+) -> UUID:
     project_response = client.post(
         "/api/v1/projects",
         json={
@@ -83,7 +92,18 @@ def _ready_snapshot_id(client: TestClient) -> UUID:
         f"/api/v1/projects/{project_id}/snapshots",
         files={"source": ("register.xml", VALID_TEI, "application/xml")},
     )
-    return UUID(snapshot_response.json()["id"])
+    snapshot_id = UUID(snapshot_response.json()["id"])
+    SnapshotImportExecutor(
+        unit_of_work_factory=unit_of_work_factory,
+        artifact_storage=LocalArtifactStorage(artifact_root),
+        parser=TeiPersonParser(),
+        import_batch_record_count=1,
+        clock=lambda: datetime(2026, 8, 14, 12, tzinfo=UTC),
+    ).execute(
+        SnapshotImportTaskMessage(dataset_snapshot_id=snapshot_id),
+        attempt_count=1,
+    )
+    return snapshot_id
 
 
 def test_annotations_are_attributable_append_only_and_revision_checked(
@@ -91,7 +111,7 @@ def test_annotations_are_attributable_append_only_and_revision_checked(
     tmp_path: Path,
 ) -> None:
     client, unit_of_work_factory, reviewer_id = _client(postgres_engine, tmp_path)
-    snapshot_id = _ready_snapshot_id(client)
+    snapshot_id = _ready_snapshot_id(client, unit_of_work_factory, tmp_path)
     first_command = {
         "snapshot_id": str(snapshot_id),
         "tei_id": "p1",
@@ -140,8 +160,8 @@ def test_annotation_rejects_client_reviewer_and_missing_machine_result(
     postgres_engine: Engine,
     tmp_path: Path,
 ) -> None:
-    client, _, reviewer_id = _client(postgres_engine, tmp_path)
-    snapshot_id = _ready_snapshot_id(client)
+    client, unit_of_work_factory, reviewer_id = _client(postgres_engine, tmp_path)
+    snapshot_id = _ready_snapshot_id(client, unit_of_work_factory, tmp_path)
     base_command = {
         "snapshot_id": str(snapshot_id),
         "tei_id": "p1",

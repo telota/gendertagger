@@ -28,6 +28,9 @@ def test_storage_streams_exact_content_to_internal_digest_locator(tmp_path: Path
     with storage.open(stored.storage_uri) as reopened:
         assert reopened.read() == SOURCE_BYTES
 
+    materialized = storage.materialize(stored.storage_uri)
+    assert materialized.read_bytes() == SOURCE_BYTES
+
 
 def test_storage_removes_partial_file_after_size_limit_failure(tmp_path: Path) -> None:
     storage = LocalArtifactStorage(tmp_path)
