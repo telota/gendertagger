@@ -21,7 +21,7 @@ methods:
   - name: nomquamgender
     enabled: true
     config:
-      threshold: 0.5
+      threshold: 0.1
   - name: hf_distilbert
     enabled: true
     config:

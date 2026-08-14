@@ -30,6 +30,7 @@ dependencies = [
 [project.optional-dependencies]
 guesser = ["gender-guesser>=0.4,<1"]
 wiki = ["unidecode>=1.3,<2"]
+nomquam = ["nomquamgender>=0.1,<1"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/gendertagger"]
@@ -177,7 +178,7 @@ ignore_missing_imports = true
 # Optional classification-method dependencies ship no py.typed marker; confine
 # the untyped boundary to their lazily imported adapter modules.
 [[tool.mypy.overrides]]
-module = ["gender_guesser.*", "unidecode.*"]
+module = ["gender_guesser.*", "nomquamgender.*", "unidecode.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
