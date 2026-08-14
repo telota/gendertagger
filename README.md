@@ -38,24 +38,33 @@ The design preserves the published multi-method workflow while adding persistent
 
 ## Repository state
 
-Phases 1 through 3 are complete:
+The repository is in Phase 5 method migration:
 
-- Phase 1 establishes canonical contracts, typed method adapters, all ten versioned normalization profiles,
-  pure `reference_v1` aggregation, agreement/certainty assignment, and two approved scientific oracles.
-- Phase 2 provides SQLAlchemy persistence, repository/unit-of-work boundaries, Alembic migrations, and
-  PostgreSQL integration coverage without leaking ORM types into application services.
-- Phase 3 provides the authenticated `/api/v1` FastAPI vertical slice for projects, immutable snapshot
-  imports, runs, methods, aggregations/results, annotations, and filtered review lists, with a committed
-  OpenAPI contract and typed `CurrentUser` boundary.
+- Phase 0 repository tooling, policy checks, hooks, and CI are implemented. Clearance or removal of the
+  tracked legacy research data remains a governance prerequisite for closing the phase.
+- Phase 1 provides canonical contracts, all ten versioned normalization profiles, pure `reference_v1`
+  aggregation, agreement/certainty assignment, and paired scientific oracles. The published parenthetical
+  `institution` override is restored; mixed-category qualifier precedence still needs an explicit
+  compatibility decision and regression test.
+- Phase 2 provides SQLAlchemy persistence, repository/unit-of-work boundaries, Alembic migrations, lifecycle
+  and provenance integrity guards, and PostgreSQL integration coverage without leaking ORM types upward.
+- Phase 3 provides the authenticated `/api/v1` FastAPI vertical slice for projects, snapshots, runs, methods,
+  aggregations/results, annotations, and uncertainty-first review lists, with a committed OpenAPI contract and
+  typed `CurrentUser` boundary.
+- Phase 4 provides Celery/Redis execution, persisted batches, transactional dispatch outboxes, reconciliation,
+  atomic worker claims, retries, progress, and reconnect-safe run events.
+- Phase 5 has asynchronous multi-format snapshot import and executable `reference_v1` aggregation. The
+  parenthetical-qualifier, gender-guesser, Wiki-Gendersort, HIVOTO, and nomquamgender adapters are registered;
+  GND, both transformer classifiers, the local LLM, and experimental HIVOTO-XGBoost remain to migrate.
 
-Celery execution, production method migration, evaluation/export, and the Vue client remain later phases.
+The Vue review client, evaluation/export workflows, and deployment hardening remain Phases 6 through 8.
 
 ## Development checks
 
 Install the uv version required by `pyproject.toml` and Node.js 18 or newer, then run:
 
 ```bash
-uv sync --locked --extra guesser --extra wiki
+uv sync --locked --extra guesser --extra wiki --extra nomquam
 npm ci --ignore-scripts --no-audit --no-fund
 uv run --locked python scripts/check_documentation.py
 uv run --locked python scripts/check_contract_naming.py
