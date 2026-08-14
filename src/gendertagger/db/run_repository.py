@@ -421,6 +421,17 @@ class SqlAlchemyRunRepository:
         if failed and not (failure_diagnostic and failure_diagnostic.strip()):
             msg = "a failed task batch requires a failure diagnostic"
             raise ValueError(msg)
+        tallies = (success_count, abstain_count, error_count)
+        if any(count < 0 for count in tallies):
+            msg = "task-batch tallies must be non-negative"
+            raise ValueError(msg)
+        if failed:
+            if success_count or abstain_count or error_count != row.record_count:
+                msg = "a failed task batch must count every record as an error"
+                raise ValueError(msg)
+        elif sum(tallies) != row.record_count:
+            msg = "completed task-batch tallies must equal record_count"
+            raise ValueError(msg)
         row.status = status
         row.finished_at = finished_at
         row.success_count = success_count

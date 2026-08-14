@@ -172,13 +172,23 @@ def test_transient_failure_at_max_attempts_fails_the_batch(
 
     assert failed.status is TaskBatchStatus.failed
     assert failed.failure_class == "RuntimeError"
+    assert failed.error_count == 1
     with factory() as unit_of_work:
         execution = unit_of_work.runs.get_method_execution(scheduled[0].method_execution_id)
         run = unit_of_work.runs.get_run(run_id)
     assert execution is not None
     assert execution.status is MethodExecutionStatus.failed
+    assert execution.failed_count == 1
+    assert execution.progress.total == 1
+    assert execution.progress.completed == 0
+    assert execution.progress.failed == 1
+    assert execution.progress.percentage == 100
     assert run is not None
     assert run.status is RunStatus.completed_with_errors
+    assert run.progress.total == 1
+    assert run.progress.completed == 0
+    assert run.progress.failed == 1
+    assert run.progress.percentage == 100
 
 
 def test_permanent_failure_fails_the_batch_without_retry(
@@ -195,6 +205,7 @@ def test_permanent_failure_fails_the_batch_without_retry(
 
     assert failed.status is TaskBatchStatus.failed
     assert failed.failure_class == "MethodContractError"
+    assert failed.error_count == 1
 
 
 def test_redelivery_does_not_reopen_a_failed_batch(
@@ -216,6 +227,7 @@ def test_redelivery_does_not_reopen_a_failed_batch(
 
     assert first.status is TaskBatchStatus.failed
     assert redelivery.status is TaskBatchStatus.failed
+    assert redelivery.error_count == 1
     assert redelivery.worker_task_id == "w1"
     assert adapter.call_count == 1
 

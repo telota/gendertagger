@@ -215,11 +215,11 @@ class BatchExecutor:
                 MethodDependencyError,
                 ValidationError,
             ) as error:
-                return self._fail_batch(unit_of_work, message, execution.id, run.id, error)
+                return self._fail_batch(unit_of_work, batch, execution.id, run.id, error)
             except Exception as error:
                 # Unclassified failures are treated as transient: retry, then fail.
                 if attempt_count >= max_attempts:
-                    return self._fail_batch(unit_of_work, message, execution.id, run.id, error)
+                    return self._fail_batch(unit_of_work, batch, execution.id, run.id, error)
                 msg = f"task batch {message.task_batch_id} failed on attempt {attempt_count}"
                 raise TransientBatchError(msg) from error
 
@@ -255,6 +255,12 @@ class BatchExecutor:
             offset=batch.record_offset,
             limit=batch.record_count,
         )
+        if len(records) != batch.record_count:
+            msg = (
+                f"task batch {batch.id} expected {batch.record_count} records "
+                f"but loaded {len(records)}"
+            )
+            raise PermanentBatchError(msg)
         results = registration.adapter.predict_batch(records, config)
         validate_prediction_batch(registration.descriptor, records, results)
         writes = [
@@ -272,16 +278,17 @@ class BatchExecutor:
     def _fail_batch(
         self,
         unit_of_work: UnitOfWork,
-        message: TaskBatchMessage,
+        batch: TaskBatch,
         method_execution_id: UUID,
         run_id: UUID,
         error: BaseException,
     ) -> TaskBatch:
         finished_at = self._clock()
         failed_batch = unit_of_work.runs.mark_batch_finished(
-            message.task_batch_id,
+            batch.id,
             status=TaskBatchStatus.failed,
             finished_at=finished_at,
+            error_count=batch.record_count,
             failure_class=type(error).__name__,
             failure_diagnostic=_sanitized_diagnostic(error),
         )

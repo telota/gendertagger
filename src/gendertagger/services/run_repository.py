@@ -131,7 +131,7 @@ class RunRepository(Protocol):
         failure_class: str | None = None,
         failure_diagnostic: str | None = None,
     ) -> TaskBatch:
-        """Transition a running batch to a terminal outcome with its tallies."""
+        """Finish a running batch with tallies covering its record slice exactly."""
         ...
 
     def finalize_execution_if_complete(

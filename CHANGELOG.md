@@ -82,6 +82,7 @@ the phased plan that resumes application code.
   with paired scientific regression cases for disagreement and agreement with the pooled methods.
 - Made asynchronous run dispatch recoverable across broker and coordinator failures with a transactional
   PostgreSQL outbox, a relay/reconciler process, and atomic scheduling and worker claims.
+- Count every record covered by a terminal whole-batch failure in execution and run progress.
 
 ### Removed
 

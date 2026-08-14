@@ -155,6 +155,54 @@ def test_batch_cannot_finish_before_it_starts(db_session: Session) -> None:
         runs.mark_batch_finished(batch.id, status=TaskBatchStatus.completed, finished_at=LATER)
 
 
+def test_completed_batch_tallies_must_cover_its_record_slice(db_session: Session) -> None:
+    runs, execution, batch = _setup(db_session)
+    runs.claim_batch(
+        batch.id,
+        method_execution_id=execution.id,
+        worker_task_id="task-1",
+        started_at=NOW,
+        attempt_count=1,
+    )
+
+    with pytest.raises(ValueError, match="tallies must equal record_count"):
+        runs.mark_batch_finished(
+            batch.id,
+            status=TaskBatchStatus.completed,
+            finished_at=LATER,
+        )
+
+
+def test_failed_batch_counts_every_record_as_error(db_session: Session) -> None:
+    runs, execution, batch = _setup(db_session)
+    runs.claim_batch(
+        batch.id,
+        method_execution_id=execution.id,
+        worker_task_id="task-1",
+        started_at=NOW,
+        attempt_count=1,
+    )
+
+    with pytest.raises(ValueError, match="count every record as an error"):
+        runs.mark_batch_finished(
+            batch.id,
+            status=TaskBatchStatus.failed,
+            finished_at=LATER,
+            failure_diagnostic="adapter failed",
+        )
+
+    failed = runs.mark_batch_finished(
+        batch.id,
+        status=TaskBatchStatus.failed,
+        finished_at=LATER,
+        error_count=batch.record_count,
+        failure_class="RuntimeError",
+        failure_diagnostic="adapter failed",
+    )
+    assert failed.status is TaskBatchStatus.failed
+    assert failed.error_count == batch.record_count
+
+
 def test_transitions_reject_unknown_resources(db_session: Session) -> None:
     _setup(db_session)
     runs = SqlAlchemyRunRepository(db_session)
