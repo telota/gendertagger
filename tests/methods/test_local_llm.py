@@ -88,7 +88,7 @@ def test_llm_client_structured_success() -> None:
                 "choices": [
                     {
                         "message": {
-                            "content": '{"gender": "female", "confidence": 0.95, "reasoning": "Known physicist"}'
+                            "content": '{"gender": "female", "confidence": 0.95, "certainty": "high", "reasoning": "Known physicist"}'
                         }
                     }
                 ]
@@ -128,7 +128,7 @@ def test_llm_client_retry_then_success() -> None:
                     "choices": [
                         {
                             "message": {
-                                "content": '{"gender": "male", "confidence": 0.8, "reasoning": "Corrected"}'
+                                "content": '{"gender": "male", "confidence": 0.8, "certainty": "low", "reasoning": "Corrected"}'
                             }
                         }
                     ]
@@ -183,7 +183,7 @@ def test_local_llm_method_success(
                 "choices": [
                     {
                         "message": {
-                            "content": '{"gender": "female", "confidence": 0.9, "reasoning": "Marie Curie"}'
+                            "content": '{"gender": "female", "confidence": 0.9, "certainty": "high", "reasoning": "Marie Curie"}'
                         }
                     }
                 ]
@@ -200,6 +200,7 @@ def test_local_llm_method_success(
     assert results[0].label == CanonicalLabel.female
     assert results[0].method_confidence == 0.9
     assert results[0].metadata["attempt_count"] == 1
+    assert results[0].metadata["self_reported_certainty"] == "high"
     assert "Marie Curie" in results[0].raw_output["reasoning"]
 
 

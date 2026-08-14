@@ -121,7 +121,7 @@ Migrate adapters incrementally:
 5. nomquamgender [DONE]
 6. GND local snapshot [DONE]
 7. transformer classifiers [DONE]
-8. local LLM
+8. local LLM [DONE]
 9. HIVOTO-XGBoost as experimental method [DONE]
 
 Do not wait for all methods before exercising the architecture.

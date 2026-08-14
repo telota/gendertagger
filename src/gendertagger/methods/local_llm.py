@@ -43,6 +43,7 @@ class PersonClassification(BaseModel):
     
     gender: Literal["female", "male", "institution", "unknown"]
     confidence: float
+    certainty: Literal["high", "low", "uncertain"]
     reasoning: str | None = None
 
 
@@ -203,6 +204,8 @@ class LocalLlmMethod(GenderMethod[LocalLlmConfig]):
                     raw_output = metadata.pop("raw_response", {})
                     if classification.reasoning:
                         raw_output["reasoning"] = classification.reasoning
+                        
+                    metadata["self_reported_certainty"] = classification.certainty
 
                     result = normalize_raw_label(
                         LOCAL_LLM_NORMALIZATION,
