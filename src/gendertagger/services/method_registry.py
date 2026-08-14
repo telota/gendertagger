@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.methods.base import GenderMethod, MethodConfig
 from gendertagger.methods.gender_guesser import GenderGuesserMethod
+from gendertagger.methods.hivoto import HivotoMethod
 from gendertagger.methods.parenthetical_qualifier import ParentheticalQualifierMethod
 from gendertagger.methods.wiki_gendersort import WikiGendersortMethod
 from gendertagger.models.method import MethodDescriptor
@@ -119,6 +120,13 @@ def default_method_registry() -> MethodRegistry:
                 descriptor=WikiGendersortMethod.descriptor,
                 config_model=WikiGendersortMethod.config_model,
                 adapter=WikiGendersortMethod(),
+                queue_name=CPU_QUEUE,
+                batch_size=_CPU_BATCH_SIZE,
+            ),
+            MethodRegistration(
+                descriptor=HivotoMethod.descriptor,
+                config_model=HivotoMethod.config_model,
+                adapter=HivotoMethod(),
                 queue_name=CPU_QUEUE,
                 batch_size=_CPU_BATCH_SIZE,
             ),

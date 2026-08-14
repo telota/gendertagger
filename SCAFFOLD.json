@@ -38,7 +38,9 @@
     "docs/decisions/ADR-0013-wiki-gendersort-adapter.md",
     "docs/decisions/ADR-0014-restore-parenthetical-institution-normalization.md",
     "docs/decisions/ADR-0015-transactional-batch-dispatch-outbox.md",
-    "docs/decisions/ADR-0016-asynchronous-aggregation-outbox.md"
+    "docs/decisions/ADR-0016-asynchronous-aggregation-outbox.md",
+    "docs/decisions/ADR-0017-structured-tei-person-name-forms.md",
+    "docs/decisions/ADR-0018-hivoto-adapter.md"
   ],
   "top_level_entrypoints": [
     "README.md",

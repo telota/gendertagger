@@ -92,7 +92,7 @@ def test_methods_endpoint_lists_registered_methods_in_name_order() -> None:
 
     assert response.status_code == 200
     names = [method["name"] for method in response.json()]
-    assert names == ["gender_guesser", "parenthetical_qualifier", "wiki_gendersort"]
+    assert names == ["gender_guesser", "hivoto", "parenthetical_qualifier", "wiki_gendersort"]
 
 
 def test_default_registry_routes_every_method_to_the_cpu_queue() -> None:
@@ -100,6 +100,7 @@ def test_default_registry_routes_every_method_to_the_cpu_queue() -> None:
 
     assert [registration.descriptor.name for registration in registrations] == [
         "gender_guesser",
+        "hivoto",
         "parenthetical_qualifier",
         "wiki_gendersort",
     ]

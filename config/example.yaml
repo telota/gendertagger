@@ -16,6 +16,8 @@ methods:
       names_db_path: "REPLACE_WITH_NAMESOUT_TXT_PATH"
   - name: hivoto
     enabled: true
+    config:
+      dataset_path: "REPLACE_WITH_HIVOTO_CSV_PATH"
   - name: nomquamgender
     enabled: true
     config:
