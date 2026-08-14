@@ -1,0 +1,13 @@
+{
+  "name": "gendertagger-quality-tools",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "typecheck:pyright": "pyright"
+  },
+  "devDependencies": {
+    "pyright": "1.1.411"
+  }
+}

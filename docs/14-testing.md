@@ -144,15 +144,19 @@ Infrastructure-specific tests also carry the `integration` marker; separate CI j
 
 ## Coverage
 
-Use branch coverage. Maintain complete branch coverage for normative normalization, reference aggregation,
-certainty assignment, and TEI certainty projection once those modules exist. Ratchet the overall project floor
-upward from the configured baseline instead of manufacturing tests solely to hit a global number.
+Use branch coverage. Fast, PostgreSQL, and Redis jobs publish separate raw coverage data; a downstream gate
+combines them and enforces the configured 80% project floor. The fast suite independently enforces a 70%
+non-regression floor. Service-backed repository code remains measured through the service-backed suites rather
+than mock-only tests written to satisfy a fast-only percentage. Maintain complete branch coverage for normative
+normalization, reference aggregation, certainty assignment, and TEI certainty projection once those modules
+exist. Ratchet the overall project floor upward from the configured baseline instead of manufacturing tests
+solely to hit a global number.
 
 ## CI progression
 
 | Phase | Required gates added |
 |---|---|
-| 0–1 | lockfile, Ruff, mypy, import boundaries, package build, contract/domain/scientific tests |
+| 0–1 | lockfile, Ruff, mypy, Pyright, import boundaries, package build, contract/domain/scientific tests |
 | 2 | PostgreSQL repositories plus Alembic clean-head and drift checks |
 | 3 | API/auth/error/pagination/OpenAPI contract tests |
 | 4 | Redis and at least one real non-eager Celery worker path |

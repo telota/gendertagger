@@ -61,12 +61,17 @@ the phased plan that resumes application code.
 - Generic asynchronous aggregation execution through the transactional outbox, with identifier-only CPU work,
   at-least-once publication and atomic claims, strict per-person reference-method completeness, no synthetic
   Prediction evidence, and atomic complete-result persistence for the current corpus scale.
+- A pinned official Pyright CLI and shared editor/CI configuration, complementing strict mypy with a second
+  required static-analysis implementation.
 
 ### Changed
 
 - Restored the documented local quality gates with repository-owned pre-commit/pre-push hooks, YAML
   front-matter-aware documentation validation, valid headings in maintained Markdown, and explicit Ruff
   exclusions for preserved research notebooks and upstream reference snapshots.
+- Expanded GitLab CI to enforce every documented repository, static-analysis, dependency, test, coverage, and
+  distribution gate. Coverage now combines fast, PostgreSQL, and Redis execution before enforcing the 80%
+  project floor, while the fast suite retains a separate 70% non-regression floor.
 - [`README.md`](README.md) rewritten to describe the scaffold, its architectural baseline, and the local
   development checks, replacing the legacy pipeline usage instructions.
 - Paper `docs/paper/article.tex` substantially revised in response to two peer reviews: the method section
@@ -86,6 +91,8 @@ the phased plan that resumes application code.
 - Made asynchronous run dispatch recoverable across broker and coordinator failures with a transactional
   PostgreSQL outbox, a relay/reconciler process, and atomic scheduling and worker claims.
 - Count every record covered by a terminal whole-batch failure in execution and run progress.
+- Isolated committed PostgreSQL/Redis test state between cases so the complete service-backed suite remains
+  order-independent when concurrency tests use independent sessions.
 
 ### Removed
 

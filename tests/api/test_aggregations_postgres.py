@@ -139,7 +139,7 @@ def _seed_completed_reference_executions(
                 )
             )
             execution_ids.append(execution.id)
-            results = []
+            results: list[PredictionWrite] = []
             for index, person in enumerate((first_person, second_person), start=1):
                 if method_name == "local_llm":
                     result = PredictionResult(

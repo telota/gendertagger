@@ -1,0 +1,23 @@
+{
+  "include": ["src", "tests", "scripts"],
+  "pythonVersion": "3.11",
+  "venvPath": ".",
+  "venv": ".venv",
+  "typeCheckingMode": "standard",
+  "reportDeprecated": "error",
+  "reportMatchNotExhaustive": "error",
+  "reportMissingParameterType": "error",
+  "reportUninitializedInstanceVariable": "error",
+  "reportUnknownParameterType": "error",
+  "reportUnnecessaryCast": "error",
+  "reportUnnecessaryComparison": "error",
+  "reportUnnecessaryContains": "error",
+  "reportUnnecessaryIsInstance": "error",
+  "reportUnreachable": "error",
+  "executionEnvironments": [
+    {
+      "root": ".",
+      "extraPaths": ["src"]
+    }
+  ]
+}

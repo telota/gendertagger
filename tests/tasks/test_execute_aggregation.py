@@ -1,19 +1,29 @@
+from typing import Protocol, cast
 from unittest.mock import Mock
 from uuid import UUID
 
 import pytest
 from celery.exceptions import Retry
 
+import gendertagger.tasks.aggregation as aggregation_task
 from gendertagger.models.aggregation import AggregationTaskMessage
 from gendertagger.services.aggregation_execution import (
     DEFAULT_MAX_AGGREGATION_ATTEMPTS,
     TransientAggregationError,
 )
-from gendertagger.tasks import aggregation as aggregation_task
 
 pytestmark = pytest.mark.unit
 
 AGGREGATION_ID = UUID("10000000-0000-0000-0000-000000000001")
+
+
+class _AggregationTask(Protocol):
+    def run(self, *, aggregation_execution_id: str) -> None: ...
+
+
+def _task_proxy() -> _AggregationTask:
+    """Expose Celery's untyped runtime proxy through the interface under test."""
+    return cast(_AggregationTask, aggregation_task.execute_aggregation)
 
 
 def test_task_rebuilds_identifier_envelope_and_calls_executor(
@@ -22,7 +32,7 @@ def test_task_rebuilds_identifier_envelope_and_calls_executor(
     executor = Mock()
     monkeypatch.setattr(aggregation_task, "_aggregation_executor", lambda: executor)
 
-    aggregation_task.execute_aggregation.run(
+    _task_proxy().run(
         aggregation_execution_id=str(AGGREGATION_ID),
     )
 
@@ -44,7 +54,7 @@ def test_task_retries_only_transient_aggregation_failures(
     monkeypatch.setattr(aggregation_task, "_retry_countdown", lambda _retries: 2.0)
 
     with pytest.raises(Retry):
-        aggregation_task.execute_aggregation.run(
+        _task_proxy().run(
             aggregation_execution_id=str(AGGREGATION_ID),
         )
 

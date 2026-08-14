@@ -19,6 +19,7 @@ _FORBIDDEN_ROOTS = {
     "build",
     "data",
     "dist",
+    "node_modules",
     "output",
 }
 _FORBIDDEN_SUFFIXES = {

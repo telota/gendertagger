@@ -1,66 +1,232 @@
-# You can override the included template(s) by including variable overrides
-# SAST customization: https://docs.gitlab.com/user/application_security/sast/#available-cicd-variables
-# Secret Detection customization: https://docs.gitlab.com/user/application_security/secret_detection/pipeline/configure/
-# Dependency Scanning customization: https://docs.gitlab.com/user/application_security/dependency_scanning/dependency_scanning_sbom/#customizing-analyzer-behavior
-# Container Scanning customization: https://docs.gitlab.com/user/application_security/container_scanning/#customizing-analyzer-behavior
-# Note that environment variables can be set in several places
-# See https://docs.gitlab.com/ci/variables/#cicd-variable-precedence
+# The base image is pinned by version and multi-platform manifest digest. Update
+# both together after reviewing the supported Python floor.
 stages:
-- test
-- secret-detection
-sast:
-  stage: test
-include:
-- template: Security/SAST.gitlab-ci.yml
-- template: Security/Secret-Detection.gitlab-ci.yml
-variables:
-  SECRET_DETECTION_ENABLED: 'true'
-secret_detection:
-  stage: secret-detection
+  - validate
+  - test
+  - coverage
+  - package
+  - secret-detection
 
+include:
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+
+variables:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  SECRET_DETECTION_ENABLED: "true"
+  UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
+  UV_LINK_MODE: copy
+
+default:
+  interruptible: true
+  cache:
+    key:
+      files:
+        - uv.lock
+    paths:
+      - .uv-cache/
+
+.uv_job:
+  image: python:3.11.9-slim-bookworm@sha256:8fb099199b9f2d70342674bd9dbccd3ed03a258f26bbd1d556822c6dfc60c317
+  before_script:
+    - python -m pip install --no-cache-dir "uv==0.12.3"
+
+.python_job:
+  extends: .uv_job
+  before_script:
+    - python -m pip install --no-cache-dir "uv==0.12.3"
+    - uv sync --locked
+
+lockfile:
+  extends: .uv_job
+  stage: validate
+  timeout: 5 minutes
+  script:
+    - uv lock --check
+
+repository_policy:
+  extends: .python_job
+  stage: validate
+  timeout: 10 minutes
+  script:
+    - uv run --locked python scripts/check_documentation.py
+    - uv run --locked python scripts/check_contract_naming.py
+    - uv run --locked python scripts/check_package_initializers.py
+
+lint_and_type:
+  extends: .python_job
+  stage: validate
+  timeout: 15 minutes
+  script:
+    - uv run --locked ruff format --check .
+    - uv run --locked ruff check .
+    - uv run --locked mypy
+    - uv run --locked lint-imports
+
+pyright:
+  extends: .python_job
+  stage: validate
+  timeout: 15 minutes
+  before_script:
+    - apt-get update
+    - apt-get install --yes --no-install-recommends nodejs npm
+    - python -m pip install --no-cache-dir "uv==0.12.3"
+    - uv sync --locked --extra guesser --extra wiki
+  script:
+    - npm ci --ignore-scripts --no-audit --no-fund
+    - npm audit --audit-level=high
+    - npm run typecheck:pyright
+
+dependency_audit:
+  extends: .uv_job
+  stage: validate
+  timeout: 10 minutes
+  script:
+    - uv audit --locked
+
+fast_coverage:
+  extends: .python_job
+  stage: test
+  timeout: 20 minutes
+  variables:
+    COVERAGE_FILE: .coverage.fast
+  # The fast suite has a 70% non-regression floor. Service-specific jobs publish
+  # partial data, and the combined coverage_gate remains the authoritative 80% check.
+  script:
+    - uv run --locked python scripts/check_asyncio_runner.py --timeout-seconds 5
+    - >-
+      timeout --signal=TERM --kill-after=30s 15m
+      uv run --locked pytest
+      -m "not integration and not postgres and not redis and not e2e and not slow and not gpu and not external"
+      --hypothesis-profile=ci
+      --cov
+      --cov-report=term-missing
+      --cov-report=xml:coverage-fast.xml
+      --cov-fail-under=70
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - .coverage.fast
+      - coverage-fast.xml
 
 postgres_persistence:
+  extends: .python_job
   stage: test
-  image: python:3.11.9-slim-bookworm@sha256:8fb099199b9f2d70342674bd9dbccd3ed03a258f26bbd1d556822c6dfc60c317
+  timeout: 30 minutes
   services:
-  - name: postgres:16.14-bookworm@sha256:64154d0babcb1741988719e703419af0382b19953706149f9872fbd0f438efa8
-    alias: postgres
+    - name: postgres:16.14-bookworm@sha256:64154d0babcb1741988719e703419af0382b19953706149f9872fbd0f438efa8
+      alias: postgres
   variables:
     POSTGRES_DB: gendertagger_ci
     POSTGRES_USER: gendertagger
     POSTGRES_PASSWORD: gendertagger_ci
     GENDERTAGGER_DATABASE_URL: postgresql+psycopg://gendertagger:gendertagger_ci@postgres:5432/gendertagger_ci
     GENDERTAGGER_TEST_DATABASE_URL: postgresql+psycopg://gendertagger:gendertagger_ci@postgres:5432/gendertagger_ci
-    PIP_DISABLE_PIP_VERSION_CHECK: "1"
-  before_script:
-  - python -m pip install --no-cache-dir "uv==0.12.3"
-  - uv sync --locked
+    COVERAGE_FILE: .coverage.postgres
   script:
-  - uv run --locked alembic upgrade head
-  - uv run --locked alembic check
-  - uv run --locked pytest -m "integration and postgres" --hypothesis-profile=ci
+    - uv run --locked python scripts/check_asyncio_runner.py --timeout-seconds 5
+    - uv run --locked alembic upgrade head
+    - uv run --locked alembic check
+    - >-
+      timeout --signal=TERM --kill-after=30s 20m
+      uv run --locked pytest
+      -m "integration and postgres"
+      --hypothesis-profile=ci
+      --cov
+      --cov-report=term-missing
+      --cov-report=xml:coverage-postgres.xml
+      --cov-fail-under=0
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - .coverage.postgres
+      - coverage-postgres.xml
 
 celery_execution:
+  extends: .python_job
   stage: test
-  image: python:3.11.9-slim-bookworm@sha256:8fb099199b9f2d70342674bd9dbccd3ed03a258f26bbd1d556822c6dfc60c317
+  timeout: 30 minutes
   services:
-  - name: postgres:16.14-bookworm@sha256:64154d0babcb1741988719e703419af0382b19953706149f9872fbd0f438efa8
-    alias: postgres
-  - name: redis@sha256:978f0e01593e65eed801f2402944efcd936d43b5027e4908a7897baf88ed6241
-    alias: redis
+    - name: postgres:16.14-bookworm@sha256:64154d0babcb1741988719e703419af0382b19953706149f9872fbd0f438efa8
+      alias: postgres
+    - name: redis@sha256:978f0e01593e65eed801f2402944efcd936d43b5027e4908a7897baf88ed6241
+      alias: redis
   variables:
     POSTGRES_DB: gendertagger_ci
     POSTGRES_USER: gendertagger
     POSTGRES_PASSWORD: gendertagger_ci
     GENDERTAGGER_DATABASE_URL: postgresql+psycopg://gendertagger:gendertagger_ci@postgres:5432/gendertagger_ci
     GENDERTAGGER_TEST_DATABASE_URL: postgresql+psycopg://gendertagger:gendertagger_ci@postgres:5432/gendertagger_ci
-    GENDERTAGGER_CELERY_BROKER_URL: redis://redis:6379/0
-    PIP_DISABLE_PIP_VERSION_CHECK: "1"
-  before_script:
-  - python -m pip install --no-cache-dir "uv==0.12.3"
-  - uv sync --locked
+    GENDERTAGGER_CELERY_BROKER_URL: redis://redis:6379/15
+    GENDERTAGGER_TEST_REDIS_URL: redis://redis:6379/15
+    COVERAGE_FILE: .coverage.redis
   script:
-  - uv run --locked alembic upgrade head
-  # A real Redis broker drives an in-process worker; disable pytest's unraisable
-  # plugin because the worker's redis client is finalized by GC at teardown.
-  - uv run --locked pytest -m "redis" --hypothesis-profile=ci -p no:unraisableexception
+    - uv run --locked alembic upgrade head
+    # A real Redis broker drives an in-process worker; disable pytest's
+    # unraisable-exception plugin because redis-py's client is finalized by GC.
+    - >-
+      timeout --signal=TERM --kill-after=30s 20m
+      uv run --locked pytest
+      -m "redis"
+      --hypothesis-profile=ci
+      --cov
+      --cov-report=term-missing
+      --cov-report=xml:coverage-redis.xml
+      --cov-fail-under=0
+      -p no:unraisableexception
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - .coverage.redis
+      - coverage-redis.xml
+
+coverage_gate:
+  extends: .python_job
+  stage: coverage
+  timeout: 10 minutes
+  needs:
+    - job: fast_coverage
+      artifacts: true
+    - job: postgres_persistence
+      artifacts: true
+    - job: celery_execution
+      artifacts: true
+  script:
+    - >-
+      uv run --locked coverage combine
+      .coverage.fast
+      .coverage.postgres
+      .coverage.redis
+    - uv run --locked coverage xml --fail-under=0 -o coverage.xml
+    - uv run --locked coverage report --fail-under=80
+  coverage: '/TOTAL.*\s+([0-9]+(?:\.[0-9]+)?%)/'
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - coverage.xml
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+
+package_distribution:
+  extends: .python_job
+  stage: package
+  timeout: 10 minutes
+  script:
+    - uv build --no-sources
+    - uv run --locked python scripts/check_distribution.py dist/*
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - dist/
+
+sast:
+  stage: test
+
+secret_detection:
+  stage: secret-detection

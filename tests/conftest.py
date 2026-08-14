@@ -3,7 +3,8 @@
 import os
 from collections.abc import Callable, Iterator
 from functools import partial
-from typing import TypeAlias
+from typing import TypeAlias, cast
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 import psycopg
@@ -12,10 +13,12 @@ from alembic import command
 from alembic.config import Config
 from hypothesis import settings
 from psycopg import sql
+from redis import Redis
 from sqlalchemy import Connection, Engine, create_engine
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.orm import Session
 
+from gendertagger.db.base import Base
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 
@@ -91,6 +94,59 @@ def postgres_engine(repository_database_url: str) -> Iterator[Engine]:
     engine = create_engine(repository_database_url, pool_pre_ping=True)
     yield engine
     engine.dispose()
+
+
+@pytest.fixture(autouse=True)
+def isolate_postgres_test(request: pytest.FixtureRequest) -> Iterator[None]:
+    """Remove committed rows after each test that uses the shared PostgreSQL database."""
+    needs_database = request.node.get_closest_marker("postgres") is not None or any(
+        fixture_name in request.fixturenames
+        for fixture_name in ("db_session", "postgres_engine", "postgres_unit_of_work")
+    )
+    if not needs_database:
+        yield
+        return
+
+    engine = cast(Engine, request.getfixturevalue("postgres_engine"))
+    yield
+
+    with engine.begin() as connection:
+        preparer = connection.dialect.identifier_preparer
+        table_names = ", ".join(
+            preparer.format_table(table)
+            for table in sorted(Base.metadata.tables.values(), key=lambda table: table.fullname)
+        )
+        connection.exec_driver_sql(f"TRUNCATE TABLE {table_names} CASCADE")
+
+
+@pytest.fixture(autouse=True)
+def isolate_redis_test(
+    request: pytest.FixtureRequest,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[None]:
+    """Purge the explicitly configured non-default Redis test database per test."""
+    if request.node.get_closest_marker("redis") is None:
+        yield
+        return
+
+    test_url = os.environ.get("GENDERTAGGER_TEST_REDIS_URL")
+    if test_url is None:
+        pytest.skip("GENDERTAGGER_TEST_REDIS_URL is required for Redis tests")
+    database_path = urlsplit(test_url).path.removeprefix("/")
+    if not database_path.isdecimal() or int(database_path) == 0:
+        pytest.fail("GENDERTAGGER_TEST_REDIS_URL must select a dedicated nonzero database")
+    broker_url = os.environ.get("GENDERTAGGER_CELERY_BROKER_URL")
+    if broker_url is not None and broker_url != test_url:
+        pytest.fail("Redis test and Celery broker URLs must select the same database")
+    monkeypatch.setenv("GENDERTAGGER_CELERY_BROKER_URL", test_url)
+
+    client: Redis = Redis.from_url(test_url)
+    client.flushdb()
+    try:
+        yield
+    finally:
+        client.flushdb()
+        client.close()
 
 
 @pytest.fixture

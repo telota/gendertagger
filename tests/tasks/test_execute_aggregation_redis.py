@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import time
+from contextlib import AbstractContextManager
 from datetime import UTC, datetime
 from functools import partial
+from typing import cast
 from uuid import UUID, uuid4
 
 import pytest
@@ -190,7 +192,11 @@ def test_reference_aggregation_runs_through_relay_and_real_worker(
     )
     terminal_status: AggregationExecutionStatus | None = None
     try:
-        with start_worker(app, queues=["cpu"], perform_ping_check=False, shutdown_timeout=30):
+        worker_context = cast(
+            AbstractContextManager[object],
+            start_worker(app, queues=["cpu"], perform_ping_check=False, shutdown_timeout=30),
+        )
+        with worker_context:
             relay_result = relay.run_once()
             assert relay_result.published == 1
             deadline = time.monotonic() + 30

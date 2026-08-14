@@ -52,23 +52,27 @@ Celery execution, production method migration, evaluation/export, and the Vue cl
 
 ## Development checks
 
-Install the uv version required by `pyproject.toml`, then run:
+Install the uv version required by `pyproject.toml` and Node.js 18 or newer, then run:
 
 ```bash
-uv sync --locked
+uv sync --locked --extra guesser --extra wiki
+npm ci --ignore-scripts --no-audit --no-fund
 uv run --locked python scripts/check_documentation.py
 uv run --locked python scripts/check_contract_naming.py
 uv run --locked python scripts/check_package_initializers.py
+npm run typecheck:pyright
+uv run --locked python scripts/check_asyncio_runner.py
 uv run --locked pre-commit run --all-files
 uv run --locked pytest \
   -m "not integration and not postgres and not redis and not e2e and not slow and not gpu and not external" \
-  --hypothesis-profile=ci --cov
+  --hypothesis-profile=ci --cov --cov-fail-under=70
 uv build --no-sources
 uv run --locked python scripts/check_distribution.py dist/*
 ```
 
 Install Git hooks after `git init` with `uv run --locked pre-commit install --install-hooks`. Full contributor
-policy and individual CI commands are in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+policy, service-backed test commands, and the combined 80% coverage gate are in
+[`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Scientific reference behavior
 

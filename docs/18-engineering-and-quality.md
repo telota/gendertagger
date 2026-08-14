@@ -10,12 +10,14 @@ does not precede a deployable, tested vertical slice.
 
 - Hatchling builds the Python distribution.
 - uv resolves and installs dependencies. Commit `uv.lock`; CI uses only locked installs.
+- npm installs the official Pyright CLI from the committed `package-lock.json`; Node.js is a development
+  runtime and does not enter the Python package metadata.
 - Direct development tools are pinned in `pyproject.toml`; the lockfile records the complete transitive
-  environment.
+  Python environment. JavaScript development tools are pinned exactly in `package.json`.
 - Runtime libraries belong in `[project.dependencies]`. Heavy method/model dependencies should use
   deliberate optional groups and must not enter ordinary CI accidentally.
-- `.python-version` exercises the minimum supported Python, while CI may add a chosen production minor
-  when that environment is known.
+- CI exercises the minimum supported Python. A developer may use an ignored local `.python-version` for a
+  newer compatible interpreter; it is not the authoritative compatibility declaration.
 
 The canonical commands are listed in `CONTRIBUTING.md`. CI is the final arbiter; local hooks are a fast
 feedback mechanism.
@@ -27,8 +29,12 @@ feedback mechanism.
   Pydantic/config field vocabulary is checked by `scripts/check_contract_naming.py`.
 - Regular production packages use explicit, docstring-only initializers. The package-initializer policy rejects
   re-exports, assignments, runtime setup, and accidental namespace packages.
-- Strict mypy applies to `src/` and `tests/`. Public contracts, service boundaries, repositories, and
-  adapters must be fully typed. Confine `Any` to inspected raw external payloads.
+- Strict mypy applies to `src/`, `tests/`, and `scripts/`. Public contracts, service boundaries,
+  repositories, and adapters must be fully typed. Confine `Any` to inspected raw external payloads.
+- Pyright runs as a complementary required analysis over `src/`, `tests/`, and `scripts`, using the checked-in
+  configuration that Pylance also understands. Pylance itself remains an editor integration rather than a
+  headless CI dependency. Its job installs the lightweight `guesser` and `wiki` extras so optional imports are
+  resolved rather than hidden by a missing-import suppression.
 - Suppressions must name the exact rule/error code and explain why the exception is safe.
 - Scientific functions should be pure and deterministic. Inject clocks, ID generators, randomness,
   network clients, and persistence rather than reading global state inside domain logic.
@@ -76,9 +82,13 @@ Markers define execution requirements rather than importance:
 Every test must be independent of execution order and shared mutable state. PostgreSQL-specific behavior is
 tested on PostgreSQL, and at least one Celery path uses a real Redis broker/worker rather than eager mode.
 
-The overall coverage floor starts at 80% and should ratchet upward. Normative normalization, aggregation,
-certainty, and TEI-projection branches require complete branch coverage once those modules exist. Coverage is
-a gap detector, not a substitute for decision-table and property-based tests.
+The overall coverage floor starts at 80% and should ratchet upward. CI records separate data from the fast,
+PostgreSQL, and Redis suites, then combines those data before enforcing the project floor. The fast suite also
+has a 70% non-regression floor so unit and contract coverage cannot silently collapse behind integration
+coverage. A zero threshold on a service-specific partial run only defers percentage evaluation; test failures
+remain blocking. Normative normalization, aggregation, certainty, and TEI-projection branches require complete
+branch coverage once those modules exist. Coverage is a gap detector, not a substitute for decision-table and
+property-based tests.
 
 ## CI and delivery
 
@@ -87,9 +97,9 @@ The initial GitLab pipeline performs:
 1. lockfile validation;
 2. documentation structure/link/manifest/ADR validation, semantic contract naming, and package-initializer
    checks;
-3. Ruff, mypy, and import-boundary checks;
-4. a locked dependency vulnerability audit;
-5. the fast pytest suite with branch coverage;
+3. Ruff, strict mypy, complementary Pyright, and import-boundary checks;
+4. locked Python and npm dependency vulnerability audits;
+5. the fast, PostgreSQL, and Redis pytest suites with combined branch coverage;
 6. wheel and source-distribution construction plus a sensitive-content policy check;
 7. GitLab SAST and secret detection.
 
@@ -99,6 +109,10 @@ do not replace the digest with a mutable convenience tag.
 GitLab-managed security templates track the installed GitLab release and can change when the instance is
 upgraded. Review their jobs after upgrades. Scanner reports become merge-blocking only when the GitLab project
 has an applicable security approval policy; the included templates alone primarily produce reports.
+
+Before TestClient-based tests, CI runs a bounded cross-thread asyncio wake-up probe. Starlette's TestClient
+needs local socket-pair communication to wake its background event loop; a restricted or broken runner must
+fail with a direct diagnostic instead of consuming the entire test-job timeout.
 
 Later phases add PostgreSQL/Alembic, API/OpenAPI, Redis/Celery, adapter conformance, frontend, complete
 end-to-end, and operational release gates as listed in `14-testing.md`.

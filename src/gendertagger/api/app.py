@@ -1,6 +1,6 @@
 """FastAPI application composition root."""
 
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from functools import partial
@@ -102,7 +102,7 @@ def create_app(
     )
 
     @asynccontextmanager
-    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
         try:
             yield
         finally:

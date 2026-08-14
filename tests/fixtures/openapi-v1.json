@@ -3445,7 +3445,7 @@
     },
     "/api/v1/runs/{run_id}/aggregations": {
       "post": {
-        "description": "Persist a pending aggregation over exact completed method executions.",
+        "description": "Queue a durable aggregation over exact completed method executions.",
         "operationId": "create_aggregation_api_v1_runs__run_id__aggregations_post",
         "parameters": [
           {

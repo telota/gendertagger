@@ -6,10 +6,12 @@ to implement.
 
 ## Development setup
 
-Install [uv](https://docs.astral.sh/uv/) at the version required by `pyproject.toml`, then run:
+Install [uv](https://docs.astral.sh/uv/) at the version required by `pyproject.toml` and Node.js 18 or
+newer, then run:
 
 ```bash
-uv sync --locked
+uv sync --locked --extra guesser --extra wiki
+npm ci --ignore-scripts --no-audit --no-fund
 ```
 
 After the Git repository has been initialized, install the local hooks:
@@ -34,17 +36,33 @@ uv run --locked python scripts/check_package_initializers.py
 uv run --locked ruff format --check .
 uv run --locked ruff check .
 uv run --locked mypy
+npm audit --audit-level=high
+npm run typecheck:pyright
 uv run --locked lint-imports
 uv audit --locked
-uv run --locked pytest \
+uv run --locked python scripts/check_asyncio_runner.py
+COVERAGE_FILE=.coverage.fast uv run --locked pytest \
   -m "not integration and not postgres and not redis and not e2e and not slow and not gpu and not external" \
-  --hypothesis-profile=ci --cov --cov-report=term-missing --cov-report=xml
+  --hypothesis-profile=ci --cov --cov-report=term-missing \
+  --cov-report=xml:coverage-fast.xml --cov-fail-under=70
 GENDERTAGGER_DATABASE_URL=postgresql+psycopg://user:password@localhost/gendertagger \
   uv run --locked alembic upgrade head
 GENDERTAGGER_DATABASE_URL=postgresql+psycopg://user:password@localhost/gendertagger \
   uv run --locked alembic check
 GENDERTAGGER_TEST_DATABASE_URL=postgresql+psycopg://user:password@localhost/postgres \
-  uv run --locked pytest -m "integration and postgres" --hypothesis-profile=ci
+  COVERAGE_FILE=.coverage.postgres uv run --locked pytest \
+  -m "integration and postgres" --hypothesis-profile=ci --cov \
+  --cov-report=term-missing --cov-report=xml:coverage-postgres.xml --cov-fail-under=0
+GENDERTAGGER_DATABASE_URL=postgresql+psycopg://user:password@localhost/gendertagger \
+  GENDERTAGGER_TEST_DATABASE_URL=postgresql+psycopg://user:password@localhost/postgres \
+  GENDERTAGGER_TEST_REDIS_URL=redis://localhost:6379/15 \
+  COVERAGE_FILE=.coverage.redis uv run --locked pytest -m "redis" \
+  --hypothesis-profile=ci --cov --cov-report=term-missing \
+  --cov-report=xml:coverage-redis.xml --cov-fail-under=0 -p no:unraisableexception
+uv run --locked coverage combine \
+  .coverage.fast .coverage.postgres .coverage.redis
+uv run --locked coverage xml --fail-under=0 -o coverage.xml
+uv run --locked coverage report
 uv build --no-sources
 uv run --locked python scripts/check_distribution.py dist/*
 ```
@@ -52,9 +70,16 @@ uv run --locked python scripts/check_distribution.py dist/*
 The PostgreSQL test role must be allowed to create temporary databases. The integration suite creates a
 randomly named database per migration/repository scope and removes it after the session.
 
+Redis tests require `GENDERTAGGER_TEST_REDIS_URL` to select a dedicated nonzero database. The test fixture
+purges that database before and after every Redis-marked test; never point it at a shared or production broker.
+
+The 70% fast-suite threshold is a quick non-regression signal. It does not replace or lower the mandatory
+80% project floor, which is evaluated after combining the fast, PostgreSQL, and Redis coverage data. Every
+partial suite remains independently blocking on test failures.
+
 Use `uv run --locked pre-commit run --all-files` to exercise all pre-commit-stage hooks manually.
-Use `uv run --locked pre-commit run --all-files --hook-stage pre-push` to exercise the strict typing,
-import-boundary, and fast-test hooks without pushing.
+Use `uv run --locked pre-commit run --all-files --hook-stage pre-push` to exercise the mypy/Pyright,
+import-boundary, runner-capability, and fast-test hooks without pushing.
 
 ## Change discipline
 

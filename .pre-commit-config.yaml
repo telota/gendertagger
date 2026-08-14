@@ -62,9 +62,23 @@ repos:
         stages: [pre-push]
         always_run: true
         pass_filenames: false
+      - id: pyright
+        name: Pyright analysis
+        entry: npm run typecheck:pyright
+        language: system
+        stages: [pre-push]
+        always_run: true
+        pass_filenames: false
       - id: import-linter
         name: Import boundaries
         entry: uv run --locked lint-imports
+        language: system
+        stages: [pre-push]
+        always_run: true
+        pass_filenames: false
+      - id: asyncio-runner
+        name: Asyncio runner capabilities
+        entry: uv run --locked python scripts/check_asyncio_runner.py
         language: system
         stages: [pre-push]
         always_run: true
@@ -75,6 +89,7 @@ repos:
           uv run --locked pytest
           -m "not integration and not postgres and not redis and not e2e and not slow and not gpu and not external"
           --hypothesis-profile=ci --cov --cov-report=term-missing --cov-report=xml
+          --cov-fail-under=70
         language: system
         stages: [pre-push]
         always_run: true

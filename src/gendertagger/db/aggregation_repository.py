@@ -342,7 +342,7 @@ class SqlAlchemyAggregationRepository:
             msg = "every aggregated result person must belong to the run snapshot"
             raise InvalidResourceStateError(msg)
 
-        rows = []
+        rows: list[AggregatedResultRow] = []
         for result_write in results:
             result = result_write.result
             rows.append(
