@@ -36,6 +36,8 @@ from gendertagger.services.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
 
 
+from gendertagger.logging import configure_logging
+
 def create_app(
     *,
     settings: AppSettings | None = None,
@@ -54,6 +56,7 @@ def create_app(
     Returns:
         A configured FastAPI application whose owned engine is disposed at shutdown.
     """
+    configure_logging()
     resolved_settings = settings or load_settings()
     application_version = version("gendertagger")
     engine: Engine | None = None

@@ -1,0 +1,81 @@
+name: gendertagger
+
+services:
+  db:
+    volumes:
+      - ${POSTGRES_DATA_PATH:-postgres_data}:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+
+  redis:
+    volumes:
+      - ${REDIS_DATA_PATH:-redis_data}:/data
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+
+  api:
+    volumes:
+      - ${ARTIFACTS_PATH:-artifacts}:/app/data/artifacts
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+
+  worker-cpu:
+    volumes:
+      - ${ARTIFACTS_PATH:-artifacts}:/app/data/artifacts
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+
+  worker-gpu:
+    volumes:
+      - ${ARTIFACTS_PATH:-artifacts}:/app/data/artifacts
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 8G
+
+  worker-llm:
+    volumes:
+      - ${ARTIFACTS_PATH:-artifacts}:/app/data/artifacts
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+
+
+
+  worker-external:
+    volumes:
+      - ${ARTIFACTS_PATH:-artifacts}:/app/data/artifacts
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+
+  gateway:
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+
+  frontend:
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M

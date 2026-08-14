@@ -45,6 +45,8 @@ class CelerySettings(BaseSettings):
         return value
 
 
+from gendertagger.logging import configure_logging
+
 def create_celery_app(settings: CelerySettings | None = None) -> Celery:
     """Build a Celery app with durable-friendly, JSON-only broker defaults.
 
@@ -53,6 +55,7 @@ def create_celery_app(settings: CelerySettings | None = None) -> Celery:
     acknowledged late and workers prefetch one message at a time so a crash
     re-delivers at-most one in-flight batch to an idempotent task.
     """
+    configure_logging()
     resolved = settings or CelerySettings()
     backend = resolved.celery_result_backend
     app = Celery(
