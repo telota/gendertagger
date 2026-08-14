@@ -39,7 +39,12 @@ from gendertagger.models.lifecycle import (
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.person import PersonInput
 from gendertagger.models.project import DatasetSnapshotCreate, ProjectCreate
-from gendertagger.models.review import AnnotationCreate, ReviewAction, ReviewWorkflowState
+from gendertagger.models.review import (
+    AnnotationCreate,
+    ReviewAction,
+    ReviewItemSort,
+    ReviewWorkflowState,
+)
 from gendertagger.models.run import (
     MethodExecutionCreate,
     PredictionWrite,
@@ -118,12 +123,13 @@ def _seed_review_items(
                 PersonInput(tei_id="p3", surname="Third", external_ids={"wikidata": "QSearch"}),
                 PersonInput(tei_id="p1", surname="First"),
                 PersonInput(tei_id="p2", surname="Second"),
+                PersonInput(tei_id="p4", surname="Fourth"),
             ],
         )
         unit_of_work.projects.complete_snapshot_import(snapshot.id, ready_at=NOW)
         people = {
             tei_id: unit_of_work.projects.get_person_record_by_tei_id(snapshot.id, tei_id)
-            for tei_id in ("p1", "p2", "p3")
+            for tei_id in ("p1", "p2", "p3", "p4")
         }
         assert all(person is not None for person in people.values())
         run = unit_of_work.runs.add_run(
@@ -146,10 +152,12 @@ def _seed_review_items(
         person_one = people["p1"]
         person_two = people["p2"]
         person_three = people["p3"]
+        person_four = people["p4"]
         assert person_one is not None
         assert person_two is not None
         assert person_three is not None
-        people_in_order = (person_one, person_two, person_three)
+        assert person_four is not None
+        people_in_order = (person_one, person_two, person_three, person_four)
         execution_ids: list[UUID] = []
         for method_name in REFERENCE_REQUIRED_METHODS:
             execution = unit_of_work.runs.add_method_execution(
@@ -161,7 +169,7 @@ def _seed_review_items(
                         normalization_version=f"{method_name}_v1",
                     ),
                     queue_name="cpu",
-                    total_count=3,
+                    total_count=4,
                 )
             )
             execution_ids.append(execution.id)
@@ -171,7 +179,7 @@ def _seed_review_items(
                     batch_index=0,
                     queue_name="cpu",
                     record_offset=0,
-                    record_count=3,
+                    record_count=4,
                 )
             )
             unit_of_work.runs.mark_execution_queued(execution.id)
@@ -203,6 +211,7 @@ def _seed_review_items(
                         label=CanonicalLabel.female,
                         raw_label="female",
                     ),
+                    PredictionResult(label=None, status=PredictionStatus.abstain),
                 )
             else:
                 results = tuple(
@@ -229,7 +238,7 @@ def _seed_review_items(
                 status=TaskBatchStatus.completed,
                 finished_at=NOW,
                 success_count=2 if method_name == "gender_guesser" else 0,
-                abstain_count=0 if method_name == "gender_guesser" else 3,
+                abstain_count=1 if method_name == "gender_guesser" else 4,
                 error_count=1 if method_name == "gender_guesser" else 0,
             )
             unit_of_work.runs.finalize_execution_if_complete(execution.id, finished_at=NOW)
@@ -262,6 +271,7 @@ def _seed_review_items(
                         agreement_tier=AgreementTier.no_consensus,
                         certainty_tier=CertaintyTier.contested,
                     ),
+                    has_prediction_error=True,
                 ),
                 AggregationResultWrite(
                     person_record_id=person_two.id,
@@ -286,6 +296,17 @@ def _seed_review_items(
                         agreement_score=0.5,
                         agreement_tier=AgreementTier.weak_majority,
                         certainty_tier=CertaintyTier.high,
+                    ),
+                ),
+                AggregationResultWrite(
+                    person_record_id=person_four.id,
+                    result=ReferenceAggregationResult(
+                        outcome=AggregationOutcome.decided,
+                        label=CanonicalLabel.male,
+                        pooled_vote_counts=VoteCounts(male=1),
+                        agreement_score=1.0,
+                        agreement_tier=AgreementTier.single_rater,
+                        certainty_tier=CertaintyTier.single,
                     ),
                 ),
             ],
@@ -353,21 +374,19 @@ def test_review_items_project_final_state_and_paginate_stably(
     tmp_path: Path,
 ) -> None:
     client, aggregation_id = _client(postgres_engine, tmp_path)
-    first_page = client.get(
-        "/api/v1/review-items",
-        params={"aggregation_id": str(aggregation_id), "limit": 2},
-    ).json()
+    register_order: dict[str, str | int] = {
+        "aggregation_id": str(aggregation_id),
+        "sort": ReviewItemSort.tei_id.value,
+        "limit": 2,
+    }
+    first_page = client.get("/api/v1/review-items", params=register_order).json()
     second_page = client.get(
         "/api/v1/review-items",
-        params={
-            "aggregation_id": str(aggregation_id),
-            "limit": 2,
-            "cursor": first_page["next_cursor"],
-        },
+        params={**register_order, "cursor": first_page["next_cursor"]},
     ).json()
 
     assert _tei_ids(first_page) == ["p1", "p2"]
-    assert _tei_ids(second_page) == ["p3"]
+    assert _tei_ids(second_page) == ["p3", "p4"]
     first_item, second_item = first_page["items"]
     third_item = second_page["items"][0]
     assert first_item["final_label"] is None
@@ -379,6 +398,76 @@ def test_review_items_project_final_state_and_paginate_stably(
     assert third_item["has_authority_conflict"] is True
     assert third_item["workflow_state"] == ReviewWorkflowState.deferred.value
     assert third_item["final_label"] == CanonicalLabel.female.value
+
+
+def test_review_items_default_to_server_side_uncertainty_first_ordering(
+    postgres_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    client, aggregation_id = _client(postgres_engine, tmp_path)
+    triage_page = client.get(
+        "/api/v1/review-items",
+        params={"aggregation_id": str(aggregation_id)},
+    ).json()
+    register_page = client.get(
+        "/api/v1/review-items",
+        params={
+            "aggregation_id": str(aggregation_id),
+            "sort": ReviewItemSort.tei_id.value,
+        },
+    ).json()
+
+    assert _tei_ids(triage_page) == ["p1", "p2", "p4", "p3"]
+    assert _tei_ids(register_page) == ["p1", "p2", "p3", "p4"]
+    assert [item["certainty_tier"] for item in triage_page["items"]] == [
+        CertaintyTier.contested.value,
+        CertaintyTier.uncertain.value,
+        CertaintyTier.single.value,
+        CertaintyTier.high.value,
+    ]
+    assert triage_page["items"][3]["has_authority_conflict"] is True
+
+
+def test_uncertainty_pages_are_stable_and_scoped_to_their_sort(
+    postgres_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    """Annotating a later page must not move it: review state is not a sort key."""
+    client, aggregation_id = _client(postgres_engine, tmp_path)
+    triage_order: dict[str, str | int] = {"aggregation_id": str(aggregation_id), "limit": 2}
+    first_page = client.get("/api/v1/review-items", params=triage_order).json()
+    assert _tei_ids(first_page) == ["p1", "p2"]
+
+    annotation = client.post(
+        "/api/v1/annotations",
+        json={
+            "snapshot_id": first_page["items"][0]["snapshot_id"],
+            "tei_id": "p4",
+            "action": ReviewAction.verify.value,
+            "label": CanonicalLabel.male.value,
+            "expected_revision": 0,
+        },
+    )
+    assert annotation.status_code == 201
+
+    second_page = client.get(
+        "/api/v1/review-items",
+        params={**triage_order, "cursor": first_page["next_cursor"]},
+    ).json()
+    cross_sort_response = client.get(
+        "/api/v1/review-items",
+        params={
+            **triage_order,
+            "sort": ReviewItemSort.tei_id.value,
+            "cursor": first_page["next_cursor"],
+        },
+    )
+
+    assert _tei_ids(second_page) == ["p4", "p3"]
+    assert second_page["items"][0]["workflow_state"] == ReviewWorkflowState.reviewed.value
+    assert second_page["has_more"] is False
+    assert cross_sort_response.status_code == 422
+    assert cross_sort_response.json()["error"]["details"] == {"reason": "invalid_cursor"}
 
 
 def test_review_item_filters_are_server_side_and_composable(

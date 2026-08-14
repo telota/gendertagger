@@ -8,16 +8,26 @@ The UI reads candidates from FastAPI and writes annotations through FastAPI.
 
 ## Review queue
 
-Default triage should prioritize records by uncertainty/disagreement, for example:
+Triage is ordered on the server, not in the browser. `GET /api/v1/review-items` accepts `sort=uncertainty`
+(the default) or `sort=tei_id`, and `uncertainty` applies the versioned `review_triage_v1` rank:
 
 1. `contested`
 2. `low`
 3. `uncertain`
 4. `single`
-5. authority-vs-ensemble disagreement
-6. explicit errors/flags
+5. `no_data`
+6. authority-vs-ensemble disagreement
+7. explicit prediction errors
+8. every remaining record
 
-The exact UI ordering can evolve without changing scientific results as long as the underlying selection/filter is explicit.
+A certainty tier that carries its own rank wins over both flags, and records sharing a rank keep the stable
+`(tei_id, person_record_id)` order. Every rank input is immutable for a completed aggregation, so annotating a
+record never moves it between cursor pages; review state stays a filter and never becomes a sort key. See
+[ADR-0022](decisions/ADR-0022-uncertainty-first-review-ordering.md).
+
+The exact UI ordering can evolve without changing scientific results as long as the underlying
+selection/filter is explicit. Changing the rank itself is a new policy version rather than an in-place edit,
+because outstanding cursors describe the traversal it defines.
 
 ## Annotation model
 
@@ -75,4 +85,6 @@ This is optimistic concurrency over the **review stream**, not mutation/versioni
 
 ## Review query API
 
-Review candidates must be queryable server-side by uncertainty, agreement, final label, review status, authority/ensemble conflict, method result, and error presence. The browser must not download the full snapshot and implement scientific triage locally. A dedicated `review-items` resource is preferred over UI-page-specific endpoints.
+Review candidates must be queryable server-side by uncertainty, agreement, final label, review status, authority/ensemble conflict, method result, and error presence, and must be **sorted** server-side by the triage rank above. The browser must not download the full snapshot and implement scientific triage locally. A dedicated `review-items` resource is preferred over UI-page-specific endpoints.
+
+Cursors are scoped to the filters *and* the sort. Continuing a cursor under a different query returns `422` with `invalid_cursor` instead of silently reordering a partially reviewed queue.

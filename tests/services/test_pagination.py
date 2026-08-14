@@ -14,13 +14,31 @@ def test_cursor_round_trip_preserves_resource_scoped_position() -> None:
 
     cursor = codec.encode(
         resource="snapshot_people:fixture",
-        sort_value="person-17",
+        sort_values=("person-17",),
         resource_id=RESOURCE_ID,
     )
     position = codec.decode(cursor, expected_resource="snapshot_people:fixture")
 
     assert "=" not in cursor
-    assert position.sort_value == "person-17"
+    assert position.sort_values == ("person-17",)
+    assert position.id == RESOURCE_ID
+
+
+def test_cursor_round_trip_preserves_ordered_composite_sort_keys() -> None:
+    codec = CursorCodec()
+
+    cursor = codec.encode(
+        resource="review_items:fixture",
+        sort_values=("3", "person-17"),
+        resource_id=RESOURCE_ID,
+    )
+    position = codec.decode(
+        cursor,
+        expected_resource="review_items:fixture",
+        expected_sort_value_count=2,
+    )
+
+    assert position.sort_values == ("3", "person-17")
     assert position.id == RESOURCE_ID
 
 
@@ -28,7 +46,7 @@ def test_cursor_rejects_malformed_and_cross_resource_tokens() -> None:
     codec = CursorCodec()
     cursor = codec.encode(
         resource="snapshot_people:first",
-        sort_value="person-17",
+        sort_values=("person-17",),
         resource_id=RESOURCE_ID,
     )
 
@@ -36,6 +54,23 @@ def test_cursor_rejects_malformed_and_cross_resource_tokens() -> None:
         codec.decode("not+a+base64url+cursor", expected_resource="snapshot_people:first")
     with pytest.raises(InvalidCursorError, match="different resource"):
         codec.decode(cursor, expected_resource="snapshot_people:second")
+
+
+def test_cursor_rejects_a_sort_value_count_the_caller_cannot_consume() -> None:
+    """A crafted arity must fail as an invalid cursor, never as an index error."""
+    codec = CursorCodec()
+    cursor = codec.encode(
+        resource="review_items:fixture",
+        sort_values=("person-17",),
+        resource_id=RESOURCE_ID,
+    )
+
+    with pytest.raises(InvalidCursorError, match="sort-value count"):
+        codec.decode(
+            cursor,
+            expected_resource="review_items:fixture",
+            expected_sort_value_count=2,
+        )
 
 
 def test_cursor_page_requires_consistent_continuation_state() -> None:

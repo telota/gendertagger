@@ -276,6 +276,14 @@ class AggregationResultWrite(BaseModel):
 
     person_record_id: UUID
     result: ReferenceAggregationResult
+    has_prediction_error: bool = Field(
+        default=False,
+        description=(
+            "Whether any selected method execution failed technically for this person. "
+            "Projected from the immutable prediction evidence so review triage does not "
+            "re-derive it per query."
+        ),
+    )
     metadata: dict[str, JsonValue] = Field(default_factory=dict)
 
 
@@ -299,5 +307,12 @@ class AggregatedResult(ReferenceAggregationResult):
     id: UUID
     aggregation_execution_id: UUID
     person_record_id: UUID
+    has_prediction_error: bool = Field(
+        default=False,
+        description=(
+            "Whether any selected method execution failed technically for this person. "
+            "The aggregated decision itself ignores technical errors."
+        ),
+    )
     metadata: dict[str, JsonValue] = Field(default_factory=dict)
     created_at: UtcDatetime

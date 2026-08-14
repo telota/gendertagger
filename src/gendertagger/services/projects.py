@@ -159,7 +159,7 @@ class ProjectService:
             records = unit_of_work.projects.list_person_records(
                 snapshot_id,
                 limit=limit + 1,
-                after_tei_id=position.sort_value if position is not None else None,
+                after_tei_id=position.sort_values[0] if position is not None else None,
                 after_person_record_id=position.id if position is not None else None,
             )
         has_more = len(records) > limit
@@ -169,7 +169,7 @@ class ProjectService:
             last_item = items[-1]
             next_cursor = self._cursor_codec.encode(
                 resource=resource,
-                sort_value=last_item.tei_id,
+                sort_values=(last_item.tei_id,),
                 resource_id=last_item.id,
             )
         return CursorPage(items=items, next_cursor=next_cursor, has_more=has_more)

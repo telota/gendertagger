@@ -106,8 +106,21 @@ class ReviewState(BaseModel):
         return self
 
 
+class ReviewItemSort(StrEnum):
+    """Server-side ordering available to the review queue.
+
+    ``uncertainty`` applies the versioned ``review_triage_v1`` policy, which
+    returns contested, weakly supported, thinly evidenced, conflicting, and
+    failed records before confident ones. ``tei_id`` returns the plain register
+    order for predictable full traversal.
+    """
+
+    uncertainty = "uncertainty"
+    tei_id = "tei_id"
+
+
 class ReviewItemQuery(BaseModel):
-    """Server-side filters and cursor controls for one exact aggregation."""
+    """Server-side filters, ordering, and cursor controls for one aggregation."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -122,6 +135,7 @@ class ReviewItemQuery(BaseModel):
     prediction_status: PredictionStatus | None = None
     has_prediction_error: bool | None = None
     q: str | None = Field(default=None, min_length=1, max_length=200)
+    sort: ReviewItemSort = ReviewItemSort.uncertainty
     limit: int = Field(default=100, ge=1, le=200)
     cursor: str | None = Field(default=None, min_length=1, max_length=2048)
 

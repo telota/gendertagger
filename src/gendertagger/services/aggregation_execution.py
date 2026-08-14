@@ -21,6 +21,7 @@ from gendertagger.models.aggregation import (
     AggregationResultWrite,
     AggregationTaskMessage,
 )
+from gendertagger.models.classification import PredictionStatus
 from gendertagger.models.lifecycle import AggregationExecutionStatus
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
@@ -187,6 +188,10 @@ class AggregationExecutor:
                 AggregationResultWrite(
                     person_record_id=person_predictions.person_record_id,
                     result=assess_reference_predictions(person_predictions.predictions),
+                    has_prediction_error=any(
+                        prediction.status is PredictionStatus.error
+                        for prediction in person_predictions.predictions.values()
+                    ),
                     metadata={"strategy": "reference_v1"},
                 )
             )

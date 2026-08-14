@@ -151,7 +151,38 @@ def test_executor_persists_complete_results_with_explicit_abstains_and_errors() 
     assert writes[0].person_record_id == PERSON_ID
     assert writes[0].result.label is CanonicalLabel.female
     assert writes[0].result.pooled_vote_counts.female == 1
+    assert writes[0].has_prediction_error is True
     assert factory.units[0].commit_count == 1
+
+
+def test_executor_projects_error_free_evidence_without_a_prediction_error_flag() -> None:
+    repository = Mock(spec=AggregationRepository)
+    repository.claim_aggregation.return_value = _aggregation(AggregationExecutionStatus.running)
+    repository.load_prediction_matrix.return_value = [
+        _prediction_matrix()[0].model_copy(
+            update={
+                "predictions": {
+                    method_name: PredictionResult(
+                        label=None,
+                        status=PredictionStatus.abstain,
+                    )
+                    for method_name in REFERENCE_REQUIRED_METHODS
+                }
+            }
+        )
+    ]
+    repository.mark_aggregation_finished.return_value = _aggregation(
+        AggregationExecutionStatus.completed
+    )
+    executor, _ = _executor(repository)
+
+    executor.execute(
+        AggregationTaskMessage(aggregation_execution_id=AGGREGATION_ID),
+        attempt_count=1,
+    )
+
+    writes = cast(list[AggregationResultWrite], repository.add_results.call_args.args[1])
+    assert writes[0].has_prediction_error is False
 
 
 def test_executor_fails_when_a_required_prediction_row_is_missing() -> None:

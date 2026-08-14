@@ -43,7 +43,8 @@
     "docs/decisions/ADR-0018-hivoto-adapter.md",
     "docs/decisions/ADR-0019-nomquamgender-adapter.md",
     "docs/decisions/ADR-0020-asynchronous-snapshot-import-outbox.md",
-    "docs/decisions/ADR-0021-versioned-multi-format-snapshot-ingestion.md"
+    "docs/decisions/ADR-0021-versioned-multi-format-snapshot-ingestion.md",
+    "docs/decisions/ADR-0022-uncertainty-first-review-ordering.md"
   ],
   "top_level_entrypoints": [
     "README.md",

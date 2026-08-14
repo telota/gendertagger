@@ -145,6 +145,8 @@ Review-oriented queries should expose domain filters such as:
 
 A dedicated `review-items` resource is acceptable because review triage is a domain concept. Avoid page-specific endpoints such as `getDashboardStuff`.
 
+Review triage ordering is also a server concern. `GET /api/v1/review-items` defaults to `sort=uncertainty` and additionally accepts `sort=tei_id`; the Vue application must not re-rank a page in browser state. Keep the returned cursor with the query that produced it, because a cursor is scoped to both the filters and the sort.
+
 List responses should contain summaries sufficient to render the list without one follow-up request per row. Details and full raw method output belong on detail endpoints.
 
 ## Annotation concurrency

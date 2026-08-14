@@ -147,12 +147,14 @@ def test_aggregated_result_extends_scientific_result_without_mutation() -> None:
     write = AggregationResultWrite(
         person_record_id=PERSON_ID,
         result=scientific_result,
+        has_prediction_error=True,
         metadata={"strategy": "reference_v1"},
     )
     persisted = AggregatedResult(
         id=RESULT_ID,
         aggregation_execution_id=AGGREGATION_ID,
         person_record_id=PERSON_ID,
+        has_prediction_error=write.has_prediction_error,
         metadata=write.metadata,
         created_at=CREATED_AT,
         **scientific_result.model_dump(),
@@ -162,3 +164,5 @@ def test_aggregated_result_extends_scientific_result_without_mutation() -> None:
     assert persisted.label is CanonicalLabel.female
     assert persisted.pooled_vote_counts == VoteCounts(female=2)
     assert persisted.metadata == {"strategy": "reference_v1"}
+    assert persisted.has_prediction_error is True
+    assert "has_prediction_error" not in scientific_result.model_dump()

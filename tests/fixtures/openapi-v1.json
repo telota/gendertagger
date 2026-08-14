@@ -34,6 +34,12 @@
             "title": "Created At",
             "type": "string"
           },
+          "has_prediction_error": {
+            "default": false,
+            "description": "Whether any selected method execution failed technically for this person. The aggregated decision itself ignores technical errors.",
+            "title": "Has Prediction Error",
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -1719,6 +1725,15 @@
         "title": "ReviewItem",
         "type": "object"
       },
+      "ReviewItemSort": {
+        "description": "Server-side ordering available to the review queue.\n\n``uncertainty`` applies the versioned ``review_triage_v1`` policy, which\nreturns contested, weakly supported, thinly evidenced, conflicting, and\nfailed records before confident ones. ``tei_id`` returns the plain register\norder for predictable full traversal.",
+        "enum": [
+          "uncertainty",
+          "tei_id"
+        ],
+        "title": "ReviewItemSort",
+        "type": "string"
+      },
       "ReviewMethodResult": {
         "additionalProperties": false,
         "description": "Selected method outcome included in a review-item summary.",
@@ -3272,6 +3287,15 @@
                 }
               ],
               "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ReviewItemSort",
+              "default": "uncertainty"
             }
           },
           {

@@ -2,13 +2,15 @@
 
 import base64
 import binascii
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 _MAX_CURSOR_LENGTH = 2048
+_MAX_SORT_VALUES = 8
 
 
 class InvalidCursorError(ValueError):
@@ -17,35 +19,75 @@ class InvalidCursorError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class CursorPosition:
-    """Decoded stable sort value and UUID tie-breaker."""
+    """Decoded stable sort values and UUID tie-breaker."""
 
-    sort_value: str
+    sort_values: tuple[str, ...]
     id: UUID
 
 
 class _CursorPayload(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    version: Literal[1] = 1
+    version: Literal[2] = 2
     resource: str = Field(min_length=1, max_length=200)
-    sort_value: str = Field(max_length=1000)
+    sort_values: tuple[Annotated[str, Field(max_length=1000)], ...] = Field(
+        min_length=1,
+        max_length=_MAX_SORT_VALUES,
+    )
     id: UUID
 
 
 class CursorCodec:
     """Encode validated positions without treating cursors as authorization."""
 
-    def encode(self, *, resource: str, sort_value: str, resource_id: UUID) -> str:
-        """Return compact base64url JSON for one continuation position."""
+    def encode(
+        self,
+        *,
+        resource: str,
+        sort_values: Sequence[str],
+        resource_id: UUID,
+    ) -> str:
+        """Return compact base64url JSON for one continuation position.
+
+        Args:
+            resource: Exact collection scope, including the filters and sort
+                order that produced the position.
+            sort_values: Ordered sort-key values of the last returned item,
+                excluding its UUID tie-breaker.
+            resource_id: UUID tie-breaker of the last returned item.
+
+        Returns:
+            An opaque unpadded base64url cursor.
+        """
         payload = _CursorPayload(
             resource=resource,
-            sort_value=sort_value,
+            sort_values=tuple(sort_values),
             id=resource_id,
         ).model_dump_json()
         return base64.urlsafe_b64encode(payload.encode("utf-8")).decode("ascii").rstrip("=")
 
-    def decode(self, cursor: str, *, expected_resource: str) -> CursorPosition:
-        """Validate one cursor and require its exact collection scope."""
+    def decode(
+        self,
+        cursor: str,
+        *,
+        expected_resource: str,
+        expected_sort_value_count: int = 1,
+    ) -> CursorPosition:
+        """Validate one cursor and require its exact collection scope and arity.
+
+        Args:
+            cursor: Opaque cursor supplied by the client.
+            expected_resource: Collection scope the caller is paginating.
+            expected_sort_value_count: Number of sort-key values the caller's
+                keyset predicate consumes.
+
+        Returns:
+            The decoded continuation position.
+
+        Raises:
+            InvalidCursorError: If the cursor is malformed, belongs to another
+                collection scope, or carries a different number of sort values.
+        """
         if not cursor or len(cursor) > _MAX_CURSOR_LENGTH:
             raise InvalidCursorError("cursor length is invalid")
         try:
@@ -60,4 +102,6 @@ class CursorCodec:
             raise InvalidCursorError("cursor payload is invalid") from error
         if payload.resource != expected_resource:
             raise InvalidCursorError("cursor belongs to a different resource")
-        return CursorPosition(sort_value=payload.sort_value, id=payload.id)
+        if len(payload.sort_values) != expected_sort_value_count:
+            raise InvalidCursorError("cursor carries an unexpected sort-value count")
+        return CursorPosition(sort_values=payload.sort_values, id=payload.id)

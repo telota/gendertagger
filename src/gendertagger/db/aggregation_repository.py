@@ -382,6 +382,7 @@ class SqlAlchemyAggregationRepository:
                     override_source=result.override_source,
                     override_agreeing_count=result.override_agreeing_count,
                     override_comparison_count=result.override_comparison_count,
+                    has_prediction_error=result_write.has_prediction_error,
                     agreement_score=result.agreement_score,
                     agreement_tier=result.agreement_tier,
                     certainty_tier=result.certainty_tier,
@@ -610,6 +611,7 @@ class SqlAlchemyAggregationRepository:
             agreement_score=row.agreement_score,
             agreement_tier=row.agreement_tier,
             certainty_tier=row.certainty_tier,
+            has_prediction_error=row.has_prediction_error,
             metadata=row.result_metadata,
             created_at=row.created_at,
         )

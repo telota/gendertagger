@@ -1,6 +1,7 @@
 """Application repository contract for append-only human review."""
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
 
@@ -11,6 +12,20 @@ from gendertagger.models.review import (
     ReviewItemQuery,
     ReviewState,
 )
+
+
+@dataclass(frozen=True, slots=True)
+class ReviewItemCursor:
+    """Keyset continuation position for one review-item ordering.
+
+    ``triage_rank`` carries the ``review_triage_v1`` rank of the last returned
+    item under uncertainty-first ordering, and is ``None`` for plain register
+    ordering.
+    """
+
+    tei_id: str
+    person_record_id: UUID
+    triage_rank: int | None = None
 
 
 class ReviewRepository(Protocol):
@@ -38,8 +53,7 @@ class ReviewRepository(Protocol):
         query: ReviewItemQuery,
         *,
         limit: int,
-        after_tei_id: str | None = None,
-        after_person_record_id: UUID | None = None,
+        after: ReviewItemCursor | None = None,
     ) -> Sequence[ReviewItem]:
-        """Return one filtered stable ``(tei_id, person_record_id)`` slice."""
+        """Return one filtered slice in the stable order the query selected."""
         ...

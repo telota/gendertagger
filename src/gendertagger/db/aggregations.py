@@ -6,6 +6,7 @@ from uuid import UUID
 
 from pydantic import JsonValue
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     Float,
@@ -235,6 +236,12 @@ class AggregatedResultRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
     )
     override_agreeing_count: Mapped[int | None] = mapped_column(Integer)
     override_comparison_count: Mapped[int | None] = mapped_column(Integer)
+    has_prediction_error: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false"),
+    )
     agreement_score: Mapped[float | None] = mapped_column(Float)
     agreement_tier: Mapped[AgreementTier] = mapped_column(
         stored_enum(AgreementTier, name="agreement_tier"),

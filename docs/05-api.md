@@ -204,6 +204,17 @@ List responses should include enough summary data to render a table/card list wi
 
 A dedicated `review-items` resource is allowed because review triage is a domain concept. It should project the relevant person, final/aggregated result, disagreement/certainty information, and current review revision into a queryable summary.
 
+```text
+GET /api/v1/review-items
+    ?aggregation_id=...
+    &sort=uncertainty
+    &certainty_tier=contested
+    &limit=100
+    &cursor=...
+```
+
+`sort` selects `uncertainty` (the default, applying the versioned `review_triage_v1` rank) or `tei_id`. The sort key is immutable for a completed aggregation, so a concurrent annotation never moves a record between pages; see [annotation and review](09-annotation-and-review.md) and [ADR-0022](decisions/ADR-0022-uncertainty-first-review-ordering.md). A cursor is scoped to both the filters and the sort, so reusing it under a different query returns `422` with `invalid_cursor`.
+
 Avoid page-specific endpoints such as `/getDashboardStuff` or `/getDataForRunPage`.
 
 ## Progress/events

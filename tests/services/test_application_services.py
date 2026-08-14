@@ -9,6 +9,7 @@ from uuid import UUID
 import pytest
 
 from gendertagger.config.run import RunConfig
+from gendertagger.domain.review_triage import CERTAINTY_TIER_TRIAGE_RANKS
 from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.models.aggregation import (
     AggregatedResult,
@@ -52,6 +53,7 @@ from gendertagger.models.review import (
     ReviewAction,
     ReviewItem,
     ReviewItemQuery,
+    ReviewItemSort,
     ReviewWorkflowState,
 )
 from gendertagger.models.run import Progress, Run, RunCreate, RunCreateRequest
@@ -74,7 +76,7 @@ from gendertagger.services.projects import (
     SnapshotUploadTooLargeError,
 )
 from gendertagger.services.review_items import ReviewItemService
-from gendertagger.services.review_repository import ReviewRepository
+from gendertagger.services.review_repository import ReviewItemCursor, ReviewRepository
 from gendertagger.services.run_repository import RunRepository
 from gendertagger.services.runs import RunProvenance, RunService
 from gendertagger.services.unit_of_work import UnitOfWork
@@ -748,7 +750,7 @@ def test_aggregation_service_paginates_and_rejects_malformed_cursor_position() -
 
     invalid_position = cursor_codec.encode(
         resource=f"aggregation_results:{AGGREGATION_ID}",
-        sort_value="not-a-uuid",
+        sort_values=("not-a-uuid",),
         resource_id=RESULT_IDS[0],
     )
     with pytest.raises(InvalidCursorError, match="sort value is invalid"):
@@ -816,6 +818,21 @@ def test_review_item_service_requires_completed_aggregation_and_paginates() -> N
     assert [item.tei_id for item in second_page.items] == ["p3"]
     assert second_page.has_more is False
     assert second_page.next_cursor is None
+
+    continuation = review_repository.list_review_items.call_args_list[1].kwargs["after"]
+    assert continuation == ReviewItemCursor(
+        tei_id="p2",
+        person_record_id=PERSON_IDS[1],
+        triage_rank=CERTAINTY_TIER_TRIAGE_RANKS[CertaintyTier.uncertain],
+    )
+    with pytest.raises(InvalidCursorError):
+        service.list_review_items(
+            ReviewItemQuery(
+                aggregation_id=AGGREGATION_ID,
+                sort=ReviewItemSort.tei_id,
+                cursor=first_page.next_cursor,
+            )
+        )
 
     aggregation_repository.get_aggregation.return_value = None
     with pytest.raises(ResourceNotFoundError, match=str(AGGREGATION_ID)):

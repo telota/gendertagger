@@ -104,7 +104,7 @@ class AggregationService:
         after_person_record_id = None
         if position is not None:
             try:
-                after_person_record_id = UUID(position.sort_value)
+                after_person_record_id = UUID(position.sort_values[0])
             except ValueError as error:
                 raise InvalidCursorError("result cursor sort value is invalid") from error
         with self._unit_of_work_factory() as unit_of_work:
@@ -121,7 +121,7 @@ class AggregationService:
             last_item = items[-1]
             next_cursor = self._cursor_codec.encode(
                 resource=resource,
-                sort_value=str(last_item.person_record_id),
+                sort_values=(str(last_item.person_record_id),),
                 resource_id=last_item.id,
             )
         return CursorPage(items=items, next_cursor=next_cursor, has_more=has_more)

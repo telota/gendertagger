@@ -14,13 +14,20 @@ from gendertagger.db.aggregations import (
 from gendertagger.db.executions import MethodExecutionRow, PredictionRow
 from gendertagger.db.projects import PersonExternalIdRow, PersonRecordRow
 from gendertagger.db.reviews import AnnotationRow, ReviewStateRow, UserRow
-from gendertagger.models.classification import CanonicalLabel, PredictionStatus
+from gendertagger.domain.review_triage import (
+    AUTHORITY_CONFLICT_TRIAGE_RANK,
+    CERTAINTY_TIER_TRIAGE_RANKS,
+    PREDICTION_ERROR_TRIAGE_RANK,
+    RESIDUAL_TRIAGE_RANK,
+)
+from gendertagger.models.classification import CanonicalLabel
 from gendertagger.models.review import (
     Annotation,
     AnnotationCreate,
     ReviewAction,
     ReviewItem,
     ReviewItemQuery,
+    ReviewItemSort,
     ReviewMethodResult,
     ReviewState,
     ReviewWorkflowState,
@@ -30,6 +37,7 @@ from gendertagger.services.persistence_errors import (
     ResourceNotFoundError,
     ReviewConflictError,
 )
+from gendertagger.services.review_repository import ReviewItemCursor
 
 
 class SqlAlchemyReviewRepository:
@@ -173,15 +181,21 @@ class SqlAlchemyReviewRepository:
         query: ReviewItemQuery,
         *,
         limit: int,
-        after_tei_id: str | None = None,
-        after_person_record_id: UUID | None = None,
+        after: ReviewItemCursor | None = None,
     ) -> Sequence[ReviewItem]:
-        """Project and filter review summaries in stable TEI-ID order."""
+        """Project and filter review summaries in the order the query selected.
+
+        Uncertainty-first ordering applies the ``review_triage_v1`` rank before
+        the stable ``(tei_id, person_record_id)`` tie-breaker. Every ordering
+        input is immutable for a completed aggregation, so continuation stays
+        correct while reviewers annotate.
+        """
         if limit <= 0:
             msg = "limit must be positive"
             raise ValueError(msg)
-        if (after_tei_id is None) != (after_person_record_id is None):
-            msg = "review cursor fields must be supplied together"
+        sorts_by_uncertainty = query.sort is ReviewItemSort.uncertainty
+        if after is not None and (after.triage_rank is None) == sorts_by_uncertainty:
+            msg = "review cursor position does not match the requested sort"
             raise ValueError(msg)
 
         selected_membership = aliased(AggregationMethodExecutionRow)
@@ -200,26 +214,20 @@ class SqlAlchemyReviewRepository:
             .scalar_subquery()
         )
 
-        error_membership = aliased(AggregationMethodExecutionRow)
-        error_prediction = aliased(PredictionRow)
-        has_prediction_error = exists(
-            select(1)
-            .select_from(error_membership)
-            .join(
-                error_prediction,
-                error_prediction.method_execution_id == error_membership.method_execution_id,
-            )
-            .where(
-                error_membership.aggregation_execution_id == query.aggregation_id,
-                error_prediction.person_record_id == PersonRecordRow.id,
-                error_prediction.status == PredictionStatus.error,
-            )
-        )
         has_authority_conflict = and_(
             AggregatedResultRow.override_source.is_not(None),
             AggregatedResultRow.override_comparison_count > 0,
             AggregatedResultRow.override_agreeing_count
             < AggregatedResultRow.override_comparison_count,
+        )
+        triage_rank = case(
+            *(
+                (AggregatedResultRow.certainty_tier == certainty_tier, rank)
+                for certainty_tier, rank in CERTAINTY_TIER_TRIAGE_RANKS.items()
+            ),
+            (has_authority_conflict, AUTHORITY_CONFLICT_TRIAGE_RANK),
+            (AggregatedResultRow.has_prediction_error, PREDICTION_ERROR_TRIAGE_RANK),
+            else_=RESIDUAL_TRIAGE_RANK,
         )
         final_label = case(
             (
@@ -238,7 +246,6 @@ class SqlAlchemyReviewRepository:
                 ReviewStateRow.current_annotation_id,
                 AnnotationRow.action,
                 AnnotationRow.label,
-                has_prediction_error.label("has_prediction_error"),
                 selected_prediction,
             )
             .join(
@@ -284,7 +291,9 @@ class SqlAlchemyReviewRepository:
         if query.has_authority_conflict is not None:
             statement = statement.where(has_authority_conflict.is_(query.has_authority_conflict))
         if query.has_prediction_error is not None:
-            statement = statement.where(has_prediction_error.is_(query.has_prediction_error))
+            statement = statement.where(
+                AggregatedResultRow.has_prediction_error.is_(query.has_prediction_error)
+            )
         if query.method_name is not None:
             statement = statement.where(selected_prediction.id.is_not(None))
             if query.method_label is not None:
@@ -314,19 +323,32 @@ class SqlAlchemyReviewRepository:
                     external_id_match,
                 )
             )
-        if after_tei_id is not None and after_person_record_id is not None:
-            statement = statement.where(
-                or_(
-                    PersonRecordRow.tei_id > after_tei_id,
-                    and_(
-                        PersonRecordRow.tei_id == after_tei_id,
-                        PersonRecordRow.id > after_person_record_id,
-                    ),
-                )
+        if after is not None:
+            after_register_position = or_(
+                PersonRecordRow.tei_id > after.tei_id,
+                and_(
+                    PersonRecordRow.tei_id == after.tei_id,
+                    PersonRecordRow.id > after.person_record_id,
+                ),
             )
-        rows = self._session.execute(
-            statement.order_by(PersonRecordRow.tei_id, PersonRecordRow.id).limit(limit)
+            if after.triage_rank is None:
+                statement = statement.where(after_register_position)
+            else:
+                statement = statement.where(
+                    or_(
+                        triage_rank > after.triage_rank,
+                        and_(
+                            triage_rank == after.triage_rank,
+                            after_register_position,
+                        ),
+                    )
+                )
+        order_by = (
+            (triage_rank, PersonRecordRow.tei_id, PersonRecordRow.id)
+            if sorts_by_uncertainty
+            else (PersonRecordRow.tei_id, PersonRecordRow.id)
         )
+        rows = self._session.execute(statement.order_by(*order_by).limit(limit))
         items: list[ReviewItem] = []
         for row in rows:
             person = cast(PersonRecordRow, row[0])
@@ -336,8 +358,7 @@ class SqlAlchemyReviewRepository:
             current_annotation_id = cast(UUID | None, row[4])
             annotation_action = cast(ReviewAction | None, row[5])
             annotation_label = cast(CanonicalLabel | None, row[6])
-            prediction_error = cast(bool, row[7])
-            selected_prediction_row = cast(PredictionRow | None, row[8])
+            selected_prediction_row = cast(PredictionRow | None, row[7])
             final_label_value = (
                 annotation_label
                 if annotation_action in {ReviewAction.verify, ReviewAction.correct}
@@ -366,7 +387,7 @@ class SqlAlchemyReviewRepository:
                     certainty_tier=result.certainty_tier,
                     override_source=result.override_source,
                     has_authority_conflict=self._has_authority_conflict(result),
-                    has_prediction_error=prediction_error,
+                    has_prediction_error=result.has_prediction_error,
                     workflow_state=workflow_state or ReviewWorkflowState.unreviewed,
                     review_revision=revision or 0,
                     current_annotation_id=current_annotation_id,

@@ -86,6 +86,15 @@ the phased plan that resumes application code.
   excluded from PersonInput to prevent target leakage.
 - A pinned official Pyright CLI and shared editor/CI configuration, complementing strict mypy with a second
   required static-analysis implementation.
+- Server-side uncertainty-first review ordering. `GET /api/v1/review-items` accepts `sort=uncertainty` (the
+  new default) or `sort=tei_id`, where `uncertainty` applies the versioned `review_triage_v1` rank recorded in
+  [ADR-0022](docs/decisions/ADR-0022-uncertainty-first-review-ordering.md): contested, low, uncertain, single,
+  and no-data records first, then authority-vs-ensemble disagreement and technical prediction errors, then
+  confident records. Every rank input is immutable for a completed aggregation, so annotating a record never
+  moves it between cursor pages.
+- `AggregatedResult.has_prediction_error`, a persisted projection of the immutable prediction evidence that
+  makes the triage rank a function of one row instead of a correlated subquery. The accompanying migration
+  backfills existing results from their member method executions.
 
 ### Changed
 
@@ -115,6 +124,9 @@ the phased plan that resumes application code.
   boundary in [`docs/01-architecture.md`](docs/01-architecture.md), under which queue names and worker
   identities are never part of the public contract, and removes both fields from the generated OpenAPI
   document.
+- Opaque cursors now carry an ordered tuple of sort values and validate the arity the reading endpoint
+  expects, so a composite ordering can be continued without treating the position as authorization. Existing
+  cursors are not portable across the change.
 
 ### Fixed
 
