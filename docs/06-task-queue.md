@@ -31,22 +31,23 @@ Initial tuning ranges, not normative values:
 
 Scheduling must not commit durable work and then publish its Celery message from the API. PostgreSQL and Redis
 cannot make those two operations atomic, so a broker failure between them would strand a task batch or
-aggregation execution.
+aggregation execution. A snapshot import has the same problem after its source has been staged.
 
-The outbox is a generic application mechanism with two typed targets: `task_batch` and
-`aggregation_execution`. The existing outbox storage has nullable `task_batch_id` and
-`aggregation_execution_id` foreign keys plus an exactly-one-owner check. Each non-null owner is unique. A
-closed publisher mapping derives the Celery task name from the typed target and payload. Target, queue, owner,
-payload, and derived task name must agree; an ownerless, multiply owned, or mismatched dispatch is invalid.
+The outbox is a generic application mechanism with three typed targets: `task_batch`,
+`aggregation_execution`, and `dataset_snapshot`. Outbox storage has corresponding nullable owner foreign keys
+plus an exactly-one-owner check. Each non-null owner is unique. A closed publisher mapping derives the Celery
+task name from the typed target and payload. Target, queue, owner, payload, and derived task name must agree; an
+ownerless, multiply owned, or mismatched dispatch is invalid.
 
 Method scheduling creates each `TaskBatch` and its `TaskBatchMessage` intent in one PostgreSQL transaction.
 Aggregation creation similarly creates one `AggregationExecution` and its identifier-only aggregation intent
-in one transaction. The outbox also stores `pending`/`published` state, retry metadata, and a relay lease. A
-committed asynchronous command therefore means both the work and dispatch intent are durable; a rolled-back
-transaction contains neither.
+in one transaction. Snapshot acceptance first durably stages the bounded source and then creates its Artifact
+record, pending DatasetSnapshot, and identifier-only import intent in one database transaction. The outbox also
+stores `pending`/`published` state, retry metadata, and a relay lease. A committed asynchronous command
+therefore means both the work and dispatch intent are durable; a rolled-back transaction contains neither.
 
 FastAPI never publishes task messages to Redis. Its asynchronous response represents the persisted run or
-aggregation, not confirmation that a broker accepted every message.
+aggregation, or the pending DatasetSnapshot, not confirmation that a broker accepted every message.
 
 ## Dispatch coordinator
 
@@ -55,8 +56,8 @@ One separately started dispatch-coordinator process runs both dispatch services:
 - `OutboxRelay` frequently claims available `pending` dispatches under short leases, commits those claims,
   publishes outside the database transaction, and records `published` or schedules a retry with backoff;
 - `DispatchReconciler` runs less frequently and repairs durable intent for queued task batches and aggregation
-  executions when an intent is missing, a relay lease expired, or a published message is stale without a
-  worker claim.
+  executions and pending snapshot imports when an intent is missing, a relay lease expired, or a published
+  message is stale without a worker claim.
 
 The reconciler creates or rearms typed dispatch records; it does not publish to Redis itself. This leaves one
 component responsible for broker interaction and makes reconciliation idempotent under the unique owner
@@ -78,8 +79,9 @@ Outbox publication is intentionally at least once. The relay can publish success
 records `published`, so an expired lease may cause the same message to be published again. A method worker
 claims a batch through one conditional, ownership-aware database operation that verifies both the batch and
 method execution IDs and transitions only a dispatchable non-terminal state to `running`. An aggregation
-worker applies the same pattern to the exact aggregation execution ID. One competing delivery wins;
-duplicates and terminal resources do not invoke scientific computation. A failed resource is not silently
+worker applies the same pattern to the exact aggregation execution ID. A snapshot worker conditionally claims
+the exact pending DatasetSnapshot and owns its import transaction. One competing delivery wins; duplicates and
+terminal resources do not invoke parsing or scientific computation. A failed resource is not silently
 reopened by redelivery.
 
 Method predictions should be committed in bounded batches so a worker failure does not discard thousands of completed classifications.
@@ -93,12 +95,42 @@ Differentiate:
 - LLM schema validation failure: bounded retries according to method config
 - permanent model/config errors: fail MethodExecution promptly
 
+For snapshot imports, malformed or unsupported source content, an unsafe archive/workbook, an incompatible
+persisted profile, or a duplicate collection-wide `xml:id` is a permanent input failure. The complete import
+transaction rolls back before a fresh transaction records the failed lifecycle and sanitized diagnostic.
+Transient storage, database, and unclassified failures roll back to pending and use bounded task retries;
+retry exhaustion records a terminal failure from a clean claim.
+
 ## Run completion
 
 A Run may complete with method-level errors. Do not make one failed optional classifier destroy all successfully persisted evidence.
 
 Aggregation can require a configurable minimum set of completed MethodExecutions.
 The reference configuration should fail clearly if required published-reference methods are unavailable.
+
+## Snapshot import execution
+
+Snapshot parsing runs on the existing `cpu` queue through the generic outbox. Its task envelope contains only
+`dataset_snapshot_id`. The worker loads the primary Artifact, ordered source members, stored import
+configuration, importer version, and accepted resource limits through the snapshot resource and opens the
+exact sources from shared artifact storage. A task never carries upload bytes, a request-temporary path, an
+internal storage locator, a manifest, or parser options.
+
+The closed importer registry requires a known combination of source format, packaging, profile, and importer
+version. TEI collection reading produces the same deterministic stream of logical XML members for loose, ZIP,
+and TAR.GZ input; CSV, XLSX, and JSON route to their single-file tabular parser. Per-record locators and member
+names travel with the validated PersonInput projection.
+
+At the current bounded-source scale, one transaction conditionally claims the pending snapshot, validates the
+package, streams secure parsing, inserts PersonRecords in bounded flush groups without intermediate commits,
+and marks the snapshot ready with its complete count. Rollback removes the claim and every write, so a crash or
+transient failure can retry from the immutable source. Duplicate delivery after completion is a no-op.
+Reconciliation uses target-row locking with `SKIP LOCKED`, so it does not rearm a snapshot held by an active
+importer. See [ADR-0020](decisions/ADR-0020-asynchronous-snapshot-import-outbox.md) and
+[ADR-0021](decisions/ADR-0021-versioned-multi-format-snapshot-ingestion.md).
+
+Chunked committed imports are not introduced by this asynchronous slice. Supporting sources that exceed a
+reasonable single-transaction budget requires a separate staging and atomic-publication design.
 
 ## Aggregation execution
 
@@ -136,6 +168,8 @@ Record:
 
 Structured logs should carry `run_id`, `method_execution_id`, and `batch_id` when applicable.
 Aggregation work carries `aggregation_execution_id` and its owning `run_id`.
+Snapshot-import work carries `dataset_snapshot_id`, its owning `project_id`, source format, packaging, importer
+version, and safe counts, but not source content, member names, record values, or internal storage locators.
 
 Coordinator observability should include pending-dispatch count and age, publish attempts and failures,
 expired leases, relay lag, and reconciliation repairs. Redis queue depth alone is insufficient because

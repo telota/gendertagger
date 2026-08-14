@@ -24,6 +24,7 @@ EXPECTED_APPLICATION_TABLES = {
     "projects",
     "review_states",
     "runs",
+    "snapshot_source_members",
     "task_batches",
     "user_roles",
     "users",
@@ -36,6 +37,7 @@ EXPECTED_IMMUTABILITY_TRIGGERS = {
     "trg_person_external_ids_immutable_ready_snapshot",
     "trg_person_records_immutable_ready_snapshot",
     "trg_predictions_immutable",
+    "trg_snapshot_source_members_immutable_ready_snapshot",
 }
 
 
@@ -245,6 +247,206 @@ def test_aggregation_outbox_migration_preserves_existing_batch_dispatches(
         engine.dispose()
 
 
+def test_snapshot_outbox_migration_preserves_legacy_dispatches_on_downgrade(
+    postgres_database_factory: Callable[[], str],
+) -> None:
+    database_url = postgres_database_factory()
+    config = alembic_config(database_url)
+    command.upgrade(config, "20260814_0005")
+    artifact_id = uuid4()
+    project_id = uuid4()
+    snapshot_id = uuid4()
+    run_id = uuid4()
+    execution_id = uuid4()
+    batch_id = uuid4()
+    aggregation_id = uuid4()
+    batch_dispatch_id = uuid4()
+    aggregation_dispatch_id = uuid4()
+    snapshot_dispatch_id = uuid4()
+
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """INSERT INTO artifacts
+                    (id, logical_type, storage_uri, sha256, byte_size, media_type)
+                    VALUES (:id, 'source_tei', 'local-sha256:snapshot-dispatch', :sha256, 1,
+                            'application/tei+xml')"""
+                ),
+                {"id": artifact_id, "sha256": "f" * 64},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO projects (id, slug, display_name)
+                    VALUES (:id, 'snapshot-dispatch-migration', 'Snapshot dispatch migration')"""
+                ),
+                {"id": project_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO dataset_snapshots
+                    (id, project_id, source_artifact_id, source_sha256, parser_version)
+                    VALUES (:id, :project_id, :artifact_id, :sha256, 'tei_parser_v2')"""
+                ),
+                {
+                    "id": snapshot_id,
+                    "project_id": project_id,
+                    "artifact_id": artifact_id,
+                    "sha256": "f" * 64,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO runs
+                    (id, dataset_snapshot_id, resolved_config, config_sha256,
+                     code_git_commit, application_version, python_version)
+                    VALUES (:id, :snapshot_id, CAST(:config AS jsonb), :sha256,
+                            'c', '0.0.0', '3.13')"""
+                ),
+                {
+                    "id": run_id,
+                    "snapshot_id": snapshot_id,
+                    "config": json.dumps({"methods": []}),
+                    "sha256": "a" * 64,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO method_executions
+                    (id, run_id, method_name, implementation_version,
+                     normalization_version, config_sha256, queue_name)
+                    VALUES (:id, :run_id, 'snapshot_migration_fixture', 'fixture_v1',
+                            'fixture_v1', :sha256, 'cpu')"""
+                ),
+                {"id": execution_id, "run_id": run_id, "sha256": "b" * 64},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO task_batches
+                    (id, method_execution_id, batch_index, record_offset,
+                     record_count, queue_name)
+                    VALUES (:id, :execution_id, 0, 0, 1, 'cpu')"""
+                ),
+                {"id": batch_id, "execution_id": execution_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO aggregation_executions
+                    (id, run_id, strategy, config_sha256, status)
+                    VALUES (:id, :run_id, 'reference_v1', :sha256, 'queued')"""
+                ),
+                {"id": aggregation_id, "run_id": run_id, "sha256": "c" * 64},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO batch_dispatches
+                    (id, task_batch_id, queue_name, payload, available_at)
+                    VALUES (:id, :batch_id, 'cpu', CAST(:payload AS jsonb), now())"""
+                ),
+                {
+                    "id": batch_dispatch_id,
+                    "batch_id": batch_id,
+                    "payload": json.dumps(
+                        {
+                            "method_execution_id": str(execution_id),
+                            "task_batch_id": str(batch_id),
+                        }
+                    ),
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO batch_dispatches
+                    (id, aggregation_execution_id, queue_name, payload, available_at)
+                    VALUES (:id, :aggregation_id, 'cpu', CAST(:payload AS jsonb), now())"""
+                ),
+                {
+                    "id": aggregation_dispatch_id,
+                    "aggregation_id": aggregation_id,
+                    "payload": json.dumps({"aggregation_execution_id": str(aggregation_id)}),
+                },
+            )
+    finally:
+        engine.dispose()
+
+    command.upgrade(config, "20260814_0006")
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """INSERT INTO batch_dispatches
+                    (id, dataset_snapshot_id, queue_name, payload, available_at)
+                    VALUES (:id, :snapshot_id, 'cpu', CAST(:payload AS jsonb), now())"""
+                ),
+                {
+                    "id": snapshot_dispatch_id,
+                    "snapshot_id": snapshot_id,
+                    "payload": json.dumps({"dataset_snapshot_id": str(snapshot_id)}),
+                },
+            )
+            dispatch_ids = set(
+                connection.execute(text("SELECT id FROM batch_dispatches")).scalars()
+            )
+        assert dispatch_ids == {
+            batch_dispatch_id,
+            aggregation_dispatch_id,
+            snapshot_dispatch_id,
+        }
+        columns = {
+            column["name"]: column for column in inspect(engine).get_columns("batch_dispatches")
+        }
+        assert columns["dataset_snapshot_id"]["nullable"] is True
+        assert {
+            constraint["name"]
+            for constraint in inspect(engine).get_unique_constraints("batch_dispatches")
+        } >= {"dataset_snapshot_single_dispatch"}
+        assert {
+            constraint["name"]
+            for constraint in inspect(engine).get_check_constraints("batch_dispatches")
+        } >= {"ck_batch_dispatches_exactly_one_target"}
+    finally:
+        engine.dispose()
+
+    command.downgrade(config, "20260814_0005")
+    engine = create_engine(database_url)
+    try:
+        column_names = {
+            column["name"] for column in inspect(engine).get_columns("batch_dispatches")
+        }
+        assert "dataset_snapshot_id" not in column_names
+        with engine.connect() as connection:
+            remaining_dispatches = {
+                row.id: (row.task_batch_id, row.aggregation_execution_id)
+                for row in connection.execute(
+                    text(
+                        """SELECT id, task_batch_id, aggregation_execution_id
+                        FROM batch_dispatches"""
+                    )
+                )
+            }
+            remaining_snapshot_dispatch_count = connection.execute(
+                text(
+                    """SELECT count(*) FROM batch_dispatches
+                    WHERE id = :snapshot_dispatch_id"""
+                ),
+                {"snapshot_dispatch_id": snapshot_dispatch_id},
+            ).scalar_one()
+            remaining_snapshot_id = connection.execute(
+                text("SELECT id FROM dataset_snapshots WHERE id = :snapshot_id"),
+                {"snapshot_id": snapshot_id},
+            ).scalar_one()
+        assert remaining_dispatches == {
+            batch_dispatch_id: (batch_id, None),
+            aggregation_dispatch_id: (None, aggregation_id),
+        }
+        assert remaining_snapshot_dispatch_count == 0
+        assert remaining_snapshot_id == snapshot_id
+    finally:
+        engine.dispose()
+
+
 def test_structured_name_forms_migration_preserves_legacy_people_and_downgrades(
     postgres_database_factory: Callable[[], str],
 ) -> None:
@@ -337,5 +539,131 @@ def test_structured_name_forms_migration_preserves_legacy_people_and_downgrades(
                 {"person_id": person_id},
             ).one()
         assert tuple(legacy_person) == ("Example", ["Anna"], ["A. Example"])
+    finally:
+        engine.dispose()
+
+
+def test_source_manifest_migration_preserves_legacy_people_and_downgrades(
+    postgres_database_factory: Callable[[], str],
+) -> None:
+    database_url = postgres_database_factory()
+    config = alembic_config(database_url)
+    command.upgrade(config, "20260814_0006")
+    artifact_id = uuid4()
+    project_id = uuid4()
+    snapshot_id = uuid4()
+    person_id = uuid4()
+
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """INSERT INTO projects (id, slug, display_name)
+                    VALUES (:id, 'source-manifest-migration', 'Source manifest migration')"""
+                ),
+                {"id": project_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO artifacts
+                    (id, logical_type, storage_uri, sha256, byte_size, media_type, project_id)
+                    VALUES (:id, 'source_tei', 'local-sha256:member', :sha256, 42,
+                            'application/tei+xml', :project_id)"""
+                ),
+                {"id": artifact_id, "project_id": project_id, "sha256": "d" * 64},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO dataset_snapshots
+                    (id, project_id, source_artifact_id, source_sha256, parser_version,
+                     import_config)
+                    VALUES (:id, :project_id, :artifact_id, :sha256, 'tei_parser_v1',
+                            CAST(:import_config AS jsonb))"""
+                ),
+                {
+                    "id": snapshot_id,
+                    "project_id": project_id,
+                    "artifact_id": artifact_id,
+                    "sha256": "d" * 64,
+                    "import_config": json.dumps({"profile": "tei_p5_person_register_v1"}),
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO person_records
+                    (id, dataset_snapshot_id, tei_id, forenames, alt_names, name_forms)
+                    VALUES (:id, :snapshot_id, 'legacy-person', ARRAY[]::text[],
+                            ARRAY[]::text[], NULL)"""
+                ),
+                {"id": person_id, "snapshot_id": snapshot_id},
+            )
+    finally:
+        engine.dispose()
+
+    command.upgrade(config, "20260814_0007")
+    engine = create_engine(database_url)
+    try:
+        assert "snapshot_source_members" in inspect(engine).get_table_names()
+        person_columns = {
+            column["name"]: column for column in inspect(engine).get_columns("person_records")
+        }
+        assert person_columns["events"]["nullable"] is False
+        assert person_columns["source_member_name"]["nullable"] is True
+        assert person_columns["source_record_locator"]["nullable"] is True
+        assert {
+            constraint["name"]
+            for constraint in inspect(engine).get_unique_constraints("snapshot_source_members")
+        } >= {
+            "snapshot_source_member_logical_name",
+            "snapshot_source_member_ordinal",
+        }
+        with engine.begin() as connection:
+            legacy_person = connection.execute(
+                text(
+                    """SELECT events, source_member_name, source_record_locator
+                    FROM person_records WHERE id = :person_id"""
+                ),
+                {"person_id": person_id},
+            ).one()
+            connection.execute(
+                text(
+                    """INSERT INTO snapshot_source_members
+                    (id, dataset_snapshot_id, artifact_id, ordinal, logical_name,
+                     sha256, byte_size, media_type)
+                    VALUES (:id, :snapshot_id, :artifact_id, 0, 'A.xml',
+                            :sha256, 42, 'application/tei+xml')"""
+                ),
+                {
+                    "id": uuid4(),
+                    "snapshot_id": snapshot_id,
+                    "artifact_id": artifact_id,
+                    "sha256": "d" * 64,
+                },
+            )
+        assert tuple(legacy_person) == ([], None, None)
+    finally:
+        engine.dispose()
+
+    command.downgrade(config, "20260814_0006")
+    engine = create_engine(database_url)
+    try:
+        assert "snapshot_source_members" not in inspect(engine).get_table_names()
+        person_column_names = {
+            column["name"] for column in inspect(engine).get_columns("person_records")
+        }
+        assert not {
+            "events",
+            "source_member_name",
+            "source_record_locator",
+        }.intersection(person_column_names)
+        with engine.connect() as connection:
+            assert (
+                connection.execute(
+                    text("SELECT tei_id FROM person_records WHERE id = :person_id"),
+                    {"person_id": person_id},
+                ).scalar_one()
+                == "legacy-person"
+            )
     finally:
         engine.dispose()

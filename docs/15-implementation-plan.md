@@ -74,9 +74,34 @@ Exit criterion: at least one cheap method runs asynchronously end-to-end.
 
 ## Phase 5: method migration
 
-Complete the asynchronous reference-aggregation path alongside method migration:
+Complete the asynchronous snapshot-import and reference-aggregation paths alongside method migration:
 
-- generalize the existing outbox to typed `task_batch` and `aggregation_execution` owners
+For snapshot imports:
+
+- extend the generic outbox with one unique typed `dataset_snapshot` owner
+- define versioned source-format, packaging, profile, manifest, member-provenance, and resolved-limit contracts
+- durably stage single or loose uploads before atomically creating their Artifact records, ordered source
+  members, pending snapshot, and dispatch
+- add the identifier-only snapshot-import task envelope and CPU-worker entry point
+- register single/loose/ZIP/TAR.GZ TEI and single CSV/XLSX/JSON importers without filename inference
+- preflight ZIP/ZIP64 directory metadata before member allocation and securely stream OOXML metadata before
+  read-only XLSX loading, rejecting unsafe members, active content, external relationships, spreadsheet
+  coercion, excessive dimensions, and expansion attacks
+- preserve structured names, repeated forenames, life dates, notes, events, authority IDs, and exact
+  source-member/record-locator provenance while excluding source `<sex>` targets
+- add a default TEI v3 profile sharing strict authority normalization with tabular records, reject JSON/CSV
+  persistence-invalid strings and oversized JSON integers, and preserve the versioned TEI v1 and v2
+  projections unchanged
+- conditionally claim duplicate-safe import work and load exact artifacts, manifests, configuration, and limits
+  by snapshot ID
+- stream package validation, parsing, PersonRecord flushes, and the ready transition in one transaction without
+  partial commits
+- roll transient failures back to pending for retry and persist permanent sanitized failures from a clean claim
+- test the supported format matrix, hostile containers, deterministic manifests, broker outage, missing/stale
+  intent repair, duplicate delivery, transient rollback, and permanent failure
+
+For aggregation:
+
 - add the identifier-only aggregation task envelope and CPU-worker entry point
 - atomically create and queue each AggregationExecution with its dispatch intent
 - atomically claim duplicate-safe aggregation work
@@ -98,8 +123,15 @@ Migrate adapters incrementally:
 
 Do not wait for all methods before exercising the architecture.
 
-Exit criterion: the reference ensemble reproduces golden outputs through the API, generic dispatch
-coordinator, CPU worker, persisted AggregationExecution, and complete immutable result set.
+Exit criterion: every declared format/packaging/profile combination reaches one complete immutable
+DatasetSnapshot asynchronously with reproducible exact-source and record provenance, and the reference
+ensemble reproduces golden outputs through the API, generic dispatch coordinator, CPU worker, persisted
+AggregationExecution, and complete immutable result set.
+
+Optional ingestion expansions such as artifact garbage collection, HTTP acceptance idempotency, resumable
+progress/cancellation, shared object storage, and additional tabular packaging are tracked in
+[`16-open-questions.md`](16-open-questions.md). They are deliberately outside this phase's exit criterion and
+should be implemented as separate, reviewable changes when operational requirements justify them.
 
 ## Phase 6: Vue annotation/review UI
 

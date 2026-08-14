@@ -40,8 +40,12 @@ class BatchDispatchRow(UuidPrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, Base
             "aggregation_execution_id",
             name="aggregation_execution_single_dispatch",
         ),
+        UniqueConstraint(
+            "dataset_snapshot_id",
+            name="dataset_snapshot_single_dispatch",
+        ),
         CheckConstraint(
-            "(task_batch_id IS NOT NULL) <> (aggregation_execution_id IS NOT NULL)",
+            "num_nonnulls(task_batch_id, aggregation_execution_id, dataset_snapshot_id) = 1",
             name="exactly_one_target",
         ),
         CheckConstraint(
@@ -74,6 +78,10 @@ class BatchDispatchRow(UuidPrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, Base
     aggregation_execution_id: Mapped[UUID | None] = mapped_column(
         POSTGRESQL_UUID(as_uuid=True),
         ForeignKey("aggregation_executions.id", ondelete="RESTRICT"),
+    )
+    dataset_snapshot_id: Mapped[UUID | None] = mapped_column(
+        POSTGRESQL_UUID(as_uuid=True),
+        ForeignKey("dataset_snapshots.id", ondelete="RESTRICT"),
     )
     queue_name: Mapped[str] = mapped_column(String(100), nullable=False)
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)

@@ -54,14 +54,20 @@ inputs. A populated list means that a structured-name-aware profile examined the
 requires exactly one regular form. This distinction prevents absence of legacy metadata from being
 misrepresented as observed source absence.
 
-The new `tei_p5_person_register_v2` profile is the default for new imports. It populates `name_forms` and derives
-the retained flat fields deterministically. V1 remains explicitly selectable for historical reproduction. The
-single direct regular form supplies `surname` and `forenames`; a regular unstructured name retains the v1
-compatibility projection into `surname`. Each unstructured alternative supplies one `alt_names` value. A
-structured alternative supplies one value by joining its non-empty surname and forenames with one space,
-independent of indentation or adjacent XML tags. Alternative forenames are not merged into the regular
-`forenames` method input. A future method may use name forms only through an explicitly versioned scientific
-change.
+At the time of this decision, the new `tei_p5_person_register_v2` profile becomes the default. It populates
+`name_forms` and derives the retained flat fields deterministically. V1 remains explicitly selectable for
+historical reproduction. The single direct regular form supplies `surname` and `forenames`; a regular
+unstructured name retains the v1 compatibility projection into `surname`. Each unstructured alternative
+supplies one `alt_names` value. A structured alternative supplies one value by joining its non-empty surname
+and forenames with one space, independent of indentation or adjacent XML tags. Alternative forenames are not
+merged into the regular `forenames` method input. A future method may use name forms only through an explicitly
+versioned scientific change.
+
+At this ADR's acceptance, v2 became the default structured-name profile.
+[ADR-0021](ADR-0021-versioned-multi-format-snapshot-ingestion.md) subsequently introduces
+`tei_p5_person_register_v3` as the default for new imports because event capture, strict authority handling,
+safe descendant-text boundaries, and descendant-markup validation change scientific normalization. V2 remains
+selectable and frozen under `tei_parser_v2`; those later changes do not reinterpret committed v2 snapshots.
 
 Persistence adds a nullable JSONB `name_forms` column to `person_records`. JSONB is appropriate for this
 bounded source-provenance structure because the existing flat columns remain the query and search projection.
@@ -73,6 +79,8 @@ Prediction-input fingerprinting is profile compatible. When `name_forms` is `Non
 v1 field projection and omits the new field, preserving legacy fingerprint semantics. When `name_forms` is a
 populated list, the canonical v2 fingerprint includes the complete ordered structured value. The snapshot's
 persisted parser version and import profile identify which extraction and fingerprint semantics apply.
+V3 retains that structured-name fingerprint contribution and additionally includes non-empty ordered events;
+empty events remain omitted so v1 and v2 fingerprints are unchanged.
 
 ## Consequences
 
@@ -81,10 +89,12 @@ persisted parser version and import profile identify which extraction and finger
   subtype without making the relational projection a lossless TEI syntax tree.
 - The flat and structured representations are deliberately redundant. Parser and contract tests must enforce
   their deterministic v2 projection so they cannot diverge silently.
-- Correcting XML-boundary-dependent alternative-name strings occurs only in v2 snapshots; historical ready
-  snapshots and their predictions are not rewritten.
+- Correcting XML-boundary-dependent alternative-name strings starts with v2 and remains part of v3;
+  historical ready v1 snapshots and their predictions are not rewritten.
 - V2 structured names intentionally participate in prediction provenance even if a current adapter uses only
   the flat regular-name projection.
+- V3 is a separate profile and parser version; v2 behavior and ready snapshots remain reproducible rather than
+  receiving later normalization fixes in place.
 - Querying by regular surname, forename, or flattened alternative name continues to use ordinary columns. If
   subtype- or component-level queries later become a core requirement, a reviewed relational projection or
   index can be added without changing the Pydantic source contract.

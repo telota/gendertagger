@@ -4,9 +4,11 @@ from typing import Any
 from uuid import UUID
 
 from gendertagger.models.dispatch import DispatchMessage
+from gendertagger.models.project import SnapshotImportTaskMessage
 from gendertagger.models.run import TaskBatchMessage
 from gendertagger.tasks.aggregation import EXECUTE_AGGREGATION_TASK_NAME
 from gendertagger.tasks.execution import EXECUTE_BATCH_TASK_NAME
+from gendertagger.tasks.snapshot_import import EXECUTE_SNAPSHOT_IMPORT_TASK_NAME
 
 
 class CeleryMessagePublisher:
@@ -31,6 +33,14 @@ class CeleryMessagePublisher:
             kwargs = {
                 "method_execution_id": str(message.method_execution_id),
                 "task_batch_id": str(message.task_batch_id),
+            }
+        elif isinstance(message, SnapshotImportTaskMessage):
+            if task_id != message.dataset_snapshot_id:
+                msg = "broker task_id must match the snapshot-import message"
+                raise ValueError(msg)
+            task_name = EXECUTE_SNAPSHOT_IMPORT_TASK_NAME
+            kwargs = {
+                "dataset_snapshot_id": str(message.dataset_snapshot_id),
             }
         else:
             if task_id != message.aggregation_execution_id:

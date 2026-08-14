@@ -27,6 +27,8 @@ No global person entity is introduced in v1. GND IDs and other identifiers are e
 ```mermaid
 erDiagram
     PROJECT ||--o{ DATASET_SNAPSHOT : has
+    DATASET_SNAPSHOT ||--|{ SNAPSHOT_SOURCE_MEMBER : preserves
+    SNAPSHOT_SOURCE_MEMBER }o--|| ARTIFACT : references
     DATASET_SNAPSHOT ||--o{ PERSON_RECORD : contains
     DATASET_SNAPSHOT ||--o{ RUN : targets
     RUN ||--o{ METHOD_EXECUTION : contains
@@ -44,11 +46,21 @@ erDiagram
 Long-lived corpus/editorial project.
 
 ### DatasetSnapshot
-Immutable imported state of source data. Stores input hash, parser/config version, artifact reference, import timestamp, and record count.
+Immutable imported state of source data. Stores the primary source or manifest hash, importer/config version,
+artifact reference, import timestamp, and record count. Ordered SnapshotSourceMember records preserve each
+exact upload's logical name, checksum, size, media type, artifact, and ordinal. For loose TEI collections, the
+primary Artifact is also a deterministic immutable manifest; for a single file or archive, the uploaded
+Artifact remains primary. A successful asynchronous creation response returns the `pending` snapshot after
+its complete source collection and dispatch intent are durable; readiness is observed later through the
+resource lifecycle. See [ADR-0020](decisions/ADR-0020-asynchronous-snapshot-import-outbox.md) and
+[ADR-0021](decisions/ADR-0021-versioned-multi-format-snapshot-ingestion.md).
 
 ### PersonRecord
-Normalized projection of one TEI person entry for a specific snapshot. Carries canonical `tei_id`, names,
-dates, note/context, alternative names, external identifiers, and source fragment/reference as required.
+Normalized projection of one person entry for a specific snapshot. Carries canonical `tei_id`, structured and
+flat names, dates, note/context, ordered events, and authority identifiers. It also records the exact
+source-member logical name and a format-specific record locator so every projection can be traced to its
+source. Records imported before locator provenance was introduced may retain null source locators for
+compatibility; method Predictions fingerprint the canonical person input separately.
 
 The stable flat name projection consists of `surname`, ordered `forenames`, and flattened `alt_names`. A
 structured-name-aware import additionally preserves ordered direct `<person>/<persName>` forms in
@@ -133,7 +145,15 @@ pending -> importing -> ready
                    \-> failed
 ```
 
-`ready` is immutable.
+The import worker claims a pending snapshot and streams package validation, parsing, PersonRecord writes, and
+the ready transition in one transaction. Flushes may bound the write batch, but they do not commit a visible
+prefix. A permanent input failure rolls that transaction back before a clean transaction marks the snapshot
+failed; a transient failure rolls back to pending for retry. Duplicate delivery cannot reopen a terminal
+snapshot.
+`ready` is immutable. In this implementation, `importing` exists only inside the worker's open transaction: an
+ordinary API reader continues to observe the last committed `pending` state until the transaction commits
+`ready`, or until the separate failure transaction commits `failed`. The internal state still enforces
+repository write invariants and prevents a competing worker from claiming the same snapshot.
 
 ### Run
 

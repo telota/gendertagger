@@ -1,7 +1,7 @@
 {
   "name": "gendertagger-infra-scaffold",
   "generated": "2026-08-14",
-  "status": "Phase 5 method migration with generic asynchronous aggregation execution",
+  "status": "Phase 5 method migration with asynchronous multi-format snapshot ingestion and aggregation",
   "design_docs": [
     "docs/00-design-index.md",
     "docs/01-architecture.md",
@@ -41,7 +41,9 @@
     "docs/decisions/ADR-0016-asynchronous-aggregation-outbox.md",
     "docs/decisions/ADR-0017-structured-tei-person-name-forms.md",
     "docs/decisions/ADR-0018-hivoto-adapter.md",
-    "docs/decisions/ADR-0019-nomquamgender-adapter.md"
+    "docs/decisions/ADR-0019-nomquamgender-adapter.md",
+    "docs/decisions/ADR-0020-asynchronous-snapshot-import-outbox.md",
+    "docs/decisions/ADR-0021-versioned-multi-format-snapshot-ingestion.md"
   ],
   "top_level_entrypoints": [
     "README.md",

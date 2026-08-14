@@ -25,6 +25,7 @@ def test_celery_app_uses_json_only_durable_friendly_defaults() -> None:
     assert set(app.conf.include) == {
         "gendertagger.tasks.aggregation",
         "gendertagger.tasks.execution",
+        "gendertagger.tasks.snapshot_import",
     }
 
 

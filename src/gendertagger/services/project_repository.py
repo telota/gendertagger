@@ -5,12 +5,14 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from gendertagger.models.person import PersonInput, PersonRecord
+from gendertagger.models.person import ImportedPerson, PersonInput, PersonRecord
 from gendertagger.models.project import (
     DatasetSnapshot,
     DatasetSnapshotCreate,
     Project,
     ProjectCreate,
+    SnapshotSourceMember,
+    SnapshotSourceMemberCreate,
 )
 
 
@@ -33,8 +35,27 @@ class ProjectRepository(Protocol):
         """Return a snapshot by ID, or ``None`` when absent."""
         ...
 
+    def add_snapshot_source_members(
+        self,
+        snapshot_id: UUID,
+        members: Sequence[SnapshotSourceMemberCreate],
+    ) -> Sequence[SnapshotSourceMember]:
+        """Persist an ordered source manifest for one pending snapshot."""
+        ...
+
+    def list_snapshot_source_members(
+        self,
+        snapshot_id: UUID,
+    ) -> Sequence[SnapshotSourceMember]:
+        """Return source members in canonical ordinal order."""
+        ...
+
     def begin_snapshot_import(self, snapshot_id: UUID) -> DatasetSnapshot:
         """Move a pending snapshot into its importing state."""
+        ...
+
+    def claim_snapshot_import(self, snapshot_id: UUID) -> DatasetSnapshot | None:
+        """Atomically claim a pending snapshot, or return ``None`` if already claimed."""
         ...
 
     def add_person_records(
@@ -43,6 +64,14 @@ class ProjectRepository(Protocol):
         people: Sequence[PersonInput],
     ) -> int:
         """Persist one bounded person batch and return its record count."""
+        ...
+
+    def add_imported_person_records(
+        self,
+        snapshot_id: UUID,
+        people: Sequence[ImportedPerson],
+    ) -> int:
+        """Persist people with non-null source-member record provenance."""
         ...
 
     def get_person_record(self, person_record_id: UUID) -> PersonRecord | None:

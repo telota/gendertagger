@@ -29,7 +29,17 @@ class AppSettings(BaseSettings):
         description="Emit SQLAlchemy SQL logs for local diagnostics.",
     )
     artifact_root: Path = Path("data/artifacts")
+    # Retain the original environment variable as the per-upload-part limit for
+    # compatibility with existing deployments.  Collection and expanded-source
+    # limits are independent because a small archive can expand substantially.
     max_tei_upload_bytes: int = Field(default=100 * 1024 * 1024, gt=0)
+    max_snapshot_upload_bytes: int = Field(default=500 * 1024 * 1024, gt=0)
+    max_snapshot_source_files: int = Field(default=128, gt=0, le=10_000)
+    max_archive_member_bytes: int = Field(default=100 * 1024 * 1024, gt=0)
+    max_archive_expanded_bytes: int = Field(default=500 * 1024 * 1024, gt=0)
+    max_archive_compression_ratio: float = Field(default=100.0, gt=1.0, le=10_000.0)
+    max_import_record_count: int = Field(default=1_000_000, gt=0)
+    max_tabular_cell_bytes: int = Field(default=1024 * 1024, gt=0)
     tei_import_batch_record_count: int = Field(default=500, gt=0, le=10_000)
 
     @field_validator("database_url")

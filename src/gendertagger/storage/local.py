@@ -44,7 +44,7 @@ class LocalArtifactStorage(ArtifactStorage):
             msg = "max_byte_size must be positive"
             raise ValueError(msg)
         temporary_directory = self._root / ".tmp"
-        temporary_directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        self._ensure_directory(temporary_directory)
         temporary_path: Path | None = None
         try:
             with tempfile.NamedTemporaryFile(
@@ -63,11 +63,12 @@ class LocalArtifactStorage(ArtifactStorage):
                 os.fsync(temporary_file.fileno())
 
             destination = self._path_for_digest(digest)
-            destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            self._ensure_directory(destination.parent)
             try:
                 os.link(temporary_path, destination)
             except FileExistsError:
                 self._verify_path(destination, expected_digest=digest)
+            self._fsync_directory(destination.parent)
             return StoredArtifact(
                 storage_uri=f"{_STORAGE_URI_PREFIX}{digest}",
                 sha256=digest,
@@ -118,6 +119,41 @@ class LocalArtifactStorage(ArtifactStorage):
 
     def _path_for_digest(self, digest: str) -> Path:
         return self._root / digest[:2] / digest
+
+    @classmethod
+    def _ensure_directory(cls, path: Path) -> None:
+        """Create a private directory tree and durably record new entries."""
+        missing: list[Path] = []
+        candidate = path
+        while not candidate.exists():
+            missing.append(candidate)
+            parent = candidate.parent
+            if parent == candidate:  # pragma: no cover - filesystem root always exists.
+                break
+            candidate = parent
+
+        for directory in reversed(missing):
+            try:
+                directory.mkdir(mode=0o700)
+            except FileExistsError:
+                if not directory.is_dir():
+                    raise
+            # Another process may have won the mkdir race after our existence
+            # check. Fsync in either case because we observed the entry missing.
+            cls._fsync_directory(directory)
+            cls._fsync_directory(directory.parent)
+
+    @staticmethod
+    def _fsync_directory(path: Path) -> None:
+        """Persist directory metadata where the platform exposes that operation."""
+        if os.name == "nt":  # Windows does not expose directory fsync through os.open.
+            return
+        flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+        descriptor = os.open(path, flags)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
 
     @staticmethod
     def _digest_from_uri(storage_uri: str) -> str:

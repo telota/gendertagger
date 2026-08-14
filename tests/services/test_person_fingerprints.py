@@ -5,7 +5,13 @@ import pytest
 from pydantic import JsonValue
 
 from gendertagger.models.common import canonical_json_sha256
-from gendertagger.models.person import PersonNameForm, PersonNameType, PersonRecord
+from gendertagger.models.person import (
+    PersonEvent,
+    PersonInput,
+    PersonNameForm,
+    PersonNameType,
+    PersonRecord,
+)
 from gendertagger.services.execution import _person_input_fingerprint
 
 pytestmark = pytest.mark.unit
@@ -81,3 +87,16 @@ def test_structured_name_forms_participate_in_the_input_fingerprint() -> None:
 
     assert _person_input_fingerprint(structured_person) == canonical_json_sha256(structured_payload)
     assert _person_input_fingerprint(structured_person) != _person_input_fingerprint(legacy_person)
+
+
+def test_nonempty_events_participate_in_the_input_fingerprint() -> None:
+    without_event = _person()
+    with_event = _person(events=[PersonEvent(type="wedding", when="1832-09-20")])
+    event_payload = with_event.model_dump(
+        mode="json",
+        include=set(PersonInput.model_fields),
+    )
+    event_payload.pop("name_forms")
+
+    assert _person_input_fingerprint(with_event) == canonical_json_sha256(event_payload)
+    assert _person_input_fingerprint(with_event) != _person_input_fingerprint(without_event)

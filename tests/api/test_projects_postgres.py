@@ -1,4 +1,5 @@
 import hashlib
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -13,9 +14,18 @@ from gendertagger.api.authentication import AuthenticationBackend
 from gendertagger.api.settings import AppSettings
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
+from gendertagger.ingestion.tei import TeiPersonParser
+from gendertagger.models.dispatch import BatchDispatchStatus
 from gendertagger.models.lifecycle import DatasetSnapshotStatus
-from gendertagger.models.project import TeiImportProfile
+from gendertagger.models.project import (
+    SnapshotImportTaskMessage,
+    SourceFormat,
+    SourcePackaging,
+    TeiImportProfile,
+)
+from gendertagger.models.queues import CPU_QUEUE
 from gendertagger.models.user import Role, UserCreate
+from gendertagger.services.snapshot_import import SnapshotImportExecutor
 from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
 
@@ -94,6 +104,23 @@ def _client(
     return TestClient(application), unit_of_work_factory
 
 
+def _execute_snapshot_import(
+    unit_of_work_factory: UnitOfWorkFactory,
+    artifact_root: Path,
+    snapshot_id: UUID,
+) -> None:
+    SnapshotImportExecutor(
+        unit_of_work_factory=unit_of_work_factory,
+        artifact_storage=LocalArtifactStorage(artifact_root),
+        parser=TeiPersonParser(),
+        clock=lambda: datetime(2026, 8, 14, 12, tzinfo=UTC),
+        import_batch_record_count=1,
+    ).execute(
+        SnapshotImportTaskMessage(dataset_snapshot_id=snapshot_id),
+        attempt_count=1,
+    )
+
+
 def test_project_and_ready_snapshot_round_trip_through_http(
     postgres_engine: Engine,
     tmp_path: Path,
@@ -118,11 +145,24 @@ def test_project_and_ready_snapshot_round_trip_through_http(
 
     assert import_response.status_code == 202
     snapshot_body = import_response.json()
-    assert snapshot_body["status"] == DatasetSnapshotStatus.ready.value
-    assert snapshot_body["record_count"] == 3
-    assert snapshot_body["parser_version"] == "tei_parser_v2"
+    assert snapshot_body["status"] == DatasetSnapshotStatus.pending.value
+    assert snapshot_body["record_count"] is None
+    assert snapshot_body["ready_at"] is None
+    assert snapshot_body["parser_version"] == (
+        "tei_parser_v3+tei_collection_v1+tei_single_source_v1"
+    )
     assert snapshot_body["import_config"] == {
-        "profile": TeiImportProfile.tei_p5_person_register_v2.value
+        "source_format": SourceFormat.tei.value,
+        "packaging": SourcePackaging.single.value,
+        "profile": TeiImportProfile.tei_p5_person_register_v3.value,
+        "limits": {
+            "max_member_count": 128,
+            "max_member_expanded_bytes": 100 * 1024 * 1024,
+            "max_total_expanded_bytes": 500 * 1024 * 1024,
+            "max_compression_ratio": 100.0,
+            "max_record_count": 1_000_000,
+            "max_cell_bytes": 1024 * 1024,
+        },
     }
     assert snapshot_body["source_sha256"] == hashlib.sha256(VALID_TEI).hexdigest()
     assert "storage_uri" not in snapshot_body
@@ -133,6 +173,28 @@ def test_project_and_ready_snapshot_round_trip_through_http(
     assert client.get(f"/api/v1/snapshots/{snapshot_id}").json() == snapshot_body
     assert snapshot_body["created_at"].endswith("Z")
 
+    pending_people_response = client.get(f"/api/v1/snapshots/{snapshot_id}/people")
+    assert pending_people_response.status_code == 409
+
+    with unit_of_work_factory() as unit_of_work:
+        dispatch = unit_of_work.dispatches.get_dispatch_for_snapshot(snapshot_id)
+        artifact = unit_of_work.artifacts.get_artifact(source_artifact_id)
+    assert dispatch is not None
+    assert dispatch.status is BatchDispatchStatus.pending
+    assert dispatch.queue_name == CPU_QUEUE
+    assert dispatch.payload == SnapshotImportTaskMessage(dataset_snapshot_id=snapshot_id)
+    assert artifact is not None
+    assert artifact.project_id == project_id
+    with LocalArtifactStorage(tmp_path).open(artifact.storage_uri) as stored_source:
+        assert stored_source.read() == VALID_TEI
+
+    _execute_snapshot_import(unit_of_work_factory, tmp_path, snapshot_id)
+    _execute_snapshot_import(unit_of_work_factory, tmp_path, snapshot_id)
+    ready_snapshot_body = client.get(f"/api/v1/snapshots/{snapshot_id}").json()
+    assert ready_snapshot_body["status"] == DatasetSnapshotStatus.ready.value
+    assert ready_snapshot_body["record_count"] == 3
+    assert ready_snapshot_body["ready_at"].endswith("Z")
+
     first_page_response = client.get(
         f"/api/v1/snapshots/{snapshot_id}/people",
         params={"limit": 2},
@@ -142,6 +204,8 @@ def test_project_and_ready_snapshot_round_trip_through_http(
     assert [person["tei_id"] for person in first_page["items"]] == ["p1", "p2"]
     assert first_page["items"][0]["surname"] == "Example"
     assert first_page["items"][0]["forenames"] == ["Anna"]
+    assert first_page["items"][0]["source_member_name"] == "register.xml"
+    assert first_page["items"][0]["source_record_locator"] == "xml:id=p1"
     assert first_page["items"][0]["alt_names"] == [
         "Earlier Annette",
         "A. Example",
@@ -207,16 +271,16 @@ def test_project_and_ready_snapshot_round_trip_through_http(
         "A. Example",
     ]
     assert artifact is not None
-    assert artifact.project_id == project_id
-    with LocalArtifactStorage(tmp_path).open(artifact.storage_uri) as stored_source:
-        assert stored_source.read() == VALID_TEI
 
 
 def test_invalid_tei_persists_failed_snapshot_without_source_disclosure(
     postgres_engine: Engine,
     tmp_path: Path,
 ) -> None:
-    client, _ = _client(postgres_engine=postgres_engine, artifact_root=tmp_path)
+    client, unit_of_work_factory = _client(
+        postgres_engine=postgres_engine,
+        artifact_root=tmp_path,
+    )
     project_response = client.post(
         "/api/v1/projects",
         json={"slug": f"failed-{uuid4().hex}", "display_name": "Failed fixture"},
@@ -232,7 +296,13 @@ def test_invalid_tei_persists_failed_snapshot_without_source_disclosure(
     )
 
     assert response.status_code == 202
-    body = response.json()
-    assert body["status"] == DatasetSnapshotStatus.failed.value
-    assert "DOCTYPE" in body["failure_diagnostic"]
-    assert "root:" not in body["failure_diagnostic"]
+    accepted = response.json()
+    assert accepted["status"] == DatasetSnapshotStatus.pending.value
+    assert accepted["failure_diagnostic"] is None
+
+    snapshot_id = UUID(accepted["id"])
+    _execute_snapshot_import(unit_of_work_factory, tmp_path, snapshot_id)
+    failed = client.get(f"/api/v1/snapshots/{snapshot_id}").json()
+    assert failed["status"] == DatasetSnapshotStatus.failed.value
+    assert "DOCTYPE" in failed["failure_diagnostic"]
+    assert "root:" not in failed["failure_diagnostic"]

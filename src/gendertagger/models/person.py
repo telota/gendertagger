@@ -7,6 +7,10 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from gendertagger.models.common import UtcDatetime
+from gendertagger.models.project import (
+    SOURCE_MEMBER_LOGICAL_NAME_MAX_LENGTH,
+    normalize_source_member_logical_name,
+)
 
 
 class PersonNameType(StrEnum):
@@ -65,6 +69,24 @@ class PersonNameForm(BaseModel):
         return " ".join(value for value in (self.surname, *self.forenames) if value is not None)
 
 
+class PersonEvent(BaseModel):
+    """Source-preserved biographical event attached to one person."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    type: str = Field(min_length=1, max_length=100)
+    when: str | None = None
+    note: str | None = None
+
+    @field_validator("type", "when", "note")
+    @classmethod
+    def _validate_text(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            msg = "person event text fields must not be blank"
+            raise ValueError(msg)
+        return value
+
+
 class PersonInput(BaseModel):
     """Source-preserving person data supplied to classification methods."""
 
@@ -79,6 +101,7 @@ class PersonInput(BaseModel):
     birth: str | None = None
     death: str | None = None
     note: str | None = None
+    events: list[PersonEvent] = Field(default_factory=list)
     alt_names: list[str] = Field(default_factory=list)
     name_forms: list[PersonNameForm] | None = Field(
         default=None,
@@ -129,9 +152,52 @@ class PersonInput(BaseModel):
         return self
 
 
+class ImportedPerson(BaseModel):
+    """One validated person plus its exact source-member record location."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    person: PersonInput
+    source_member_name: str = Field(
+        min_length=1,
+        max_length=SOURCE_MEMBER_LOGICAL_NAME_MAX_LENGTH,
+    )
+    source_record_locator: str = Field(min_length=1)
+
+    @field_validator("source_member_name")
+    @classmethod
+    def _normalize_source_member_name(cls, value: str) -> str:
+        return normalize_source_member_logical_name(value)
+
+    @field_validator("source_record_locator")
+    @classmethod
+    def _validate_source_record_locator(cls, value: str) -> str:
+        if not value.strip():
+            msg = "source_record_locator must not be blank"
+            raise ValueError(msg)
+        return value
+
+
 class PersonRecord(PersonInput):
     """Canonical read model for one person occurrence in an exact snapshot."""
 
     id: UUID
     dataset_snapshot_id: UUID
+    source_member_name: str | None = Field(
+        default=None,
+        max_length=SOURCE_MEMBER_LOGICAL_NAME_MAX_LENGTH,
+    )
+    source_record_locator: str | None = None
     created_at: UtcDatetime
+
+    @model_validator(mode="after")
+    def _validate_source_provenance(self) -> Self:
+        if (self.source_member_name is None) != (self.source_record_locator is None):
+            msg = "person-record source provenance fields must be supplied together"
+            raise ValueError(msg)
+        if self.source_member_name is not None:
+            self.source_member_name = normalize_source_member_logical_name(self.source_member_name)
+        if self.source_record_locator is not None and not self.source_record_locator.strip():
+            msg = "source_record_locator must not be blank"
+            raise ValueError(msg)
+        return self

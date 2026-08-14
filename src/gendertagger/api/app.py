@@ -21,6 +21,7 @@ from gendertagger.api.settings import AppSettings, load_settings
 from gendertagger.db.session import create_database_engine, create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.ingestion.tei import TeiPersonParser
+from gendertagger.models.project import SnapshotImportLimits
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.annotations import AnnotationService
 from gendertagger.services.execution import RunScheduler
@@ -71,7 +72,15 @@ def create_app(
         cursor_codec=cursor_codec,
         clock=partial(datetime.now, UTC),
         max_upload_bytes=resolved_settings.max_tei_upload_bytes,
-        import_batch_record_count=resolved_settings.tei_import_batch_record_count,
+        max_total_upload_bytes=resolved_settings.max_snapshot_upload_bytes,
+        import_limits=SnapshotImportLimits(
+            max_member_count=resolved_settings.max_snapshot_source_files,
+            max_member_expanded_bytes=resolved_settings.max_archive_member_bytes,
+            max_total_expanded_bytes=resolved_settings.max_archive_expanded_bytes,
+            max_compression_ratio=resolved_settings.max_archive_compression_ratio,
+            max_record_count=resolved_settings.max_import_record_count,
+            max_cell_bytes=resolved_settings.max_tabular_cell_bytes,
+        ),
     )
     method_registry = default_method_registry()
     run_service = RunService(

@@ -3,7 +3,13 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from gendertagger.models.person import PersonInput, PersonNameForm, PersonNameType
+from gendertagger.models.person import (
+    ImportedPerson,
+    PersonEvent,
+    PersonInput,
+    PersonNameForm,
+    PersonNameType,
+)
 
 pytestmark = pytest.mark.contract
 
@@ -13,6 +19,7 @@ def test_person_input_minimal_payload_uses_isolated_defaults() -> None:
     second = PersonInput(tei_id="person-2")
 
     first.forenames.append("Anna")
+    first.events.append(PersonEvent(type="wedding"))
     first.alt_names.append("A. Example")
     first.external_ids["wikidata"] = "Q1"
 
@@ -23,6 +30,7 @@ def test_person_input_minimal_payload_uses_isolated_defaults() -> None:
         "birth": None,
         "death": None,
         "note": None,
+        "events": [],
         "alt_names": [],
         "name_forms": None,
         "gnd_id": None,
@@ -38,6 +46,7 @@ def test_person_input_round_trip_preserves_historical_source_strings() -> None:
         "birth": "um 1770?",
         "death": "nach 1832",
         "note": "Genannt „Lise“; Datierung unsicher.",
+        "events": [],
         "alt_names": ["Anne Marie d'Arcy", "Lise"],
         "name_forms": None,
         "gnd_id": "118540238",
@@ -60,6 +69,37 @@ def test_person_name_form_defaults_are_isolated() -> None:
     assert second.forenames == []
 
 
+def test_person_events_and_import_provenance_round_trip() -> None:
+    person = PersonInput(
+        tei_id="p1",
+        events=[PersonEvent(type="wedding", when="1820-04-01", note="In Berlin")],
+    )
+    imported = ImportedPerson(
+        person=person,
+        source_member_name="register/Ä.xml",
+        source_record_locator="row:2",
+    )
+
+    assert ImportedPerson.model_validate_json(imported.model_dump_json()) == imported
+    assert imported.person.events == [
+        PersonEvent(type="wedding", when="1820-04-01", note="In Berlin")
+    ]
+    with pytest.raises(ValidationError, match="must not be blank"):
+        PersonEvent(type="wedding", when=" ")
+    with pytest.raises(ValidationError, match="unsafe path segment"):
+        ImportedPerson(
+            person=person,
+            source_member_name="../register.xml",
+            source_record_locator="row:2",
+        )
+    with pytest.raises(ValidationError, match="source_record_locator"):
+        ImportedPerson(
+            person=person,
+            source_member_name="register.xml",
+            source_record_locator=" ",
+        )
+
+
 def test_person_name_forms_round_trip_preserves_structure_and_order() -> None:
     payload: dict[str, object] = {
         "tei_id": "person-1",
@@ -68,6 +108,7 @@ def test_person_name_forms_round_trip_preserves_structure_and_order() -> None:
         "birth": None,
         "death": None,
         "note": None,
+        "events": [],
         "alt_names": ["Sample Anna", "Origin"],
         "name_forms": [
             {
@@ -206,6 +247,7 @@ def test_person_input_json_schema_exposes_stable_public_shape() -> None:
         "birth",
         "death",
         "note",
+        "events",
         "alt_names",
         "name_forms",
         "gnd_id",

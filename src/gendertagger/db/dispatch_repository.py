@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from gendertagger.db.aggregations import AggregationExecutionRow
 from gendertagger.db.dispatches import BatchDispatchRow
 from gendertagger.db.executions import MethodExecutionRow, RunRow, TaskBatchRow
+from gendertagger.db.projects import DatasetSnapshotRow
 from gendertagger.models.aggregation import AggregationTaskMessage
 from gendertagger.models.common import normalize_utc_datetime
 from gendertagger.models.dispatch import (
@@ -23,13 +24,17 @@ from gendertagger.models.dispatch import (
     Dispatch,
     DispatchCreate,
     DispatchTarget,
+    SnapshotDispatch,
+    SnapshotDispatchCreate,
 )
 from gendertagger.models.lifecycle import (
     AggregationExecutionStatus,
+    DatasetSnapshotStatus,
     MethodExecutionStatus,
     RunStatus,
     TaskBatchStatus,
 )
+from gendertagger.models.project import SnapshotImportTaskMessage
 from gendertagger.models.queues import CPU_QUEUE
 from gendertagger.models.run import TaskBatchMessage
 from gendertagger.services.persistence_errors import (
@@ -45,6 +50,7 @@ _DISPATCHABLE_BATCH_STATUSES = frozenset({TaskBatchStatus.pending, TaskBatchStat
 _DISPATCHABLE_AGGREGATION_STATUSES = frozenset(
     {AggregationExecutionStatus.pending, AggregationExecutionStatus.queued}
 )
+_DISPATCHABLE_SNAPSHOT_STATUSES = frozenset({DatasetSnapshotStatus.pending})
 _STALE_REARM_DIAGNOSTIC = "published dispatch was not claimed before reconciliation timeout"
 
 
@@ -63,11 +69,16 @@ class SqlAlchemyDispatchRepository:
         command: AggregationDispatchCreate,
     ) -> AggregationDispatch: ...
 
+    @overload
+    def ensure_dispatch(self, command: SnapshotDispatchCreate) -> SnapshotDispatch: ...
+
     def ensure_dispatch(self, command: DispatchCreate) -> Dispatch:
         """Idempotently persist one exact target-aware dispatch without committing."""
         if isinstance(command, BatchDispatchCreate):
             return self._ensure_batch_dispatch(command)
-        return self._ensure_aggregation_dispatch(command)
+        if isinstance(command, AggregationDispatchCreate):
+            return self._ensure_aggregation_dispatch(command)
+        return self._ensure_snapshot_dispatch(command)
 
     def _ensure_batch_dispatch(self, command: BatchDispatchCreate) -> BatchDispatch:
         batch = self._session.get(TaskBatchRow, command.task_batch_id)
@@ -91,6 +102,7 @@ class SqlAlchemyDispatchRepository:
                 id=uuid4(),
                 task_batch_id=command.task_batch_id,
                 aggregation_execution_id=None,
+                dataset_snapshot_id=None,
                 queue_name=command.queue_name,
                 payload=command.payload.model_dump(mode="json"),
                 status=BatchDispatchStatus.pending,
@@ -146,6 +158,7 @@ class SqlAlchemyDispatchRepository:
                 id=uuid4(),
                 task_batch_id=None,
                 aggregation_execution_id=command.aggregation_execution_id,
+                dataset_snapshot_id=None,
                 queue_name=command.queue_name,
                 payload=command.payload.model_dump(mode="json"),
                 status=BatchDispatchStatus.pending,
@@ -175,6 +188,56 @@ class SqlAlchemyDispatchRepository:
             AggregationDispatch,
         ):  # pragma: no cover - database invariant.
             msg = f"dispatch for aggregation execution {aggregation.id} has the wrong target type"
+            raise RuntimeError(msg)
+        return dispatch
+
+    def _ensure_snapshot_dispatch(
+        self,
+        command: SnapshotDispatchCreate,
+    ) -> SnapshotDispatch:
+        snapshot = self._session.get(DatasetSnapshotRow, command.dataset_snapshot_id)
+        if snapshot is None:
+            msg = f"dataset snapshot {command.dataset_snapshot_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        if snapshot.status not in _DISPATCHABLE_SNAPSHOT_STATUSES:
+            msg = f"dataset snapshot {snapshot.id} is not dispatchable from {snapshot.status}"
+            raise InvalidResourceStateError(msg)
+        if command.queue_name != CPU_QUEUE:
+            msg = f"snapshot import dispatches must use the {CPU_QUEUE} queue"
+            raise InvalidResourceStateError(msg)
+
+        dispatch_table = cast(Table, BatchDispatchRow.__table__)
+        statement = (
+            insert(dispatch_table)
+            .values(
+                id=uuid4(),
+                task_batch_id=None,
+                aggregation_execution_id=None,
+                dataset_snapshot_id=command.dataset_snapshot_id,
+                queue_name=command.queue_name,
+                payload=command.payload.model_dump(mode="json"),
+                status=BatchDispatchStatus.pending,
+                attempt_count=0,
+                available_at=command.available_at,
+                lease_owner=None,
+                lease_until=None,
+                published_at=None,
+                last_error=None,
+            )
+            .on_conflict_do_nothing(constraint="dataset_snapshot_single_dispatch")
+        )
+        self._session.execute(statement)
+        self._session.flush()
+        row = self._session.scalar(
+            select(BatchDispatchRow).where(BatchDispatchRow.dataset_snapshot_id == snapshot.id)
+        )
+        if row is None:  # pragma: no cover - guarded by insert/select in one transaction.
+            msg = f"dispatch for dataset snapshot {snapshot.id} could not be persisted"
+            raise RuntimeError(msg)
+        self._require_matching_intent(row, command)
+        dispatch = self._dispatch_from_row(row)
+        if not isinstance(dispatch, SnapshotDispatch):  # pragma: no cover - database invariant.
+            msg = f"dispatch for dataset snapshot {snapshot.id} has the wrong target type"
             raise RuntimeError(msg)
         return dispatch
 
@@ -214,6 +277,21 @@ class SqlAlchemyDispatchRepository:
                 f"dispatch for aggregation execution {aggregation_execution_id} "
                 "has the wrong target type"
             )
+            raise RuntimeError(msg)
+        return dispatch
+
+    def get_dispatch_for_snapshot(self, dataset_snapshot_id: UUID) -> SnapshotDispatch | None:
+        """Return the unique dispatch contract for one dataset-snapshot import."""
+        row = self._session.scalar(
+            select(BatchDispatchRow).where(
+                BatchDispatchRow.dataset_snapshot_id == dataset_snapshot_id
+            )
+        )
+        if row is None:
+            return None
+        dispatch = self._dispatch_from_row(row)
+        if not isinstance(dispatch, SnapshotDispatch):  # pragma: no cover - query invariant.
+            msg = f"dispatch for dataset snapshot {dataset_snapshot_id} has the wrong target type"
             raise RuntimeError(msg)
         return dispatch
 
@@ -336,7 +414,26 @@ class SqlAlchemyDispatchRepository:
                 AggregationExecutionRow.status.in_(_DISPATCHABLE_AGGREGATION_STATUSES),
             )
         )
-        candidates = union_all(batch_candidates, aggregation_candidates).subquery()
+        snapshot_candidates = (
+            select(
+                literal(DispatchTarget.dataset_snapshot.value).label("target"),
+                DatasetSnapshotRow.id.label("target_id"),
+                DatasetSnapshotRow.created_at.label("created_at"),
+            )
+            .outerjoin(
+                BatchDispatchRow,
+                BatchDispatchRow.dataset_snapshot_id == DatasetSnapshotRow.id,
+            )
+            .where(
+                BatchDispatchRow.id.is_(None),
+                DatasetSnapshotRow.status.in_(_DISPATCHABLE_SNAPSHOT_STATUSES),
+            )
+        )
+        candidates = union_all(
+            batch_candidates,
+            aggregation_candidates,
+            snapshot_candidates,
+        ).subquery()
         rows = tuple(
             self._session.execute(
                 select(candidates.c.target, candidates.c.target_id)
@@ -362,7 +459,7 @@ class SqlAlchemyDispatchRepository:
                         available_at=available_at,
                     )
                 )
-            else:
+            elif target == DispatchTarget.aggregation_execution.value:
                 aggregation = self._lock_dispatchable_aggregation(target_id)
                 if (
                     aggregation is None
@@ -374,6 +471,18 @@ class SqlAlchemyDispatchRepository:
                         aggregation_execution_id=aggregation.id,
                         queue_name=CPU_QUEUE,
                         payload=AggregationTaskMessage(aggregation_execution_id=aggregation.id),
+                        available_at=available_at,
+                    )
+                )
+            else:
+                snapshot = self._lock_dispatchable_snapshot(target_id)
+                if snapshot is None or self.get_dispatch_for_snapshot(snapshot.id) is not None:
+                    continue
+                self.ensure_dispatch(
+                    SnapshotDispatchCreate(
+                        dataset_snapshot_id=snapshot.id,
+                        queue_name=CPU_QUEUE,
+                        payload=SnapshotImportTaskMessage(dataset_snapshot_id=snapshot.id),
                         available_at=available_at,
                     )
                 )
@@ -430,7 +539,28 @@ class SqlAlchemyDispatchRepository:
                 AggregationExecutionRow.status.in_(_DISPATCHABLE_AGGREGATION_STATUSES),
             )
         )
-        candidates = union_all(batch_candidates, aggregation_candidates).subquery()
+        snapshot_candidates = (
+            select(
+                BatchDispatchRow.id.label("dispatch_id"),
+                literal(DispatchTarget.dataset_snapshot.value).label("target"),
+                DatasetSnapshotRow.id.label("target_id"),
+                BatchDispatchRow.published_at.label("published_at"),
+            )
+            .join(
+                DatasetSnapshotRow,
+                DatasetSnapshotRow.id == BatchDispatchRow.dataset_snapshot_id,
+            )
+            .where(
+                BatchDispatchRow.status == BatchDispatchStatus.published,
+                BatchDispatchRow.published_at <= stale_before,
+                DatasetSnapshotRow.status.in_(_DISPATCHABLE_SNAPSHOT_STATUSES),
+            )
+        )
+        candidates = union_all(
+            batch_candidates,
+            aggregation_candidates,
+            snapshot_candidates,
+        ).subquery()
         rows = tuple(
             self._session.execute(
                 select(
@@ -448,8 +578,11 @@ class SqlAlchemyDispatchRepository:
             if target == DispatchTarget.task_batch.value:
                 if self._lock_dispatchable_batch(target_id) is None:
                     continue
-            else:
+            elif target == DispatchTarget.aggregation_execution.value:
                 if self._lock_dispatchable_aggregation(target_id) is None:
+                    continue
+            else:
+                if self._lock_dispatchable_snapshot(target_id) is None:
                     continue
             row = self._session.scalar(
                 select(BatchDispatchRow)
@@ -501,6 +634,20 @@ class SqlAlchemyDispatchRepository:
             .with_for_update(skip_locked=True, of=AggregationExecutionRow)
         )
 
+    def _lock_dispatchable_snapshot(
+        self,
+        dataset_snapshot_id: UUID,
+    ) -> DatasetSnapshotRow | None:
+        """Lock one pending snapshot without waiting on an active import worker."""
+        return self._session.scalar(
+            select(DatasetSnapshotRow)
+            .where(
+                DatasetSnapshotRow.id == dataset_snapshot_id,
+                DatasetSnapshotRow.status.in_(_DISPATCHABLE_SNAPSHOT_STATUSES),
+            )
+            .with_for_update(skip_locked=True, of=DatasetSnapshotRow)
+        )
+
     def _require_claimed(self, dispatch_id: UUID, lease_owner: str) -> BatchDispatchRow:
         row = self._session.get(
             BatchDispatchRow,
@@ -549,7 +696,11 @@ class SqlAlchemyDispatchRepository:
 
     @staticmethod
     def _dispatch_from_row(row: BatchDispatchRow) -> Dispatch:
-        if row.task_batch_id is not None and row.aggregation_execution_id is None:
+        if (
+            row.task_batch_id is not None
+            and row.aggregation_execution_id is None
+            and row.dataset_snapshot_id is None
+        ):
             return BatchDispatch(
                 id=row.id,
                 task_batch_id=row.task_batch_id,
@@ -565,12 +716,36 @@ class SqlAlchemyDispatchRepository:
                 created_at=row.created_at,
                 updated_at=row.updated_at,
             )
-        if row.aggregation_execution_id is not None and row.task_batch_id is None:
+        if (
+            row.aggregation_execution_id is not None
+            and row.task_batch_id is None
+            and row.dataset_snapshot_id is None
+        ):
             return AggregationDispatch(
                 id=row.id,
                 aggregation_execution_id=row.aggregation_execution_id,
                 queue_name=row.queue_name,
                 payload=AggregationTaskMessage.model_validate(row.payload),
+                status=row.status,
+                attempt_count=row.attempt_count,
+                available_at=row.available_at,
+                lease_owner=row.lease_owner,
+                lease_until=row.lease_until,
+                published_at=row.published_at,
+                last_error=row.last_error,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+            )
+        if (
+            row.dataset_snapshot_id is not None
+            and row.task_batch_id is None
+            and row.aggregation_execution_id is None
+        ):
+            return SnapshotDispatch(
+                id=row.id,
+                dataset_snapshot_id=row.dataset_snapshot_id,
+                queue_name=row.queue_name,
+                payload=SnapshotImportTaskMessage.model_validate(row.payload),
                 status=row.status,
                 attempt_count=row.attempt_count,
                 available_at=row.available_at,

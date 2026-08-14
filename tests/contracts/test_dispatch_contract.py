@@ -12,7 +12,9 @@ from gendertagger.models.dispatch import (
     BatchDispatchStatus,
     DispatchCreate,
     DispatchTarget,
+    SnapshotDispatchCreate,
 )
+from gendertagger.models.project import SnapshotImportTaskMessage
 from gendertagger.models.run import TaskBatchMessage
 
 
@@ -39,6 +41,16 @@ def test_aggregation_dispatch_requires_matching_execution_identity() -> None:
         )
 
 
+def test_snapshot_dispatch_requires_matching_snapshot_identity() -> None:
+    with pytest.raises(ValidationError, match="dataset_snapshot_id must match"):
+        SnapshotDispatchCreate(
+            dataset_snapshot_id=uuid4(),
+            queue_name="cpu",
+            payload=SnapshotImportTaskMessage(dataset_snapshot_id=uuid4()),
+            available_at=datetime.now(UTC),
+        )
+
+
 def test_dispatch_create_union_is_discriminated_by_target() -> None:
     aggregation_execution_id = uuid4()
 
@@ -54,6 +66,23 @@ def test_dispatch_create_union_is_discriminated_by_target() -> None:
 
     assert isinstance(command, AggregationDispatchCreate)
     assert command.target_id == aggregation_execution_id
+
+
+def test_dispatch_create_union_supports_dataset_snapshot_target() -> None:
+    dataset_snapshot_id = uuid4()
+
+    command: DispatchCreate = TypeAdapter(DispatchCreate).validate_python(
+        {
+            "target": DispatchTarget.dataset_snapshot,
+            "dataset_snapshot_id": dataset_snapshot_id,
+            "queue_name": "cpu",
+            "payload": {"dataset_snapshot_id": dataset_snapshot_id},
+            "available_at": datetime.now(UTC),
+        }
+    )
+
+    assert isinstance(command, SnapshotDispatchCreate)
+    assert command.target_id == dataset_snapshot_id
 
 
 def test_dispatch_create_normalizes_available_time_to_utc() -> None:

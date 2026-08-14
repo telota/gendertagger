@@ -66,10 +66,10 @@ GET /api/v1/runs/{run_id}
 Return domain resource IDs, never Celery task IDs. Celery is an internal execution mechanism and can change without changing the public API.
 
 Accepting an asynchronous command atomically persists its domain resource and one typed outbox intent in
-PostgreSQL. A dispatch owns exactly one task batch or aggregation execution and carries only its small validated
-identifier envelope. The FastAPI process does not publish those messages to Redis. A `202 Accepted` response
-therefore confirms durable application state and dispatch intent, not immediate broker delivery; the dispatch
-coordinator relays and reconciles that intent asynchronously.
+PostgreSQL. A dispatch owns exactly one task batch, aggregation execution, or dataset snapshot and carries only
+its small validated identifier envelope. The FastAPI process does not publish those messages to Redis. A
+`202 Accepted` response therefore confirms durable application state and dispatch intent, not immediate broker
+delivery; the dispatch coordinator relays and reconciles that intent asynchronously.
 
 ## Representative commands
 
@@ -77,7 +77,35 @@ coordinator relays and reconciles that intent asynchronously.
 
 `POST /api/v1/projects/{project_id}/snapshots`
 
-Accept TEI upload or an artifact reference plus import configuration. Return `202 Accepted` with a pending snapshot/import resource.
+The endpoint consumes multipart form data. Repeat the `source` file part for a loose TEI collection; all other
+supported combinations require exactly one part. Three form fields select the import contract explicitly:
+
+| Field | Values | Default |
+|---|---|---|
+| `source_format` | `tei`, `csv`, `xlsx`, `json` | `tei` |
+| `packaging` | `single`, `loose`, `zip`, `tar_gz` | `single` |
+| `profile` | a compatible versioned TEI or tabular profile | `tei_p5_person_register_v3` |
+
+TEI supports every packaging value. CSV, XLSX, and JSON support only `single` with
+`tei_equivalent_person_register_v1`. The server does not infer these semantic choices from a filename or
+client-provided media type. Incompatible values, an incorrect part count, unsafe or colliding logical names,
+and non-XML loose member names are request validation errors.
+
+The API streams, bounds, and hashes every exact upload into immutable shared artifact storage. For loose TEI,
+it also creates a deterministic source manifest. It then atomically persists all Artifact records, ordered
+source-member provenance, the pending DatasetSnapshot, and typed outbox intent. Only after those durable steps
+does it return `202 Accepted` with the pending snapshot. Upload transfer, validation of multipart member names,
+storage, hashing, and the short acceptance transaction may therefore take request time; source parsing,
+archive or workbook inspection, and PersonRecord persistence do not.
+
+Clients poll `GET /api/v1/snapshots/{snapshot_id}` for `ready` or `failed`. The worker's `importing` state is
+transaction-local, so API readers continue to see `pending` until the complete projection commits atomically.
+An invalid document, archive, workbook, or record shape is accepted as durable work and later produces a
+failed snapshot with a sanitized diagnostic; content is not parsed inside the initial request. Broker downtime
+leaves the pending import recoverable through the outbox. The response never contains a Celery task ID,
+artifact storage URI, or filesystem path. Artifact-reference imports remain outside the public contract. See
+[ADR-0020](decisions/ADR-0020-asynchronous-snapshot-import-outbox.md) and
+[ADR-0021](decisions/ADR-0021-versioned-multi-format-snapshot-ingestion.md).
 
 ### Create run
 

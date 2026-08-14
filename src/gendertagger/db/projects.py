@@ -5,6 +5,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -95,6 +96,48 @@ class DatasetSnapshotRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
     failure_diagnostic: Mapped[str | None] = mapped_column(Text)
 
 
+class SnapshotSourceMemberRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
+    """Persistence row for one ordered exact member of a snapshot source."""
+
+    __tablename__ = "snapshot_source_members"
+    __table_args__ = (
+        UniqueConstraint(
+            "dataset_snapshot_id",
+            "ordinal",
+            name="snapshot_source_member_ordinal",
+        ),
+        UniqueConstraint(
+            "dataset_snapshot_id",
+            "logical_name",
+            name="snapshot_source_member_logical_name",
+        ),
+        CheckConstraint("ordinal >= 0", name="ordinal_nonnegative"),
+        CheckConstraint("btrim(logical_name) <> ''", name="logical_name_nonblank"),
+        CheckConstraint(
+            "sha256 ~ '^[0-9a-f]{64}$'",
+            name="sha256_format",
+        ),
+        CheckConstraint("byte_size >= 0", name="byte_size_nonnegative"),
+        CheckConstraint("btrim(media_type) <> ''", name="media_type_nonblank"),
+    )
+
+    dataset_snapshot_id: Mapped[UUID] = mapped_column(
+        POSTGRESQL_UUID(as_uuid=True),
+        ForeignKey("dataset_snapshots.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    artifact_id: Mapped[UUID] = mapped_column(
+        POSTGRESQL_UUID(as_uuid=True),
+        ForeignKey("artifacts.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    logical_name: Mapped[str] = mapped_column(String(1024), nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    media_type: Mapped[str] = mapped_column(String(255), nullable=False)
+
+
 class PersonRecordRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
     """Persistence row for one TEI person occurrence in a snapshot."""
 
@@ -115,6 +158,19 @@ class PersonRecordRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
             "name_forms IS NULL OR jsonb_typeof(name_forms) = 'array'",
             name="name_forms_array",
         ),
+        CheckConstraint("jsonb_typeof(events) = 'array'", name="events_array"),
+        CheckConstraint(
+            "(source_member_name IS NULL) = (source_record_locator IS NULL)",
+            name="source_provenance_complete",
+        ),
+        CheckConstraint(
+            "source_member_name IS NULL OR btrim(source_member_name) <> ''",
+            name="source_member_name_nonblank",
+        ),
+        CheckConstraint(
+            "source_record_locator IS NULL OR btrim(source_record_locator) <> ''",
+            name="source_record_locator_nonblank",
+        ),
         Index("ix_person_records_dataset_snapshot_id_surname", "dataset_snapshot_id", "surname"),
     )
 
@@ -134,6 +190,12 @@ class PersonRecordRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
     birth: Mapped[str | None] = mapped_column(Text)
     death: Mapped[str | None] = mapped_column(Text)
     note: Mapped[str | None] = mapped_column(Text)
+    events: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=list,
+        server_default=text("'[]'::jsonb"),
+    )
     alt_names: Mapped[list[str]] = mapped_column(
         ARRAY(Text),
         nullable=False,
@@ -141,6 +203,8 @@ class PersonRecordRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
         server_default=text("'{}'::text[]"),
     )
     name_forms: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
+    source_member_name: Mapped[str | None] = mapped_column(String(1024))
+    source_record_locator: Mapped[str | None] = mapped_column(Text)
 
 
 class PersonExternalIdRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):

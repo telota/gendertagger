@@ -529,15 +529,34 @@
       },
       "Body_import_snapshot_api_v1_projects__project_id__snapshots_post": {
         "properties": {
+          "packaging": {
+            "$ref": "#/components/schemas/SourcePackaging",
+            "default": "single"
+          },
           "profile": {
-            "$ref": "#/components/schemas/TeiImportProfile",
-            "default": "tei_p5_person_register_v2"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TeiImportProfile"
+              },
+              {
+                "$ref": "#/components/schemas/TabularImportProfile"
+              }
+            ],
+            "default": "tei_p5_person_register_v3",
+            "title": "Profile"
           },
           "source": {
-            "contentMediaType": "application/octet-stream",
-            "description": "Exact TEI XML source retained as an immutable artifact.",
+            "description": "One or more exact source files. Repeat the source part for loose TEI files.",
+            "items": {
+              "contentMediaType": "application/octet-stream",
+              "type": "string"
+            },
             "title": "Source",
-            "type": "string"
+            "type": "array"
+          },
+          "source_format": {
+            "$ref": "#/components/schemas/SourceFormat",
+            "default": "tei"
           }
         },
         "required": [
@@ -1166,6 +1185,45 @@
         "title": "OverrideSource",
         "type": "string"
       },
+      "PersonEvent": {
+        "additionalProperties": false,
+        "description": "Source-preserved biographical event attached to one person.",
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "type": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Type",
+            "type": "string"
+          },
+          "when": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "When"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "PersonEvent",
+        "type": "object"
+      },
       "PersonNameForm": {
         "additionalProperties": false,
         "description": "Source-rich projection of one direct TEI ``persName`` in document order.\n\nA name form uses either an unstructured value (from TEI ``name`` or direct\n``persName`` text) or structured ``surname`` and ``forename`` components.\nInline markup remains preserved by the immutable source artifact; component\ntext is normalized only for whitespace by the import profile.",
@@ -1273,6 +1331,13 @@
             ],
             "title": "Death"
           },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/PersonEvent"
+            },
+            "title": "Events",
+            "type": "array"
+          },
           "external_ids": {
             "additionalProperties": {
               "type": "string"
@@ -1328,6 +1393,29 @@
               }
             ],
             "title": "Note"
+          },
+          "source_member_name": {
+            "anyOf": [
+              {
+                "maxLength": 1024,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Member Name"
+          },
+          "source_record_locator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Record Locator"
           },
           "surname": {
             "anyOf": [
@@ -1890,11 +1978,42 @@
         "title": "RunStatus",
         "type": "string"
       },
+      "SourceFormat": {
+        "description": "Semantic encoding of one snapshot source collection.",
+        "enum": [
+          "tei",
+          "csv",
+          "xlsx",
+          "json"
+        ],
+        "title": "SourceFormat",
+        "type": "string"
+      },
+      "SourcePackaging": {
+        "description": "Transport packaging used to deliver one snapshot source collection.",
+        "enum": [
+          "single",
+          "loose",
+          "zip",
+          "tar_gz"
+        ],
+        "title": "SourcePackaging",
+        "type": "string"
+      },
+      "TabularImportProfile": {
+        "description": "Versioned person-register extraction profile for tabular sources.",
+        "enum": [
+          "tei_equivalent_person_register_v1"
+        ],
+        "title": "TabularImportProfile",
+        "type": "string"
+      },
       "TeiImportProfile": {
         "description": "Versioned TEI extraction profile selected for a snapshot import.",
         "enum": [
           "tei_p5_person_register_v1",
-          "tei_p5_person_register_v2"
+          "tei_p5_person_register_v2",
+          "tei_p5_person_register_v3"
         ],
         "title": "TeiImportProfile",
         "type": "string"
@@ -2868,7 +2987,7 @@
     },
     "/api/v1/projects/{project_id}/snapshots": {
       "post": {
-        "description": "Preserve and synchronously import a bounded TEI upload.",
+        "description": "Durably stage bounded sources and queue their snapshot import.",
         "operationId": "import_snapshot_api_v1_projects__project_id__snapshots_post",
         "parameters": [
           {

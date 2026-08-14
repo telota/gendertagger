@@ -64,6 +64,26 @@ the phased plan that resumes application code.
 - Generic asynchronous aggregation execution through the transactional outbox, with identifier-only CPU work,
   at-least-once publication and atomic claims, strict per-person reference-method completeness, no synthetic
   Prediction evidence, and atomic complete-result persistence for the current corpus scale.
+- Asynchronous DatasetSnapshot import through the same transactional outbox, with durable source staging
+  before `202 Accepted`, an identifier-only CPU-worker envelope, duplicate-safe claims, and atomic streamed
+  PersonRecord persistence that rolls back completely before retry or terminal failure.
+- Explicit, versioned snapshot format, packaging, profile, manifest, source-member, and resolved-limit
+  contracts supporting single, loose, ZIP, and TAR.GZ TEI sources plus single CSV, XLSX, and JSON sources.
+- Strict TEI-equivalent tabular ingestion with the exact `xml:id`, `persName`, `birth`, `death`, `event`,
+  `note`, and `idno` fields; native JSON arrays or JSON-valued CSV/XLSX cells preserve multiple forenames,
+  ordered alternative names, events, and typed GND/VIAF/Wikidata identifiers without spreadsheet coercion.
+- A new default `tei_p5_person_register_v3` / `tei_parser_v3` keeps committed v1/v2 projections reproducible
+  while adding ordered events, safe descendant-text boundaries, and supported-inline-markup validation.
+- Shared strict TEI-v3/tabular authority normalization with exact host/path matching, typed bare/URI parity,
+  conflict and duplicate rejection, spoofed-host protection, bounded JSON integer decoding, and permanent
+  JSON/CSV U+0000 validation while retaining versioned TEI-v1/v2 behavior.
+- Secure archive and workbook readers with deterministic member ordering, traversal/link/special-member and
+  active-workbook rejection, pre-allocation ZIP/ZIP64 directory bounds, secure OOXML metadata preflight,
+  read-only XLSX streaming, expansion ceilings, compression-ratio checks, and collection-wide TEI-ID
+  uniqueness.
+- Immutable loose-source manifests, ordered source-member Artifact provenance, and record-level source member
+  and locator attribution. TEI v3 now preserves ordered direct events while source `<sex>` labels remain
+  excluded from PersonInput to prevent target leakage.
 - A pinned official Pyright CLI and shared editor/CI configuration, complementing strict mypy with a second
   required static-analysis implementation.
 
@@ -86,6 +106,9 @@ the phased plan that resumes application code.
 - `scripts/poster_pies.py` reworked to read final labels from the reviewed dataset instead of re-running
   ensemble voting inside the plotting script. Superseded by the scaffold reset described below.
 - `.gitignore` now excludes the local `__scrap/` drafts directory and `.claude/` agent definitions.
+- Snapshot creation now returns a durable pending resource instead of parsing and persisting the complete
+  register inside a nominally asynchronous `202 Accepted` request. One endpoint now dispatches the declared
+  supported format/packaging matrix without exposing Celery or artifact-storage details.
 
 ### Fixed
 

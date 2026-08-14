@@ -1,23 +1,37 @@
-"""Application use cases for projects and source-preserving TEI imports."""
+"""Application use cases for projects and durable snapshot-import acceptance."""
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
+from io import BytesIO
+from pathlib import PurePosixPath
 from typing import BinaryIO
 from uuid import UUID
 
-from gendertagger.ingestion.tei import TeiImportError, TeiPersonParser
+from gendertagger.ingestion.registry import version_for_snapshot_import
+from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.models.api import CursorPage
 from gendertagger.models.artifact import ArtifactCreate
+from gendertagger.models.dispatch import SnapshotDispatchCreate
 from gendertagger.models.lifecycle import DatasetSnapshotStatus
-from gendertagger.models.person import PersonInput, PersonRecord
+from gendertagger.models.person import PersonRecord
 from gendertagger.models.project import (
     DatasetSnapshot,
     DatasetSnapshotCreate,
     Project,
     ProjectCreate,
+    SnapshotImportConfig,
+    SnapshotImportLimits,
     SnapshotImportRequest,
-    TeiImportProfile,
+    SnapshotImportTaskMessage,
+    SnapshotSourceMemberCreate,
+    SourceFormat,
+    SourceManifestMember,
+    SourceManifestV1,
+    SourcePackaging,
+    normalize_source_member_logical_name,
 )
+from gendertagger.models.queues import CPU_QUEUE
 from gendertagger.services.artifact_storage import ArtifactStorage
 from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.persistence_errors import (
@@ -26,9 +40,37 @@ from gendertagger.services.persistence_errors import (
 )
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 
+_MANIFEST_MEDIA_TYPE = "application/vnd.gendertagger.source-manifest+json"
+
+
+@dataclass(frozen=True, slots=True)
+class SnapshotUpload:
+    """One request-bound upload part with its untrusted client filename."""
+
+    source: BinaryIO
+    filename: str
+    media_type: str | None = None
+
+
+class InvalidSnapshotSourceError(ValueError):
+    """Raised when upload parts do not match the declared source contract."""
+
+
+class SnapshotUploadTooLargeError(ValueError):
+    """Raised when a valid source collection exceeds its aggregate upload limit."""
+
+
+@dataclass(frozen=True, slots=True)
+class _StagedUpload:
+    logical_name: str
+    media_type: str
+    storage_uri: str
+    sha256: str
+    byte_size: int
+
 
 class ProjectService:
-    """Orchestrate project resources and synchronous Phase 3 TEI imports."""
+    """Orchestrate projects and durably accept asynchronous snapshot imports."""
 
     def __init__(
         self,
@@ -39,13 +81,17 @@ class ProjectService:
         cursor_codec: CursorCodec,
         clock: Callable[[], datetime],
         max_upload_bytes: int,
-        import_batch_record_count: int,
+        max_total_upload_bytes: int | None = None,
+        import_limits: SnapshotImportLimits | None = None,
     ) -> None:
         if max_upload_bytes <= 0:
             msg = "max_upload_bytes must be positive"
             raise ValueError(msg)
-        if import_batch_record_count <= 0:
-            msg = "import_batch_record_count must be positive"
+        resolved_total_upload_bytes = (
+            max_upload_bytes if max_total_upload_bytes is None else max_total_upload_bytes
+        )
+        if resolved_total_upload_bytes <= 0:
+            msg = "max_total_upload_bytes must be positive"
             raise ValueError(msg)
         self._unit_of_work_factory = unit_of_work_factory
         self._artifact_storage = artifact_storage
@@ -53,7 +99,15 @@ class ProjectService:
         self._cursor_codec = cursor_codec
         self._clock = clock
         self._max_upload_bytes = max_upload_bytes
-        self._import_batch_record_count = import_batch_record_count
+        self._max_total_upload_bytes = resolved_total_upload_bytes
+        self._import_limits = import_limits or SnapshotImportLimits(
+            max_member_count=128,
+            max_member_expanded_bytes=max_upload_bytes,
+            max_total_expanded_bytes=resolved_total_upload_bytes,
+            max_compression_ratio=100.0,
+            max_record_count=1_000_000,
+            max_cell_bytes=1024 * 1024,
+        )
 
     def create_project(self, command: ProjectCreate) -> Project:
         """Create one long-lived editorial project and commit it atomically."""
@@ -124,84 +178,244 @@ class ProjectService:
         self,
         *,
         project_id: UUID,
-        source: BinaryIO,
         command: SnapshotImportRequest,
+        source: BinaryIO | None = None,
+        sources: tuple[SnapshotUpload, ...] | list[SnapshotUpload] | None = None,
     ) -> DatasetSnapshot:
-        """Preserve, parse, and persist an uploaded TEI source as one immutable snapshot.
-
-        The Phase 3 transport waits for this implementation to finish but still returns the
-        persisted command resource. Later Celery execution can call the same lifecycle steps.
-        A parser failure is persisted as a failed snapshot rather than partially becoming ready.
-        """
+        """Durably stage exact sources and atomically accept an asynchronous import."""
         self.get_project(project_id)
-        stored_artifact = self._artifact_storage.store(
-            source,
-            max_byte_size=self._max_upload_bytes,
+        uploads = self._resolve_uploads(source=source, sources=sources, command=command)
+        staged_uploads = self._stage_uploads(uploads, command=command)
+        manifest = SourceManifestV1(
+            source_format=command.source_format,
+            packaging=command.packaging,
+            members=tuple(
+                SourceManifestMember(
+                    logical_name=staged.logical_name,
+                    sha256=staged.sha256,
+                    byte_size=staged.byte_size,
+                    media_type=staged.media_type,
+                )
+                for staged in staged_uploads
+            ),
+        )
+        staged_manifest = (
+            self._artifact_storage.store(
+                BytesIO(manifest.canonical_bytes()),
+                max_byte_size=self._max_upload_bytes,
+            )
+            if command.packaging is SourcePackaging.loose
+            else None
+        )
+        import_config = SnapshotImportConfig(
+            **command.model_dump(),
+            limits=self._import_limits,
         )
 
         with self._unit_of_work_factory() as unit_of_work:
-            artifact = unit_of_work.artifacts.add_artifact(
-                ArtifactCreate(
-                    logical_type="source_tei",
-                    storage_uri=stored_artifact.storage_uri,
-                    sha256=stored_artifact.sha256,
-                    byte_size=stored_artifact.byte_size,
-                    media_type="application/tei+xml",
-                    project_id=project_id,
-                    metadata={"import_profile": command.profile.value},
+            member_artifacts = [
+                unit_of_work.artifacts.add_artifact(
+                    ArtifactCreate(
+                        logical_type=self._source_logical_type(command),
+                        storage_uri=staged.storage_uri,
+                        sha256=staged.sha256,
+                        byte_size=staged.byte_size,
+                        media_type=staged.media_type,
+                        project_id=project_id,
+                        metadata={
+                            "import_profile": command.profile.value,
+                            "logical_name": staged.logical_name,
+                            "ordinal": ordinal,
+                            "packaging": command.packaging.value,
+                            "source_format": command.source_format.value,
+                        },
+                    )
                 )
-            )
+                for ordinal, staged in enumerate(staged_uploads)
+            ]
+            if staged_manifest is None:
+                primary_artifact = member_artifacts[0]
+            else:
+                primary_artifact = unit_of_work.artifacts.add_artifact(
+                    ArtifactCreate(
+                        logical_type="source_manifest",
+                        storage_uri=staged_manifest.storage_uri,
+                        sha256=staged_manifest.sha256,
+                        byte_size=staged_manifest.byte_size,
+                        media_type=_MANIFEST_MEDIA_TYPE,
+                        project_id=project_id,
+                        metadata={
+                            "manifest_version": manifest.version,
+                            "member_count": len(manifest.members),
+                            "packaging": command.packaging.value,
+                            "source_format": command.source_format.value,
+                        },
+                    )
+                )
             snapshot = unit_of_work.projects.add_snapshot(
                 DatasetSnapshotCreate(
                     project_id=project_id,
-                    source_artifact_id=artifact.id,
-                    source_sha256=artifact.sha256,
-                    parser_version=self._parser.version_for_profile(command.profile),
-                    import_config=command.model_dump(mode="json"),
+                    source_artifact_id=primary_artifact.id,
+                    source_sha256=primary_artifact.sha256,
+                    parser_version=self._importer_version(command),
+                    import_config=import_config.model_dump(mode="json"),
                 )
             )
-            unit_of_work.commit()
-
-        with self._unit_of_work_factory() as unit_of_work:
-            unit_of_work.projects.begin_snapshot_import(snapshot.id)
-            unit_of_work.commit()
-
-        try:
-            self._import_people(snapshot.id, artifact.storage_uri, command.profile)
-        except TeiImportError as error:
-            with self._unit_of_work_factory() as unit_of_work:
-                failed_snapshot = unit_of_work.projects.fail_snapshot_import(
-                    snapshot.id,
-                    failure_diagnostic=str(error),
-                )
-                unit_of_work.commit()
-            return failed_snapshot
-
-        with self._unit_of_work_factory() as unit_of_work:
-            ready_snapshot = unit_of_work.projects.complete_snapshot_import(
+            unit_of_work.projects.add_snapshot_source_members(
                 snapshot.id,
-                ready_at=self._clock(),
+                [
+                    SnapshotSourceMemberCreate(
+                        artifact_id=artifact.id,
+                        ordinal=ordinal,
+                        logical_name=member.logical_name,
+                        sha256=member.sha256,
+                        byte_size=member.byte_size,
+                        media_type=member.media_type,
+                    )
+                    for ordinal, (artifact, member) in enumerate(
+                        zip(member_artifacts, manifest.members, strict=True)
+                    )
+                ],
+            )
+            unit_of_work.dispatches.ensure_dispatch(
+                SnapshotDispatchCreate(
+                    dataset_snapshot_id=snapshot.id,
+                    queue_name=CPU_QUEUE,
+                    payload=SnapshotImportTaskMessage(dataset_snapshot_id=snapshot.id),
+                    available_at=self._clock(),
+                )
             )
             unit_of_work.commit()
-        return ready_snapshot
+        return snapshot
 
-    def _import_people(
+    def _resolve_uploads(
         self,
-        snapshot_id: UUID,
-        storage_uri: str,
-        profile: TeiImportProfile,
-    ) -> None:
-        batch: list[PersonInput] = []
-        with self._artifact_storage.open(storage_uri) as source:
-            for person in self._parser.iter_people(source, profile=profile):
-                batch.append(person)
-                if len(batch) == self._import_batch_record_count:
-                    self._persist_person_batch(snapshot_id, batch)
-                    batch.clear()
-        if batch:
-            self._persist_person_batch(snapshot_id, batch)
+        *,
+        source: BinaryIO | None,
+        sources: tuple[SnapshotUpload, ...] | list[SnapshotUpload] | None,
+        command: SnapshotImportRequest,
+    ) -> tuple[SnapshotUpload, ...]:
+        if source is not None and sources is not None:
+            msg = "supply either source or sources, not both"
+            raise InvalidSnapshotSourceError(msg)
+        if sources is None:
+            if source is None:
+                msg = "at least one source upload is required"
+                raise InvalidSnapshotSourceError(msg)
+            sources = [
+                SnapshotUpload(
+                    source=source,
+                    filename=self._default_filename(command),
+                )
+            ]
+        resolved = tuple(sources)
+        if not resolved:
+            msg = "at least one source upload is required"
+            raise InvalidSnapshotSourceError(msg)
+        if len(resolved) > self._import_limits.max_member_count:
+            msg = "source collection exceeds the configured member-count limit"
+            raise InvalidSnapshotSourceError(msg)
+        if command.packaging is SourcePackaging.loose:
+            if command.source_format is not SourceFormat.tei:
+                msg = "loose source packaging is supported only for TEI"
+                raise InvalidSnapshotSourceError(msg)
+        elif len(resolved) != 1:
+            msg = f"packaging={command.packaging.value!r} requires exactly one source upload"
+            raise InvalidSnapshotSourceError(msg)
+        return resolved
 
-    def _persist_person_batch(self, snapshot_id: UUID, batch: list[PersonInput]) -> None:
-        with self._unit_of_work_factory() as unit_of_work:
-            unit_of_work.projects.add_person_records(snapshot_id, batch)
-            unit_of_work.commit()
+    def _stage_uploads(
+        self,
+        uploads: tuple[SnapshotUpload, ...],
+        *,
+        command: SnapshotImportRequest,
+    ) -> tuple[_StagedUpload, ...]:
+        named_uploads: list[tuple[str, SnapshotUpload]] = []
+        collision_keys: set[str] = set()
+        basename_collision_keys: set[str] = set()
+        for upload in uploads:
+            try:
+                logical_name = normalize_source_member_logical_name(upload.filename)
+            except ValueError as error:
+                raise InvalidSnapshotSourceError(str(error)) from error
+            collision_key = logical_name.casefold()
+            if collision_key in collision_keys:
+                msg = "source member logical names collide after normalization"
+                raise InvalidSnapshotSourceError(msg)
+            collision_keys.add(collision_key)
+            basename_collision_key = PurePosixPath(logical_name).name.casefold()
+            if basename_collision_key in basename_collision_keys:
+                msg = "source member basenames collide after normalization"
+                raise InvalidSnapshotSourceError(msg)
+            basename_collision_keys.add(basename_collision_key)
+            if command.packaging is SourcePackaging.loose and not logical_name.casefold().endswith(
+                ".xml"
+            ):
+                msg = "loose TEI source members must use an .xml logical name"
+                raise InvalidSnapshotSourceError(msg)
+            named_uploads.append((logical_name, upload))
+
+        if command.packaging is SourcePackaging.loose:
+            named_uploads.sort(key=lambda item: (item[0].casefold(), item[0]))
+
+        staged: list[_StagedUpload] = []
+        total_bytes = 0
+        for logical_name, upload in named_uploads:
+            stored = self._artifact_storage.store(
+                upload.source,
+                max_byte_size=self._max_upload_bytes,
+            )
+            total_bytes += stored.byte_size
+            if total_bytes > self._max_total_upload_bytes:
+                msg = (
+                    "source collection exceeds the "
+                    f"{self._max_total_upload_bytes}-byte aggregate upload limit"
+                )
+                raise SnapshotUploadTooLargeError(msg)
+            staged.append(
+                _StagedUpload(
+                    logical_name=logical_name,
+                    media_type=self._source_media_type(command),
+                    storage_uri=stored.storage_uri,
+                    sha256=stored.sha256,
+                    byte_size=stored.byte_size,
+                )
+            )
+        return tuple(staged)
+
+    def _importer_version(self, command: SnapshotImportRequest) -> str:
+        return version_for_snapshot_import(command)
+
+    @staticmethod
+    def _source_logical_type(command: SnapshotImportRequest) -> str:
+        if command.packaging is SourcePackaging.zip:
+            return "source_zip"
+        if command.packaging is SourcePackaging.tar_gz:
+            return "source_tar_gz"
+        return f"source_{command.source_format.value}"
+
+    @staticmethod
+    def _source_media_type(command: SnapshotImportRequest) -> str:
+        if command.packaging is SourcePackaging.zip:
+            return "application/zip"
+        if command.packaging is SourcePackaging.tar_gz:
+            return "application/gzip"
+        return {
+            SourceFormat.tei: "application/tei+xml",
+            SourceFormat.csv: "text/csv",
+            SourceFormat.xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            SourceFormat.json: "application/json",
+        }[command.source_format]
+
+    @staticmethod
+    def _default_filename(command: SnapshotImportRequest) -> str:
+        if command.packaging is SourcePackaging.zip:
+            return "source.zip"
+        if command.packaging is SourcePackaging.tar_gz:
+            return "source.tar.gz"
+        return {
+            SourceFormat.tei: "source.xml",
+            SourceFormat.csv: "source.csv",
+            SourceFormat.xlsx: "source.xlsx",
+            SourceFormat.json: "source.json",
+        }[command.source_format]

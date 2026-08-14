@@ -1,4 +1,5 @@
 import hashlib
+import os
 from io import BytesIO
 from pathlib import Path
 
@@ -47,3 +48,54 @@ def test_storage_rejects_invalid_locator_and_corrupted_existing_content(tmp_path
         storage.open("file:///untrusted/path")
     with pytest.raises(ArtifactIntegrityError, match="integrity"):
         storage.store(BytesIO(SOURCE_BYTES), max_byte_size=len(SOURCE_BYTES))
+
+
+def test_storage_fsyncs_new_directory_entries_and_published_link(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "new-artifact-root"
+    storage = LocalArtifactStorage(root)
+    events: list[tuple[str, Path]] = []
+    real_link = os.link
+
+    def record_directory_sync(path: Path) -> None:
+        events.append(("fsync", path))
+
+    def record_link(source: Path, destination: Path) -> None:
+        events.append(("link", destination.parent))
+        real_link(source, destination)
+
+    monkeypatch.setattr(
+        LocalArtifactStorage,
+        "_fsync_directory",
+        staticmethod(record_directory_sync),
+    )
+    monkeypatch.setattr(os, "link", record_link)
+
+    stored = storage.store(BytesIO(SOURCE_BYTES), max_byte_size=len(SOURCE_BYTES))
+
+    destination_parent = root / stored.sha256[:2]
+    link_index = events.index(("link", destination_parent))
+    assert ("fsync", root.parent) in events
+    assert ("fsync", root) in events
+    assert ("fsync", destination_parent) in events[link_index + 1 :]
+
+
+def test_duplicate_store_still_fsyncs_the_existing_digest_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    storage = LocalArtifactStorage(tmp_path)
+    stored = storage.store(BytesIO(SOURCE_BYTES), max_byte_size=len(SOURCE_BYTES))
+    synced_directories: list[Path] = []
+    monkeypatch.setattr(
+        LocalArtifactStorage,
+        "_fsync_directory",
+        staticmethod(synced_directories.append),
+    )
+
+    duplicate = storage.store(BytesIO(SOURCE_BYTES), max_byte_size=len(SOURCE_BYTES))
+
+    assert duplicate == stored
+    assert synced_directories == [tmp_path / stored.sha256[:2]]

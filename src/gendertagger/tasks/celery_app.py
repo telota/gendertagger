@@ -64,6 +64,7 @@ def create_celery_app(settings: CelerySettings | None = None) -> Celery:
         include=[
             "gendertagger.tasks.execution",
             "gendertagger.tasks.aggregation",
+            "gendertagger.tasks.snapshot_import",
         ],
     )
     configuration: dict[str, Any] = {

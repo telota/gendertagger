@@ -53,12 +53,24 @@ SQLAlchemy repositories and PostgreSQL. Persistence concerns must not leak into 
 
 ### Async execution
 Application services persist typed work and dispatch intent in PostgreSQL. The dispatch coordinator relays
-that generic outbox to Redis. Celery workers execute method batches, aggregation/evaluation jobs, and exports;
-workers call application/domain services directly. API requests never publish Celery tasks. Method batches
-and aggregations use the same coordinator and CPU-worker topology.
+that generic outbox to Redis. Celery workers execute dataset-snapshot imports, method batches,
+aggregation/evaluation jobs, and exports; workers call application/domain services directly. API requests
+never publish Celery tasks. Snapshot imports, method batches, and aggregations use the same coordinator and
+CPU-worker topology with distinct identifier-only task envelopes.
+
+The snapshot-upload request is responsible only for durably staging the bounded source collection and
+atomically persisting its member provenance, pending DatasetSnapshot, and outbox intent. Parsing and
+PersonRecord persistence happen in the worker after the `202 Accepted` response. The import registry supports
+single, loose, ZIP, and TAR.GZ TEI sources plus single CSV, XLSX, and JSON sources through explicit versioned
+format, packaging, and profile contracts. See
+[ADR-0020](decisions/ADR-0020-asynchronous-snapshot-import-outbox.md) and
+[ADR-0021](decisions/ADR-0021-versioned-multi-format-snapshot-ingestion.md).
 
 ### Artifact storage
-Original TEI, exported TEI, model artifacts, cached local datasets, large raw outputs, and generated reports are referenced by checksummed artifact records.
+Original input files and bundles, loose-source manifests, exported TEI, model artifacts, cached local datasets,
+large raw outputs, and generated reports are referenced by checksummed artifact records. API and worker
+processes share the same artifact-storage namespace; task messages carry artifact-owning domain IDs rather
+than locators or bytes.
 
 ### Browser client boundary
 The planned Vue 3 + TypeScript + Vite UI consumes the public `/api/v1` interface like any other client. It receives domain resources, typed JSON, downloads, and optional SSE progress only. It does not see SQLAlchemy models, Celery task IDs, Redis keys, queue names, worker identities, or filesystem paths. OpenAPI is the machine-readable transport contract. See `17-frontend-integration.md`.

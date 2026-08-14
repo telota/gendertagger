@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from datetime import UTC, datetime
 from io import BytesIO
 from pathlib import Path
@@ -26,21 +25,27 @@ from gendertagger.models.classification import (
     CanonicalLabel,
     CertaintyTier,
 )
-from gendertagger.models.dispatch import AggregationDispatchCreate
+from gendertagger.models.dispatch import AggregationDispatchCreate, SnapshotDispatchCreate
 from gendertagger.models.lifecycle import (
     AggregationExecutionStatus,
     DatasetSnapshotStatus,
     RunStatus,
 )
-from gendertagger.models.person import PersonInput, PersonRecord
+from gendertagger.models.person import PersonRecord
 from gendertagger.models.project import (
     DatasetSnapshot,
     DatasetSnapshotCreate,
     Project,
     ProjectCreate,
+    SnapshotImportConfig,
     SnapshotImportRequest,
-    TeiImportProfile,
+    SnapshotImportTaskMessage,
+    SourceFormat,
+    SourceManifestV1,
+    SourcePackaging,
+    TabularImportProfile,
 )
+from gendertagger.models.queues import CPU_QUEUE
 from gendertagger.models.review import (
     Annotation,
     AnnotationCreate,
@@ -62,7 +67,12 @@ from gendertagger.services.persistence_errors import (
     ResourceNotFoundError,
 )
 from gendertagger.services.project_repository import ProjectRepository
-from gendertagger.services.projects import ProjectService
+from gendertagger.services.projects import (
+    InvalidSnapshotSourceError,
+    ProjectService,
+    SnapshotUpload,
+    SnapshotUploadTooLargeError,
+)
 from gendertagger.services.review_items import ReviewItemService
 from gendertagger.services.review_repository import ReviewRepository
 from gendertagger.services.run_repository import RunRepository
@@ -212,7 +222,7 @@ def _project_service(
     unit_of_work: StubUnitOfWork,
     artifact_root: Path,
     max_upload_bytes: int = 100_000,
-    import_batch_record_count: int = 2,
+    max_total_upload_bytes: int | None = None,
 ) -> ProjectService:
     return ProjectService(
         unit_of_work_factory=unit_of_work.factory,
@@ -221,15 +231,13 @@ def _project_service(
         cursor_codec=CursorCodec(),
         clock=lambda: NOW,
         max_upload_bytes=max_upload_bytes,
-        import_batch_record_count=import_batch_record_count,
+        max_total_upload_bytes=max_total_upload_bytes,
     )
 
 
 def _configure_import_repositories(
     project_repository: Mock,
     artifact_repository: Mock,
-    *,
-    terminal_status: DatasetSnapshotStatus,
 ) -> None:
     project_repository.get_project.return_value = _project()
     snapshot_commands: list[DatasetSnapshotCreate] = []
@@ -237,68 +245,21 @@ def _configure_import_repositories(
     def add_artifact(command: ArtifactCreate) -> Artifact:
         return Artifact(id=ARTIFACT_ID, created_at=NOW, **command.model_dump())
 
-    def snapshot_with_status(
-        status: DatasetSnapshotStatus,
-        *,
-        failure_diagnostic: str | None = None,
-    ) -> DatasetSnapshot:
+    def pending_snapshot() -> DatasetSnapshot:
         command = snapshot_commands[0]
-        record_count = 3 if status is DatasetSnapshotStatus.ready else None
-        ready_at = NOW if status is DatasetSnapshotStatus.ready else None
-        stored_failure_diagnostic = (
-            failure_diagnostic or "invalid TEI" if status is DatasetSnapshotStatus.failed else None
-        )
         return DatasetSnapshot(
             id=SNAPSHOT_ID,
-            status=status,
+            status=DatasetSnapshotStatus.pending,
             created_at=NOW,
             **command.model_dump(),
-            record_count=record_count,
-            ready_at=ready_at,
-            failure_diagnostic=stored_failure_diagnostic,
         )
 
     def add_snapshot(command: DatasetSnapshotCreate) -> DatasetSnapshot:
         snapshot_commands.append(command)
-        return snapshot_with_status(DatasetSnapshotStatus.pending)
-
-    def begin_snapshot_import(snapshot_id: UUID) -> DatasetSnapshot:
-        assert snapshot_id == SNAPSHOT_ID
-        return snapshot_with_status(DatasetSnapshotStatus.importing)
-
-    def complete_snapshot_import(
-        snapshot_id: UUID,
-        *,
-        ready_at: datetime,
-    ) -> DatasetSnapshot:
-        assert snapshot_id == SNAPSHOT_ID
-        assert ready_at == NOW
-        return snapshot_with_status(DatasetSnapshotStatus.ready)
-
-    def fail_snapshot_import(
-        snapshot_id: UUID,
-        *,
-        failure_diagnostic: str,
-    ) -> DatasetSnapshot:
-        assert snapshot_id == SNAPSHOT_ID
-        return snapshot_with_status(
-            DatasetSnapshotStatus.failed,
-            failure_diagnostic=failure_diagnostic,
-        )
+        return pending_snapshot()
 
     artifact_repository.add_artifact.side_effect = add_artifact
     project_repository.add_snapshot.side_effect = add_snapshot
-    project_repository.begin_snapshot_import.side_effect = begin_snapshot_import
-    project_repository.complete_snapshot_import.side_effect = complete_snapshot_import
-    project_repository.fail_snapshot_import.side_effect = fail_snapshot_import
-    if terminal_status is DatasetSnapshotStatus.ready:
-        project_repository.fail_snapshot_import.side_effect = AssertionError(
-            "valid TEI must not fail"
-        )
-    else:
-        project_repository.complete_snapshot_import.side_effect = AssertionError(
-            "invalid TEI must not become ready"
-        )
 
 
 def test_project_service_validates_limits_and_project_resources(tmp_path: Path) -> None:
@@ -323,11 +284,11 @@ def test_project_service_validates_limits_and_project_resources(tmp_path: Path) 
             artifact_root=tmp_path,
             max_upload_bytes=0,
         )
-    with pytest.raises(ValueError, match="import_batch_record_count must be positive"):
+    with pytest.raises(ValueError, match="max_total_upload_bytes must be positive"):
         _project_service(
             unit_of_work=unit_of_work,
             artifact_root=tmp_path,
-            import_batch_record_count=0,
+            max_total_upload_bytes=0,
         )
 
 
@@ -363,30 +324,16 @@ def test_project_service_reads_snapshots_and_paginates_ready_people(tmp_path: Pa
         service.get_snapshot(SNAPSHOT_ID)
 
 
-def test_project_service_imports_valid_tei_in_bounded_batches(tmp_path: Path) -> None:
+def test_project_service_stages_upload_and_atomically_queues_snapshot(tmp_path: Path) -> None:
     project_repository = Mock(spec=ProjectRepository)
     artifact_repository = Mock(spec=ArtifactRepository)
-    _configure_import_repositories(
-        project_repository,
-        artifact_repository,
-        terminal_status=DatasetSnapshotStatus.ready,
-    )
-    persisted_batches: list[list[str]] = []
-    persisted_people: list[PersonInput] = []
-
-    def persist_batch(
-        snapshot_id: UUID,
-        batch: Sequence[PersonInput],
-    ) -> int:
-        assert snapshot_id == SNAPSHOT_ID
-        persisted_batches.append([person.tei_id for person in batch])
-        persisted_people.extend(batch)
-        return len(batch)
-
-    project_repository.add_person_records.side_effect = persist_batch
+    dispatch_repository = Mock(spec=DispatchRepository)
+    _configure_import_repositories(project_repository, artifact_repository)
+    project_repository.get_project.return_value = _project()
     unit_of_work = StubUnitOfWork(
         projects=project_repository,
         artifacts=artifact_repository,
+        dispatches=dispatch_repository,
     )
     service = _project_service(unit_of_work=unit_of_work, artifact_root=tmp_path)
 
@@ -396,31 +343,46 @@ def test_project_service_imports_valid_tei_in_bounded_batches(tmp_path: Path) ->
         command=SnapshotImportRequest(),
     )
 
-    assert snapshot.status is DatasetSnapshotStatus.ready
-    assert persisted_batches == [["p3", "p1"], ["p2"]]
-    assert all(person.name_forms is not None for person in persisted_people)
+    assert snapshot.status is DatasetSnapshotStatus.pending
+    project_repository.add_person_records.assert_not_called()
+    project_repository.begin_snapshot_import.assert_not_called()
     artifact_command = artifact_repository.add_artifact.call_args.args[0]
     assert artifact_command.project_id == PROJECT_ID
     assert artifact_command.sha256 == snapshot.source_sha256
+    with LocalArtifactStorage(tmp_path).open(artifact_command.storage_uri) as stored_source:
+        assert stored_source.read() == VALID_TEI
     snapshot_command = project_repository.add_snapshot.call_args.args[0]
-    assert snapshot_command.parser_version == "tei_parser_v2"
-    assert snapshot_command.import_config == {
-        "profile": TeiImportProfile.tei_p5_person_register_v2.value
-    }
-    assert unit_of_work.commit_count == 5
+    assert snapshot_command.parser_version == (
+        "tei_parser_v3+tei_collection_v1+tei_single_source_v1"
+    )
+    import_config = SnapshotImportConfig.model_validate(snapshot_command.import_config)
+    assert import_config.profile.value == "tei_p5_person_register_v3"
+    assert import_config.source_format.value == "tei"
+    assert import_config.packaging.value == "single"
+    assert import_config.limits.max_member_expanded_bytes == 100_000
+    source_member_command = project_repository.add_snapshot_source_members.call_args.args
+    assert source_member_command[0] == SNAPSHOT_ID
+    assert [member.logical_name for member in source_member_command[1]] == ["source.xml"]
+    dispatch_command = dispatch_repository.ensure_dispatch.call_args.args[0]
+    assert dispatch_command == SnapshotDispatchCreate(
+        dataset_snapshot_id=SNAPSHOT_ID,
+        queue_name=CPU_QUEUE,
+        payload=SnapshotImportTaskMessage(dataset_snapshot_id=SNAPSHOT_ID),
+        available_at=NOW,
+    )
+    assert unit_of_work.commit_count == 1
 
 
-def test_project_service_persists_failed_snapshot_for_invalid_tei(tmp_path: Path) -> None:
+def test_project_service_does_not_parse_invalid_tei_before_acceptance(tmp_path: Path) -> None:
     project_repository = Mock(spec=ProjectRepository)
     artifact_repository = Mock(spec=ArtifactRepository)
-    _configure_import_repositories(
-        project_repository,
-        artifact_repository,
-        terminal_status=DatasetSnapshotStatus.failed,
-    )
+    dispatch_repository = Mock(spec=DispatchRepository)
+    _configure_import_repositories(project_repository, artifact_repository)
+    project_repository.get_project.return_value = _project()
     unit_of_work = StubUnitOfWork(
         projects=project_repository,
         artifacts=artifact_repository,
+        dispatches=dispatch_repository,
     )
     service = _project_service(unit_of_work=unit_of_work, artifact_root=tmp_path)
 
@@ -430,10 +392,165 @@ def test_project_service_persists_failed_snapshot_for_invalid_tei(tmp_path: Path
         command=SnapshotImportRequest(),
     )
 
-    assert snapshot.status is DatasetSnapshotStatus.failed
-    diagnostic = project_repository.fail_snapshot_import.call_args.kwargs["failure_diagnostic"]
-    assert diagnostic
-    assert unit_of_work.commit_count == 3
+    assert snapshot.status is DatasetSnapshotStatus.pending
+    project_repository.fail_snapshot_import.assert_not_called()
+    assert unit_of_work.commit_count == 1
+
+
+def test_project_service_does_not_commit_without_durable_dispatch(tmp_path: Path) -> None:
+    project_repository = Mock(spec=ProjectRepository)
+    artifact_repository = Mock(spec=ArtifactRepository)
+    dispatch_repository = Mock(spec=DispatchRepository)
+    _configure_import_repositories(project_repository, artifact_repository)
+    project_repository.get_project.return_value = _project()
+    dispatch_repository.ensure_dispatch.side_effect = RuntimeError("outbox unavailable")
+    unit_of_work = StubUnitOfWork(
+        projects=project_repository,
+        artifacts=artifact_repository,
+        dispatches=dispatch_repository,
+    )
+    service = _project_service(unit_of_work=unit_of_work, artifact_root=tmp_path)
+
+    with pytest.raises(RuntimeError, match="outbox unavailable"):
+        service.import_snapshot(
+            project_id=PROJECT_ID,
+            source=BytesIO(VALID_TEI),
+            command=SnapshotImportRequest(),
+        )
+
+    assert unit_of_work.commit_count == 0
+
+
+def test_project_service_builds_deterministic_loose_source_manifest(tmp_path: Path) -> None:
+    project_repository = Mock(spec=ProjectRepository)
+    artifact_repository = Mock(spec=ArtifactRepository)
+    dispatch_repository = Mock(spec=DispatchRepository)
+    _configure_import_repositories(project_repository, artifact_repository)
+    project_repository.get_project.return_value = _project()
+    unit_of_work = StubUnitOfWork(
+        projects=project_repository,
+        artifacts=artifact_repository,
+        dispatches=dispatch_repository,
+    )
+    service = _project_service(unit_of_work=unit_of_work, artifact_root=tmp_path)
+
+    service.import_snapshot(
+        project_id=PROJECT_ID,
+        sources=[
+            SnapshotUpload(source=BytesIO(b"letter B"), filename="B.xml"),
+            SnapshotUpload(source=BytesIO(b"letter A"), filename="A.xml"),
+        ],
+        command=SnapshotImportRequest(packaging=SourcePackaging.loose),
+    )
+
+    artifact_commands = [call.args[0] for call in artifact_repository.add_artifact.call_args_list]
+    assert [command.metadata["logical_name"] for command in artifact_commands[:2]] == [
+        "A.xml",
+        "B.xml",
+    ]
+    assert artifact_commands[2].logical_type == "source_manifest"
+    with LocalArtifactStorage(tmp_path).open(artifact_commands[2].storage_uri) as stored_manifest:
+        manifest_bytes = stored_manifest.read()
+    manifest = SourceManifestV1.model_validate_json(manifest_bytes)
+    assert [member.logical_name for member in manifest.members] == ["A.xml", "B.xml"]
+    assert manifest.canonical_bytes() == manifest_bytes
+    source_member_commands = project_repository.add_snapshot_source_members.call_args.args[1]
+    assert [member.logical_name for member in source_member_commands] == [
+        "A.xml",
+        "B.xml",
+    ]
+
+
+def test_project_service_uses_snapshot_import_version_registry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_repository = Mock(spec=ProjectRepository)
+    artifact_repository = Mock(spec=ArtifactRepository)
+    dispatch_repository = Mock(spec=DispatchRepository)
+    _configure_import_repositories(project_repository, artifact_repository)
+    project_repository.get_project.return_value = _project()
+    unit_of_work = StubUnitOfWork(
+        projects=project_repository,
+        artifacts=artifact_repository,
+        dispatches=dispatch_repository,
+    )
+    service = _project_service(unit_of_work=unit_of_work, artifact_root=tmp_path)
+    resolved_version = "tabular-test-version"
+
+    def resolve_version(command: SnapshotImportRequest) -> str:
+        del command
+        return resolved_version
+
+    monkeypatch.setattr(
+        "gendertagger.services.projects.version_for_snapshot_import",
+        resolve_version,
+    )
+
+    service.import_snapshot(
+        project_id=PROJECT_ID,
+        sources=[SnapshotUpload(source=BytesIO(b"[]"), filename="people.json")],
+        command=SnapshotImportRequest(
+            source_format=SourceFormat.json,
+            profile=TabularImportProfile.tei_equivalent_person_register_v1,
+        ),
+    )
+
+    snapshot_command = project_repository.add_snapshot.call_args.args[0]
+    assert snapshot_command.parser_version == resolved_version
+
+
+def test_project_service_distinguishes_malformed_sources_from_aggregate_overflow(
+    tmp_path: Path,
+) -> None:
+    project_repository = Mock(spec=ProjectRepository)
+    project_repository.get_project.return_value = _project()
+    unit_of_work = StubUnitOfWork(projects=project_repository)
+    service = _project_service(
+        unit_of_work=unit_of_work,
+        artifact_root=tmp_path,
+        max_upload_bytes=10,
+        max_total_upload_bytes=10,
+    )
+
+    with pytest.raises(InvalidSnapshotSourceError, match="collide"):
+        service.import_snapshot(
+            project_id=PROJECT_ID,
+            sources=[
+                SnapshotUpload(source=BytesIO(b"one"), filename="A.xml"),
+                SnapshotUpload(source=BytesIO(b"two"), filename="a.XML"),
+            ],
+            command=SnapshotImportRequest(packaging=SourcePackaging.loose),
+        )
+
+    with pytest.raises(InvalidSnapshotSourceError, match="basenames collide"):
+        service.import_snapshot(
+            project_id=PROJECT_ID,
+            sources=[
+                SnapshotUpload(source=BytesIO(b"one"), filename="one/A.xml"),
+                SnapshotUpload(source=BytesIO(b"two"), filename="two/a.XML"),
+            ],
+            command=SnapshotImportRequest(packaging=SourcePackaging.loose),
+        )
+
+    with pytest.raises(InvalidSnapshotSourceError, match="control character"):
+        service.import_snapshot(
+            project_id=PROJECT_ID,
+            sources=[
+                SnapshotUpload(source=BytesIO(b"one"), filename="A\u202e.xml"),
+            ],
+            command=SnapshotImportRequest(packaging=SourcePackaging.loose),
+        )
+
+    with pytest.raises(SnapshotUploadTooLargeError, match="aggregate upload limit"):
+        service.import_snapshot(
+            project_id=PROJECT_ID,
+            sources=[
+                SnapshotUpload(source=BytesIO(b"123456"), filename="A.xml"),
+                SnapshotUpload(source=BytesIO(b"abcdef"), filename="B.xml"),
+            ],
+            command=SnapshotImportRequest(packaging=SourcePackaging.loose),
+        )
 
 
 def _run(command: RunCreate) -> Run:

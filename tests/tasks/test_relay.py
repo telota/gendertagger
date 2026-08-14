@@ -8,6 +8,7 @@ import pytest
 from pydantic import SecretStr, ValidationError
 
 from gendertagger.models.aggregation import AggregationTaskMessage
+from gendertagger.models.project import SnapshotImportTaskMessage
 from gendertagger.models.run import TaskBatchMessage
 from gendertagger.services.dispatch import (
     DispatchReconciler,
@@ -19,12 +20,14 @@ from gendertagger.tasks.aggregation import EXECUTE_AGGREGATION_TASK_NAME
 from gendertagger.tasks.dispatch import CeleryMessagePublisher
 from gendertagger.tasks.execution import EXECUTE_BATCH_TASK_NAME
 from gendertagger.tasks.relay import DispatchCoordinator, DispatchCoordinatorSettings
+from gendertagger.tasks.snapshot_import import EXECUTE_SNAPSHOT_IMPORT_TASK_NAME
 
 pytestmark = pytest.mark.unit
 
 BATCH_ID = UUID("20000000-0000-0000-0000-000000000001")
 EXECUTION_ID = UUID("30000000-0000-0000-0000-000000000001")
 AGGREGATION_ID = UUID("40000000-0000-0000-0000-000000000001")
+SNAPSHOT_ID = UUID("50000000-0000-0000-0000-000000000001")
 
 
 class _FakeRelay:
@@ -82,6 +85,22 @@ def test_celery_publisher_routes_aggregation_envelope_by_stable_task_id() -> Non
         kwargs={"aggregation_execution_id": str(AGGREGATION_ID)},
         queue="cpu",
         task_id=str(AGGREGATION_ID),
+        retry=False,
+    )
+
+
+def test_celery_publisher_routes_snapshot_import_by_stable_task_id() -> None:
+    celery_app = Mock()
+    publisher = CeleryMessagePublisher(celery_app)
+    message = SnapshotImportTaskMessage(dataset_snapshot_id=SNAPSHOT_ID)
+
+    publisher.publish(message, queue_name="cpu", task_id=SNAPSHOT_ID)
+
+    celery_app.send_task.assert_called_once_with(
+        EXECUTE_SNAPSHOT_IMPORT_TASK_NAME,
+        kwargs={"dataset_snapshot_id": str(SNAPSHOT_ID)},
+        queue="cpu",
+        task_id=str(SNAPSHOT_ID),
         retry=False,
     )
 

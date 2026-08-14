@@ -94,6 +94,7 @@ def _seed_completed_reference_executions(
                 source_artifact_id=artifact.id,
                 source_sha256=artifact.sha256,
                 parser_version="tei_parser_v1",
+                import_config={"profile": "tei_p5_person_register_v1"},
             )
         )
         unit_of_work.projects.begin_snapshot_import(snapshot.id)

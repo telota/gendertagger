@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from gendertagger.models.aggregation import AggregationTaskMessage
 from gendertagger.models.common import UtcDatetime
+from gendertagger.models.project import SnapshotImportTaskMessage
 from gendertagger.models.run import QUEUE_NAME_PATTERN, TaskBatchMessage
 
 
@@ -16,6 +17,7 @@ class DispatchTarget(StrEnum):
 
     task_batch = "task_batch"
     aggregation_execution = "aggregation_execution"
+    dataset_snapshot = "dataset_snapshot"
 
 
 class BatchDispatchStatus(StrEnum):
@@ -71,6 +73,30 @@ class AggregationDispatchCreate(BaseModel):
     def target_id(self) -> UUID:
         """Return the stable work and broker-task identifier."""
         return self.aggregation_execution_id
+
+
+class SnapshotDispatchCreate(BaseModel):
+    """Validated durable dispatch intent for one dataset-snapshot import."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    target: Literal[DispatchTarget.dataset_snapshot] = DispatchTarget.dataset_snapshot
+    dataset_snapshot_id: UUID
+    queue_name: str = Field(pattern=QUEUE_NAME_PATTERN, max_length=100)
+    payload: SnapshotImportTaskMessage
+    available_at: UtcDatetime
+
+    @model_validator(mode="after")
+    def _validate_payload_identity(self) -> Self:
+        if self.payload.dataset_snapshot_id != self.dataset_snapshot_id:
+            msg = "dispatch payload dataset_snapshot_id must match its durable dispatch"
+            raise ValueError(msg)
+        return self
+
+    @property
+    def target_id(self) -> UUID:
+        """Return the stable work and broker-task identifier."""
+        return self.dataset_snapshot_id
 
 
 class BatchDispatch(BatchDispatchCreate):
@@ -151,12 +177,51 @@ class AggregationDispatch(AggregationDispatchCreate):
         return self
 
 
+class SnapshotDispatch(SnapshotDispatchCreate):
+    """Canonical read model for one durable snapshot-import dispatch attempt."""
+
+    id: UUID
+    status: BatchDispatchStatus
+    attempt_count: int = Field(ge=0)
+    lease_owner: str | None = Field(default=None, max_length=255)
+    lease_until: UtcDatetime | None = None
+    published_at: UtcDatetime | None = None
+    last_error: str | None = None
+    created_at: UtcDatetime
+    updated_at: UtcDatetime
+
+    @field_validator("lease_owner")
+    @classmethod
+    def _validate_lease_owner(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            msg = "dispatch lease_owner must not be blank"
+            raise ValueError(msg)
+        return value
+
+    @model_validator(mode="after")
+    def _validate_delivery_state(self) -> Self:
+        if (self.lease_owner is None) != (self.lease_until is None):
+            msg = "dispatch lease_owner and lease_until must be present together"
+            raise ValueError(msg)
+        if self.status is BatchDispatchStatus.pending:
+            if self.published_at is not None:
+                msg = "a pending dispatch must not have published_at"
+                raise ValueError(msg)
+        elif self.published_at is None:
+            msg = "a published dispatch requires published_at"
+            raise ValueError(msg)
+        elif self.lease_owner is not None:
+            msg = "a published dispatch must not retain a relay lease"
+            raise ValueError(msg)
+        return self
+
+
 DispatchCreate: TypeAlias = Annotated[
-    BatchDispatchCreate | AggregationDispatchCreate,
+    BatchDispatchCreate | AggregationDispatchCreate | SnapshotDispatchCreate,
     Field(discriminator="target"),
 ]
 Dispatch: TypeAlias = Annotated[
-    BatchDispatch | AggregationDispatch,
+    BatchDispatch | AggregationDispatch | SnapshotDispatch,
     Field(discriminator="target"),
 ]
-DispatchMessage: TypeAlias = TaskBatchMessage | AggregationTaskMessage
+DispatchMessage: TypeAlias = TaskBatchMessage | AggregationTaskMessage | SnapshotImportTaskMessage

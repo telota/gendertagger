@@ -5,12 +5,19 @@ import pytest
 from pydantic import ValidationError
 
 from gendertagger.models.lifecycle import DatasetSnapshotStatus
-from gendertagger.models.person import PersonNameForm, PersonNameType, PersonRecord
+from gendertagger.models.person import PersonEvent, PersonNameForm, PersonNameType, PersonRecord
 from gendertagger.models.project import (
     DatasetSnapshot,
     DatasetSnapshotCreate,
     ProjectCreate,
+    SnapshotImportConfig,
+    SnapshotImportLimits,
     SnapshotImportRequest,
+    SourceFormat,
+    SourceManifestMember,
+    SourceManifestV1,
+    SourcePackaging,
+    TabularImportProfile,
     TeiImportProfile,
 )
 
@@ -49,18 +56,125 @@ def test_project_create_rejects_blank_display_name_and_unknown_fields() -> None:
         )
 
 
-def test_snapshot_import_request_defaults_to_v2_and_keeps_v1_selectable() -> None:
+def test_snapshot_import_request_defaults_to_v3_and_keeps_older_profiles_selectable() -> None:
     command = SnapshotImportRequest()
 
     assert command.model_dump(mode="json") == {
-        "profile": TeiImportProfile.tei_p5_person_register_v2.value
+        "source_format": SourceFormat.tei.value,
+        "packaging": SourcePackaging.single.value,
+        "profile": TeiImportProfile.tei_p5_person_register_v3.value,
     }
     assert (
         SnapshotImportRequest(profile=TeiImportProfile.tei_p5_person_register_v1).profile
         is TeiImportProfile.tei_p5_person_register_v1
     )
+    assert (
+        SnapshotImportRequest(profile=TeiImportProfile.tei_p5_person_register_v2).profile
+        is TeiImportProfile.tei_p5_person_register_v2
+    )
     with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
         SnapshotImportRequest.model_validate({"unknown_option": True})
+
+
+def test_snapshot_import_request_pairs_profiles_with_supported_sources() -> None:
+    tei_bundle = SnapshotImportRequest(packaging=SourcePackaging.tar_gz)
+    tabular = SnapshotImportRequest(
+        source_format=SourceFormat.csv,
+        profile=TabularImportProfile.tei_equivalent_person_register_v1,
+    )
+
+    assert tei_bundle.packaging is SourcePackaging.tar_gz
+    assert tabular.profile is TabularImportProfile.tei_equivalent_person_register_v1
+    with pytest.raises(ValidationError, match="TEI import profile"):
+        SnapshotImportRequest(source_format=SourceFormat.json)
+    with pytest.raises(ValidationError, match="requires CSV, XLSX, or JSON"):
+        SnapshotImportRequest(
+            source_format=SourceFormat.tei,
+            profile=TabularImportProfile.tei_equivalent_person_register_v1,
+        )
+    with pytest.raises(ValidationError, match="packaging='single'"):
+        SnapshotImportRequest(
+            source_format=SourceFormat.xlsx,
+            packaging=SourcePackaging.zip,
+            profile=TabularImportProfile.tei_equivalent_person_register_v1,
+        )
+
+
+def test_source_manifest_has_deterministic_bytes_and_safe_unique_names() -> None:
+    manifest = SourceManifestV1(
+        source_format=SourceFormat.tei,
+        packaging=SourcePackaging.loose,
+        members=(
+            SourceManifestMember(
+                logical_name="register/Ä.xml",
+                sha256="a" * 64,
+                byte_size=10,
+                media_type="application/tei+xml",
+            ),
+        ),
+    )
+
+    assert manifest.canonical_bytes() == (
+        b'{"members":[{"byte_size":10,"logical_name":"register/'
+        + "Ä".encode()
+        + b'.xml","media_type":"application/tei+xml","sha256":"'
+        + b"a" * 64
+        + b'"}],"packaging":"loose","source_format":"tei","version":1}'
+    )
+    assert SourceManifestV1.model_validate_json(manifest.canonical_bytes()) == manifest
+
+    member = manifest.members[0]
+    with pytest.raises(ValidationError, match="must be unique"):
+        SourceManifestV1(
+            source_format=SourceFormat.tei,
+            packaging=SourcePackaging.loose,
+            members=(
+                member,
+                member.model_copy(update={"logical_name": "REGISTER/ä.XML"}),
+            ),
+        )
+    with pytest.raises(ValidationError, match="basenames must be unique"):
+        SourceManifestV1(
+            source_format=SourceFormat.tei,
+            packaging=SourcePackaging.loose,
+            members=(
+                member.model_copy(update={"logical_name": "one/A.xml"}),
+                member.model_copy(update={"logical_name": "two/a.XML"}),
+            ),
+        )
+    with pytest.raises(ValidationError, match="unsafe path segment"):
+        SourceManifestMember(
+            logical_name="../register.xml",
+            sha256="a" * 64,
+            byte_size=10,
+            media_type="application/tei+xml",
+        )
+    with pytest.raises(ValidationError, match="control character"):
+        SourceManifestMember(
+            logical_name="register\u202e.xml",
+            sha256="a" * 64,
+            byte_size=10,
+            media_type="application/tei+xml",
+        )
+
+
+def test_snapshot_import_config_freezes_resolved_positive_limits() -> None:
+    limits = SnapshotImportLimits(
+        max_member_count=100,
+        max_member_expanded_bytes=10_000,
+        max_total_expanded_bytes=20_000,
+        max_compression_ratio=20,
+        max_record_count=1_000,
+        max_cell_bytes=10_000,
+    )
+    config = SnapshotImportConfig(limits=limits)
+
+    assert config.profile is TeiImportProfile.tei_p5_person_register_v3
+    assert config.limits.max_record_count == 1_000
+    with pytest.raises(ValidationError):
+        SnapshotImportLimits.model_validate(
+            limits.model_copy(update={"max_compression_ratio": 1}).model_dump()
+        )
 
 
 @pytest.mark.parametrize("slug", ["Uppercase", "two_words", "-leading", "trailing-"])
@@ -153,6 +267,7 @@ def test_person_record_preserves_snapshot_scoped_source_fields() -> None:
         birth="1900",
         death=None,
         note="Synthetic fixture",
+        events=[PersonEvent(type="wedding", when="1820", note="In Berlin")],
         alt_names=["A. Example"],
         name_forms=[
             PersonNameForm(
@@ -168,6 +283,8 @@ def test_person_record_preserves_snapshot_scoped_source_fields() -> None:
         ],
         gnd_id="123456789",
         external_ids={"wikidata": "Q1"},
+        source_member_name="register.xml",
+        source_record_locator="xml:id:person-1",
         created_at=CREATED_AT,
     )
 
@@ -178,6 +295,7 @@ def test_person_record_preserves_snapshot_scoped_source_fields() -> None:
         "birth": "1900",
         "death": None,
         "note": "Synthetic fixture",
+        "events": [{"type": "wedding", "when": "1820", "note": "In Berlin"}],
         "alt_names": ["A. Example"],
         "name_forms": [
             {
@@ -199,5 +317,7 @@ def test_person_record_preserves_snapshot_scoped_source_fields() -> None:
         "external_ids": {"wikidata": "Q1"},
         "id": str(PERSON_ID),
         "dataset_snapshot_id": str(SNAPSHOT_ID),
+        "source_member_name": "register.xml",
+        "source_record_locator": "xml:id:person-1",
         "created_at": "2026-08-13T10:00:00Z",
     }

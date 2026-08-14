@@ -4,15 +4,18 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import Engine, select
+from sqlalchemy import Engine, insert, select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.db.aggregations import AggregationExecutionRow
 from gendertagger.db.artifact_repository import SqlAlchemyArtifactRepository
 from gendertagger.db.dispatch_repository import SqlAlchemyDispatchRepository
+from gendertagger.db.dispatches import BatchDispatchRow
 from gendertagger.db.executions import TaskBatchRow
 from gendertagger.db.project_repository import SqlAlchemyProjectRepository
+from gendertagger.db.projects import DatasetSnapshotRow
 from gendertagger.db.run_repository import SqlAlchemyRunRepository
 from gendertagger.models.aggregation import AggregationTaskMessage
 from gendertagger.models.artifact import ArtifactCreate
@@ -20,11 +23,17 @@ from gendertagger.models.dispatch import (
     AggregationDispatchCreate,
     BatchDispatchCreate,
     BatchDispatchStatus,
+    SnapshotDispatchCreate,
 )
 from gendertagger.models.lifecycle import AggregationExecutionStatus
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.person import PersonInput
-from gendertagger.models.project import DatasetSnapshotCreate, ProjectCreate
+from gendertagger.models.project import (
+    DatasetSnapshot,
+    DatasetSnapshotCreate,
+    ProjectCreate,
+    SnapshotImportTaskMessage,
+)
 from gendertagger.models.run import (
     MethodExecution,
     MethodExecutionCreate,
@@ -71,6 +80,7 @@ def _execution_context(
             source_artifact_id=source.id,
             source_sha256=source.sha256,
             parser_version="tei_parser_v1",
+            import_config={"profile": "tei_p5_person_register_v1"},
         )
     )
     projects.begin_snapshot_import(snapshot.id)
@@ -166,6 +176,52 @@ def _aggregation_dispatch_command(
     )
 
 
+def _pending_snapshot_context(
+    session: Session,
+) -> tuple[SqlAlchemyProjectRepository, DatasetSnapshot]:
+    artifacts = SqlAlchemyArtifactRepository(session)
+    source = artifacts.add_artifact(
+        ArtifactCreate(
+            logical_type="source_tei",
+            storage_uri=f"file:///synthetic/snapshot-dispatch-{uuid4().hex}.xml",
+            sha256=uuid4().hex * 2,
+            byte_size=1,
+            media_type="application/tei+xml",
+        )
+    )
+    projects = SqlAlchemyProjectRepository(session)
+    project = projects.add_project(
+        ProjectCreate(
+            slug=f"snapshot-dispatch-{uuid4().hex}",
+            display_name="Snapshot dispatch repository project",
+        )
+    )
+    snapshot = projects.add_snapshot(
+        DatasetSnapshotCreate(
+            project_id=project.id,
+            source_artifact_id=source.id,
+            source_sha256=source.sha256,
+            parser_version="tei_parser_v2",
+            import_config={"profile": "tei_p5_person_register_v2"},
+        )
+    )
+    return projects, snapshot
+
+
+def _snapshot_dispatch_command(
+    snapshot: DatasetSnapshot,
+    *,
+    available_at: datetime,
+    queue_name: str = "cpu",
+) -> SnapshotDispatchCreate:
+    return SnapshotDispatchCreate(
+        dataset_snapshot_id=snapshot.id,
+        queue_name=queue_name,
+        payload=SnapshotImportTaskMessage(dataset_snapshot_id=snapshot.id),
+        available_at=available_at,
+    )
+
+
 def test_ensure_dispatch_is_idempotent_per_task_batch(db_session: Session) -> None:
     _, _, execution, batch = _execution_context(db_session)
     repository = SqlAlchemyDispatchRepository(db_session)
@@ -206,6 +262,111 @@ def test_ensure_dispatch_is_exact_and_idempotent_per_aggregation(
 
     assert rescheduled.id == first.id
     assert rescheduled.available_at == now
+
+
+def test_ensure_dispatch_is_exact_and_idempotent_per_snapshot(
+    db_session: Session,
+) -> None:
+    _, snapshot = _pending_snapshot_context(db_session)
+    repository = SqlAlchemyDispatchRepository(db_session)
+    now = datetime.now(UTC)
+    command = _snapshot_dispatch_command(snapshot, available_at=now)
+
+    first = repository.ensure_dispatch(command)
+    second = repository.ensure_dispatch(command)
+
+    assert first.id == second.id
+    assert first.payload == command.payload
+    assert first.status is BatchDispatchStatus.pending
+    assert repository.get_dispatch(first.id) == first
+    assert repository.get_dispatch_for_snapshot(snapshot.id) == first
+
+    rescheduled = repository.ensure_dispatch(
+        _snapshot_dispatch_command(
+            snapshot,
+            available_at=now + timedelta(seconds=1),
+        )
+    )
+
+    assert rescheduled.id == first.id
+    assert rescheduled.available_at == now
+
+
+@pytest.mark.parametrize(
+    ("has_batch", "has_aggregation", "has_snapshot"),
+    [
+        pytest.param(False, False, False, id="no-owner"),
+        pytest.param(True, True, False, id="batch-and-aggregation"),
+        pytest.param(True, False, True, id="batch-and-snapshot"),
+        pytest.param(False, True, True, id="aggregation-and-snapshot"),
+        pytest.param(True, True, True, id="all-owners"),
+    ],
+)
+def test_dispatch_schema_rejects_zero_or_multiple_owners(
+    db_session: Session,
+    *,
+    has_batch: bool,
+    has_aggregation: bool,
+    has_snapshot: bool,
+) -> None:
+    _, run, _, batch = _execution_context(db_session)
+    aggregation = AggregationExecutionRow(
+        run_id=run.id,
+        strategy="reference_v1",
+        resolved_config={},
+        config_sha256="a" * 64,
+        status=AggregationExecutionStatus.pending,
+    )
+    db_session.add(aggregation)
+    db_session.flush()
+    _, snapshot = _pending_snapshot_context(db_session)
+
+    with pytest.raises(DBAPIError) as error, db_session.begin_nested():
+        db_session.execute(
+            insert(BatchDispatchRow).values(
+                id=uuid4(),
+                task_batch_id=batch.id if has_batch else None,
+                aggregation_execution_id=aggregation.id if has_aggregation else None,
+                dataset_snapshot_id=snapshot.id if has_snapshot else None,
+                queue_name="cpu",
+                payload={},
+                available_at=datetime.now(UTC),
+            )
+        )
+
+    assert getattr(error.value.orig, "sqlstate", None) == "23514"
+    assert (
+        getattr(getattr(error.value.orig, "diag", None), "constraint_name", None)
+        == "ck_batch_dispatches_exactly_one_target"
+    )
+
+
+def test_snapshot_dispatch_requires_pending_target_and_cpu_queue(
+    db_session: Session,
+) -> None:
+    projects, snapshot = _pending_snapshot_context(db_session)
+    repository = SqlAlchemyDispatchRepository(db_session)
+    now = datetime.now(UTC)
+
+    with pytest.raises(InvalidResourceStateError, match="must use the cpu queue"):
+        repository.ensure_dispatch(
+            _snapshot_dispatch_command(snapshot, available_at=now, queue_name="default")
+        )
+
+    projects.begin_snapshot_import(snapshot.id)
+    with pytest.raises(InvalidResourceStateError, match="is not dispatchable"):
+        repository.ensure_dispatch(_snapshot_dispatch_command(snapshot, available_at=now))
+
+    unknown_snapshot_id = uuid4()
+    with pytest.raises(ResourceNotFoundError, match="does not exist"):
+        repository.ensure_dispatch(
+            SnapshotDispatchCreate(
+                dataset_snapshot_id=unknown_snapshot_id,
+                queue_name="cpu",
+                payload=SnapshotImportTaskMessage(dataset_snapshot_id=unknown_snapshot_id),
+                available_at=now,
+            )
+        )
 
 
 def test_ensure_dispatch_validates_batch_ownership(db_session: Session) -> None:
@@ -419,6 +580,76 @@ def test_reconciler_repairs_and_rearms_aggregation_dispatches(
     assert rearmed.published_at is None
 
 
+def test_reconciler_repairs_and_rearms_pending_snapshot_dispatches(
+    db_session: Session,
+) -> None:
+    _, snapshot = _pending_snapshot_context(db_session)
+    repository = SqlAlchemyDispatchRepository(db_session)
+    now = datetime.now(UTC)
+
+    assert repository.ensure_missing(now=now, limit=10) == 1
+    assert repository.ensure_missing(now=now, limit=10) == 0
+    dispatch = repository.get_dispatch_for_snapshot(snapshot.id)
+    assert dispatch is not None
+
+    repository.claim_available(
+        now=now,
+        lease_owner="relay-1",
+        lease_until=now + timedelta(seconds=30),
+        limit=1,
+    )
+    repository.mark_published(
+        dispatch.id,
+        lease_owner="relay-1",
+        published_at=now,
+    )
+
+    rearm_time = now + timedelta(minutes=10)
+    assert (
+        repository.rearm_stale_published(
+            now=rearm_time,
+            published_before=now + timedelta(minutes=5),
+            limit=10,
+        )
+        == 1
+    )
+    rearmed = repository.get_dispatch_for_snapshot(snapshot.id)
+    assert rearmed is not None
+    assert rearmed.status is BatchDispatchStatus.pending
+    assert rearmed.available_at == rearm_time
+    assert rearmed.published_at is None
+
+
+def test_reconciler_does_not_rearm_snapshot_claimed_by_import_worker(
+    db_session: Session,
+) -> None:
+    projects, snapshot = _pending_snapshot_context(db_session)
+    repository = SqlAlchemyDispatchRepository(db_session)
+    now = datetime.now(UTC)
+    dispatch = repository.ensure_dispatch(_snapshot_dispatch_command(snapshot, available_at=now))
+    repository.claim_available(
+        now=now,
+        lease_owner="relay-1",
+        lease_until=now + timedelta(seconds=30),
+        limit=1,
+    )
+    repository.mark_published(
+        dispatch.id,
+        lease_owner="relay-1",
+        published_at=now,
+    )
+    projects.begin_snapshot_import(snapshot.id)
+
+    assert (
+        repository.rearm_stale_published(
+            now=now + timedelta(minutes=10),
+            published_before=now + timedelta(minutes=5),
+            limit=10,
+        )
+        == 0
+    )
+
+
 def test_reconciler_does_not_rearm_an_aggregation_claimed_by_a_worker(
     db_session: Session,
 ) -> None:
@@ -612,6 +843,47 @@ def test_rearm_skips_an_aggregation_locked_by_a_worker(postgres_engine: Engine) 
             .with_for_update()
         )
         assert locked_aggregation is not None
+
+        rearmed_count = SqlAlchemyDispatchRepository(relay_session).rearm_stale_published(
+            now=now + timedelta(minutes=10),
+            published_before=now + timedelta(minutes=5),
+            limit=10,
+        )
+
+        assert rearmed_count == 0
+        worker_session.rollback()
+        relay_session.rollback()
+
+
+def test_rearm_skips_a_snapshot_locked_by_an_import_worker(postgres_engine: Engine) -> None:
+    now = datetime.now(UTC)
+    with Session(postgres_engine, autoflush=False, expire_on_commit=False) as seed_session:
+        _, snapshot = _pending_snapshot_context(seed_session)
+        seed_repository = SqlAlchemyDispatchRepository(seed_session)
+        dispatch = seed_repository.ensure_dispatch(
+            _snapshot_dispatch_command(snapshot, available_at=now)
+        )
+        seed_repository.claim_available(
+            now=now,
+            lease_owner="relay-1",
+            lease_until=now + timedelta(seconds=30),
+            limit=1,
+        )
+        seed_repository.mark_published(
+            dispatch.id,
+            lease_owner="relay-1",
+            published_at=now,
+        )
+        seed_session.commit()
+
+    with (
+        Session(postgres_engine, autoflush=False, expire_on_commit=False) as worker_session,
+        Session(postgres_engine, autoflush=False, expire_on_commit=False) as relay_session,
+    ):
+        locked_snapshot = worker_session.scalar(
+            select(DatasetSnapshotRow).where(DatasetSnapshotRow.id == snapshot.id).with_for_update()
+        )
+        assert locked_snapshot is not None
 
         rearmed_count = SqlAlchemyDispatchRepository(relay_session).rearm_stale_published(
             now=now + timedelta(minutes=10),

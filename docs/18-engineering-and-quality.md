@@ -63,6 +63,12 @@ late import or dynamic import.
 - TEI parsing disables external entity resolution, DTD/network loading, recovery, and unrestricted huge
   trees. Tests cover hostile as well as valid XML. Original bytes are hashed before parsing and are never
   mutated in place.
+- Package and tabular readers treat ZIP, TAR.GZ, and XLSX as untrusted containers. Tests cover path and name
+  ambiguity, special members, nested or encrypted content, decompression limits, workbook active content,
+  formulas, external links, and spreadsheet type coercion as well as valid imports.
+- Multi-source imports have deterministic member order, collection-wide identity checks, immutable manifests,
+  and record-level member/locator provenance. Parser and persistence tests cover every supported
+  format/packaging/profile combination.
 - Logs use identifiers and sanitized diagnostics; source content, secrets, and raw model responses are not
   emitted indiscriminately.
 

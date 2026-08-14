@@ -18,6 +18,7 @@ EXPECTED_TABLES = {
     "projects",
     "review_states",
     "runs",
+    "snapshot_source_members",
     "task_batches",
     "user_roles",
     "users",
@@ -43,16 +44,20 @@ def test_dispatch_schema_has_exactly_one_unique_foreign_key_owner() -> None:
 
     assert table.c.task_batch_id.nullable
     assert table.c.aggregation_execution_id.nullable
+    assert table.c.dataset_snapshot_id.nullable
     assert {constraint.name for constraint in table.constraints} >= {
         "task_batch_single_dispatch",
         "aggregation_execution_single_dispatch",
+        "dataset_snapshot_single_dispatch",
         "ck_batch_dispatches_exactly_one_target",
         "fk_batch_dispatches_task_batch_id_task_batches",
         "fk_batch_dispatches_aggregation_execution_id_aggregation_executions",
+        "fk_batch_dispatches_dataset_snapshot_id_dataset_snapshots",
     }
     assert {foreign_key.target_fullname for foreign_key in table.foreign_keys} >= {
         "task_batches.id",
         "aggregation_executions.id",
+        "dataset_snapshots.id",
     }
 
 
@@ -61,6 +66,29 @@ def test_person_schema_stores_optional_structured_name_forms_as_jsonb() -> None:
 
     assert table.c.name_forms.nullable
     assert isinstance(table.c.name_forms.type, postgresql.JSONB)
+    assert isinstance(table.c.events.type, postgresql.JSONB)
+    assert not table.c.events.nullable
+    assert table.c.source_member_name.nullable
+    assert table.c.source_record_locator.nullable
     assert {constraint.name for constraint in table.constraints} >= {
-        "ck_person_records_name_forms_array"
+        "ck_person_records_name_forms_array",
+        "ck_person_records_events_array",
+        "ck_person_records_source_provenance_complete",
+    }
+
+
+def test_snapshot_source_member_schema_has_ordered_unique_artifact_references() -> None:
+    table = metadata.tables["snapshot_source_members"]
+
+    assert {constraint.name for constraint in table.constraints} >= {
+        "snapshot_source_member_ordinal",
+        "snapshot_source_member_logical_name",
+        "ck_snapshot_source_members_ordinal_nonnegative",
+        "ck_snapshot_source_members_sha256_format",
+        "fk_snapshot_source_members_artifact_id_artifacts",
+        "fk_snapshot_source_members_dataset_snapshot_id_dataset_snapshots",
+    }
+    assert {foreign_key.target_fullname for foreign_key in table.foreign_keys} == {
+        "artifacts.id",
+        "dataset_snapshots.id",
     }

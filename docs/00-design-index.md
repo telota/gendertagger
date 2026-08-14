@@ -9,7 +9,7 @@
 | [`05-api.md`](05-api.md) | FastAPI resource model, endpoints, progress API |
 | [`06-task-queue.md`](06-task-queue.md) | Celery/Redis execution, queues, idempotency, retries |
 | [`07-methods-and-aggregation.md`](07-methods-and-aggregation.md) | Normative scientific pipeline behavior |
-| [`08-ingestion-and-export.md`](08-ingestion-and-export.md) | TEI import snapshots and reproducible exports |
+| [`08-ingestion-and-export.md`](08-ingestion-and-export.md) | Multi-format snapshot ingestion and reproducible exports |
 | [`09-annotation-and-review.md`](09-annotation-and-review.md) | Human review/game behavior and audit trail |
 | [`10-evaluation.md`](10-evaluation.md) | Benchmarks, metrics, agreement analysis |
 | [`11-provenance-and-reproducibility.md`](11-provenance-and-reproducibility.md) | Provenance model and run manifests |

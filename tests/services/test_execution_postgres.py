@@ -86,6 +86,7 @@ def _seed_created_run(factory: UnitOfWorkFactory) -> UUID:
                 source_artifact_id=source.id,
                 source_sha256=source.sha256,
                 parser_version="tei_parser_v1",
+                import_config={"profile": "tei_p5_person_register_v1"},
             )
         )
         unit_of_work.projects.begin_snapshot_import(snapshot.id)

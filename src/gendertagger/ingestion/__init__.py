@@ -1,1 +1,1 @@
-"""Secure TEI ingestion."""
+"""Secure, versioned person-register ingestion."""

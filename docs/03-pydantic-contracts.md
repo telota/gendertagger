@@ -69,6 +69,12 @@ class PersonNameForm(BaseModel):
     forenames: list[str] = Field(default_factory=list)
 
 
+class PersonEvent(BaseModel):
+    type: str
+    when: str | None = None
+    note: str | None = None
+
+
 class PersonInput(BaseModel):
     tei_id: str = Field(min_length=1)
     surname: str | None = None
@@ -76,6 +82,7 @@ class PersonInput(BaseModel):
     birth: str | None = None
     death: str | None = None
     note: str | None = None
+    events: list[PersonEvent] = Field(default_factory=list)
     alt_names: list[str] = Field(default_factory=list)
     name_forms: list[PersonNameForm] | None = None
     gnd_id: str | None = None
@@ -95,16 +102,88 @@ inside notes or events are not included. The contract rejects unknown fields; im
 structures they support.
 
 `name_forms=None` is a provenance value: it means the legacy parser profile did not capture the structured
-forms. A populated list means the selected profile did examine them; the v2 contract requires exactly one
-regular form. The v2 parser derives the flat fields deterministically from this ordered list, while legacy
-inputs may continue to supply only the flat fields. Alternative forenames are not added to regular `forenames`
-automatically. See
+forms. A populated list means the selected profile did examine them; the v2 and v3 contracts require exactly
+one regular form. Both structured-name parsers derive the flat fields deterministically from this ordered
+list, while legacy inputs may continue to supply only the flat fields. Alternative forenames are not added to
+regular `forenames` automatically. See
 [ADR-0017](decisions/ADR-0017-structured-tei-person-name-forms.md).
 
+`events` preserves ordered biographical events as a type plus optional source `when` and note strings. TEI v3
+and the tabular profile populate it; TEI v1 and v2 retain an empty list for historical reproducibility. Direct
+source `<sex>` values are intentionally not PersonInput fields because existing values may be earlier
+classification targets. A future annotation or benchmark importer must handle them through an auditable label
+contract rather than exposing them as classifier features.
+
 Person-input fingerprints preserve this profile distinction. A null `name_forms` value uses the v1
-fingerprint projection and omits the new field. A populated list uses the v2 projection and includes the
-complete ordered structured value. This makes source structure reproducible without changing historical v1
-fingerprints.
+fingerprint projection and omits the new field. A populated list uses the structured projection introduced in
+v2 and includes the complete ordered value. A non-empty `events` list likewise participates in order, while an
+empty list is omitted to retain fingerprints created before event projection existed. This makes source
+structure reproducible without changing historical v1 or v2 fingerprints.
+
+An imported projection carries record-level source provenance before persistence:
+
+```python
+class ImportedPerson(BaseModel):
+    person: PersonInput
+    source_member_name: str
+    source_record_locator: str
+```
+
+The member name identifies the exact loose file, container member, or single source artifact. The locator is
+format-specific, such as an encoded XML ID selector or a tabular row. Both values are persisted together on
+new PersonRecords; legacy records may have neither.
+
+## Snapshot import contracts
+
+Format, delivery packaging, and record mapping are independent, explicit choices:
+
+```python
+class SourceFormat(StrEnum):
+    tei = "tei"
+    csv = "csv"
+    xlsx = "xlsx"
+    json = "json"
+
+
+class SourcePackaging(StrEnum):
+    single = "single"
+    loose = "loose"
+    zip = "zip"
+    tar_gz = "tar_gz"
+
+
+class TeiImportProfile(StrEnum):
+    tei_p5_person_register_v1 = "tei_p5_person_register_v1"
+    tei_p5_person_register_v2 = "tei_p5_person_register_v2"
+    tei_p5_person_register_v3 = "tei_p5_person_register_v3"
+
+
+class TabularImportProfile(StrEnum):
+    tei_equivalent_person_register_v1 = "tei_equivalent_person_register_v1"
+
+
+class SnapshotImportRequest(BaseModel):
+    source_format: SourceFormat = SourceFormat.tei
+    packaging: SourcePackaging = SourcePackaging.single
+    profile: TeiImportProfile | TabularImportProfile = TeiImportProfile.tei_p5_person_register_v3
+```
+
+The supported matrix is TEI with `single`, `loose`, `zip`, or `tar_gz` packaging and CSV, XLSX, or JSON with
+`single` packaging. Profile validation rejects incompatible combinations rather than inferring them from an
+extension or client media type. New requests default to single-file TEI v3; v1 and the committed v2 profile
+remain explicitly selectable for reproducible imports.
+
+`SnapshotImportConfig` adds the resolved immutable `SnapshotImportLimits`: maximum source members, per-member
+and total expanded bytes, compression ratio, record count, and tabular cell size. The complete config is stored
+on the pending snapshot, so the worker applies the limits accepted with that command even if deployment
+settings later change.
+
+Loose collections use a frozen `SourceManifestV1` containing format, packaging, and one or more ordered
+`SourceManifestMember` values. Each member has a safe logical name, SHA-256 checksum, byte size, and canonical
+media type. Canonical compact JSON with sorted object keys is the aggregate source artifact. Persisted
+`SnapshotSourceMember` values additionally carry the exact Artifact ID and contiguous ordinal for all
+packaging modes. See
+[ADR-0021](decisions/ADR-0021-versioned-multi-format-snapshot-ingestion.md).
 
 ## Prediction result contract
 
@@ -277,16 +356,23 @@ class TaskBatchMessage(BaseModel):
 
 class AggregationTaskMessage(BaseModel):
     aggregation_execution_id: UUID
+
+
+class SnapshotImportTaskMessage(BaseModel):
+    dataset_snapshot_id: UUID
 ```
 
 Workers load authoritative state from PostgreSQL. Do not serialize PersonInput objects, Predictions, or
-aggregation result data into Redis.
+aggregation result data into Redis. A snapshot-import worker also resolves its Artifact, import configuration,
+and parser version from the persisted DatasetSnapshot; its message contains no upload bytes, filename,
+temporary path, storage URI, or parser configuration.
 
-The durable outbox contract is generic but typed. Its target kind is `task_batch` or
-`aggregation_execution`; its matching owner ID is unique, and its payload validates as the corresponding
-message model. Exactly one typed owner is present. A closed publisher mapping derives the Celery task name;
-queue, target kind, owner, payload, and derived task name cannot disagree. See
-[ADR-0016](decisions/ADR-0016-asynchronous-aggregation-outbox.md).
+The durable outbox contract is generic but typed. Its target kind is `task_batch`, `aggregation_execution`, or
+`dataset_snapshot`; its matching owner ID is unique, and its payload validates as the corresponding message
+model. Exactly one typed owner is present. A closed publisher mapping derives the Celery task name; queue,
+target kind, owner, payload, and derived task name cannot disagree. See
+[ADR-0016](decisions/ADR-0016-asynchronous-aggregation-outbox.md) and
+[ADR-0020](decisions/ADR-0020-asynchronous-snapshot-import-outbox.md).
 
 
 ## Browser/API support contracts

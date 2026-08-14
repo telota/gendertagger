@@ -26,6 +26,9 @@ def test_settings_load_prefixed_environment_without_exposing_database_secret(
     monkeypatch.setenv("GENDERTAGGER_DATABASE_ECHO", "true")
     monkeypatch.setenv("GENDERTAGGER_CODE_GIT_COMMIT", CODE_GIT_COMMIT)
     monkeypatch.setenv("GENDERTAGGER_DEPENDENCY_LOCK_SHA256", DEPENDENCY_LOCK_SHA256)
+    monkeypatch.setenv("GENDERTAGGER_MAX_SNAPSHOT_SOURCE_FILES", "64")
+    monkeypatch.setenv("GENDERTAGGER_MAX_ARCHIVE_EXPANDED_BYTES", "1048576")
+    monkeypatch.setenv("GENDERTAGGER_MAX_TABULAR_CELL_BYTES", "4096")
 
     settings = load_settings()
 
@@ -33,6 +36,9 @@ def test_settings_load_prefixed_environment_without_exposing_database_secret(
     assert settings.code_git_commit == CODE_GIT_COMMIT
     assert settings.dependency_lock_sha256 == DEPENDENCY_LOCK_SHA256
     assert settings.database_echo is True
+    assert settings.max_snapshot_source_files == 64
+    assert settings.max_archive_expanded_bytes == 1_048_576
+    assert settings.max_tabular_cell_bytes == 4_096
     assert "secret" not in repr(settings)
 
 

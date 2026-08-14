@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
+from pydantic import JsonValue
 from sqlalchemy import func, select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
@@ -14,12 +15,19 @@ from gendertagger.db.artifact_repository import SqlAlchemyArtifactRepository
 from gendertagger.db.artifacts import ArtifactRow
 from gendertagger.db.executions import MethodExecutionRow, PredictionRow
 from gendertagger.db.project_repository import SqlAlchemyProjectRepository
-from gendertagger.db.projects import DatasetSnapshotRow, PersonExternalIdRow, PersonRecordRow
+from gendertagger.db.projects import (
+    DatasetSnapshotRow,
+    PersonExternalIdRow,
+    PersonRecordRow,
+    SnapshotSourceMemberRow,
+)
 from gendertagger.db.review_repository import SqlAlchemyReviewRepository
 from gendertagger.db.reviews import AnnotationRow
 from gendertagger.db.run_repository import SqlAlchemyRunRepository
 from gendertagger.db.user_repository import SqlAlchemyUserRepository
 from gendertagger.domain.aggregation import REFERENCE_REQUIRED_METHODS
+from gendertagger.ingestion.registry import version_for_snapshot_import
+from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.models.aggregation import (
     AggregatedResult,
     AggregationExecutionCreate,
@@ -39,6 +47,8 @@ from gendertagger.models.classification import (
 from gendertagger.models.lifecycle import AggregationExecutionStatus, MethodExecutionStatus
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.person import (
+    ImportedPerson,
+    PersonEvent,
     PersonInput,
     PersonNameForm,
     PersonNameType,
@@ -48,6 +58,12 @@ from gendertagger.models.project import (
     DatasetSnapshotCreate,
     Project,
     ProjectCreate,
+    SnapshotImportConfig,
+    SnapshotImportLimits,
+    SnapshotSourceMemberCreate,
+    SourceFormat,
+    SourcePackaging,
+    TabularImportProfile,
     TeiImportProfile,
 )
 from gendertagger.models.review import AnnotationCreate, ReviewAction, ReviewWorkflowState
@@ -62,10 +78,50 @@ from gendertagger.models.user import Role, User, UserCreate
 from gendertagger.services.persistence_errors import (
     ImmutableResourceError,
     InvalidResourceStateError,
+    ResourceNotFoundError,
     ReviewConflictError,
 )
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
+
+TEST_IMPORT_LIMITS = SnapshotImportLimits(
+    max_member_count=8,
+    max_member_expanded_bytes=1_000_000,
+    max_total_expanded_bytes=2_000_000,
+    max_compression_ratio=100.0,
+    max_record_count=10_000,
+    max_cell_bytes=1_000_000,
+)
+
+
+def modern_import_config(
+    *,
+    source_format: SourceFormat = SourceFormat.tei,
+    packaging: SourcePackaging = SourcePackaging.single,
+    profile: TeiImportProfile | TabularImportProfile = (TeiImportProfile.tei_p5_person_register_v3),
+) -> dict[str, JsonValue]:
+    return SnapshotImportConfig(
+        source_format=source_format,
+        packaging=packaging,
+        profile=profile,
+        limits=TEST_IMPORT_LIMITS,
+    ).model_dump(mode="json")
+
+
+def modern_parser_version(
+    *,
+    source_format: SourceFormat = SourceFormat.tei,
+    packaging: SourcePackaging = SourcePackaging.single,
+    profile: TeiImportProfile | TabularImportProfile = (TeiImportProfile.tei_p5_person_register_v3),
+) -> str:
+    config = SnapshotImportConfig.model_validate(
+        modern_import_config(
+            source_format=source_format,
+            packaging=packaging,
+            profile=profile,
+        )
+    )
+    return version_for_snapshot_import(config)
 
 
 def _mutate_and_flush(session: Session, mutation: Callable[[], None]) -> None:
@@ -84,7 +140,7 @@ def assert_database_rejects_mutation(
 
 
 @pytest.mark.parametrize(
-    ("profile", "person"),
+    ("profile", "person", "reason"),
     [
         (
             TeiImportProfile.tei_p5_person_register_v1,
@@ -93,28 +149,50 @@ def assert_database_rejects_mutation(
                 surname="Example",
                 name_forms=[PersonNameForm(type=PersonNameType.regular, surname="Example")],
             ),
+            "name_forms",
+        ),
+        (
+            TeiImportProfile.tei_p5_person_register_v1,
+            PersonInput(
+                tei_id="p1",
+                surname="Example",
+                events=[PersonEvent(type="wedding", when="1820")],
+            ),
+            "events",
+        ),
+        (
+            TeiImportProfile.tei_p5_person_register_v2,
+            PersonInput(
+                tei_id="p1",
+                surname="Example",
+                name_forms=[PersonNameForm(type=PersonNameType.regular, surname="Example")],
+                events=[PersonEvent(type="wedding", when="1820")],
+            ),
+            "events",
         ),
         (
             TeiImportProfile.tei_p5_person_register_v2,
             PersonInput(tei_id="p1", surname="Example"),
+            "name_forms",
+        ),
+        (
+            TeiImportProfile.tei_p5_person_register_v3,
+            PersonInput(tei_id="p1", surname="Example"),
+            "name_forms",
+        ),
+        (
+            TabularImportProfile.tei_equivalent_person_register_v1,
+            PersonInput(tei_id="p1", surname="Example"),
+            "name_forms",
         ),
     ],
 )
-def test_person_records_require_name_forms_matching_the_snapshot_profile(
+def test_person_records_require_fields_matching_the_snapshot_profile(
     db_session: Session,
-    profile: TeiImportProfile,
+    profile: TeiImportProfile | TabularImportProfile,
     person: PersonInput,
+    reason: str,
 ) -> None:
-    artifacts = SqlAlchemyArtifactRepository(db_session)
-    source_artifact = artifacts.add_artifact(
-        ArtifactCreate(
-            logical_type="source_tei",
-            storage_uri=f"file:///synthetic/{profile.value}.xml",
-            sha256="e" * 64,
-            byte_size=42,
-            media_type="application/xml",
-        )
-    )
     projects = SqlAlchemyProjectRepository(db_session)
     project = projects.add_project(
         ProjectCreate(
@@ -122,18 +200,44 @@ def test_person_records_require_name_forms_matching_the_snapshot_profile(
             display_name="Profile consistency fixture",
         )
     )
+    is_legacy_profile = profile in {
+        TeiImportProfile.tei_p5_person_register_v1,
+        TeiImportProfile.tei_p5_person_register_v2,
+    }
+    source_format = (
+        SourceFormat.csv if isinstance(profile, TabularImportProfile) else SourceFormat.tei
+    )
+    artifacts = SqlAlchemyArtifactRepository(db_session)
+    source_artifact = artifacts.add_artifact(
+        ArtifactCreate(
+            logical_type=f"source_{source_format.value}",
+            storage_uri=f"file:///synthetic/{profile.value}.{source_format.value}",
+            sha256="e" * 64,
+            byte_size=42,
+            media_type="text/csv" if source_format is SourceFormat.csv else "application/xml",
+            project_id=None if is_legacy_profile else project.id,
+        )
+    )
+    import_config: dict[str, JsonValue]
+    if is_legacy_profile:
+        assert isinstance(profile, TeiImportProfile)
+        import_config = {"profile": profile.value}
+        parser_version = TeiPersonParser.version_for_profile(profile)
+    else:
+        import_config = modern_import_config(source_format=source_format, profile=profile)
+        parser_version = modern_parser_version(source_format=source_format, profile=profile)
     snapshot = projects.add_snapshot(
         DatasetSnapshotCreate(
             project_id=project.id,
             source_artifact_id=source_artifact.id,
             source_sha256=source_artifact.sha256,
-            parser_version=f"tei_parser_{profile.value[-2:]}",
-            import_config={"profile": profile.value},
+            parser_version=parser_version,
+            import_config=import_config,
         )
     )
     projects.begin_snapshot_import(snapshot.id)
 
-    with pytest.raises(InvalidResourceStateError, match="name_forms"):
+    with pytest.raises(InvalidResourceStateError, match=reason):
         projects.add_person_records(snapshot.id, [person])
 
     assert (
@@ -143,6 +247,610 @@ def test_person_records_require_name_forms_matching_the_snapshot_profile(
             .where(PersonRecordRow.dataset_snapshot_id == snapshot.id)
         )
         == 0
+    )
+
+
+def test_modern_snapshot_requires_complete_config_and_primary_artifact_provenance(
+    db_session: Session,
+) -> None:
+    projects = SqlAlchemyProjectRepository(db_session)
+    artifacts = SqlAlchemyArtifactRepository(db_session)
+    project = projects.add_project(
+        ProjectCreate(
+            slug=f"modern-primary-{uuid4().hex}",
+            display_name="Modern primary artifact fixture",
+        )
+    )
+    other_project = projects.add_project(
+        ProjectCreate(
+            slug=f"modern-primary-other-{uuid4().hex}",
+            display_name="Other primary artifact fixture",
+        )
+    )
+    primary = artifacts.add_artifact(
+        ArtifactCreate(
+            logical_type="source_tei",
+            storage_uri="file:///synthetic/primary.xml",
+            sha256="1" * 64,
+            byte_size=42,
+            media_type="application/tei+xml",
+            project_id=project.id,
+        )
+    )
+    cross_project = artifacts.add_artifact(
+        ArtifactCreate(
+            logical_type="source_tei",
+            storage_uri="file:///synthetic/cross-project.xml",
+            sha256="2" * 64,
+            byte_size=42,
+            media_type="application/tei+xml",
+            project_id=other_project.id,
+        )
+    )
+    wrong_type = artifacts.add_artifact(
+        ArtifactCreate(
+            logical_type="source_csv",
+            storage_uri="file:///synthetic/wrong-type.csv",
+            sha256="3" * 64,
+            byte_size=42,
+            media_type="text/csv",
+            project_id=project.id,
+        )
+    )
+
+    with pytest.raises(InvalidResourceStateError, match="complete supported"):
+        projects.add_snapshot(
+            DatasetSnapshotCreate(
+                project_id=project.id,
+                source_artifact_id=primary.id,
+                source_sha256=primary.sha256,
+                parser_version=modern_parser_version(),
+                import_config={
+                    "source_format": SourceFormat.tei.value,
+                    "packaging": SourcePackaging.single.value,
+                    "profile": TeiImportProfile.tei_p5_person_register_v3.value,
+                },
+            )
+        )
+    with pytest.raises(InvalidResourceStateError, match="parser version"):
+        projects.add_snapshot(
+            DatasetSnapshotCreate(
+                project_id=project.id,
+                source_artifact_id=primary.id,
+                source_sha256=primary.sha256,
+                parser_version="tei_parser_v3",
+                import_config=modern_import_config(),
+            )
+        )
+    with pytest.raises(ResourceNotFoundError, match="does not exist"):
+        projects.add_snapshot(
+            DatasetSnapshotCreate(
+                project_id=project.id,
+                source_artifact_id=uuid4(),
+                source_sha256="4" * 64,
+                parser_version=modern_parser_version(),
+                import_config=modern_import_config(),
+            )
+        )
+    with pytest.raises(InvalidResourceStateError, match="different project"):
+        projects.add_snapshot(
+            DatasetSnapshotCreate(
+                project_id=project.id,
+                source_artifact_id=cross_project.id,
+                source_sha256=cross_project.sha256,
+                parser_version=modern_parser_version(),
+                import_config=modern_import_config(),
+            )
+        )
+    with pytest.raises(InvalidResourceStateError, match="checksum"):
+        projects.add_snapshot(
+            DatasetSnapshotCreate(
+                project_id=project.id,
+                source_artifact_id=primary.id,
+                source_sha256="5" * 64,
+                parser_version=modern_parser_version(),
+                import_config=modern_import_config(),
+            )
+        )
+    with pytest.raises(InvalidResourceStateError, match="logical type"):
+        projects.add_snapshot(
+            DatasetSnapshotCreate(
+                project_id=project.id,
+                source_artifact_id=wrong_type.id,
+                source_sha256=wrong_type.sha256,
+                parser_version=modern_parser_version(),
+                import_config=modern_import_config(),
+            )
+        )
+
+
+def test_modern_non_loose_source_member_must_be_primary_artifact(
+    db_session: Session,
+) -> None:
+    projects = SqlAlchemyProjectRepository(db_session)
+    artifacts = SqlAlchemyArtifactRepository(db_session)
+    project = projects.add_project(
+        ProjectCreate(
+            slug=f"modern-member-{uuid4().hex}",
+            display_name="Modern source member fixture",
+        )
+    )
+    primary = artifacts.add_artifact(
+        ArtifactCreate(
+            logical_type="source_tei",
+            storage_uri="file:///synthetic/primary.xml",
+            sha256="6" * 64,
+            byte_size=42,
+            media_type="application/tei+xml",
+            project_id=project.id,
+        )
+    )
+    other = artifacts.add_artifact(
+        ArtifactCreate(
+            logical_type="source_tei",
+            storage_uri="file:///synthetic/other.xml",
+            sha256="7" * 64,
+            byte_size=43,
+            media_type="application/tei+xml",
+            project_id=project.id,
+        )
+    )
+    snapshot = projects.add_snapshot(
+        DatasetSnapshotCreate(
+            project_id=project.id,
+            source_artifact_id=primary.id,
+            source_sha256=primary.sha256,
+            parser_version=modern_parser_version(),
+            import_config=modern_import_config(),
+        )
+    )
+
+    with pytest.raises(InvalidResourceStateError, match="primary source artifact"):
+        projects.add_snapshot_source_members(
+            snapshot.id,
+            [
+                SnapshotSourceMemberCreate(
+                    artifact_id=other.id,
+                    ordinal=0,
+                    logical_name="other.xml",
+                    sha256=other.sha256,
+                    byte_size=other.byte_size,
+                    media_type=other.media_type,
+                )
+            ],
+        )
+
+    projects.add_snapshot_source_members(
+        snapshot.id,
+        [
+            SnapshotSourceMemberCreate(
+                artifact_id=primary.id,
+                ordinal=0,
+                logical_name="primary.xml",
+                sha256=primary.sha256,
+                byte_size=primary.byte_size,
+                media_type=primary.media_type,
+            )
+        ],
+    )
+    projects.begin_snapshot_import(snapshot.id)
+    ready = projects.complete_snapshot_import(snapshot.id, ready_at=datetime.now(UTC))
+
+    assert ready.record_count == 0
+
+
+def test_ready_transition_rejects_missing_or_malformed_modern_source_sets(
+    db_session: Session,
+) -> None:
+    projects = SqlAlchemyProjectRepository(db_session)
+    artifacts = SqlAlchemyArtifactRepository(db_session)
+    project = projects.add_project(
+        ProjectCreate(
+            slug=f"modern-ready-{uuid4().hex}",
+            display_name="Modern ready transition fixture",
+        )
+    )
+    primary = artifacts.add_artifact(
+        ArtifactCreate(
+            logical_type="source_tei",
+            storage_uri="file:///synthetic/ready-primary.xml",
+            sha256="8" * 64,
+            byte_size=42,
+            media_type="application/tei+xml",
+            project_id=project.id,
+        )
+    )
+    other = artifacts.add_artifact(
+        ArtifactCreate(
+            logical_type="source_tei",
+            storage_uri="file:///synthetic/ready-other.xml",
+            sha256="9" * 64,
+            byte_size=43,
+            media_type="application/tei+xml",
+            project_id=project.id,
+        )
+    )
+    missing_members = projects.add_snapshot(
+        DatasetSnapshotCreate(
+            project_id=project.id,
+            source_artifact_id=primary.id,
+            source_sha256=primary.sha256,
+            parser_version=modern_parser_version(),
+            import_config=modern_import_config(),
+        )
+    )
+    projects.begin_snapshot_import(missing_members.id)
+    with pytest.raises(InvalidResourceStateError, match="complete source-member set"):
+        projects.complete_snapshot_import(missing_members.id, ready_at=datetime.now(UTC))
+
+    wrong_primary = projects.add_snapshot(
+        DatasetSnapshotCreate(
+            project_id=project.id,
+            source_artifact_id=primary.id,
+            source_sha256=primary.sha256,
+            parser_version=modern_parser_version(),
+            import_config=modern_import_config(),
+        )
+    )
+    db_session.add(
+        SnapshotSourceMemberRow(
+            dataset_snapshot_id=wrong_primary.id,
+            artifact_id=other.id,
+            ordinal=0,
+            logical_name="other.xml",
+            sha256=other.sha256,
+            byte_size=other.byte_size,
+            media_type=other.media_type,
+        )
+    )
+    db_session.flush()
+    projects.begin_snapshot_import(wrong_primary.id)
+    with pytest.raises(InvalidResourceStateError, match="primary source artifact"):
+        projects.complete_snapshot_import(wrong_primary.id, ready_at=datetime.now(UTC))
+
+    manifest = artifacts.add_artifact(
+        ArtifactCreate(
+            logical_type="source_manifest",
+            storage_uri="file:///synthetic/ready-manifest.json",
+            sha256="a" * 64,
+            byte_size=100,
+            media_type="application/vnd.gendertagger.source-manifest+json",
+            project_id=project.id,
+        )
+    )
+    ordinal_gap = projects.add_snapshot(
+        DatasetSnapshotCreate(
+            project_id=project.id,
+            source_artifact_id=manifest.id,
+            source_sha256=manifest.sha256,
+            parser_version=modern_parser_version(packaging=SourcePackaging.loose),
+            import_config=modern_import_config(packaging=SourcePackaging.loose),
+        )
+    )
+    db_session.add(
+        SnapshotSourceMemberRow(
+            dataset_snapshot_id=ordinal_gap.id,
+            artifact_id=other.id,
+            ordinal=1,
+            logical_name="other.xml",
+            sha256=other.sha256,
+            byte_size=other.byte_size,
+            media_type=other.media_type,
+        )
+    )
+    db_session.flush()
+    projects.begin_snapshot_import(ordinal_gap.id)
+    with pytest.raises(InvalidResourceStateError, match="contiguous"):
+        projects.complete_snapshot_import(ordinal_gap.id, ready_at=datetime.now(UTC))
+
+
+def test_ready_transition_rechecks_modern_parser_provenance(db_session: Session) -> None:
+    projects = SqlAlchemyProjectRepository(db_session)
+    artifacts = SqlAlchemyArtifactRepository(db_session)
+    project = projects.add_project(
+        ProjectCreate(
+            slug=f"modern-ready-parser-{uuid4().hex}",
+            display_name="Modern ready parser fixture",
+        )
+    )
+    primary = artifacts.add_artifact(
+        ArtifactCreate(
+            logical_type="source_tei",
+            storage_uri="file:///synthetic/ready-parser.xml",
+            sha256="c" * 64,
+            byte_size=42,
+            media_type="application/tei+xml",
+            project_id=project.id,
+        )
+    )
+    snapshot = projects.add_snapshot(
+        DatasetSnapshotCreate(
+            project_id=project.id,
+            source_artifact_id=primary.id,
+            source_sha256=primary.sha256,
+            parser_version=modern_parser_version(),
+            import_config=modern_import_config(),
+        )
+    )
+    projects.add_snapshot_source_members(
+        snapshot.id,
+        [
+            SnapshotSourceMemberCreate(
+                artifact_id=primary.id,
+                ordinal=0,
+                logical_name="ready-parser.xml",
+                sha256=primary.sha256,
+                byte_size=primary.byte_size,
+                media_type=primary.media_type,
+            )
+        ],
+    )
+    row = db_session.get(DatasetSnapshotRow, snapshot.id)
+    assert row is not None
+    row.parser_version = "tei_parser_v3"
+    db_session.flush()
+    projects.begin_snapshot_import(snapshot.id)
+
+    with pytest.raises(InvalidResourceStateError, match="parser version"):
+        projects.complete_snapshot_import(snapshot.id, ready_at=datetime.now(UTC))
+
+
+def test_exact_legacy_snapshot_can_become_ready_without_source_members(
+    db_session: Session,
+) -> None:
+    artifacts = SqlAlchemyArtifactRepository(db_session)
+    source = artifacts.add_artifact(
+        ArtifactCreate(
+            logical_type="source_tei",
+            storage_uri="file:///synthetic/legacy.xml",
+            sha256="b" * 64,
+            byte_size=42,
+            media_type="application/tei+xml",
+        )
+    )
+    projects = SqlAlchemyProjectRepository(db_session)
+    project = projects.add_project(
+        ProjectCreate(
+            slug=f"legacy-ready-{uuid4().hex}",
+            display_name="Legacy ready transition fixture",
+        )
+    )
+    with pytest.raises(InvalidResourceStateError, match="parser version"):
+        projects.add_snapshot(
+            DatasetSnapshotCreate(
+                project_id=project.id,
+                source_artifact_id=source.id,
+                source_sha256=source.sha256,
+                parser_version="tei_parser_v1",
+                import_config={"profile": TeiImportProfile.tei_p5_person_register_v2.value},
+            )
+        )
+    snapshot = projects.add_snapshot(
+        DatasetSnapshotCreate(
+            project_id=project.id,
+            source_artifact_id=source.id,
+            source_sha256=source.sha256,
+            parser_version="tei_parser_v2",
+            import_config={"profile": TeiImportProfile.tei_p5_person_register_v2.value},
+        )
+    )
+    projects.begin_snapshot_import(snapshot.id)
+
+    ready = projects.complete_snapshot_import(snapshot.id, ready_at=datetime.now(UTC))
+
+    assert ready.record_count == 0
+
+
+def test_source_members_and_imported_person_provenance_round_trip(db_session: Session) -> None:
+    artifacts = SqlAlchemyArtifactRepository(db_session)
+    projects = SqlAlchemyProjectRepository(db_session)
+    project = projects.add_project(
+        ProjectCreate(
+            slug=f"source-members-{uuid4().hex}",
+            display_name="Source members fixture",
+        )
+    )
+    manifest_artifact = artifacts.add_artifact(
+        ArtifactCreate(
+            logical_type="source_manifest",
+            storage_uri="file:///synthetic/manifest.json",
+            sha256="a" * 64,
+            byte_size=100,
+            media_type="application/vnd.gendertagger.source-manifest+json",
+            project_id=project.id,
+        )
+    )
+    first_artifact = artifacts.add_artifact(
+        ArtifactCreate(
+            logical_type="source_tei",
+            storage_uri="file:///synthetic/A.xml",
+            sha256="b" * 64,
+            byte_size=20,
+            media_type="application/tei+xml",
+            project_id=project.id,
+        )
+    )
+    second_artifact = artifacts.add_artifact(
+        ArtifactCreate(
+            logical_type="source_tei",
+            storage_uri="file:///synthetic/B.xml",
+            sha256="c" * 64,
+            byte_size=30,
+            media_type="application/tei+xml",
+            project_id=project.id,
+        )
+    )
+    snapshot = projects.add_snapshot(
+        DatasetSnapshotCreate(
+            project_id=project.id,
+            source_artifact_id=manifest_artifact.id,
+            source_sha256=manifest_artifact.sha256,
+            parser_version=modern_parser_version(packaging=SourcePackaging.loose),
+            import_config=modern_import_config(packaging=SourcePackaging.loose),
+        )
+    )
+    with pytest.raises(ValueError, match="basenames must be unique"):
+        projects.add_snapshot_source_members(
+            snapshot.id,
+            [
+                SnapshotSourceMemberCreate(
+                    artifact_id=first_artifact.id,
+                    ordinal=0,
+                    logical_name="one/A.xml",
+                    sha256=first_artifact.sha256,
+                    byte_size=first_artifact.byte_size,
+                    media_type=first_artifact.media_type,
+                ),
+                SnapshotSourceMemberCreate(
+                    artifact_id=second_artifact.id,
+                    ordinal=1,
+                    logical_name="two/a.XML",
+                    sha256=second_artifact.sha256,
+                    byte_size=second_artifact.byte_size,
+                    media_type=second_artifact.media_type,
+                ),
+            ],
+        )
+    persisted_members = projects.add_snapshot_source_members(
+        snapshot.id,
+        [
+            SnapshotSourceMemberCreate(
+                artifact_id=second_artifact.id,
+                ordinal=1,
+                logical_name="B.xml",
+                sha256=second_artifact.sha256,
+                byte_size=second_artifact.byte_size,
+                media_type=second_artifact.media_type,
+            ),
+            SnapshotSourceMemberCreate(
+                artifact_id=first_artifact.id,
+                ordinal=0,
+                logical_name="A.xml",
+                sha256=first_artifact.sha256,
+                byte_size=first_artifact.byte_size,
+                media_type=first_artifact.media_type,
+            ),
+        ],
+    )
+
+    assert [member.logical_name for member in persisted_members] == ["A.xml", "B.xml"]
+    assert projects.list_snapshot_source_members(snapshot.id) == persisted_members
+
+    projects.begin_snapshot_import(snapshot.id)
+    with pytest.raises(InvalidResourceStateError, match="source-member provenance"):
+        projects.add_person_records(
+            snapshot.id,
+            [
+                PersonInput(
+                    tei_id="missing-provenance",
+                    surname="Missing",
+                    name_forms=[PersonNameForm(type=PersonNameType.regular, surname="Missing")],
+                )
+            ],
+        )
+    with pytest.raises(InvalidResourceStateError, match="not attached"):
+        projects.add_imported_person_records(
+            snapshot.id,
+            [
+                ImportedPerson(
+                    person=PersonInput(
+                        tei_id="missing-source",
+                        surname="Missing",
+                        name_forms=[PersonNameForm(type=PersonNameType.regular, surname="Missing")],
+                    ),
+                    source_member_name="C.xml",
+                    source_record_locator="xml:id:missing-source",
+                )
+            ],
+        )
+    assert (
+        projects.add_imported_person_records(
+            snapshot.id,
+            [
+                ImportedPerson(
+                    person=PersonInput(
+                        tei_id="p1",
+                        surname="Example",
+                        name_forms=[PersonNameForm(type=PersonNameType.regular, surname="Example")],
+                        events=[PersonEvent(type="wedding", when="1820", note="Synthetic event")],
+                    ),
+                    source_member_name="A.xml",
+                    source_record_locator="xml:id:p1",
+                )
+            ],
+        )
+        == 1
+    )
+    snapshot = projects.complete_snapshot_import(snapshot.id, ready_at=datetime.now(UTC))
+    person = projects.get_person_record_by_tei_id(snapshot.id, "p1")
+
+    assert person is not None
+    assert person.source_member_name == "A.xml"
+    assert person.source_record_locator == "xml:id:p1"
+    assert person.events == [PersonEvent(type="wedding", when="1820", note="Synthetic event")]
+
+    source_member_row = db_session.scalar(
+        select(SnapshotSourceMemberRow).where(
+            SnapshotSourceMemberRow.dataset_snapshot_id == snapshot.id,
+            SnapshotSourceMemberRow.ordinal == 0,
+        )
+    )
+    assert source_member_row is not None
+    assert_database_rejects_mutation(
+        db_session,
+        lambda: setattr(source_member_row, "logical_name", "Changed.xml"),
+    )
+
+    archive_artifact = artifacts.add_artifact(
+        ArtifactCreate(
+            logical_type="source_zip",
+            storage_uri="file:///synthetic/register.zip",
+            sha256="d" * 64,
+            byte_size=50,
+            media_type="application/zip",
+            project_id=project.id,
+        )
+    )
+    archive_snapshot = projects.add_snapshot(
+        DatasetSnapshotCreate(
+            project_id=project.id,
+            source_artifact_id=archive_artifact.id,
+            source_sha256=archive_artifact.sha256,
+            parser_version=modern_parser_version(packaging=SourcePackaging.zip),
+            import_config=modern_import_config(packaging=SourcePackaging.zip),
+        )
+    )
+    projects.add_snapshot_source_members(
+        archive_snapshot.id,
+        [
+            SnapshotSourceMemberCreate(
+                artifact_id=archive_artifact.id,
+                ordinal=0,
+                logical_name="register.zip",
+                sha256=archive_artifact.sha256,
+                byte_size=archive_artifact.byte_size,
+                media_type=archive_artifact.media_type,
+            )
+        ],
+    )
+    projects.begin_snapshot_import(archive_snapshot.id)
+
+    assert (
+        projects.add_imported_person_records(
+            archive_snapshot.id,
+            [
+                ImportedPerson(
+                    person=PersonInput(
+                        tei_id="archive-p1",
+                        surname="Archive",
+                        name_forms=[PersonNameForm(type=PersonNameType.regular, surname="Archive")],
+                    ),
+                    source_member_name="internal/A.xml",
+                    source_record_locator="xml:id:archive-p1",
+                )
+            ],
+        )
+        == 1
     )
 
 

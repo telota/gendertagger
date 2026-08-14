@@ -12,6 +12,8 @@ from gendertagger.models.dispatch import (
     BatchDispatchCreate,
     Dispatch,
     DispatchCreate,
+    SnapshotDispatch,
+    SnapshotDispatchCreate,
 )
 
 
@@ -26,6 +28,9 @@ class DispatchRepository(Protocol):
         self,
         command: AggregationDispatchCreate,
     ) -> AggregationDispatch: ...
+
+    @overload
+    def ensure_dispatch(self, command: SnapshotDispatchCreate) -> SnapshotDispatch: ...
 
     def ensure_dispatch(self, command: DispatchCreate) -> Dispatch:
         """Idempotently persist one exact target-aware dispatch intent."""
@@ -44,6 +49,10 @@ class DispatchRepository(Protocol):
         aggregation_execution_id: UUID,
     ) -> AggregationDispatch | None:
         """Return the unique dispatch for an aggregation, or ``None`` when absent."""
+        ...
+
+    def get_dispatch_for_snapshot(self, dataset_snapshot_id: UUID) -> SnapshotDispatch | None:
+        """Return the unique dispatch for a snapshot import, or ``None`` when absent."""
         ...
 
     def claim_available(

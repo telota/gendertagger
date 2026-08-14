@@ -16,12 +16,14 @@ from gendertagger.db.projects import (
     PersonExternalIdRow,
     PersonRecordRow,
     ProjectRow,
+    SnapshotSourceMemberRow,
 )
 from gendertagger.db.reviews import AnnotationRow, ReviewStateRow, UserRoleRow, UserRow
 
 ORM_ROW_TYPES: tuple[type[Base], ...] = (
     ProjectRow,
     DatasetSnapshotRow,
+    SnapshotSourceMemberRow,
     PersonRecordRow,
     PersonExternalIdRow,
     RunRow,
