@@ -103,15 +103,20 @@ class RunRepository(Protocol):
         """Transition a running method execution to a terminal outcome."""
         ...
 
-    def mark_batch_started(
+    def claim_batch(
         self,
         task_batch_id: UUID,
         *,
+        method_execution_id: UUID,
         worker_task_id: str,
         started_at: datetime,
         attempt_count: int,
-    ) -> TaskBatch:
-        """Claim a not-yet-completed batch for one worker attempt."""
+    ) -> TaskBatch | None:
+        """Atomically claim a pending batch owned by the given execution.
+
+        Return ``None`` when another delivery has already claimed or terminally
+        finished the batch.
+        """
         ...
 
     def mark_batch_finished(

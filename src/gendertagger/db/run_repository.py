@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import cast
 from uuid import UUID, uuid4
 
-from sqlalchemy import Table, select
+from sqlalchemy import Table, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -226,12 +226,33 @@ class SqlAlchemyRunRepository:
         return [self._task_batch_from_row(row) for row in rows]
 
     def mark_run_queued(self, run_id: UUID) -> Run:
-        """Transition a created run to queued when its execution is scheduled."""
-        row = self._require_run(run_id)
-        self._require_source("run", run_id, row.status, {RunStatus.created}, RunStatus.queued)
-        row.status = RunStatus.queued
-        self._session.flush()
-        return self._run_from_row(row)
+        """Atomically claim a created run for one scheduling transaction."""
+        statement = (
+            update(RunRow)
+            .where(RunRow.id == run_id, RunRow.status == RunStatus.created)
+            .values(status=RunStatus.queued)
+            .returning(RunRow)
+            .execution_options(populate_existing=True)
+        )
+        row = self._session.scalar(statement)
+        if row is not None:
+            self._session.flush()
+            return self._run_from_row(row)
+
+        existing = self._session.scalar(
+            select(RunRow).where(RunRow.id == run_id).execution_options(populate_existing=True)
+        )
+        if existing is None:
+            msg = f"run {run_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        self._require_source(
+            "run",
+            run_id,
+            existing.status,
+            {RunStatus.created},
+            RunStatus.queued,
+        )
+        raise AssertionError("unreachable run scheduling transition")
 
     def mark_run_started(self, run_id: UUID, *, started_at: datetime) -> Run:
         """Transition a queued run to running and record its start time."""
@@ -328,29 +349,53 @@ class SqlAlchemyRunRepository:
         self._session.flush()
         return self._method_execution_from_row(row)
 
-    def mark_batch_started(
+    def claim_batch(
         self,
         task_batch_id: UUID,
         *,
+        method_execution_id: UUID,
         worker_task_id: str,
         started_at: datetime,
         attempt_count: int,
-    ) -> TaskBatch:
-        """Claim a not-yet-completed batch for one worker attempt."""
-        row = self._require_batch(task_batch_id)
-        self._require_source(
-            "task batch",
-            task_batch_id,
-            row.status,
-            {TaskBatchStatus.pending, TaskBatchStatus.queued, TaskBatchStatus.failed},
-            TaskBatchStatus.running,
+    ) -> TaskBatch | None:
+        """Atomically claim a pending batch for its owning execution."""
+        statement = (
+            update(TaskBatchRow)
+            .where(
+                TaskBatchRow.id == task_batch_id,
+                TaskBatchRow.method_execution_id == method_execution_id,
+                TaskBatchRow.status.in_((TaskBatchStatus.pending, TaskBatchStatus.queued)),
+            )
+            .values(
+                status=TaskBatchStatus.running,
+                worker_task_id=worker_task_id,
+                started_at=started_at,
+                attempt_count=attempt_count,
+            )
+            .returning(TaskBatchRow)
+            .execution_options(populate_existing=True)
         )
-        row.status = TaskBatchStatus.running
-        row.worker_task_id = worker_task_id
-        row.started_at = started_at
-        row.attempt_count = attempt_count
+        row = self._session.scalar(statement)
+        if row is not None:
+            self._session.flush()
+            return self._task_batch_from_row(row)
+
+        existing = self._session.scalar(
+            select(TaskBatchRow)
+            .where(TaskBatchRow.id == task_batch_id)
+            .execution_options(populate_existing=True)
+        )
+        if existing is None:
+            msg = f"task batch {task_batch_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        if existing.method_execution_id != method_execution_id:
+            msg = (
+                f"task batch {task_batch_id} does not belong to method execution "
+                f"{method_execution_id}"
+            )
+            raise InvalidResourceStateError(msg)
         self._session.flush()
-        return self._task_batch_from_row(row)
+        return None
 
     def mark_batch_finished(
         self,

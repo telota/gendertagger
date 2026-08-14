@@ -11,8 +11,11 @@ reverse-proxy
 
 api
   -> postgres
-  -> redis
   -> shared artifact storage
+
+dispatch-coordinator
+  -> postgres
+  -> redis
 
 workers
   -> postgres
@@ -20,6 +23,40 @@ workers
   -> shared artifact storage
   -> local model/data volumes
 ```
+
+The API commits task batches and their dispatch intent to PostgreSQL; it does not publish to Redis. A distinct
+dispatch-coordinator process runs the fast outbox relay and slower dispatch reconciler. This process is not a
+Celery task, because it must remain able to retry durable intent while the broker is unavailable.
+
+## Process topology and startup
+
+API, dispatch coordinator, and ordinary Celery workers use the same backend package and container image with
+different startup commands:
+
+| Service | Representative command | Responsibility |
+|---|---|---|
+| API | `uvicorn gendertagger.api.app:create_app --factory` | HTTP composition and persisted resources |
+| Dispatch coordinator | `python -m gendertagger.tasks.relay` | Outbox relay and reconciliation |
+| CPU worker | `celery -A gendertagger.tasks.celery_app worker -Q default,cpu` | CPU batch execution |
+| LLM worker | `celery -A gendertagger.tasks.celery_app worker -Q llm` | Isolated local LLM work |
+
+A GPU image may extend the backend image with accelerator dependencies, but it runs the same application
+worker entry point. Queue-specific processes can scale and restart independently without changing the API
+contract.
+
+Deployment runs `alembic upgrade head` as a one-shot migration step before starting the long-running
+processes. After PostgreSQL is ready, API and coordinator may start independently of Redis readiness. When
+Redis is unavailable, the API can continue accepting valid scheduling commands because dispatch intent is
+durable; the coordinator retries publication and workers resume consumption after Redis recovers.
+
+Set `GENDERTAGGER_DISPATCH_PUBLISHED_STALE_SECONDS` above the deployment's normal worst-case queue latency.
+The default is 600 seconds. A shorter threshold, or an extended worker outage, intentionally causes duplicate
+publication of still-pending batches; atomic worker claims keep execution correct, but unnecessary duplicates
+can amplify a Redis backlog.
+
+For the final Compose deployment, operators start the reverse proxy/frontend, API, dispatch coordinator,
+workers, PostgreSQL, Redis, and artifact storage together. The coordinator is an internal service and has no
+public port.
 
 ## Data locality
 
@@ -35,6 +72,10 @@ FastAPI:
 - `/ready`: dependencies sufficiently available to serve requests
 
 Worker health should be observable separately.
+
+Dispatch-coordinator health must also be observable separately. Readiness requires PostgreSQL access; Redis
+failure should report degraded publication rather than discard or mutate durable dispatch intent. API
+readiness does not depend on Redis solely for batch publication.
 
 ## Logging
 
@@ -74,6 +115,9 @@ Configure worker concurrency independently by queue. GPU/LLM workers should defa
 Useful initial operational metrics:
 
 - queue depth
+- pending outbox count and oldest pending age
+- relay publication latency, attempts, and failures
+- expired dispatch leases and reconciliation repairs
 - batch duration
 - prediction throughput
 - success/abstain/error counts

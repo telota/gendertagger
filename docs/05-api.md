@@ -64,6 +64,11 @@ GET /api/v1/runs/{run_id}
 
 Return domain resource IDs, never Celery task IDs. Celery is an internal execution mechanism and can change without changing the public API.
 
+Accepting an execution command atomically persists method executions, task batches, and one `BatchDispatch`
+intent per batch in PostgreSQL. The FastAPI process does not publish those messages to Redis. A `202 Accepted`
+response therefore confirms durable application state and dispatch intent, not immediate broker delivery;
+the dispatch coordinator relays and reconciles that intent asynchronously.
+
 ## Representative commands
 
 ### Create snapshot import
@@ -88,6 +93,9 @@ Result: persisted Run with resolved config hash and queued/runnable state.
 Prefer explicit state transitions or a create-run option rather than method-named endpoints. For example:
 
 `POST /api/v1/runs/{run_id}/executions`
+
+This command returns the persisted run after the scheduling transaction commits. Broker outages do not turn
+an otherwise successful durable scheduling command into an HTTP failure.
 
 ### Aggregate
 

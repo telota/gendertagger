@@ -9,6 +9,7 @@ from gendertagger.db.aggregations import (
 )
 from gendertagger.db.artifacts import ArtifactRow
 from gendertagger.db.base import Base
+from gendertagger.db.dispatches import BatchDispatchRow
 from gendertagger.db.executions import MethodExecutionRow, PredictionRow, RunRow, TaskBatchRow
 from gendertagger.db.projects import (
     DatasetSnapshotRow,
@@ -26,6 +27,7 @@ ORM_ROW_TYPES: tuple[type[Base], ...] = (
     RunRow,
     MethodExecutionRow,
     TaskBatchRow,
+    BatchDispatchRow,
     PredictionRow,
     AggregationExecutionRow,
     AggregationMethodExecutionRow,

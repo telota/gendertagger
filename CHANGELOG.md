@@ -80,6 +80,8 @@ the phased plan that resumes application code.
 
 - Restored the published parenthetical `institution` normalization and authority override in `reference_v1`,
   with paired scientific regression cases for disagreement and agreement with the pooled methods.
+- Made asynchronous run dispatch recoverable across broker and coordinator failures with a transactional
+  PostgreSQL outbox, a relay/reconciler process, and atomic scheduling and worker claims.
 
 ### Removed
 

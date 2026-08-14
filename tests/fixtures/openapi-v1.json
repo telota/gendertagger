@@ -3797,7 +3797,7 @@
         ]
       },
       "post": {
-        "description": "Schedule a created run's method executions and enqueue their batches.",
+        "description": "Atomically persist a run's executions, batches, and dispatch intents.",
         "operationId": "start_run_executions_api_v1_runs__run_id__executions_post",
         "parameters": [
           {

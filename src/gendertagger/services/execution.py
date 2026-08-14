@@ -1,9 +1,9 @@
 """Application orchestration for scheduling and executing classification batches."""
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Any
 from uuid import UUID
 
 from pydantic import JsonValue, ValidationError
@@ -15,6 +15,7 @@ from gendertagger.methods.base import (
 )
 from gendertagger.models.classification import PredictionResult, PredictionStatus
 from gendertagger.models.common import canonical_json_sha256
+from gendertagger.models.dispatch import BatchDispatchCreate
 from gendertagger.models.lifecycle import RunStatus, TaskBatchStatus
 from gendertagger.models.person import PersonInput, PersonRecord
 from gendertagger.models.run import (
@@ -56,7 +57,7 @@ def _sanitized_diagnostic(error: BaseException) -> str:
 
 @dataclass(frozen=True, slots=True)
 class ScheduledBatch:
-    """One persisted batch ready to enqueue onto its routing-class queue."""
+    """One persisted batch with a durable routing-class dispatch intent."""
 
     method_execution_id: UUID
     task_batch_id: UUID
@@ -70,14 +71,6 @@ class ScheduledBatch:
         )
 
 
-class BatchDispatcher(Protocol):
-    """Enqueue persisted batches for asynchronous execution."""
-
-    def dispatch(self, batches: Sequence[ScheduledBatch]) -> None:
-        """Enqueue each batch onto its queue; persisted state stays authoritative."""
-        ...
-
-
 def _person_input_fingerprint(person: PersonRecord) -> str:
     payload: dict[str, JsonValue] = {
         field: getattr(person, field) for field in PersonInput.model_fields
@@ -86,7 +79,7 @@ def _person_input_fingerprint(person: PersonRecord) -> str:
 
 
 class RunScheduler:
-    """Persist executions and batches for a created run and return them to dispatch."""
+    """Atomically persist executions, batches, and their durable dispatch intent."""
 
     def __init__(
         self,
@@ -100,7 +93,7 @@ class RunScheduler:
         self._clock = clock
 
     def schedule_run(self, run_id: UUID) -> list[ScheduledBatch]:
-        """Move a created run to running and persist every method execution's batches."""
+        """Persist a created run's executions, batches, and outbox intents atomically."""
         with self._unit_of_work_factory() as unit_of_work:
             run = unit_of_work.runs.get_run(run_id)
             if run is None:
@@ -140,9 +133,21 @@ class RunScheduler:
                 unit_of_work.runs.mark_execution_started(execution.id, started_at=now)
                 plans = plan_task_batches(total_count, batch_size=registration.batch_size)
                 batches = unit_of_work.runs.create_task_batches(execution.id, plans)
-                scheduled.extend(
-                    ScheduledBatch(execution.id, batch.id, batch.queue_name) for batch in batches
-                )
+                for batch in batches:
+                    scheduled_batch = ScheduledBatch(
+                        execution.id,
+                        batch.id,
+                        batch.queue_name,
+                    )
+                    unit_of_work.dispatches.ensure_dispatch(
+                        BatchDispatchCreate(
+                            task_batch_id=batch.id,
+                            queue_name=batch.queue_name,
+                            payload=scheduled_batch.message(),
+                            available_at=now,
+                        )
+                    )
+                    scheduled.append(scheduled_batch)
                 unit_of_work.runs.finalize_execution_if_complete(execution.id, finished_at=now)
             unit_of_work.runs.finalize_run_if_complete(run_id, finished_at=now)
             unit_of_work.commit()
@@ -179,12 +184,19 @@ class BatchExecutor:
         after which the batch is failed so the run can still complete.
         """
         with self._unit_of_work_factory() as unit_of_work:
-            batch = unit_of_work.runs.get_task_batch(message.task_batch_id)
+            batch = unit_of_work.runs.claim_batch(
+                message.task_batch_id,
+                method_execution_id=message.method_execution_id,
+                worker_task_id=worker_task_id,
+                started_at=self._clock(),
+                attempt_count=attempt_count,
+            )
             if batch is None:
-                msg = f"task batch {message.task_batch_id} does not exist"
-                raise ResourceNotFoundError(msg)
-            if batch.status is TaskBatchStatus.completed:
-                return batch  # Redelivery of a finished batch is a safe no-op.
+                existing = unit_of_work.runs.get_task_batch(message.task_batch_id)
+                if existing is None:  # Defensive: claim_batch owns the not-found check.
+                    msg = f"task batch {message.task_batch_id} does not exist"
+                    raise ResourceNotFoundError(msg)
+                return existing  # Duplicate delivery is a safe no-op.
 
             execution = unit_of_work.runs.get_method_execution(message.method_execution_id)
             if execution is None:
@@ -195,12 +207,6 @@ class BatchExecutor:
                 msg = f"run {execution.run_id} does not exist"
                 raise ResourceNotFoundError(msg)
 
-            unit_of_work.runs.mark_batch_started(
-                message.task_batch_id,
-                worker_task_id=worker_task_id,
-                started_at=self._clock(),
-                attempt_count=attempt_count,
-            )
             try:
                 results = self._classify(unit_of_work, execution=execution, run=run, batch=batch)
             except (

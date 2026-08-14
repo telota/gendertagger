@@ -1,7 +1,7 @@
 {
   "name": "gendertagger-infra-scaffold",
-  "generated": "2026-08-13",
-  "status": "Phase 4 asynchronous Celery execution complete over the persisted API vertical slice",
+  "generated": "2026-08-14",
+  "status": "Phase 4 Celery execution hardened with transactional dispatch and reconciliation",
   "design_docs": [
     "docs/00-design-index.md",
     "docs/01-architecture.md",
@@ -36,7 +36,8 @@
     "docs/decisions/ADR-0011-asynchronous-execution-model.md",
     "docs/decisions/ADR-0012-name-based-classifier-adapter-pattern.md",
     "docs/decisions/ADR-0013-wiki-gendersort-adapter.md",
-    "docs/decisions/ADR-0014-restore-parenthetical-institution-normalization.md"
+    "docs/decisions/ADR-0014-restore-parenthetical-institution-normalization.md",
+    "docs/decisions/ADR-0015-transactional-batch-dispatch-outbox.md"
   ],
   "top_level_entrypoints": [
     "README.md",

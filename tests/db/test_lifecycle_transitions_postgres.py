@@ -123,12 +123,17 @@ def test_execution_advances_and_records_failure(db_session: Session) -> None:
     assert finished.failure_diagnostic == "adapter crashed"
 
 
-def test_batch_started_then_completed_records_tallies(db_session: Session) -> None:
-    runs, _, batch = _setup(db_session)
+def test_batch_claimed_then_completed_records_tallies(db_session: Session) -> None:
+    runs, execution, batch = _setup(db_session)
 
-    running = runs.mark_batch_started(
-        batch.id, worker_task_id="task-1", started_at=NOW, attempt_count=1
+    running = runs.claim_batch(
+        batch.id,
+        method_execution_id=execution.id,
+        worker_task_id="task-1",
+        started_at=NOW,
+        attempt_count=1,
     )
+    assert running is not None
     assert running.status is TaskBatchStatus.running
     assert running.worker_task_id == "task-1"
     completed = runs.mark_batch_finished(

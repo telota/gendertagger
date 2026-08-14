@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -6,16 +5,18 @@ import pytest
 from fastapi import Request
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
-from sqlalchemy import Engine
+from sqlalchemy import Engine, select
 
 from gendertagger.api.app import create_app
 from gendertagger.api.authentication import AuthenticationBackend
 from gendertagger.api.settings import AppSettings
+from gendertagger.db.dispatches import BatchDispatchRow
+from gendertagger.db.executions import MethodExecutionRow, TaskBatchRow
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
+from gendertagger.models.dispatch import BatchDispatchStatus
 from gendertagger.models.lifecycle import RunStatus
 from gendertagger.models.user import Role, UserCreate
-from gendertagger.services.execution import BatchDispatcher, ScheduledBatch
 from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
@@ -51,8 +52,6 @@ def _unit_of_work_factory(engine: Engine) -> UnitOfWorkFactory:
 def _client(
     postgres_engine: Engine,
     artifact_root: Path,
-    *,
-    batch_dispatcher: BatchDispatcher | None = None,
 ) -> TestClient:
     unit_of_work_factory = _unit_of_work_factory(postgres_engine)
     with unit_of_work_factory() as unit_of_work:
@@ -69,7 +68,6 @@ def _client(
         ),
         unit_of_work_factory=unit_of_work_factory,
         authentication_backend=StaticAuthenticationBackend(operator.id),
-        batch_dispatcher=batch_dispatcher,
     )
     return TestClient(application)
 
@@ -150,20 +148,11 @@ def test_run_creation_rejects_unregistered_method_and_client_provenance(
     assert client_provenance_response.status_code == 422
 
 
-class _RecordingDispatcher:
-    def __init__(self) -> None:
-        self.batches: list[ScheduledBatch] = []
-
-    def dispatch(self, batches: Sequence[ScheduledBatch]) -> None:
-        self.batches.extend(batches)
-
-
-def test_run_executions_are_scheduled_and_dispatched(
+def test_run_executions_are_scheduled_with_durable_dispatch_intent(
     postgres_engine: Engine,
     tmp_path: Path,
 ) -> None:
-    dispatcher = _RecordingDispatcher()
-    client = _client(postgres_engine, tmp_path, batch_dispatcher=dispatcher)
+    client = _client(postgres_engine, tmp_path)
     snapshot_id = _ready_snapshot_id(client)
     create_response = client.post(
         "/api/v1/runs",
@@ -180,8 +169,20 @@ def test_run_executions_are_scheduled_and_dispatched(
     body = start_response.json()
     assert body["status"] == RunStatus.running.value
     assert "task_id" not in body
-    assert len(dispatcher.batches) == 1
-    assert dispatcher.batches[0].queue_name == "cpu"
+    with create_session_factory(postgres_engine)() as session:
+        dispatch = session.scalar(
+            select(BatchDispatchRow)
+            .join(TaskBatchRow, BatchDispatchRow.task_batch_id == TaskBatchRow.id)
+            .join(
+                MethodExecutionRow,
+                TaskBatchRow.method_execution_id == MethodExecutionRow.id,
+            )
+            .where(MethodExecutionRow.run_id == UUID(run_id))
+        )
+    assert dispatch is not None
+    assert dispatch.status is BatchDispatchStatus.pending
+    assert dispatch.queue_name == "cpu"
+    assert dispatch.payload["task_batch_id"] == str(dispatch.task_batch_id)
 
     # A run already scheduled cannot be scheduled again.
     conflict = client.post(f"/api/v1/runs/{run_id}/executions")
@@ -204,7 +205,7 @@ def test_run_and_executions_expose_progress(
     postgres_engine: Engine,
     tmp_path: Path,
 ) -> None:
-    client = _client(postgres_engine, tmp_path, batch_dispatcher=_RecordingDispatcher())
+    client = _client(postgres_engine, tmp_path)
     snapshot_id = _ready_snapshot_id(client)
     run_id = client.post(
         "/api/v1/runs",
@@ -252,7 +253,7 @@ def test_run_events_stream_projects_terminal_state(
     postgres_engine: Engine,
     tmp_path: Path,
 ) -> None:
-    client = _client(postgres_engine, tmp_path, batch_dispatcher=_RecordingDispatcher())
+    client = _client(postgres_engine, tmp_path)
     snapshot_id = _ready_snapshot_id(client)
     run_id = client.post(
         "/api/v1/runs",

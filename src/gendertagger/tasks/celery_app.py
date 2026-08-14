@@ -1,7 +1,8 @@
 """Celery application factory and Redis broker configuration.
 
-This module is the worker composition seam. It never imports the FastAPI layer:
-the API enqueues work by importing this factory, not the other way around.
+This module is the worker and dispatch-coordinator composition seam. It never
+imports the FastAPI layer; durable outbox publication is owned by the separate
+coordinator process.
 """
 
 from __future__ import annotations

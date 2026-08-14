@@ -13,6 +13,7 @@ EXPECTED_APPLICATION_TABLES = {
     "aggregation_method_executions",
     "annotations",
     "artifacts",
+    "batch_dispatches",
     "dataset_snapshots",
     "method_executions",
     "person_external_ids",

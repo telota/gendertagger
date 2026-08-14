@@ -1,18 +1,34 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta
+from functools import partial
+from queue import Queue
+from threading import Barrier
+from time import monotonic, sleep
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import Connection, func, select
+from sqlalchemy import Connection, Engine, func, select, text
+from sqlalchemy.orm import Session
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
+from gendertagger.db.dispatch_repository import SqlAlchemyDispatchRepository
 from gendertagger.db.executions import PredictionRow
+from gendertagger.db.run_repository import SqlAlchemyRunRepository
+from gendertagger.db.session import create_session_factory
+from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.models.artifact import ArtifactCreate
+from gendertagger.models.dispatch import (
+    BatchDispatch,
+    BatchDispatchCreate,
+    BatchDispatchStatus,
+)
 from gendertagger.models.lifecycle import MethodExecutionStatus, RunStatus, TaskBatchStatus
 from gendertagger.models.person import PersonInput
 from gendertagger.models.project import DatasetSnapshotCreate, ProjectCreate
-from gendertagger.models.run import RunCreate
+from gendertagger.models.run import Run, RunCreate, TaskBatch, TaskBatchMessage
+from gendertagger.services.dispatch import OutboxRelay
 from gendertagger.services.execution import BatchExecutor, RunScheduler
 from gendertagger.services.method_registry import default_method_registry
 from gendertagger.services.persistence_errors import InvalidResourceStateError
@@ -30,6 +46,23 @@ PEOPLE = [
     PersonInput(tei_id="p03", surname="Müller (Sohn des Karl)"),
     PersonInput(tei_id="p04", surname="Mendelssohn (Familie des Abraham)"),
 ]
+
+
+class _FailOncePublisher:
+    def __init__(self) -> None:
+        self.call_count = 0
+
+    def publish(
+        self,
+        message: TaskBatchMessage,
+        *,
+        queue_name: str,
+        task_id: UUID,
+    ) -> None:
+        del message, queue_name, task_id
+        self.call_count += 1
+        if self.call_count == 1:
+            raise ConnectionError("simulated broker outage")
 
 
 def _seed_created_run(factory: UnitOfWorkFactory) -> UUID:
@@ -140,6 +173,38 @@ def test_batch_execution_is_idempotent(
     assert persisted == 4  # re-execution created no duplicate predictions
 
 
+def test_batch_claim_rejects_a_mismatched_execution_envelope(
+    postgres_unit_of_work: tuple[UnitOfWorkFactory, Connection],
+) -> None:
+    factory, _ = postgres_unit_of_work
+    registry = default_method_registry()
+    first_run_id = _seed_created_run(factory)
+    second_run_id = _seed_created_run(factory)
+    scheduler = RunScheduler(
+        unit_of_work_factory=factory,
+        method_registry=registry,
+        clock=lambda: NOW,
+    )
+    (first_batch,) = scheduler.schedule_run(first_run_id)
+    (second_batch,) = scheduler.schedule_run(second_run_id)
+    mismatched = TaskBatchMessage(
+        method_execution_id=second_batch.method_execution_id,
+        task_batch_id=first_batch.task_batch_id,
+    )
+
+    with pytest.raises(InvalidResourceStateError, match="does not belong"):
+        BatchExecutor(
+            unit_of_work_factory=factory,
+            method_registry=registry,
+            clock=lambda: LATER,
+        ).execute(mismatched, worker_task_id="wrong-owner", attempt_count=1)
+
+    with factory() as unit_of_work:
+        persisted = unit_of_work.runs.get_task_batch(first_batch.task_batch_id)
+    assert persisted is not None
+    assert persisted.status is TaskBatchStatus.pending
+
+
 def test_scheduling_rejects_a_non_created_run(
     postgres_unit_of_work: tuple[UnitOfWorkFactory, Connection],
 ) -> None:
@@ -154,3 +219,207 @@ def test_scheduling_rejects_a_non_created_run(
 
     with pytest.raises(InvalidResourceStateError):
         scheduler.schedule_run(run_id)
+
+
+def test_scheduling_rolls_back_work_when_dispatch_intent_cannot_be_persisted(
+    postgres_unit_of_work: tuple[UnitOfWorkFactory, Connection],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    factory, _ = postgres_unit_of_work
+    run_id = _seed_created_run(factory)
+
+    def fail_dispatch_persistence(
+        _repository: SqlAlchemyDispatchRepository,
+        _command: BatchDispatchCreate,
+    ) -> BatchDispatch:
+        raise RuntimeError("simulated outbox write failure")
+
+    monkeypatch.setattr(
+        SqlAlchemyDispatchRepository,
+        "ensure_dispatch",
+        fail_dispatch_persistence,
+    )
+    scheduler = RunScheduler(
+        unit_of_work_factory=factory,
+        method_registry=default_method_registry(),
+        clock=lambda: NOW,
+    )
+
+    with pytest.raises(RuntimeError, match="outbox write failure"):
+        scheduler.schedule_run(run_id)
+
+    with factory() as unit_of_work:
+        run = unit_of_work.runs.get_run(run_id)
+        executions = unit_of_work.runs.list_method_executions(run_id)
+    assert run is not None
+    assert run.status is RunStatus.created
+    assert executions == []
+
+
+def test_broker_failure_keeps_dispatch_recoverable_for_a_later_relay_cycle(
+    postgres_unit_of_work: tuple[UnitOfWorkFactory, Connection],
+) -> None:
+    factory, _ = postgres_unit_of_work
+    run_id = _seed_created_run(factory)
+    scheduler = RunScheduler(
+        unit_of_work_factory=factory,
+        method_registry=default_method_registry(),
+        clock=lambda: NOW,
+    )
+    (scheduled,) = scheduler.schedule_run(run_id)
+    publisher = _FailOncePublisher()
+    relay = OutboxRelay(
+        unit_of_work_factory=factory,
+        publisher=publisher,
+        relay_id="recovery-test-relay",
+        clock=lambda: NOW,
+        retry_delay=lambda _attempt: timedelta(0),
+    )
+
+    failed_cycle = relay.run_once()
+    with factory() as unit_of_work:
+        pending = unit_of_work.dispatches.get_dispatch_for_batch(scheduled.task_batch_id)
+        run_after_failure = unit_of_work.runs.get_run(run_id)
+
+    assert failed_cycle.failed == 1
+    assert pending is not None
+    assert pending.status is BatchDispatchStatus.pending
+    assert pending.attempt_count == 1
+    assert pending.last_error == "ConnectionError: simulated broker outage"
+    assert run_after_failure is not None
+    assert run_after_failure.status is RunStatus.running
+
+    recovered_cycle = relay.run_once()
+    with factory() as unit_of_work:
+        published = unit_of_work.dispatches.get_dispatch_for_batch(scheduled.task_batch_id)
+
+    assert recovered_cycle.published == 1
+    assert publisher.call_count == 2
+    assert published is not None
+    assert published.status is BatchDispatchStatus.published
+    assert published.attempt_count == 2
+
+
+def test_concurrent_schedulers_atomically_claim_one_created_run(
+    postgres_engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    factory: UnitOfWorkFactory = partial(
+        SqlAlchemyUnitOfWork,
+        create_session_factory(postgres_engine),
+    )
+    run_id = _seed_created_run(factory)
+    both_read_created = Barrier(2)
+    original_get_run = SqlAlchemyRunRepository.get_run
+
+    def synchronized_get_run(
+        repository: SqlAlchemyRunRepository,
+        requested_run_id: UUID,
+    ) -> Run | None:
+        run = original_get_run(repository, requested_run_id)
+        if requested_run_id == run_id:
+            both_read_created.wait(timeout=10)
+        return run
+
+    monkeypatch.setattr(SqlAlchemyRunRepository, "get_run", synchronized_get_run)
+    scheduler = RunScheduler(
+        unit_of_work_factory=factory,
+        method_registry=default_method_registry(),
+        clock=lambda: NOW,
+    )
+
+    successful_schedules = 0
+    scheduling_conflicts = 0
+    scheduled_batch_ids: list[UUID] = []
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(scheduler.schedule_run, run_id) for _ in range(2)]
+        for future in futures:
+            try:
+                scheduled = future.result(timeout=15)
+            except InvalidResourceStateError:
+                scheduling_conflicts += 1
+            else:
+                successful_schedules += 1
+                assert len(scheduled) == 1
+                scheduled_batch_ids.append(scheduled[0].task_batch_id)
+
+    assert successful_schedules == 1
+    assert scheduling_conflicts == 1
+    assert len(scheduled_batch_ids) == 1
+    with factory() as unit_of_work:
+        executions = unit_of_work.runs.list_method_executions(run_id)
+        dispatch = unit_of_work.dispatches.get_dispatch_for_batch(scheduled_batch_ids[0])
+    assert len(executions) == 1
+    assert dispatch is not None
+
+
+def test_concurrent_worker_deliveries_execute_only_one_batch_claim(
+    postgres_engine: Engine,
+) -> None:
+    factory: UnitOfWorkFactory = partial(
+        SqlAlchemyUnitOfWork,
+        create_session_factory(postgres_engine),
+    )
+    run_id = _seed_created_run(factory)
+    (scheduled,) = RunScheduler(
+        unit_of_work_factory=factory,
+        method_registry=default_method_registry(),
+        clock=lambda: NOW,
+    ).schedule_run(run_id)
+    competing_backend_pid: Queue[int] = Queue(maxsize=1)
+
+    def claim_from_competing_session() -> TaskBatch | None:
+        with Session(postgres_engine, autoflush=False, expire_on_commit=False) as session:
+            backend_pid = session.scalar(select(func.pg_backend_pid()))
+            assert isinstance(backend_pid, int)
+            competing_backend_pid.put(backend_pid)
+            claimed = SqlAlchemyRunRepository(session).claim_batch(
+                scheduled.task_batch_id,
+                method_execution_id=scheduled.method_execution_id,
+                worker_task_id="worker-2",
+                started_at=LATER,
+                attempt_count=1,
+            )
+            session.commit()
+            return claimed
+
+    with Session(postgres_engine, autoflush=False, expire_on_commit=False) as first_session:
+        first_claim = SqlAlchemyRunRepository(first_session).claim_batch(
+            scheduled.task_batch_id,
+            method_execution_id=scheduled.method_execution_id,
+            worker_task_id="worker-1",
+            started_at=NOW,
+            attempt_count=1,
+        )
+        assert first_claim is not None
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            competing = pool.submit(claim_from_competing_session)
+            backend_pid = competing_backend_pid.get(timeout=5)
+            observed_lock_wait = False
+            deadline = monotonic() + 5
+            try:
+                while monotonic() < deadline and not competing.done():
+                    with postgres_engine.connect() as observer:
+                        wait_event_type = observer.execute(
+                            text(
+                                "SELECT wait_event_type FROM pg_stat_activity "
+                                "WHERE pid = :backend_pid"
+                            ),
+                            {"backend_pid": backend_pid},
+                        ).scalar_one_or_none()
+                    if wait_event_type == "Lock":
+                        observed_lock_wait = True
+                        break
+                    sleep(0.01)
+            finally:
+                first_session.commit()
+            duplicate_claim = competing.result(timeout=5)
+
+    assert observed_lock_wait
+    assert duplicate_claim is None
+    with factory() as unit_of_work:
+        persisted = unit_of_work.runs.get_task_batch(scheduled.task_batch_id)
+    assert persisted is not None
+    assert persisted.status is TaskBatchStatus.running
+    assert persisted.worker_task_id == "worker-1"

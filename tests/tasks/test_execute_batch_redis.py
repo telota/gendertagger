@@ -16,12 +16,13 @@ from gendertagger.models.lifecycle import RunStatus, TaskBatchStatus
 from gendertagger.models.person import PersonInput
 from gendertagger.models.project import DatasetSnapshotCreate, ProjectCreate
 from gendertagger.models.run import RunCreate
+from gendertagger.services.dispatch import OutboxRelay
 from gendertagger.services.execution import RunScheduler
 from gendertagger.services.method_registry import default_method_registry
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 from gendertagger.tasks import execution as execution_module
 from gendertagger.tasks.celery_app import create_celery_app
-from gendertagger.tasks.dispatch import CeleryBatchDispatcher
+from gendertagger.tasks.dispatch import CeleryMessagePublisher
 
 pytestmark = [pytest.mark.integration, pytest.mark.redis, pytest.mark.e2e]
 
@@ -100,11 +101,17 @@ def test_cheap_method_runs_asynchronously_end_to_end(
     assert len(scheduled) == 1
 
     app = create_celery_app()
-    dispatcher = CeleryBatchDispatcher(app)
+    relay = OutboxRelay(
+        unit_of_work_factory=factory,
+        publisher=CeleryMessagePublisher(app),
+        relay_id="redis-e2e-relay",
+        clock=partial(datetime.now, UTC),
+    )
     status: RunStatus | None = None
     try:
         with start_worker(app, queues=["cpu"], perform_ping_check=False, shutdown_timeout=30):
-            dispatcher.dispatch(scheduled)
+            relay_result = relay.run_once()
+            assert relay_result.published == 1
             deadline = time.monotonic() + 30
             while time.monotonic() < deadline:
                 with factory() as unit_of_work:

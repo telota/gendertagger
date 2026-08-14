@@ -9,6 +9,7 @@ EXPECTED_TABLES = {
     "aggregation_method_executions",
     "annotations",
     "artifacts",
+    "batch_dispatches",
     "dataset_snapshots",
     "method_executions",
     "person_external_ids",
@@ -23,13 +24,13 @@ EXPECTED_TABLES = {
 }
 
 
-def test_phase_two_schema_registers_every_persistence_table() -> None:
+def test_schema_registers_every_persistence_table() -> None:
     assert set(metadata.tables) == EXPECTED_TABLES
     assert len(ORM_ROW_TYPES) == len(EXPECTED_TABLES)
     assert len(set(ORM_ROW_TYPES)) == len(ORM_ROW_TYPES)
 
 
-def test_phase_two_schema_compiles_as_postgresql_ddl() -> None:
+def test_schema_compiles_as_postgresql_ddl() -> None:
     dialect = postgresql.dialect()  # type: ignore[no-untyped-call]  # Dynamic factory.
 
     for table in metadata.tables.values():

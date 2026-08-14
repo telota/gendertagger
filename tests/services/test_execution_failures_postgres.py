@@ -58,9 +58,13 @@ class _PermanentAdapter:
     )
     config_model = _EmptyConfig
 
+    def __init__(self) -> None:
+        self.call_count = 0
+
     def predict_batch(
         self, people: Sequence[PersonInput], config: _EmptyConfig
     ) -> list[PredictionResult]:
+        self.call_count += 1
         del people, config
         raise MethodContractError("adapter returned the wrong shape")
 
@@ -191,6 +195,29 @@ def test_permanent_failure_fails_the_batch_without_retry(
 
     assert failed.status is TaskBatchStatus.failed
     assert failed.failure_class == "MethodContractError"
+
+
+def test_redelivery_does_not_reopen_a_failed_batch(
+    postgres_unit_of_work: tuple[UnitOfWorkFactory, Connection],
+) -> None:
+    factory, _ = postgres_unit_of_work
+    adapter = _PermanentAdapter()
+    registry = MethodRegistry([_registration(adapter)])
+    run_id = _seed_run(factory, methods=[MethodRunConfig(name="broken_method")])
+    scheduled = _scheduled(factory, registry, run_id)
+    executor = _executor(factory, registry)
+
+    first = executor.execute(
+        scheduled[0].message(), worker_task_id="w1", attempt_count=1, max_attempts=3
+    )
+    redelivery = executor.execute(
+        scheduled[0].message(), worker_task_id="w2", attempt_count=2, max_attempts=3
+    )
+
+    assert first.status is TaskBatchStatus.failed
+    assert redelivery.status is TaskBatchStatus.failed
+    assert redelivery.worker_task_id == "w1"
+    assert adapter.call_count == 1
 
 
 def test_partial_failure_preserves_the_successful_method(
