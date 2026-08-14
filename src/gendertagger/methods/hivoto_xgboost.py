@@ -87,8 +87,7 @@ class _SklearnXgboostModel:
             from xgboost import XGBClassifier
         except ImportError as error:  # pragma: no cover - exercised only without the extra
             msg = (
-                "hivoto_xgboost requires the 'hivoto-xgboost' extra "
-                "(install scikit-learn, xgboost)"
+                "hivoto_xgboost requires the 'hivoto-xgboost' extra (install scikit-learn, xgboost)"
             )
             raise MethodDependencyError(msg) from error
 

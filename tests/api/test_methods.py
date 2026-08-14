@@ -99,13 +99,14 @@ def test_methods_endpoint_lists_registered_methods_in_name_order() -> None:
         "hf_genderize",
         "hivoto",
         "hivoto_xgboost",
+        "local_llm",
         "nomquamgender",
         "parenthetical_qualifier",
         "wiki_gendersort",
     ]
 
 
-def test_default_registry_routes_every_method_to_the_cpu_queue() -> None:
+def test_default_registry_routes_every_method_to_the_expected_queue() -> None:
     registrations = default_method_registry().registrations
 
     assert [registration.descriptor.name for registration in registrations] == [
@@ -115,12 +116,14 @@ def test_default_registry_routes_every_method_to_the_cpu_queue() -> None:
         "hf_genderize",
         "hivoto",
         "hivoto_xgboost",
+        "local_llm",
         "nomquamgender",
         "parenthetical_qualifier",
         "wiki_gendersort",
     ]
     for registration in registrations:
-        assert registration.queue_name == "cpu"
+        expected_queue = "llm" if registration.descriptor.name == "local_llm" else "cpu"
+        assert registration.queue_name == expected_queue
         assert registration.batch_size > 0
 
 

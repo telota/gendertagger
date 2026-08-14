@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
-import json
 from collections.abc import Sequence
 from typing import Any, Literal, TypeVar
 
 from pydantic import BaseModel, Field, ValidationError
 
-from gendertagger.methods.base import GenderMethod, MethodConfig, MethodDependencyError, validate_prediction_batch
+from gendertagger.methods.base import (
+    GenderMethod,
+    MethodConfig,
+    MethodDependencyError,
+    validate_prediction_batch,
+)
 from gendertagger.methods.normalization import LOCAL_LLM_NORMALIZATION, normalize_raw_label
 from gendertagger.models.classification import PredictionResult, PredictionStatus
 from gendertagger.models.method import MethodConfidenceRange, MethodDescriptor
@@ -21,26 +25,26 @@ LOCAL_LLM_DESCRIPTOR = MethodDescriptor(
     method_confidence_range=MethodConfidenceRange(minimum=0.0, maximum=1.0),
 )
 
+
 class LocalLlmConfig(MethodConfig):
     """Configuration for the Local LLM method."""
-    
+
     model: str = Field(description="The name of the LLM model to request.")
     base_url: str = Field(description="Base URL for the OpenAI-compatible API.")
     api_key: str = Field(default="ollama", description="API key to use.")
     system_prompt: str | None = Field(
         default="You are an expert archivist identifying the gender of historical persons.",
-        description="Optional system prompt to prepend to messages."
+        description="Optional system prompt to prepend to messages.",
     )
     temperature: float = Field(default=0.0, description="Temperature for the generation.")
     max_validation_retries: int = Field(
-        default=2,
-        description="Maximum number of times to retry on a validation failure."
+        default=2, description="Maximum number of times to retry on a validation failure."
     )
 
 
 class PersonClassification(BaseModel):
     """Structured output expected from the LLM."""
-    
+
     gender: Literal["female", "male", "institution", "unknown"]
     confidence: float
     certainty: Literal["high", "low", "uncertain"]
@@ -88,12 +92,12 @@ class LlmClient:
 
         schema = output_type.model_json_schema()
         last_error = None
-        
+
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
-        
+
         metadata: dict[str, Any] = {
             "model": self.model,
             "base_url": self.base_url,
@@ -105,15 +109,17 @@ class LlmClient:
         for attempt in range(self.max_validation_retries + 1):
             metadata["attempt_count"] = attempt + 1
             if last_error:
-                messages.append({
-                    "role": "user",
-                    "content": (
-                        "The previous output failed validation:\n"
-                        f"{last_error}\n\n"
-                        "Return a corrected result following the JSON schema exactly."
-                    ),
-                })
-            
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "The previous output failed validation:\n"
+                            f"{last_error}\n\n"
+                            "Return a corrected result following the JSON schema exactly."
+                        ),
+                    }
+                )
+
             payload = {
                 "model": self.model,
                 "messages": messages,
@@ -134,17 +140,17 @@ class LlmClient:
                 json=payload,
             )
             response.raise_for_status()
-            
+
             data = response.json()
             # Capture the raw completion response for provenance
             metadata["raw_response"] = data
-            
+
             try:
                 text = data["choices"][0]["message"]["content"]
             except (KeyError, IndexError) as exc:
                 msg = f"Unexpected response structure: {data}"
                 raise ValueError(msg) from exc
-                
+
             try:
                 result = output_type.model_validate_json(text)
                 return result, metadata
@@ -169,7 +175,7 @@ class LocalLlmMethod(GenderMethod[LocalLlmConfig]):
         config: LocalLlmConfig,
     ) -> list[PredictionResult]:
         """Classify a batch of people sequentially using the configured LLM API.
-        
+
         Raises:
             MethodDependencyError: If the ``llm`` extra is not installed.
         """
@@ -188,11 +194,11 @@ class LocalLlmMethod(GenderMethod[LocalLlmConfig]):
         )
 
         results: list[PredictionResult] = []
-        
+
         with httpx.Client() as client:
             for person in people:
                 prompt = self._build_prompt(person)
-                
+
                 try:
                     classification, metadata = llm.structured(
                         client=client,
@@ -200,11 +206,11 @@ class LocalLlmMethod(GenderMethod[LocalLlmConfig]):
                         output_type=PersonClassification,
                         system=config.system_prompt,
                     )
-                    
+
                     raw_output = metadata.pop("raw_response", {})
                     if classification.reasoning:
                         raw_output["reasoning"] = classification.reasoning
-                        
+
                     metadata["self_reported_certainty"] = classification.certainty
 
                     result = normalize_raw_label(
@@ -222,16 +228,16 @@ class LocalLlmMethod(GenderMethod[LocalLlmConfig]):
                         raw_output={"error": str(exc)},
                         metadata={},
                     )
-                    
+
                 results.append(result)
-                
+
         return validate_prediction_batch(self.descriptor, people, results)
 
     def _build_prompt(self, person: PersonInput) -> str:
         prompt_parts = ["Please identify the gender of the following historical person."]
-        
+
         prompt_parts.append(f"TEI ID: {person.tei_id}")
-        
+
         if person.name_forms is not None:
             for form in person.name_forms:
                 name_text = form.projected_text()
@@ -247,17 +253,17 @@ class LocalLlmMethod(GenderMethod[LocalLlmConfig]):
                 name_parts.append(person.surname)
             if name_parts:
                 prompt_parts.append(f"Name: {' '.join(name_parts)}")
-                
+
             if person.alt_names:
                 prompt_parts.append(f"Alternative names: {', '.join(person.alt_names)}")
-            
+
         if person.birth or person.death:
             dates = f"{person.birth or '?'} - {person.death or '?'}"
             prompt_parts.append(f"Life dates: {dates}")
-            
+
         if person.note:
             prompt_parts.append(f"Note: {person.note}")
-            
+
         for event in person.events:
             event_desc = f"Event ({event.type})"
             if event.when:
@@ -265,11 +271,11 @@ class LocalLlmMethod(GenderMethod[LocalLlmConfig]):
             if event.note:
                 event_desc += f": {event.note}"
             prompt_parts.append(event_desc)
-            
+
         if person.gnd_id:
             prompt_parts.append(f"GND ID: {person.gnd_id}")
-            
+
         for system, ext_id in person.external_ids.items():
             prompt_parts.append(f"External ID ({system}): {ext_id}")
-            
+
         return "\n".join(prompt_parts)

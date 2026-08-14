@@ -21,4 +21,5 @@
 | [`17-frontend-integration.md`](17-frontend-integration.md) | Vue/browser client contract and backend readiness |
 | [`18-engineering-and-quality.md`](18-engineering-and-quality.md) | Toolchain, quality gates, CI, and delivery policy |
 | [`19-coding-and-documentation-style.md`](19-coding-and-documentation-style.md) | Naming, docstrings, Markdown, and ADR style |
+| [`20-method-adapters-reference.md`](20-method-adapters-reference.md) | Comprehensive reference for classification method adapters |
 | [Architecture Decision Records](decisions/) | Accepted decisions and ADR template |

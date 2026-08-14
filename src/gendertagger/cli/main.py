@@ -279,17 +279,27 @@ def _prepare_hivoto_xgboost(
     provisioning, never recompiled from the licensed HIVOTO source. See
     ADR-0025.
     """
-    lookup_path = lookup_asset_resolver.materialize(HIVOTO_LOOKUP_LOGICAL_TYPE, hivoto_lookup_sha256)
+    lookup_path = lookup_asset_resolver.materialize(
+        HIVOTO_LOOKUP_LOGICAL_TYPE, hivoto_lookup_sha256
+    )
     file_specs = (
         (lookup_path, LOOKUP_MEMBER_RELATIVE_PATH, SQLITE_MEDIA_TYPE),
-        (model_directory / VOCABULARY_MEMBER_RELATIVE_PATH, VOCABULARY_MEMBER_RELATIVE_PATH, "application/json"),
+        (
+            model_directory / VOCABULARY_MEMBER_RELATIVE_PATH,
+            VOCABULARY_MEMBER_RELATIVE_PATH,
+            "application/json",
+        ),
         (model_directory / IDF_MEMBER_RELATIVE_PATH, IDF_MEMBER_RELATIVE_PATH, "application/json"),
         (
             model_directory / VECTORIZER_CONFIG_MEMBER_RELATIVE_PATH,
             VECTORIZER_CONFIG_MEMBER_RELATIVE_PATH,
             "application/json",
         ),
-        (model_directory / MODEL_MEMBER_RELATIVE_PATH, MODEL_MEMBER_RELATIVE_PATH, "application/json"),
+        (
+            model_directory / MODEL_MEMBER_RELATIVE_PATH,
+            MODEL_MEMBER_RELATIVE_PATH,
+            "application/json",
+        ),
     )
     members: list[ModelManifestMember] = []
     for file_path, relative_path, media_type in file_specs:

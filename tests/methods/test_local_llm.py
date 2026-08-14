@@ -1,6 +1,5 @@
 """Unit tests for the Local LLM adapter."""
 
-import json
 from collections.abc import Sequence
 from typing import Any
 
@@ -8,8 +7,12 @@ import httpx
 import pytest
 from pydantic import ValidationError
 
-from gendertagger.methods.base import MethodDependencyError
-from gendertagger.methods.local_llm import LlmClient, LocalLlmConfig, LocalLlmMethod, PersonClassification
+from gendertagger.methods.local_llm import (
+    LlmClient,
+    LocalLlmConfig,
+    LocalLlmMethod,
+    PersonClassification,
+)
 from gendertagger.models.classification import CanonicalLabel, PredictionStatus
 from gendertagger.models.person import PersonInput
 
@@ -51,7 +54,9 @@ class MockResponse:
     def raise_for_status(self) -> None:
         if self.status_code >= 400:
             raise httpx.HTTPStatusError(
-                "Error", request=httpx.Request("POST", ""), response=httpx.Response(self.status_code, request=httpx.Request("POST", ""))
+                "Error",
+                request=httpx.Request("POST", ""),
+                response=httpx.Response(self.status_code, request=httpx.Request("POST", "")),
             )
 
 
@@ -84,15 +89,17 @@ def test_llm_client_structured_success() -> None:
         def post(self, url: str, headers: dict[str, str], json: dict[str, Any]) -> MockResponse:
             assert url == "http://test/chat/completions"
             assert json["model"] == "llama3"
-            return MockResponse({
-                "choices": [
-                    {
-                        "message": {
-                            "content": '{"gender": "female", "confidence": 0.95, "certainty": "high", "reasoning": "Known physicist"}'
+            return MockResponse(
+                {
+                    "choices": [
+                        {
+                            "message": {
+                                "content": '{"gender": "female", "confidence": 0.95, "certainty": "high", "reasoning": "Known physicist"}'
+                            }
                         }
-                    }
-                ]
-            })
+                    ]
+                }
+            )
 
     result, metadata = client.structured(
         MockHttpxClient(),
@@ -120,11 +127,9 @@ def test_llm_client_retry_then_success() -> None:
         def post(self, url: str, headers: dict[str, str], json: dict[str, Any]) -> MockResponse:
             self.calls += 1
             if self.calls == 1:
-                return MockResponse({
-                    "choices": [{"message": {"content": '{"invalid": "json"}'}}]
-                })
-            else:
-                return MockResponse({
+                return MockResponse({"choices": [{"message": {"content": '{"invalid": "json"}'}}]})
+            return MockResponse(
+                {
                     "choices": [
                         {
                             "message": {
@@ -132,7 +137,8 @@ def test_llm_client_retry_then_success() -> None:
                             }
                         }
                     ]
-                })
+                }
+            )
 
     mock_client = MockHttpxClient()
     result, metadata = client.structured(
@@ -156,9 +162,7 @@ def test_llm_client_retry_exhausted() -> None:
 
     class MockHttpxClient:
         def post(self, url: str, headers: dict[str, str], json: dict[str, Any]) -> MockResponse:
-            return MockResponse({
-                "choices": [{"message": {"content": '{"invalid": "json"}'}}]
-            })
+            return MockResponse({"choices": [{"message": {"content": '{"invalid": "json"}'}}]})
 
     with pytest.raises(ValidationError):
         client.structured(
@@ -179,15 +183,17 @@ def test_local_llm_method_success(
             pass
 
         def post(self, url: str, headers: dict[str, str], json: dict[str, Any]) -> MockResponse:
-            return MockResponse({
-                "choices": [
-                    {
-                        "message": {
-                            "content": '{"gender": "female", "confidence": 0.9, "certainty": "high", "reasoning": "Marie Curie"}'
+            return MockResponse(
+                {
+                    "choices": [
+                        {
+                            "message": {
+                                "content": '{"gender": "female", "confidence": 0.9, "certainty": "high", "reasoning": "Marie Curie"}'
+                            }
                         }
-                    }
-                ]
-            })
+                    ]
+                }
+            )
 
     # Mock httpx.Client to return our context manager
     monkeypatch.setattr(httpx, "Client", lambda: MockHttpxClientContext())

@@ -23,6 +23,7 @@
     "docs/17-frontend-integration.md",
     "docs/18-engineering-and-quality.md",
     "docs/19-coding-and-documentation-style.md",
+    "docs/20-method-adapters-reference.md",
     "docs/decisions/ADR-0001-pydantic-fastapi-central.md",
     "docs/decisions/ADR-0002-immutable-dataset-snapshots.md",
     "docs/decisions/ADR-0003-reference-aggregation.md",
@@ -46,7 +47,9 @@
     "docs/decisions/ADR-0021-versioned-multi-format-snapshot-ingestion.md",
     "docs/decisions/ADR-0022-uncertainty-first-review-ordering.md",
     "docs/decisions/ADR-0023-content-addressed-sqlite-method-lookups.md",
-    "docs/decisions/ADR-0024-hf-transformer-model-manifest-adapters.md"
+    "docs/decisions/ADR-0024-hf-transformer-model-manifest-adapters.md",
+    "docs/decisions/ADR-0025-hivoto-xgboost-adapter.md",
+    "docs/decisions/ADR-0026-local-llm-adapter.md"
   ],
   "top_level_entrypoints": [
     "README.md",
