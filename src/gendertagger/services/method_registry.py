@@ -26,6 +26,7 @@ from gendertagger.methods.hivoto_xgboost import (
     HIVOTO_XGBOOST_MODEL_MANIFEST_LOGICAL_TYPE,
     HivotoXgboostMethod,
 )
+from gendertagger.methods.local_llm import LocalLlmMethod
 from gendertagger.methods.model_manifest import (
     ModelDirectoryResolver,
     UnavailableModelDirectoryResolver,
@@ -42,7 +43,7 @@ from gendertagger.methods.wiki_gendersort import (
 )
 from gendertagger.models.artifact import ARTIFACT_TYPE_PATTERN
 from gendertagger.models.method import MethodDescriptor
-from gendertagger.models.queues import CPU_QUEUE
+from gendertagger.models.queues import CPU_QUEUE, LLM_QUEUE
 from gendertagger.models.run import QUEUE_NAME_PATTERN
 
 # CPU rule/lookup batch size within the docs/06-task-queue.md 100-500 range.
@@ -220,6 +221,13 @@ def default_method_registry(
                 queue_name=CPU_QUEUE,
                 batch_size=_CPU_BATCH_SIZE,
                 data_artifact_logical_type=HIVOTO_XGBOOST_MODEL_MANIFEST_LOGICAL_TYPE,
+            ),
+            MethodRegistration(
+                descriptor=LocalLlmMethod.descriptor,
+                config_model=LocalLlmMethod.config_model,
+                adapter=LocalLlmMethod(),
+                queue_name=LLM_QUEUE,
+                batch_size=_CPU_BATCH_SIZE,
             ),
         ]
     )
