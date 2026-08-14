@@ -193,6 +193,8 @@ module = [
   "torch.*",
   "sklearn.*",
   "xgboost.*",
+  "httpx.*",
+  "numpy.*",
 ]
 ignore_missing_imports = true
 
