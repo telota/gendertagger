@@ -75,7 +75,7 @@ lint = [
 ]
 test = [
   "coverage[toml]==7.15.4",
-  "httpx2>=2,<3",
+  "httpx>=0.27,<1",
   "hypothesis==6.165.5",
   "pytest==9.1.1",
   "pytest-cov==7.1.0",
@@ -193,7 +193,6 @@ module = [
   "torch.*",
   "sklearn.*",
   "xgboost.*",
-  "httpx.*",
   "numpy.*",
 ]
 ignore_missing_imports = true
