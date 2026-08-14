@@ -7,6 +7,7 @@ imports the FastAPI layer.
 
 from __future__ import annotations
 
+import random
 from datetime import UTC, datetime
 from functools import lru_cache, partial
 from typing import Any
@@ -20,11 +21,23 @@ from sqlalchemy.exc import ArgumentError
 from gendertagger.db.session import create_database_engine, create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.models.run import TaskBatchMessage
-from gendertagger.services.execution import BatchExecutor
+from gendertagger.services.execution import (
+    DEFAULT_MAX_BATCH_ATTEMPTS,
+    BatchExecutor,
+    TransientBatchError,
+)
 from gendertagger.services.method_registry import default_method_registry
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 
 EXECUTE_BATCH_TASK_NAME = "gendertagger.tasks.execute_batch"
+_RETRY_BASE_SECONDS = 2.0
+_RETRY_MAX_SECONDS = 60.0
+
+
+def _retry_countdown(retries: int) -> float:
+    """Exponential backoff with full jitter, bounded to a maximum delay."""
+    ceiling = min(_RETRY_BASE_SECONDS * (2**retries), _RETRY_MAX_SECONDS)
+    return random.uniform(0.0, ceiling)  # noqa: S311 - retry jitter is not security-sensitive
 
 
 class WorkerSettings(BaseSettings):
@@ -68,15 +81,23 @@ def _batch_executor() -> BatchExecutor:
 
 
 # Celery's shared_task is untyped; the task body below is fully annotated.
-@shared_task(bind=True, name=EXECUTE_BATCH_TASK_NAME)  # type: ignore[untyped-decorator]
+@shared_task(  # type: ignore[untyped-decorator]
+    bind=True,
+    name=EXECUTE_BATCH_TASK_NAME,
+    max_retries=DEFAULT_MAX_BATCH_ATTEMPTS - 1,
+)
 def execute_batch(self: Any, *, method_execution_id: str, task_batch_id: str) -> None:
-    """Execute one persisted batch; safe to retry because the work is idempotent."""
+    """Execute one persisted batch; retry transient failures with backoff."""
     message = TaskBatchMessage(
         method_execution_id=method_execution_id,  # type: ignore[arg-type]  # Pydantic coerces str.
         task_batch_id=task_batch_id,  # type: ignore[arg-type]  # Pydantic coerces str.
     )
-    _batch_executor().execute(
-        message,
-        worker_task_id=self.request.id or "unknown",
-        attempt_count=self.request.retries + 1,
-    )
+    try:
+        _batch_executor().execute(
+            message,
+            worker_task_id=self.request.id or "unknown",
+            attempt_count=self.request.retries + 1,
+            max_attempts=DEFAULT_MAX_BATCH_ATTEMPTS,
+        )
+    except TransientBatchError as error:
+        raise self.retry(exc=error, countdown=_retry_countdown(self.request.retries)) from error

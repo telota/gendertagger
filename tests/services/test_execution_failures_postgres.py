@@ -1,0 +1,257 @@
+from __future__ import annotations
+
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from uuid import UUID, uuid4
+
+import pytest
+from sqlalchemy import Connection, func, select
+
+from gendertagger.config.run import ExecutionConfig, MethodRunConfig, RunConfig
+from gendertagger.db.executions import PredictionRow
+from gendertagger.methods.base import MethodConfig, MethodContractError
+from gendertagger.models.artifact import ArtifactCreate
+from gendertagger.models.classification import PredictionResult
+from gendertagger.models.lifecycle import MethodExecutionStatus, RunStatus, TaskBatchStatus
+from gendertagger.models.method import MethodDescriptor
+from gendertagger.models.person import PersonInput
+from gendertagger.models.project import DatasetSnapshotCreate, ProjectCreate
+from gendertagger.models.run import RunCreate
+from gendertagger.services.execution import (
+    BatchExecutor,
+    RunScheduler,
+    ScheduledBatch,
+    TransientBatchError,
+)
+from gendertagger.services.method_registry import (
+    MethodRegistration,
+    MethodRegistry,
+    default_method_registry,
+)
+from gendertagger.services.unit_of_work import UnitOfWorkFactory
+
+pytestmark = [pytest.mark.integration, pytest.mark.postgres]
+
+NOW = datetime(2026, 8, 13, 12, 0, tzinfo=UTC)
+
+
+class _EmptyConfig(MethodConfig):
+    pass
+
+
+class _TransientAdapter:
+    descriptor = MethodDescriptor(
+        name="flaky_method", implementation_version="v1", normalization_version="v1"
+    )
+    config_model = _EmptyConfig
+
+    def predict_batch(
+        self, people: Sequence[PersonInput], config: _EmptyConfig
+    ) -> list[PredictionResult]:
+        del people, config
+        raise RuntimeError("transient broker outage")
+
+
+class _PermanentAdapter:
+    descriptor = MethodDescriptor(
+        name="broken_method", implementation_version="v1", normalization_version="v1"
+    )
+    config_model = _EmptyConfig
+
+    def predict_batch(
+        self, people: Sequence[PersonInput], config: _EmptyConfig
+    ) -> list[PredictionResult]:
+        del people, config
+        raise MethodContractError("adapter returned the wrong shape")
+
+
+def _registration(adapter: object) -> MethodRegistration:
+    return MethodRegistration(
+        descriptor=adapter.descriptor,  # type: ignore[attr-defined]
+        config_model=adapter.config_model,  # type: ignore[attr-defined]
+        adapter=adapter,  # type: ignore[arg-type]
+        queue_name="cpu",
+        batch_size=100,
+    )
+
+
+def _seed_run(
+    factory: UnitOfWorkFactory,
+    *,
+    methods: list[MethodRunConfig],
+    execution_config: ExecutionConfig | None = None,
+) -> UUID:
+    config = RunConfig(methods=methods, execution=execution_config or ExecutionConfig())
+    with factory() as unit_of_work:
+        source = unit_of_work.artifacts.add_artifact(
+            ArtifactCreate(
+                logical_type="source_tei",
+                storage_uri="file:///synthetic/source.xml",
+                sha256="a" * 64,
+                byte_size=1,
+                media_type="application/xml",
+            )
+        )
+        project = unit_of_work.projects.add_project(
+            ProjectCreate(slug=f"fail-{uuid4().hex}", display_name="Failure policy project")
+        )
+        snapshot = unit_of_work.projects.add_snapshot(
+            DatasetSnapshotCreate(
+                project_id=project.id,
+                source_artifact_id=source.id,
+                source_sha256=source.sha256,
+                parser_version="tei_parser_v1",
+            )
+        )
+        unit_of_work.projects.begin_snapshot_import(snapshot.id)
+        unit_of_work.projects.add_person_records(
+            snapshot.id, [PersonInput(tei_id="p01", surname="Frölich (Frau des Heinrich)")]
+        )
+        unit_of_work.projects.complete_snapshot_import(snapshot.id, ready_at=NOW)
+        run = unit_of_work.runs.add_run(
+            RunCreate(
+                dataset_snapshot_id=snapshot.id,
+                resolved_config=config,
+                code_git_commit="abc123",
+                application_version="0.0.0",
+                python_version="3.11.0",
+                dependency_lock_sha256="b" * 64,
+            )
+        )
+        unit_of_work.commit()
+        return run.id
+
+
+def _executor(factory: UnitOfWorkFactory, registry: MethodRegistry) -> BatchExecutor:
+    return BatchExecutor(unit_of_work_factory=factory, method_registry=registry, clock=lambda: NOW)
+
+
+def _scheduled(
+    factory: UnitOfWorkFactory, registry: MethodRegistry, run_id: UUID
+) -> list[ScheduledBatch]:
+    scheduler = RunScheduler(
+        unit_of_work_factory=factory, method_registry=registry, clock=lambda: NOW
+    )
+    return scheduler.schedule_run(run_id)
+
+
+def test_transient_failure_below_max_attempts_raises_for_retry(
+    postgres_unit_of_work: tuple[UnitOfWorkFactory, Connection],
+) -> None:
+    factory, _ = postgres_unit_of_work
+    registry = MethodRegistry([_registration(_TransientAdapter())])
+    run_id = _seed_run(factory, methods=[MethodRunConfig(name="flaky_method")])
+    scheduled = _scheduled(factory, registry, run_id)
+
+    with pytest.raises(TransientBatchError):
+        _executor(factory, registry).execute(
+            scheduled[0].message(), worker_task_id="w", attempt_count=1, max_attempts=3
+        )
+
+    with factory() as unit_of_work:
+        batch = unit_of_work.runs.get_task_batch(scheduled[0].task_batch_id)
+    assert batch is not None
+    assert batch.status is TaskBatchStatus.pending  # rolled back for retry
+
+
+def test_transient_failure_at_max_attempts_fails_the_batch(
+    postgres_unit_of_work: tuple[UnitOfWorkFactory, Connection],
+) -> None:
+    factory, _ = postgres_unit_of_work
+    registry = MethodRegistry([_registration(_TransientAdapter())])
+    run_id = _seed_run(factory, methods=[MethodRunConfig(name="flaky_method")])
+    scheduled = _scheduled(factory, registry, run_id)
+
+    failed = _executor(factory, registry).execute(
+        scheduled[0].message(), worker_task_id="w", attempt_count=3, max_attempts=3
+    )
+
+    assert failed.status is TaskBatchStatus.failed
+    assert failed.failure_class == "RuntimeError"
+    with factory() as unit_of_work:
+        execution = unit_of_work.runs.get_method_execution(scheduled[0].method_execution_id)
+        run = unit_of_work.runs.get_run(run_id)
+    assert execution is not None
+    assert execution.status is MethodExecutionStatus.failed
+    assert run is not None
+    assert run.status is RunStatus.completed_with_errors
+
+
+def test_permanent_failure_fails_the_batch_without_retry(
+    postgres_unit_of_work: tuple[UnitOfWorkFactory, Connection],
+) -> None:
+    factory, _ = postgres_unit_of_work
+    registry = MethodRegistry([_registration(_PermanentAdapter())])
+    run_id = _seed_run(factory, methods=[MethodRunConfig(name="broken_method")])
+    scheduled = _scheduled(factory, registry, run_id)
+
+    failed = _executor(factory, registry).execute(
+        scheduled[0].message(), worker_task_id="w", attempt_count=1, max_attempts=3
+    )
+
+    assert failed.status is TaskBatchStatus.failed
+    assert failed.failure_class == "MethodContractError"
+
+
+def test_partial_failure_preserves_the_successful_method(
+    postgres_unit_of_work: tuple[UnitOfWorkFactory, Connection],
+) -> None:
+    factory, connection = postgres_unit_of_work
+    registry = MethodRegistry(
+        [*default_method_registry().registrations, _registration(_PermanentAdapter())]
+    )
+    run_id = _seed_run(
+        factory,
+        methods=[
+            MethodRunConfig(name="parenthetical_qualifier"),
+            MethodRunConfig(name="broken_method"),
+        ],
+    )
+    scheduled = _scheduled(factory, registry, run_id)
+    assert len(scheduled) == 2
+
+    executor = _executor(factory, registry)
+    for batch in scheduled:
+        executor.execute(batch.message(), worker_task_id="w", attempt_count=3, max_attempts=3)
+
+    with factory() as unit_of_work:
+        run = unit_of_work.runs.get_run(run_id)
+        executions = {}
+        for batch in scheduled:
+            execution = unit_of_work.runs.get_method_execution(batch.method_execution_id)
+            assert execution is not None
+            executions[execution.method_name] = execution
+    assert run is not None
+    assert run.status is RunStatus.completed_with_errors
+    assert executions["parenthetical_qualifier"].status is MethodExecutionStatus.completed
+    assert executions["broken_method"].status is MethodExecutionStatus.failed
+
+    preserved = connection.execute(
+        select(func.count())
+        .select_from(PredictionRow)
+        .where(PredictionRow.method_execution_id == executions["parenthetical_qualifier"].id)
+    ).scalar_one()
+    assert preserved == 1  # the successful method's evidence survives
+
+
+def test_fail_run_flag_fails_the_run_on_method_failure(
+    postgres_unit_of_work: tuple[UnitOfWorkFactory, Connection],
+) -> None:
+    factory, _ = postgres_unit_of_work
+    registry = MethodRegistry([_registration(_PermanentAdapter())])
+    run_id = _seed_run(
+        factory,
+        methods=[MethodRunConfig(name="broken_method")],
+        execution_config=ExecutionConfig(fail_run_on_optional_method_error=True),
+    )
+    scheduled = _scheduled(factory, registry, run_id)
+
+    _executor(factory, registry).execute(
+        scheduled[0].message(), worker_task_id="w", attempt_count=3, max_attempts=3
+    )
+
+    with factory() as unit_of_work:
+        run = unit_of_work.runs.get_run(run_id)
+    assert run is not None
+    assert run.status is RunStatus.failed
+    assert run.failure_diagnostic is not None

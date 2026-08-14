@@ -32,7 +32,8 @@
     "docs/decisions/ADR-0007-versioned-normalization-outcomes.md",
     "docs/decisions/ADR-0008-reference-aggregation-edge-contract.md",
     "docs/decisions/ADR-0009-reference-agreement-certainty.md",
-    "docs/decisions/ADR-0010-parenthetical-qualifier-adapter.md"
+    "docs/decisions/ADR-0010-parenthetical-qualifier-adapter.md",
+    "docs/decisions/ADR-0011-asynchronous-execution-model.md"
   ],
   "top_level_entrypoints": [
     "README.md",

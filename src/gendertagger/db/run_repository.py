@@ -399,12 +399,17 @@ class SqlAlchemyRunRepository:
             return self._method_execution_from_row(row)
         row.completed_count = sum(batch.success_count + batch.abstain_count for batch in batches)
         row.failed_count = sum(batch.error_count for batch in batches)
-        any_failed_batch = any(batch.status is TaskBatchStatus.failed for batch in batches)
-        row.status = (
-            MethodExecutionStatus.completed_with_errors
-            if any_failed_batch or row.failed_count > 0
-            else MethodExecutionStatus.completed
-        )
+        failed_batches = [batch for batch in batches if batch.status is TaskBatchStatus.failed]
+        if batches and len(failed_batches) == len(batches):
+            row.status = MethodExecutionStatus.failed
+            row.failure_class = failed_batches[0].failure_class
+            row.failure_diagnostic = (
+                f"all {len(batches)} task batches failed: {failed_batches[0].failure_diagnostic}"
+            )
+        elif failed_batches or row.failed_count > 0:
+            row.status = MethodExecutionStatus.completed_with_errors
+        else:
+            row.status = MethodExecutionStatus.completed
         row.finished_at = finished_at
         self._session.flush()
         return self._method_execution_from_row(row)
@@ -428,12 +433,25 @@ class SqlAlchemyRunRepository:
         )
         if any(item.status not in _EXECUTION_TERMINAL_STATUSES for item in executions):
             return self._run_from_row(row)
-        any_errors = any(
-            item.status
-            in {MethodExecutionStatus.completed_with_errors, MethodExecutionStatus.failed}
+        failed_or_errored = [
+            item
             for item in executions
-        )
-        row.status = RunStatus.completed_with_errors if any_errors else RunStatus.completed
+            if item.status
+            in {MethodExecutionStatus.completed_with_errors, MethodExecutionStatus.failed}
+        ]
+        if not failed_or_errored:
+            row.status = RunStatus.completed
+        elif RunConfig.model_validate(
+            row.resolved_config
+        ).execution.fail_run_on_optional_method_error and any(
+            item.status is MethodExecutionStatus.failed for item in executions
+        ):
+            row.status = RunStatus.failed
+            row.failure_diagnostic = (
+                f"{len(failed_or_errored)} method execution(s) did not complete cleanly"
+            )
+        else:
+            row.status = RunStatus.completed_with_errors
         row.finished_at = finished_at
         self._session.flush()
         return self._run_from_row(row)

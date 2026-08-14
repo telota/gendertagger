@@ -6,16 +6,18 @@ from datetime import datetime
 from typing import Any, Protocol
 from uuid import UUID
 
-from pydantic import JsonValue
+from pydantic import JsonValue, ValidationError
 
-from gendertagger.methods.base import validate_prediction_batch
-from gendertagger.models.classification import PredictionStatus
+from gendertagger.methods.base import MethodContractError, validate_prediction_batch
+from gendertagger.models.classification import PredictionResult, PredictionStatus
 from gendertagger.models.common import canonical_json_sha256
 from gendertagger.models.lifecycle import RunStatus, TaskBatchStatus
 from gendertagger.models.person import PersonInput, PersonRecord
 from gendertagger.models.run import (
+    MethodExecution,
     MethodExecutionCreate,
     PredictionWrite,
+    Run,
     TaskBatch,
     TaskBatchMessage,
 )
@@ -25,9 +27,27 @@ from gendertagger.services.persistence_errors import (
     ResourceNotFoundError,
 )
 from gendertagger.services.task_batches import plan_task_batches
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 Clock = Callable[[], datetime]
+
+DEFAULT_MAX_BATCH_ATTEMPTS = 3
+_MAX_DIAGNOSTIC_LENGTH = 500
+
+
+class TransientBatchError(RuntimeError):
+    """Raised when a batch fails for a retryable infrastructure reason."""
+
+
+class PermanentBatchError(RuntimeError):
+    """Raised when a batch fails for a non-retryable scientific or config reason."""
+
+
+def _sanitized_diagnostic(error: BaseException) -> str:
+    text = f"{type(error).__name__}: {error}".strip()
+    if len(text) > _MAX_DIAGNOSTIC_LENGTH:
+        return text[: _MAX_DIAGNOSTIC_LENGTH - 1] + "…"
+    return text
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,8 +165,15 @@ class BatchExecutor:
         *,
         worker_task_id: str,
         attempt_count: int,
+        max_attempts: int = DEFAULT_MAX_BATCH_ATTEMPTS,
     ) -> TaskBatch:
-        """Idempotently classify one batch and advance run/execution completion."""
+        """Idempotently classify one batch, applying retry and failure policy.
+
+        Permanent scientific or configuration failures fail the batch at once.
+        A transient infrastructure failure raises :class:`TransientBatchError`
+        for the caller to retry until ``attempt_count`` reaches ``max_attempts``,
+        after which the batch is failed so the run can still complete.
+        """
         with self._unit_of_work_factory() as unit_of_work:
             batch = unit_of_work.runs.get_task_batch(message.task_batch_id)
             if batch is None:
@@ -163,36 +190,23 @@ class BatchExecutor:
             if run is None:
                 msg = f"run {execution.run_id} does not exist"
                 raise ResourceNotFoundError(msg)
-            registration = self._method_registry.registration_for(execution.method_name)
-            if registration is None:
-                msg = f"method {execution.method_name!r} is not registered"
-                raise InvalidResourceStateError(msg)
 
-            config: Any = registration.config_model.model_validate(execution.resolved_config)
-            records = unit_of_work.projects.list_person_records_slice(
-                run.dataset_snapshot_id,
-                offset=batch.record_offset,
-                limit=batch.record_count,
-            )
-            started_at = self._clock()
             unit_of_work.runs.mark_batch_started(
                 message.task_batch_id,
                 worker_task_id=worker_task_id,
-                started_at=started_at,
+                started_at=self._clock(),
                 attempt_count=attempt_count,
             )
-            results = registration.adapter.predict_batch(records, config)
-            validate_prediction_batch(registration.descriptor, records, results)
-            writes = [
-                PredictionWrite(
-                    person_record_id=record.id,
-                    task_batch_id=batch.id,
-                    input_fingerprint=_person_input_fingerprint(record),
-                    result=result,
-                )
-                for record, result in zip(records, results, strict=True)
-            ]
-            unit_of_work.runs.add_predictions(execution.id, writes)
+            try:
+                results = self._classify(unit_of_work, execution=execution, run=run, batch=batch)
+            except (PermanentBatchError, MethodContractError, ValidationError) as error:
+                return self._fail_batch(unit_of_work, message, execution.id, run.id, error)
+            except Exception as error:
+                # Unclassified failures are treated as transient: retry, then fail.
+                if attempt_count >= max_attempts:
+                    return self._fail_batch(unit_of_work, message, execution.id, run.id, error)
+                msg = f"task batch {message.task_batch_id} failed on attempt {attempt_count}"
+                raise TransientBatchError(msg) from error
 
             finished_at = self._clock()
             completed_batch = unit_of_work.runs.mark_batch_finished(
@@ -207,3 +221,58 @@ class BatchExecutor:
             unit_of_work.runs.finalize_run_if_complete(run.id, finished_at=finished_at)
             unit_of_work.commit()
         return completed_batch
+
+    def _classify(
+        self,
+        unit_of_work: UnitOfWork,
+        *,
+        execution: MethodExecution,
+        run: Run,
+        batch: TaskBatch,
+    ) -> list[PredictionResult]:
+        registration = self._method_registry.registration_for(execution.method_name)
+        if registration is None:
+            msg = f"method {execution.method_name!r} is not registered"
+            raise PermanentBatchError(msg)
+        config: Any = registration.config_model.model_validate(execution.resolved_config)
+        records = unit_of_work.projects.list_person_records_slice(
+            run.dataset_snapshot_id,
+            offset=batch.record_offset,
+            limit=batch.record_count,
+        )
+        results = registration.adapter.predict_batch(records, config)
+        validate_prediction_batch(registration.descriptor, records, results)
+        writes = [
+            PredictionWrite(
+                person_record_id=record.id,
+                task_batch_id=batch.id,
+                input_fingerprint=_person_input_fingerprint(record),
+                result=result,
+            )
+            for record, result in zip(records, results, strict=True)
+        ]
+        unit_of_work.runs.add_predictions(execution.id, writes)
+        return results
+
+    def _fail_batch(
+        self,
+        unit_of_work: UnitOfWork,
+        message: TaskBatchMessage,
+        method_execution_id: UUID,
+        run_id: UUID,
+        error: BaseException,
+    ) -> TaskBatch:
+        finished_at = self._clock()
+        failed_batch = unit_of_work.runs.mark_batch_finished(
+            message.task_batch_id,
+            status=TaskBatchStatus.failed,
+            finished_at=finished_at,
+            failure_class=type(error).__name__,
+            failure_diagnostic=_sanitized_diagnostic(error),
+        )
+        unit_of_work.runs.finalize_execution_if_complete(
+            method_execution_id, finished_at=finished_at
+        )
+        unit_of_work.runs.finalize_run_if_complete(run_id, finished_at=finished_at)
+        unit_of_work.commit()
+        return failed_batch
