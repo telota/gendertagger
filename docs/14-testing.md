@@ -226,6 +226,6 @@ solely to hit a global number.
 | 3 | API/auth/error/pagination/OpenAPI contract tests |
 | 4 | Redis and at least one real non-eager Celery worker path |
 | 5 | adapter conformance, asynchronous snapshot-import atomicity, and asynchronous reference-aggregation completeness; heavy models only on protected/scheduled runners |
-| 6 | frontend lint/type/unit/build plus generated-client drift |
-| 7 | complete tiny-fixture workflow and reproducibility/export checks |
-| 8 | image/Compose smoke, previous-release migration, backup/restore, SBOM/security gates |
+| 6 | complete tiny-fixture workflow and reproducibility/export checks |
+| 7 | backend image/Compose smoke, previous-release migration, backup/restore, SBOM/security gates |
+| 8 | frontend lint/type/unit/build plus generated-client drift |

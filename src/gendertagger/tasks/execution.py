@@ -30,6 +30,7 @@ from gendertagger.services.execution import (
 )
 from gendertagger.services.lookup_assets import RegisteredLookupAssetResolver
 from gendertagger.services.method_registry import default_method_registry
+from gendertagger.services.model_assets import RegisteredModelDirectoryResolver
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
 
@@ -56,6 +57,7 @@ class WorkerSettings(BaseSettings):
 
     database_url: SecretStr
     artifact_root: Path = Path("data/artifacts")
+    model_cache_root: Path = Path("data/model-cache")
 
     @field_validator("database_url")
     @classmethod
@@ -82,9 +84,13 @@ def _batch_executor() -> BatchExecutor:
         unit_of_work_factory=unit_of_work_factory,
         artifact_storage=LocalArtifactStorage(settings.artifact_root),
     )
+    model_resolver = RegisteredModelDirectoryResolver(
+        lookup_asset_resolver=lookup_resolver,
+        cache_root=settings.model_cache_root,
+    )
     executor = BatchExecutor(
         unit_of_work_factory=unit_of_work_factory,
-        method_registry=default_method_registry(lookup_resolver),
+        method_registry=default_method_registry(lookup_resolver, model_resolver),
         clock=partial(datetime.now, UTC),
     )
     finalize(executor, engine.dispose)

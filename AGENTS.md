@@ -43,7 +43,7 @@ Follow `docs/15-implementation-plan.md`. Do not begin with the frontend or Docke
 - lxml
 - YAML configuration validated through Pydantic
 - pytest
-- Vue 3 + TypeScript + Vite (Phase 6, not before)
+- Vue 3 + TypeScript + Vite (Phase 8, not before)
 
 Runtime dependency versions are deliberately not yet selected in this scaffold. Add compatible direct
 constraints and refresh the committed lockfile when implementation begins; record the exact resolved

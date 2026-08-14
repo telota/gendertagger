@@ -35,6 +35,7 @@ gendertagger = "gendertagger.cli.main:main"
 guesser = ["gender-guesser>=0.4,<1"]
 wiki = ["unidecode>=1.3,<2"]
 nomquam = ["nomquamgender>=0.1,<1"]
+transformers = ["transformers>=5.5,<6", "torch>=2.2,<3"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/gendertagger"]
@@ -182,7 +183,7 @@ ignore_missing_imports = true
 # Optional classification-method dependencies ship no py.typed marker; confine
 # the untyped boundary to their lazily imported adapter modules.
 [[tool.mypy.overrides]]
-module = ["gender_guesser.*", "nomquamgender.*", "unidecode.*"]
+module = ["gender_guesser.*", "nomquamgender.*", "unidecode.*", "transformers.*", "torch.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

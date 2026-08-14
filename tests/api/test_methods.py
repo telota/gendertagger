@@ -95,6 +95,8 @@ def test_methods_endpoint_lists_registered_methods_in_name_order() -> None:
     assert names == [
         "gender_guesser",
         "gnd",
+        "hf_distilbert",
+        "hf_genderize",
         "hivoto",
         "nomquamgender",
         "parenthetical_qualifier",
@@ -108,6 +110,8 @@ def test_default_registry_routes_every_method_to_the_cpu_queue() -> None:
     assert [registration.descriptor.name for registration in registrations] == [
         "gender_guesser",
         "gnd",
+        "hf_distilbert",
+        "hf_genderize",
         "hivoto",
         "nomquamgender",
         "parenthetical_qualifier",

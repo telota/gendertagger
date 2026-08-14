@@ -122,8 +122,8 @@ needs local socket-pair communication to wake its background event loop; a restr
 fail with a direct diagnostic instead of consuming the entire test-job timeout.
 
 The current merge-request pipeline includes PostgreSQL/Alembic, API/OpenAPI, Redis/Celery, and conformance
-coverage for migrated adapters. Phases 6 through 8 add frontend validation, the complete reproducibility and
-export workflow, and operational release gates as listed in `14-testing.md`; heavy-model checks remain limited
+coverage for migrated adapters. Phases 6 through 8 add the complete reproducibility and export workflow,
+operational release gates, and frontend validation as listed in `14-testing.md`; heavy-model checks remain
 to protected or scheduled runners.
 
 Ordinary merge-request jobs have no production secrets and must not use private-network, GPU, model, or

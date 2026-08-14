@@ -41,6 +41,8 @@ def test_example_run_config_loads_as_resolved_contract() -> None:
     assert config.methods[3].config == {"lookup_sha256": "b" * 64}
     assert config.methods[4].config == {"lookup_sha256": "c" * 64}
     assert config.methods[5].config == {"threshold": 0.1}
+    assert config.methods[6].config == {"lookup_sha256": "d" * 64}
+    assert config.methods[7].config == {"lookup_sha256": "e" * 64}
     assert config.methods[-1].enabled is False
     assert config.aggregation.strategy is AggregationStrategy.reference_v1
     assert config.execution.fail_run_on_optional_method_error is False

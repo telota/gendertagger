@@ -99,6 +99,13 @@ the phased plan that resumes application code.
   deterministic compiled SQLite lookups, digest-only run configuration, scheduler-sealed
   `MethodExecution.data_artifact_id` provenance, verified read-only worker materialization, batched lookup
   adapters, an offline MARC21-XML GND builder with entity-type evidence, and explicit CLI acquisition commands.
+- `hf_distilbert` and `hf_genderize` transformer-classifier adapters completing seven of the nine reference
+  pooled/authority methods. Each Hugging Face model is provisioned as a content-addressed multi-file model
+  manifest that extends the lookup-asset provenance boundary to native model directories (see
+  [ADR-0024](docs/decisions/ADR-0024-hf-transformer-model-manifest-adapters.md)), materialized read-only and
+  offline by a dedicated worker-side directory resolver, and classified per forename token through the shared
+  name-token consensus, with a new `assets prepare-hf-model` CLI provisioning command and `transformers`
+  optional dependency extra.
 
 ### Changed
 
@@ -131,6 +138,8 @@ the phased plan that resumes application code.
 - Opaque cursors now carry an ordered tuple of sort values and validate the arity the reading endpoint
   expects, so a composite ordering can be continued without treating the position as authorization. Existing
   cursors are not portable across the change.
+- Reordered the remaining implementation phases so evaluation/export and deployment hardening precede the
+  Vue review client, which is now the final Phase 8 deliverable.
 
 ### Fixed
 

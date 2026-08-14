@@ -13,7 +13,19 @@ from gendertagger.methods.base import GenderMethod, LookupMethodConfig, MethodCo
 from gendertagger.methods.gender_guesser import GenderGuesserMethod
 from gendertagger.methods.gnd import GndMethod
 from gendertagger.methods.gnd_snapshot import GND_LOOKUP_LOGICAL_TYPE
+from gendertagger.methods.hf_distilbert import (
+    HF_DISTILBERT_MODEL_MANIFEST_LOGICAL_TYPE,
+    HfDistilbertMethod,
+)
+from gendertagger.methods.hf_genderize import (
+    HF_GENDERIZE_MODEL_MANIFEST_LOGICAL_TYPE,
+    HfGenderizeMethod,
+)
 from gendertagger.methods.hivoto import HIVOTO_LOOKUP_LOGICAL_TYPE, HivotoMethod
+from gendertagger.methods.model_manifest import (
+    ModelDirectoryResolver,
+    UnavailableModelDirectoryResolver,
+)
 from gendertagger.methods.nomquamgender import NomquamgenderMethod
 from gendertagger.methods.parenthetical_qualifier import ParentheticalQualifierMethod
 from gendertagger.methods.sqlite_lookup import (
@@ -121,12 +133,18 @@ class MethodRegistry:
 
 def default_method_registry(
     lookup_asset_resolver: LookupAssetResolver | None = None,
+    model_directory_resolver: ModelDirectoryResolver | None = None,
 ) -> MethodRegistry:
     """Register every classification adapter runnable on this server."""
     resolver = (
         lookup_asset_resolver
         if lookup_asset_resolver is not None
         else UnavailableLookupAssetResolver()
+    )
+    model_resolver = (
+        model_directory_resolver
+        if model_directory_resolver is not None
+        else UnavailableModelDirectoryResolver()
     )
     return MethodRegistry(
         [
@@ -174,6 +192,22 @@ def default_method_registry(
                 adapter=NomquamgenderMethod(),
                 queue_name=CPU_QUEUE,
                 batch_size=_CPU_BATCH_SIZE,
+            ),
+            MethodRegistration(
+                descriptor=HfDistilbertMethod.descriptor,
+                config_model=HfDistilbertMethod.config_model,
+                adapter=HfDistilbertMethod(model_directory_resolver=model_resolver),
+                queue_name=CPU_QUEUE,
+                batch_size=_CPU_BATCH_SIZE,
+                data_artifact_logical_type=HF_DISTILBERT_MODEL_MANIFEST_LOGICAL_TYPE,
+            ),
+            MethodRegistration(
+                descriptor=HfGenderizeMethod.descriptor,
+                config_model=HfGenderizeMethod.config_model,
+                adapter=HfGenderizeMethod(model_directory_resolver=model_resolver),
+                queue_name=CPU_QUEUE,
+                batch_size=_CPU_BATCH_SIZE,
+                data_artifact_logical_type=HF_GENDERIZE_MODEL_MANIFEST_LOGICAL_TYPE,
             ),
         ]
     )

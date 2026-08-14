@@ -86,7 +86,7 @@ One Compose project is enough initially:
 - `worker-external` (optional)
 - `postgres`
 - `redis`
-- `frontend` (Vue static build once Phase 6 begins)
+- `frontend` (Vue static build once Phase 8 begins)
 - reverse proxy (same-origin `/` + `/api/v1`)
 
 GPU workers may later run on a separate host while using the same broker/database, subject to network/security constraints.

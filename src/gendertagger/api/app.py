@@ -27,6 +27,7 @@ from gendertagger.services.annotations import AnnotationService
 from gendertagger.services.execution import RunScheduler
 from gendertagger.services.lookup_assets import RegisteredLookupAssetResolver
 from gendertagger.services.method_registry import default_method_registry
+from gendertagger.services.model_assets import RegisteredModelDirectoryResolver
 from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.projects import ProjectService
 from gendertagger.services.review_items import ReviewItemService
@@ -84,11 +85,16 @@ def create_app(
             max_cell_bytes=resolved_settings.max_tabular_cell_bytes,
         ),
     )
+    lookup_asset_resolver = RegisteredLookupAssetResolver(
+        unit_of_work_factory=unit_of_work_factory,
+        artifact_storage=artifact_storage,
+    )
     method_registry = default_method_registry(
-        RegisteredLookupAssetResolver(
-            unit_of_work_factory=unit_of_work_factory,
-            artifact_storage=artifact_storage,
-        )
+        lookup_asset_resolver,
+        RegisteredModelDirectoryResolver(
+            lookup_asset_resolver=lookup_asset_resolver,
+            cache_root=resolved_settings.model_cache_root,
+        ),
     )
     run_service = RunService(
         unit_of_work_factory=unit_of_work_factory,

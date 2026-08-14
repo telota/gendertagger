@@ -25,11 +25,11 @@ methods:
   - name: hf_distilbert
     enabled: true
     config:
-      model: "padmajabfrl/Gender-Classification"
+      lookup_sha256: "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" # replace
   - name: hf_genderize
     enabled: true
     config:
-      model: "imranali291/genderize"
+      lookup_sha256: "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" # replace
   - name: local_llm
     enabled: true
     config:

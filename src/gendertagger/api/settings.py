@@ -29,6 +29,7 @@ class AppSettings(BaseSettings):
         description="Emit SQLAlchemy SQL logs for local diagnostics.",
     )
     artifact_root: Path = Path("data/artifacts")
+    model_cache_root: Path = Path("data/model-cache")
     # Retain the original environment variable as the per-upload-part limit for
     # compatibility with existing deployments.  Collection and expanded-source
     # limits are independent because a small archive can expand substantially.

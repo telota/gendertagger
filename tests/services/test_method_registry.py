@@ -78,7 +78,13 @@ def test_registry_rejects_unknown_and_invalid_method_configuration() -> None:
 def test_default_registry_requires_content_digest_for_lookup_methods() -> None:
     registry = default_method_registry()
 
-    for method_name in ("gnd", "wiki_gendersort", "hivoto"):
+    for method_name in (
+        "gnd",
+        "wiki_gendersort",
+        "hivoto",
+        "hf_distilbert",
+        "hf_genderize",
+    ):
         with pytest.raises(InvalidMethodConfigError, match=method_name):
             registry.resolve_run_config(RunConfig(methods=[MethodRunConfig(name=method_name)]))
 

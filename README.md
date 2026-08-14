@@ -58,7 +58,8 @@ The repository is in Phase 5 method migration:
   HIVOTO, and nomquamgender adapters. Both transformer classifiers, the local LLM, and experimental
   HIVOTO-XGBoost remain to migrate.
 
-The Vue review client, evaluation/export workflows, and deployment hardening remain Phases 6 through 8.
+Evaluation/export, deployment hardening, and the Vue review client remain Phases 6, 7, and 8,
+respectively.
 
 ## Provision method lookup data
 

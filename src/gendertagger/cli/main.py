@@ -29,6 +29,18 @@ from gendertagger.methods.gnd_snapshot import (
     GND_LOOKUP_SCHEMA_VERSION,
     compile_gnd_marcxml_lookup,
 )
+from gendertagger.methods.hf_distilbert import (
+    HF_DISTILBERT_MODEL_COMPILER_VERSION,
+    HF_DISTILBERT_MODEL_FILE_LOGICAL_TYPE,
+    HF_DISTILBERT_MODEL_MANIFEST_LOGICAL_TYPE,
+    HF_DISTILBERT_MODEL_SCHEMA_VERSION,
+)
+from gendertagger.methods.hf_genderize import (
+    HF_GENDERIZE_MODEL_COMPILER_VERSION,
+    HF_GENDERIZE_MODEL_FILE_LOGICAL_TYPE,
+    HF_GENDERIZE_MODEL_MANIFEST_LOGICAL_TYPE,
+    HF_GENDERIZE_MODEL_SCHEMA_VERSION,
+)
 from gendertagger.methods.hivoto import (
     HIVOTO_LOOKUP_COMPILER_VERSION,
     HIVOTO_LOOKUP_LOGICAL_TYPE,
@@ -42,10 +54,13 @@ from gendertagger.methods.wiki_gendersort import (
     compile_wiki_gendersort_lookup,
 )
 from gendertagger.models.artifact import (
+    MODEL_MANIFEST_MEDIA_TYPE,
     SQLITE_MEDIA_TYPE,
     Artifact,
     LookupArtifactMetadata,
     LookupSourceArtifactReference,
+    ModelManifestMember,
+    ModelManifestMetadata,
 )
 from gendertagger.services.lookup_assets import LookupAssetRegistrationService
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
@@ -143,6 +158,94 @@ _PREPARATIONS: Final = {
         compiler=compile_gnd_marcxml_lookup,
     ),
 }
+
+
+@dataclass(frozen=True, slots=True)
+class _HfModelPreparation:
+    method_name: str
+    manifest_logical_type: str
+    member_logical_type: str
+    model_schema_version: str
+    compiler_version: str
+
+
+_HF_MODEL_PREPARATIONS: Final = {
+    "hf_distilbert": _HfModelPreparation(
+        method_name="hf_distilbert",
+        manifest_logical_type=HF_DISTILBERT_MODEL_MANIFEST_LOGICAL_TYPE,
+        member_logical_type=HF_DISTILBERT_MODEL_FILE_LOGICAL_TYPE,
+        model_schema_version=HF_DISTILBERT_MODEL_SCHEMA_VERSION,
+        compiler_version=HF_DISTILBERT_MODEL_COMPILER_VERSION,
+    ),
+    "hf_genderize": _HfModelPreparation(
+        method_name="hf_genderize",
+        manifest_logical_type=HF_GENDERIZE_MODEL_MANIFEST_LOGICAL_TYPE,
+        member_logical_type=HF_GENDERIZE_MODEL_FILE_LOGICAL_TYPE,
+        model_schema_version=HF_GENDERIZE_MODEL_SCHEMA_VERSION,
+        compiler_version=HF_GENDERIZE_MODEL_COMPILER_VERSION,
+    ),
+}
+
+_MODEL_FILE_MEDIA_TYPES_BY_SUFFIX: Final = {
+    ".json": "application/json",
+    ".txt": "text/plain",
+}
+
+
+def _model_file_media_type(path: Path) -> str:
+    return _MODEL_FILE_MEDIA_TYPES_BY_SUFFIX.get(path.suffix.casefold(), "application/octet-stream")
+
+
+def _prepare_hf_model(
+    registration: LookupAssetRegistrationService,
+    directory: Path,
+    preparation: _HfModelPreparation,
+    *,
+    source_identifier: str,
+    source_revision: str,
+    license_identifier: str | None,
+) -> Artifact:
+    """Register every file in a local model directory plus its content manifest."""
+    files = sorted(path for path in directory.rglob("*") if path.is_file())
+    if not files:
+        msg = f"hf model source directory contains no files: {directory}"
+        raise ValueError(msg)
+    members: list[ModelManifestMember] = []
+    for file_path in files:
+        artifact = registration.register_file(
+            file_path,
+            logical_type=preparation.member_logical_type,
+            media_type=_model_file_media_type(file_path),
+        )
+        members.append(
+            ModelManifestMember(
+                relative_path=file_path.relative_to(directory).as_posix(),
+                artifact_id=artifact.id,
+                sha256=artifact.sha256,
+                byte_size=artifact.byte_size,
+            )
+        )
+    manifest = ModelManifestMetadata(
+        method_name=preparation.method_name,
+        model_schema_version=preparation.model_schema_version,
+        compiler_version=preparation.compiler_version,
+        source_identifier=source_identifier,
+        source_revision=source_revision,
+        members=tuple(members),
+        license_identifier=license_identifier,
+    )
+    with tempfile.TemporaryDirectory(prefix="gendertagger-model-manifest-") as temporary_directory:
+        manifest_path = Path(temporary_directory) / "manifest.json"
+        manifest_path.write_text(
+            json.dumps(manifest.model_dump(mode="json"), ensure_ascii=False, sort_keys=True),
+            encoding="utf-8",
+        )
+        return registration.register_file(
+            manifest_path,
+            logical_type=preparation.manifest_logical_type,
+            media_type=MODEL_MANIFEST_MEDIA_TYPE,
+            metadata=manifest.model_dump(mode="json"),
+        )
 
 
 def _metadata_values(args: argparse.Namespace) -> dict[str, JsonValue]:
@@ -431,6 +534,21 @@ def _build_parser() -> argparse.ArgumentParser:
     build_gnd.set_defaults(method_name="gnd")
     build_gnd.add_argument("sources", type=Path, nargs="+")
     _add_source_metadata_arguments(build_gnd)
+    prepare_hf_model = asset_commands.add_parser(
+        "prepare-hf-model",
+        help="Register a locally materialized Hugging Face model directory",
+    )
+    prepare_hf_model.add_argument(
+        "--method-name", required=True, choices=sorted(_HF_MODEL_PREPARATIONS)
+    )
+    prepare_hf_model.add_argument("directory", type=Path)
+    prepare_hf_model.add_argument("--source-identifier", required=True)
+    prepare_hf_model.add_argument(
+        "--source-revision",
+        required=True,
+        help="Pinned model commit SHA; a mutable branch name such as 'main' is unsafe.",
+    )
+    prepare_hf_model.add_argument("--license-identifier")
     fetch_wiki = asset_commands.add_parser("fetch-wiki")
     fetch_wiki.set_defaults(method_name="wiki_gendersort")
     fetch_wiki.add_argument("url")
@@ -477,6 +595,25 @@ def _run_assets(args: argparse.Namespace, settings: AssetCliSettings) -> str:
             )
             return json.dumps(
                 {"artifact_id": str(artifact.id), "sha256": artifact.sha256},
+                sort_keys=True,
+            )
+
+        if args.asset_command == "prepare-hf-model":
+            hf_preparation = _HF_MODEL_PREPARATIONS[str(args.method_name)]
+            manifest_artifact = _prepare_hf_model(
+                registration,
+                args.directory,
+                hf_preparation,
+                source_identifier=str(args.source_identifier),
+                source_revision=str(args.source_revision),
+                license_identifier=args.license_identifier,
+            )
+            return json.dumps(
+                {
+                    "manifest_artifact_id": str(manifest_artifact.id),
+                    "lookup_sha256": manifest_artifact.sha256,
+                    "manifest_logical_type": manifest_artifact.logical_type,
+                },
                 sort_keys=True,
             )
 

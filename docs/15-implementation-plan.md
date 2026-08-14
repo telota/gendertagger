@@ -1,7 +1,8 @@
 # Implementation plan
 
 The order is intentional: contracts and scientific regression behavior first, infrastructure composition later.
-CI starts with repository initialization and grows with every phase; Phase 8 hardens delivery and deployment.
+CI starts with repository initialization and grows with every phase. Phase 7 hardens delivery and
+deployment before Phase 8 adds the browser client.
 
 ## Phase 0: repository guardrails and preserved baseline
 
@@ -119,7 +120,7 @@ Migrate adapters incrementally:
 4. HIVOTO [DONE]
 5. nomquamgender [DONE]
 6. GND local snapshot [DONE]
-7. transformer classifiers
+7. transformer classifiers [DONE]
 8. local LLM
 9. HIVOTO-XGBoost as experimental method
 
@@ -135,7 +136,31 @@ progress/cancellation, shared object storage, and additional tabular packaging a
 [`16-open-questions.md`](16-open-questions.md). They are deliberately outside this phase's exit criterion and
 should be implemented as separate, reviewable changes when operational requirements justify them.
 
-## Phase 6: Vue annotation/review UI
+## Phase 6: evaluation and export
+
+- GND benchmark definition
+- metrics and Cohen's kappa
+- evaluation reports/artifacts
+- TEI export profile
+- JSON/CSV exports
+- export manifests/provenance
+
+Exit criterion: reference study outputs can be regenerated from a stored run.
+
+## Phase 7: deployment hardening
+
+- production Compose profile for API, workers, and data services
+- CPU/GPU/LLM worker separation
+- reverse proxy
+- backup/restore test
+- health/readiness
+- structured logging
+- resource limits
+- protected tagged artifact/image publication with checksums, SBOM, and provenance
+- previous-release migration rehearsal and deployment smoke tests
+- manual production promotion of immutable artifacts
+
+## Phase 8: Vue annotation/review UI
 
 - stabilize review-items/query API [DONE]
 - add review-stream revision conflict handling (`409`) [DONE]
@@ -150,34 +175,14 @@ should be implemented as separate, reviewable changes when operational requireme
 
 Exit criterion: a reviewer can correct a machine result and the final-decision view changes without mutating Predictions/AggregatedResults.
 
-## Phase 7: evaluation and export
-
-- GND benchmark definition
-- metrics and Cohen's kappa
-- evaluation reports/artifacts
-- TEI export profile
-- JSON/CSV exports
-- export manifests/provenance
-
-Exit criterion: reference study outputs can be regenerated from a stored run.
-
-## Phase 8: deployment hardening
-
-- production Compose profile
-- CPU/GPU/LLM worker separation
-- reverse proxy
-- backup/restore test
-- health/readiness
-- structured logging
-- resource limits
-- protected tagged artifact/image publication with checksums, SBOM, and provenance
-- previous-release migration rehearsal and deployment smoke tests
-- manual production promotion of immutable artifacts
-
 ## Current implementation focus
 
 Resolve the remaining Phase 0 tracked-data governance decision and the Phase 1 parenthetical mixed-category
-compatibility edge, then continue Phase 5 adapter migration with the transformer classifiers. The asynchronous
-snapshot-import, lookup-asset, method-execution, and reference-aggregation paths are implemented and must
-remain covered as each adapter is added. Do not begin Phase 6 until the complete nine-method reference
-ensemble reproduces the golden outputs through the persisted API-to-worker workflow.
+compatibility edge, then continue Phase 5 adapter migration with the local LLM, the last of the nine required
+reference methods. The transformer classifiers (`hf_distilbert`, `hf_genderize`) reuse the content-addressed
+lookup-asset boundary through a new multi-file model manifest (see
+[ADR-0024](decisions/ADR-0024-hf-transformer-model-manifest-adapters.md)); HIVOTO-XGBoost is expected to reuse
+the same manifest mechanism once its adapter is migrated. The asynchronous snapshot-import, lookup-asset,
+method-execution, and reference-aggregation paths are implemented and must remain covered as each adapter is
+added. Do not begin Phase 6 evaluation and export until the complete nine-method reference ensemble reproduces
+the golden outputs through the persisted API-to-worker workflow.

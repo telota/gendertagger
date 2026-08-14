@@ -204,7 +204,7 @@ An unresolved substantive tie retains the maximum vote share as its score but is
 An authority override records the share of comparison methods agreeing with it. With no comparator, its score
 is 1.0 and its tier is `single_rater`, not `unanimous`. A no-data result has a null score and `no_answer`.
 
-Pairwise Cohen's kappa remains a Phase 7 evaluation metric over records where both methods provide successful
+Pairwise Cohen's kappa remains a Phase 6 evaluation metric over records where both methods provide successful
 answers; it is not part of the per-record aggregation result.
 
 ## Pipeline certainty tiers

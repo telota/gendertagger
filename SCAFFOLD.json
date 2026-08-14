@@ -45,7 +45,8 @@
     "docs/decisions/ADR-0020-asynchronous-snapshot-import-outbox.md",
     "docs/decisions/ADR-0021-versioned-multi-format-snapshot-ingestion.md",
     "docs/decisions/ADR-0022-uncertainty-first-review-ordering.md",
-    "docs/decisions/ADR-0023-content-addressed-sqlite-method-lookups.md"
+    "docs/decisions/ADR-0023-content-addressed-sqlite-method-lookups.md",
+    "docs/decisions/ADR-0024-hf-transformer-model-manifest-adapters.md"
   ],
   "top_level_entrypoints": [
     "README.md",
@@ -53,5 +54,5 @@
     "PLAN.md",
     "AGENTS.md"
   ],
-  "frontend_target": "Vue 3 + TypeScript + Vite (Phase 6; OpenAPI-generated client; same-origin production)"
+  "frontend_target": "Vue 3 + TypeScript + Vite (Phase 8; OpenAPI-generated client; same-origin production)"
 }
