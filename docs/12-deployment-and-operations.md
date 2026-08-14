@@ -80,7 +80,7 @@ public port.
 
 ## Data locality
 
-The default architecture supports an entirely local/private deployment. The reference pipeline's LLM is local, and GND should be consumed from a local snapshot rather than queried live during classification.
+The default architecture supports an entirely local/private deployment. The reference pipeline's LLM is local (configured out-of-band via `LLM_BASE_URL` to an institutional Ollama or vLLM instance), and GND should be consumed from a local snapshot rather than queried live during classification.
 
 Future external methods must be explicitly configured and visibly marked because sending historical register content outside the editorial environment can be unacceptable for licensing/privacy/policy reasons.
 

@@ -245,13 +245,11 @@ build_and_publish_backend:
     - IMAGE_TAG=$CI_REGISTRY_IMAGE/backend:$CI_COMMIT_REF_SLUG
     - docker build -t $IMAGE_TAG -f deploy/docker/backend.Dockerfile .
     - docker push $IMAGE_TAG
-    # For SBOM and provenance generation, you could integrate syft here:
-    # - curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
-    # - syft $IMAGE_TAG -o spdx-json > backend-sbom.json
+    - curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+    - syft $IMAGE_TAG -o spdx-json > backend-sbom.json
   artifacts:
     paths:
-      # - backend-sbom.json
-      - ""
+      - backend-sbom.json
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
@@ -268,5 +266,10 @@ build_and_publish_frontend:
     - IMAGE_TAG=$CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_REF_SLUG
     - docker build -t $IMAGE_TAG -f deploy/docker/frontend.Dockerfile .
     - docker push $IMAGE_TAG
+    - curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+    - syft $IMAGE_TAG -o spdx-json > frontend-sbom.json
+  artifacts:
+    paths:
+      - frontend-sbom.json
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

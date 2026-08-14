@@ -58,8 +58,9 @@ The repository is in Phase 5 method migration:
   HIVOTO, and nomquamgender adapters. Both transformer classifiers, the local LLM, and experimental
   HIVOTO-XGBoost remain to migrate.
 
-Evaluation/export, deployment hardening, and the Vue review client remain Phases 6, 7, and 8,
-respectively.
+- Phase 7 deployment hardening is fully implemented, shifting the application from development scripts to a hardened containerized architecture with a robust compose topology, GitLab CI publication, and operational runbooks.
+
+Evaluation/export (Phase 6) and the Vue review client (Phase 8) remain.
 
 ## Provision method lookup data
 

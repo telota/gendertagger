@@ -18,7 +18,7 @@ This repository is an architecture-first scaffold. Treat the design documents as
 12. The default aggregation must reproduce the published reference behavior before alternative strategies are added.
 13. Human annotations are auditable append-only decisions; corrections supersede earlier annotations rather than mutating history.
 14. Imports, runs, aggregations, evaluations, and exports must be reproducible from persisted configuration/provenance.
-15. Default deployment must support local/private operation, including a locally hosted LLM and local authority snapshots.
+15. Default deployment must support local/private operation, including out-of-band locally hosted LLMs (via `LLM_BASE_URL`) and local authority snapshots.
 16. The future Vue UI is an ordinary `/api/v1` client. Do not create page-specific business logic or expose ORM/Celery/filesystem details for it.
 17. Treat OpenAPI as a public contract and generate frontend transport types/client code from it when UI work begins.
 18. Long-running HTTP commands return persisted domain resources (`202 Accepted` where appropriate), never Celery task IDs.

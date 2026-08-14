@@ -149,16 +149,16 @@ Exit criterion: reference study outputs can be regenerated from a stored run.
 
 ## Phase 7: deployment hardening
 
-- production Compose profile for API, workers, and data services
-- CPU/GPU/LLM worker separation
-- reverse proxy
-- backup/restore test
-- health/readiness
-- structured logging
-- resource limits
-- protected tagged artifact/image publication with checksums, SBOM, and provenance
-- previous-release migration rehearsal and deployment smoke tests
-- manual production promotion of immutable artifacts
+- production Compose profile for API, workers, and data services [DONE]
+- CPU/GPU/LLM worker separation [DONE]
+- reverse proxy [DONE]
+- backup/restore test [DONE]
+- health/readiness [DONE]
+- structured logging [DONE]
+- resource limits [DONE]
+- protected tagged artifact/image publication with checksums, SBOM, and provenance [DONE]
+- previous-release migration rehearsal and deployment smoke tests [DONE]
+- manual production promotion of immutable artifacts [DONE]
 
 ## Phase 8: Vue annotation/review UI
 
