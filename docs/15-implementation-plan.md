@@ -172,8 +172,10 @@ Exit criterion: reference study outputs can be regenerated from a stored run.
 - previous-release migration rehearsal and deployment smoke tests
 - manual production promotion of immutable artifacts
 
-## First IDE task
+## Current implementation focus
 
-Finish the Phase 0 reference fixtures after the repository tooling, then start with Phase 1 contracts only. Do
-not let the coding agent scaffold FastAPI, SQLAlchemy, Celery, Vue, Docker, and ten classifier adapters in one
-heroic commit. That path leads directly to a very modern archaeological site.
+Resolve the remaining Phase 0 tracked-data governance decision and the Phase 1 parenthetical mixed-category
+compatibility edge, then continue Phase 5 adapter migration with the GND local snapshot. The asynchronous
+snapshot-import, method-execution, and reference-aggregation paths are implemented and must remain covered as
+each adapter is added. Do not begin Phase 6 until the complete nine-method reference ensemble reproduces the
+golden outputs through the persisted API-to-worker workflow.

@@ -121,8 +121,10 @@ Before TestClient-based tests, CI runs a bounded cross-thread asyncio wake-up pr
 needs local socket-pair communication to wake its background event loop; a restricted or broken runner must
 fail with a direct diagnostic instead of consuming the entire test-job timeout.
 
-Later phases add PostgreSQL/Alembic, API/OpenAPI, Redis/Celery, adapter conformance, frontend, complete
-end-to-end, and operational release gates as listed in `14-testing.md`.
+The current merge-request pipeline includes PostgreSQL/Alembic, API/OpenAPI, Redis/Celery, and conformance
+coverage for migrated adapters. Phases 6 through 8 add frontend validation, the complete reproducibility and
+export workflow, and operational release gates as listed in `14-testing.md`; heavy-model checks remain limited
+to protected or scheduled runners.
 
 Ordinary merge-request jobs have no production secrets and must not use private-network, GPU, model, or
 deployment runners. Such runners are protected and accept only trusted protected refs or schedules.
