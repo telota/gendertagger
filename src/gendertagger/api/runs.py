@@ -12,7 +12,7 @@ from gendertagger.api.dependencies import (
     get_run_service,
 )
 from gendertagger.api.errors import ApiRequestError
-from gendertagger.models.run import Run, RunCreateRequest
+from gendertagger.models.run import MethodExecution, Run, RunCreateRequest
 from gendertagger.models.user import CurrentUser
 from gendertagger.services.execution import BatchDispatcher, RunScheduler
 from gendertagger.services.method_registry import MethodRegistryError
@@ -60,6 +60,19 @@ def get_run(
     """Read current persisted run state."""
     try:
         return service.get_run(run_id)
+    except ResourceNotFoundError as error:
+        raise _not_found() from error
+
+
+@router.get("/runs/{run_id}/executions", response_model=list[MethodExecution])
+def list_run_executions(
+    run_id: UUID,
+    service: Annotated[RunService, Depends(get_run_service)],
+    _: Annotated[CurrentUser, Depends(require_viewer)],
+) -> list[MethodExecution]:
+    """List a run's method executions with their persisted progress."""
+    try:
+        return service.list_executions(run_id)
     except ResourceNotFoundError as error:
         raise _not_found() from error
 

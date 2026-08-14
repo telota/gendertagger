@@ -42,6 +42,10 @@ class RunRepository(Protocol):
         """Return a method execution by ID, or ``None`` when absent."""
         ...
 
+    def list_method_executions(self, run_id: UUID) -> list[MethodExecution]:
+        """Return a run's method executions in stable order."""
+        ...
+
     def add_task_batch(self, command: TaskBatchCreate) -> TaskBatch:
         """Persist one retryable task batch for a method execution."""
         ...

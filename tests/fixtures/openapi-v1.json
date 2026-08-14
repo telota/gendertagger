@@ -884,6 +884,249 @@
         "title": "MethodDescriptor",
         "type": "object"
       },
+      "MethodExecution": {
+        "additionalProperties": false,
+        "description": "Canonical read model for one persisted method execution.",
+        "properties": {
+          "completed_count": {
+            "minimum": 0.0,
+            "title": "Completed Count",
+            "type": "integer"
+          },
+          "config_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Config Sha256",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "data_artifact_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Artifact Id"
+          },
+          "failed_count": {
+            "minimum": 0.0,
+            "title": "Failed Count",
+            "type": "integer"
+          },
+          "failure_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Class"
+          },
+          "failure_diagnostic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Diagnostic"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "implementation_version": {
+            "title": "Implementation Version",
+            "type": "string"
+          },
+          "method_name": {
+            "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+            "title": "Method Name",
+            "type": "string"
+          },
+          "model_artifact_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Artifact Id"
+          },
+          "model_checksum": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Checksum"
+          },
+          "model_identifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Identifier"
+          },
+          "model_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Revision"
+          },
+          "normalization_version": {
+            "title": "Normalization Version",
+            "type": "string"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/Progress"
+          },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version"
+          },
+          "queue_name": {
+            "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+            "title": "Queue Name",
+            "type": "string"
+          },
+          "resolved_config": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Resolved Config",
+            "type": "object"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schema Version"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/MethodExecutionStatus"
+          },
+          "total_count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Count"
+          },
+          "worker_metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Worker Metadata",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "run_id",
+          "method_name",
+          "implementation_version",
+          "normalization_version",
+          "resolved_config",
+          "config_sha256",
+          "status",
+          "queue_name",
+          "completed_count",
+          "failed_count",
+          "created_at",
+          "progress"
+        ],
+        "title": "MethodExecution",
+        "type": "object"
+      },
+      "MethodExecutionStatus": {
+        "description": "Lifecycle for one method execution within a run.",
+        "enum": [
+          "pending",
+          "queued",
+          "running",
+          "completed",
+          "completed_with_errors",
+          "failed",
+          "cancelled"
+        ],
+        "title": "MethodExecutionStatus",
+        "type": "string"
+      },
       "MethodRunConfig": {
         "additionalProperties": false,
         "description": "Configuration envelope for one method in a run.",
@@ -1043,6 +1286,51 @@
         ],
         "title": "PredictionStatus",
         "type": "string"
+      },
+      "Progress": {
+        "additionalProperties": false,
+        "description": "Derived completion counts for a run or method execution.",
+        "properties": {
+          "completed": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Completed",
+            "type": "integer"
+          },
+          "failed": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Failed",
+            "type": "integer"
+          },
+          "percentage": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percentage"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          }
+        },
+        "title": "Progress",
+        "type": "object"
       },
       "Project": {
         "additionalProperties": false,
@@ -1422,6 +1710,9 @@
             "title": "Id",
             "type": "string"
           },
+          "progress": {
+            "$ref": "#/components/schemas/Progress"
+          },
           "python_version": {
             "maxLength": 100,
             "minLength": 1,
@@ -1456,7 +1747,8 @@
           "id",
           "status",
           "config_sha256",
-          "created_at"
+          "created_at",
+          "progress"
         ],
         "title": "Run",
         "type": "object"
@@ -3276,6 +3568,122 @@
       }
     },
     "/api/v1/runs/{run_id}/executions": {
+      "get": {
+        "description": "List a run's method executions with their persisted progress.",
+        "operationId": "list_run_executions_api_v1_runs__run_id__executions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MethodExecution"
+                  },
+                  "title": "Response List Run Executions Api V1 Runs  Run Id  Executions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List Run Executions",
+        "tags": [
+          "runs"
+        ]
+      },
       "post": {
         "description": "Schedule a created run's method executions and enqueue their batches.",
         "operationId": "start_run_executions_api_v1_runs__run_id__executions_post",

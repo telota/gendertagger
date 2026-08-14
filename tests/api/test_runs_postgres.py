@@ -198,3 +198,51 @@ def test_start_executions_rejects_unknown_run(
     response = client.post(f"/api/v1/runs/{uuid4()}/executions")
 
     assert response.status_code == 404
+
+
+def test_run_and_executions_expose_progress(
+    postgres_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    client = _client(postgres_engine, tmp_path, batch_dispatcher=_RecordingDispatcher())
+    snapshot_id = _ready_snapshot_id(client)
+    run_id = client.post(
+        "/api/v1/runs",
+        json={
+            "dataset_snapshot_id": str(snapshot_id),
+            "config": {"methods": [{"name": "parenthetical_qualifier"}]},
+        },
+    ).json()["id"]
+
+    created_run = client.get(f"/api/v1/runs/{run_id}").json()
+    assert created_run["progress"] == {
+        "total": None,
+        "completed": 0,
+        "failed": 0,
+        "percentage": None,
+    }
+    assert client.get(f"/api/v1/runs/{run_id}/executions").json() == []
+
+    client.post(f"/api/v1/runs/{run_id}/executions")
+
+    executions = client.get(f"/api/v1/runs/{run_id}/executions")
+    assert executions.status_code == 200
+    (execution,) = executions.json()
+    assert execution["method_name"] == "parenthetical_qualifier"
+    assert execution["progress"]["total"] == 1
+    assert execution["progress"]["completed"] == 0  # dispatched but not executed
+
+    run_progress = client.get(f"/api/v1/runs/{run_id}").json()["progress"]
+    assert run_progress["total"] == 1
+    assert run_progress["completed"] == 0
+
+
+def test_list_executions_rejects_unknown_run(
+    postgres_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    client = _client(postgres_engine, tmp_path)
+
+    response = client.get(f"/api/v1/runs/{uuid4()}/executions")
+
+    assert response.status_code == 404

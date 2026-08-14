@@ -15,6 +15,23 @@ from gendertagger.models.project import SHA256_PATTERN
 QUEUE_NAME_PATTERN = r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
 
 
+class Progress(BaseModel):
+    """Derived completion counts for a run or method execution."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    total: int | None = Field(default=None, ge=0)
+    completed: int = Field(default=0, ge=0)
+    failed: int = Field(default=0, ge=0)
+    percentage: float | None = Field(default=None, ge=0, le=100)
+
+    @classmethod
+    def of(cls, *, total: int | None, completed: int, failed: int) -> Self:
+        """Build progress from counts, deriving the completion percentage."""
+        percentage = round((completed + failed) / total * 100, 2) if total else None
+        return cls(total=total, completed=completed, failed=failed, percentage=percentage)
+
+
 class RunCreateRequest(BaseModel):
     """Public command selecting one snapshot and raw run configuration."""
 
@@ -57,6 +74,7 @@ class Run(RunCreate):
     finished_at: UtcDatetime | None = None
     failure_diagnostic: str | None = None
     created_at: UtcDatetime
+    progress: Progress
 
     @model_validator(mode="after")
     def _validate_lifecycle_fields(self) -> Self:
@@ -146,6 +164,7 @@ class MethodExecution(BaseModel):
     failure_class: str | None = None
     failure_diagnostic: str | None = None
     created_at: UtcDatetime
+    progress: Progress
 
     @model_validator(mode="after")
     def _validate_progress(self) -> Self:

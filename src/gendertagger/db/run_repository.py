@@ -23,6 +23,7 @@ from gendertagger.models.run import (
     MethodExecutionCreate,
     Prediction,
     PredictionWrite,
+    Progress,
     Run,
     RunCreate,
     TaskBatch,
@@ -133,6 +134,15 @@ class SqlAlchemyRunRepository:
         """Return a method execution contract by ID without exposing its row."""
         row = self._session.get(MethodExecutionRow, method_execution_id)
         return None if row is None else self._method_execution_from_row(row)
+
+    def list_method_executions(self, run_id: UUID) -> list[MethodExecution]:
+        """Return a run's method executions in stable method-name order."""
+        rows = self._session.scalars(
+            select(MethodExecutionRow)
+            .where(MethodExecutionRow.run_id == run_id)
+            .order_by(MethodExecutionRow.method_name)
+        )
+        return [self._method_execution_from_row(row) for row in rows]
 
     def add_task_batch(self, command: TaskBatchCreate) -> TaskBatch:
         """Persist and flush one retryable task batch without committing."""
@@ -604,8 +614,20 @@ class SqlAlchemyRunRepository:
             and row.input_fingerprint == prediction.input_fingerprint
         )
 
-    @staticmethod
-    def _run_from_row(row: RunRow) -> Run:
+    def _run_progress(self, run_id: UUID) -> Progress:
+        executions = self._session.scalars(
+            select(MethodExecutionRow).where(MethodExecutionRow.run_id == run_id)
+        ).all()
+        if not executions:
+            return Progress(total=None, completed=0, failed=0, percentage=None)
+        totals = [execution.total_count for execution in executions]
+        present = [value for value in totals if value is not None]
+        total = sum(present) if len(present) == len(totals) else None
+        completed = sum(execution.completed_count for execution in executions)
+        failed = sum(execution.failed_count for execution in executions)
+        return Progress.of(total=total, completed=completed, failed=failed)
+
+    def _run_from_row(self, row: RunRow) -> Run:
         return Run(
             id=row.id,
             dataset_snapshot_id=row.dataset_snapshot_id,
@@ -622,6 +644,7 @@ class SqlAlchemyRunRepository:
             finished_at=row.finished_at,
             failure_diagnostic=row.failure_diagnostic,
             created_at=row.created_at,
+            progress=self._run_progress(row.id),
         )
 
     @staticmethod
@@ -652,6 +675,11 @@ class SqlAlchemyRunRepository:
             failure_class=row.failure_class,
             failure_diagnostic=row.failure_diagnostic,
             created_at=row.created_at,
+            progress=Progress.of(
+                total=row.total_count,
+                completed=row.completed_count,
+                failed=row.failed_count,
+            ),
         )
 
     @staticmethod

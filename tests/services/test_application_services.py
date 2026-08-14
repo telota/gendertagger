@@ -47,7 +47,7 @@ from gendertagger.models.review import (
     ReviewItemQuery,
     ReviewWorkflowState,
 )
-from gendertagger.models.run import Run, RunCreate, RunCreateRequest
+from gendertagger.models.run import Progress, Run, RunCreate, RunCreateRequest
 from gendertagger.services.aggregation_repository import AggregationRepository
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.annotations import AnnotationService
@@ -425,6 +425,7 @@ def _run(command: RunCreate) -> Run:
         status=RunStatus.created,
         config_sha256=command.resolved_config.canonical_sha256(),
         created_at=NOW,
+        progress=Progress(),
         **command.model_dump(),
     )
 

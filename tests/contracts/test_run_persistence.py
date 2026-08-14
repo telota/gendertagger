@@ -13,6 +13,7 @@ from gendertagger.models.run import (
     MethodExecutionCreate,
     Prediction,
     PredictionWrite,
+    Progress,
     Run,
     RunCreateRequest,
 )
@@ -44,6 +45,7 @@ def run_payload(**overrides: object) -> dict[str, object]:
         "finished_at": None,
         "failure_diagnostic": None,
         "created_at": CREATED_AT,
+        "progress": Progress(),
     }
     payload.update(overrides)
     return payload
@@ -76,6 +78,7 @@ def execution_payload(**overrides: object) -> dict[str, object]:
         "failure_class": None,
         "failure_diagnostic": None,
         "created_at": CREATED_AT,
+        "progress": Progress(),
     }
     payload.update(overrides)
     return payload

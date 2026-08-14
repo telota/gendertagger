@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from gendertagger.models.run import Run, RunCreate, RunCreateRequest
+from gendertagger.models.run import MethodExecution, Run, RunCreate, RunCreateRequest
 from gendertagger.services.method_registry import MethodRegistry
 from gendertagger.services.persistence_errors import ResourceNotFoundError
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
@@ -60,3 +60,11 @@ class RunService:
             msg = f"run {run_id} does not exist"
             raise ResourceNotFoundError(msg)
         return run
+
+    def list_executions(self, run_id: UUID) -> list[MethodExecution]:
+        """Return a run's method executions, or raise if the run is unknown."""
+        with self._unit_of_work_factory() as unit_of_work:
+            if unit_of_work.runs.get_run(run_id) is None:
+                msg = f"run {run_id} does not exist"
+                raise ResourceNotFoundError(msg)
+            return unit_of_work.runs.list_method_executions(run_id)
