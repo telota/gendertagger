@@ -47,6 +47,17 @@ from gendertagger.methods.hivoto import (
     HIVOTO_LOOKUP_SCHEMA_VERSION,
     compile_hivoto_lookup,
 )
+from gendertagger.methods.hivoto_xgboost import (
+    HIVOTO_XGBOOST_MODEL_COMPILER_VERSION,
+    HIVOTO_XGBOOST_MODEL_FILE_LOGICAL_TYPE,
+    HIVOTO_XGBOOST_MODEL_MANIFEST_LOGICAL_TYPE,
+    HIVOTO_XGBOOST_MODEL_SCHEMA_VERSION,
+    IDF_MEMBER_RELATIVE_PATH,
+    LOOKUP_MEMBER_RELATIVE_PATH,
+    MODEL_MEMBER_RELATIVE_PATH,
+    VECTORIZER_CONFIG_MEMBER_RELATIVE_PATH,
+    VOCABULARY_MEMBER_RELATIVE_PATH,
+)
 from gendertagger.methods.wiki_gendersort import (
     WIKI_GENDERSORT_LOOKUP_COMPILER_VERSION,
     WIKI_GENDERSORT_LOOKUP_LOGICAL_TYPE,
@@ -62,7 +73,10 @@ from gendertagger.models.artifact import (
     ModelManifestMember,
     ModelManifestMetadata,
 )
-from gendertagger.services.lookup_assets import LookupAssetRegistrationService
+from gendertagger.services.lookup_assets import (
+    LookupAssetRegistrationService,
+    RegisteredLookupAssetResolver,
+)
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
 
@@ -243,6 +257,73 @@ def _prepare_hf_model(
         return registration.register_file(
             manifest_path,
             logical_type=preparation.manifest_logical_type,
+            media_type=MODEL_MANIFEST_MEDIA_TYPE,
+            metadata=manifest.model_dump(mode="json"),
+        )
+
+
+def _prepare_hivoto_xgboost(
+    registration: LookupAssetRegistrationService,
+    lookup_asset_resolver: RegisteredLookupAssetResolver,
+    model_directory: Path,
+    *,
+    hivoto_lookup_sha256: str,
+    source_identifier: str,
+    source_revision: str,
+    license_identifier: str | None,
+) -> Artifact:
+    """Register the HIVOTO-XGBoost model bundle, reusing an already-registered lookup.
+
+    The lookup member is materialized from the digest of a ``hivoto_lookup``
+    artifact already registered via ``prepare-hivoto``/``fetch-wiki``-style
+    provisioning, never recompiled from the licensed HIVOTO source. See
+    ADR-0025.
+    """
+    lookup_path = lookup_asset_resolver.materialize(HIVOTO_LOOKUP_LOGICAL_TYPE, hivoto_lookup_sha256)
+    file_specs = (
+        (lookup_path, LOOKUP_MEMBER_RELATIVE_PATH, SQLITE_MEDIA_TYPE),
+        (model_directory / VOCABULARY_MEMBER_RELATIVE_PATH, VOCABULARY_MEMBER_RELATIVE_PATH, "application/json"),
+        (model_directory / IDF_MEMBER_RELATIVE_PATH, IDF_MEMBER_RELATIVE_PATH, "application/json"),
+        (
+            model_directory / VECTORIZER_CONFIG_MEMBER_RELATIVE_PATH,
+            VECTORIZER_CONFIG_MEMBER_RELATIVE_PATH,
+            "application/json",
+        ),
+        (model_directory / MODEL_MEMBER_RELATIVE_PATH, MODEL_MEMBER_RELATIVE_PATH, "application/json"),
+    )
+    members: list[ModelManifestMember] = []
+    for file_path, relative_path, media_type in file_specs:
+        artifact = registration.register_file(
+            file_path,
+            logical_type=HIVOTO_XGBOOST_MODEL_FILE_LOGICAL_TYPE,
+            media_type=media_type,
+        )
+        members.append(
+            ModelManifestMember(
+                relative_path=relative_path,
+                artifact_id=artifact.id,
+                sha256=artifact.sha256,
+                byte_size=artifact.byte_size,
+            )
+        )
+    manifest = ModelManifestMetadata(
+        method_name="hivoto_xgboost",
+        model_schema_version=HIVOTO_XGBOOST_MODEL_SCHEMA_VERSION,
+        compiler_version=HIVOTO_XGBOOST_MODEL_COMPILER_VERSION,
+        source_identifier=source_identifier,
+        source_revision=source_revision,
+        members=tuple(members),
+        license_identifier=license_identifier,
+    )
+    with tempfile.TemporaryDirectory(prefix="gendertagger-model-manifest-") as temporary_directory:
+        manifest_path = Path(temporary_directory) / "manifest.json"
+        manifest_path.write_text(
+            json.dumps(manifest.model_dump(mode="json"), ensure_ascii=False, sort_keys=True),
+            encoding="utf-8",
+        )
+        return registration.register_file(
+            manifest_path,
+            logical_type=HIVOTO_XGBOOST_MODEL_MANIFEST_LOGICAL_TYPE,
             media_type=MODEL_MANIFEST_MEDIA_TYPE,
             metadata=manifest.model_dump(mode="json"),
         )
@@ -549,6 +630,20 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Pinned model commit SHA; a mutable branch name such as 'main' is unsafe.",
     )
     prepare_hf_model.add_argument("--license-identifier")
+    prepare_hivoto_xgboost = asset_commands.add_parser(
+        "prepare-hivoto-xgboost",
+        help="Register the HIVOTO-XGBoost model bundle, reusing a registered hivoto_lookup",
+    )
+    prepare_hivoto_xgboost.add_argument("model_directory", type=Path)
+    prepare_hivoto_xgboost.add_argument(
+        "--hivoto-lookup-sha256",
+        required=True,
+        type=_sha256_argument,
+        help="Digest of an already-registered hivoto_lookup artifact.",
+    )
+    prepare_hivoto_xgboost.add_argument("--source-identifier", required=True)
+    prepare_hivoto_xgboost.add_argument("--source-revision", required=True)
+    prepare_hivoto_xgboost.add_argument("--license-identifier")
     fetch_wiki = asset_commands.add_parser("fetch-wiki")
     fetch_wiki.set_defaults(method_name="wiki_gendersort")
     fetch_wiki.add_argument("url")
@@ -571,20 +666,25 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def _registration_service(
     settings: AssetCliSettings,
-) -> tuple[LookupAssetRegistrationService, Callable[[], None]]:
+) -> tuple[LookupAssetRegistrationService, RegisteredLookupAssetResolver, Callable[[], None]]:
     engine = create_database_engine(settings.database_url.get_secret_value())
     session_factory = create_session_factory(engine)
     unit_of_work_factory: UnitOfWorkFactory = partial(SqlAlchemyUnitOfWork, session_factory)
+    artifact_storage = LocalArtifactStorage(settings.artifact_root)
     service = LookupAssetRegistrationService(
         unit_of_work_factory=unit_of_work_factory,
-        artifact_storage=LocalArtifactStorage(settings.artifact_root),
+        artifact_storage=artifact_storage,
         max_byte_size=settings.max_method_asset_bytes,
     )
-    return service, engine.dispose
+    resolver = RegisteredLookupAssetResolver(
+        unit_of_work_factory=unit_of_work_factory,
+        artifact_storage=artifact_storage,
+    )
+    return service, resolver, engine.dispose
 
 
 def _run_assets(args: argparse.Namespace, settings: AssetCliSettings) -> str:
-    registration, dispose = _registration_service(settings)
+    registration, lookup_asset_resolver, dispose = _registration_service(settings)
     try:
         if args.asset_command == "register":
             artifact = registration.register_file(
@@ -604,6 +704,25 @@ def _run_assets(args: argparse.Namespace, settings: AssetCliSettings) -> str:
                 registration,
                 args.directory,
                 hf_preparation,
+                source_identifier=str(args.source_identifier),
+                source_revision=str(args.source_revision),
+                license_identifier=args.license_identifier,
+            )
+            return json.dumps(
+                {
+                    "manifest_artifact_id": str(manifest_artifact.id),
+                    "lookup_sha256": manifest_artifact.sha256,
+                    "manifest_logical_type": manifest_artifact.logical_type,
+                },
+                sort_keys=True,
+            )
+
+        if args.asset_command == "prepare-hivoto-xgboost":
+            manifest_artifact = _prepare_hivoto_xgboost(
+                registration,
+                lookup_asset_resolver,
+                args.model_directory,
+                hivoto_lookup_sha256=str(args.hivoto_lookup_sha256),
                 source_identifier=str(args.source_identifier),
                 source_revision=str(args.source_revision),
                 license_identifier=args.license_identifier,

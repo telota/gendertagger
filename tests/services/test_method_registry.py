@@ -84,6 +84,7 @@ def test_default_registry_requires_content_digest_for_lookup_methods() -> None:
         "hivoto",
         "hf_distilbert",
         "hf_genderize",
+        "hivoto_xgboost",
     ):
         with pytest.raises(InvalidMethodConfigError, match=method_name):
             registry.resolve_run_config(RunConfig(methods=[MethodRunConfig(name=method_name)]))

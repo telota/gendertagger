@@ -122,7 +122,7 @@ Migrate adapters incrementally:
 6. GND local snapshot [DONE]
 7. transformer classifiers [DONE]
 8. local LLM
-9. HIVOTO-XGBoost as experimental method
+9. HIVOTO-XGBoost as experimental method [DONE]
 
 Do not wait for all methods before exercising the architecture.
 
@@ -179,10 +179,12 @@ Exit criterion: a reviewer can correct a machine result and the final-decision v
 
 Resolve the remaining Phase 0 tracked-data governance decision and the Phase 1 parenthetical mixed-category
 compatibility edge, then continue Phase 5 adapter migration with the local LLM, the last of the nine required
-reference methods. The transformer classifiers (`hf_distilbert`, `hf_genderize`) reuse the content-addressed
-lookup-asset boundary through a new multi-file model manifest (see
-[ADR-0024](decisions/ADR-0024-hf-transformer-model-manifest-adapters.md)); HIVOTO-XGBoost is expected to reuse
-the same manifest mechanism once its adapter is migrated. The asynchronous snapshot-import, lookup-asset,
-method-execution, and reference-aggregation paths are implemented and must remain covered as each adapter is
-added. Do not begin Phase 6 evaluation and export until the complete nine-method reference ensemble reproduces
+reference methods. The transformer classifiers (`hf_distilbert`, `hf_genderize`) and the experimental
+HIVOTO-XGBoost adapter reuse the same content-addressed multi-file model manifest (see
+[ADR-0024](decisions/ADR-0024-hf-transformer-model-manifest-adapters.md) and
+[ADR-0025](decisions/ADR-0025-hivoto-xgboost-adapter.md)); HIVOTO-XGBoost's manifest additionally reuses the
+already-compiled `hivoto_lookup` artifact rather than recompiling it. The asynchronous snapshot-import,
+lookup-asset, method-execution, and reference-aggregation paths are implemented and must remain covered as
+each adapter is added. Do not begin Phase 6 evaluation and export until the complete nine-method reference
+ensemble reproduces
 the golden outputs through the persisted API-to-worker workflow.

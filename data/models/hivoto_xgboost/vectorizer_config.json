@@ -1,0 +1,1 @@
+{"analyzer": "char_wb", "binary": false, "decode_error": "strict", "dtype": "float32", "encoding": "utf-8", "input": "content", "lowercase": true, "max_df": 1.0, "max_features": 25000, "min_df": 3, "ngram_range": [2, 5], "norm": "l2", "smooth_idf": true, "strip_accents": null, "sublinear_tf": true, "token_pattern": "(?u)\\b\\w\\w+\\b", "use_idf": true}

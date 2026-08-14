@@ -106,6 +106,16 @@ the phased plan that resumes application code.
   offline by a dedicated worker-side directory resolver, and classified per forename token through the shared
   name-token consensus, with a new `assets prepare-hf-model` CLI provisioning command and `transformers`
   optional dependency extra.
+- Experimental `hivoto_xgboost` adapter (excluded from the reference vote): a two-stage, per-forename-token
+  classifier that checks the already-compiled `hivoto_lookup` artifact first and falls back to a trained
+  TF-IDF character-n-gram + XGBoost model, reduced by a bespoke consensus ported from the legacy reference
+  script (see [ADR-0025](docs/decisions/ADR-0025-hivoto-xgboost-adapter.md)). Reuses the multi-file model
+  manifest mechanism introduced for the transformer classifiers, with its lookup member materialized from an
+  already-registered `hivoto_lookup` digest rather than recompiled. The trained model was converted once,
+  losslessly, from its original pickled form to pickle-free JSON (see
+  `data/models/hivoto_xgboost/PROVENANCE.md`), verified byte-exact against the original, and committed
+  directly since it was trained by this project rather than externally licensed. Adds a new
+  `assets prepare-hivoto-xgboost` CLI command and `hivoto-xgboost` optional dependency extra.
 
 ### Changed
 

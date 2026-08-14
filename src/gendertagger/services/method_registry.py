@@ -22,6 +22,10 @@ from gendertagger.methods.hf_genderize import (
     HfGenderizeMethod,
 )
 from gendertagger.methods.hivoto import HIVOTO_LOOKUP_LOGICAL_TYPE, HivotoMethod
+from gendertagger.methods.hivoto_xgboost import (
+    HIVOTO_XGBOOST_MODEL_MANIFEST_LOGICAL_TYPE,
+    HivotoXgboostMethod,
+)
 from gendertagger.methods.model_manifest import (
     ModelDirectoryResolver,
     UnavailableModelDirectoryResolver,
@@ -208,6 +212,14 @@ def default_method_registry(
                 queue_name=CPU_QUEUE,
                 batch_size=_CPU_BATCH_SIZE,
                 data_artifact_logical_type=HF_GENDERIZE_MODEL_MANIFEST_LOGICAL_TYPE,
+            ),
+            MethodRegistration(
+                descriptor=HivotoXgboostMethod.descriptor,
+                config_model=HivotoXgboostMethod.config_model,
+                adapter=HivotoXgboostMethod(model_directory_resolver=model_resolver),
+                queue_name=CPU_QUEUE,
+                batch_size=_CPU_BATCH_SIZE,
+                data_artifact_logical_type=HIVOTO_XGBOOST_MODEL_MANIFEST_LOGICAL_TYPE,
             ),
         ]
     )

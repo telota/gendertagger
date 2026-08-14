@@ -36,6 +36,8 @@ methods:
       model: "gpt-oss:20b"
   - name: hivoto_xgboost
     enabled: false
+    config:
+      lookup_sha256: "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" # replace
 
 aggregation:
   strategy: reference_v1
