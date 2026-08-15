@@ -38,6 +38,7 @@ erDiagram
     PERSON_RECORD ||--o{ ANNOTATION : receives
     USER ||--o{ ANNOTATION : creates
     RUN ||--o{ EVALUATION : evaluates
+    RUN ||--o{ EXPORT : produces
     DATASET_SNAPSHOT ||--o{ ARTIFACT : owns
     RUN ||--o{ ARTIFACT : produces
 ```
@@ -110,6 +111,13 @@ latest valid human annotation
 
 ### Evaluation
 Versioned metrics against a defined benchmark/reference set, never silently against "ground truth".
+
+### Export
+A versioned, independently rerunnable projection of one completed AggregationExecution's FinalDecision labels
+into TEI, JSON, or CSV output, plus a manifest Artifact recording its inputs and produced outputs. The
+`label_source_policy` selects whether the projection reads pure machine aggregation or lets a current human
+Annotation override the label (never mutating the underlying Prediction or AggregatedResult). Re-exporting
+creates a new execution instead of modifying prior output Artifacts.
 
 ### Artifact
 Checksummed reference to source XML, exports, manifests, reports, models, or larger payloads.

@@ -59,6 +59,14 @@ class ArtifactRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
         POSTGRESQL_UUID(as_uuid=True),
         ForeignKey("aggregation_executions.id", ondelete="RESTRICT", use_alter=True),
     )
+    evaluation_execution_id: Mapped[UUID | None] = mapped_column(
+        POSTGRESQL_UUID(as_uuid=True),
+        ForeignKey("evaluation_executions.id", ondelete="RESTRICT", use_alter=True),
+    )
+    export_id: Mapped[UUID | None] = mapped_column(
+        POSTGRESQL_UUID(as_uuid=True),
+        ForeignKey("export_executions.id", ondelete="RESTRICT", use_alter=True),
+    )
     artifact_metadata: Mapped[dict[str, Any]] = mapped_column(
         "metadata",
         JSONB,

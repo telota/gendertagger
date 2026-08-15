@@ -24,7 +24,9 @@ from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.models.project import SnapshotImportLimits
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.annotations import AnnotationService
+from gendertagger.services.evaluations import EvaluationService
 from gendertagger.services.execution import RunScheduler
+from gendertagger.services.exports import ExportService
 from gendertagger.services.lookup_assets import RegisteredLookupAssetResolver
 from gendertagger.services.method_registry import default_method_registry
 from gendertagger.services.model_assets import RegisteredModelDirectoryResolver
@@ -114,6 +116,16 @@ def create_app(
         cursor_codec=cursor_codec,
         clock=partial(datetime.now, UTC),
     )
+    evaluation_service = EvaluationService(
+        unit_of_work_factory=unit_of_work_factory,
+        artifact_storage=artifact_storage,
+        clock=partial(datetime.now, UTC),
+    )
+    export_service = ExportService(
+        unit_of_work_factory=unit_of_work_factory,
+        artifact_storage=artifact_storage,
+        clock=partial(datetime.now, UTC),
+    )
     annotation_service = AnnotationService(unit_of_work_factory)
     review_item_service = ReviewItemService(
         unit_of_work_factory=unit_of_work_factory,
@@ -149,6 +161,8 @@ def create_app(
     application.state.authentication_backend = authentication_backend
     application.state.project_service = project_service
     application.state.aggregation_service = aggregation_service
+    application.state.evaluation_service = evaluation_service
+    application.state.export_service = export_service
     application.state.annotation_service = annotation_service
     application.state.method_registry = method_registry
     application.state.run_service = run_service

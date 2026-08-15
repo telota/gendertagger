@@ -11,7 +11,9 @@ from sqlalchemy.orm import Session
 
 from gendertagger.db.aggregations import AggregationExecutionRow
 from gendertagger.db.dispatches import BatchDispatchRow
+from gendertagger.db.evaluations import EvaluationExecutionRow
 from gendertagger.db.executions import MethodExecutionRow, RunRow, TaskBatchRow
+from gendertagger.db.exports import ExportExecutionRow
 from gendertagger.db.projects import DatasetSnapshotRow
 from gendertagger.models.aggregation import AggregationTaskMessage
 from gendertagger.models.common import normalize_utc_datetime
@@ -24,12 +26,20 @@ from gendertagger.models.dispatch import (
     Dispatch,
     DispatchCreate,
     DispatchTarget,
+    EvaluationDispatch,
+    EvaluationDispatchCreate,
+    ExportDispatch,
+    ExportDispatchCreate,
     SnapshotDispatch,
     SnapshotDispatchCreate,
 )
+from gendertagger.models.evaluation import EvaluationTaskMessage
+from gendertagger.models.export import ExportTaskMessage
 from gendertagger.models.lifecycle import (
     AggregationExecutionStatus,
     DatasetSnapshotStatus,
+    EvaluationExecutionStatus,
+    ExportExecutionStatus,
     MethodExecutionStatus,
     RunStatus,
     TaskBatchStatus,
@@ -51,6 +61,12 @@ _DISPATCHABLE_AGGREGATION_STATUSES = frozenset(
     {AggregationExecutionStatus.pending, AggregationExecutionStatus.queued}
 )
 _DISPATCHABLE_SNAPSHOT_STATUSES = frozenset({DatasetSnapshotStatus.pending})
+_DISPATCHABLE_EVALUATION_STATUSES = frozenset(
+    {EvaluationExecutionStatus.pending, EvaluationExecutionStatus.queued}
+)
+_DISPATCHABLE_EXPORT_STATUSES = frozenset(
+    {ExportExecutionStatus.pending, ExportExecutionStatus.queued}
+)
 _STALE_REARM_DIAGNOSTIC = "published dispatch was not claimed before reconciliation timeout"
 
 
@@ -72,13 +88,23 @@ class SqlAlchemyDispatchRepository:
     @overload
     def ensure_dispatch(self, command: SnapshotDispatchCreate) -> SnapshotDispatch: ...
 
+    @overload
+    def ensure_dispatch(self, command: EvaluationDispatchCreate) -> EvaluationDispatch: ...
+
+    @overload
+    def ensure_dispatch(self, command: ExportDispatchCreate) -> ExportDispatch: ...
+
     def ensure_dispatch(self, command: DispatchCreate) -> Dispatch:
         """Idempotently persist one exact target-aware dispatch without committing."""
         if isinstance(command, BatchDispatchCreate):
             return self._ensure_batch_dispatch(command)
         if isinstance(command, AggregationDispatchCreate):
             return self._ensure_aggregation_dispatch(command)
-        return self._ensure_snapshot_dispatch(command)
+        if isinstance(command, SnapshotDispatchCreate):
+            return self._ensure_snapshot_dispatch(command)
+        if isinstance(command, EvaluationDispatchCreate):
+            return self._ensure_evaluation_dispatch(command)
+        return self._ensure_export_dispatch(command)
 
     def _ensure_batch_dispatch(self, command: BatchDispatchCreate) -> BatchDispatch:
         batch = self._session.get(TaskBatchRow, command.task_batch_id)
@@ -103,6 +129,8 @@ class SqlAlchemyDispatchRepository:
                 task_batch_id=command.task_batch_id,
                 aggregation_execution_id=None,
                 dataset_snapshot_id=None,
+                evaluation_execution_id=None,
+                export_id=None,
                 queue_name=command.queue_name,
                 payload=command.payload.model_dump(mode="json"),
                 status=BatchDispatchStatus.pending,
@@ -159,6 +187,8 @@ class SqlAlchemyDispatchRepository:
                 task_batch_id=None,
                 aggregation_execution_id=command.aggregation_execution_id,
                 dataset_snapshot_id=None,
+                evaluation_execution_id=None,
+                export_id=None,
                 queue_name=command.queue_name,
                 payload=command.payload.model_dump(mode="json"),
                 status=BatchDispatchStatus.pending,
@@ -214,6 +244,8 @@ class SqlAlchemyDispatchRepository:
                 task_batch_id=None,
                 aggregation_execution_id=None,
                 dataset_snapshot_id=command.dataset_snapshot_id,
+                evaluation_execution_id=None,
+                export_id=None,
                 queue_name=command.queue_name,
                 payload=command.payload.model_dump(mode="json"),
                 status=BatchDispatchStatus.pending,
@@ -238,6 +270,117 @@ class SqlAlchemyDispatchRepository:
         dispatch = self._dispatch_from_row(row)
         if not isinstance(dispatch, SnapshotDispatch):  # pragma: no cover - database invariant.
             msg = f"dispatch for dataset snapshot {snapshot.id} has the wrong target type"
+            raise RuntimeError(msg)
+        return dispatch
+
+    def _ensure_evaluation_dispatch(
+        self,
+        command: EvaluationDispatchCreate,
+    ) -> EvaluationDispatch:
+        evaluation = self._session.get(
+            EvaluationExecutionRow,
+            command.evaluation_execution_id,
+        )
+        if evaluation is None:
+            msg = f"evaluation execution {command.evaluation_execution_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        if evaluation.status not in _DISPATCHABLE_EVALUATION_STATUSES:
+            msg = (
+                f"evaluation execution {evaluation.id} is not dispatchable from {evaluation.status}"
+            )
+            raise InvalidResourceStateError(msg)
+        if command.queue_name != CPU_QUEUE:
+            msg = f"evaluation dispatches must use the {CPU_QUEUE} queue"
+            raise InvalidResourceStateError(msg)
+
+        dispatch_table = cast(Table, BatchDispatchRow.__table__)
+        statement = (
+            insert(dispatch_table)
+            .values(
+                id=uuid4(),
+                task_batch_id=None,
+                aggregation_execution_id=None,
+                dataset_snapshot_id=None,
+                evaluation_execution_id=command.evaluation_execution_id,
+                export_id=None,
+                queue_name=command.queue_name,
+                payload=command.payload.model_dump(mode="json"),
+                status=BatchDispatchStatus.pending,
+                attempt_count=0,
+                available_at=command.available_at,
+                lease_owner=None,
+                lease_until=None,
+                published_at=None,
+                last_error=None,
+            )
+            .on_conflict_do_nothing(constraint="evaluation_execution_single_dispatch")
+        )
+        self._session.execute(statement)
+        self._session.flush()
+        row = self._session.scalar(
+            select(BatchDispatchRow).where(
+                BatchDispatchRow.evaluation_execution_id == evaluation.id
+            )
+        )
+        if row is None:  # pragma: no cover - guarded by insert/select in one transaction.
+            msg = f"dispatch for evaluation execution {evaluation.id} could not be persisted"
+            raise RuntimeError(msg)
+        self._require_matching_intent(row, command)
+        dispatch = self._dispatch_from_row(row)
+        if not isinstance(dispatch, EvaluationDispatch):  # pragma: no cover - database invariant.
+            msg = f"dispatch for evaluation execution {evaluation.id} has the wrong target type"
+            raise RuntimeError(msg)
+        return dispatch
+
+    def _ensure_export_dispatch(
+        self,
+        command: ExportDispatchCreate,
+    ) -> ExportDispatch:
+        export = self._session.get(ExportExecutionRow, command.export_id)
+        if export is None:
+            msg = f"export execution {command.export_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        if export.status not in _DISPATCHABLE_EXPORT_STATUSES:
+            msg = f"export execution {export.id} is not dispatchable from {export.status}"
+            raise InvalidResourceStateError(msg)
+        if command.queue_name != CPU_QUEUE:
+            msg = f"export dispatches must use the {CPU_QUEUE} queue"
+            raise InvalidResourceStateError(msg)
+
+        dispatch_table = cast(Table, BatchDispatchRow.__table__)
+        statement = (
+            insert(dispatch_table)
+            .values(
+                id=uuid4(),
+                task_batch_id=None,
+                aggregation_execution_id=None,
+                dataset_snapshot_id=None,
+                evaluation_execution_id=None,
+                export_id=command.export_id,
+                queue_name=command.queue_name,
+                payload=command.payload.model_dump(mode="json"),
+                status=BatchDispatchStatus.pending,
+                attempt_count=0,
+                available_at=command.available_at,
+                lease_owner=None,
+                lease_until=None,
+                published_at=None,
+                last_error=None,
+            )
+            .on_conflict_do_nothing(constraint="export_single_dispatch")
+        )
+        self._session.execute(statement)
+        self._session.flush()
+        row = self._session.scalar(
+            select(BatchDispatchRow).where(BatchDispatchRow.export_id == export.id)
+        )
+        if row is None:  # pragma: no cover - guarded by insert/select in one transaction.
+            msg = f"dispatch for export {export.id} could not be persisted"
+            raise RuntimeError(msg)
+        self._require_matching_intent(row, command)
+        dispatch = self._dispatch_from_row(row)
+        if not isinstance(dispatch, ExportDispatch):  # pragma: no cover - database invariant.
+            msg = f"dispatch for export {export.id} has the wrong target type"
             raise RuntimeError(msg)
         return dispatch
 
@@ -292,6 +435,40 @@ class SqlAlchemyDispatchRepository:
         dispatch = self._dispatch_from_row(row)
         if not isinstance(dispatch, SnapshotDispatch):  # pragma: no cover - query invariant.
             msg = f"dispatch for dataset snapshot {dataset_snapshot_id} has the wrong target type"
+            raise RuntimeError(msg)
+        return dispatch
+
+    def get_dispatch_for_evaluation(
+        self,
+        evaluation_execution_id: UUID,
+    ) -> EvaluationDispatch | None:
+        """Return the unique dispatch contract for one evaluation execution."""
+        row = self._session.scalar(
+            select(BatchDispatchRow).where(
+                BatchDispatchRow.evaluation_execution_id == evaluation_execution_id
+            )
+        )
+        if row is None:
+            return None
+        dispatch = self._dispatch_from_row(row)
+        if not isinstance(dispatch, EvaluationDispatch):  # pragma: no cover - query invariant.
+            msg = (
+                f"dispatch for evaluation execution {evaluation_execution_id} "
+                "has the wrong target type"
+            )
+            raise RuntimeError(msg)
+        return dispatch
+
+    def get_dispatch_for_export(self, export_id: UUID) -> ExportDispatch | None:
+        """Return the unique dispatch contract for one export execution."""
+        row = self._session.scalar(
+            select(BatchDispatchRow).where(BatchDispatchRow.export_id == export_id)
+        )
+        if row is None:
+            return None
+        dispatch = self._dispatch_from_row(row)
+        if not isinstance(dispatch, ExportDispatch):  # pragma: no cover - query invariant.
+            msg = f"dispatch for export {export_id} has the wrong target type"
             raise RuntimeError(msg)
         return dispatch
 
@@ -429,10 +606,42 @@ class SqlAlchemyDispatchRepository:
                 DatasetSnapshotRow.status.in_(_DISPATCHABLE_SNAPSHOT_STATUSES),
             )
         )
+        evaluation_candidates = (
+            select(
+                literal(DispatchTarget.evaluation_execution.value).label("target"),
+                EvaluationExecutionRow.id.label("target_id"),
+                EvaluationExecutionRow.created_at.label("created_at"),
+            )
+            .outerjoin(
+                BatchDispatchRow,
+                BatchDispatchRow.evaluation_execution_id == EvaluationExecutionRow.id,
+            )
+            .where(
+                BatchDispatchRow.id.is_(None),
+                EvaluationExecutionRow.status.in_(_DISPATCHABLE_EVALUATION_STATUSES),
+            )
+        )
+        export_candidates = (
+            select(
+                literal(DispatchTarget.export.value).label("target"),
+                ExportExecutionRow.id.label("target_id"),
+                ExportExecutionRow.created_at.label("created_at"),
+            )
+            .outerjoin(
+                BatchDispatchRow,
+                BatchDispatchRow.export_id == ExportExecutionRow.id,
+            )
+            .where(
+                BatchDispatchRow.id.is_(None),
+                ExportExecutionRow.status.in_(_DISPATCHABLE_EXPORT_STATUSES),
+            )
+        )
         candidates = union_all(
             batch_candidates,
             aggregation_candidates,
             snapshot_candidates,
+            evaluation_candidates,
+            export_candidates,
         ).subquery()
         rows = tuple(
             self._session.execute(
@@ -474,7 +683,7 @@ class SqlAlchemyDispatchRepository:
                         available_at=available_at,
                     )
                 )
-            else:
+            elif target == DispatchTarget.dataset_snapshot.value:
                 snapshot = self._lock_dispatchable_snapshot(target_id)
                 if snapshot is None or self.get_dispatch_for_snapshot(snapshot.id) is not None:
                     continue
@@ -483,6 +692,33 @@ class SqlAlchemyDispatchRepository:
                         dataset_snapshot_id=snapshot.id,
                         queue_name=CPU_QUEUE,
                         payload=SnapshotImportTaskMessage(dataset_snapshot_id=snapshot.id),
+                        available_at=available_at,
+                    )
+                )
+            elif target == DispatchTarget.evaluation_execution.value:
+                evaluation = self._lock_dispatchable_evaluation(target_id)
+                if (
+                    evaluation is None
+                    or self.get_dispatch_for_evaluation(evaluation.id) is not None
+                ):
+                    continue
+                self.ensure_dispatch(
+                    EvaluationDispatchCreate(
+                        evaluation_execution_id=evaluation.id,
+                        queue_name=CPU_QUEUE,
+                        payload=EvaluationTaskMessage(evaluation_execution_id=evaluation.id),
+                        available_at=available_at,
+                    )
+                )
+            else:
+                export = self._lock_dispatchable_export(target_id)
+                if export is None or self.get_dispatch_for_export(export.id) is not None:
+                    continue
+                self.ensure_dispatch(
+                    ExportDispatchCreate(
+                        export_id=export.id,
+                        queue_name=CPU_QUEUE,
+                        payload=ExportTaskMessage(export_id=export.id),
                         available_at=available_at,
                     )
                 )
@@ -556,10 +792,46 @@ class SqlAlchemyDispatchRepository:
                 DatasetSnapshotRow.status.in_(_DISPATCHABLE_SNAPSHOT_STATUSES),
             )
         )
+        evaluation_candidates = (
+            select(
+                BatchDispatchRow.id.label("dispatch_id"),
+                literal(DispatchTarget.evaluation_execution.value).label("target"),
+                EvaluationExecutionRow.id.label("target_id"),
+                BatchDispatchRow.published_at.label("published_at"),
+            )
+            .join(
+                EvaluationExecutionRow,
+                EvaluationExecutionRow.id == BatchDispatchRow.evaluation_execution_id,
+            )
+            .where(
+                BatchDispatchRow.status == BatchDispatchStatus.published,
+                BatchDispatchRow.published_at <= stale_before,
+                EvaluationExecutionRow.status.in_(_DISPATCHABLE_EVALUATION_STATUSES),
+            )
+        )
+        export_candidates = (
+            select(
+                BatchDispatchRow.id.label("dispatch_id"),
+                literal(DispatchTarget.export.value).label("target"),
+                ExportExecutionRow.id.label("target_id"),
+                BatchDispatchRow.published_at.label("published_at"),
+            )
+            .join(
+                ExportExecutionRow,
+                ExportExecutionRow.id == BatchDispatchRow.export_id,
+            )
+            .where(
+                BatchDispatchRow.status == BatchDispatchStatus.published,
+                BatchDispatchRow.published_at <= stale_before,
+                ExportExecutionRow.status.in_(_DISPATCHABLE_EXPORT_STATUSES),
+            )
+        )
         candidates = union_all(
             batch_candidates,
             aggregation_candidates,
             snapshot_candidates,
+            evaluation_candidates,
+            export_candidates,
         ).subquery()
         rows = tuple(
             self._session.execute(
@@ -581,8 +853,14 @@ class SqlAlchemyDispatchRepository:
             elif target == DispatchTarget.aggregation_execution.value:
                 if self._lock_dispatchable_aggregation(target_id) is None:
                     continue
-            else:
+            elif target == DispatchTarget.dataset_snapshot.value:
                 if self._lock_dispatchable_snapshot(target_id) is None:
+                    continue
+            elif target == DispatchTarget.evaluation_execution.value:
+                if self._lock_dispatchable_evaluation(target_id) is None:
+                    continue
+            else:
+                if self._lock_dispatchable_export(target_id) is None:
                     continue
             row = self._session.scalar(
                 select(BatchDispatchRow)
@@ -648,6 +926,34 @@ class SqlAlchemyDispatchRepository:
             .with_for_update(skip_locked=True, of=DatasetSnapshotRow)
         )
 
+    def _lock_dispatchable_evaluation(
+        self,
+        evaluation_execution_id: UUID,
+    ) -> EvaluationExecutionRow | None:
+        """Lock one pending evaluation without waiting on an active worker."""
+        return self._session.scalar(
+            select(EvaluationExecutionRow)
+            .where(
+                EvaluationExecutionRow.id == evaluation_execution_id,
+                EvaluationExecutionRow.status.in_(_DISPATCHABLE_EVALUATION_STATUSES),
+            )
+            .with_for_update(skip_locked=True, of=EvaluationExecutionRow)
+        )
+
+    def _lock_dispatchable_export(
+        self,
+        export_id: UUID,
+    ) -> ExportExecutionRow | None:
+        """Lock one pending export without waiting on an active worker."""
+        return self._session.scalar(
+            select(ExportExecutionRow)
+            .where(
+                ExportExecutionRow.id == export_id,
+                ExportExecutionRow.status.in_(_DISPATCHABLE_EXPORT_STATUSES),
+            )
+            .with_for_update(skip_locked=True, of=ExportExecutionRow)
+        )
+
     def _require_claimed(self, dispatch_id: UUID, lease_owner: str) -> BatchDispatchRow:
         row = self._session.get(
             BatchDispatchRow,
@@ -700,6 +1006,8 @@ class SqlAlchemyDispatchRepository:
             row.task_batch_id is not None
             and row.aggregation_execution_id is None
             and row.dataset_snapshot_id is None
+            and row.evaluation_execution_id is None
+            and row.export_id is None
         ):
             return BatchDispatch(
                 id=row.id,
@@ -720,6 +1028,8 @@ class SqlAlchemyDispatchRepository:
             row.aggregation_execution_id is not None
             and row.task_batch_id is None
             and row.dataset_snapshot_id is None
+            and row.evaluation_execution_id is None
+            and row.export_id is None
         ):
             return AggregationDispatch(
                 id=row.id,
@@ -740,12 +1050,58 @@ class SqlAlchemyDispatchRepository:
             row.dataset_snapshot_id is not None
             and row.task_batch_id is None
             and row.aggregation_execution_id is None
+            and row.evaluation_execution_id is None
+            and row.export_id is None
         ):
             return SnapshotDispatch(
                 id=row.id,
                 dataset_snapshot_id=row.dataset_snapshot_id,
                 queue_name=row.queue_name,
                 payload=SnapshotImportTaskMessage.model_validate(row.payload),
+                status=row.status,
+                attempt_count=row.attempt_count,
+                available_at=row.available_at,
+                lease_owner=row.lease_owner,
+                lease_until=row.lease_until,
+                published_at=row.published_at,
+                last_error=row.last_error,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+            )
+        if (
+            row.evaluation_execution_id is not None
+            and row.task_batch_id is None
+            and row.aggregation_execution_id is None
+            and row.dataset_snapshot_id is None
+            and row.export_id is None
+        ):
+            return EvaluationDispatch(
+                id=row.id,
+                evaluation_execution_id=row.evaluation_execution_id,
+                queue_name=row.queue_name,
+                payload=EvaluationTaskMessage.model_validate(row.payload),
+                status=row.status,
+                attempt_count=row.attempt_count,
+                available_at=row.available_at,
+                lease_owner=row.lease_owner,
+                lease_until=row.lease_until,
+                published_at=row.published_at,
+                last_error=row.last_error,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+            )
+        if (
+            row.export_id is not None
+            and row.task_batch_id is None
+            and row.aggregation_execution_id is None
+            and row.dataset_snapshot_id is None
+            and row.evaluation_execution_id is None
+        ):
+            return ExportDispatch(
+                id=row.id,
+                export_id=row.export_id,
+                queue_name=row.queue_name,
+                payload=ExportTaskMessage.model_validate(row.payload),
                 status=row.status,
                 attempt_count=row.attempt_count,
                 available_at=row.available_at,

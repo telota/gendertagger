@@ -1,5 +1,6 @@
 """SQLAlchemy repository for immutable checksummed artifact records."""
 
+from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy import select
@@ -29,6 +30,8 @@ class SqlAlchemyArtifactRepository:
             run_id=command.run_id,
             method_execution_id=command.method_execution_id,
             aggregation_execution_id=command.aggregation_execution_id,
+            evaluation_execution_id=command.evaluation_execution_id,
+            export_id=command.export_id,
             artifact_metadata=command.metadata,
         )
         self._session.add(row)
@@ -57,6 +60,15 @@ class SqlAlchemyArtifactRepository:
             raise AmbiguousArtifactError(msg)
         return None if not rows else self._artifact_from_row(rows[0])
 
+    def list_artifacts_by_export(self, export_id: UUID) -> Sequence[Artifact]:
+        """Return every artifact produced by one export, in creation order."""
+        rows = self._session.scalars(
+            select(ArtifactRow)
+            .where(ArtifactRow.export_id == export_id)
+            .order_by(ArtifactRow.created_at, ArtifactRow.id)
+        )
+        return tuple(self._artifact_from_row(row) for row in rows)
+
     @staticmethod
     def _artifact_from_row(row: ArtifactRow) -> Artifact:
         return Artifact(
@@ -71,6 +83,8 @@ class SqlAlchemyArtifactRepository:
             run_id=row.run_id,
             method_execution_id=row.method_execution_id,
             aggregation_execution_id=row.aggregation_execution_id,
+            evaluation_execution_id=row.evaluation_execution_id,
+            export_id=row.export_id,
             metadata=row.artifact_metadata,
             created_at=row.created_at,
         )

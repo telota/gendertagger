@@ -1,5 +1,6 @@
 """Application repository contract for immutable artifact records."""
 
+from collections.abc import Sequence
 from typing import Protocol
 from uuid import UUID
 
@@ -23,4 +24,8 @@ class ArtifactRepository(Protocol):
 
     def get_artifact_by_sha256(self, logical_type: str, sha256: str) -> Artifact | None:
         """Return one content match, ``None`` when absent, or raise on ambiguity."""
+        ...
+
+    def list_artifacts_by_export(self, export_id: UUID) -> Sequence[Artifact]:
+        """Return every artifact produced by one export, in creation order."""
         ...

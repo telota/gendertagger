@@ -47,6 +47,28 @@ class AggregationExecutionStatus(StrEnum):
     cancelled = "cancelled"
 
 
+class EvaluationExecutionStatus(StrEnum):
+    """Lifecycle for one independently rerunnable evaluation."""
+
+    pending = "pending"
+    queued = "queued"
+    running = "running"
+    completed = "completed"
+    failed = "failed"
+    cancelled = "cancelled"
+
+
+class ExportExecutionStatus(StrEnum):
+    """Lifecycle for one independently rerunnable export."""
+
+    pending = "pending"
+    queued = "queued"
+    running = "running"
+    completed = "completed"
+    failed = "failed"
+    cancelled = "cancelled"
+
+
 class TaskBatchStatus(StrEnum):
     """Lifecycle for one retryable method-execution batch."""
 

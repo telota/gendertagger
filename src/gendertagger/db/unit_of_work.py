@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from gendertagger.db.aggregation_repository import SqlAlchemyAggregationRepository
 from gendertagger.db.artifact_repository import SqlAlchemyArtifactRepository
 from gendertagger.db.dispatch_repository import SqlAlchemyDispatchRepository
+from gendertagger.db.evaluation_repository import SqlAlchemyEvaluationRepository
+from gendertagger.db.export_repository import SqlAlchemyExportRepository
 from gendertagger.db.project_repository import SqlAlchemyProjectRepository
 from gendertagger.db.review_repository import SqlAlchemyReviewRepository
 from gendertagger.db.run_repository import SqlAlchemyRunRepository
@@ -71,6 +73,16 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
     def dispatches(self) -> SqlAlchemyDispatchRepository:
         """Return durable dispatch persistence bound to the active session."""
         return SqlAlchemyDispatchRepository(self._require_session())
+
+    @property
+    def evaluations(self) -> SqlAlchemyEvaluationRepository:
+        """Return evaluation persistence bound to the active session."""
+        return SqlAlchemyEvaluationRepository(self._require_session())
+
+    @property
+    def exports(self) -> SqlAlchemyExportRepository:
+        """Return export persistence bound to the active session."""
+        return SqlAlchemyExportRepository(self._require_session())
 
     @property
     def users(self) -> SqlAlchemyUserRepository:

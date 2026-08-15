@@ -6,7 +6,9 @@ from fastapi import Request
 
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.annotations import AnnotationService
+from gendertagger.services.evaluations import EvaluationService
 from gendertagger.services.execution import RunScheduler
+from gendertagger.services.exports import ExportService
 from gendertagger.services.method_registry import MethodRegistry
 from gendertagger.services.projects import ProjectService
 from gendertagger.services.review_items import ReviewItemService
@@ -27,6 +29,16 @@ def get_project_service(request: Request) -> ProjectService:
 def get_aggregation_service(request: Request) -> AggregationService:
     """Return the composed aggregation application service."""
     return cast(AggregationService, request.app.state.aggregation_service)
+
+
+def get_evaluation_service(request: Request) -> EvaluationService:
+    """Return the composed evaluation application service."""
+    return cast(EvaluationService, request.app.state.evaluation_service)
+
+
+def get_export_service(request: Request) -> ExportService:
+    """Return the composed export application service."""
+    return cast(ExportService, request.app.state.export_service)
 
 
 def get_annotation_service(request: Request) -> AnnotationService:

@@ -12,6 +12,10 @@ from gendertagger.models.dispatch import (
     BatchDispatchCreate,
     Dispatch,
     DispatchCreate,
+    EvaluationDispatch,
+    EvaluationDispatchCreate,
+    ExportDispatch,
+    ExportDispatchCreate,
     SnapshotDispatch,
     SnapshotDispatchCreate,
 )
@@ -31,6 +35,12 @@ class DispatchRepository(Protocol):
 
     @overload
     def ensure_dispatch(self, command: SnapshotDispatchCreate) -> SnapshotDispatch: ...
+
+    @overload
+    def ensure_dispatch(self, command: EvaluationDispatchCreate) -> EvaluationDispatch: ...
+
+    @overload
+    def ensure_dispatch(self, command: ExportDispatchCreate) -> ExportDispatch: ...
 
     def ensure_dispatch(self, command: DispatchCreate) -> Dispatch:
         """Idempotently persist one exact target-aware dispatch intent."""
@@ -53,6 +63,17 @@ class DispatchRepository(Protocol):
 
     def get_dispatch_for_snapshot(self, dataset_snapshot_id: UUID) -> SnapshotDispatch | None:
         """Return the unique dispatch for a snapshot import, or ``None`` when absent."""
+        ...
+
+    def get_dispatch_for_evaluation(
+        self,
+        evaluation_execution_id: UUID,
+    ) -> EvaluationDispatch | None:
+        """Return the unique dispatch for an evaluation, or ``None`` when absent."""
+        ...
+
+    def get_dispatch_for_export(self, export_id: UUID) -> ExportDispatch | None:
+        """Return the unique dispatch for an export, or ``None`` when absent."""
         ...
 
     def claim_available(

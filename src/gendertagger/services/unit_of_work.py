@@ -7,6 +7,8 @@ from typing import Protocol, Self, TypeAlias
 from gendertagger.services.aggregation_repository import AggregationRepository
 from gendertagger.services.artifact_repository import ArtifactRepository
 from gendertagger.services.dispatch_repository import DispatchRepository
+from gendertagger.services.evaluation_repository import EvaluationRepository
+from gendertagger.services.export_repository import ExportRepository
 from gendertagger.services.project_repository import ProjectRepository
 from gendertagger.services.review_repository import ReviewRepository
 from gendertagger.services.run_repository import RunRepository
@@ -52,6 +54,16 @@ class UnitOfWork(Protocol):
     @property
     def dispatches(self) -> DispatchRepository:
         """Return durable dispatch persistence bound to the current transaction."""
+        ...
+
+    @property
+    def evaluations(self) -> EvaluationRepository:
+        """Return evaluation persistence bound to the current transaction."""
+        ...
+
+    @property
+    def exports(self) -> ExportRepository:
+        """Return export persistence bound to the current transaction."""
         ...
 
     @property

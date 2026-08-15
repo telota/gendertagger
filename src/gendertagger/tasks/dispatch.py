@@ -4,10 +4,14 @@ from typing import Any
 from uuid import UUID
 
 from gendertagger.models.dispatch import DispatchMessage
+from gendertagger.models.evaluation import EvaluationTaskMessage
+from gendertagger.models.export import ExportTaskMessage
 from gendertagger.models.project import SnapshotImportTaskMessage
 from gendertagger.models.run import TaskBatchMessage
 from gendertagger.tasks.aggregation import EXECUTE_AGGREGATION_TASK_NAME
+from gendertagger.tasks.evaluation import EXECUTE_EVALUATION_TASK_NAME
 from gendertagger.tasks.execution import EXECUTE_BATCH_TASK_NAME
+from gendertagger.tasks.export import EXECUTE_EXPORT_TASK_NAME
 from gendertagger.tasks.snapshot_import import EXECUTE_SNAPSHOT_IMPORT_TASK_NAME
 
 
@@ -41,6 +45,22 @@ class CeleryMessagePublisher:
             task_name = EXECUTE_SNAPSHOT_IMPORT_TASK_NAME
             kwargs = {
                 "dataset_snapshot_id": str(message.dataset_snapshot_id),
+            }
+        elif isinstance(message, EvaluationTaskMessage):
+            if task_id != message.evaluation_execution_id:
+                msg = "broker task_id must match the evaluation message"
+                raise ValueError(msg)
+            task_name = EXECUTE_EVALUATION_TASK_NAME
+            kwargs = {
+                "evaluation_execution_id": str(message.evaluation_execution_id),
+            }
+        elif isinstance(message, ExportTaskMessage):
+            if task_id != message.export_id:
+                msg = "broker task_id must match the export message"
+                raise ValueError(msg)
+            task_name = EXECUTE_EXPORT_TASK_NAME
+            kwargs = {
+                "export_id": str(message.export_id),
             }
         else:
             if task_id != message.aggregation_execution_id:
