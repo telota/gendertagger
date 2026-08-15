@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import Engine, text
+from sqlalchemy import Engine, select, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
@@ -16,12 +16,17 @@ from gendertagger.db.aggregations import (
     AggregationMethodExecutionRow,
 )
 from gendertagger.db.artifact_repository import SqlAlchemyArtifactRepository
+from gendertagger.db.dispatch_repository import SqlAlchemyDispatchRepository
+from gendertagger.db.dispatches import BatchDispatchRow
 from gendertagger.db.executions import MethodExecutionRow, RunRow
 from gendertagger.db.project_repository import SqlAlchemyProjectRepository
 from gendertagger.db.run_repository import SqlAlchemyRunRepository
+from gendertagger.db.session import create_session_factory
+from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.domain.aggregation import REFERENCE_REQUIRED_METHODS
 from gendertagger.domain.aggregation_assessment import assess_reference_predictions
 from gendertagger.models.aggregation import (
+    AggregationCreateRequest,
     AggregationExecutionCreate,
     AggregationResultWrite,
 )
@@ -45,7 +50,13 @@ from gendertagger.models.run import (
     RunCreate,
     TaskBatchCreate,
 )
-from gendertagger.services.persistence_errors import InvalidResourceStateError
+from gendertagger.services.aggregations import AggregationService
+from gendertagger.services.pagination import CursorCodec
+from gendertagger.services.persistence_errors import (
+    InvalidResourceStateError,
+    ResourceNotFoundError,
+)
+from gendertagger.services.unit_of_work import UnitOfWork
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 
@@ -386,6 +397,36 @@ def test_database_rejects_aggregation_provenance_mutation(db_session: Session) -
     )
 
 
+@pytest.mark.parametrize(
+    ("attribute", "value"),
+    [
+        ("resolved_config", {"minimum_methods": 2}),
+        ("config_sha256", "e" * 64),
+    ],
+)
+def test_database_rejects_aggregation_configuration_provenance_mutation(
+    db_session: Session,
+    attribute: str,
+    value: object,
+) -> None:
+    run_id, execution_ids, _person_id = _seed_reference_run(db_session)
+    aggregation = SqlAlchemyAggregationRepository(db_session).add_aggregation(
+        AggregationExecutionCreate(
+            run_id=run_id,
+            method_execution_ids=execution_ids,
+        )
+    )
+    row = db_session.get(AggregationExecutionRow, aggregation.id)
+    assert row is not None
+
+    _assert_database_rejects(
+        db_session,
+        lambda: setattr(row, attribute, value),
+        sqlstate="55000",
+        message="aggregation_executions provenance is immutable",
+    )
+
+
 def test_database_rejects_aggregation_membership_deletion(db_session: Session) -> None:
     run_id, execution_ids, _person_id = _seed_reference_run(db_session)
     repository = SqlAlchemyAggregationRepository(db_session)
@@ -586,3 +627,157 @@ def test_concurrent_workers_claim_an_aggregation_only_once(postgres_engine: Engi
 
     assert claims.count(True) == 1
     assert claims.count(False) == 1
+
+
+def test_aggregation_creation_rolls_back_when_dispatch_intent_cannot_persist(
+    postgres_engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with Session(postgres_engine, autoflush=False, expire_on_commit=False) as session:
+        run_id, execution_ids, _person_id = _seed_reference_run(session)
+        session.commit()
+
+    def reject_dispatch(*_args: object, **_kwargs: object) -> object:
+        msg = "dispatch persistence failed"
+        raise RuntimeError(msg)
+
+    monkeypatch.setattr(SqlAlchemyDispatchRepository, "ensure_dispatch", reject_dispatch)
+    session_factory = create_session_factory(postgres_engine)
+
+    def unit_of_work_factory() -> UnitOfWork:
+        return SqlAlchemyUnitOfWork(session_factory)
+
+    service = AggregationService(
+        unit_of_work_factory=unit_of_work_factory,
+        cursor_codec=CursorCodec(),
+        clock=lambda: NOW,
+    )
+
+    with pytest.raises(RuntimeError, match="dispatch persistence failed"):
+        service.create_aggregation(
+            run_id=run_id,
+            command=AggregationCreateRequest(method_execution_ids=execution_ids),
+        )
+
+    with Session(postgres_engine, autoflush=False, expire_on_commit=False) as session:
+        assert (
+            tuple(
+                session.scalars(
+                    select(AggregationExecutionRow.id).where(
+                        AggregationExecutionRow.run_id == run_id
+                    )
+                )
+            )
+            == ()
+        )
+        assert (
+            tuple(
+                session.scalars(
+                    select(BatchDispatchRow.id).where(
+                        BatchDispatchRow.aggregation_execution_id.is_not(None)
+                    )
+                )
+            )
+            == ()
+        )
+
+
+def test_repository_rejects_absent_runs_and_unowned_method_selections(
+    db_session: Session,
+) -> None:
+    repository = SqlAlchemyAggregationRepository(db_session)
+
+    with pytest.raises(ResourceNotFoundError, match="does not exist"):
+        repository.add_aggregation(
+            AggregationExecutionCreate(run_id=uuid4(), method_execution_ids=(uuid4(),))
+        )
+
+    run_id, execution_ids, _person_id = _seed_reference_run(db_session)
+    with pytest.raises(InvalidResourceStateError, match="must belong to the aggregation run"):
+        repository.add_aggregation(
+            AggregationExecutionCreate(
+                run_id=run_id,
+                method_execution_ids=(*execution_ids[:-1], uuid4()),
+            )
+        )
+
+
+def test_repository_distinguishes_missing_aggregations_from_illegal_transitions(
+    db_session: Session,
+) -> None:
+    repository = SqlAlchemyAggregationRepository(db_session)
+    missing_aggregation_id = uuid4()
+
+    assert repository.get_aggregation(missing_aggregation_id) is None
+    with pytest.raises(ResourceNotFoundError, match="does not exist"):
+        repository.mark_aggregation_queued(missing_aggregation_id)
+    with pytest.raises(ResourceNotFoundError, match="does not exist"):
+        repository.claim_aggregation(missing_aggregation_id, started_at=NOW)
+
+    run_id, execution_ids, _person_id = _seed_reference_run(db_session)
+    aggregation = repository.add_aggregation(
+        AggregationExecutionCreate(
+            run_id=run_id,
+            method_execution_ids=execution_ids,
+        )
+    )
+    repository.mark_aggregation_queued(aggregation.id)
+
+    with pytest.raises(InvalidResourceStateError, match="cannot queued from status queued"):
+        repository.mark_aggregation_queued(aggregation.id)
+
+
+def test_repository_rejects_duplicate_results_and_invalid_finish_commands(
+    db_session: Session,
+) -> None:
+    run_id, execution_ids, person_id = _seed_reference_run(db_session)
+    repository = SqlAlchemyAggregationRepository(db_session)
+    aggregation = repository.add_aggregation(
+        AggregationExecutionCreate(
+            run_id=run_id,
+            method_execution_ids=execution_ids,
+        )
+    )
+    claimed = repository.claim_aggregation(aggregation.id, started_at=NOW)
+    assert claimed is not None
+    (person_predictions,) = repository.load_prediction_matrix(aggregation.id)
+    result_write = AggregationResultWrite(
+        person_record_id=person_id,
+        result=assess_reference_predictions(person_predictions.predictions),
+    )
+
+    assert repository.get_result(uuid4()) is None
+    with pytest.raises(ResourceNotFoundError, match="does not exist"):
+        repository.add_results(uuid4(), [])
+    with pytest.raises(ValueError, match="at most once"):
+        repository.add_results(aggregation.id, [result_write, result_write])
+    with pytest.raises(ValueError, match="not a supported terminal aggregation status"):
+        repository.mark_aggregation_finished(
+            aggregation.id,
+            status=AggregationExecutionStatus.running,
+            finished_at=NOW,
+        )
+    with pytest.raises(ValueError, match="requires a failure diagnostic"):
+        repository.mark_aggregation_finished(
+            aggregation.id,
+            status=AggregationExecutionStatus.failed,
+            finished_at=NOW,
+        )
+    with pytest.raises(ValueError, match="limit must be positive"):
+        repository.list_results(aggregation.id, limit=0)
+    with pytest.raises(ValueError, match="cursor fields must be supplied together"):
+        repository.list_results(
+            aggregation.id,
+            limit=1,
+            after_person_record_id=person_id,
+        )
+
+    assert repository.add_results(aggregation.id, [result_write]) == 1
+    with pytest.raises(InvalidResourceStateError, match="must not retain partial results"):
+        repository.mark_aggregation_finished(
+            aggregation.id,
+            status=AggregationExecutionStatus.failed,
+            finished_at=NOW,
+            failure_class="PermanentAggregationError",
+            failure_diagnostic="synthetic failure",
+        )

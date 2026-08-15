@@ -93,7 +93,7 @@ fast_coverage:
   variables:
     COVERAGE_FILE: .coverage.fast
   # The fast suite has a 70% non-regression floor. Service-specific jobs publish
-  # partial data, and the combined coverage_gate remains the authoritative 80% check.
+  # partial data; the combined coverage_gate enforces the authoritative 85% project floor.
   script:
     - uv run --locked python scripts/check_asyncio_runner.py --timeout-seconds 5
     - >-
@@ -203,7 +203,11 @@ coverage_gate:
       .coverage.postgres
       .coverage.redis
     - uv run --locked coverage xml --fail-under=0 -o coverage.xml
-    - uv run --locked coverage report --fail-under=80
+    - uv run --locked coverage report --fail-under=85
+    - uv run --locked coverage report --include=src/gendertagger/methods/normalization.py --fail-under=100
+    - uv run --locked coverage report --include=src/gendertagger/domain/aggregation.py --fail-under=100
+    - uv run --locked coverage report --include=src/gendertagger/domain/aggregation_assessment.py --fail-under=100
+    - uv run --locked coverage report --include=src/gendertagger/export/tei_profile.py --fail-under=100
   coverage: '/TOTAL.*\s+([0-9]+(?:\.[0-9]+)?%)/'
   artifacts:
     when: always

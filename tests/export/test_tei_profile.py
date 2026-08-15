@@ -115,3 +115,14 @@ def test_gender_element_lands_directly_after_person_when_no_birth_death_note() -
 def test_a_person_missing_from_the_document_raises() -> None:
     with pytest.raises(TeiExportError, match="ghost"):
         inject_gender_annotations(_SOURCE, {"ghost": _record("ghost", label="male")})
+
+
+def test_person_without_xml_id_is_ignored_while_labeled_records_are_projected() -> None:
+    source = _SOURCE.replace(b'<person xml:id="p2">', b"<person>")
+
+    output = inject_gender_annotations(source, {"p1": _record("p1", label="female")})
+
+    root = etree.fromstring(output)
+    labeled_person = root.find(".//tei:person[@xml:id='p1']", namespaces=_NS)
+    assert labeled_person is not None
+    assert labeled_person.find("tei:gender", namespaces=_NS) is not None

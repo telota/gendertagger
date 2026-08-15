@@ -89,13 +89,13 @@ Markers define execution requirements rather than importance:
 Every test must be independent of execution order and shared mutable state. PostgreSQL-specific behavior is
 tested on PostgreSQL, and at least one Celery path uses a real Redis broker/worker rather than eager mode.
 
-The overall coverage floor starts at 80% and should ratchet upward. CI records separate data from the fast,
-PostgreSQL, and Redis suites, then combines those data before enforcing the project floor. The fast suite also
-has a 70% non-regression floor so unit and contract coverage cannot silently collapse behind integration
+The overall coverage floor is 85% and should ratchet to 90% after Phase 5. CI records separate data from the
+fast, PostgreSQL, and Redis suites, then combines those data before enforcing the project floor. The fast suite
+also has a 70% non-regression floor so unit and contract coverage cannot silently collapse behind integration
 coverage. A zero threshold on a service-specific partial run only defers percentage evaluation; test failures
-remain blocking. Normative normalization, aggregation, certainty, and TEI-projection branches require complete
-branch coverage once those modules exist. Coverage is a gap detector, not a substitute for decision-table and
-property-based tests.
+remain blocking. Normative normalization, reference aggregation, certainty assessment, and TEI-projection
+modules have individual 100% branch-coverage gates. Coverage is a gap detector, not a substitute for
+decision-table and property-based tests.
 
 ## CI and delivery
 

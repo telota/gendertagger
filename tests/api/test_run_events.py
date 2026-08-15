@@ -4,7 +4,12 @@ from typing import cast
 from uuid import UUID
 
 import pytest
+from fastapi.testclient import TestClient
+from pydantic import SecretStr
 
+from gendertagger.api.app import create_app
+from gendertagger.api.authentication import require_authenticated_user
+from gendertagger.api.dependencies import get_run_service
 from gendertagger.api.run_events import (
     METHOD_EXECUTION_PROGRESS,
     METHOD_EXECUTION_STATE_CHANGED,
@@ -14,15 +19,21 @@ from gendertagger.api.run_events import (
     RUN_STATE_CHANGED,
     stream_run_events,
 )
+from gendertagger.api.settings import AppSettings
 from gendertagger.models.lifecycle import MethodExecutionStatus, RunStatus
 from gendertagger.models.run import Progress
+from gendertagger.models.user import CurrentUser, Role
 from gendertagger.services.persistence_errors import ResourceNotFoundError
 from gendertagger.services.runs import RunService
+from gendertagger.services.unit_of_work import UnitOfWork
 
 pytestmark = pytest.mark.unit
 
 RUN_ID = UUID("10000000-0000-0000-0000-000000000001")
 EXECUTION_ID = UUID("20000000-0000-0000-0000-000000000001")
+DATABASE_URL = "postgresql+psycopg://api:secret@localhost/gendertagger"
+CODE_GIT_COMMIT = "a" * 40
+DEPENDENCY_LOCK_SHA256 = "b" * 64
 
 
 @dataclass(frozen=True)
@@ -64,6 +75,32 @@ class _SequencedRunService:
         executions = self._states[self._index][1]
         self._index = min(self._index + 1, len(self._states) - 1)
         return executions
+
+
+def _unused_unit_of_work_factory() -> UnitOfWork:
+    raise AssertionError("the event route test must not open persistence")
+
+
+def _viewer() -> CurrentUser:
+    return CurrentUser(
+        id=UUID("30000000-0000-0000-0000-000000000001"),
+        display_name="Run event viewer",
+        roles={Role.viewer},
+    )
+
+
+def _event_client(service: object) -> TestClient:
+    application = create_app(
+        settings=AppSettings(
+            database_url=SecretStr(DATABASE_URL),
+            code_git_commit=CODE_GIT_COMMIT,
+            dependency_lock_sha256=DEPENDENCY_LOCK_SHA256,
+        ),
+        unit_of_work_factory=_unused_unit_of_work_factory,
+    )
+    application.dependency_overrides[require_authenticated_user] = _viewer
+    application.dependency_overrides[get_run_service] = lambda: service
+    return TestClient(application)
 
 
 async def _collect_events(
@@ -157,7 +194,9 @@ def test_stream_emits_failed_terminal_event() -> None:
 
 @pytest.mark.parametrize("disappear_during_execution_lookup", [False, True])
 def test_stream_stops_when_run_is_missing(disappear_during_execution_lookup: bool) -> None:
-    states = [(_run(RunStatus.running), [])] if disappear_during_execution_lookup else []
+    states: list[tuple[_RunView, list[_ExecutionView]]] = (
+        [(_run(RunStatus.running), [])] if disappear_during_execution_lookup else []
+    )
     service = _SequencedRunService(
         states,
         disappear_during_execution_lookup=disappear_during_execution_lookup,
@@ -181,3 +220,36 @@ def test_stream_stops_at_time_limit_for_nonterminal_run() -> None:
         f"event: {RUN_STATE_CHANGED}",
         f"event: {RUN_PROGRESS}",
     ]
+
+
+def test_event_endpoint_reconnects_from_current_terminal_state() -> None:
+    terminal = (
+        _run(RunStatus.completed, completed=1),
+        [_execution(MethodExecutionStatus.completed, completed=1)],
+    )
+    service = _SequencedRunService([terminal])
+
+    with _event_client(service) as client:
+        first = client.get(
+            f"/api/v1/runs/{RUN_ID}/events",
+            headers={"Last-Event-ID": "not-a-persisted-event"},
+        )
+        second = client.get(f"/api/v1/runs/{RUN_ID}/events")
+
+    assert first.status_code == 200
+    assert first.headers["cache-control"] == "no-cache"
+    assert first.headers["x-accel-buffering"] == "no"
+    assert first.headers["content-type"].startswith("text/event-stream")
+    assert first.text == second.text
+    assert "event: run.completed" in first.text
+    assert "\nid: " not in first.text
+
+
+def test_event_endpoint_rejects_missing_run_before_opening_stream() -> None:
+    service = _SequencedRunService([])
+
+    with _event_client(service) as client:
+        response = client.get(f"/api/v1/runs/{RUN_ID}/events")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "resource_not_found"

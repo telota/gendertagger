@@ -151,6 +151,9 @@ def test_coordinator_settings_validate_database_and_retry_window() -> None:
     with pytest.raises(ValidationError, match=r"postgresql\+psycopg"):
         DispatchCoordinatorSettings(database_url=SecretStr("sqlite:///local.db"))
 
+    with pytest.raises(ValidationError, match="valid SQLAlchemy URL"):
+        DispatchCoordinatorSettings(database_url=SecretStr("not-a-database-url"))
+
     with pytest.raises(ValidationError, match="must not be less"):
         DispatchCoordinatorSettings(
             database_url=SecretStr("postgresql+psycopg://user:pass@db/gendertagger"),
@@ -235,9 +238,12 @@ def test_compose_dispatch_coordinator_wires_owned_resources(
     monkeypatch.setattr(relay_module, "create_database_engine", Mock(return_value=engine))
     monkeypatch.setattr(relay_module, "create_session_factory", Mock(return_value=session_factory))
     monkeypatch.setattr(relay_module, "create_celery_app", Mock(return_value=celery_app))
-    monkeypatch.setattr(relay_module, "OutboxRelay", Mock(return_value=relay))
-    monkeypatch.setattr(relay_module, "DispatchReconciler", Mock(return_value=reconciler))
-    monkeypatch.setattr(relay_module, "DispatchCoordinator", Mock(return_value=coordinator))
+    outbox_relay = Mock(return_value=relay)
+    dispatch_reconciler = Mock(return_value=reconciler)
+    dispatch_coordinator = Mock(return_value=coordinator)
+    monkeypatch.setattr(relay_module, "OutboxRelay", outbox_relay)
+    monkeypatch.setattr(relay_module, "DispatchReconciler", dispatch_reconciler)
+    monkeypatch.setattr(relay_module, "DispatchCoordinator", dispatch_coordinator)
     settings = DispatchCoordinatorSettings(
         database_url=SecretStr("postgresql+psycopg://user:pass@db/gendertagger")
     )
@@ -248,9 +254,9 @@ def test_compose_dispatch_coordinator_wires_owned_resources(
     assert application.coordinator is coordinator
     assert application.engine is engine
     assert application.celery_app is celery_app
-    relay_module.OutboxRelay.assert_called_once()
-    relay_module.DispatchReconciler.assert_called_once()
-    relay_module.DispatchCoordinator.assert_called_once_with(
+    outbox_relay.assert_called_once()
+    dispatch_reconciler.assert_called_once()
+    dispatch_coordinator.assert_called_once_with(
         relay=relay,
         reconciler=reconciler,
         stop_event=stop_event,

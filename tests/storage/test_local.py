@@ -2,6 +2,7 @@ import hashlib
 import os
 from io import BytesIO
 from pathlib import Path
+from typing import BinaryIO, cast
 
 import pytest
 
@@ -13,6 +14,11 @@ from gendertagger.storage.local import (
 )
 
 SOURCE_BYTES = b"exact source bytes\n\x00"
+
+
+class _SourceWithoutByteCount:
+    def readinto(self, _buffer: bytearray) -> None:
+        return None
 
 
 def test_storage_streams_exact_content_to_internal_digest_locator(tmp_path: Path) -> None:
@@ -102,3 +108,44 @@ def test_duplicate_store_still_fsyncs_the_existing_digest_directory(
 
     assert duplicate == stored
     assert synced_directories == [tmp_path / stored.sha256[:2]]
+
+
+@pytest.mark.parametrize("max_byte_size", [0, -1])
+def test_storage_rejects_nonpositive_size_limits(tmp_path: Path, max_byte_size: int) -> None:
+    storage = LocalArtifactStorage(tmp_path)
+
+    with pytest.raises(ValueError, match="must be positive"):
+        storage.store(BytesIO(SOURCE_BYTES), max_byte_size=max_byte_size)
+
+
+def test_storage_rejects_source_without_byte_count_and_cleans_staging(tmp_path: Path) -> None:
+    storage = LocalArtifactStorage(tmp_path)
+
+    with pytest.raises(ArtifactStorageError, match="did not return a byte count"):
+        storage.store(cast(BinaryIO, _SourceWithoutByteCount()), max_byte_size=len(SOURCE_BYTES))
+
+    assert list((tmp_path / ".tmp").iterdir()) == []
+
+
+def test_storage_rejects_malformed_content_addressed_locator(tmp_path: Path) -> None:
+    storage = LocalArtifactStorage(tmp_path)
+
+    with pytest.raises(ArtifactStorageError, match="invalid content-addressed"):
+        storage.open("local-sha256:not-a-digest")
+
+
+def test_storage_never_follows_a_substituted_digest_symlink(tmp_path: Path) -> None:
+    storage = LocalArtifactStorage(tmp_path)
+    stored = storage.store(BytesIO(SOURCE_BYTES), max_byte_size=len(SOURCE_BYTES))
+    digest_path = tmp_path / stored.sha256[:2] / stored.sha256
+    external_path = tmp_path / "external-artifact"
+    external_path.write_bytes(SOURCE_BYTES)
+    digest_path.unlink()
+    digest_path.symlink_to(external_path)
+
+    with pytest.raises(ArtifactStorageError, match="stored artifact is unavailable"):
+        storage.open(stored.storage_uri)
+    with pytest.raises(
+        ArtifactIntegrityError, match="existing content-addressed artifact is unavailable"
+    ):
+        storage.materialize(stored.storage_uri)

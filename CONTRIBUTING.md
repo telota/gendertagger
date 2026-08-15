@@ -62,7 +62,11 @@ GENDERTAGGER_DATABASE_URL=postgresql+psycopg://user:password@localhost/gendertag
 uv run --locked coverage combine \
   .coverage.fast .coverage.postgres .coverage.redis
 uv run --locked coverage xml --fail-under=0 -o coverage.xml
-uv run --locked coverage report
+uv run --locked coverage report --fail-under=85
+uv run --locked coverage report --include=src/gendertagger/methods/normalization.py --fail-under=100
+uv run --locked coverage report --include=src/gendertagger/domain/aggregation.py --fail-under=100
+uv run --locked coverage report --include=src/gendertagger/domain/aggregation_assessment.py --fail-under=100
+uv run --locked coverage report --include=src/gendertagger/export/tei_profile.py --fail-under=100
 uv build --no-sources
 uv run --locked python scripts/check_distribution.py dist/*
 ```
@@ -74,8 +78,9 @@ Redis tests require `GENDERTAGGER_TEST_REDIS_URL` to select a dedicated nonzero 
 purges that database before and after every Redis-marked test; never point it at a shared or production broker.
 
 The 70% fast-suite threshold is a quick non-regression signal. It does not replace or lower the mandatory
-80% project floor, which is evaluated after combining the fast, PostgreSQL, and Redis coverage data. Every
-partial suite remains independently blocking on test failures.
+85% project floor, which is evaluated after combining the fast, PostgreSQL, and Redis coverage data. The
+combined report also requires 100% branch coverage for normalization, reference aggregation, certainty
+assessment, and TEI projection. Every partial suite remains independently blocking on test failures.
 
 Use `uv run --locked pre-commit run --all-files` to exercise all pre-commit-stage hooks manually.
 Use `uv run --locked pre-commit run --all-files --hook-stage pre-push` to exercise the mypy/Pyright,
