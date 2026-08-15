@@ -83,9 +83,7 @@ class DirectClassificationService:
             for index, name in enumerate(names)
         ]
 
-        predictions_by_name: list[dict[str, PredictionResult]] = [
-            {} for _ in range(len(names))
-        ]
+        predictions_by_name: list[dict[str, PredictionResult]] = [{} for _ in range(len(names))]
         classifications_by_name: list[dict[str, MethodClassification]] = [
             {} for _ in range(len(names))
         ]
@@ -150,7 +148,9 @@ class DirectClassificationService:
         method_name = registration.descriptor.name
         try:
             config = self._resolve_config(registration, raw_config)
-            config_key = config.model_dump_json() if hasattr(config, "model_dump_json") else str(config)
+            config_key = (
+                config.model_dump_json() if hasattr(config, "model_dump_json") else str(config)
+            )
         except (MethodDependencyError, ValidationError, Exception) as error:
             error_message = f"{type(error).__name__}: {error}".strip()
             return [
@@ -188,7 +188,9 @@ class DirectClassificationService:
 
         if miss_people:
             try:
-                new_predictions: list[PredictionResult] = registration.adapter.predict_batch(miss_people, config)
+                new_predictions: list[PredictionResult] = registration.adapter.predict_batch(
+                    miss_people, config
+                )
                 validate_prediction_batch(registration.descriptor, miss_people, new_predictions)
             except (MethodDependencyError, ValidationError, Exception) as error:
                 error_message = f"{type(error).__name__}: {error}".strip()
@@ -322,9 +324,7 @@ class DirectClassificationService:
             total_votes = len(pooled_labels)
             score = _rounded_share(max_count, total_votes) if total_votes > 1 else 1.0
             tier = (
-                AgreementTier.single_rater
-                if total_votes == 1
-                else _agreement_tier_for_score(score)
+                AgreementTier.single_rater if total_votes == 1 else _agreement_tier_for_score(score)
             )
             return AggregatedClassification(
                 label=winning_label,
@@ -344,9 +344,7 @@ class DirectClassificationService:
             total_votes = len(pooled_labels)
             score = _rounded_share(max_count, total_votes) if total_votes > 1 else 1.0
             tier = (
-                AgreementTier.single_rater
-                if total_votes == 1
-                else _agreement_tier_for_score(score)
+                AgreementTier.single_rater if total_votes == 1 else _agreement_tier_for_score(score)
             )
             return AggregatedClassification(
                 label=winning_label,

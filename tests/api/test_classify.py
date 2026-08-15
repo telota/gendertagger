@@ -39,9 +39,7 @@ class _StubFailingMethod:
     )
     config_model = MethodConfig
 
-    def predict_batch(
-        self, people: Sequence[PersonInput], config: Any
-    ) -> list[PredictionResult]:
+    def predict_batch(self, people: Sequence[PersonInput], config: Any) -> list[PredictionResult]:
         del people, config
         msg = "Failing adapter dependency missing"
         raise MethodDependencyError(msg)
@@ -113,8 +111,8 @@ def _application_client(
     application.dependency_overrides[require_csrf_protection] = lambda: None
     if registry is not None:
         application.dependency_overrides[get_method_registry] = lambda: registry
-        application.dependency_overrides[get_classification_service] = (
-            lambda: DirectClassificationService(method_registry=registry)
+        application.dependency_overrides[get_classification_service] = lambda: (
+            DirectClassificationService(method_registry=registry)
         )
     return TestClient(application)
 
@@ -214,7 +212,9 @@ def test_classify_endpoint_handles_method_error_gracefully() -> None:
     assert classifications["gender_guesser"]["status"] == "success"
     assert classifications["failing_method"]["status"] == "error"
     assert classifications["failing_method"]["label"] is None
-    assert "Failing adapter dependency missing" in classifications["failing_method"]["error_message"]
+    assert (
+        "Failing adapter dependency missing" in classifications["failing_method"]["error_message"]
+    )
 
 
 def test_classify_endpoint_rejects_unknown_method_with_422() -> None:

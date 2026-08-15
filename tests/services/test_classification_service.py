@@ -40,9 +40,7 @@ class _StubCountingMethod:
         self.call_count = 0
         self.total_people_classified = 0
 
-    def predict_batch(
-        self, people: Sequence[PersonInput], config: Any
-    ) -> list[PredictionResult]:
+    def predict_batch(self, people: Sequence[PersonInput], config: Any) -> list[PredictionResult]:
         del config
         self.call_count += 1
         self.total_people_classified += len(people)
@@ -64,9 +62,7 @@ class _StubFailingMethod:
     )
     config_model = MethodConfig
 
-    def predict_batch(
-        self, people: Sequence[PersonInput], config: Any
-    ) -> list[PredictionResult]:
+    def predict_batch(self, people: Sequence[PersonInput], config: Any) -> list[PredictionResult]:
         del people, config
         msg = "Failing adapter dependency missing"
         raise MethodDependencyError(msg)
@@ -214,7 +210,9 @@ def test_classify_names_lru_cache_avoids_redundant_adapter_calls() -> None:
     assert counter.total_people_classified == 2
 
     # Second call with duplicate + 1 new name
-    resp2 = service.classify_names(names=["Maria", "Maria", "Heinrich", "Anna"], methods=["counting_method"])
+    resp2 = service.classify_names(
+        names=["Maria", "Maria", "Heinrich", "Anna"], methods=["counting_method"]
+    )
     assert len(resp2.results) == 4
     # Only "Anna" should have been a cache miss and executed
     assert counter.call_count == 2
