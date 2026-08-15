@@ -103,18 +103,25 @@ result rows are immutable after sealing/creation.
 
 ## Annotation provenance
 
-Persist reviewer and referenced machine result. Export responsibility must reflect whether the final decision is automated or human-reviewed.
+Persist reviewer and referenced machine result. Export responsibility reflects whether the final
+decision is automated or human-reviewed: `ExportExecution.label_source_policy` selects between
+`machine_aggregation` and `human_overrides`, and `human_resp_id` records the responsible editor
+reference projected into TEI output.
 
 ## Export manifest
 
-Every export should have a machine-readable manifest containing:
+Every export persists a machine-readable `ExportManifest`
+([`models/export.py`](../src/gendertagger/models/export.py), assembled by
+[`export/manifest.py`](../src/gendertagger/export/manifest.py)) alongside its output artifacts:
 
-- source snapshot hash
-- selected run/aggregation
-- human-override policy
-- export profile/version
-- output checksum
-- timestamp
+- `export_id`
+- `dataset_snapshot_id` and `source_snapshot_sha256`
+- `run_id` and `aggregation_execution_id`
+- `format` and, for TEI, `tei_profile`
+- `label_source_policy`
+- `outputs`, one or more `ExportManifestOutput` entries carrying `logical_name`, `sha256`,
+  `byte_size`, and `media_type`
+- `generated_at`
 
 ## Reproducibility level
 

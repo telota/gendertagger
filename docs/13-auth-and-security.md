@@ -2,20 +2,22 @@
 
 Authentication is required because the system supports imports, compute jobs, and scholarly annotations.
 
-## Initial role model
+## Role model
 
-Proposed v1 roles:
+`Role` in [`models/user.py`](../src/gendertagger/models/user.py) defines four global roles:
 
 - `viewer`: read datasets/results
 - `reviewer`: viewer + create annotations
 - `operator`: reviewer + import snapshots, create runs/aggregations/exports
 - `admin`: user/project administration and destructive administrative operations
 
-Keep authorization in application services/dependencies rather than only hiding controls in the frontend.
+`gendertagger.api.authorization` ranks the roles hierarchically, so a higher role grants every lower
+capability, and exposes them as the `require_viewer`, `require_reviewer`, and `require_operator`
+dependencies. Authorization therefore lives in application dependencies rather than only hiding
+controls in the frontend.
 
-## Project scoping
-
-Design permissions so they can be scoped per project later even if v1 begins with global roles.
+Roles are global rather than per-project. Project-scoped permissions are recorded in
+[`22-future-development.md`](22-future-development.md).
 
 ## Data safety
 
@@ -60,10 +62,21 @@ Do not log secrets or unnecessarily duplicate sensitive source content.
 
 ## Browser session
 
-For the planned same-origin Vue application, prefer secure HTTP-only session cookies so authentication secrets are not stored in JavaScript-accessible local/session storage. Use CSRF protection for state-changing requests and appropriate `Secure`, `HttpOnly`, and `SameSite` cookie settings.
+Authentication is provider-neutral. `AuthenticationBackend` in
+[`api/authentication.py`](../src/gendertagger/api/authentication.py) is a protocol with two
+operations, `authenticate` and `validate_csrf`. The application resolves one backend from process
+state, and the shipped `RejectAllAuthenticationBackend` fails closed until a deployment supplies a
+provider. Every backend terminates into the same `CurrentUser` principal, which `GET /api/v1/me`
+returns without persistence-only fields.
 
-The concrete identity provider remains open: local accounts and institutional OIDC/SSO can both terminate into the same `CurrentUser`/authorization abstraction. Machine/API clients may later use a separate bearer/OIDC flow.
+The whole `/api/v1` router carries the `require_csrf_protection` dependency. Every request is
+therefore authenticated, and every unsafe method — anything outside `GET`, `HEAD`, `OPTIONS`, and
+`TRACE` — additionally requires backend-owned CSRF validation, returning `403 forbidden` when it
+fails. Same-origin deployment uses secure HTTP-only session cookies with appropriate `Secure`,
+`HttpOnly`, and `SameSite` settings, so authentication secrets are never stored in
+JavaScript-accessible local or session storage.
 
-Production should not require permissive CORS. Development CORS must be an explicit origin allow-list and must never combine credentialed requests with `*`.
+Production does not require permissive CORS. Development CORS must be an explicit origin allow-list
+and must never combine credentialed requests with `*`.
 
 Annotation optimistic concurrency is a data-integrity control as well as a UX feature: stale review writes return `409 Conflict` rather than silently replacing another reviewer's decision.

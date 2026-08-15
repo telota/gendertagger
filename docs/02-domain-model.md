@@ -30,15 +30,28 @@ erDiagram
     DATASET_SNAPSHOT ||--|{ SNAPSHOT_SOURCE_MEMBER : preserves
     SNAPSHOT_SOURCE_MEMBER }o--|| ARTIFACT : references
     DATASET_SNAPSHOT ||--o{ PERSON_RECORD : contains
+    PERSON_RECORD ||--o{ PERSON_EXTERNAL_ID : carries
     DATASET_SNAPSHOT ||--o{ RUN : targets
     RUN ||--o{ METHOD_EXECUTION : contains
+    METHOD_EXECUTION ||--o{ TASK_BATCH : partitions
     METHOD_EXECUTION ||--o{ PREDICTION : produces
+    TASK_BATCH ||--o{ PREDICTION : commits
+    PERSON_RECORD ||--o{ PREDICTION : describes
     RUN ||--o{ AGGREGATION_EXECUTION : aggregates
     AGGREGATION_EXECUTION ||--o{ AGGREGATED_RESULT : produces
     PERSON_RECORD ||--o{ ANNOTATION : receives
     USER ||--o{ ANNOTATION : creates
-    RUN ||--o{ EVALUATION : evaluates
-    RUN ||--o{ EXPORT : produces
+    PERSON_RECORD ||--o| REVIEW_STATE : projects
+    REVIEW_STATE }o--|| ANNOTATION : heads
+    RUN ||--o{ EVALUATION_EXECUTION : evaluates
+    AGGREGATION_EXECUTION ||--o{ EVALUATION_EXECUTION : scores
+    RUN ||--o{ EXPORT_EXECUTION : produces
+    AGGREGATION_EXECUTION ||--o{ EXPORT_EXECUTION : projects
+    BATCH_DISPATCH }o--o| TASK_BATCH : delivers
+    BATCH_DISPATCH }o--o| AGGREGATION_EXECUTION : delivers
+    BATCH_DISPATCH }o--o| DATASET_SNAPSHOT : delivers
+    BATCH_DISPATCH }o--o| EVALUATION_EXECUTION : delivers
+    BATCH_DISPATCH }o--o| EXPORT_EXECUTION : delivers
     DATASET_SNAPSHOT ||--o{ ARTIFACT : owns
     RUN ||--o{ ARTIFACT : produces
 ```
@@ -109,10 +122,23 @@ latest valid human annotation
     else selected aggregated result
 ```
 
-### Evaluation
-Versioned metrics against a defined benchmark/reference set, never silently against "ground truth".
+### TaskBatch
+One retryable slice of a MethodExecution's person records, carrying its own offset, count, and lifecycle.
+The partition is durable, so the executed slicing stays reconstructible even if registry batch sizes change.
+Predictions are committed together with their owning batch's completion.
 
-### Export
+### BatchDispatch
+One entry in the transactional outbox. It records the durable intent to publish exactly one unit of
+application work to the broker, and each entry points at exactly one of the five dispatch targets:
+TaskBatch, AggregationExecution, DatasetSnapshot, EvaluationExecution, or ExportExecution. See
+[ADR-0015](decisions/ADR-0015-transactional-batch-dispatch-outbox.md).
+
+### EvaluationExecution
+Versioned metrics for one completed AggregationExecution against a defined benchmark/reference set, never
+silently against "ground truth". Records the resolved evaluation definition and produces a report Artifact.
+Re-evaluating creates a new execution rather than modifying an existing report.
+
+### ExportExecution
 A versioned, independently rerunnable projection of one completed AggregationExecution's FinalDecision labels
 into TEI, JSON, or CSV output, plus a manifest Artifact recording its inputs and produced outputs. The
 `label_source_policy` selects whether the projection reads pure machine aggregation or lets a current human
@@ -181,13 +207,17 @@ pending -> queued -> running -> completed
                          \------> cancelled
 ```
 
-### AggregationExecution and TaskBatch
+### AggregationExecution, EvaluationExecution, ExportExecution, and TaskBatch
+
+All four share one lifecycle:
 
 ```text
 pending -> queued -> running -> completed
                          |------> failed
                          \------> cancelled
 ```
+
+Each is independently rerunnable: re-running creates a new execution rather than mutating a terminal one.
 
 Retries do not create duplicate Predictions for the same execution/person/batch identity.
 Aggregation retries likewise do not create duplicate AggregatedResults. A complete input containing explicit

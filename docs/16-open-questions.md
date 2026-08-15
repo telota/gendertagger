@@ -1,77 +1,53 @@
-# Remaining open questions
+# Resolved design questions
 
-The main architecture is decided. These are deliberately non-blocking or implementation-time choices.
+The main architecture is decided. This document records the questions that were genuinely open
+during design and how the implemented system resolved them, so that the resolution is not rediscovered
+or silently reversed.
+
+Expansion candidates that remain deliberately unimplemented are recorded in
+[`22-future-development.md`](22-future-development.md) rather than here.
 
 ## Authentication identity provider
 
-Browser mechanics are decided: same-origin secure HTTP-only session cookies plus CSRF protection. The concrete identity provider is still open. Options include local accounts for the first deployment or integration with institutional SSO/OIDC; both should resolve to the same `CurrentUser` abstraction.
+Resolved by making the provider pluggable instead of choosing one. Browser mechanics are fixed:
+same-origin secure HTTP-only session cookies, with CSRF validation required for every unsafe method
+on the `/api/v1` router. The identity provider itself is deliberately not fixed in code.
+`AuthenticationBackend` is a protocol, the shipped `RejectAllAuthenticationBackend` fails closed
+until a deployment supplies a real one, and every backend terminates into the same `CurrentUser`
+abstraction. Local accounts and institutional SSO therefore need no divergent authorization path.
+See [`13-auth-and-security.md`](13-auth-and-security.md).
 
+## Exact batch sizes and concurrency
 
-## Exact batch sizes/concurrency
-
-Tune per method from measurements. Preserve them in MethodExecution configuration/provenance.
-
-## Alternative aggregations
-
-The system should eventually permit weighted or experimental strategies, but the first implementation must reproduce the unweighted published reference strategy.
+Resolved as a server-side property rather than a client input. Each `MethodRegistration` in
+`gendertagger.services.method_registry` carries its own `batch_size` and routing queue, and
+`plan_task_batches` partitions a run's records with it. The resulting partition is durable: each
+TaskBatch persists its own offset and count, so the executed partition remains reconstructible even
+if the registry default changes later. Tuning the numbers per method from measurements is an
+operational activity, not an open design question.
 
 ## TEI project profiles
 
-The reference export profile is documented. If additional editions use different TEI structures or gender vocabularies, introduce explicit import/export profiles rather than corpus-specific conditionals throughout core code.
+Resolved through explicit versioned profile enums rather than corpus-specific conditionals spread
+through core code. Ingestion selects `TeiImportProfile` (`tei_p5_person_register_v1` through `v3`,
+defaulting to `v3`) or `TabularImportProfile`; export selects
+`TeiExportProfile.tei_p5_gender_v1`. An edition with a different TEI structure or gender vocabulary
+is served by adding a new profile value, which keeps earlier projections reproducible unchanged. See
+[`08-ingestion-and-export.md`](08-ingestion-and-export.md).
 
-## Cross-snapshot annotation semantics
+## Reference aggregation before alternatives
 
-A human annotation is made in a snapshot context but the `xml:id` is canonically stable within a project. Decide later whether verified decisions should be suggested/carried forward to a newer snapshot when the relevant person record is unchanged. Never carry them silently.
+Resolved in favour of reproducing the published reference behavior first. `AggregationStrategy`
+admits the versioned reference strategy, and the golden fixtures gate it. Weighted and experimental
+strategies were deferred rather than designed speculatively into the first implementation; they are
+recorded in [`22-future-development.md`](22-future-development.md).
 
-## Cache retention
+## Snapshot ingestion scope
 
-Define operational retention/eviction after real workload sizes are known.
-
-## Snapshot-ingestion expansion candidates
-
-The supported asynchronous import contract is complete for TEI in `single`, `loose`, `zip`, and `tar_gz`
-packaging and for single-file CSV, XLSX, and JSON. The following capabilities are optional expansions rather
-than unfinished acceptance criteria for that contract. Each should receive its own bounded design and tests
-before implementation.
-
-### Reference-aware artifact garbage collection
-
-Content-addressed storage intentionally publishes source bytes before the database transaction accepts their
-Artifact references. A failed transaction can therefore leave an unreferenced blob. A future collector may
-reclaim such blobs through mark-and-sweep reference checks, but it must use a grace period, account for uploads
-concurrently being accepted, define retention for failed snapshots, expose dry-run and capacity metrics, and
-never infer liveness from filenames or storage age alone.
-
-### Idempotent snapshot acceptance
-
-HTTP retries currently create distinct DatasetSnapshot resources even when their exact bytes deduplicate in
-artifact storage. A future optional idempotency-key contract should scope keys to the authenticated actor,
-project, and operation; bind each key to the declared format, packaging, profile, and canonical source
-fingerprint; return the original accepted snapshot on an exact replay; reject reuse with different input; and
-define expiration and concurrent-reservation behavior. Celery delivery is already idempotent independently of
-this possible HTTP feature.
-
-### Observable progress, cancellation, and resumable publication
-
-The current worker keeps its claim, PersonRecord writes, and `ready` transition in one database transaction.
-That gives simple all-or-nothing recovery but leaves `importing` transaction-local and makes long imports
-externally appear pending. Larger workloads may justify a separate import-attempt resource with ownership
-leases, staged records, monotonic member/record progress, cancellation rules, idempotent chunk writes, stale
-attempt recovery, and one atomic publication step. This is an architectural alternative to the current
-transaction model, not a progress field that can safely be added in isolation.
-
-### Shared object storage and direct staging
-
-The filesystem ArtifactStorage remains the local/private default and requires API and worker processes to
-share the same absolute artifact root. A future S3- or MinIO-compatible adapter should preserve streaming
-checksums, immutable content addressing, conditional publication, verified reads, and common API/worker
-visibility. Very large deployments may additionally stage sources directly into object storage and accept
-artifact identifiers only after server-side integrity and project-ownership validation.
-
-### Additional tabular packaging
-
-CSV, XLSX, and JSON currently support `single` packaging only. Supporting loose or archive-packaged tabular
-collections requires an explicit homogeneous-versus-mixed member policy, deterministic cross-file record
-ordering, collection-wide ID checks, profile/header agreement, member-level provenance, aggregate limits, and
-safe treatment of XLSX as an already-compressed container. It must not be enabled merely by routing tabular
-members through the TEI archive reader.
+Resolved. The asynchronous import contract is complete for TEI in `single`, `loose`, `zip`, and
+`tar_gz` packaging, and for single-file CSV, XLSX, and JSON. The capabilities that were previously
+listed here as ingestion expansion candidates — reference-aware artifact garbage collection,
+idempotent HTTP snapshot acceptance, observable/resumable import progress and cancellation, shared
+object storage, and additional tabular packaging — are optional expansions rather than unfinished
+acceptance criteria. Each carries constraints that must survive into any future implementation, so
+they are recorded in full in [`22-future-development.md`](22-future-development.md).

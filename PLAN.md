@@ -10,13 +10,22 @@ This file is a brief status summary only. The authoritative, current phased plan
 - Phase 3: FastAPI vertical slice and OpenAPI conventions are complete.
 - Phase 4: Celery execution and async workflow controls are complete.
 - Phase 5: method migration and asynchronous import/aggregation paths are complete.
-- Phase 6: evaluation and export are not started.
+- Phase 6: evaluation and export are complete.
 - Phase 7: deployment hardening is complete.
-- Phase 8: Vue 3 + TypeScript + Vite frontend work is not started.
+- Phase 8: the Vue 3 + TypeScript + Vite client is the active work; its backend prerequisites are
+  done, and the client itself is not started.
 
 ## Current implementation focus
 
-The codebase is materially ahead of the older phase summary. The repository already contains substantial implementation work across the domain model, persistence layer, API, Celery orchestration, task/dispatch patterns, and the scientific reference pipeline, so this is no longer a greenfield scaffold. The remaining work is therefore narrower and more targeted: close the last scientific compatibility and governance gaps, finish the remaining Phase 5 adapter work, and complete the post-API production features rather than rebuild the stack from scratch.
+Phases 0 through 7 are complete. All nine reference method adapters are implemented and registered
+alongside the experimental HIVOTO-XGBoost adapter, and the asynchronous snapshot-import, lookup-asset,
+method-execution, reference-aggregation, evaluation, and export paths all run end to end through the
+persisted API-to-worker workflow.
+
+Active work is Phase 8, the annotation and review client. Its backend prerequisites are already met:
+the review-items query API is stable and review-stream revision conflicts return `409`. The remaining
+Phase 8 items are frontend work, and `frontend/` is still a placeholder. The second active track is
+operating the stack in production following [`docs/21-production-promotion.md`](docs/21-production-promotion.md).
 
 The repository-specific guidance in [`AGENTS.md`](AGENTS.md) and the authoritative phased plan in [`docs/15-implementation-plan.md`](docs/15-implementation-plan.md) remain the source of truth. This summary should be read as a status note, not as the canonical roadmap.
 
@@ -24,5 +33,6 @@ The repository-specific guidance in [`AGENTS.md`](AGENTS.md) and the authoritati
 
 - keep scientific equivalence and reproducibility ahead of feature expansion;
 - treat the existing backend/domain implementation as real progress rather than as a placeholder;
-- do not treat evaluation/export or the Vue client as "not started" just because they are still being finished; they are explicitly deferred milestones, not the primary current implementation surface;
+- record deferred ideas in [`docs/22-future-development.md`](docs/22-future-development.md) rather
+  than reopening scope inside the design documents;
 - do not start new scope churn without reconciling it against the authoritative phased plan.

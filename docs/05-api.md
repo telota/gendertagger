@@ -326,21 +326,18 @@ Use Server-Sent Events initially for server-to-client progress:
 GET /api/v1/runs/{run_id}/events
 ```
 
-Suggested stable event names:
+The stream emits six event names:
 
-- `run.state_changed`;
-- `run.progress`;
-- `method_execution.state_changed`;
-- `method_execution.progress`;
-- `aggregation.state_changed`;
-- `aggregation.completed`;
-- `aggregation.failed`;
-- `run.completed`;
-- `run.failed`.
+- `run.state_changed`, carrying `RunStateEvent`;
+- `run.progress`, carrying `RunStateEvent`;
+- `method_execution.state_changed`, carrying `MethodExecutionStateEvent`;
+- `method_execution.progress`, carrying `MethodExecutionStateEvent`;
+- `run.completed`, the terminal event on success, carrying `RunStateEvent`;
+- `run.failed`, the terminal event on failure, carrying `RunStateEvent`.
 
 Event payloads are Pydantic contracts. Persist authoritative task/run state in PostgreSQL. SSE events are a convenience view, not the only state channel. Clients must be able to reconnect and recover by GETting the current resource state.
 
-Support `Last-Event-ID`/resume when event persistence exists; it is not required for the first asynchronous slice.
+`Last-Event-ID`/resume needs persisted, ordered events; it is recorded in [`22-future-development.md`](22-future-development.md).
 
 ## Progress model
 
@@ -350,10 +347,10 @@ scientific and lifecycle provenance only; queue routing and worker metadata rema
 
 ```python
 class Progress(BaseModel):
-    total: int | None
-    completed: int
-    failed: int
-    percentage: float | None
+    total: int | None = Field(default=None, ge=0)
+    completed: int = Field(default=0, ge=0)
+    failed: int = Field(default=0, ge=0)
+    percentage: float | None = Field(default=None, ge=0, le=100)
 ```
 
 `total=None` is valid before work can be counted. Percentage is derived and is not the authoritative completion condition.
@@ -392,7 +389,7 @@ Stale writes return `409 Conflict` with code `annotation_conflict`. This protect
 
 Expose `/api/v1/me` using a typed `CurrentUser` contract. Authorization belongs in FastAPI dependencies/application services, never only in the Vue UI.
 
-For the same-origin browser application, prefer secure HTTP-only session cookies plus CSRF protection for state-changing requests. External machine clients may later use a separate token/OIDC mechanism.
+For the same-origin browser application, secure HTTP-only session cookies plus CSRF protection cover state-changing requests. A separate token/OIDC mechanism for external machine clients is recorded in [`22-future-development.md`](22-future-development.md).
 
 ## CORS
 
@@ -404,6 +401,6 @@ Development may explicitly allow the Vite origin (for example `http://localhost:
 
 Treat generated OpenAPI as part of the public contract.
 
-Tests/CI should detect unintended schema changes. When the Vue frontend exists, its generated TypeScript client/types should be regenerated or checked from this schema. Do not maintain duplicate handwritten transport models.
+A committed OpenAPI snapshot test detects unintended schema changes. Generating and drift-checking a TypeScript client from this schema once the Vue frontend exists is recorded in [`22-future-development.md`](22-future-development.md). Do not maintain duplicate handwritten transport models.
 
 See `17-frontend-integration.md` and `decisions/ADR-0006-vue-browser-client-boundary.md`.

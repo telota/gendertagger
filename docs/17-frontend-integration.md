@@ -86,37 +86,35 @@ The resource ID, not a Celery task ID, is the stable handle returned to clients.
 
 Use SSE for server-to-client progress until a genuine bidirectional realtime requirement appears.
 
-SSE events should use a typed Pydantic payload and stable event names. Suggested event categories:
+SSE events use a typed Pydantic payload and stable event names. `GET /api/v1/runs/{run_id}/events`
+([`api/run_events.py`](../src/gendertagger/api/run_events.py)) emits six:
 
-- `run.state_changed`
-- `run.progress`
-- `method_execution.state_changed`
-- `method_execution.progress`
-- `aggregation.completed`
-- `run.completed`
-- `run.failed`
+- `run.state_changed` and `run.progress`, carrying `RunStateEvent`
+- `method_execution.state_changed` and `method_execution.progress`, carrying
+  `MethodExecutionStateEvent`
+- `run.completed` or `run.failed` as the terminal event, carrying `RunStateEvent`
 
 Authoritative state remains in PostgreSQL. Losing an SSE connection must not lose scientific or workflow state.
 
-The UI must always be able to reconnect and refresh the current resource state through normal GET endpoints. Supporting `Last-Event-ID`/resume is desirable once event persistence exists, but is not required for the first vertical slice.
+The UI must always be able to reconnect and refresh the current resource state through normal GET endpoints. No event log is retained, so the stream projects current state rather than replaying history; `Last-Event-ID` resume is recorded in [`22-future-development.md`](22-future-development.md).
 
 Reverse-proxy configuration must disable response buffering for SSE routes and permit sufficiently long-lived HTTP connections.
 
 ## Progress contracts
 
-Expose useful progress on both Run and MethodExecution summaries.
-
-Conceptual contract:
+Both Run and MethodExecution summaries expose progress through the shared `Progress` contract in
+[`models/run.py`](../src/gendertagger/models/run.py):
 
 ```python
 class Progress(BaseModel):
-    total: int | None
-    completed: int
-    failed: int
-    percentage: float | None
+    total: int | None = Field(default=None, ge=0)
+    completed: int = Field(default=0, ge=0)
+    failed: int = Field(default=0, ge=0)
+    percentage: float | None = Field(default=None, ge=0, le=100)
 ```
 
-`total=None` is valid when the total is not known yet. Percentage is derived and must not be used as the authoritative completion condition.
+`total=None` is valid when the total is not known yet. `Progress.of` derives the percentage from the
+counts; percentage is derived and must not be used as the authoritative completion condition.
 
 ## Lists, search, filtering, and sorting
 
@@ -160,9 +158,10 @@ class AnnotationCreate(BaseModel):
     snapshot_id: UUID
     tei_id: str
     action: ReviewAction
-    label: CanonicalLabel | None
+    label: CanonicalLabel | None = None
     comment: str | None = None
-    expected_revision: int
+    aggregated_result_id: UUID | None = None
+    expected_revision: int = Field(ge=0)
 ```
 
 If another reviewer has changed the stream since that revision, return:
@@ -174,17 +173,19 @@ error.code = "annotation_conflict"
 
 The client then reloads the current review state and lets the reviewer decide again. Never silently overwrite another annotation and never mutate the historical annotation row.
 
-ETags/`If-Match` may later mirror the same revision semantics, but the domain revision is authoritative.
+The domain revision is authoritative. Mirroring it into ETag/`If-Match` headers is recorded in
+[`22-future-development.md`](22-future-development.md).
 
 ## Authentication for the browser
 
-The browser deployment should prefer secure, HTTP-only session cookies rather than storing long-lived bearer tokens in JavaScript-accessible storage.
+The browser deployment uses secure, HTTP-only session cookies rather than storing long-lived bearer tokens in JavaScript-accessible storage.
 
-For state-changing browser requests, provide CSRF protection appropriate to the session mechanism.
+CSRF protection is enforced for state-changing browser requests: the `/api/v1` router carries the `require_csrf_protection` dependency, so every unsafe method is validated against its browser session.
 
 The backend exposes a typed `CurrentUser`/`/api/v1/me` contract. Application services authorize actions from that identity; the UI merely hides/disables controls for convenience.
 
-External machine clients may later receive a separate token/OIDC flow without changing browser-session semantics.
+A separate token/OIDC flow for external machine clients is recorded in
+[`22-future-development.md`](22-future-development.md).
 
 ## Same-origin deployment
 
@@ -232,11 +233,12 @@ GET  /api/v1/exports/{export_id}
 GET  /api/v1/exports/{export_id}/download
 ```
 
-For very large artifacts, a storage adapter may later use signed URLs while retaining the same artifact-resource semantics.
+Signed-URL delivery for very large artifacts is recorded in
+[`22-future-development.md`](22-future-development.md).
 
-## Backend readiness checklist
+## Completed backend capabilities
 
-Before frontend implementation begins, the backend should provide:
+Every backend prerequisite for frontend implementation is delivered:
 
 - stable `/api/v1` routing;
 - explicit Pydantic request and response models;
@@ -252,3 +254,7 @@ Before frontend implementation begins, the backend should provide:
 - browser-safe session/CSRF design;
 - same-origin production topology;
 - upload/download via artifacts rather than paths.
+
+`frontend/` itself is still a placeholder. Scaffolding Vue 3 + TypeScript + Vite, generating the
+transport client, and building the review interface are the remaining Phase 8 items in
+[`15-implementation-plan.md`](15-implementation-plan.md).

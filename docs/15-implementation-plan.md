@@ -133,17 +133,18 @@ AggregationExecution, and complete immutable result set.
 
 Optional ingestion expansions such as artifact garbage collection, HTTP acceptance idempotency, resumable
 progress/cancellation, shared object storage, and additional tabular packaging are tracked in
-[`16-open-questions.md`](16-open-questions.md). They are deliberately outside this phase's exit criterion and
-should be implemented as separate, reviewable changes when operational requirements justify them.
+[`22-future-development.md`](22-future-development.md). They are deliberately outside this phase's exit
+criterion and should be implemented as separate, reviewable changes when operational requirements justify
+them.
 
 ## Phase 6: evaluation and export
 
-- GND benchmark definition
-- metrics and Cohen's kappa
-- evaluation reports/artifacts
-- TEI export profile
-- JSON/CSV exports
-- export manifests/provenance
+- GND benchmark definition [DONE]
+- metrics and Cohen's kappa [DONE]
+- evaluation reports/artifacts [DONE]
+- TEI export profile [DONE]
+- JSON/CSV exports [DONE]
+- export manifests/provenance [DONE]
 
 Exit criterion: reference study outputs can be regenerated from a stored run.
 
@@ -177,14 +178,19 @@ Exit criterion: a reviewer can correct a machine result and the final-decision v
 
 ## Current implementation focus
 
-Resolve the remaining Phase 0 tracked-data governance decision and the Phase 1 parenthetical mixed-category
-compatibility edge, then continue Phase 5 adapter migration with the local LLM, the last of the nine required
-reference methods. The transformer classifiers (`hf_distilbert`, `hf_genderize`) and the experimental
-HIVOTO-XGBoost adapter reuse the same content-addressed multi-file model manifest (see
+Phases 0 through 7 are complete. All nine reference method adapters are implemented and registered,
+alongside the experimental HIVOTO-XGBoost adapter, and the asynchronous snapshot-import, lookup-asset,
+method-execution, reference-aggregation, evaluation, and export paths all run end to end through the
+persisted API-to-worker workflow.
+
+The active work is Phase 8, the Vue annotation and review client. Its backend prerequisites are already
+met: the review-items query API is stable and review-stream revision conflicts return `409`. The remaining
+Phase 8 items are frontend work, and `frontend/` is still a placeholder. The second active track is
+operating the stack in production under [`21-production-promotion.md`](21-production-promotion.md).
+
+The transformer classifiers (`hf_distilbert`, `hf_genderize`) and the experimental HIVOTO-XGBoost adapter
+share the content-addressed multi-file model manifest (see
 [ADR-0024](decisions/ADR-0024-hf-transformer-model-manifest-adapters.md) and
-[ADR-0025](decisions/ADR-0025-hivoto-xgboost-adapter.md)); HIVOTO-XGBoost's manifest additionally reuses the
-already-compiled `hivoto_lookup` artifact rather than recompiling it. The asynchronous snapshot-import,
-lookup-asset, method-execution, and reference-aggregation paths are implemented and must remain covered as
-each adapter is added. Do not begin Phase 6 evaluation and export until the complete nine-method reference
-ensemble reproduces
-the golden outputs through the persisted API-to-worker workflow.
+[ADR-0025](decisions/ADR-0025-hivoto-xgboost-adapter.md)); HIVOTO-XGBoost's manifest reuses the
+already-compiled `hivoto_lookup` artifact rather than recompiling it. Scientific behavior stays gated on
+the golden fixtures as the client is built on top of it.

@@ -31,29 +31,29 @@ because outstanding cursors describe the traversal it defines.
 
 ## Annotation model
 
-A human decision should capture:
+`AnnotationCreate` in [`models/review.py`](../src/gendertagger/models/review.py) is the
+optimistically concurrent command that appends one human decision. It carries `snapshot_id`,
+`tei_id`, `action`, an optional `label`, an optional `comment`, an optional `aggregated_result_id`
+identifying the machine result under review, and `expected_revision`.
 
-- project/person (`tei_id`)
-- snapshot context
-- label or review action
-- reviewer identity
-- timestamp
-- optional comment/reason
-- aggregation/result being reviewed
-- optional source/evidence reference
-- superseded annotation when correcting a prior review
+The persisted `Annotation` read model adds the server-owned facts: `id`, the resolved
+`person_record_id`, `reviewer_user_id`, `supersedes_annotation_id` when the decision corrects an
+earlier review, `resulting_revision`, and `created_at`.
 
 ## Actions
 
-Suggested v1 actions:
+`ReviewAction` defines three append-only editorial actions:
 
-- verify existing label
-- correct label
-- set `unknown`
-- set `institution`
-- defer / needs further research
+- `verify`: confirm the label under review
+- `correct`: replace it with a different label
+- `defer`: mark the record as needing further research
 
-`defer` is a review workflow state, not necessarily a canonical gender label.
+`verify` and `correct` both require a `CanonicalLabel` (`male`, `female`, `unknown`, or
+`institution`); `defer` must not carry one. Recording `unknown` or `institution` is therefore a
+`correct` action carrying that label, not a separate action of its own.
+
+`defer` is a review workflow state, not a canonical gender label. `ReviewWorkflowState` projects the
+resulting stream state as `unreviewed`, `reviewed`, or `deferred`.
 
 ## Final decision
 
@@ -68,11 +68,9 @@ Do not copy the human label back into the Prediction or AggregatedResult rows.
 
 ## Auditability
 
-Human annotation is part of scholarly provenance. Do not hard-delete ordinary review history. Administrative redaction/deletion, if ever needed, must be explicit and logged.
-
-## Game mechanics
-
-If playful/game mechanics are retained, scoring/streaks/UI effects must remain outside the scientific annotation semantics. A click that produces an annotation must still map to the same explicit reviewed decision and reviewer identity.
+Human annotation is part of scholarly provenance. Ordinary review history is never hard-deleted.
+Administrative redaction and audit-logged deletion are recorded in
+[`22-future-development.md`](22-future-development.md).
 
 
 ## Multi-user concurrency
@@ -81,7 +79,7 @@ The append-only annotation model must also handle two reviewers opening the same
 
 Every annotation/correction command includes `expected_revision`, the revision the browser observed. If it is stale, FastAPI returns `409 Conflict` with `annotation_conflict`; the client reloads the current review state before another write.
 
-This is optimistic concurrency over the **review stream**, not mutation/versioning of an Annotation row. Historical annotations remain immutable. ETags may later mirror the same revision, but the domain revision is authoritative.
+This is optimistic concurrency over the **review stream**, not mutation/versioning of an Annotation row. Historical annotations remain immutable. The domain revision is authoritative; mirroring it into HTTP ETag headers is recorded in [`22-future-development.md`](22-future-development.md).
 
 ## Review query API
 

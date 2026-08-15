@@ -33,6 +33,7 @@ uv lock --check
 uv run --locked python scripts/check_documentation.py
 uv run --locked python scripts/check_contract_naming.py
 uv run --locked python scripts/check_package_initializers.py
+uv run --locked python scripts/check_dead_code.py
 uv run --locked ruff format --check .
 uv run --locked ruff check .
 uv run --locked mypy

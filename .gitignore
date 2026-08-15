@@ -146,6 +146,9 @@ cython_debug/
 
 data/raw/
 
+# Private, licensed method source data bind-mounted for asset provisioning (see README quickstart)
+/private/
+
 # Model files
 *.pkl
 *.joblib

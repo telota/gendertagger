@@ -1,7 +1,7 @@
 {
   "name": "gendertagger-infra-scaffold",
   "generated": "2026-08-14",
-  "status": "Phase 5 method migration with asynchronous multi-format snapshot ingestion and aggregation",
+  "status": "Phases 0-7 complete; active work is the Phase 8 Vue client and production operation",
   "design_docs": [
     "docs/00-design-index.md",
     "docs/01-architecture.md",

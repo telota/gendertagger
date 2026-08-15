@@ -36,7 +36,7 @@ different startup commands:
 
 | Service | Representative command | Responsibility |
 |---|---|---|
-| API | `uvicorn gendertagger.api.app:create_app --factory` | HTTP composition and persisted resources |
+| API | `uvicorn gendertagger.api.main:app` | HTTP composition and persisted resources |
 | Dispatch coordinator | `python -m gendertagger.tasks.relay` | Outbox relay and reconciliation |
 | CPU worker | `celery -A gendertagger.tasks.celery_app worker -Q default,cpu` | Snapshot imports, CPU method batches, and aggregation |
 | LLM worker | `celery -A gendertagger.tasks.celery_app worker -Q llm` | Isolated local LLM work |
@@ -192,7 +192,7 @@ Useful initial operational metrics:
 - GPU memory/utilization where available
 - export/import duration
 
-Prometheus/Grafana can be added when there is an actual operations environment; they are not prerequisites for the first vertical slice.
+No metrics exporter is implemented yet; health/readiness and structured logging are the current operational surface. Prometheus/Grafana instrumentation is recorded in [`22-future-development.md`](22-future-development.md).
 
 
 ## Browser deployment

@@ -562,10 +562,10 @@ Frontend transport contracts remain Pydantic models and therefore appear in Open
 
 ```python
 class Progress(BaseModel):
-    total: int | None = None
-    completed: int = 0
-    failed: int = 0
-    percentage: float | None = None
+    total: int | None = Field(default=None, ge=0)
+    completed: int = Field(default=0, ge=0)
+    failed: int = Field(default=0, ge=0)
+    percentage: float | None = Field(default=None, ge=0, le=100)
 ```
 
 Run and MethodExecution read models expose progress without exposing Celery state.
@@ -631,26 +631,32 @@ the deferred workflow state.
 
 ```python
 class AnnotationCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
     snapshot_id: UUID
-    tei_id: str
+    tei_id: str = Field(min_length=1)
     action: ReviewAction
     label: CanonicalLabel | None = None
     comment: str | None = None
-    expected_revision: int
+    aggregated_result_id: UUID | None = None
+    expected_revision: int = Field(ge=0)
 ```
 
 The command appends a new Annotation when `expected_revision` matches the current review stream. It never updates an existing annotation in place.
 
 ```python
-class ReviewStateRead(BaseModel):
+class ReviewState(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
     snapshot_id: UUID
+    person_record_id: UUID
     tei_id: str
-    revision: int
+    revision: int = Field(ge=0)
     workflow_state: ReviewWorkflowState
     current_annotation_id: UUID | None = None
 ```
 
-`ReviewStateRead` is a workflow/concurrency projection. Annotation history remains the scholarly record.
+`ReviewState` is a workflow/concurrency projection. Annotation history remains the scholarly record.
 
 ### API errors
 

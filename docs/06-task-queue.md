@@ -62,18 +62,18 @@ Scheduling must not commit durable work and then publish its Celery message from
 cannot make those two operations atomic, so a broker failure between them would strand a task batch or
 aggregation execution. A snapshot import has the same problem after its source has been staged.
 
-The outbox is a generic application mechanism with three typed targets: `task_batch`,
-`aggregation_execution`, and `dataset_snapshot`. Outbox storage has corresponding nullable owner foreign keys
-plus an exactly-one-owner check. Each non-null owner is unique. A closed publisher mapping derives the Celery
-task name from the typed target and payload. Target, queue, owner, payload, and derived task name must agree; an
-ownerless, multiply owned, or mismatched dispatch is invalid.
+The outbox is a generic application mechanism with the five typed targets listed above. Outbox storage has
+corresponding nullable owner foreign keys plus an exactly-one-owner check. Each non-null owner is unique. A
+closed publisher mapping derives the Celery task name from the typed target and payload. Target, queue, owner,
+payload, and derived task name must agree; an ownerless, multiply owned, or mismatched dispatch is invalid.
 
 Method scheduling creates each `TaskBatch` and its `TaskBatchMessage` intent in one PostgreSQL transaction.
-Aggregation creation similarly creates one `AggregationExecution` and its identifier-only aggregation intent
-in one transaction. Snapshot acceptance first durably stages the bounded source and then creates its Artifact
-record, pending DatasetSnapshot, and identifier-only import intent in one database transaction. The outbox also
-stores `pending`/`published` state, retry metadata, and a relay lease. A committed asynchronous command
-therefore means both the work and dispatch intent are durable; a rolled-back transaction contains neither.
+Aggregation, evaluation, and export creation similarly each create one execution resource and its
+identifier-only dispatch intent in one transaction. Snapshot acceptance first durably stages the bounded
+source and then creates its Artifact record, pending DatasetSnapshot, and identifier-only import intent in
+one database transaction. The outbox also stores `pending`/`published` state, retry metadata, and a relay
+lease. A committed asynchronous command therefore means both the work and dispatch intent are durable; a
+rolled-back transaction contains neither.
 
 FastAPI never publishes task messages to Redis. Its asynchronous response represents the persisted run or
 aggregation, or the pending DatasetSnapshot, not confirmation that a broker accepted every message.
@@ -84,9 +84,9 @@ One separately started dispatch-coordinator process runs both dispatch services:
 
 - `OutboxRelay` frequently claims available `pending` dispatches under short leases, commits those claims,
   publishes outside the database transaction, and records `published` or schedules a retry with backoff;
-- `DispatchReconciler` runs less frequently and repairs durable intent for queued task batches and aggregation
-  executions and pending snapshot imports when an intent is missing, a relay lease expired, or a published
-  message is stale without a worker claim.
+- `DispatchReconciler` runs less frequently and repairs durable intent across all five targets — queued task
+  batches, aggregation executions, pending snapshot imports, evaluation executions, and export executions —
+  when an intent is missing, a relay lease expired, or a published message is stale without a worker claim.
 
 The reconciler creates or rearms typed dispatch records; it does not publish to Redis itself. This leaves one
 component responsible for broker interaction and makes reconciliation idempotent under the unique owner

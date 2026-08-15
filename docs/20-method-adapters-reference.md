@@ -68,9 +68,13 @@ The pipeline contains ten components across five methodological families. Nine c
 - **Inputs Consumed**: `person.surname`, `person.forenames`, then `person.note`.
 - **Behavior**: Scans parenthesized content in the surname and each forename for a relational keyword, preferring the leading word of the parenthesis and falling back to any word in it. Female kinship terms (`Frau`, `Tochter`, `Witwe`, ...) map to `female`, male ones (`Herr`, `Sohn`, `Bruder`, ...) to `male`, family-group terms (`Familie`, `Kinder`, `Geschwister`, `Ehepaar`, ...) to substantive `unknown`, and commercial/organisational terms (`Firma`, `Weinhandlung`, `Bankier`, `Kaufleute`) to `institution`. If no name field matches, the note is consulted, but only on its first word and never for `institution`. With no match the adapter emits no raw label at all and normalizes to `abstain`.
 
-### 2. GND Local Snapshot (`gnd_snapshot`)
+### 2. GND Local Snapshot (`gnd`)
 
-- **Module**: [`gendertagger.methods.gnd_snapshot`](../src/gendertagger/methods/gnd_snapshot.py)
+- **Module**: [`gendertagger.methods.gnd`](../src/gendertagger/methods/gnd.py), which defines the
+  runtime `GndMethod` adapter registered under the method name `gnd`. The separate offline compiler
+  [`gendertagger.methods.gnd_snapshot`](../src/gendertagger/methods/gnd_snapshot.py) turns DNB
+  MARC21-XML full dumps into the immutable SQLite lookup this adapter reads; it is not itself a
+  classification method.
 - **ADR**: [ADR-0023](decisions/ADR-0023-content-addressed-sqlite-method-lookups.md)
 - **Role**: Authority override lookup (second priority in ensemble).
 - **Dependencies**: Built-in `sqlite3`.
@@ -129,7 +133,7 @@ The pipeline contains ten components across five methodological families. Nine c
 - **ADR**: [ADR-0024](decisions/ADR-0024-hf-transformer-model-manifest-adapters.md), [ADR-0029](decisions/ADR-0029-unconditional-method-dependencies.md)
 - **Role**: Pooled voter in reference ensemble.
 - **Dependencies**: Standard dependencies (`transformers`, `torch`).
-- **Configuration**: `HfTransformerConfig` requiring `model_sha256` digest of content-addressed model manifest directory.
+- **Configuration**: `HfDistilbertConfig`, a `LookupMethodConfig` requiring `lookup_sha256` digest of the content-addressed model manifest.
 - **Normalization Profile**: `hf_distilbert_v1`.
 - **Inputs Consumed**: Primary forename string.
 - **Behavior**: Runs local PyTorch DistilBERT model (`padmajabfrl/Gender-Classification`). Index `0` maps to `male`, index `1` maps to `female`. Reports softmax classification probability as `method_confidence`.
@@ -140,7 +144,7 @@ The pipeline contains ten components across five methodological families. Nine c
 - **ADR**: [ADR-0024](decisions/ADR-0024-hf-transformer-model-manifest-adapters.md), [ADR-0029](decisions/ADR-0029-unconditional-method-dependencies.md)
 - **Role**: Pooled voter in reference ensemble.
 - **Dependencies**: Standard dependencies (`transformers`, `torch`).
-- **Configuration**: `HfTransformerConfig` requiring `model_sha256` digest of content-addressed model manifest directory.
+- **Configuration**: `HfGenderizeConfig`, a `LookupMethodConfig` requiring `lookup_sha256` digest of the content-addressed model manifest.
 - **Normalization Profile**: `hf_genderize_v1`.
 - **Inputs Consumed**: Primary forename string.
 - **Behavior**: Runs local PyTorch BERT model (`imranali291/genderize`). Index `0` maps to `female`, index `1` maps to `male`. Reports softmax classification probability as `method_confidence`.
@@ -172,7 +176,8 @@ The pipeline contains ten components across five methodological families. Nine c
 | Method Component | Module Path | Governing ADR |
 |---|---|---|
 | Parenthetical Qualifier | [`gendertagger.methods.parenthetical_qualifier`](../src/gendertagger/methods/parenthetical_qualifier.py) | [ADR-0010](decisions/ADR-0010-parenthetical-qualifier-adapter.md), [ADR-0014](decisions/ADR-0014-restore-parenthetical-institution-normalization.md) |
-| GND Local Snapshot | [`gendertagger.methods.gnd_snapshot`](../src/gendertagger/methods/gnd_snapshot.py) | [ADR-0023](decisions/ADR-0023-content-addressed-sqlite-method-lookups.md) |
+| GND Local Snapshot | [`gendertagger.methods.gnd`](../src/gendertagger/methods/gnd.py) | [ADR-0023](decisions/ADR-0023-content-addressed-sqlite-method-lookups.md) |
+| GND lookup compiler (offline, not a method) | [`gendertagger.methods.gnd_snapshot`](../src/gendertagger/methods/gnd_snapshot.py) | [ADR-0023](decisions/ADR-0023-content-addressed-sqlite-method-lookups.md) |
 | gender-guesser | [`gendertagger.methods.gender_guesser`](../src/gendertagger/methods/gender_guesser.py) | [ADR-0012](decisions/ADR-0012-name-based-classifier-adapter-pattern.md) |
 | Wiki-Gendersort | [`gendertagger.methods.wiki_gendersort`](../src/gendertagger/methods/wiki_gendersort.py) | [ADR-0013](decisions/ADR-0013-wiki-gendersort-adapter.md) |
 | HIVOTO | [`gendertagger.methods.hivoto`](../src/gendertagger/methods/hivoto.py) | [ADR-0018](decisions/ADR-0018-hivoto-adapter.md) |

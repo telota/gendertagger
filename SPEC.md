@@ -1,6 +1,7 @@
 # gendertagger vNext specification
 
-This file is the short normative entry point. Detailed rationale lives in `docs/`.
+This file is the short normative entry point. Detailed rationale lives in `docs/`. For a local Docker
+Compose quickstart, including provisioning method data, see [`README.md`](README.md#quickstart).
 
 ## Product
 

@@ -157,27 +157,20 @@ comparing against the independent `reference_v1` expectations.
 
 ## Migration tests
 
-CI should verify:
+The PostgreSQL CI job runs `alembic upgrade head` against a clean database and then `alembic check`, so a
+clean migration to head and the absence of unexpected model-versus-migration drift are both enforced gates.
 
-- clean DB can migrate to head
-- migration downgrade policy if supported
-- no unexpected Alembic drift
+## Property tests
 
-## Property tests worth considering
-
-- rerunning the same idempotent batch does not create duplicate Predictions
-- duplicate snapshot-import delivery never creates duplicate or partial PersonRecords
-- aggregation never mutates Predictions
-- duplicate aggregation delivery never creates duplicate or partial AggregatedResults
-- removing one required Prediction fails reference aggregation rather than changing its vote
-- an immutable ready snapshot cannot change
-- `abstain` never contributes a vote
-- human annotation precedence does not alter historical machine output
-
+Hypothesis is a locked development dependency and `tests/conftest.py` registers its execution profiles, but
+no `@given` property tests exist yet. The invariants that would most repay property coverage — batch and
+delivery idempotency, aggregation immutability, and abstention semantics — are recorded in
+[`22-future-development.md`](22-future-development.md). They are currently covered by
+example-based tests instead.
 
 ## Browser/API contract tests
 
-Before Vue implementation, add backend tests for:
+Backend contract tests cover:
 
 - OpenAPI schema stability/snapshot or intentional-diff review;
 - list cursor pagination and stable sorting;
@@ -194,7 +187,8 @@ Before Vue implementation, add backend tests for:
 - `/api/v1/me` authorization behavior;
 - production CORS defaults and explicit development origin behavior.
 
-When the Vue client exists, CI should generate/check its TypeScript transport client from OpenAPI so Python and TypeScript contracts cannot silently drift.
+Generating and drift-checking a TypeScript transport client from OpenAPI in CI is recorded in
+[`22-future-development.md`](22-future-development.md); it becomes actionable once the Vue client exists.
 
 ## Suites and markers
 
@@ -209,15 +203,25 @@ Infrastructure-specific tests also carry the `integration` marker; separate CI j
 
 ## Coverage
 
-Use branch coverage. Fast, PostgreSQL, and Redis jobs publish separate raw coverage data; a downstream gate
-combines them and enforces the configured 80% project floor. The fast suite independently enforces a 70%
-non-regression floor. Service-backed repository code remains measured through the service-backed suites rather
-than mock-only tests written to satisfy a fast-only percentage. Maintain complete branch coverage for normative
-normalization, reference aggregation, certainty assignment, and TEI certainty projection once those modules
-exist. Ratchet the overall project floor upward from the configured baseline instead of manufacturing tests
-solely to hit a global number.
+Use branch coverage. Fast, PostgreSQL, and Redis jobs publish separate raw coverage data; the downstream
+`coverage` stage combines them and enforces the configured 85% project floor. The fast suite independently
+enforces a 70% non-regression floor. The normative scientific modules carry their own per-file 100% gates in
+the same job, so a global percentage cannot conceal a regression there:
+
+- `methods/normalization.py`
+- `domain/aggregation.py`
+- `domain/aggregation_assessment.py`
+- `export/tei_profile.py`
+
+Service-backed repository code remains measured through the service-backed suites rather than mock-only tests
+written to satisfy a fast-only percentage. Ratchet the overall project floor upward from the configured
+baseline instead of manufacturing tests solely to hit a global number.
 
 ## CI progression
+
+Every gate below through Phase 7 is live in `.gitlab-ci.yml`, whose stages are `validate`, `test`,
+`coverage`, `package`, `secret-detection`, `publish`, and `sbom`. Phase 8 adds frontend gates once the Vue
+client exists.
 
 | Phase | Required gates added |
 |---|---|
