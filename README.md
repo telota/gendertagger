@@ -62,6 +62,43 @@ The repository is in Phase 5 method migration:
 
 Evaluation/export (Phase 6) and the Vue review client (Phase 8) remain.
 
+## Local deployment
+
+The local deployment uses Docker Compose and starts PostgreSQL, Redis, the FastAPI service, a CPU worker,
+the current frontend placeholder, and the Nginx gateway. Install Docker with the Compose plugin, then run
+the following commands from the repository root:
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml build
+docker compose -f compose.yaml -f compose.dev.yaml up -d db redis
+docker compose -f compose.yaml -f compose.dev.yaml --profile ops run --rm migrate
+docker compose -f compose.yaml -f compose.dev.yaml up -d api worker-cpu frontend gateway
+```
+
+The services are available at:
+
+- API documentation: <http://localhost:8000/docs>
+- API health: <http://localhost:8000/health>
+- API readiness: <http://localhost:8000/ready>
+- Gateway: <http://localhost:8080>
+- Frontend placeholder: <http://localhost:5173>
+
+Inspect service status and logs with:
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml ps
+docker compose -f compose.yaml -f compose.dev.yaml logs -f api worker-cpu
+```
+
+Stop the local services with:
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml down
+```
+
+The default `down` command preserves PostgreSQL, Redis, and artifact volumes. Use `down -v` only when you
+intentionally want to remove local service data.
+
 ## Provision method lookup data
 
 GND, Wiki-Gendersort, and HIVOTO runs select compiled SQLite lookup artifacts by SHA-256, never by a mutable
