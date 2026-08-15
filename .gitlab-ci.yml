@@ -17,6 +17,7 @@ variables:
   SECRET_DETECTION_ENABLED: "true"
   UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
   UV_LINK_MODE: copy
+  SAST_EXCLUDED_ANALYZERS: "pmd-apex"
 
 default:
   interruptible: true

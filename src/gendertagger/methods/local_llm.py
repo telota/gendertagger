@@ -1,4 +1,4 @@
-"""Adapter for OpenAI-compatible LLMs using a minimal httpx wrapper."""
+"""Adapter for OpenAI-compatible LLMs using a minimal httpx2 wrapper."""
 
 from __future__ import annotations
 
@@ -180,9 +180,9 @@ class LocalLlmMethod(GenderMethod[LocalLlmConfig]):
             MethodDependencyError: If the ``llm`` extra is not installed.
         """
         try:
-            import httpx  # pyright: ignore[reportMissingImports]
+            import httpx2  # pyright: ignore[reportMissingImports]
         except ImportError as error:
-            msg = "local_llm requires the 'llm' extra (install httpx)"
+            msg = "local_llm requires the 'llm' extra (install httpx2)"
             raise MethodDependencyError(msg) from error
 
         llm = LlmClient(
@@ -195,7 +195,7 @@ class LocalLlmMethod(GenderMethod[LocalLlmConfig]):
 
         results: list[PredictionResult] = []
 
-        with httpx.Client() as client:
+        with httpx2.Client() as client:
             for person in people:
                 prompt = self._build_prompt(person)
 

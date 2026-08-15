@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from typing import Any
 
-import httpx  # pyright: ignore[reportMissingImports]
+import httpx2  # pyright: ignore[reportMissingImports]
 import pytest
 from pydantic import ValidationError
 
@@ -53,10 +53,10 @@ class MockResponse:
 
     def raise_for_status(self) -> None:
         if self.status_code >= 400:
-            raise httpx.HTTPStatusError(
+            raise httpx2.HTTPStatusError(
                 "Error",
-                request=httpx.Request("POST", ""),
-                response=httpx.Response(self.status_code, request=httpx.Request("POST", "")),
+                request=httpx2.Request("POST", ""),
+                response=httpx2.Response(self.status_code, request=httpx2.Request("POST", "")),
             )
 
 
@@ -195,8 +195,7 @@ def test_local_llm_method_success(
                 }
             )
 
-    # Mock httpx.Client to return our context manager
-    monkeypatch.setattr(httpx, "Client", lambda: MockHttpxClientContext())
+    monkeypatch.setattr(httpx2, "Client", lambda: MockHttpxClientContext())
 
     method = LocalLlmMethod()
     results = method.predict_batch(single_person, config)
@@ -221,9 +220,9 @@ def test_local_llm_method_transport_error(
             pass
 
         def post(self, url: str, headers: dict[str, str], json: dict[str, Any]) -> MockResponse:
-            raise httpx.ConnectError("Connection failed")
+            raise httpx2.ConnectError("Connection failed")
 
-    monkeypatch.setattr(httpx, "Client", lambda: MockHttpxClientContext())
+    monkeypatch.setattr(httpx2, "Client", lambda: MockHttpxClientContext())
 
     method = LocalLlmMethod()
     results = method.predict_batch(single_person, config)
