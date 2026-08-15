@@ -35,7 +35,6 @@ _TERMINAL_EXPORT_STATUSES = {
     ExportExecutionStatus.completed,
     ExportExecutionStatus.failed,
 }
-_MAX_REPORTED_MISSING_LOCATORS = 10
 
 
 class SqlAlchemyExportRepository:
@@ -219,30 +218,17 @@ class SqlAlchemyExportRepository:
                     tei_id,
                 )
 
-        missing_locators: list[str] = []
-        records: list[ExportPersonRecord] = []
-        for result_row in result_rows:
-            tei_id, source_member_name = person_locators[result_row.person_record_id]
-            if export.format is ExportFormat.tei and source_member_name is None:
-                missing_locators.append(tei_id)
-                continue
-            records.append(
-                resolve_final_decision(
-                    tei_id=tei_id,
-                    source_member_name=source_member_name,
-                    aggregated_result=self._aggregated_result_from_row(result_row),
-                    annotation=annotations_by_person.get(result_row.person_record_id),
-                    label_source_policy=export.label_source_policy,
-                    human_resp_id=export.human_resp_id,
-                )
+        records: list[ExportPersonRecord] = [
+            resolve_final_decision(
+                tei_id=person_locators[result_row.person_record_id][0],
+                source_member_name=person_locators[result_row.person_record_id][1],
+                aggregated_result=self._aggregated_result_from_row(result_row),
+                annotation=annotations_by_person.get(result_row.person_record_id),
+                label_source_policy=export.label_source_policy,
+                human_resp_id=export.human_resp_id,
             )
-        if missing_locators:
-            shown = ", ".join(sorted(missing_locators)[:_MAX_REPORTED_MISSING_LOCATORS])
-            msg = (
-                f"{len(missing_locators)} person record(s) have no source-member locator "
-                f"and cannot be exported as TEI: {shown}"
-            )
-            raise InvalidResourceStateError(msg)
+            for result_row in result_rows
+        ]
 
         member_rows = self._session.scalars(
             select(SnapshotSourceMemberRow)

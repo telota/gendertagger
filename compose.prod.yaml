@@ -28,6 +28,13 @@ services:
           cpus: '2'
           memory: 2G
 
+  dispatch-coordinator:
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
   worker-cpu:
     volumes:
       - ${ARTIFACTS_PATH:-artifacts}:/app/data/artifacts

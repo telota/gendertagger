@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from gendertagger.models.person import ImportedPerson, PersonInput, PersonRecord
+from gendertagger.models.person import ImportedPerson, PersonRecord
 from gendertagger.models.project import (
     DatasetSnapshot,
     DatasetSnapshotCreate,
@@ -58,24 +58,12 @@ class ProjectRepository(Protocol):
         """Atomically claim a pending snapshot, or return ``None`` if already claimed."""
         ...
 
-    def add_person_records(
-        self,
-        snapshot_id: UUID,
-        people: Sequence[PersonInput],
-    ) -> int:
-        """Persist one bounded person batch and return its record count."""
-        ...
-
     def add_imported_person_records(
         self,
         snapshot_id: UUID,
         people: Sequence[ImportedPerson],
     ) -> int:
         """Persist people with non-null source-member record provenance."""
-        ...
-
-    def get_person_record(self, person_record_id: UUID) -> PersonRecord | None:
-        """Return one person occurrence by persistence ID."""
         ...
 
     def get_person_record_by_tei_id(

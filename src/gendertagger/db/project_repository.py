@@ -19,7 +19,6 @@ from gendertagger.db.projects import (
     SnapshotSourceMemberRow,
 )
 from gendertagger.ingestion.registry import version_for_snapshot_import
-from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.models.common import normalize_utc_datetime
 from gendertagger.models.lifecycle import DatasetSnapshotStatus
 from gendertagger.models.person import (
@@ -72,19 +71,17 @@ class SqlAlchemyProjectRepository:
 
     def add_snapshot(self, command: DatasetSnapshotCreate) -> DatasetSnapshot:
         """Persist and flush a new pending snapshot without committing."""
-        import_config = self._validated_modern_import_config(command.import_config)
+        import_config = self._validated_import_config(command.import_config)
         self._require_parser_version_provenance(
             parser_version=command.parser_version,
-            raw_import_config=command.import_config,
-            modern_import_config=import_config,
+            import_config=import_config,
         )
-        if import_config is not None:
-            self._require_primary_artifact_provenance(
-                project_id=command.project_id,
-                source_artifact_id=command.source_artifact_id,
-                source_sha256=command.source_sha256,
-                import_config=import_config,
-            )
+        self._require_primary_artifact_provenance(
+            project_id=command.project_id,
+            source_artifact_id=command.source_artifact_id,
+            source_sha256=command.source_sha256,
+            import_config=import_config,
+        )
         row = DatasetSnapshotRow(
             project_id=command.project_id,
             source_artifact_id=command.source_artifact_id,
@@ -116,17 +113,13 @@ class SqlAlchemyProjectRepository:
             raise ValueError(msg)
         snapshot = self._locked_snapshot(snapshot_id)
         self._require_snapshot_status(snapshot, DatasetSnapshotStatus.pending)
-        import_config = self._validated_modern_import_config(
+        import_config = self._validated_import_config(
             snapshot.import_config,
             snapshot_id=snapshot.id,
         )
-        if import_config is None:
-            msg = "legacy snapshots do not accept source-member provenance"
-            raise InvalidResourceStateError(msg)
         self._require_parser_version_provenance(
             parser_version=snapshot.parser_version,
-            raw_import_config=snapshot.import_config,
-            modern_import_config=import_config,
+            import_config=import_config,
         )
         self._require_primary_artifact_provenance(
             project_id=snapshot.project_id,
@@ -250,70 +243,45 @@ class SqlAlchemyProjectRepository:
         self._session.flush()
         return None
 
-    def add_person_records(
-        self,
-        snapshot_id: UUID,
-        people: Sequence[PersonInput],
-    ) -> int:
-        """Persist a legacy-compatible batch without record-level provenance."""
-        return self._add_person_records(
-            snapshot_id,
-            [(person, None, None) for person in people],
-        )
-
     def add_imported_person_records(
         self,
         snapshot_id: UUID,
         people: Sequence[ImportedPerson],
     ) -> int:
         """Persist one bounded person batch with exact source provenance."""
-        return self._add_person_records(
-            snapshot_id,
-            [
-                (imported.person, imported.source_member_name, imported.source_record_locator)
-                for imported in people
-            ],
-        )
-
-    def _add_person_records(
-        self,
-        snapshot_id: UUID,
-        people_with_provenance: Sequence[tuple[PersonInput, str | None, str | None]],
-    ) -> int:
-        """Persist canonical people and optional legacy-compatible provenance."""
         snapshot = self._locked_snapshot(snapshot_id)
         self._require_snapshot_status(snapshot, DatasetSnapshotStatus.importing)
-        people = [person for person, _, _ in people_with_provenance]
-        self._require_profile_provenance(snapshot, people)
-        self._require_source_member_provenance(snapshot, people_with_provenance)
+        canonical_people = [imported.person for imported in people]
+        self._require_profile_provenance(snapshot, canonical_people)
+        self._require_source_member_provenance(snapshot, people)
 
         person_rows = [
             PersonRecordRow(
                 dataset_snapshot_id=snapshot_id,
-                tei_id=person.tei_id,
-                surname=person.surname,
-                forenames=person.forenames,
-                birth=person.birth,
-                death=person.death,
-                note=person.note,
-                events=[event.model_dump(mode="json") for event in person.events],
-                alt_names=person.alt_names,
+                tei_id=imported.person.tei_id,
+                surname=imported.person.surname,
+                forenames=imported.person.forenames,
+                birth=imported.person.birth,
+                death=imported.person.death,
+                note=imported.person.note,
+                events=[event.model_dump(mode="json") for event in imported.person.events],
+                alt_names=imported.person.alt_names,
                 name_forms=(
-                    [name_form.model_dump(mode="json") for name_form in person.name_forms]
-                    if person.name_forms is not None
+                    [name_form.model_dump(mode="json") for name_form in imported.person.name_forms]
+                    if imported.person.name_forms is not None
                     else None
                 ),
-                source_member_name=source_member_name,
-                source_record_locator=source_record_locator,
+                source_member_name=imported.source_member_name,
+                source_record_locator=imported.source_record_locator,
             )
-            for person, source_member_name, source_record_locator in people_with_provenance
+            for imported in people
         ]
         self._session.add_all(person_rows)
         self._session.flush()
 
         external_rows: list[PersonExternalIdRow] = []
-        for person, person_row in zip(people, person_rows, strict=True):
-            for scheme, value in self._external_ids(person).items():
+        for imported, person_row in zip(people, person_rows, strict=True):
+            for scheme, value in self._external_ids(imported.person).items():
                 external_rows.append(
                     PersonExternalIdRow(
                         person_record_id=person_row.id,
@@ -321,8 +289,9 @@ class SqlAlchemyProjectRepository:
                         value=value,
                     )
                 )
-        self._session.add_all(external_rows)
-        self._session.flush()
+        if external_rows:
+            self._session.add_all(external_rows)
+            self._session.flush()
         return len(person_rows)
 
     @staticmethod
@@ -427,17 +396,9 @@ class SqlAlchemyProjectRepository:
     def _require_parser_version_provenance(
         *,
         parser_version: str,
-        raw_import_config: Mapping[str, object],
-        modern_import_config: SnapshotImportConfig | None,
+        import_config: SnapshotImportConfig,
     ) -> None:
-        if modern_import_config is not None:
-            expected_version = version_for_snapshot_import(modern_import_config)
-        else:
-            raw_profile = raw_import_config.get("profile")
-            if not isinstance(raw_profile, str):
-                msg = "legacy snapshot import provenance requires a TEI profile"
-                raise InvalidResourceStateError(msg)
-            expected_version = TeiPersonParser.version_for_profile(TeiImportProfile(raw_profile))
+        expected_version = version_for_snapshot_import(import_config)
         if parser_version != expected_version:
             msg = (
                 f"snapshot parser version {parser_version!r} does not match "
@@ -448,33 +409,17 @@ class SqlAlchemyProjectRepository:
     def _require_source_member_provenance(
         self,
         snapshot: DatasetSnapshotRow,
-        people_with_provenance: Sequence[tuple[PersonInput, str | None, str | None]],
+        people: Sequence[ImportedPerson],
     ) -> None:
-        missing_provenance = [
-            source_member_name is None or source_record_locator is None
-            for _, source_member_name, source_record_locator in people_with_provenance
-        ]
-        if any(missing_provenance):
-            if not all(missing_provenance) or not self._is_legacy_import_config(
-                snapshot.import_config
-            ):
-                msg = "manifest-aware person records require source-member provenance"
+        for imported in people:
+            if not imported.source_member_name or not imported.source_member_name.strip():
+                msg = "person record requires non-blank source_member_name"
                 raise InvalidResourceStateError(msg)
-            source_member_count = self._session.scalar(
-                select(func.count(SnapshotSourceMemberRow.id)).where(
-                    SnapshotSourceMemberRow.dataset_snapshot_id == snapshot.id
-                )
-            )
-            if source_member_count:
-                msg = "manifest-aware person records require source-member provenance"
+            if not imported.source_record_locator or not imported.source_record_locator.strip():
+                msg = "person record requires non-blank source_record_locator"
                 raise InvalidResourceStateError(msg)
-            return
 
-        referenced_names = {
-            source_member_name
-            for _, source_member_name, _ in people_with_provenance
-            if source_member_name is not None
-        }
+        referenced_names = {imported.source_member_name for imported in people}
         packaging = self._source_packaging(snapshot)
         if packaging in {SourcePackaging.zip, SourcePackaging.tar_gz}:
             source_member_count = self._session.scalar(
@@ -498,25 +443,13 @@ class SqlAlchemyProjectRepository:
             msg = "person source_member_name is not attached to the snapshot"
             raise InvalidResourceStateError(msg)
 
-    @staticmethod
-    def _is_legacy_import_config(import_config: Mapping[str, object]) -> bool:
-        if set(import_config) != {"profile"}:
-            return False
-        profile = import_config.get("profile")
-        return isinstance(profile, str) and profile in {
-            TeiImportProfile.tei_p5_person_register_v1.value,
-            TeiImportProfile.tei_p5_person_register_v2.value,
-        }
-
     @classmethod
-    def _validated_modern_import_config(
+    def _validated_import_config(
         cls,
         import_config: Mapping[str, object],
         *,
         snapshot_id: UUID | None = None,
-    ) -> SnapshotImportConfig | None:
-        if cls._is_legacy_import_config(import_config):
-            return None
+    ) -> SnapshotImportConfig:
         try:
             return SnapshotImportConfig.model_validate(import_config)
         except ValidationError as error:
@@ -529,14 +462,13 @@ class SqlAlchemyProjectRepository:
             raise InvalidResourceStateError(msg) from error
 
     def _require_complete_source_provenance(self, snapshot: DatasetSnapshotRow) -> None:
-        import_config = self._validated_modern_import_config(
+        import_config = self._validated_import_config(
             snapshot.import_config,
             snapshot_id=snapshot.id,
         )
         self._require_parser_version_provenance(
             parser_version=snapshot.parser_version,
-            raw_import_config=snapshot.import_config,
-            modern_import_config=import_config,
+            import_config=import_config,
         )
         rows = tuple(
             self._session.scalars(
@@ -545,12 +477,6 @@ class SqlAlchemyProjectRepository:
                 .order_by(SnapshotSourceMemberRow.ordinal)
             )
         )
-        if import_config is None:
-            if rows:
-                msg = "legacy snapshot provenance must not contain source-member rows"
-                raise InvalidResourceStateError(msg)
-            return
-
         self._require_primary_artifact_provenance(
             project_id=snapshot.project_id,
             source_artifact_id=snapshot.source_artifact_id,
@@ -633,13 +559,6 @@ class SqlAlchemyProjectRepository:
         except (TypeError, ValueError) as error:
             msg = f"snapshot {snapshot.id} has unsupported source packaging"
             raise InvalidResourceStateError(msg) from error
-
-    def get_person_record(self, person_record_id: UUID) -> PersonRecord | None:
-        """Return one person contract by persistence ID."""
-        row = self._session.get(PersonRecordRow, person_record_id)
-        if row is None:
-            return None
-        return self._person_from_row(row, self._external_ids_for([row.id]).get(row.id, ()))
 
     def get_person_record_by_tei_id(
         self,

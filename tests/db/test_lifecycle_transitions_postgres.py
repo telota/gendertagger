@@ -15,6 +15,7 @@ from gendertagger.db.artifact_repository import SqlAlchemyArtifactRepository
 from gendertagger.db.executions import MethodExecutionRow, PredictionRow, RunRow, TaskBatchRow
 from gendertagger.db.project_repository import SqlAlchemyProjectRepository
 from gendertagger.db.run_repository import SqlAlchemyRunRepository
+from gendertagger.ingestion.registry import version_for_snapshot_import
 from gendertagger.models.artifact import ArtifactCreate
 from gendertagger.models.classification import CanonicalLabel, PredictionResult, PredictionStatus
 from gendertagger.models.lifecycle import (
@@ -24,8 +25,14 @@ from gendertagger.models.lifecycle import (
     TaskBatchStatus,
 )
 from gendertagger.models.method import MethodDescriptor
-from gendertagger.models.person import PersonInput
-from gendertagger.models.project import DatasetSnapshotCreate, ProjectCreate
+from gendertagger.models.person import ImportedPerson, PersonInput
+from gendertagger.models.project import (
+    DatasetSnapshotCreate,
+    ProjectCreate,
+    SnapshotImportConfig,
+    SnapshotImportLimits,
+    SnapshotSourceMemberCreate,
+)
 from gendertagger.models.run import (
     MethodExecution,
     MethodExecutionCreate,
@@ -45,6 +52,10 @@ LATER = datetime(2026, 8, 13, 12, 5, tzinfo=UTC)
 def _setup(
     db_session: Session,
 ) -> tuple[SqlAlchemyRunRepository, MethodExecution, TaskBatch, UUID]:
+    projects = SqlAlchemyProjectRepository(db_session)
+    project = projects.add_project(
+        ProjectCreate(slug=f"life-{uuid4().hex}", display_name="Lifecycle project")
+    )
     artifacts = SqlAlchemyArtifactRepository(db_session)
     source = artifacts.add_artifact(
         ArtifactCreate(
@@ -53,23 +64,43 @@ def _setup(
             sha256="a" * 64,
             byte_size=1,
             media_type="application/xml",
+            project_id=project.id,
         )
     )
-    projects = SqlAlchemyProjectRepository(db_session)
-    project = projects.add_project(
-        ProjectCreate(slug=f"life-{uuid4().hex}", display_name="Lifecycle project")
-    )
+    import_config = SnapshotImportConfig(limits=SnapshotImportLimits())
     snapshot = projects.add_snapshot(
         DatasetSnapshotCreate(
             project_id=project.id,
             source_artifact_id=source.id,
             source_sha256=source.sha256,
-            parser_version="tei_parser_v1",
-            import_config={"profile": "tei_p5_person_register_v1"},
+            parser_version=version_for_snapshot_import(import_config),
+            import_config=import_config.model_dump(mode="json"),
         )
     )
+    projects.add_snapshot_source_members(
+        snapshot.id,
+        [
+            SnapshotSourceMemberCreate(
+                artifact_id=source.id,
+                ordinal=0,
+                logical_name="source.xml",
+                sha256=source.sha256,
+                byte_size=source.byte_size,
+                media_type=source.media_type,
+            )
+        ],
+    )
     projects.begin_snapshot_import(snapshot.id)
-    projects.add_person_records(snapshot.id, [PersonInput(tei_id="p0001")])
+    projects.add_imported_person_records(
+        snapshot.id,
+        [
+            ImportedPerson(
+                person=PersonInput(tei_id="p0001"),
+                source_member_name="source.xml",
+                source_record_locator="1",
+            )
+        ],
+    )
     projects.complete_snapshot_import(snapshot.id, ready_at=NOW)
     person = projects.get_person_record_by_tei_id(snapshot.id, "p0001")
     assert person is not None

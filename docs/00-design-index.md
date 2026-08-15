@@ -23,4 +23,5 @@
 | [`19-coding-and-documentation-style.md`](19-coding-and-documentation-style.md) | Naming, docstrings, Markdown, and ADR style |
 | [`20-method-adapters-reference.md`](20-method-adapters-reference.md) | Comprehensive reference for classification method adapters |
 | [`21-production-promotion.md`](21-production-promotion.md) | Production promotion SOP and lifecycle |
+| [`22-future-development.md`](22-future-development.md) | Planned expansions and future roadmap |
 | [Architecture Decision Records](decisions/) | Accepted decisions and ADR template |

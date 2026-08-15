@@ -134,19 +134,6 @@ class SqlAlchemyReviewRepository:
         self._session.flush()
         return self._annotation_from_row(annotation, person.tei_id)
 
-    def get_annotation(self, annotation_id: UUID) -> Annotation | None:
-        """Return one immutable annotation without exposing its row."""
-        row = self._session.get(AnnotationRow, annotation_id)
-        if row is None:
-            return None
-        tei_id = self._session.scalar(
-            select(PersonRecordRow.tei_id).where(PersonRecordRow.id == row.person_record_id)
-        )
-        if tei_id is None:
-            msg = f"annotation {annotation_id} references a missing person"
-            raise ResourceNotFoundError(msg)
-        return self._annotation_from_row(row, tei_id)
-
     def get_review_state(self, snapshot_id: UUID, tei_id: str) -> ReviewState | None:
         """Return persisted state or a derived unreviewed state for an existing person."""
         person = self._session.scalar(

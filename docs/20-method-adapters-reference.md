@@ -20,8 +20,11 @@ Every adapter maps raw predictions onto a unified set of four canonical labels:
 A method may also report an outcome status of:
 
 - `success`: A canonical label was resolved (including substantive `unknown`).
-- `abstain`: The method declined or was unable to vote (e.g. absent forename, absent GND ID, or unrecognized token).
+- `abstain`: The method declined or had no usable input (e.g. no checkable forename token, or an absent or unmatched GND ID).
 - `error`: Technical failure occurred during processing.
+
+An unrecognized name is not an abstention: the name-based classifiers resolve it to a substantive
+`unknown`, and only a person with no checkable forename token abstains.
 
 ### Execution inputs and outputs
 
@@ -30,6 +33,25 @@ Each adapter accepts a sequence of `PersonInput` objects and a resolved `MethodC
 ```text
 PersonInput -> Adapter (GenderMethod) -> PredictionResult
 ```
+
+### Shared forename tokenization and consensus
+
+Seven adapters share the frozen token filter and per-token reduction in
+[`gendertagger.methods.name_tokens`](../src/gendertagger/methods/name_tokens.py): `usable_forename_tokens`
+splits every value of `person.forenames` on whitespace and drops bracketed qualifiers, single-letter
+initials, digit-leading fragments, dash-only fragments, and a fixed particle/noise-word set;
+`consensus_label` then reduces the per-token labels by an adapter-declared priority ranking. It returns
+`no_name` when no token survives (a shared abstain label) and `conflict` when definite male and female
+tokens both occur (a substantive `unknown` for every name-based profile). HIVOTO-XGBoost reuses the
+token filter but carries its own ported consensus reduction.
+
+### Registration
+
+[`gendertagger.services.method_registry`](../src/gendertagger/services/method_registry.py) registers all
+ten adapters with their descriptor, closed configuration model, routing queue, and batch size. Every
+adapter routes to the `cpu` queue except `local_llm`, which routes to `llm`; the batch size is 200 for
+all ten. Registrations that name a `data_artifact_logical_type` require a `LookupMethodConfig`, so run
+scheduling can resolve `lookup_sha256` to a registered artifact before any batch is dispatched.
 
 ## Implemented method adapters
 
@@ -43,8 +65,8 @@ The pipeline contains ten components across five methodological families. Nine c
 - **Dependencies**: Built-in standard library (regular expressions).
 - **Configuration**: `ParentheticalQualifierConfig` (no additional parameters required).
 - **Normalization Profile**: `parenthetical_qualifier_v1`.
-- **Inputs Consumed**: `person.note`, `person.name_forms`, `person.forenames`, `person.surname`.
-- **Behavior**: Extracts explicit parenthetical gender markers (e.g. `(geb. ...)`, `(Frau)`, `(Herr)`, `(Stift)`, `(Kloster)`). Returns `success` with canonical label when a matching pattern is detected; otherwise returns `abstain`.
+- **Inputs Consumed**: `person.surname`, `person.forenames`, then `person.note`.
+- **Behavior**: Scans parenthesized content in the surname and each forename for a relational keyword, preferring the leading word of the parenthesis and falling back to any word in it. Female kinship terms (`Frau`, `Tochter`, `Witwe`, ...) map to `female`, male ones (`Herr`, `Sohn`, `Bruder`, ...) to `male`, family-group terms (`Familie`, `Kinder`, `Geschwister`, `Ehepaar`, ...) to substantive `unknown`, and commercial/organisational terms (`Firma`, `Weinhandlung`, `Bankier`, `Kaufleute`) to `institution`. If no name field matches, the note is consulted, but only on its first word and never for `institution`. With no match the adapter emits no raw label at all and normalizes to `abstain`.
 
 ### 2. GND Local Snapshot (`gnd_snapshot`)
 

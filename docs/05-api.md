@@ -4,11 +4,12 @@
 
 FastAPI is the canonical public interface. The browser UI, CLI where remote operation is desired, and external edition integrations consume the same application semantics.
 
-Version the public API under `/api/v1`.
+The public API is versioned under `/api/v1`.
 
 Favor resource-oriented endpoints over classifier-specific or page-specific RPC endpoints. A Vue screen is not an API resource; a Run, ReviewItem, Annotation, Export, or Evaluation is.
 
-The API exposes explicit Pydantic request/response models and never SQLAlchemy instances. OpenAPI is a public machine-readable contract and should be used to generate TypeScript transport types/client code for the future Vue application.
+The API exposes explicit Pydantic request/response models and never SQLAlchemy instances. OpenAPI is a
+public machine-readable contract, and a committed schema snapshot pins it against unintended change.
 
 ## JSON conventions
 
@@ -25,28 +26,54 @@ The scientific `unknown` label is never represented by `null`.
 
 ## Resource outline
 
-```text
-/api/v1/projects
-/api/v1/projects/{project_id}
-/api/v1/projects/{project_id}/snapshots
-/api/v1/snapshots/{snapshot_id}
-/api/v1/snapshots/{snapshot_id}/people
-/api/v1/review-items
-/api/v1/runs
-/api/v1/runs/{run_id}
-/api/v1/runs/{run_id}/executions
-/api/v1/runs/{run_id}/predictions
-/api/v1/runs/{run_id}/aggregations
-/api/v1/runs/{run_id}/events
-/api/v1/aggregations/{aggregation_id}/results
-/api/v1/annotations
-/api/v1/evaluations
-/api/v1/exports
-/api/v1/exports/{export_id}/download
-/api/v1/methods
-/api/v1/classify
-/api/v1/me
-```
+[`gendertagger.api.router`](../src/gendertagger/api/router.py) composes the complete versioned surface.
+`create_api_router` mounts every resource module under the `/api/v1` prefix, so the following table is the
+whole public API:
+
+| Method | Path | Success status | Least role |
+|---|---|---|---|
+| `POST` | `/api/v1/projects` | `201` | operator |
+| `GET` | `/api/v1/projects/{project_id}` | `200` | viewer |
+| `POST` | `/api/v1/projects/{project_id}/snapshots` | `202` | operator |
+| `GET` | `/api/v1/snapshots/{snapshot_id}` | `200` | viewer |
+| `GET` | `/api/v1/snapshots/{snapshot_id}/people` | `200` | viewer |
+| `POST` | `/api/v1/runs` | `202` | operator |
+| `GET` | `/api/v1/runs/{run_id}` | `200` | viewer |
+| `GET` | `/api/v1/runs/{run_id}/executions` | `200` | viewer |
+| `POST` | `/api/v1/runs/{run_id}/executions` | `202` | operator |
+| `GET` | `/api/v1/runs/{run_id}/events` | `200` (SSE) | viewer |
+| `POST` | `/api/v1/runs/{run_id}/aggregations` | `202` | operator |
+| `GET` | `/api/v1/aggregations/{aggregation_id}` | `200` | viewer |
+| `GET` | `/api/v1/aggregations/{aggregation_id}/results` | `200` | viewer |
+| `GET` | `/api/v1/aggregations/{aggregation_id}/results/{result_id}` | `200` | viewer |
+| `GET` | `/api/v1/review-items` | `200` | viewer |
+| `POST` | `/api/v1/annotations` | `201` | reviewer |
+| `POST` | `/api/v1/evaluations` | `202` | operator |
+| `GET` | `/api/v1/evaluations/{evaluation_id}` | `200` | viewer |
+| `GET` | `/api/v1/evaluations/{evaluation_id}/report` | `200` | viewer |
+| `POST` | `/api/v1/exports` | `202` | operator |
+| `GET` | `/api/v1/exports/{export_id}` | `200` | viewer |
+| `GET` | `/api/v1/exports/{export_id}/download` | `200` | viewer |
+| `POST` | `/api/v1/classify` | `200` | viewer |
+| `GET` | `/api/v1/methods` | `200` | viewer |
+| `GET` | `/api/v1/me` | `200` | any authenticated user |
+
+Predictions have no public collection of their own. A run's per-method outputs are read through its
+executions and through the aggregated results that summarize them.
+
+The router itself carries `Depends(require_csrf_protection)`, so the dependency runs for every route above
+before any handler body. Because that dependency in turn depends on `require_authenticated_user`, the
+`/api/v1` boundary is fail-closed for reading as well as writing: an unauthenticated request is rejected
+with `401` even on a safe method. `require_csrf_protection` additionally validates the browser session for
+unsafe methods; `GET`, `HEAD`, `OPTIONS`, and `TRACE` return early without a CSRF check. Per-route role
+dependencies (`require_viewer`, `require_reviewer`, `require_operator`) then narrow the capability, and the
+roles are hierarchical, so an operator satisfies a reviewer route.
+
+The router also declares `ApiErrorEnvelope` as the documented response model for `400`, `401`, `403`,
+`404`, `409`, `413`, `422`, and `500` across every route, so the error contract is uniform in OpenAPI.
+
+Only the unversioned liveness endpoints `GET /health` and `GET /ready` sit outside the router, and
+therefore outside authentication; `/ready` probes the database and the artifact root.
 
 ## Long-running commands
 
@@ -58,19 +85,25 @@ Representative flow:
 ```text
 POST /api/v1/runs
   -> 202 Accepted
+  -> Run(id=..., status="created")
+
+POST /api/v1/runs/{run_id}/executions
+  -> 202 Accepted
   -> Run(id=..., status="queued")
 
 GET /api/v1/runs/{run_id}
   -> persisted current state
 ```
 
-Return domain resource IDs, never Celery task IDs. Celery is an internal execution mechanism and can change without changing the public API.
+Return domain resource IDs, never Celery task IDs. Celery is an internal execution mechanism and can change without changing the public API. The committed OpenAPI snapshot test asserts that `task_id`, `queue_name`, `worker_metadata`, and `storage_uri` never appear in the public schema.
 
 Accepting an asynchronous command atomically persists its domain resource and one typed outbox intent in
-PostgreSQL. A dispatch owns exactly one task batch, aggregation execution, or dataset snapshot and carries only
-its small validated identifier envelope. The FastAPI process does not publish those messages to Redis. A
-`202 Accepted` response therefore confirms durable application state and dispatch intent, not immediate broker
-delivery; the dispatch coordinator relays and reconciles that intent asynchronously.
+PostgreSQL. `DispatchTarget` in [`gendertagger.models.dispatch`](../src/gendertagger/models/dispatch.py)
+enumerates the five things a dispatch can own: `task_batch`, `aggregation_execution`, `dataset_snapshot`,
+`evaluation_execution`, and `export`. Each entry carries only its small validated identifier envelope. The
+FastAPI process does not publish those messages to Redis. A `202 Accepted` response therefore confirms
+durable application state and dispatch intent, not immediate broker delivery; the `dispatch-coordinator`
+service relays and reconciles that intent asynchronously.
 
 ## Representative commands
 
@@ -112,21 +145,31 @@ artifact storage URI, or filesystem path. Artifact-reference imports remain outs
 
 `POST /api/v1/runs`
 
-Input:
+`RunCreateRequest` takes exactly two fields:
 
 - `dataset_snapshot_id`;
-- run configuration or named server-side config.
+- `config`, an inline `RunConfig` envelope of `methods`, `aggregation`, and `execution`.
 
-Result: persisted Run with resolved config hash and queued/runnable state.
+The method registry resolves every method config before persistence, so an unknown method or an invalid
+config contract fails with `422` and code `validation_error`. A snapshot that is not `ready` fails with
+`409` and code `resource_conflict`. The result is a persisted Run in status `created`, carrying the
+canonical SHA-256 hash of its resolved config. Creation does not schedule work; `created` is a distinct
+state from `queued`.
 
 ### Start/run executions
 
-Prefer explicit state transitions or a create-run option rather than method-named endpoints. For example:
+State transitions, not method-named endpoints, drive execution:
 
 `POST /api/v1/runs/{run_id}/executions`
 
-This command returns the persisted run after the scheduling transaction commits. Broker outages do not turn
-an otherwise successful durable scheduling command into an HTTP failure.
+The scheduler accepts only a run in status `created`, moves it to `queued`, and atomically persists its
+method executions, task batches, and dispatch intents. The command then returns the persisted run. Broker
+outages do not turn an otherwise successful durable scheduling command into an HTTP failure. Re-issuing the
+command against an already scheduled run returns `409` with code `resource_conflict`.
+
+`GET /api/v1/runs/{run_id}/executions` lists the same run's executions as `MethodExecutionSummary`
+objects. The service returns the internal `MethodExecution`, and the declared response model narrows both
+the payload and the OpenAPI schema, so queue names and worker identities never reach a client.
 
 ### Aggregate
 
@@ -148,17 +191,43 @@ person in the run snapshot. `status=failed` includes a sanitized diagnostic and 
 Broker downtime leaves the resource safely queued for the coordinator. See
 [ADR-0016](decisions/ADR-0016-asynchronous-aggregation-outbox.md).
 
+Results are read as a cursor page through `GET /api/v1/aggregations/{aggregation_id}/results`, and one
+immutable result is addressable under its owning aggregation as
+`GET /api/v1/aggregations/{aggregation_id}/results/{result_id}`.
+
 ### Annotate
 
 `POST /api/v1/annotations`
 
 Creates a new immutable human decision. The command contains the review revision observed by the client. A stale revision returns `409 Conflict`; no historical annotation is overwritten.
 
+### Evaluate
+
+`POST /api/v1/evaluations`
+
+`EvaluationCreateRequest` selects one `run_id`, a versioned `definition` (`gnd_benchmark_v1` by default), a
+non-empty duplicate-free tuple of `method_execution_ids`, and an optional `aggregation_execution_id`. Like
+aggregation, the command resolves the definition, atomically persists a `queued` `EvaluationExecution` and
+its CPU-queue outbox intent, and returns `202 Accepted` without computing anything in the request.
+
+`GET /api/v1/evaluations/{evaluation_id}` reads lifecycle state.
+`GET /api/v1/evaluations/{evaluation_id}/report` streams the completed report artifact's bytes under the
+media type recorded on the artifact; an evaluation without a report artifact returns `404`. See
+[ADR-0027](decisions/ADR-0027-gnd-benchmark-evaluation-definition.md).
+
 ### Export
 
 `POST /api/v1/exports`
 
-Creates an asynchronous export resource referencing a snapshot plus selected aggregation/final-decision policy. Downloads use artifact/export IDs, never server paths.
+`ExportCreateRequest` selects a `run_id` and a completed `aggregation_execution_id`, a `format` (`tei`,
+`json`, or `csv`), a `label_source_policy` (`machine_aggregation` by default, or `human_overrides`), an
+optional `tei_profile` valid only when `format` is `tei`, and a `human_resp_id` defaulting to `#editor`.
+The command persists a `queued` `ExportExecution` and its CPU-queue outbox intent, and returns
+`202 Accepted`.
+
+`GET /api/v1/exports/{export_id}` reads lifecycle state, and
+`GET /api/v1/exports/{export_id}/download` returns the primary output bytes resolved through the artifact
+record. Downloads use export IDs and artifact references, never server paths.
 
 ### Synchronous name classification
 
@@ -167,13 +236,21 @@ Creates an asynchronous export resource referencing a snapshot plus selected agg
 Classifies one or more raw name strings synchronously across registered or specified method adapters. Returns the canonical label, status, method-specific confidence, and raw label for each method, as well as an ensemble `aggregated` verdict with certainty rating (`certainty_tier`), agreement rating (`agreement_tier`, `agreement_score`), vote counts, and priority override source.
 
 Input payload:
-- `names`: list of non-blank names (or a single `name` string, bounded to 1,000 names);
+- `names`: list of non-blank names (a single `name` string is coerced to a one-element list), bounded to 1,000 names;
 - `methods`: optional subset of registered method identifiers (defaults to all runnable methods);
 - `method_configs`: optional per-method configuration overrides.
 
+An unknown method identifier fails with `422` and code `validation_error`. This is the one synchronous
+scientific endpoint; see
+[ADR-0028](decisions/ADR-0028-synchronous-on-demand-classification-api.md).
+
 ## List endpoints
 
-Potentially large or changing collections use cursor pagination by default.
+Potentially large or changing collections use cursor pagination. Three collections are paginated:
+`/api/v1/snapshots/{snapshot_id}/people`, `/api/v1/aggregations/{aggregation_id}/results`, and
+`/api/v1/review-items`. The first two take `limit` and `cursor` only and traverse a stable server-side
+order; only `review-items` carries filters and a sort selector. `limit` is bounded to `1..200` and defaults
+to `100`, and `cursor` is bounded to 2,048 characters.
 
 Representative query:
 
@@ -181,36 +258,48 @@ Representative query:
 GET /api/v1/snapshots/{snapshot_id}/people
     ?limit=100
     &cursor=...
-    &q=Johann
-    &sort=tei_id
 ```
 
-A shared cursor page contract should contain at least:
+`CursorPage` in [`gendertagger.models.api`](../src/gendertagger/models/api.py) is the shared page contract:
 
 ```python
-T = TypeVar("T")
-
-
 class CursorPage(BaseModel, Generic[T]):
+    """Opaque-cursor page for a stable server-ordered resource collection."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
     items: list[T]
-    next_cursor: str | None
+    next_cursor: str | None = Field(default=None, min_length=1)
     has_more: bool
 ```
 
-Do not expose total counts by default when calculating them would make ordinary navigation expensive. Endpoints that can provide a cheap/meaningful count may add it explicitly.
+A model validator rejects any page whose `has_more` and `next_cursor` disagree, so a client never sees a
+truthy `has_more` without a cursor to follow. The cursor itself is opaque and keyset-based: it encodes the
+resource scope, the last row's sort values, and the last row's ID, never an offset.
 
-Filtering/search/sorting is performed server-side. Review-oriented filters should include, where applicable:
+No list response carries a total count. Calculating one would make ordinary navigation expensive, and
+absent counts keep the contract honest while a snapshot is still being reviewed.
 
-- final/canonical label;
-- certainty tier;
-- agreement tier;
-- reviewed/unreviewed/deferred state;
-- authority-vs-ensemble disagreement;
-- selected method result;
-- prediction status/errors;
-- text search over names/identifiers.
+Filtering, search, and sorting are performed server-side. `ReviewItemQuery` in
+[`gendertagger.models.review`](../src/gendertagger/models/review.py) defines the review-oriented filters:
 
-List responses should include enough summary data to render a table/card list without one detail request per row. Keep large raw outputs on detail endpoints.
+| Field | Meaning |
+|---|---|
+| `aggregation_id` | Required; scopes the query to one completed aggregation |
+| `final_label` | Canonical label after human override |
+| `certainty_tier` | Reference certainty of the aggregated result |
+| `agreement_tier` | Categorical agreement among answering methods |
+| `workflow_state` | `unreviewed`, `reviewed`, or `deferred` |
+| `has_authority_conflict` | Authority-vs-ensemble disagreement |
+| `method_name` | Selects the method projected as `selected_method_result` |
+| `method_label` | Label of that method; requires `method_name` |
+| `prediction_status` | `success`, `abstain`, or `error` for that method; requires `method_name` |
+| `has_prediction_error` | Any selected method failed technically |
+| `q` | Text search over `tei_id`, surname, forenames, alternate names, and external IDs |
+| `sort` | `uncertainty` (default) or `tei_id` |
+| `limit`, `cursor` | Pagination controls |
+
+List responses include enough summary data to render a table or card list without one detail request per row. Large raw outputs stay on detail endpoints.
 
 ## Review items
 

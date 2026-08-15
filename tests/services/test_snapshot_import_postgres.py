@@ -23,7 +23,7 @@ from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.models.artifact import ArtifactCreate
 from gendertagger.models.dispatch import SnapshotDispatch, SnapshotDispatchCreate
 from gendertagger.models.lifecycle import DatasetSnapshotStatus
-from gendertagger.models.person import PersonInput
+from gendertagger.models.person import ImportedPerson
 from gendertagger.models.project import (
     DatasetSnapshot,
     DatasetSnapshotCreate,
@@ -369,7 +369,7 @@ def test_concurrent_snapshot_import_deliveries_claim_and_write_exactly_once(
     person_write_calls: list[tuple[str, tuple[str, ...]]] = []
     competitor_backend_pids: list[int] = []
     original_claim = SqlAlchemyProjectRepository.claim_snapshot_import
-    original_add_people = SqlAlchemyProjectRepository.add_person_records
+    original_add_people = SqlAlchemyProjectRepository.add_imported_person_records
 
     def observed_claim(
         repository: SqlAlchemyProjectRepository,
@@ -389,14 +389,14 @@ def test_concurrent_snapshot_import_deliveries_claim_and_write_exactly_once(
     def pause_after_first_person_write(
         repository: SqlAlchemyProjectRepository,
         requested_snapshot_id: UUID,
-        people: Sequence[PersonInput],
+        people: Sequence[ImportedPerson],
     ) -> int:
         added = original_add_people(repository, requested_snapshot_id, people)
         with observation_lock:
             person_write_calls.append(
                 (
                     current_thread().name,
-                    tuple(person.tei_id for person in people),
+                    tuple(imported.person.tei_id for imported in people),
                 )
             )
             is_first_write = len(person_write_calls) == 1
@@ -414,7 +414,7 @@ def test_concurrent_snapshot_import_deliveries_claim_and_write_exactly_once(
     )
     monkeypatch.setattr(
         SqlAlchemyProjectRepository,
-        "add_person_records",
+        "add_imported_person_records",
         pause_after_first_person_write,
     )
 

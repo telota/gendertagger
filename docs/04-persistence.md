@@ -5,7 +5,10 @@
 PostgreSQL is the durable source of truth for application state, scientific results, annotation history, and provenance metadata.
 Redis is not durable scientific storage.
 
-Use SQLAlchemy 2.x and Alembic from the first schema revision.
+Persistence is implemented with SQLAlchemy 2.x declarative mappings under `gendertagger.db` and
+Alembic migrations. The schema ships as a single baseline revision,
+`migrations/versions/20260815_0001_baseline.py`, and `gendertagger.db.session` refuses any engine or
+session whose dialect is not PostgreSQL.
 
 ## Transaction and repository boundaries
 
@@ -19,26 +22,22 @@ contracts or explicit scalar identifiers, never SQLAlchemy rows. The implementat
 perform the row/contract mapping and may use SQLAlchemy internally. Services receive a unit-of-work factory so
 tests and non-HTTP entry points use the same transaction semantics.
 
-## Suggested tables
+## Tables
 
-- `projects`
-- `dataset_snapshots`
-- `snapshot_source_members`
-- `person_records`
-- `person_external_ids`
-- `runs`
-- `method_executions`
-- `predictions`
-- `aggregation_executions`
-- `aggregated_results`
-- `annotations`
-- `review_states`
-- `users`
-- `evaluations`
-- `artifacts`
-- `task_batches`
-- `batch_dispatches` (generic transactional outbox with typed task-batch, aggregation, and snapshot owners)
-- optional `method_cache_entries`
+The baseline revision creates exactly the 21 tables mapped under `gendertagger.db`:
+
+- projects and ingestion (`db/projects.py`): `projects`, `dataset_snapshots`,
+  `snapshot_source_members`, `person_records`, `person_external_ids`;
+- execution (`db/executions.py`): `runs`, `method_executions`, `task_batches`, `predictions`;
+- aggregation (`db/aggregations.py`): `aggregation_executions`, `aggregation_method_executions`,
+  `aggregated_results`;
+- evaluation (`db/evaluations.py`): `evaluation_executions`, `evaluation_method_executions`;
+- export (`db/exports.py`): `export_executions`;
+- review (`db/reviews.py`): `users`, `user_roles`, `annotations`, `review_states`;
+- artifacts (`db/artifacts.py`): `artifacts`;
+- dispatch (`db/dispatches.py`): `batch_dispatches`, the generic transactional outbox whose typed
+  owners are task batches, aggregation executions, dataset snapshots, evaluation executions, and
+  exports.
 
 ## Key constraints
 
@@ -46,30 +45,32 @@ tests and non-HTTP entry points use the same transaction semantics.
 
 - `projects.slug` unique.
 - `dataset_snapshots` immutable when status becomes `ready`.
-- unique `(dataset_snapshot_id, tei_id)` for person records.
-- retain `(project_id, tei_id)` as the cross-snapshot canonical identity lookup.
+- unique `(dataset_snapshot_id, tei_id)` for person records, plus a unique `(id, dataset_snapshot_id)`
+  key that the review tables reference compositely.
+- the cross-snapshot logical identity `(project_id, tei_id)` resolves through
+  `dataset_snapshots.project_id`; `person_records` carries no denormalized project column.
 
 `person_records` retains ordinary columns for the stable `surname`, `forenames`, and `alt_names` projections
 used by methods and browser search. It also has JSONB `events` and a nullable JSONB `name_forms` column for the
 ordered, Pydantic-validated source structures defined by
-[ADR-0017](decisions/ADR-0017-structured-tei-person-name-forms.md). A database check should require a JSON array
-when the column is non-null. Null means the legacy import profile did not capture the structure. A v2 value is
+[ADR-0017](decisions/ADR-0017-structured-tei-person-name-forms.md). The `name_forms_array` check
+requires a JSON array whenever the column is non-null, and `events_array` requires one
+unconditionally. Null means the legacy import profile did not capture the structure. A v2 value is
 a populated array with exactly one regular form, and v3 retains that contract. The repository rejects non-null
 forms for a v1 TEI snapshot and missing forms for a v2, v3, or tabular snapshot. It also requires empty events
 for TEI v1 and v2 while permitting the event-aware v3 and tabular profiles, so alternate application callers
 cannot persist profile/projection provenance that disagrees.
 
-For a complete modern import config, the repository resolves the canonical parser, collection, and packaging
+For a complete import config, the repository resolves the canonical parser, collection, and packaging
 version through the same closed importer registry used at acceptance and requires an exact `parser_version`
-match before source-member or completion persistence. The legacy profile-only shape remains limited to v1 and
-v2 and is checked against its historical TEI parser version. This prevents alternate repository callers from
+match before source-member or completion persistence. This prevents alternate repository callers from
 combining a profile with misleading implementation provenance.
 
-Every newly imported PersonRecord stores `source_member_name` and `source_record_locator` together. The
+Every imported PersonRecord stores non-null `source_member_name` and `source_record_locator` together. The
 repository verifies that a loose or single named member belongs to the snapshot; for archive packaging it
 verifies the snapshot's one exact source container and accepts the package reader's validated internal member
-name. The record locator then identifies the person within that member. PostgreSQL rejects half-populated
-provenance. Existing rows may retain both columns as null. Ready-snapshot mutation protection covers these
+name. The record locator then identifies the person within that member. Non-blank constraints and non-null
+columns ensure complete source provenance. Ready-snapshot mutation protection covers these
 source structures and locators together with the stable flat fields.
 
 The migration adding `name_forms` does not backfill ready snapshots. Flat alternative-name strings cannot
@@ -104,24 +105,25 @@ worker holds its claim, then see one atomic transition to `ready` or, after roll
 
 ### Predictions
 
-Recommended uniqueness:
+`predictions` is unique on:
 
 ```text
 (method_execution_id, person_record_id)
 ```
 
-if exactly one result per person/execution is expected.
+so one method execution holds at most one result per person.
 
-Prediction records should include:
+Each row stores:
 
-- normalized label
-- status
-- method_confidence
-- raw_label
-- raw_output JSONB
-- metadata JSONB
-- input fingerprint
-- created_at
+- normalized `label`, which `status_label_consistent` requires to be present for `success` and absent
+  for `abstain` and `error`
+- `status`
+- `method_confidence`, rejected when it is `NaN` or infinite
+- `raw_label`
+- `raw_output` JSONB
+- `metadata` JSONB
+- `input_fingerprint`, constrained to 64 lowercase hex characters
+- `created_at`
 
 Every Prediction belongs to one persisted TaskBatch; `task_batch_id` is required rather than optional
 provenance. Prediction insertion locks the target TaskBatch and validates its owning Run and MethodExecution.
@@ -179,12 +181,15 @@ while work was active.
 
 ### Transactional dispatch outbox
 
-One outbox row belongs to exactly one durable work target. Storage has nullable `task_batch_id`,
-`aggregation_execution_id`, and `dataset_snapshot_id` foreign keys with:
+One outbox row belongs to exactly one durable work target. `batch_dispatches` has five nullable
+`ON DELETE RESTRICT` foreign keys - `task_batch_id`, `aggregation_execution_id`,
+`dataset_snapshot_id`, `evaluation_execution_id`, and `export_id`, the last pointing at
+`export_executions.id` - with:
 
-- an exactly-one-owner check;
-- a unique constraint for each non-null owner;
-- a dispatch kind consistent with the selected owner and validated payload;
+- the `exactly_one_target` check, `num_nonnulls(...) = 1` over all five owner columns;
+- a unique constraint per owner column, so a target never has two outbox rows;
+- a `DispatchTarget` kind consistent with the selected owner and payload, enforced by the
+  discriminated-union create contracts in `gendertagger.models.dispatch`;
 - explicit `pending`/`published` state, availability time, attempt count, relay lease, publication time, and
   sanitized last-error diagnostic.
 
@@ -197,32 +202,44 @@ metadata without owning scientific results. Reconciliation locks both dispatch a
 
 ### Annotations
 
-Annotations are append-only. Store:
+`annotations` is append-only: the `trg_annotations_append_only` trigger rejects every UPDATE and
+DELETE. Each row stores:
 
-- person canonical/project reference and snapshot context
-- label/decision
-- reviewer
-- comment/reason where supplied
-- referenced aggregation/result
-- supersedes_annotation_id where applicable
-- resulting review revision
-- timestamps
+- `dataset_snapshot_id` and `person_record_id`, bound together by a composite foreign key to the
+  `(id, dataset_snapshot_id)` key on `person_records`, so an annotation cannot name a person from a
+  different snapshot;
+- `action` (`verify`, `correct`, `defer`) and `label`, kept consistent by `action_label_consistent`:
+  verify and correct carry a canonical label, defer carries none;
+- `reviewer_user_id`;
+- `comment` where supplied;
+- `aggregated_result_id` where the decision references one;
+- `supersedes_annotation_id`, which `does_not_supersede_self` forbids from pointing at the row itself;
+- `resulting_revision`, positive and unique per `(dataset_snapshot_id, person_record_id)` through the
+  `review_stream_revision` constraint;
+- `created_at`.
 
 ### Review state and optimistic concurrency
 
-Use a small mutable `review_states` projection keyed by the snapshot/person record, for example:
+`review_states` is a small mutable projection whose composite primary key is the snapshot/person
+record:
 
 ```text
-(dataset_snapshot_id, person_record_id) UNIQUE
+PRIMARY KEY (dataset_snapshot_id, person_record_id)
 revision NOT NULL
 current_annotation_id NULLABLE
 workflow_state NOT NULL
 updated_at NOT NULL
 ```
 
+It carries the same composite foreign key to `person_records (id, dataset_snapshot_id)` as
+`annotations`, and `revision_head_consistent` ties its mutable fields together: revision `0` means no
+head and `unreviewed`, while any higher revision means a non-null head and either `reviewed` or
+`deferred`.
+
 Creating an annotation is one database transaction:
 
-1. lock/load the ReviewState row;
+1. lock the person record and its ReviewState row with `SELECT ... FOR UPDATE`, inserting a
+   revision-0 state when none exists yet;
 2. compare the command's `expected_revision`;
 3. fail with an application-level conflict if it is stale;
 4. insert the immutable Annotation;
@@ -233,17 +250,23 @@ ReviewState is a query/concurrency projection and must be rebuildable from annot
 
 ### Query indexes for browser review
 
-Add indexes based on actual query plans, but expect the review API to need indexed/filterable fields for:
+The review query in `gendertagger.db.review_repository` filters and orders on ordinary indexed
+columns:
 
-- snapshot/person identity;
-- canonical/final label;
-- certainty/agreement tiers;
-- review workflow state;
-- current reviewer/head where useful;
-- method execution/result/status;
-- name/identifier search.
+- snapshot/person identity, via the `(dataset_snapshot_id, tei_id)` unique key and
+  `ix_person_records_dataset_snapshot_id_surname`;
+- canonical/final label and aggregation outcome, via `ix_aggregated_results_person_record_id_outcome`;
+- certainty and agreement tiers, via `ix_aggregated_results_aggregation_execution_id_certainty_tier`
+  and `ix_aggregated_results_aggregation_execution_id_agreement_tier`;
+- review workflow state, via `ix_review_states_workflow_state_updated_at`;
+- reviewer and annotation head, via `ix_annotations_reviewer_user_id_created_at` and
+  `ix_annotations_person_record_id_created_at`;
+- selected method execution, prediction label, and prediction status, via
+  `ix_predictions_method_execution_id_status` and `ix_predictions_person_record_id_status`;
+- name and identifier search over `tei_id`, `surname`, `forenames`, `alt_names`, and
+  `person_external_ids.value`, via `ix_person_external_ids_scheme_value`.
 
-Do not move these frequently queried fields into JSONB merely to avoid schema design.
+Further indexes follow actual query plans. These frequently queried fields stay out of JSONB.
 
 ## JSONB policy
 
@@ -253,17 +276,21 @@ states, IDs, timestamps, agreement values, or the flat name-search projection in
 
 ## Artifact storage
 
-Store bytes outside PostgreSQL initially. Each `Artifact` record contains:
+Artifact bytes live outside PostgreSQL. Each `artifacts` row contains:
 
 - logical type
 - storage URI/path
 - SHA-256 checksum
 - byte size
 - media type
-- source/producer IDs
-- metadata
+- nullable producer references: `project_id`, `dataset_snapshot_id`, `run_id`, `method_execution_id`,
+  `aggregation_execution_id`, `evaluation_execution_id`, `export_id`
+- `metadata` JSONB
 
-A filesystem backend is the v1 implementation. Define an interface that can later support S3-compatible storage without changing domain contracts.
+`gendertagger.services.artifact_storage.ArtifactStorage` is the boundary protocol - `store`, `open`,
+and `materialize` - and `gendertagger.storage.local.LocalArtifactStorage` is the v1 filesystem
+backend, so domain contracts never see a filesystem path. Rows are immutable: `trg_artifacts_immutable`
+rejects UPDATE and DELETE.
 
 Large method lookup datasets remain artifacts rather than application tables. Wiki-Gendersort, HIVOTO, and
 GND use separate immutable SQLite files compiled from retained source artifacts; PostgreSQL stores their
@@ -272,18 +299,18 @@ to a local read-only path. This keeps retained authority revisions out of applic
 while preserving exact method-data provenance. See
 [ADR-0023](decisions/ADR-0023-content-addressed-sqlite-method-lookups.md).
 
-
 ## Caching
 
-Caches are optimizations, not truth.
-A scientific method cache key must include at least:
+Caches are optimizations, not truth. No cache table exists, and run execution computes and persists
+every Prediction with its own Run-local provenance.
+
+The only cache is in-process. `gendertagger.services.classification.DirectClassificationService`
+keeps a bounded LRU, `DEFAULT_CACHE_MAX_SIZE = 50_000`, keyed by
 
 ```text
-method identifier
-method implementation/version
-model/data revision
-resolved method configuration
-normalized scientific input fingerprint
+(method name, resolved method configuration serialized as JSON, input name)
 ```
 
-Cache hits must still create Run-local Prediction provenance pointing to the cached computation.
+and serves the synchronous `POST /classify` endpoint only. It is per-process, never persisted, and
+never a substitute for Prediction rows. A durable cross-run method cache is described in
+[`22-future-development.md`](22-future-development.md).

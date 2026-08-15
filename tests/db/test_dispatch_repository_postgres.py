@@ -17,6 +17,7 @@ from gendertagger.db.executions import TaskBatchRow
 from gendertagger.db.project_repository import SqlAlchemyProjectRepository
 from gendertagger.db.projects import DatasetSnapshotRow
 from gendertagger.db.run_repository import SqlAlchemyRunRepository
+from gendertagger.ingestion.registry import version_for_snapshot_import
 from gendertagger.models.aggregation import AggregationTaskMessage
 from gendertagger.models.artifact import ArtifactCreate
 from gendertagger.models.dispatch import (
@@ -27,12 +28,15 @@ from gendertagger.models.dispatch import (
 )
 from gendertagger.models.lifecycle import AggregationExecutionStatus
 from gendertagger.models.method import MethodDescriptor
-from gendertagger.models.person import PersonInput
+from gendertagger.models.person import ImportedPerson, PersonInput
 from gendertagger.models.project import (
     DatasetSnapshot,
     DatasetSnapshotCreate,
     ProjectCreate,
+    SnapshotImportConfig,
+    SnapshotImportLimits,
     SnapshotImportTaskMessage,
+    SnapshotSourceMemberCreate,
 )
 from gendertagger.models.run import (
     MethodExecution,
@@ -57,16 +61,6 @@ def _execution_context(
     scheduled: bool = False,
 ) -> tuple[SqlAlchemyRunRepository, Run, MethodExecution, TaskBatch]:
     now = datetime.now(UTC)
-    artifacts = SqlAlchemyArtifactRepository(session)
-    source = artifacts.add_artifact(
-        ArtifactCreate(
-            logical_type="source_tei",
-            storage_uri=f"file:///synthetic/dispatch-{uuid4().hex}.xml",
-            sha256=uuid4().hex * 2,
-            byte_size=1,
-            media_type="application/xml",
-        )
-    )
     projects = SqlAlchemyProjectRepository(session)
     project = projects.add_project(
         ProjectCreate(
@@ -74,19 +68,55 @@ def _execution_context(
             display_name="Dispatch repository project",
         )
     )
+    artifacts = SqlAlchemyArtifactRepository(session)
+    source = artifacts.add_artifact(
+        ArtifactCreate(
+            logical_type="source_tei",
+            storage_uri=f"local-sha256:{uuid4().hex}",
+            sha256=uuid4().hex * 2,
+            byte_size=1,
+            media_type="application/xml",
+            project_id=project.id,
+        )
+    )
+    import_config = SnapshotImportConfig(limits=SnapshotImportLimits())
     snapshot = projects.add_snapshot(
         DatasetSnapshotCreate(
             project_id=project.id,
             source_artifact_id=source.id,
             source_sha256=source.sha256,
-            parser_version="tei_parser_v1",
-            import_config={"profile": "tei_p5_person_register_v1"},
+            parser_version=version_for_snapshot_import(import_config),
+            import_config=import_config.model_dump(mode="json"),
         )
     )
-    projects.begin_snapshot_import(snapshot.id)
-    projects.add_person_records(
+    projects.add_snapshot_source_members(
         snapshot.id,
-        [PersonInput(tei_id="p1"), PersonInput(tei_id="p2")],
+        [
+            SnapshotSourceMemberCreate(
+                artifact_id=source.id,
+                ordinal=0,
+                logical_name="source.xml",
+                sha256=source.sha256,
+                byte_size=source.byte_size,
+                media_type=source.media_type,
+            )
+        ],
+    )
+    projects.begin_snapshot_import(snapshot.id)
+    projects.add_imported_person_records(
+        snapshot.id,
+        [
+            ImportedPerson(
+                person=PersonInput(tei_id="p1"),
+                source_member_name="source.xml",
+                source_record_locator="1",
+            ),
+            ImportedPerson(
+                person=PersonInput(tei_id="p2"),
+                source_member_name="source.xml",
+                source_record_locator="2",
+            ),
+        ],
     )
     projects.complete_snapshot_import(snapshot.id, ready_at=now)
 

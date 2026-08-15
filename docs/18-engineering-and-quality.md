@@ -152,4 +152,6 @@ tool caches are never traversed. It validates local links offline; external-link
 not a merge-request gate. `scripts/check_contract_naming.py` is restricted to annotated canonical/config model
 fields, leaving ordinary local naming to Ruff and review.
 `scripts/check_package_initializers.py` keeps imports and behavior in defining modules rather than hiding them
-behind package import side effects.
+behind package import side effects. `scripts/check_dead_code.py` prevents orphan symbols and dead code from
+accumulating in `src/gendertagger`.
+

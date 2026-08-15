@@ -16,6 +16,7 @@ from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.domain.aggregation import REFERENCE_REQUIRED_METHODS
+from gendertagger.ingestion.registry import version_for_snapshot_import
 from gendertagger.models.aggregation import (
     AggregationTaskMessage,
 )
@@ -27,8 +28,14 @@ from gendertagger.models.classification import (
 )
 from gendertagger.models.lifecycle import AggregationExecutionStatus, TaskBatchStatus
 from gendertagger.models.method import MethodDescriptor
-from gendertagger.models.person import PersonInput
-from gendertagger.models.project import DatasetSnapshotCreate, ProjectCreate
+from gendertagger.models.person import ImportedPerson, PersonInput
+from gendertagger.models.project import (
+    DatasetSnapshotCreate,
+    ProjectCreate,
+    SnapshotImportConfig,
+    SnapshotImportLimits,
+    SnapshotSourceMemberCreate,
+)
 from gendertagger.models.run import (
     MethodExecutionCreate,
     PredictionWrite,
@@ -42,9 +49,9 @@ from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 
 DATABASE_URL = "postgresql+psycopg://unused:unused@localhost/unused"
-CODE_GIT_COMMIT = "c" * 40
-DEPENDENCY_LOCK_SHA256 = "d" * 64
-NOW = datetime(2026, 8, 13, 10, 0, tzinfo=UTC)
+CODE_GIT_COMMIT = "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b"
+DEPENDENCY_LOCK_SHA256 = "b" * 64
+NOW = datetime(2026, 8, 14, 18, 0, tzinfo=UTC)
 
 
 class StaticAuthenticationBackend(AuthenticationBackend):
@@ -77,6 +84,12 @@ def _seed_completed_reference_executions(
         user = unit_of_work.users.add_user(
             UserCreate(display_name="Aggregation operator", roles={Role.operator})
         )
+        project = unit_of_work.projects.add_project(
+            ProjectCreate(
+                slug=f"aggregation-{uuid4().hex}",
+                display_name="Aggregation fixture",
+            )
+        )
         artifact = unit_of_work.artifacts.add_artifact(
             ArtifactCreate(
                 logical_type="source_tei",
@@ -84,29 +97,46 @@ def _seed_completed_reference_executions(
                 sha256="a" * 64,
                 byte_size=1,
                 media_type="application/tei+xml",
+                project_id=project.id,
             )
         )
-        project = unit_of_work.projects.add_project(
-            ProjectCreate(
-                slug=f"aggregation-{uuid4().hex}",
-                display_name="Aggregation fixture",
-            )
-        )
+        import_config = SnapshotImportConfig(limits=SnapshotImportLimits())
         snapshot = unit_of_work.projects.add_snapshot(
             DatasetSnapshotCreate(
                 project_id=project.id,
                 source_artifact_id=artifact.id,
                 source_sha256=artifact.sha256,
-                parser_version="tei_parser_v1",
-                import_config={"profile": "tei_p5_person_register_v1"},
+                parser_version=version_for_snapshot_import(import_config),
+                import_config=import_config.model_dump(mode="json"),
             )
         )
-        unit_of_work.projects.begin_snapshot_import(snapshot.id)
-        unit_of_work.projects.add_person_records(
+        unit_of_work.projects.add_snapshot_source_members(
             snapshot.id,
             [
-                PersonInput(tei_id="p1", surname="Example"),
-                PersonInput(tei_id="p2", surname="Second"),
+                SnapshotSourceMemberCreate(
+                    artifact_id=artifact.id,
+                    ordinal=0,
+                    logical_name="source.xml",
+                    sha256=artifact.sha256,
+                    byte_size=artifact.byte_size,
+                    media_type=artifact.media_type,
+                )
+            ],
+        )
+        unit_of_work.projects.begin_snapshot_import(snapshot.id)
+        unit_of_work.projects.add_imported_person_records(
+            snapshot.id,
+            [
+                ImportedPerson(
+                    person=PersonInput(tei_id="p1", surname="Example"),
+                    source_member_name="source.xml",
+                    source_record_locator="1",
+                ),
+                ImportedPerson(
+                    person=PersonInput(tei_id="p2", surname="Second"),
+                    source_member_name="source.xml",
+                    source_record_locator="2",
+                ),
             ],
         )
         unit_of_work.projects.complete_snapshot_import(snapshot.id, ready_at=NOW)

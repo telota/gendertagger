@@ -2,30 +2,59 @@
 
 ## Stack
 
-Celery with Redis as broker/result coordination. Durable scientific results are written to PostgreSQL/artifact storage, not Celery result backend.
+`gendertagger.tasks.celery_app` builds the Celery application over a Redis broker. The result
+backend stays disabled unless `GENDERTAGGER_CELERY_RESULT_BACKEND` is set, because durable
+scientific results live in PostgreSQL and artifact storage rather than in Celery. The application
+accepts JSON only, acknowledges tasks late, rejects on worker loss, and prefetches one message per
+worker process, so a crash redelivers at most one in-flight batch to an idempotent task.
 
 ## Queues
 
-Initial routing classes:
+`gendertagger.models.queues` defines six routing classes in `CLASSIFICATION_QUEUES`, and the Celery
+application declares exactly those as its `task_queues` with `default` as `task_default_queue`:
 
-- `default`: lightweight orchestration
-- `cpu`: dictionaries, rules, statistical CPU work, parsing, aggregation/evaluation
-- `gpu`: Transformer/ML inference that benefits from GPU
-- `llm`: locally hosted LLM requests if isolation/concurrency control is useful
-- `external`: future rate-limited external services
-- `export`: larger export/report jobs if needed
+| Queue | Constant | Purpose | Consumer service |
+| --- | --- | --- | --- |
+| `default` | `DEFAULT_QUEUE` | lightweight orchestration | `worker-cpu` |
+| `cpu` | `CPU_QUEUE` | dictionaries, rules, statistical CPU work, parsing, aggregation, evaluation, export | `worker-cpu` |
+| `gpu` | `GPU_QUEUE` | Transformer/ML inference that benefits from a GPU | `worker-gpu` (profile `gpu`) |
+| `llm` | `LLM_QUEUE` | locally hosted LLM requests needing isolation or concurrency control | `worker-llm` (profile `llm`) |
+| `external` | `EXTERNAL_QUEUE` | rate-limited external services | `worker-external` (profile `external`) |
+| `export` | `EXPORT_QUEUE` | larger export and report jobs | `worker-cpu` |
 
-Do not create a queue per method unless operational evidence justifies it.
+`worker-cpu` runs `celery -A gendertagger.tasks.celery_app worker -Q default,cpu,export`, so the
+`export` class is consumed by the same process that serves `default` and `cpu`. The reference
+method registry (`services/method_registry.py`) routes nine adapters to `cpu` and `local_llm` to
+`llm`; snapshot-import, aggregation, evaluation, and export dispatches are pinned to `cpu` and the
+dispatch repository rejects any other queue for them.
+
+Methods are routed to one of these classes, never to a per-method queue. Do not create a queue per
+method unless operational evidence justifies it.
+
+## Registered tasks and dispatch targets
+
+Five Celery tasks are registered, one per `DispatchTarget` value in `gendertagger.models.dispatch`:
+
+| `DispatchTarget` | Celery task name | Module | Envelope fields |
+| --- | --- | --- | --- |
+| `task_batch` | `gendertagger.tasks.execute_batch` | `tasks/execution.py` | `method_execution_id`, `task_batch_id` |
+| `aggregation_execution` | `gendertagger.tasks.execute_aggregation` | `tasks/aggregation.py` | `aggregation_execution_id` |
+| `dataset_snapshot` | `gendertagger.tasks.execute_snapshot_import` | `tasks/snapshot_import.py` | `dataset_snapshot_id` |
+| `evaluation_execution` | `gendertagger.tasks.execute_evaluation` | `tasks/evaluation.py` | `evaluation_execution_id` |
+| `export` | `gendertagger.tasks.execute_export` | `tasks/export.py` | `export_id` |
+
+`CeleryMessagePublisher` (`tasks/dispatch.py`) is the closed mapping from a validated envelope to
+its task name, queue, and broker task ID. The broker task ID is always the target's own identifier,
+and a payload whose identifier disagrees with the dispatch is rejected before publication.
+`BatchDispatchStatus` has exactly two values, `pending` and `published`.
 
 ## Batch model
 
-A MethodExecution is divided into persisted TaskBatches.
-Batch sizes are method/resource-specific configuration rather than global constants.
-
-Initial tuning ranges, not normative values:
-
-- CPU lookup/rule work: ~100–500 records per batch
-- GPU inference: ~32–256 records per batch depending on model/memory
+A MethodExecution is divided into persisted TaskBatches. `MethodRegistration.batch_size` is
+per-adapter registration data rather than a global constant, and each `TaskBatch` persists the
+deterministic slice it covers as `record_offset` and `record_count`. Every adapter in the reference
+registry registers the same `_CPU_BATCH_SIZE` of 200 records per batch. Resource-class-specific
+tuning is discussed in [`22-future-development.md`](22-future-development.md).
 
 ## Transactional dispatch handoff
 

@@ -101,7 +101,7 @@ class LookupCompiler(Protocol):
         source_version: str | None = None,
     ) -> int:
         """Return the number of compiled lookup records."""
-        raise NotImplementedError
+        ...
 
 
 class AssetCliSettings(BaseSettings):

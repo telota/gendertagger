@@ -1,6 +1,12 @@
 # Methods, normalization, aggregation, and certainty
 
-This document is **normative for the reference pipeline**. The infrastructure may support additional strategies later, but the first implementation must reproduce this behavior before extending it.
+This document is **normative for the reference pipeline**. `reference_v1` is the only member of
+`AggregationStrategy` in [`gendertagger.config.run`](../src/gendertagger/config/run.py), and the
+behavior described here is what
+[`gendertagger.domain.aggregation`](../src/gendertagger/domain/aggregation.py) and
+[`gendertagger.domain.aggregation_assessment`](../src/gendertagger/domain/aggregation_assessment.py)
+execute. Candidate alternative strategies are collected in
+[`22-future-development.md`](22-future-development.md).
 
 ## Canonical labels
 
@@ -34,17 +40,26 @@ Nine enter the published aggregation. HIVOTO-XGBoost is held out as an experimen
 
 ## Inputs
 
-The flattened TEI person representation includes where available:
+`PersonInput` in [`gendertagger.models.person`](../src/gendertagger/models/person.py) carries, where
+available:
 
-- `xml:id`
+- `tei_id` (the source `xml:id`)
 - surname
 - forename(s)
 - birth/death information
 - free-text biographical note
+- biographical events
 - alternative names
+- the ordered direct TEI `persName` forms, when the import profile captured them
 - GND identifier
+- further external identifiers
 
-Name-only methods use the minimum fields they require. The local LLM may receive the full register entry/context according to method configuration.
+Name-only methods use the minimum fields they require. Every name-based classifier
+(`gender_guesser`, `wiki_gendersort`, `hivoto`, `nomquamgender`, `hf_distilbert`, `hf_genderize`, and
+the experimental `hivoto_xgboost`) reads only `forenames`; the GND adapter reads only `gnd_id`; the
+parenthetical-qualifier rule reads `surname`, `forenames`, and `note`. The local LLM prompt carries
+the complete entry — identifier, name forms, life dates, note, events, GND identifier, and external
+identifiers.
 
 ### Versioned lookup data
 
@@ -54,6 +69,10 @@ together with the method-specific logical artifact type and records the resultin
 MethodExecution. Direct filesystem paths are not scientific configuration. Workers materialize and validate
 the selected artifact locally, open it read-only, and bulk-resolve a task batch without external network
 access. See [ADR-0023](decisions/ADR-0023-content-addressed-sqlite-method-lookups.md).
+
+The two Hugging Face transformer adapters and the experimental HIVOTO-XGBoost adapter select
+content-addressed multi-file model manifests through the same `lookup_sha256` field and the same
+scheduling path. See [ADR-0024](decisions/ADR-0024-hf-transformer-model-manifest-adapters.md).
 
 The GND lookup preserves source gender and entity-type evidence. No input GND ID or no matching row abstains
 as `no_gnd`; a corporate body emits `organisation`; a person emits the stable male/female lookup label when
@@ -97,7 +116,7 @@ The reference profiles are:
 | parenthetical qualifier | `parenthetical_qualifier_v1` | canonical male/female/unknown/institution values |
 | GND | `gnd_v1` | `Männlich`/`Weiblich`; `Unbekannt`; `organisation` |
 | gender-guesser | `gender_guesser_v1` | `mostly_*`; `andy`; `conflict` |
-| Wiki-Gendersort | `wiki_gendersort_v1` | `M`/`F`; `UNI`/`unisex`; `UNK`; `INI` abstains |
+| Wiki-Gendersort | `wiki_gendersort_v1` | `M`/`F`; `UNI`/`unisex`; `UNK`; `conflict`; native `INI` becomes `no_name` and abstains |
 | HIVOTO | `hivoto_v1` | `mostly_*`; `andy`; `conflict` |
 | nomquamgender | `nomquamgender_v1` | `uncertain`; `conflict` |
 | HF DistilBERT | `hf_distilbert_v1` | label/index 0 is male and 1 is female; `conflict` |
@@ -119,12 +138,12 @@ The aggregation is three-step:
 
 ### Included methods
 
-Two signals are authority overrides:
+Two signals are authority overrides (`REFERENCE_AUTHORITY_METHODS`):
 
-1. parenthetical-qualifier rule
-2. GND lookup
+1. parenthetical-qualifier rule (`parenthetical_qualifier`)
+2. GND lookup (`gnd`)
 
-The remaining seven published methods enter an unweighted vote:
+The remaining seven published methods enter an unweighted vote (`REFERENCE_POOLED_METHODS`):
 
 - gender-guesser
 - Wiki-Gendersort
@@ -134,7 +153,7 @@ The remaining seven published methods enter an unweighted vote:
 - HF BERT-genderize
 - local LLM
 
-The experimental HIVOTO-XGBoost does not enter the reference vote.
+The experimental HIVOTO-XGBoost does not enter the reference vote (`REFERENCE_IGNORED_METHODS`).
 
 `reference_v1` requires a result envelope for both override methods and all seven pooled methods. Persisted
 `abstain` and `error` results satisfy that completeness requirement but cast no vote. A missing required method
@@ -204,8 +223,9 @@ An unresolved substantive tie retains the maximum vote share as its score but is
 An authority override records the share of comparison methods agreeing with it. With no comparator, its score
 is 1.0 and its tier is `single_rater`, not `unanimous`. A no-data result has a null score and `no_answer`.
 
-Pairwise Cohen's kappa remains a Phase 6 evaluation metric over records where both methods provide successful
-answers; it is not part of the per-record aggregation result.
+Pairwise Cohen's kappa is an evaluation metric, implemented in
+[`gendertagger.evaluation.kappa`](../src/gendertagger/evaluation/kappa.py) over records where both
+methods provide successful answers; it is not part of the per-record aggregation result.
 
 ## Pipeline certainty tiers
 
@@ -215,7 +235,7 @@ Reference tiers:
 - `low`: at least two pooled methods voted and agreement is >= 0.50;
 - `contested`: at least two pooled methods voted and agreement is < 0.50, or the vote is unresolved;
 - `single`: the local LLM is the only voter and reports typed self-certainty `high`;
-- `uncertain`: a lone local LLM reports `low`/`uncertain`, or any non-authority method is the lone voter;
+- `uncertain`: a lone local LLM reports `low`/`uncertain`, or any other pooled method is the lone voter;
 - `no_data`: no usable vote.
 
 A lone local-LLM result without valid self-reported certainty fails assessment rather than guessing. A lone
@@ -229,7 +249,9 @@ Disagreement/uncertainty is a primary triage signal. Human review does not rewri
 
 ## Versioning
 
-Aggregation behavior must have a stable strategy identifier and version. Any change to:
+Aggregation behavior carries a stable strategy identifier and version: `AggregationConfig.strategy`
+defaults to `reference_v1`, and the resolved strategy is part of the aggregation configuration hash.
+Any change to:
 
 - included methods
 - override priority
@@ -239,4 +261,4 @@ Aggregation behavior must have a stable strategy identifier and version. Any cha
 - thresholds
 - certainty mapping
 
-creates a new strategy version and should be documented in an ADR.
+creates a new strategy version and is documented in an ADR.

@@ -27,7 +27,6 @@ from gendertagger.db.run_repository import SqlAlchemyRunRepository
 from gendertagger.db.user_repository import SqlAlchemyUserRepository
 from gendertagger.domain.aggregation import REFERENCE_REQUIRED_METHODS
 from gendertagger.ingestion.registry import version_for_snapshot_import
-from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.models.aggregation import (
     AggregatedResult,
     AggregationExecutionCreate,
@@ -222,10 +221,6 @@ def test_person_records_require_fields_matching_the_snapshot_profile(
             display_name="Profile consistency fixture",
         )
     )
-    is_legacy_profile = profile in {
-        TeiImportProfile.tei_p5_person_register_v1,
-        TeiImportProfile.tei_p5_person_register_v2,
-    }
     source_format = (
         SourceFormat.csv if isinstance(profile, TabularImportProfile) else SourceFormat.tei
     )
@@ -237,17 +232,11 @@ def test_person_records_require_fields_matching_the_snapshot_profile(
             sha256="e" * 64,
             byte_size=42,
             media_type="text/csv" if source_format is SourceFormat.csv else "application/xml",
-            project_id=None if is_legacy_profile else project.id,
+            project_id=project.id,
         )
     )
-    import_config: dict[str, JsonValue]
-    if is_legacy_profile:
-        assert isinstance(profile, TeiImportProfile)
-        import_config = {"profile": profile.value}
-        parser_version = TeiPersonParser.version_for_profile(profile)
-    else:
-        import_config = modern_import_config(source_format=source_format, profile=profile)
-        parser_version = modern_parser_version(source_format=source_format, profile=profile)
+    import_config = modern_import_config(source_format=source_format, profile=profile)
+    parser_version = modern_parser_version(source_format=source_format, profile=profile)
     snapshot = projects.add_snapshot(
         DatasetSnapshotCreate(
             project_id=project.id,
@@ -257,10 +246,32 @@ def test_person_records_require_fields_matching_the_snapshot_profile(
             import_config=import_config,
         )
     )
+    projects.add_snapshot_source_members(
+        snapshot.id,
+        [
+            SnapshotSourceMemberCreate(
+                artifact_id=source_artifact.id,
+                ordinal=0,
+                logical_name="source.xml",
+                sha256=source_artifact.sha256,
+                byte_size=source_artifact.byte_size,
+                media_type=source_artifact.media_type,
+            )
+        ],
+    )
     projects.begin_snapshot_import(snapshot.id)
 
     with pytest.raises(InvalidResourceStateError, match=reason):
-        projects.add_person_records(snapshot.id, [person])
+        projects.add_imported_person_records(
+            snapshot.id,
+            [
+                ImportedPerson(
+                    person=person,
+                    source_member_name="source.xml",
+                    source_record_locator="1",
+                )
+            ],
+        )
 
     assert (
         db_session.scalar(
@@ -759,14 +770,18 @@ def test_source_members_and_imported_person_provenance_round_trip(db_session: Se
     assert projects.list_snapshot_source_members(snapshot.id) == persisted_members
 
     projects.begin_snapshot_import(snapshot.id)
-    with pytest.raises(InvalidResourceStateError, match="source-member provenance"):
-        projects.add_person_records(
+    with pytest.raises(InvalidResourceStateError, match="non-blank source_member_name"):
+        projects.add_imported_person_records(
             snapshot.id,
             [
-                PersonInput(
-                    tei_id="missing-provenance",
-                    surname="Missing",
-                    name_forms=[PersonNameForm(type=PersonNameType.regular, surname="Missing")],
+                ImportedPerson(
+                    person=PersonInput(
+                        tei_id="missing-provenance",
+                        surname="Missing",
+                        name_forms=[PersonNameForm(type=PersonNameType.regular, surname="Missing")],
+                    ),
+                    source_member_name="",
+                    source_record_locator="xml:id:missing-provenance",
                 )
             ],
         )
@@ -878,18 +893,6 @@ def test_source_members_and_imported_person_provenance_round_trip(db_session: Se
 
 def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> None:
     now = datetime.now(UTC)
-    artifacts = SqlAlchemyArtifactRepository(db_session)
-    source_artifact = artifacts.add_artifact(
-        ArtifactCreate(
-            logical_type="source_tei",
-            storage_uri="file:///synthetic/source.xml",
-            sha256="a" * 64,
-            byte_size=42,
-            media_type="application/xml",
-            metadata={"fixture": "synthetic"},
-        )
-    )
-
     projects = SqlAlchemyProjectRepository(db_session)
     project = projects.add_project(
         ProjectCreate(
@@ -897,47 +900,76 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
             display_name="Synthetic integration project",
         )
     )
+    artifacts = SqlAlchemyArtifactRepository(db_session)
+    source_artifact = artifacts.add_artifact(
+        ArtifactCreate(
+            logical_type="source_tei",
+            storage_uri="file:///synthetic/source.xml",
+            sha256="a" * 64,
+            byte_size=42,
+            media_type="application/tei+xml",
+            metadata={"fixture": "synthetic"},
+            project_id=project.id,
+        )
+    )
     snapshot = projects.add_snapshot(
         DatasetSnapshotCreate(
             project_id=project.id,
             source_artifact_id=source_artifact.id,
             source_sha256=source_artifact.sha256,
-            parser_version="tei_parser_v2",
-            import_config={"profile": "tei_p5_person_register_v2"},
+            parser_version=modern_parser_version(),
+            import_config=modern_import_config(),
         )
+    )
+    projects.add_snapshot_source_members(
+        snapshot.id,
+        [
+            SnapshotSourceMemberCreate(
+                artifact_id=source_artifact.id,
+                ordinal=0,
+                logical_name="source.xml",
+                sha256=source_artifact.sha256,
+                byte_size=source_artifact.byte_size,
+                media_type=source_artifact.media_type,
+            )
+        ],
     )
     projects.begin_snapshot_import(snapshot.id)
     assert (
-        projects.add_person_records(
+        projects.add_imported_person_records(
             snapshot.id,
             [
-                PersonInput(
-                    tei_id="p1",
-                    surname="Example",
-                    forenames=["Anna"],
-                    birth="1900",
-                    death="1980",
-                    note="Synthetic fixture",
-                    alt_names=["Earlier Annette", "A. Example"],
-                    name_forms=[
-                        PersonNameForm(
-                            type=PersonNameType.regular,
-                            surname="Example",
-                            forenames=["Anna"],
-                        ),
-                        PersonNameForm(
-                            type=PersonNameType.alternative,
-                            subtype="birthname",
-                            surname="Earlier",
-                            forenames=["Annette"],
-                        ),
-                        PersonNameForm(
-                            type=PersonNameType.alternative,
-                            name="A. Example",
-                        ),
-                    ],
-                    gnd_id="123456789",
-                    external_ids={"wikidata": "Q1"},
+                ImportedPerson(
+                    person=PersonInput(
+                        tei_id="p1",
+                        surname="Example",
+                        forenames=["Anna"],
+                        birth="1900",
+                        death="1980",
+                        note="Synthetic fixture",
+                        alt_names=["Earlier Annette", "A. Example"],
+                        name_forms=[
+                            PersonNameForm(
+                                type=PersonNameType.regular,
+                                surname="Example",
+                                forenames=["Anna"],
+                            ),
+                            PersonNameForm(
+                                type=PersonNameType.alternative,
+                                subtype="birthname",
+                                surname="Earlier",
+                                forenames=["Annette"],
+                            ),
+                            PersonNameForm(
+                                type=PersonNameType.alternative,
+                                name="A. Example",
+                            ),
+                        ],
+                        gnd_id="123456789",
+                        external_ids={"wikidata": "Q1"},
+                    ),
+                    source_member_name="source.xml",
+                    source_record_locator="xml:id:p1",
                 )
             ],
         )
@@ -1262,7 +1294,16 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
     assert users.get_user(reviewer.id) == reviewer
 
     with pytest.raises(ImmutableResourceError, match="ready and immutable"):
-        projects.add_person_records(snapshot.id, [PersonInput(tei_id="p2")])
+        projects.add_imported_person_records(
+            snapshot.id,
+            [
+                ImportedPerson(
+                    person=PersonInput(tei_id="p2"),
+                    source_member_name="source.xml",
+                    source_record_locator="xml:id:p2",
+                )
+            ],
+        )
 
     artifact_row = db_session.get(ArtifactRow, source_artifact.id)
     snapshot_row = db_session.get(DatasetSnapshotRow, snapshot.id)

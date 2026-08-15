@@ -36,7 +36,7 @@ from gendertagger.models.lifecycle import (
     TaskBatchStatus,
 )
 from gendertagger.models.method import MethodDescriptor
-from gendertagger.models.person import PersonInput
+from gendertagger.models.person import ImportedPerson, PersonInput
 from gendertagger.models.project import (
     DatasetSnapshotCreate,
     ProjectCreate,
@@ -75,6 +75,13 @@ def _seed_reference_run_with_completed_aggregation(
     session: Session,
 ) -> tuple[UUID, UUID, UUID]:
     """Seed one snapshot person with a completed reference aggregation."""
+    projects = SqlAlchemyProjectRepository(session)
+    project = projects.add_project(
+        ProjectCreate(
+            slug=f"export-core-{uuid4().hex}",
+            display_name="Export core fixture",
+        )
+    )
     artifacts = SqlAlchemyArtifactRepository(session)
     source = artifacts.add_artifact(
         ArtifactCreate(
@@ -83,28 +90,42 @@ def _seed_reference_run_with_completed_aggregation(
             sha256=uuid4().hex * 2,
             byte_size=1,
             media_type="application/tei+xml",
+            project_id=project.id,
         )
     )
-    projects = SqlAlchemyProjectRepository(session)
-    project = projects.add_project(
-        ProjectCreate(
-            slug=f"export-core-{uuid4().hex}",
-            display_name="Export core fixture",
-        )
-    )
+    import_config = SnapshotImportConfig(limits=SnapshotImportLimits())
     snapshot = projects.add_snapshot(
         DatasetSnapshotCreate(
             project_id=project.id,
             source_artifact_id=source.id,
             source_sha256=source.sha256,
-            parser_version="tei_parser_v1",
-            import_config={"profile": "tei_p5_person_register_v1"},
+            parser_version=version_for_snapshot_import(import_config),
+            import_config=import_config.model_dump(mode="json"),
         )
     )
-    projects.begin_snapshot_import(snapshot.id)
-    projects.add_person_records(
+    projects.add_snapshot_source_members(
         snapshot.id,
-        [PersonInput(tei_id="p1", surname="Example")],
+        [
+            SnapshotSourceMemberCreate(
+                artifact_id=source.id,
+                ordinal=0,
+                logical_name="source.xml",
+                sha256=source.sha256,
+                byte_size=source.byte_size,
+                media_type=source.media_type,
+            )
+        ],
+    )
+    projects.begin_snapshot_import(snapshot.id)
+    projects.add_imported_person_records(
+        snapshot.id,
+        [
+            ImportedPerson(
+                person=PersonInput(tei_id="p1", surname="Example"),
+                source_member_name="source.xml",
+                source_record_locator="1",
+            )
+        ],
     )
     projects.complete_snapshot_import(snapshot.id, ready_at=NOW)
     person = projects.get_person_record_by_tei_id(snapshot.id, "p1")

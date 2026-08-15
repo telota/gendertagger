@@ -197,12 +197,12 @@ class SnapshotImportLimits(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    max_member_count: int = Field(gt=0)
-    max_member_expanded_bytes: int = Field(gt=0)
-    max_total_expanded_bytes: int = Field(gt=0)
-    max_compression_ratio: float = Field(gt=1.0, allow_inf_nan=False)
-    max_record_count: int = Field(gt=0)
-    max_cell_bytes: int = Field(gt=0)
+    max_member_count: int = Field(default=128, gt=0)
+    max_member_expanded_bytes: int = Field(default=100 * 1024 * 1024, gt=0)
+    max_total_expanded_bytes: int = Field(default=500 * 1024 * 1024, gt=0)
+    max_compression_ratio: float = Field(default=100.0, gt=1.0, allow_inf_nan=False)
+    max_record_count: int = Field(default=1_000_000, gt=0)
+    max_cell_bytes: int = Field(default=1024 * 1024, gt=0)
 
 
 class SnapshotImportConfig(SnapshotImportRequest):

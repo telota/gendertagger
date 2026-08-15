@@ -150,7 +150,6 @@ The API resolves these `GENDERTAGGER_*` settings into each accepted snapshot's i
 
 | Setting | Default | Purpose |
 |---|---:|---|
-| `MAX_TEI_UPLOAD_BYTES` | 100 MiB | Compatibility name for the maximum bytes in each multipart source part |
 | `MAX_SNAPSHOT_UPLOAD_BYTES` | 500 MiB | Maximum aggregate uploaded bytes in one snapshot request |
 | `MAX_SNAPSHOT_SOURCE_FILES` | 128 | Maximum loose files or archive/workbook members |
 | `MAX_ARCHIVE_MEMBER_BYTES` | 100 MiB | Maximum expanded bytes for one archive or workbook member |

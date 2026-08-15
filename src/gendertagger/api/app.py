@@ -79,7 +79,7 @@ def create_app(
         parser=TeiPersonParser(),
         cursor_codec=cursor_codec,
         clock=partial(datetime.now, UTC),
-        max_upload_bytes=resolved_settings.max_tei_upload_bytes,
+        max_upload_bytes=resolved_settings.max_archive_member_bytes,
         max_total_upload_bytes=resolved_settings.max_snapshot_upload_bytes,
         import_limits=SnapshotImportLimits(
             max_member_count=resolved_settings.max_snapshot_source_files,

@@ -9,10 +9,20 @@ from uuid import UUID
 
 import pytest
 
+from gendertagger.ingestion.registry import version_for_snapshot_import
 from gendertagger.models.artifact import Artifact
 from gendertagger.models.lifecycle import DatasetSnapshotStatus
-from gendertagger.models.person import PersonInput
-from gendertagger.models.project import DatasetSnapshot, SnapshotImportTaskMessage
+from gendertagger.models.person import ImportedPerson
+from gendertagger.models.project import (
+    DatasetSnapshot,
+    SnapshotImportConfig,
+    SnapshotImportLimits,
+    SnapshotImportTaskMessage,
+    SnapshotSourceMember,
+    SourceFormat,
+    SourcePackaging,
+    TeiImportProfile,
+)
 from gendertagger.services.artifact_repository import ArtifactRepository
 from gendertagger.services.artifact_storage import ArtifactStorage
 from gendertagger.services.project_repository import ProjectRepository
@@ -29,6 +39,14 @@ NOW = datetime(2026, 8, 14, 18, 0, tzinfo=UTC)
 PROJECT_ID = UUID("10000000-0000-0000-0000-000000000001")
 SNAPSHOT_ID = UUID("20000000-0000-0000-0000-000000000001")
 ARTIFACT_ID = UUID("30000000-0000-0000-0000-000000000001")
+MEMBER_ID = UUID("40000000-0000-0000-0000-000000000001")
+
+_DEFAULT_CONFIG = SnapshotImportConfig(
+    profile=TeiImportProfile.tei_p5_person_register_v3,
+    source_format=SourceFormat.tei,
+    packaging=SourcePackaging.single,
+    limits=SnapshotImportLimits(),
+)
 
 VALID_TEI = b"""<TEI xmlns="http://www.tei-c.org/ns/1.0">
 <text><body><listPerson>
@@ -85,7 +103,27 @@ class _UnitOfWorkFactory:
         self._artifacts = artifacts
         self.units: list[_StubUnitOfWork] = []
         if isinstance(projects, Mock):
-            projects.list_snapshot_source_members.return_value = ()
+
+            def _list_members(_snapshot_id: UUID) -> tuple[SnapshotSourceMember, ...]:
+                art = artifacts.get_artifact(ARTIFACT_ID)
+                sha = art.sha256 if art is not None else "a" * 64
+                size = art.byte_size if art is not None else len(VALID_TEI)
+                media = art.media_type if art is not None else "application/tei+xml"
+                return (
+                    SnapshotSourceMember(
+                        id=MEMBER_ID,
+                        dataset_snapshot_id=SNAPSHOT_ID,
+                        artifact_id=ARTIFACT_ID,
+                        ordinal=0,
+                        logical_name="source.xml",
+                        sha256=sha,
+                        byte_size=size,
+                        media_type=media,
+                        created_at=NOW,
+                    ),
+                )
+
+            projects.list_snapshot_source_members.side_effect = _list_members
 
     def __call__(self) -> UnitOfWork:
         unit_of_work = _StubUnitOfWork(self._projects, self._artifacts)
@@ -104,8 +142,8 @@ def _snapshot(
         project_id=PROJECT_ID,
         source_artifact_id=ARTIFACT_ID,
         source_sha256=source_sha256,
-        parser_version="tei_parser_v2",
-        import_config={"profile": "tei_p5_person_register_v2"},
+        parser_version=version_for_snapshot_import(_DEFAULT_CONFIG),
+        import_config=_DEFAULT_CONFIG.model_dump(mode="json"),
         status=status,
         record_count=3 if status is DatasetSnapshotStatus.ready else None,
         ready_at=NOW if status is DatasetSnapshotStatus.ready else None,
@@ -146,7 +184,7 @@ def _executor(
     )
 
 
-def test_exact_legacy_executor_streams_plain_batches_and_commits_atomically(
+def test_executor_streams_imported_batches_and_commits_atomically(
     tmp_path: Path,
 ) -> None:
     storage, artifact = _stored_artifact(tmp_path, VALID_TEI)
@@ -163,11 +201,11 @@ def test_exact_legacy_executor_streams_plain_batches_and_commits_atomically(
     artifacts.get_artifact.return_value = artifact
     persisted_batches: list[list[str]] = []
 
-    def add_people(_snapshot_id: UUID, people: Sequence[PersonInput]) -> int:
-        persisted_batches.append([person.tei_id for person in people])
+    def add_people(_snapshot_id: UUID, people: Sequence[ImportedPerson]) -> int:
+        persisted_batches.append([imported.person.tei_id for imported in people])
         return len(people)
 
-    projects.add_person_records.side_effect = add_people
+    projects.add_imported_person_records.side_effect = add_people
     factory = _UnitOfWorkFactory(projects, artifacts)
 
     result = _executor(factory, storage).execute(
@@ -177,7 +215,7 @@ def test_exact_legacy_executor_streams_plain_batches_and_commits_atomically(
 
     assert result.status is DatasetSnapshotStatus.ready
     assert persisted_batches == [["p3", "p1"], ["p2"]]
-    projects.add_imported_person_records.assert_not_called()
+    assert projects.add_imported_person_records.call_count == 2
     projects.complete_snapshot_import.assert_called_once_with(SNAPSHOT_ID, ready_at=NOW)
     assert len(factory.units) == 1
     assert factory.units[0].commit_count == 1
@@ -199,7 +237,6 @@ def test_executor_duplicate_delivery_returns_terminal_snapshot_without_reimport(
 
     assert result.status is DatasetSnapshotStatus.ready
     artifacts.get_artifact.assert_not_called()
-    projects.add_person_records.assert_not_called()
     projects.add_imported_person_records.assert_not_called()
     assert factory.units[0].commit_count == 0
 
@@ -229,8 +266,15 @@ def test_invalid_tei_rolls_back_partial_batch_then_fails_in_fresh_transaction(
     )
 
     assert result.status is DatasetSnapshotStatus.failed
-    assert projects.add_person_records.call_count == 1
-    projects.add_imported_person_records.assert_not_called()
+    assert projects.add_imported_person_records.call_count == 1
+    diagnostic = projects.fail_snapshot_import.call_args.kwargs["failure_diagnostic"]
+    assert diagnostic.startswith("TEI import failed:")
+    assert "invalid TEI XML" in diagnostic
+    assert len(factory.units) == 2
+    assert projects.claim_snapshot_import.call_count == 2
+    assert factory.units[0].commit_count == 0
+    assert factory.units[0].exit_exception_type is not None
+    assert factory.units[1].commit_count == 1
     diagnostic = projects.fail_snapshot_import.call_args.kwargs["failure_diagnostic"]
     assert diagnostic.startswith("TEI import failed:")
     assert "invalid TEI XML" in diagnostic
@@ -356,7 +400,6 @@ def test_source_read_failure_retries_then_persists_only_a_generic_diagnostic() -
     diagnostic = projects.fail_snapshot_import.call_args.kwargs["failure_diagnostic"]
     assert diagnostic == "Snapshot import failed due to an internal error."
     assert "operator-only" not in diagnostic
-    assert projects.add_person_records.call_count == 0
     assert projects.add_imported_person_records.call_count == 0
     assert [unit.commit_count for unit in factory.units] == [0, 0, 1]
 
@@ -390,7 +433,7 @@ def test_terminal_failure_persistence_error_is_retryable_while_budget_remains() 
         {"profile": "tei_p5_person_register_v3"},
     ],
 )
-def test_legacy_fallback_accepts_only_the_original_profile_only_shape(
+def test_executor_rejects_incomplete_or_invalid_import_config(
     import_config: dict[str, str],
 ) -> None:
     projects = Mock(spec=ProjectRepository)
@@ -449,7 +492,6 @@ def test_reopened_artifact_integrity_mismatch_is_permanent_provenance_failure(
     )
 
     assert result.status is DatasetSnapshotStatus.failed
-    projects.add_person_records.assert_not_called()
     projects.add_imported_person_records.assert_not_called()
     projects.complete_snapshot_import.assert_not_called()
     diagnostic = projects.fail_snapshot_import.call_args.kwargs["failure_diagnostic"]

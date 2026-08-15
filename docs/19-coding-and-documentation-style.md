@@ -130,9 +130,11 @@ uv run --locked ruff check .
 uv run --locked python scripts/check_contract_naming.py
 uv run --locked python scripts/check_package_initializers.py
 uv run --locked python scripts/check_documentation.py
+uv run --locked python scripts/check_dead_code.py
 ```
 
 The documentation validator checks structure, local link targets, numbered-document/index coverage,
 `SCAFFOLD.json`, and ADR shape without accessing the network. The naming validator emits stable `GTN` rule
 codes for the additional contract vocabulary rules. The initializer validator enforces regular package
-markers without hidden imports or behavior. All three run in pre-commit and GitLab CI.
+markers without hidden imports or behavior. The dead-code validator enforces clean symbol definitions without
+unreferenced functions or broken protocols. All four run in pre-commit and GitLab CI.

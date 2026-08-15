@@ -55,6 +55,16 @@ repos:
             tests/tooling/test_policy_scripts\.py|pyproject\.toml
           )$
         pass_filenames: false
+      - id: dead-code-policy
+        name: Dead code policy
+        entry: uv run --locked python scripts/check_dead_code.py
+        language: system
+        files: >-
+          (?x)^(?:
+            src/gendertagger/.*\.py|scripts/check_dead_code\.py|
+            tests/tooling/test_policy_scripts\.py|pyproject\.toml
+          )$
+        pass_filenames: false
       - id: mypy
         name: Strict mypy
         entry: uv run --locked mypy

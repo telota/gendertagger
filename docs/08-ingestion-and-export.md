@@ -156,8 +156,11 @@ special members are rejected, as are nested archives.
 
 The accepted SnapshotImportConfig persists independent ceilings for member count, individual expanded bytes,
 total expanded bytes, compression ratio, record count, and tabular cell size. Readers enforce archive metadata
-before parsing and count actual expanded bytes while reading. These limits complement the request's per-part
-and aggregate compressed-upload bounds; neither substitutes for the other.
+before parsing and count actual expanded bytes while reading. These limits complement the request's
+compressed-upload bounds, and neither substitutes for the other: `GENDERTAGGER_MAX_ARCHIVE_MEMBER_BYTES`
+bounds each individual upload part (100 MiB by default) and `GENDERTAGGER_MAX_SNAPSHOT_UPLOAD_BYTES` bounds
+the staged collection as a whole (500 MiB by default, matching the reverse proxy's request-body ceiling in
+[12-deployment-and-operations.md](12-deployment-and-operations.md)). Exceeding either returns `413`.
 
 ZIP and XLSX preflight reads bounded classic EOCD or ZIP64 directory metadata before constructing Python ZIP
 member objects. It enforces the persisted member-count limit and derives a reproducible central-directory
@@ -222,11 +225,15 @@ source error into a PostgreSQL write failure and inappropriate infrastructure re
 
 ## Snapshot comparison
 
-Because `xml:id` is canonical inside a Project, later tooling can compare snapshots by `(project_id, tei_id)` and report added/removed/changed records. This is useful but not required for the first vertical slice.
+`person_records` carries a unique `(dataset_snapshot_id, tei_id)` constraint, so `xml:id` identifies exactly
+one person inside each snapshot and stays a stable comparison key across a Project's snapshots. Comparison
+tooling over that key is not implemented; see [22-future-development.md](22-future-development.md).
 
 ## TEI export
 
-The reference encoding uses a child `<gender>` element on `<person>`, not a shorthand attribute, so the annotation can carry provenance and certainty.
+`TeiExportProfile` defines one encoding, `tei_p5_gender_v1`, which the export service resolves as the default
+for `format='tei'`. It uses a child `<gender>` element on `<person>`, not a shorthand attribute, so the
+annotation carries provenance and certainty.
 
 Shape:
 
@@ -242,30 +249,60 @@ Reference semantics:
 - `@value`: canonical label
 - `@evidence="assigned"`
 - `@resp="#gendertagger"` for automated decisions
-- human-reviewed decisions use the configured human/editor responsibility identifier
+- human-reviewed decisions use the configured `human_resp_id`, which defaults to `#editor`
 - `@cert` uses TEI values `high`, `low`, `unknown`
 
-Insertion position for the reference profile: after the last `<persName>` and before `<birth>`, `<death>`, or `<note>` children.
+The profile inserts the element after the last `<persName>` and therefore before `<birth>`, `<death>`, or
+`<note>` children. It parses one member's exact bytes with DTD loading, entity resolution, and network access
+disabled, and serializes a new UTF-8 document rather than editing the artifact. A person that carries no
+usable decision is left exactly as in the source; a labeled person whose `xml:id` is absent from its member
+fails the export.
 
 ## TEI certainty projection
 
-Keep the richer internal certainty tier. Export a deterministic projection to TEI:
+The richer internal certainty tier is kept, and the export projects it deterministically to TEI:
 
 - internal `high` -> `high`
 - internal `low` -> `low`
 - `contested`, `single`, `uncertain`, `no_data` -> `unknown`
 - a human-reviewed final decision -> `high`
 
-If the project later adopts a different TEI profile, implement it as a versioned export profile rather than changing historical exports.
+`TeiExportProfile` is a versioned enum, so a different TEI encoding becomes a new profile value rather than a
+change to historical exports.
 
-## Export modes
+## Export contract
 
-Support at least:
+`POST /exports` takes an `ExportCreateRequest` naming one run and one completed aggregation execution,
+persists the export execution and its dispatch intent in the same transaction, and returns `202 Accepted`.
+Operators create exports and viewers read them. A selected aggregation that is not exportable returns `409`.
 
-1. TEI with selected machine aggregation
-2. TEI with human overrides/final decisions
-3. JSON result bundle
-4. CSV analysis export
-5. provenance/run manifest alongside all exports
+`ExportFormat` defines `tei`, `json`, and `csv`. `LabelSourcePolicy` defines `machine_aggregation`, the
+default, and `human_overrides`. Under `human_overrides` a person's current annotation supersedes the machine
+label when it carries one, and that override projects at TEI certainty `high`; a `defer` annotation carries no
+label, so the aggregated result stands. Under `machine_aggregation` annotations are never consulted. Neither
+policy rewrites the underlying Prediction or AggregatedResult. `tei_profile` is accepted only with
+`format='tei'`.
+
+The implemented export modes are:
+
+1. TEI with the selected machine aggregation
+2. TEI with human overrides and final decisions
+3. JSON result bundle, written as `export.json`
+4. CSV analysis export, written as `export.csv`
+5. an `ExportManifest`, written as `manifest.json` alongside every export
+
+A `tei` export requires a TEI snapshot packaged `single` or `loose`; under that format a tabular snapshot, a
+`zip` or `tar_gz` snapshot, or a person record without a source-member locator fails the export terminally
+instead of producing partial output. TEI writes one output artifact per source member, named by that member's
+logical name and typed `application/tei+xml`. The manifest records the export, snapshot, run, and aggregation
+identifiers, the source snapshot SHA-256, the format, the label-source policy, the profile, and one
+checksummed descriptor per output. Only a completed export has a manifest artifact, and every completed export
+has one.
+
+`GET /exports/{export_id}/download` returns the export's own output bytes and media type when the export
+produced exactly one output, which covers every `json` and `csv` export and a `tei` export over a one-member
+source. When an export produced several outputs, as a loose TEI collection does, the endpoint returns the
+manifest instead, and the individual member outputs are not separately addressable; see
+[22-future-development.md](22-future-development.md). An export without a manifest artifact returns `404`.
 
 Never mutate the original source artifact in place.

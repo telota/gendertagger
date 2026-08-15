@@ -25,6 +25,7 @@
     "docs/19-coding-and-documentation-style.md",
     "docs/20-method-adapters-reference.md",
     "docs/21-production-promotion.md",
+    "docs/22-future-development.md",
     "docs/decisions/ADR-0001-pydantic-fastapi-central.md",
     "docs/decisions/ADR-0002-immutable-dataset-snapshots.md",
     "docs/decisions/ADR-0003-reference-aggregation.md",

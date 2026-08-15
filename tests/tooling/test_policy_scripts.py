@@ -225,3 +225,84 @@ def test_package_initializer_policy_rejects_behavior_and_namespace_packages(
         "PKG102",
         "PKG103",
     ]
+
+
+def test_dead_code_policy_accepts_referenced_code_and_valid_protocols(tmp_path: Path) -> None:
+    _write(
+        tmp_path / "src/gendertagger/services/protocol.py",
+        """from typing import Protocol
+
+class Greeter(Protocol):
+    def greet(self, name: str) -> str:
+        ...
+""",
+    )
+    _write(
+        tmp_path / "src/gendertagger/services/impl.py",
+        """from .protocol import Greeter
+
+class SimpleGreeter:
+    def greet(self, name: str) -> str:
+        return f"Hello, {name}"
+
+def run() -> str:
+    greeter: Greeter = SimpleGreeter()
+    return greeter.greet("world")
+""",
+    )
+    _write(
+        tmp_path / "tests/test_run.py",
+        """from gendertagger.services.impl import run
+
+def test_run() -> None:
+    assert run() == "Hello, world"
+""",
+    )
+
+    result = _run_policy("check_dead_code.py", tmp_path)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_dead_code_policy_rejects_unreferenced_symbols(tmp_path: Path) -> None:
+    _write(
+        tmp_path / "src/gendertagger/services/dead.py",
+        """def dead_helper_function() -> None:
+    pass
+""",
+    )
+
+    result = _run_policy("check_dead_code.py", tmp_path)
+
+    assert result.returncode == 1
+    assert "DED001" in result.stdout
+
+
+def test_dead_code_policy_rejects_protocol_not_implemented_error(tmp_path: Path) -> None:
+    _write(
+        tmp_path / "src/gendertagger/services/protocol.py",
+        """from typing import Protocol
+
+class Compiler(Protocol):
+    def compile(self) -> int:
+        raise NotImplementedError
+""",
+    )
+    _write(
+        tmp_path / "src/gendertagger/services/usage.py",
+        """from .protocol import Compiler
+
+def use(c: Compiler) -> int:
+    return c.compile()
+""",
+    )
+    _write(
+        tmp_path / "tests/test_use.py",
+        """from gendertagger.services.usage import use
+""",
+    )
+
+    result = _run_policy("check_dead_code.py", tmp_path)
+
+    assert result.returncode == 1
+    assert "DED002" in result.stdout

@@ -30,10 +30,6 @@ class AppSettings(BaseSettings):
     )
     artifact_root: Path = Path("data/artifacts")
     model_cache_root: Path = Path("data/model-cache")
-    # Retain the original environment variable as the per-upload-part limit for
-    # compatibility with existing deployments.  Collection and expanded-source
-    # limits are independent because a small archive can expand substantially.
-    max_tei_upload_bytes: int = Field(default=100 * 1024 * 1024, gt=0)
     max_snapshot_upload_bytes: int = Field(default=500 * 1024 * 1024, gt=0)
     max_snapshot_source_files: int = Field(default=128, gt=0, le=10_000)
     max_archive_member_bytes: int = Field(default=100 * 1024 * 1024, gt=0)

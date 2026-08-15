@@ -1598,11 +1598,11 @@ def upgrade() -> None:
     )
     op.add_column(
         "person_records",
-        sa.Column("source_member_name", sa.String(length=1024), nullable=True),
+        sa.Column("source_member_name", sa.String(length=1024), nullable=False),
     )
     op.add_column(
         "person_records",
-        sa.Column("source_record_locator", sa.Text(), nullable=True),
+        sa.Column("source_record_locator", sa.Text(), nullable=False),
     )
     op.create_check_constraint(
         op.f("ck_person_records_events_array"),
@@ -1610,19 +1610,14 @@ def upgrade() -> None:
         "jsonb_typeof(events) = 'array'",
     )
     op.create_check_constraint(
-        op.f("ck_person_records_source_provenance_complete"),
-        "person_records",
-        "(source_member_name IS NULL) = (source_record_locator IS NULL)",
-    )
-    op.create_check_constraint(
         op.f("ck_person_records_source_member_name_nonblank"),
         "person_records",
-        "source_member_name IS NULL OR btrim(source_member_name) <> ''",
+        "btrim(source_member_name) <> ''",
     )
     op.create_check_constraint(
         op.f("ck_person_records_source_record_locator_nonblank"),
         "person_records",
-        "source_record_locator IS NULL OR btrim(source_record_locator) <> ''",
+        "btrim(source_record_locator) <> ''",
     )
 
     op.execute(
@@ -3020,11 +3015,6 @@ def downgrade() -> None:
     )
     op.drop_constraint(
         op.f("ck_person_records_source_member_name_nonblank"),
-        "person_records",
-        type_="check",
-    )
-    op.drop_constraint(
-        op.f("ck_person_records_source_provenance_complete"),
         "person_records",
         type_="check",
     )

@@ -346,7 +346,7 @@ def test_project_service_stages_upload_and_atomically_queues_snapshot(tmp_path: 
     )
 
     assert snapshot.status is DatasetSnapshotStatus.pending
-    project_repository.add_person_records.assert_not_called()
+    project_repository.add_imported_person_records.assert_not_called()
     project_repository.begin_snapshot_import.assert_not_called()
     artifact_command = artifact_repository.add_artifact.call_args.args[0]
     assert artifact_command.project_id == PROJECT_ID

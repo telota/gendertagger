@@ -159,16 +159,9 @@ class PersonRecordRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
             name="name_forms_array",
         ),
         CheckConstraint("jsonb_typeof(events) = 'array'", name="events_array"),
+        CheckConstraint("btrim(source_member_name) <> ''", name="source_member_name_nonblank"),
         CheckConstraint(
-            "(source_member_name IS NULL) = (source_record_locator IS NULL)",
-            name="source_provenance_complete",
-        ),
-        CheckConstraint(
-            "source_member_name IS NULL OR btrim(source_member_name) <> ''",
-            name="source_member_name_nonblank",
-        ),
-        CheckConstraint(
-            "source_record_locator IS NULL OR btrim(source_record_locator) <> ''",
+            "btrim(source_record_locator) <> ''",
             name="source_record_locator_nonblank",
         ),
         Index("ix_person_records_dataset_snapshot_id_surname", "dataset_snapshot_id", "surname"),
@@ -203,8 +196,8 @@ class PersonRecordRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
         server_default=text("'{}'::text[]"),
     )
     name_forms: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB(none_as_null=True))
-    source_member_name: Mapped[str | None] = mapped_column(String(1024))
-    source_record_locator: Mapped[str | None] = mapped_column(Text)
+    source_member_name: Mapped[str] = mapped_column(String(1024), nullable=False)
+    source_record_locator: Mapped[str] = mapped_column(Text, nullable=False)
 
 
 class PersonExternalIdRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):

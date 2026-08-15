@@ -496,7 +496,6 @@ def test_loose_tei_import_is_deterministic_and_preserves_member_provenance(
         "xml:id=p1",
         "xml:id=p2",
     ]
-    harness.projects.add_person_records.assert_not_called()
     assert [unit.commit_count for unit in harness.factory.units] == [1]
 
 

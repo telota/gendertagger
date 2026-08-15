@@ -88,12 +88,13 @@ def test_person_schema_stores_optional_structured_name_forms_as_jsonb() -> None:
     assert isinstance(table.c.name_forms.type, postgresql.JSONB)
     assert isinstance(table.c.events.type, postgresql.JSONB)
     assert not table.c.events.nullable
-    assert table.c.source_member_name.nullable
-    assert table.c.source_record_locator.nullable
+    assert not table.c.source_member_name.nullable
+    assert not table.c.source_record_locator.nullable
     assert {constraint.name for constraint in table.constraints} >= {
         "ck_person_records_name_forms_array",
         "ck_person_records_events_array",
-        "ck_person_records_source_provenance_complete",
+        "ck_person_records_source_member_name_nonblank",
+        "ck_person_records_source_record_locator_nonblank",
     }
 
 

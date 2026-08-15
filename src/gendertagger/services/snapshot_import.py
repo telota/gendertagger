@@ -2,7 +2,7 @@
 
 import hashlib
 import logging
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import ExitStack
 from dataclasses import dataclass
 from datetime import datetime
@@ -35,7 +35,6 @@ from gendertagger.models.project import (
     DatasetSnapshot,
     SnapshotImportConfig,
     SnapshotImportLimits,
-    SnapshotImportRequest,
     SnapshotImportTaskMessage,
     SnapshotSourceMember,
     SourceFormat,
@@ -127,7 +126,6 @@ class SnapshotImportExecutor:
         parser: TeiPersonParser,
         clock: Clock,
         import_batch_record_count: int,
-        legacy_import_limits: SnapshotImportLimits | None = None,
     ) -> None:
         if import_batch_record_count <= 0:
             msg = "import_batch_record_count must be positive"
@@ -137,14 +135,6 @@ class SnapshotImportExecutor:
         self._parser = parser
         self._clock = clock
         self._import_batch_record_count = import_batch_record_count
-        self._legacy_import_limits = legacy_import_limits or SnapshotImportLimits(
-            max_member_count=128,
-            max_member_expanded_bytes=100 * 1024 * 1024,
-            max_total_expanded_bytes=500 * 1024 * 1024,
-            max_compression_ratio=100.0,
-            max_record_count=1_000_000,
-            max_cell_bytes=1024 * 1024,
-        )
 
     def execute(
         self,
@@ -218,11 +208,7 @@ class SnapshotImportExecutor:
                 return self._existing_snapshot(unit_of_work, message.dataset_snapshot_id)
 
             import_config = self._import_config(snapshot)
-            legacy_import = self._is_legacy_import_config(snapshot.import_config)
-            expected_parser_version = self._importer_version(
-                import_config,
-                legacy_import=legacy_import,
-            )
+            expected_parser_version = self._importer_version(import_config)
             if snapshot.parser_version != expected_parser_version:
                 msg = (
                     f"snapshot parser version {snapshot.parser_version!r} does not match "
@@ -241,20 +227,10 @@ class SnapshotImportExecutor:
                     raise TeiImportError(msg)
                 batch.append(imported_person)
                 if len(batch) == self._import_batch_record_count:
-                    self._persist_batch(
-                        unit_of_work,
-                        snapshot.id,
-                        batch,
-                        legacy_import=legacy_import,
-                    )
+                    self._persist_batch(unit_of_work, snapshot.id, batch)
                     batch.clear()
             if batch:
-                self._persist_batch(
-                    unit_of_work,
-                    snapshot.id,
-                    batch,
-                    legacy_import=legacy_import,
-                )
+                self._persist_batch(unit_of_work, snapshot.id, batch)
 
             completed = unit_of_work.projects.complete_snapshot_import(
                 snapshot.id,
@@ -268,15 +244,7 @@ class SnapshotImportExecutor:
         unit_of_work: UnitOfWork,
         snapshot_id: UUID,
         batch: Sequence[ImportedPerson],
-        *,
-        legacy_import: bool,
     ) -> None:
-        if legacy_import:
-            unit_of_work.projects.add_person_records(
-                snapshot_id,
-                [imported.person for imported in batch],
-            )
-            return
         unit_of_work.projects.add_imported_person_records(snapshot_id, batch)
 
     def _iter_people(
@@ -378,42 +346,16 @@ class SnapshotImportExecutor:
 
         return iter_tei()
 
-    def _import_config(self, snapshot: DatasetSnapshot) -> SnapshotImportConfig:
-        if "limits" in snapshot.import_config:
+    @staticmethod
+    def _import_config(snapshot: DatasetSnapshot) -> SnapshotImportConfig:
+        try:
             return SnapshotImportConfig.model_validate(snapshot.import_config)
-        if not self._is_legacy_import_config(snapshot.import_config):
-            msg = "snapshot import configuration is missing persisted limits"
-            raise PermanentSnapshotImportError(msg)
-        # Snapshots accepted before generalized source manifests contained
-        # exactly one TEI profile field. Preserve only that original shape.
-        request = SnapshotImportRequest.model_validate(snapshot.import_config)
-        return SnapshotImportConfig(
-            **request.model_dump(),
-            limits=self._legacy_import_limits,
-        )
+        except ValidationError as error:
+            msg = "snapshot import configuration is invalid or missing persisted limits"
+            raise PermanentSnapshotImportError(msg) from error
 
     @staticmethod
-    def _is_legacy_import_config(import_config: Mapping[str, object]) -> bool:
-        if set(import_config) != {"profile"}:
-            return False
-        profile = import_config.get("profile")
-        return isinstance(profile, str) and profile in {
-            TeiImportProfile.tei_p5_person_register_v1.value,
-            TeiImportProfile.tei_p5_person_register_v2.value,
-        }
-
-    def _importer_version(
-        self,
-        config: SnapshotImportConfig,
-        *,
-        legacy_import: bool,
-    ) -> str:
-        if legacy_import:
-            profile = config.profile
-            if not isinstance(profile, TeiImportProfile):
-                msg = "legacy snapshot import provenance requires a TEI profile"
-                raise PermanentSnapshotImportError(msg)
-            return self._parser.version_for_profile(profile)
+    def _importer_version(config: SnapshotImportConfig) -> str:
         return version_for_snapshot_import(config)
 
     def _resolved_sources(
@@ -424,14 +366,6 @@ class SnapshotImportExecutor:
     ) -> tuple[_ResolvedSource, ...]:
         primary = self._primary_artifact(unit_of_work, snapshot, config)
         members = tuple(unit_of_work.projects.list_snapshot_source_members(snapshot.id))
-        legacy_import = self._is_legacy_import_config(snapshot.import_config)
-        if legacy_import:
-            if members:
-                msg = "legacy snapshot provenance must not contain source-member rows"
-                raise PermanentSnapshotImportError(msg)
-            self._verify_artifact(primary)
-            return (_ResolvedSource(logical_name="source.xml", artifact=primary),)
-
         if not members:
             msg = "snapshot import provenance has no source members"
             raise PermanentSnapshotImportError(msg)

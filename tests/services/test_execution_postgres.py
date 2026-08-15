@@ -18,6 +18,7 @@ from gendertagger.db.executions import PredictionRow
 from gendertagger.db.run_repository import SqlAlchemyRunRepository
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
+from gendertagger.ingestion.registry import version_for_snapshot_import
 from gendertagger.models.artifact import ArtifactCreate
 from gendertagger.models.dispatch import (
     BatchDispatch,
@@ -26,8 +27,14 @@ from gendertagger.models.dispatch import (
     DispatchMessage,
 )
 from gendertagger.models.lifecycle import MethodExecutionStatus, RunStatus, TaskBatchStatus
-from gendertagger.models.person import PersonInput
-from gendertagger.models.project import DatasetSnapshotCreate, ProjectCreate
+from gendertagger.models.person import ImportedPerson, PersonInput
+from gendertagger.models.project import (
+    DatasetSnapshotCreate,
+    ProjectCreate,
+    SnapshotImportConfig,
+    SnapshotImportLimits,
+    SnapshotSourceMemberCreate,
+)
 from gendertagger.models.run import Run, RunCreate, TaskBatch, TaskBatchMessage
 from gendertagger.services.dispatch import OutboxRelay
 from gendertagger.services.execution import BatchExecutor, RunScheduler
@@ -43,9 +50,9 @@ LATER = datetime(2026, 8, 13, 12, 5, tzinfo=UTC)
 # Deterministic parenthetical-qualifier outcomes: female, abstain, male, unknown.
 PEOPLE = [
     PersonInput(tei_id="p01", surname="Frölich (Frau des Heinrich)"),
-    PersonInput(tei_id="p02", surname="Schleiermacher", forenames=["Friedrich"]),
-    PersonInput(tei_id="p03", surname="Müller (Sohn des Karl)"),
-    PersonInput(tei_id="p04", surname="Mendelssohn (Familie des Abraham)"),
+    PersonInput(tei_id="p02", surname="Müller"),
+    PersonInput(tei_id="p03", surname="Schmidt (Sohn des Karl)"),
+    PersonInput(tei_id="p04", surname="Weber (Kind des Johann)"),
 ]
 
 
@@ -68,6 +75,9 @@ class _FailOncePublisher:
 
 def _seed_created_run(factory: UnitOfWorkFactory) -> UUID:
     with factory() as unit_of_work:
+        project = unit_of_work.projects.add_project(
+            ProjectCreate(slug=f"exec-{uuid4().hex}", display_name="Execution project")
+        )
         source = unit_of_work.artifacts.add_artifact(
             ArtifactCreate(
                 logical_type="source_tei",
@@ -75,22 +85,44 @@ def _seed_created_run(factory: UnitOfWorkFactory) -> UUID:
                 sha256="a" * 64,
                 byte_size=1,
                 media_type="application/xml",
+                project_id=project.id,
             )
         )
-        project = unit_of_work.projects.add_project(
-            ProjectCreate(slug=f"exec-{uuid4().hex}", display_name="Execution project")
-        )
+        import_config = SnapshotImportConfig(limits=SnapshotImportLimits())
         snapshot = unit_of_work.projects.add_snapshot(
             DatasetSnapshotCreate(
                 project_id=project.id,
                 source_artifact_id=source.id,
                 source_sha256=source.sha256,
-                parser_version="tei_parser_v1",
-                import_config={"profile": "tei_p5_person_register_v1"},
+                parser_version=version_for_snapshot_import(import_config),
+                import_config=import_config.model_dump(mode="json"),
             )
         )
+        unit_of_work.projects.add_snapshot_source_members(
+            snapshot.id,
+            [
+                SnapshotSourceMemberCreate(
+                    artifact_id=source.id,
+                    ordinal=0,
+                    logical_name="source.xml",
+                    sha256=source.sha256,
+                    byte_size=source.byte_size,
+                    media_type=source.media_type,
+                )
+            ],
+        )
         unit_of_work.projects.begin_snapshot_import(snapshot.id)
-        unit_of_work.projects.add_person_records(snapshot.id, PEOPLE)
+        unit_of_work.projects.add_imported_person_records(
+            snapshot.id,
+            [
+                ImportedPerson(
+                    person=person,
+                    source_member_name="source.xml",
+                    source_record_locator=str(idx),
+                )
+                for idx, person in enumerate(PEOPLE, start=1)
+            ],
+        )
         unit_of_work.projects.complete_snapshot_import(snapshot.id, ready_at=NOW)
         run = unit_of_work.runs.add_run(
             RunCreate(
@@ -114,6 +146,9 @@ def _seed_gnd_lookup_run(
     register_lookup: bool = True,
 ) -> tuple[UUID, UUID | None]:
     with factory() as unit_of_work:
+        project = unit_of_work.projects.add_project(
+            ProjectCreate(slug=f"gnd-exec-{uuid4().hex}", display_name="GND execution")
+        )
         source = unit_of_work.artifacts.add_artifact(
             ArtifactCreate(
                 logical_type="source_tei",
@@ -121,6 +156,7 @@ def _seed_gnd_lookup_run(
                 sha256="d" * 64,
                 byte_size=1,
                 media_type="application/xml",
+                project_id=project.id,
             )
         )
         lookup_sha256 = "c" * 64
@@ -132,27 +168,45 @@ def _seed_gnd_lookup_run(
                     sha256=lookup_sha256,
                     byte_size=1,
                     media_type="application/vnd.sqlite3",
+                    project_id=project.id,
                 )
             )
             if register_lookup
             else None
         )
-        project = unit_of_work.projects.add_project(
-            ProjectCreate(slug=f"gnd-exec-{uuid4().hex}", display_name="GND execution")
-        )
+        import_config = SnapshotImportConfig(limits=SnapshotImportLimits())
         snapshot = unit_of_work.projects.add_snapshot(
             DatasetSnapshotCreate(
                 project_id=project.id,
                 source_artifact_id=source.id,
                 source_sha256=source.sha256,
-                parser_version="tei_parser_v1",
-                import_config={"profile": "tei_p5_person_register_v1"},
+                parser_version=version_for_snapshot_import(import_config),
+                import_config=import_config.model_dump(mode="json"),
             )
         )
-        unit_of_work.projects.begin_snapshot_import(snapshot.id)
-        unit_of_work.projects.add_person_records(
+        unit_of_work.projects.add_snapshot_source_members(
             snapshot.id,
-            [PersonInput(tei_id="p-gnd", gnd_id="123")],
+            [
+                SnapshotSourceMemberCreate(
+                    artifact_id=source.id,
+                    ordinal=0,
+                    logical_name="source.xml",
+                    sha256=source.sha256,
+                    byte_size=source.byte_size,
+                    media_type=source.media_type,
+                )
+            ],
+        )
+        unit_of_work.projects.begin_snapshot_import(snapshot.id)
+        unit_of_work.projects.add_imported_person_records(
+            snapshot.id,
+            [
+                ImportedPerson(
+                    person=PersonInput(tei_id="p-gnd", gnd_id="123"),
+                    source_member_name="source.xml",
+                    source_record_locator="1",
+                )
+            ],
         )
         unit_of_work.projects.complete_snapshot_import(snapshot.id, ready_at=NOW)
         run = unit_of_work.runs.add_run(

@@ -16,6 +16,10 @@ def _abstain() -> PredictionResult:
     return PredictionResult(label=None, status=PredictionStatus.abstain)
 
 
+def _error() -> PredictionResult:
+    return PredictionResult(label=None, status=PredictionStatus.error)
+
+
 def test_two_by_two_kappa_matches_hand_computed_value() -> None:
     # method_a: male, male, female, female
     # method_b: male, female, female, female
@@ -109,7 +113,7 @@ def test_error_status_never_counts_as_co_answered() -> None:
     corpus = [
         {
             "method_a": _success(CanonicalLabel.male),
-            "method_b": PredictionResult(label=None, status=PredictionStatus.error),
+            "method_b": _error(),
         },
         {"method_a": _success(CanonicalLabel.male), "method_b": _success(CanonicalLabel.female)},
         {

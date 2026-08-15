@@ -9,13 +9,20 @@ from sqlalchemy import Connection, func, select
 
 from gendertagger.config.run import ExecutionConfig, MethodRunConfig, RunConfig
 from gendertagger.db.executions import PredictionRow
+from gendertagger.ingestion.registry import version_for_snapshot_import
 from gendertagger.methods.base import MethodConfig, MethodContractError
 from gendertagger.models.artifact import ArtifactCreate
 from gendertagger.models.classification import PredictionResult
 from gendertagger.models.lifecycle import MethodExecutionStatus, RunStatus, TaskBatchStatus
 from gendertagger.models.method import MethodDescriptor
-from gendertagger.models.person import PersonInput
-from gendertagger.models.project import DatasetSnapshotCreate, ProjectCreate
+from gendertagger.models.person import ImportedPerson, PersonInput
+from gendertagger.models.project import (
+    DatasetSnapshotCreate,
+    ProjectCreate,
+    SnapshotImportConfig,
+    SnapshotImportLimits,
+    SnapshotSourceMemberCreate,
+)
 from gendertagger.models.run import RunCreate
 from gendertagger.services.execution import (
     BatchExecutor,
@@ -87,6 +94,9 @@ def _seed_run(
 ) -> UUID:
     config = RunConfig(methods=methods, execution=execution_config or ExecutionConfig())
     with factory() as unit_of_work:
+        project = unit_of_work.projects.add_project(
+            ProjectCreate(slug=f"fail-{uuid4().hex}", display_name="Failure policy project")
+        )
         source = unit_of_work.artifacts.add_artifact(
             ArtifactCreate(
                 logical_type="source_tei",
@@ -94,23 +104,42 @@ def _seed_run(
                 sha256="a" * 64,
                 byte_size=1,
                 media_type="application/xml",
+                project_id=project.id,
             )
         )
-        project = unit_of_work.projects.add_project(
-            ProjectCreate(slug=f"fail-{uuid4().hex}", display_name="Failure policy project")
-        )
+        import_config = SnapshotImportConfig(limits=SnapshotImportLimits())
         snapshot = unit_of_work.projects.add_snapshot(
             DatasetSnapshotCreate(
                 project_id=project.id,
                 source_artifact_id=source.id,
                 source_sha256=source.sha256,
-                parser_version="tei_parser_v1",
-                import_config={"profile": "tei_p5_person_register_v1"},
+                parser_version=version_for_snapshot_import(import_config),
+                import_config=import_config.model_dump(mode="json"),
             )
         )
+        unit_of_work.projects.add_snapshot_source_members(
+            snapshot.id,
+            [
+                SnapshotSourceMemberCreate(
+                    artifact_id=source.id,
+                    ordinal=0,
+                    logical_name="source.xml",
+                    sha256=source.sha256,
+                    byte_size=source.byte_size,
+                    media_type=source.media_type,
+                )
+            ],
+        )
         unit_of_work.projects.begin_snapshot_import(snapshot.id)
-        unit_of_work.projects.add_person_records(
-            snapshot.id, [PersonInput(tei_id="p01", surname="Frölich (Frau des Heinrich)")]
+        unit_of_work.projects.add_imported_person_records(
+            snapshot.id,
+            [
+                ImportedPerson(
+                    person=PersonInput(tei_id="p01", surname="Frölich (Frau des Heinrich)"),
+                    source_member_name="source.xml",
+                    source_record_locator="1",
+                )
+            ],
         )
         unit_of_work.projects.complete_snapshot_import(snapshot.id, ready_at=NOW)
         run = unit_of_work.runs.add_run(

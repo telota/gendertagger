@@ -40,10 +40,6 @@ class ReviewRepository(Protocol):
         """Append one annotation when the expected review revision is current."""
         ...
 
-    def get_annotation(self, annotation_id: UUID) -> Annotation | None:
-        """Return an annotation by ID, or ``None`` when absent."""
-        ...
-
     def get_review_state(self, snapshot_id: UUID, tei_id: str) -> ReviewState | None:
         """Return the current review projection, or ``None`` for an absent person."""
         ...
