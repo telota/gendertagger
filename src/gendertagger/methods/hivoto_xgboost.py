@@ -87,10 +87,8 @@ class _SklearnXgboostModel:
                 TfidfVectorizer,
             )
             from xgboost import XGBClassifier  # pyright: ignore[reportMissingImports]
-        except ImportError as error:  # pragma: no cover - exercised only without the extra
-            msg = (
-                "hivoto_xgboost requires the 'hivoto-xgboost' extra (install scikit-learn, xgboost)"
-            )
+        except ImportError as error:  # pragma: no cover
+            msg = "hivoto_xgboost requires the xgboost package"
             raise MethodDependencyError(msg) from error
 
         config = json.loads(
@@ -126,7 +124,7 @@ def default_model_factory(directory: Path) -> TokenProbabilityModel:
     """Load a locally materialized HIVOTO-XGBoost bundle as an inference backend.
 
     Raises:
-        MethodDependencyError: If the ``hivoto-xgboost`` extra is not installed.
+        MethodDependencyError: If the ``xgboost`` package is not available.
     """
     return cast(TokenProbabilityModel, _SklearnXgboostModel(directory))
 

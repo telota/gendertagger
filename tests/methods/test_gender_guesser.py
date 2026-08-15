@@ -127,7 +127,7 @@ def test_detector_is_built_once_and_reused_across_batches() -> None:
 
 def test_missing_dependency_is_a_permanent_failure() -> None:
     def factory() -> _FakeDetector:
-        msg = "gender_guesser requires the 'guesser' extra"
+        msg = "gender_guesser requires the gender-guesser package"
         raise MethodDependencyError(msg)
 
     method = GenderGuesserMethod(detector_factory=factory)

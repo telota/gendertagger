@@ -60,9 +60,9 @@ The pipeline contains ten components across five methodological families. Nine c
 ### 3. gender-guesser (`gender_guesser`)
 
 - **Module**: [`gendertagger.methods.gender_guesser`](../src/gendertagger/methods/gender_guesser.py)
-- **ADR**: [ADR-0012](decisions/ADR-0012-name-based-classifier-adapter-pattern.md)
+- **ADR**: [ADR-0012](decisions/ADR-0012-name-based-classifier-adapter-pattern.md), [ADR-0029](decisions/ADR-0029-unconditional-method-dependencies.md)
 - **Role**: Pooled voter in reference ensemble.
-- **Dependencies**: Opt-in `guesser` extra (`gender-guesser`).
+- **Dependencies**: Standard dependency (`gender-guesser`).
 - **Configuration**: `GenderGuesserConfig` with optional `detector_type` (`"detector"` or `"cautious"`).
 - **Normalization Profile**: `gender_guesser_v1`.
 - **Inputs Consumed**: Primary forename from `person.forenames` or `person.name_forms`.
@@ -71,9 +71,9 @@ The pipeline contains ten components across five methodological families. Nine c
 ### 4. Wiki-Gendersort (`wiki_gendersort`)
 
 - **Module**: [`gendertagger.methods.wiki_gendersort`](../src/gendertagger/methods/wiki_gendersort.py)
-- **ADR**: [ADR-0013](decisions/ADR-0013-wiki-gendersort-adapter.md)
+- **ADR**: [ADR-0013](decisions/ADR-0013-wiki-gendersort-adapter.md), [ADR-0029](decisions/ADR-0029-unconditional-method-dependencies.md)
 - **Role**: Pooled voter in reference ensemble.
-- **Dependencies**: Built-in `sqlite3` and optional `wiki` extra (`unidecode`).
+- **Dependencies**: Built-in `sqlite3` and standard dependency `unidecode`.
 - **Configuration**: `LookupMethodConfig` requiring `lookup_sha256` digest of the compiled Wiki-Gendersort SQLite artifact.
 - **Normalization Profile**: `wiki_gendersort_v1`.
 - **Inputs Consumed**: Forename tokens from `person.forenames` or `person.name_forms`.
@@ -93,9 +93,9 @@ The pipeline contains ten components across five methodological families. Nine c
 ### 6. nomquamgender (`nomquamgender`)
 
 - **Module**: [`gendertagger.methods.nomquamgender`](../src/gendertagger/methods/nomquamgender.py)
-- **ADR**: [ADR-0019](decisions/ADR-0019-nomquamgender-adapter.md)
+- **ADR**: [ADR-0019](decisions/ADR-0019-nomquamgender-adapter.md), [ADR-0029](decisions/ADR-0029-unconditional-method-dependencies.md)
 - **Role**: Pooled voter in reference ensemble.
-- **Dependencies**: Opt-in `nomquam` extra (`nomquamgender`).
+- **Dependencies**: Standard dependency (`nomquamgender`).
 - **Configuration**: `NomquamgenderConfig` (no additional parameters required).
 - **Normalization Profile**: `nomquamgender_v1`.
 - **Inputs Consumed**: Forename tokens from `person.forenames` or `person.name_forms`.
@@ -104,9 +104,9 @@ The pipeline contains ten components across five methodological families. Nine c
 ### 7. Hugging Face DistilBERT (`hf_distilbert`)
 
 - **Module**: [`gendertagger.methods.hf_distilbert`](../src/gendertagger/methods/hf_distilbert.py)
-- **ADR**: [ADR-0024](decisions/ADR-0024-hf-transformer-model-manifest-adapters.md)
+- **ADR**: [ADR-0024](decisions/ADR-0024-hf-transformer-model-manifest-adapters.md), [ADR-0029](decisions/ADR-0029-unconditional-method-dependencies.md)
 - **Role**: Pooled voter in reference ensemble.
-- **Dependencies**: Opt-in `transformers` extra (`transformers`, `torch`).
+- **Dependencies**: Standard dependencies (`transformers`, `torch`).
 - **Configuration**: `HfTransformerConfig` requiring `model_sha256` digest of content-addressed model manifest directory.
 - **Normalization Profile**: `hf_distilbert_v1`.
 - **Inputs Consumed**: Primary forename string.
@@ -115,9 +115,9 @@ The pipeline contains ten components across five methodological families. Nine c
 ### 8. Hugging Face BERT genderize (`hf_genderize`)
 
 - **Module**: [`gendertagger.methods.hf_genderize`](../src/gendertagger/methods/hf_genderize.py)
-- **ADR**: [ADR-0024](decisions/ADR-0024-hf-transformer-model-manifest-adapters.md)
+- **ADR**: [ADR-0024](decisions/ADR-0024-hf-transformer-model-manifest-adapters.md), [ADR-0029](decisions/ADR-0029-unconditional-method-dependencies.md)
 - **Role**: Pooled voter in reference ensemble.
-- **Dependencies**: Opt-in `transformers` extra (`transformers`, `torch`).
+- **Dependencies**: Standard dependencies (`transformers`, `torch`).
 - **Configuration**: `HfTransformerConfig` requiring `model_sha256` digest of content-addressed model manifest directory.
 - **Normalization Profile**: `hf_genderize_v1`.
 - **Inputs Consumed**: Primary forename string.
@@ -126,9 +126,9 @@ The pipeline contains ten components across five methodological families. Nine c
 ### 9. Local LLM (`local_llm`)
 
 - **Module**: [`gendertagger.methods.local_llm`](../src/gendertagger/methods/local_llm.py)
-- **ADR**: [ADR-0026](decisions/ADR-0026-local-llm-adapter.md)
+- **ADR**: [ADR-0026](decisions/ADR-0026-local-llm-adapter.md), [ADR-0029](decisions/ADR-0029-unconditional-method-dependencies.md)
 - **Role**: Pooled voter in reference ensemble.
-- **Dependencies**: Opt-in `llm` extra (`httpx`).
+- **Dependencies**: Standard dependency (`httpx2`).
 - **Configuration**: `LocalLlmConfig` requiring `model` and `base_url`, with optional `api_key`, `system_prompt`, `temperature`, and `max_validation_retries`.
 - **Normalization Profile**: `local_llm_v1`.
 - **Inputs Consumed**: Complete record (`person.tei_id`, names, life dates, `person.note`, `person.events`, `person.gnd_id`, `person.external_ids`).
@@ -137,9 +137,9 @@ The pipeline contains ten components across five methodological families. Nine c
 ### 10. HIVOTO-XGBoost (`hivoto_xgboost`) [Experimental]
 
 - **Module**: [`gendertagger.methods.hivoto_xgboost`](../src/gendertagger/methods/hivoto_xgboost.py)
-- **ADR**: [ADR-0025](decisions/ADR-0025-hivoto-xgboost-adapter.md)
+- **ADR**: [ADR-0025](decisions/ADR-0025-hivoto-xgboost-adapter.md), [ADR-0029](decisions/ADR-0029-unconditional-method-dependencies.md)
 - **Role**: Experimental component (held out from `reference_v1` voting ensemble).
-- **Dependencies**: Opt-in `hivoto-xgboost` extra (`scikit-learn`, `xgboost`).
+- **Dependencies**: Standard dependencies (`scikit-learn`, `xgboost`).
 - **Configuration**: `LookupMethodConfig` requiring `lookup_sha256` digest of model manifest.
 - **Normalization Profile**: `hivoto_xgboost_v1`.
 - **Inputs Consumed**: Forename tokens from `person.forenames` or `person.name_forms`.

@@ -168,7 +168,7 @@ def test_annotator_is_built_once() -> None:
 
 def test_missing_dependency_is_a_permanent_failure() -> None:
     def factory() -> _FakeAnnotator:
-        msg = "nomquamgender requires the 'nomquam' extra"
+        msg = "nomquamgender requires the nomquamgender package"
         raise MethodDependencyError(msg)
 
     method = NomquamgenderMethod(annotator_factory=factory)
@@ -176,7 +176,7 @@ def test_missing_dependency_is_a_permanent_failure() -> None:
         method.predict_batch([_person("Karl")], _CONFIG)
 
 
-# --- Real backend: nomquamgender model (requires the nomquam extra) -----------
+# --- Real backend: nomquamgender model ----------------------------------------
 
 
 def test_real_backend_classifies_common_names() -> None:

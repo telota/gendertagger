@@ -514,7 +514,10 @@ dependencies = [
     { name = "alembic" },
     { name = "celery" },
     { name = "fastapi" },
+    { name = "gender-guesser" },
+    { name = "httpx2" },
     { name = "lxml" },
+    { name = "nomquamgender" },
     { name = "openpyxl" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic" },
@@ -525,35 +528,17 @@ dependencies = [
     { name = "scikit-learn" },
     { name = "sqlalchemy" },
     { name = "statsmodels" },
-    { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.optional-dependencies]
-guesser = [
-    { name = "gender-guesser" },
-]
-hivoto-xgboost = [
-    { name = "xgboost", version = "3.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "xgboost", version = "3.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-]
-llm = [
-    { name = "httpx2" },
-]
-nomquam = [
-    { name = "nomquamgender" },
-]
-transformers = [
     { name = "torch" },
     { name = "transformers" },
-]
-wiki = [
     { name = "unidecode" },
+    { name = "uvicorn", extra = ["standard"] },
+    { name = "xgboost", version = "3.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "xgboost", version = "3.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "coverage", extra = ["toml"] },
-    { name = "httpx2" },
     { name = "hypothesis" },
     { name = "import-linter" },
     { name = "lxml-stubs" },
@@ -573,7 +558,6 @@ lint = [
 ]
 test = [
     { name = "coverage", extra = ["toml"] },
-    { name = "httpx2" },
     { name = "hypothesis" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -584,10 +568,10 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.16,<2" },
     { name = "celery", specifier = ">=5.4,<6" },
     { name = "fastapi", specifier = ">=0.116,<1" },
-    { name = "gender-guesser", marker = "extra == 'guesser'", specifier = ">=0.4,<1" },
-    { name = "httpx2", marker = "extra == 'llm'", specifier = ">=2.0,<3" },
+    { name = "gender-guesser", specifier = ">=0.4,<1" },
+    { name = "httpx2", specifier = ">=2.0,<3" },
     { name = "lxml", specifier = ">=5.4,<7" },
-    { name = "nomquamgender", marker = "extra == 'nomquam'", specifier = ">=0.1,<1" },
+    { name = "nomquamgender", specifier = ">=0.1,<1" },
     { name = "openpyxl", specifier = ">=3.1,<4" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2,<4" },
     { name = "pydantic", specifier = ">=2.13.4,<3" },
@@ -598,18 +582,16 @@ requires-dist = [
     { name = "scikit-learn", specifier = ">=1.9,<2" },
     { name = "sqlalchemy", specifier = ">=2.0,<3" },
     { name = "statsmodels", specifier = ">=0.14,<1" },
-    { name = "torch", marker = "extra == 'transformers'", specifier = ">=2.2,<3" },
-    { name = "transformers", marker = "extra == 'transformers'", specifier = ">=5.5,<6" },
-    { name = "unidecode", marker = "extra == 'wiki'", specifier = ">=1.3,<2" },
+    { name = "torch", specifier = ">=2.2,<3" },
+    { name = "transformers", specifier = ">=5.5,<6" },
+    { name = "unidecode", specifier = ">=1.3,<2" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.35,<1" },
-    { name = "xgboost", marker = "extra == 'hivoto-xgboost'", specifier = ">=3.2,<4" },
+    { name = "xgboost", specifier = ">=3.2,<4" },
 ]
-provides-extras = ["guesser", "hivoto-xgboost", "llm", "nomquam", "transformers", "wiki"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "coverage", extras = ["toml"], specifier = "==7.15.4" },
-    { name = "httpx2", specifier = ">=2.0,<3" },
     { name = "hypothesis", specifier = "==6.165.5" },
     { name = "import-linter", specifier = "==2.13" },
     { name = "lxml-stubs", specifier = "==0.5.1" },
@@ -629,7 +611,6 @@ lint = [
 ]
 test = [
     { name = "coverage", extras = ["toml"], specifier = "==7.15.4" },
-    { name = "httpx2", specifier = ">=2.0,<3" },
     { name = "hypothesis", specifier = "==6.165.5" },
     { name = "pytest", specifier = "==9.1.1" },
     { name = "pytest-cov", specifier = "==7.1.0" },

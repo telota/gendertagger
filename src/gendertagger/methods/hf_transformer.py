@@ -37,11 +37,8 @@ class _TransformersBackend:
                 AutoModelForSequenceClassification,
                 AutoTokenizer,
             )
-        except ImportError as error:  # pragma: no cover - exercised only without the extra
-            msg = (
-                "hf transformer methods require the 'transformers' extra "
-                "(install transformers, torch)"
-            )
+        except ImportError as error:  # pragma: no cover
+            msg = "hf transformer methods require the transformers and torch packages"
             raise MethodDependencyError(msg) from error
         self._torch = torch
         self._tokenizer = AutoTokenizer.from_pretrained(directory, local_files_only=True)
@@ -70,6 +67,6 @@ def default_backend_factory(directory: Path) -> HfTransformerBackend:
     """Load a locally materialized model directory as a batch classification backend.
 
     Raises:
-        MethodDependencyError: If the ``transformers`` extra is not installed.
+        MethodDependencyError: If the ``transformers`` and ``torch`` packages are not available.
     """
     return cast(HfTransformerBackend, _TransformersBackend(directory))

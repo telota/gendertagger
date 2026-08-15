@@ -7,7 +7,10 @@ dependencies = [
   "alembic>=1.16,<2",
   "celery>=5.4,<6",
   "fastapi>=0.116,<1",
+  "gender-guesser>=0.4,<1",
+  "httpx2>=2.0,<3",
   "lxml>=5.4,<7",
+  "nomquamgender>=0.1,<1",
   "openpyxl>=3.1,<4",
   "psycopg[binary]>=3.2,<4",
   "pydantic>=2.13.4,<3",
@@ -18,7 +21,11 @@ dependencies = [
   "scikit-learn>=1.9,<2",
   "sqlalchemy>=2.0,<3",
   "statsmodels>=0.14,<1",
+  "torch>=2.2,<3",
+  "transformers>=5.5,<6",
+  "unidecode>=1.3,<2",
   "uvicorn[standard]>=0.35,<1",
+  "xgboost>=3.2,<4",
 ]
 description = "Infrastructure and service implementation for the gendertagger research workflow"
 license = "MIT"
@@ -30,19 +37,6 @@ version = "0.0.0"
 
 [project.scripts]
 gendertagger = "gendertagger.cli.main:main"
-
-# Method adapters declare heavy or method-specific runtime dependencies as
-# opt-in extras. Adapters lazily import them so the core install, API, and
-# lightweight workers stay slim; a missing extra fails only the affected method.
-# scikit-learn is a core dependency (Phase 6 evaluation needs cohen_kappa_score
-# unconditionally), so hivoto-xgboost only adds xgboost itself.
-[project.optional-dependencies]
-guesser = ["gender-guesser>=0.4,<1"]
-hivoto-xgboost = ["xgboost>=3.2,<4"]
-llm = ["httpx2>=2.0,<3"]
-nomquam = ["nomquamgender>=0.1,<1"]
-transformers = ["transformers>=5.5,<6", "torch>=2.2,<3"]
-wiki = ["unidecode>=1.3,<2"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/gendertagger"]
@@ -85,7 +79,6 @@ lint = [
 ]
 test = [
   "coverage[toml]==7.15.4",
-  "httpx2>=2.0,<3",
   "hypothesis==6.165.5",
   "pytest==9.1.1",
   "pytest-cov==7.1.0",
@@ -187,7 +180,7 @@ warn_unreachable = true
 ignore_missing_imports = true
 module = ["celery.*", "kombu.*"]
 
-# Optional classification-method dependencies ship no py.typed marker; confine
+# Classification-method dependencies ship no py.typed marker; confine
 # the untyped boundary to their lazily imported adapter modules.
 [[tool.mypy.overrides]]
 ignore_missing_imports = true

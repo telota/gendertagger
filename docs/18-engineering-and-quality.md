@@ -34,8 +34,8 @@ feedback mechanism.
   repositories, and adapters must be fully typed. Confine `Any` to inspected raw external payloads.
 - Pyright runs as a complementary required analysis over `src/`, `tests/`, and `scripts`, using the checked-in
   configuration that Pylance also understands. Pylance itself remains an editor integration rather than a
-  headless CI dependency. Its job installs the lightweight `guesser` and `wiki` extras so optional imports are
-  resolved rather than hidden by a missing-import suppression.
+  headless CI dependency. The CI environment provides all classification method dependencies so all imports
+  are resolved rather than hidden by missing-import suppressions.
 - Suppressions must name the exact rule/error code and explain why the exception is safe.
 - Scientific functions should be pure and deterministic. Inject clocks, ID generators, randomness,
   network clients, and persistence rather than reading global state inside domain logic.

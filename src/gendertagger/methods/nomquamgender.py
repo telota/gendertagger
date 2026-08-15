@@ -58,8 +58,8 @@ AnnotatorFactory = Callable[[], NomquamAnnotator]
 def _default_annotator_factory() -> NomquamAnnotator:
     try:
         import nomquamgender
-    except ImportError as error:  # pragma: no cover - exercised only without the extra
-        msg = "nomquamgender requires the 'nomquam' extra (install nomquamgender)"
+    except ImportError as error:  # pragma: no cover
+        msg = "nomquamgender requires the nomquamgender package"
         raise MethodDependencyError(msg) from error
     # The dependency's annotation exposes a DataFrame-or-list union even though
     # ``as_df=False`` (the default used here) returns the list rows this adapter

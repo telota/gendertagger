@@ -177,12 +177,12 @@ class LocalLlmMethod(GenderMethod[LocalLlmConfig]):
         """Classify a batch of people sequentially using the configured LLM API.
 
         Raises:
-            MethodDependencyError: If the ``llm`` extra is not installed.
+            MethodDependencyError: If the ``httpx2`` package is not available.
         """
         try:
             import httpx2  # pyright: ignore[reportMissingImports]
         except ImportError as error:
-            msg = "local_llm requires the 'llm' extra (install httpx2)"
+            msg = "local_llm requires the httpx2 package"
             raise MethodDependencyError(msg) from error
 
         llm = LlmClient(

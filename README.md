@@ -139,7 +139,7 @@ rules.
 Install the uv version required by `pyproject.toml` and Node.js 18 or newer, then run:
 
 ```bash
-uv sync --locked --extra guesser --extra wiki --extra nomquam
+uv sync --locked
 npm ci --ignore-scripts --no-audit --no-fund
 uv run --locked python scripts/check_documentation.py
 uv run --locked python scripts/check_contract_naming.py

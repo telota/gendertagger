@@ -71,8 +71,8 @@ Transliterate = Callable[[str], str]
 def _load_transliterate() -> Transliterate:
     try:
         from unidecode import unidecode
-    except ImportError as error:  # pragma: no cover - exercised only without the extra
-        msg = "wiki_gendersort requires the 'wiki' extra (install unidecode)"
+    except ImportError as error:  # pragma: no cover
+        msg = "wiki_gendersort requires the unidecode package"
         raise MethodDependencyError(msg) from error
     transliterate: Transliterate = unidecode
     return transliterate

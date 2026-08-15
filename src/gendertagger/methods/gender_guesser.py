@@ -53,8 +53,8 @@ DetectorFactory = Callable[[], GenderGuesserDetector]
 def _default_detector_factory() -> GenderGuesserDetector:
     try:
         from gender_guesser.detector import Detector
-    except ImportError as error:  # pragma: no cover - exercised only without the extra
-        msg = "gender_guesser requires the 'guesser' extra (install gender-guesser)"
+    except ImportError as error:  # pragma: no cover
+        msg = "gender_guesser requires the gender-guesser package"
         raise MethodDependencyError(msg) from error
     # Case-insensitive lookup reproduces the reference pipeline's detector setup.
     detector: GenderGuesserDetector = Detector(case_sensitive=False)

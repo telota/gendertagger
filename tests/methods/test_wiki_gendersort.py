@@ -161,7 +161,7 @@ def test_assigner_is_materialized_and_built_once_per_digest() -> None:
 
 def test_missing_dependency_is_a_permanent_failure() -> None:
     def factory(_path: Path) -> _FakeAssigner:
-        msg = "wiki_gendersort requires the 'wiki' extra"
+        msg = "wiki_gendersort requires the unidecode package"
         raise MethodDependencyError(msg)
 
     method = WikiGendersortMethod(
