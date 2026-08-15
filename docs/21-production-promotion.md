@@ -1,6 +1,6 @@
 # Production Promotion
 
-This document outlines the Standard Operating Procedure (SOP) for promoting a tested release of `genderTagger` to the production environment.
+This document outlines the Standard Operating Procedure (SOP) for promoting a tested release of `gendertagger` to the production environment.
 
 ## Prerequisites
 1. **Immutable Artifacts**: Ensure the target commit has been built by GitLab CI and the Docker images (`backend`, `frontend`) are pushed to the container registry with explicit tags (e.g., `v1.2.3`).

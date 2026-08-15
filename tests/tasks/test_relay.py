@@ -1,5 +1,8 @@
-from collections.abc import Iterator
+import logging
+import signal
+from collections.abc import Callable, Iterator
 from threading import Event
+from types import FrameType
 from typing import cast
 from unittest.mock import Mock
 from uuid import UUID
@@ -16,6 +19,7 @@ from gendertagger.services.dispatch import (
     ReconciliationResult,
     RelayCycleResult,
 )
+from gendertagger.tasks import relay as relay_module
 from gendertagger.tasks.aggregation import EXECUTE_AGGREGATION_TASK_NAME
 from gendertagger.tasks.dispatch import CeleryMessagePublisher
 from gendertagger.tasks.execution import EXECUTE_BATCH_TASK_NAME
@@ -153,3 +157,161 @@ def test_coordinator_settings_validate_database_and_retry_window() -> None:
             dispatch_retry_base_seconds=20,
             dispatch_retry_max_seconds=10,
         )
+
+
+def test_coordinator_rejects_nonpositive_intervals_and_batch_sizes() -> None:
+    relay = cast(OutboxRelay, Mock())
+    reconciler = cast(DispatchReconciler, Mock())
+
+    with pytest.raises(ValueError, match="intervals must be positive"):
+        DispatchCoordinator(
+            relay=relay,
+            reconciler=reconciler,
+            stop_event=Event(),
+            poll_interval_seconds=0,
+            reconciliation_interval_seconds=1,
+            relay_batch_size=1,
+            reconciliation_batch_size=1,
+        )
+
+    with pytest.raises(ValueError, match="batch sizes must be positive"):
+        DispatchCoordinator(
+            relay=relay,
+            reconciler=reconciler,
+            stop_event=Event(),
+            poll_interval_seconds=1,
+            reconciliation_interval_seconds=1,
+            relay_batch_size=0,
+            reconciliation_batch_size=1,
+        )
+
+
+def test_coordinator_logs_failures_and_waits_after_partial_cycle(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    relay = Mock()
+    relay.run_once.return_value = RelayCycleResult(
+        claimed=1,
+        published=0,
+        failed=1,
+        lease_conflicts=1,
+    )
+    reconciler = Mock()
+    reconciler.run_once.return_value = ReconciliationResult(
+        missing_created=2,
+        stale_rearmed=3,
+    )
+    stop_event = Mock()
+    stop_event.is_set.side_effect = [False, True]
+    coordinator = DispatchCoordinator(
+        relay=cast(OutboxRelay, relay),
+        reconciler=cast(DispatchReconciler, reconciler),
+        stop_event=stop_event,
+        poll_interval_seconds=0.25,
+        reconciliation_interval_seconds=60,
+        relay_batch_size=10,
+        reconciliation_batch_size=20,
+        monotonic=Mock(side_effect=[0.0, 0.0]),
+    )
+
+    with caplog.at_level(logging.INFO, logger=relay_module.__name__):
+        coordinator.run()
+
+    stop_event.wait.assert_called_once_with(0.25)
+    assert "deferred 1 of 1 claimed messages" in caplog.text
+    assert "lost 1 leases" in caplog.text
+    assert "created 2 missing and rearmed 3 stale rows" in caplog.text
+
+
+def test_compose_dispatch_coordinator_wires_owned_resources(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    engine = Mock()
+    session_factory = Mock()
+    celery_app = Mock()
+    relay = Mock()
+    reconciler = Mock()
+    coordinator = Mock()
+    monkeypatch.setattr(relay_module, "create_database_engine", Mock(return_value=engine))
+    monkeypatch.setattr(relay_module, "create_session_factory", Mock(return_value=session_factory))
+    monkeypatch.setattr(relay_module, "create_celery_app", Mock(return_value=celery_app))
+    monkeypatch.setattr(relay_module, "OutboxRelay", Mock(return_value=relay))
+    monkeypatch.setattr(relay_module, "DispatchReconciler", Mock(return_value=reconciler))
+    monkeypatch.setattr(relay_module, "DispatchCoordinator", Mock(return_value=coordinator))
+    settings = DispatchCoordinatorSettings(
+        database_url=SecretStr("postgresql+psycopg://user:pass@db/gendertagger")
+    )
+    stop_event = Event()
+
+    application = relay_module.compose_dispatch_coordinator(settings, stop_event=stop_event)
+
+    assert application.coordinator is coordinator
+    assert application.engine is engine
+    assert application.celery_app is celery_app
+    relay_module.OutboxRelay.assert_called_once()
+    relay_module.DispatchReconciler.assert_called_once()
+    relay_module.DispatchCoordinator.assert_called_once_with(
+        relay=relay,
+        reconciler=reconciler,
+        stop_event=stop_event,
+        poll_interval_seconds=0.5,
+        reconciliation_interval_seconds=60.0,
+        relay_batch_size=100,
+        reconciliation_batch_size=100,
+    )
+
+
+def test_application_close_releases_broker_and_database() -> None:
+    engine = Mock()
+    celery_app = Mock()
+    application = relay_module.DispatchCoordinatorApplication(
+        coordinator=Mock(),
+        engine=engine,
+        celery_app=celery_app,
+    )
+
+    application.close()
+
+    celery_app.close.assert_called_once_with()
+    engine.dispose.assert_called_once_with()
+
+
+def test_shutdown_handlers_set_stop_event_and_log_signal(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    handlers: dict[int, object] = {}
+
+    def capture_handler(signal_number: int, handler: object) -> None:
+        handlers[signal_number] = handler
+
+    monkeypatch.setattr(signal, "signal", capture_handler)
+    stop_event = Event()
+    relay_module._install_shutdown_handlers(stop_event)
+
+    with caplog.at_level(logging.INFO, logger=relay_module.__name__):
+        handler = cast(Callable[[int, FrameType | None], None], handlers[signal.SIGTERM])
+        handler(signal.SIGTERM, None)
+
+    assert stop_event.is_set()
+    assert "received SIGTERM" in caplog.text
+    assert set(handlers) == {signal.SIGINT, signal.SIGTERM}
+
+
+def test_main_closes_application_when_coordinator_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    application = Mock()
+    application.coordinator.run.side_effect = RuntimeError("relay stopped")
+    monkeypatch.setattr(relay_module, "DispatchCoordinatorSettings", Mock(return_value=Mock()))
+    monkeypatch.setattr(relay_module, "_install_shutdown_handlers", Mock())
+    monkeypatch.setattr(
+        relay_module,
+        "compose_dispatch_coordinator",
+        Mock(return_value=application),
+    )
+
+    with pytest.raises(RuntimeError, match="relay stopped"):
+        relay_module.main()
+
+    application.close.assert_called_once_with()
