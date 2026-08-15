@@ -37,6 +37,6 @@ def wilson_recall_interval(
     )
     return {
         "recall": round(correct / class_size, _ROUNDING_DECIMAL_PLACES),
-        "ci_low": round(max(0.0, ci_low), _ROUNDING_DECIMAL_PLACES),
-        "ci_high": round(min(1.0, ci_high), _ROUNDING_DECIMAL_PLACES),
+        "ci_low": round(max(0.0, float(ci_low)), _ROUNDING_DECIMAL_PLACES),
+        "ci_high": round(min(1.0, float(ci_high)), _ROUNDING_DECIMAL_PLACES),
     }

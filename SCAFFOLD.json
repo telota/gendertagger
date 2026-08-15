@@ -50,7 +50,8 @@
     "docs/decisions/ADR-0023-content-addressed-sqlite-method-lookups.md",
     "docs/decisions/ADR-0024-hf-transformer-model-manifest-adapters.md",
     "docs/decisions/ADR-0025-hivoto-xgboost-adapter.md",
-    "docs/decisions/ADR-0026-local-llm-adapter.md"
+    "docs/decisions/ADR-0026-local-llm-adapter.md",
+    "docs/decisions/ADR-0027-gnd-benchmark-evaluation-definition.md"
   ],
   "top_level_entrypoints": [
     "README.md",
