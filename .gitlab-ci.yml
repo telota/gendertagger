@@ -31,12 +31,12 @@ default:
 .uv_job:
   image: python:3.11.9-slim-bookworm@sha256:8fb099199b9f2d70342674bd9dbccd3ed03a258f26bbd1d556822c6dfc60c317
   before_script:
-    - python -m pip install --no-cache-dir "uv==0.12.3"
+    - python -m pip install --no-cache-dir "uv==0.12.5"
 
 .python_job:
   extends: .uv_job
   before_script:
-    - python -m pip install --no-cache-dir "uv==0.12.3"
+    - python -m pip install --no-cache-dir "uv==0.12.5"
     - uv sync --locked
 
 lockfile:
@@ -72,7 +72,7 @@ pyright:
   before_script:
     - apt-get update
     - apt-get install --yes --no-install-recommends nodejs npm
-    - python -m pip install --no-cache-dir "uv==0.12.3"
+    - python -m pip install --no-cache-dir "uv==0.12.5"
     - uv sync --locked --extra guesser --extra wiki --extra nomquam
   script:
     - npm ci --ignore-scripts --no-audit --no-fund

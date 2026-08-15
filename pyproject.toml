@@ -18,6 +18,7 @@ dependencies = [
   "scikit-learn>=1.9,<2",
   "sqlalchemy>=2.0,<3",
   "statsmodels>=0.14,<1",
+  "uvicorn[standard]>=0.35,<1",
 ]
 description = "Infrastructure and service implementation for the gendertagger research workflow"
 license = "MIT"
@@ -92,7 +93,7 @@ test = [
 
 [tool.uv]
 default-groups = ["dev"]
-required-version = "==0.12.3"
+required-version = ">=0.12.3,<0.13"
 
 [tool.ruff]
 extend-exclude = [

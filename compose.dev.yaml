@@ -20,6 +20,9 @@ services:
       - "127.0.0.1:8000:8000"
     environment:
       LOG_FORMAT: text
+      GENDERTAGGER_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-gendertagger}
+      GENDERTAGGER_CODE_GIT_COMMIT: ${GENDERTAGGER_CODE_GIT_COMMIT:-local-development}
+      GENDERTAGGER_DEPENDENCY_LOCK_SHA256: ${GENDERTAGGER_DEPENDENCY_LOCK_SHA256:-3c28c4065fe0dd5004e8564fc326c257869b6928730971ad6f3ad964541fd5e6}
 
   worker-cpu:
     build:
@@ -29,6 +32,7 @@ services:
       - ./src:/app/src
     environment:
       LOG_FORMAT: text
+      GENDERTAGGER_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-gendertagger}
 
   worker-gpu:
     build:
@@ -71,11 +75,9 @@ services:
     build:
       context: ./frontend
       dockerfile: ../deploy/docker/frontend.Dockerfile
-      target: development
+      target: production
     ports:
-      - "127.0.0.1:5173:5173"
-    volumes:
-      - ./frontend:/app
+      - "127.0.0.1:5173:80"
 
   gateway:
     ports:

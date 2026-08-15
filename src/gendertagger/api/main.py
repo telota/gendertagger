@@ -27,11 +27,11 @@ def ready() -> Response:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
-    # Check DB using unit_of_work_factory
-    uow_factory = app.state.unit_of_work_factory
+    # Check DB using the application-owned engine.
+    engine = app.state.database_engine
     try:
-        with uow_factory() as uow:
-            uow.session.execute(text("SELECT 1"))
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
     except Exception:
         return Response(
             content="Database unavailable",

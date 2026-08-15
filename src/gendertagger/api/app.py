@@ -157,6 +157,7 @@ def create_app(
     install_error_handlers(application)
     application.include_router(create_api_router())
     application.state.settings = resolved_settings
+    application.state.database_engine = engine
     application.state.unit_of_work_factory = unit_of_work_factory
     application.state.authentication_backend = authentication_backend
     application.state.project_service = project_service
