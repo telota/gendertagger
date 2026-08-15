@@ -1,8 +1,6 @@
 # gendertagger
 
-This repository is the architecture-first implementation of the next generation of `gendertagger`.
-It captures the agreed architecture and scientific behavior of the existing Python pipeline while the
-new application is built in tested phases.
+This repository is the implementation of the next generation of `gendertagger`.
 
 The target system is a reproducible, human-in-the-loop service for semi-automated gender annotation of TEI/XML person registers.
 The design preserves the published multi-method workflow while adding persistent storage, an API, task orchestration, annotation, evaluation, provenance, and deployable infrastructure.
