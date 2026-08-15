@@ -1,6 +1,82 @@
 {
   "components": {
     "schemas": {
+      "AggregatedClassification": {
+        "additionalProperties": false,
+        "description": "Aggregated decision and certainty rating derived from method predictions.",
+        "properties": {
+          "agreement_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Agreement score rounded to three decimal places.",
+            "title": "Agreement Score"
+          },
+          "agreement_tier": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgreementTier"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Agreement tier: 'unanimous', 'strong', 'moderate', 'low', 'single_rater', 'no_consensus', 'no_answer'."
+          },
+          "certainty_tier": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CertaintyTier"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Certainty tier rating ('high', 'medium', 'low') derived from agreement and rater certainty."
+          },
+          "label": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CanonicalLabel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Consensus canonical label or null when no consensus is reached."
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/AggregationOutcome",
+            "description": "Aggregation outcome: 'decided', 'unresolved_tie', or 'no_data'."
+          },
+          "override_source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OverrideSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Source of priority override if parenthetical qualifier or GND overrode the vote."
+          },
+          "vote_counts": {
+            "$ref": "#/components/schemas/VoteCounts",
+            "description": "Vote counts across pooled classification methods."
+          }
+        },
+        "required": [
+          "outcome",
+          "vote_counts"
+        ],
+        "title": "AggregatedClassification",
+        "type": "object"
+      },
       "AggregatedResult": {
         "additionalProperties": false,
         "description": "Canonical read model for one immutable persisted aggregation output.",
@@ -594,6 +670,79 @@
         ],
         "title": "CertaintyTier",
         "type": "string"
+      },
+      "ClassifyNamesRequest": {
+        "additionalProperties": false,
+        "description": "Payload for on-demand synchronous name classification.",
+        "properties": {
+          "method_configs": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/JsonValue"
+                  },
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional per-method configuration overrides.",
+            "title": "Method Configs"
+          },
+          "methods": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional list of registered method names to evaluate. Defaults to all runnable methods on this server.",
+            "title": "Methods"
+          },
+          "names": {
+            "description": "One or more non-blank names to classify.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Names",
+            "type": "array"
+          }
+        },
+        "required": [
+          "names"
+        ],
+        "title": "ClassifyNamesRequest",
+        "type": "object"
+      },
+      "ClassifyNamesResponse": {
+        "additionalProperties": false,
+        "description": "Container for synchronous name classification results.",
+        "properties": {
+          "results": {
+            "description": "Classification results in input name order.",
+            "items": {
+              "$ref": "#/components/schemas/NameClassificationResult"
+            },
+            "title": "Results",
+            "type": "array"
+          }
+        },
+        "required": [
+          "results"
+        ],
+        "title": "ClassifyNamesResponse",
+        "type": "object"
       },
       "CurrentUser": {
         "additionalProperties": false,
@@ -1239,6 +1388,68 @@
         "title": "LabelSourcePolicy",
         "type": "string"
       },
+      "MethodClassification": {
+        "additionalProperties": false,
+        "description": "Outcome of one method for one name.",
+        "properties": {
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Diagnostic explanation when status is 'error'.",
+            "title": "Error Message"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CanonicalLabel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Canonical label ('male', 'female', 'unknown', 'institution') or null on abstain/error."
+          },
+          "method_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Method-specific confidence value, if reported by the method.",
+            "title": "Method Confidence"
+          },
+          "raw_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unnormalized raw label emitted by the adapter.",
+            "title": "Raw Label"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PredictionStatus",
+            "description": "Outcome status: 'success', 'abstain', or 'error'."
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "MethodClassification",
+        "type": "object"
+      },
       "MethodConfidenceRange": {
         "additionalProperties": false,
         "description": "Inclusive range for one method's uncalibrated confidence values.",
@@ -1559,6 +1770,36 @@
           "name"
         ],
         "title": "MethodRunConfig",
+        "type": "object"
+      },
+      "NameClassificationResult": {
+        "additionalProperties": false,
+        "description": "Classification outcomes across methods for one input name.",
+        "properties": {
+          "aggregated": {
+            "$ref": "#/components/schemas/AggregatedClassification",
+            "description": "Ensemble aggregation decision and certainty rating."
+          },
+          "classifications": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MethodClassification"
+            },
+            "description": "Map of method name to its classification result.",
+            "title": "Classifications",
+            "type": "object"
+          },
+          "name": {
+            "description": "The input name string.",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "classifications",
+          "aggregated"
+        ],
+        "title": "NameClassificationResult",
         "type": "object"
       },
       "OverrideSource": {
@@ -2950,6 +3191,118 @@
         "summary": "Create Annotation",
         "tags": [
           "annotations"
+        ]
+      }
+    },
+    "/api/v1/classify": {
+      "post": {
+        "description": "Classify one or more names synchronously across enabled methods.",
+        "operationId": "classify_names_api_v1_classify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassifyNamesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassifyNamesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Classify Names",
+        "tags": [
+          "classification"
         ]
       }
     },

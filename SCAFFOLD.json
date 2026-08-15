@@ -51,7 +51,8 @@
     "docs/decisions/ADR-0024-hf-transformer-model-manifest-adapters.md",
     "docs/decisions/ADR-0025-hivoto-xgboost-adapter.md",
     "docs/decisions/ADR-0026-local-llm-adapter.md",
-    "docs/decisions/ADR-0027-gnd-benchmark-evaluation-definition.md"
+    "docs/decisions/ADR-0027-gnd-benchmark-evaluation-definition.md",
+    "docs/decisions/ADR-0028-synchronous-on-demand-classification-api.md"
   ],
   "top_level_entrypoints": [
     "README.md",

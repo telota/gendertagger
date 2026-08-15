@@ -2,12 +2,10 @@
 
 - Import registers from git url
 - download tools for models/datasets for methods
-- increase test coverage
-- endpoint to classify name (single, batch)
 - train classifier on gnd data, bracket by century -> use date of birth of person for that
 - check for redundancies, backwards compatibility and legacy components
 - add type stubs to deps
-- clean/merge development migrations/stages
+
 - extend cli
 
 ## Problem

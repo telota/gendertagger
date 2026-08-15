@@ -24,6 +24,7 @@ from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.models.project import SnapshotImportLimits
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.annotations import AnnotationService
+from gendertagger.services.classification import DirectClassificationService
 from gendertagger.services.evaluations import EvaluationService
 from gendertagger.services.execution import RunScheduler
 from gendertagger.services.exports import ExportService
@@ -136,6 +137,10 @@ def create_app(
         method_registry=method_registry,
         clock=partial(datetime.now, UTC),
     )
+    classification_service = DirectClassificationService(
+        method_registry=method_registry,
+        unit_of_work_factory=unit_of_work_factory,
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
@@ -169,4 +174,5 @@ def create_app(
     application.state.run_service = run_service
     application.state.review_item_service = review_item_service
     application.state.run_scheduler = run_scheduler
+    application.state.classification_service = classification_service
     return application

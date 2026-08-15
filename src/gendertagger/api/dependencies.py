@@ -6,6 +6,7 @@ from fastapi import Request
 
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.annotations import AnnotationService
+from gendertagger.services.classification import DirectClassificationService
 from gendertagger.services.evaluations import EvaluationService
 from gendertagger.services.execution import RunScheduler
 from gendertagger.services.exports import ExportService
@@ -64,3 +65,8 @@ def get_review_item_service(request: Request) -> ReviewItemService:
 def get_run_scheduler(request: Request) -> RunScheduler:
     """Return the composed run-scheduling application service."""
     return cast(RunScheduler, request.app.state.run_scheduler)
+
+
+def get_classification_service(request: Request) -> DirectClassificationService:
+    """Return the composed direct classification application service."""
+    return cast(DirectClassificationService, request.app.state.classification_service)

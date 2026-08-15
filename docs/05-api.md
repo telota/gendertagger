@@ -44,6 +44,7 @@ The scientific `unknown` label is never represented by `null`.
 /api/v1/exports
 /api/v1/exports/{export_id}/download
 /api/v1/methods
+/api/v1/classify
 /api/v1/me
 ```
 
@@ -158,6 +159,17 @@ Creates a new immutable human decision. The command contains the review revision
 `POST /api/v1/exports`
 
 Creates an asynchronous export resource referencing a snapshot plus selected aggregation/final-decision policy. Downloads use artifact/export IDs, never server paths.
+
+### Synchronous name classification
+
+`POST /api/v1/classify`
+
+Classifies one or more raw name strings synchronously across registered or specified method adapters. Returns the canonical label, status, method-specific confidence, and raw label for each method, as well as an ensemble `aggregated` verdict with certainty rating (`certainty_tier`), agreement rating (`agreement_tier`, `agreement_score`), vote counts, and priority override source.
+
+Input payload:
+- `names`: list of non-blank names (or a single `name` string, bounded to 1,000 names);
+- `methods`: optional subset of registered method identifiers (defaults to all runnable methods);
+- `method_configs`: optional per-method configuration overrides.
 
 ## List endpoints
 

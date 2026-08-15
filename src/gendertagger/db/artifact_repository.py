@@ -60,6 +60,17 @@ class SqlAlchemyArtifactRepository:
             raise AmbiguousArtifactError(msg)
         return None if not rows else self._artifact_from_row(rows[0])
 
+    def get_latest_artifact(self, logical_type: str) -> Artifact | None:
+        """Return the most recently registered artifact for one logical type, or ``None``."""
+        statement = (
+            select(ArtifactRow)
+            .where(ArtifactRow.logical_type == logical_type)
+            .order_by(ArtifactRow.created_at.desc(), ArtifactRow.id.desc())
+            .limit(1)
+        )
+        row = self._session.scalars(statement).first()
+        return None if row is None else self._artifact_from_row(row)
+
     def list_artifacts_by_export(self, export_id: UUID) -> Sequence[Artifact]:
         """Return every artifact produced by one export, in creation order."""
         rows = self._session.scalars(
