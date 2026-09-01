@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>genderTagger — Variante C (ausgebaut)</title>
+<style>
+  :root{
+    color-scheme: light;
+    --surface-1:#fcfcfb; --page:#f2f1ee; --panel:#ffffff;
+    --text-primary:#0b0b0b; --text-secondary:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --border:rgba(11,11,11,0.12);
+    --male:#2a78d6; --female:#eb6834; --institution:#1baf7a; --uncertain:#eda100;
+    --male-text:#1f5aa0; --female-text:#b04e27; --institution-text:#127a55; --uncertain-text:#7a5900;
+    --male-tint:#e9f1fa; --female-tint:#fdefea; --institution-tint:#e8f7f1; --uncertain-tint:#fdf5e5;
+    --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
+    --accent:#4a3aa7; --accent-b:#0f7a63; --focus-ring:#1f5aa0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--page); color:var(--text-primary);}
+
+  [role="button"]{-webkit-tap-highlight-color:transparent;}
+  [role="button"]:focus-visible, button:focus-visible, a:focus-visible, [tabindex]:focus-visible, input:focus-visible{
+    outline:2px solid var(--focus-ring, var(--accent)); outline-offset:2px; border-radius:6px;
+  }
+
+  .app{display:flex; min-height:100vh;}
+
+  /* ---- Sidebar ---- */
+  .sidebar{width:224px; background:var(--panel); border-right:1px solid var(--border); padding:20px 14px; flex-shrink:0;}
+  .brand{display:flex; align-items:center; gap:8px; font-weight:700; font-size:16px; margin-bottom:6px; padding:0 6px;}
+  .brand .dot{width:10px;height:10px;border-radius:50%; background:var(--accent-b);}
+  .variant-tag{font-size:11px; color:var(--muted); padding:0 6px 18px;}
+  .nav-item{display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:14px; color:var(--text-secondary); cursor:pointer; margin-bottom:2px; border:1px solid transparent;}
+  .nav-item .ic{width:18px; text-align:center; opacity:.8;}
+  .nav-item.active{background:#f1eefc; color:var(--accent); font-weight:600; border-color:rgba(74,58,167,.15);}
+  .nav-item:hover:not(.active){background:var(--page);}
+  .nav-item.optional{color:#8a6a00; opacity:.9;}
+  .nav-item.optional.active{background:#fff6e5; color:#8a5a00; border-color:#f0d9a8;}
+  .nav-section{font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:18px 6px 6px; display:flex; justify-content:space-between; align-items:center;}
+  .opt-pill{font-size:9.5px; background:#fff1d6; color:#8a5a00; border-radius:999px; padding:1px 7px; font-weight:700;}
+
+  /* ---- Main / Topbar ---- */
+  .main{flex:1; display:flex; flex-direction:column; min-width:0;}
+  .topbar{min-height:56px; background:var(--panel); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 20px; flex-shrink:0; gap:16px; flex-wrap:wrap;}
+  .topbar .proj{font-size:13px; color:var(--text-secondary); padding:8px 0;}
+  .topbar .proj b{color:var(--text-primary);}
+
+  /* Project switcher (topbar) */
+  .proj-switch{position:relative; padding:8px 0;}
+  .proj-switch-btn{display:flex; align-items:center; gap:4px; background:none; border:none; font-size:13px; color:var(--text-secondary); cursor:pointer; padding:2px; font-family:inherit;}
+  .proj-switch-btn b{color:var(--text-primary);}
+  .proj-switch-btn:hover{color:var(--text-primary);}
+  .proj-menu{position:absolute; top:calc(100% + 6px); left:0; background:var(--panel); border:1px solid var(--border); border-radius:10px; box-shadow:0 10px 28px rgba(11,11,11,.14); min-width:280px; padding:6px; display:none; z-index:80;}
+  .proj-menu.open{display:block;}
+  .proj-menu-item{padding:9px 10px; border-radius:7px; font-size:12.5px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:10px;}
+  .proj-menu-item:hover{background:var(--page);}
+  .proj-menu-item.current{background:#eaf6f2;}
+  .proj-menu-item .pn{font-weight:600;}
+  .proj-menu-item .ppct{font-size:11px; color:var(--muted);}
+  .proj-menu-sep{height:1px; background:var(--border); margin:5px 2px;}
+  .proj-menu-action{padding:9px 10px; border-radius:7px; font-size:12.5px; cursor:pointer; color:var(--accent-b); font-weight:600;}
+  .proj-menu-action:hover{background:var(--page);}
+
+  /* Projects overview */
+  .project-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; margin-top:4px;}
+  .project-card{background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:18px; cursor:pointer; display:flex; flex-direction:column; gap:9px;}
+  .project-card:hover{border-color:var(--accent-b);}
+  .project-card.static{cursor:default;}
+  .project-card.static:hover{border-color:var(--border);}
+  .project-card .ptitle{font-size:15px; font-weight:700;}
+  .project-card .psrc{font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:999px; background:var(--page); color:var(--text-secondary); display:inline-flex; align-items:center; gap:4px; width:fit-content;}
+  .project-card .pmeta{font-size:12px; color:var(--text-secondary);}
+  .project-card .pprogress-track{height:6px; background:var(--grid); border-radius:3px; overflow:hidden; margin-top:2px;}
+  .project-card .pprogress-fill{height:100%; background:var(--accent-b);}
+  .project-card .pfoot{display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:2px;}
+  .project-card.new{border:2px dashed var(--border); align-items:center; justify-content:center; text-align:center; color:var(--text-secondary); min-height:158px;}
+  .project-card.new .plus{font-size:26px; color:var(--accent-b); margin-bottom:4px;}
+
+  /* New-project modal */
+  .modal-overlay{position:fixed; inset:0; background:rgba(11,11,11,.45); display:none; align-items:center; justify-content:center; z-index:100; padding:20px;}
+  .modal-overlay.open{display:flex;}
+  .modal-box{background:var(--panel); border-radius:16px; max-width:560px; width:100%; max-height:90vh; overflow:auto; padding:26px;}
+  .modal-box h2{margin:0 0 4px; font-size:18px;}
+  .modal-field{display:flex; flex-direction:column; gap:5px; margin-bottom:16px;}
+  .modal-field label{font-size:11px; text-transform:uppercase; letter-spacing:.03em; color:var(--muted); font-weight:600;}
+  .modal-field input{padding:9px 10px; border:1px solid var(--border); border-radius:8px; font-size:13px; font-family:inherit; width:100%;}
+  .modal-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:6px;}
+  .topbar .right{display:flex; align-items:center; gap:10px; font-size:13px; color:var(--text-secondary); padding:8px 0;}
+  .avatar{width:28px;height:28px;border-radius:50%; background:var(--accent-b); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700;}
+  .bell{position:relative; cursor:pointer;}
+  .bell .badge{position:absolute;top:-4px;right:-6px;background:var(--critical);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:999px;}
+
+  .save-block{display:flex; align-items:center; gap:7px; font-size:12px; color:var(--text-secondary); white-space:nowrap;}
+  .save-dot{width:7px;height:7px;border-radius:50%; background:var(--good); flex-shrink:0;}
+  .btn-ghost{border:1px solid var(--border); background:var(--panel); color:var(--text-secondary); font-size:12px; padding:7px 12px; border-radius:8px; cursor:pointer; font-weight:600;}
+  .btn-ghost:hover{background:var(--page);}
+  .btn-solid{border:none; background:var(--accent-b); color:#fff; font-size:12px; padding:7px 14px; border-radius:8px; cursor:pointer; font-weight:600;}
+  .btn-solid:hover{filter:brightness(0.95);}
+  .dl-wrap{position:relative;}
+  .dl-menu{position:absolute; top:calc(100% + 8px); right:0; background:var(--panel); border:1px solid var(--border); border-radius:10px; box-shadow:0 10px 28px rgba(11,11,11,.14); min-width:250px; padding:6px; display:none; z-index:80;}
+  .dl-menu.open{display:block;}
+  .dl-item{padding:10px 11px; border-radius:7px; font-size:12.5px; cursor:pointer;}
+  .dl-item:hover{background:var(--page);}
+  .dl-item b{display:block; font-size:12.5px;}
+  .dl-item span{font-size:11px; color:var(--muted);}
+  .dl-item.disabled{opacity:.5; cursor:not-allowed;}
+  .dl-item.disabled:hover{background:none;}
+  .dl-sep{height:1px; background:var(--border); margin:5px 2px;}
+
+  .view{padding:24px; overflow:auto;}
+  .view h1{font-size:20px; margin:0 0 4px;}
+  .view .sub{color:var(--text-secondary); font-size:13px; margin:0 0 20px; max-width:72ch;}
+
+  .note{background:#f1eefc; border:1px solid rgba(74,58,167,.2); border-radius:8px; padding:10px 14px; font-size:12px; color:#3a2d84; margin-bottom:18px;}
+  .note.b{background:#eaf6f2; border-color:rgba(15,122,99,.25); color:#0b4a3c;}
+  .note.optional{background:#fff8ea; border:1px dashed #e0be6a; color:#6b4e00; display:flex; align-items:center; justify-content:space-between; gap:12px;}
+  .note.warn{background:#fdeceb; border-color:rgba(208,59,59,.3); color:#7a1f1f;}
+
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px;}
+  .two-col{display:grid; grid-template-columns:1.4fr 1fr; gap:16px;}
+
+  .screen-tabs{display:flex; gap:6px; padding:14px 24px 0; background:var(--panel); border-bottom:1px solid var(--border); flex-wrap:wrap;}
+  .stab{padding:10px 14px; font-size:13px; color:var(--text-secondary); cursor:pointer; border-bottom:2px solid transparent; user-select:none;}
+  .stab.active{color:var(--accent); border-bottom-color:var(--accent); font-weight:600;}
+  .stab.optional{color:#8a6a00;}
+  .stab.optional.active{border-bottom-color:#e0a100;}
+  .screen{display:none;}
+  .screen.active{display:block;}
+
+  /* KPI */
+  .kpi-row{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:16px;}
+  .stat-tile{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px;}
+  .stat-tile .lbl{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em;}
+  .stat-tile .val{font-size:22px; font-weight:700; margin-top:4px;}
+  .stat-tile .delta{font-size:11px; color:var(--good); margin-top:2px;}
+  .ring{width:96px; height:96px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .ring span{background:var(--panel); width:70px; height:70px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:15px;}
+  .progress-card{display:flex; align-items:center; gap:16px;}
+  .progress-card .txt{font-size:12px; color:var(--text-secondary); line-height:1.5;}
+  .progress-card .txt b{display:block; font-size:15px; color:var(--text-primary);}
+
+  .cta-row{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:16px;}
+  .cta{padding:18px; border-radius:12px; border:1px solid var(--border); background:var(--panel); cursor:pointer;}
+  .cta .icon{width:34px;height:34px;border-radius:9px; background:#f1eefc; color:var(--accent); display:flex; align-items:center; justify-content:center; margin-bottom:10px; font-size:16px;}
+  .cta.b .icon{background:#e7f5f1; color:var(--accent-b);}
+  .cta h3{margin:0 0 4px; font-size:14px;}
+  .cta p{margin:0; font-size:12px; color:var(--text-secondary);}
+
+  .feed-row{font-size:12px; color:var(--text-secondary); padding:7px 0; border-bottom:1px solid var(--grid);}
+  .feed-row:last-child{border-bottom:none;}
+  .feed-row b{color:var(--text-primary);}
+
+  /* Review / manual queue layout */
+  .annotate-layout{display:grid; grid-template-columns:220px 1fr 340px; gap:16px;}
+  .col{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px;}
+  .filt-label{font-size:11px; text-transform:uppercase; letter-spacing:.03em; color:var(--muted); margin:14px 0 6px;}
+  .filt-label:first-child{margin-top:0;}
+  .chip{display:inline-block; font-size:12px; padding:5px 10px; border-radius:999px; border:1px solid var(--border); margin:0 5px 5px 0; color:var(--text-secondary); cursor:pointer;}
+  .chip.on{background:var(--accent-b); color:#fff; border-color:var(--accent-b);}
+  .chip.disabled{opacity:.45; cursor:not-allowed;}
+  .search-box{width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:8px; font-size:12px; margin-bottom:4px; color:var(--muted);}
+
+  .bulk-bar{display:flex; align-items:center; justify-content:space-between; background:#eaf6f2; border:1px solid rgba(15,122,99,.25); border-radius:8px; padding:8px 12px; margin-bottom:10px; font-size:12px; color:#0b4a3c;}
+  .bulk-bar .btn{background:var(--accent-b); color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer;}
+
+  .person-row{display:flex; align-items:center; gap:9px; padding:10px 8px; border-radius:8px; cursor:pointer; border:1px solid transparent;}
+  .person-row:hover{background:var(--page);}
+  .person-row.sel{background:#e7f5f1; border-color:rgba(15,122,99,.25);}
+  .cb{width:14px;height:14px;border:1.5px solid var(--border); border-radius:4px; flex-shrink:0;}
+  .cb.on{background:var(--accent-b); border-color:var(--accent-b);}
+  .consensus-dot{width:15px;height:15px;border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800; line-height:1; color:#fff;}
+  .dot-green{background:var(--good);} .dot-yellow{background:var(--warning); color:#3a2c00;} .dot-red{background:var(--critical);}
+  .person-row .pname{font-size:13px; flex:1;}
+  .person-row .preason{font-size:10.5px; color:var(--muted);}
+  .src-tag{font-size:9.5px; padding:2px 7px; border-radius:6px; background:var(--page); color:var(--text-secondary); font-weight:700; flex-shrink:0;}
+  .src-tag.manual{background:#f1eefc; color:var(--accent);}
+  .src-tag.auto{background:#eaf6f2; color:var(--accent-b);}
+  .src-tag.open{background:#fdf5e5; color:#7a5900;}
+
+  .detail-name{font-size:16px; font-weight:700; margin:2px 0 2px;}
+  .detail-sub{font-size:12px; color:var(--text-secondary); margin-bottom:14px;}
+  .tei-snippet{background:var(--page); border:1px solid var(--grid); border-radius:8px; padding:10px; font-family:ui-monospace,monospace; font-size:11px; color:var(--text-secondary); margin-bottom:16px; white-space:pre-wrap;}
+  .classifier-card{border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:8px;}
+  .classifier-card .row1{display:flex; justify-content:space-between; align-items:center; font-size:12px; margin-bottom:6px;}
+  .classifier-card .method{font-weight:600;}
+  .badge{font-size:11px; padding:2px 8px; border-radius:999px; font-weight:700; border:1.5px solid transparent;}
+  .badge.male{background:var(--male-tint); color:var(--male-text); border-color:var(--male);}
+  .badge.female{background:var(--female-tint); color:var(--female-text); border-color:var(--female);}
+  .badge.uncertain{background:var(--uncertain-tint); color:var(--uncertain-text); border-color:var(--uncertain);}
+  .badge.institution{background:var(--institution-tint); color:var(--institution-text); border-color:var(--institution);}
+  .conf-track{height:6px; background:var(--grid); border-radius:3px; overflow:hidden;}
+  .conf-fill{height:100%; background:var(--accent-b);}
+
+  .action-bar{background:var(--panel); border-top:1px solid var(--border); margin:16px -14px -14px; padding:12px 14px; display:flex; gap:8px;}
+  .act-btn{flex:1; padding:12px 6px; border-radius:10px; border:1px solid var(--border); background:var(--page); text-align:center; font-size:12px; font-weight:600; cursor:pointer;}
+  .act-btn small{display:block; font-weight:400; color:var(--muted); font-size:10px; margin-top:2px;}
+  .act-btn.male{border-color:var(--male); color:var(--male-text);}
+  .act-btn.female{border-color:var(--female); color:var(--female-text);}
+  .act-btn.uncertain{border-color:var(--uncertain); color:var(--uncertain-text);}
+  .act-btn.institution{border-color:var(--institution); color:var(--institution-text);}
+
+  /* Stats */
+  .kappa-row{display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--grid); font-size:13px;}
+  .kappa-row:last-child{border-bottom:none;}
+  .kappa-val{font-weight:700;}
+  .bars{display:flex; align-items:flex-end; gap:10px; height:120px; padding-top:10px;}
+  .bar{flex:1; border-radius:4px 4px 0 0; position:relative;}
+  .bar .cap{position:absolute; top:-18px; left:0; right:0; text-align:center; font-size:11px; color:var(--text-secondary);}
+  .legend{display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:12px; color:var(--text-secondary);}
+  .legend .sw{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:middle;}
+
+  .method-table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  .method-table th{text-align:left; color:var(--muted); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--border); font-size:10.5px; text-transform:uppercase; letter-spacing:.02em;}
+  .method-table td{padding:10px; border-bottom:1px solid var(--grid); vertical-align:middle;}
+  .method-table tr:last-child td{border-bottom:none;}
+  .method-table .mname{font-weight:600;}
+  .method-table .msub{font-size:10.5px; color:var(--muted); display:block; margin-top:1px; font-weight:400;}
+  .hbar-track{height:7px; background:var(--grid); border-radius:4px; overflow:hidden; min-width:70px;}
+  .hbar-fill{height:100%; background:var(--accent-b); border-radius:4px;}
+  .m-status{font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px; white-space:nowrap;}
+  .m-status.ui{background:#eaf6f2; color:#0b4a3c;}
+  .m-status.batch{background:var(--page); color:var(--text-secondary);}
+  .table-scroll{overflow-x:auto;}
+
+  .collapse{border:1px dashed var(--border); border-radius:8px; padding:10px 14px; cursor:pointer; font-size:12px; color:var(--muted); display:flex; justify-content:space-between; align-items:center;}
+  .collapse-body{border:1px solid var(--border); border-top:none; border-radius:0 0 8px 8px; padding:14px; display:none;}
+  .collapse-body.open{display:block;}
+  .lb-row{display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--grid); font-size:13px;}
+  .lb-row:last-child{border-bottom:none;}
+  .lb-rank{width:22px; height:22px; border-radius:6px; background:var(--page); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--text-secondary); margin-right:8px;}
+
+  /* Import / upload */
+  .upload-zone{border:2px dashed var(--border); border-radius:14px; padding:32px; text-align:center; color:var(--text-secondary); font-size:13px; margin-bottom:20px; background:var(--panel);}
+  .upload-zone .ic{font-size:28px; margin-bottom:10px;}
+
+  /* Import source switch */
+  .src-switch{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px;}
+  .src-opt, .msrc-card{border:1px solid var(--border); border-radius:10px; padding:13px 15px; cursor:pointer; background:var(--panel);}
+  .src-opt .stitle, .msrc-card .stitle{font-weight:700; font-size:13.5px; margin-bottom:3px; display:flex; align-items:center; gap:8px;}
+  .src-opt .ssub, .msrc-card .ssub{font-size:11.5px; color:var(--text-secondary);}
+  .src-opt.active, .msrc-card.active{border-color:var(--accent-b); background:#eaf6f2;}
+  .src-opt.active .stitle, .msrc-card.active .stitle{color:var(--accent-b);}
+  .src-panel{display:none;}
+  .src-panel.active{display:block;}
+
+  .file-list-table{width:100%; border-collapse:collapse; font-size:12.5px; margin-bottom:4px;}
+  .file-list-table th{text-align:left; color:var(--muted); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--border); font-size:10.5px; text-transform:uppercase;}
+  .file-list-table td{padding:9px 10px; border-bottom:1px solid var(--grid); vertical-align:middle;}
+  .file-list-table tr:last-child td{border-bottom:none;}
+  .file-list-table .fname{font-family:ui-monospace,monospace; font-size:11.5px;}
+  .file-status{font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px; white-space:nowrap;}
+  .file-status.ok{background:#e8f7f1; color:#127a55;}
+  .file-status.warn{background:#fdf5e5; color:#7a5900;}
+  .file-status.err{background:#fdeceb; color:#a52a2a;}
+  .file-status.pending{background:#f1eefc; color:var(--accent);}
+
+  .gitlab-bar{display:flex; align-items:center; justify-content:space-between; gap:12px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin-bottom:14px; font-size:12.5px; flex-wrap:wrap;}
+  .gitlab-bar .repo{display:flex; align-items:center; gap:10px;}
+  .gitlab-ic{width:32px;height:32px;border-radius:8px;background:#f1eefc;color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0;}
+  .gitlab-bar .repo-name{font-weight:700; font-family:ui-monospace,monospace; font-size:12.5px;}
+  .gitlab-bar .repo-meta{color:var(--muted); font-size:11.5px; margin-top:1px;}
+  .gitlab-form{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:6px;}
+  .gitlab-form .field{display:flex; flex-direction:column; gap:5px;}
+  .gitlab-form .field.full{grid-column:1 / -1;}
+  .gitlab-form label{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; font-weight:600;}
+  .gitlab-form input{padding:9px 10px; border:1px solid var(--border); border-radius:8px; font-size:12.5px; color:var(--text-secondary);}
+
+  table.mapping{width:100%; border-collapse:collapse; font-size:12px;}
+  table.mapping th{text-align:left; color:var(--muted); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--border); font-size:11px; text-transform:uppercase;}
+  table.mapping td{padding:9px 10px; border-bottom:1px solid var(--grid);}
+  .tag{display:inline-block; font-size:11px; padding:2px 8px; border-radius:6px; background:var(--page); color:var(--text-secondary);}
+
+  .threshold-box{border:1px solid var(--border); border-radius:10px; padding:16px; margin-top:14px;}
+  .threshold-box .row{display:flex; justify-content:space-between; font-size:12px; margin-bottom:8px;}
+  .slider-track{height:8px; background:var(--grid); border-radius:4px; position:relative; margin:14px 0 6px;}
+  .slider-fill{position:absolute; left:0; top:0; bottom:0; background:var(--accent-b); border-radius:4px;}
+  .slider-handle{position:absolute; top:50%; transform:translate(-50%,-50%); width:18px; height:18px; border-radius:50%; background:#fff; border:3px solid var(--accent-b);}
+
+  /* Jobs */
+  .method-pick{display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 4px;}
+  .job-status{font-size:10px; font-weight:700; padding:2px 9px; border-radius:999px; white-space:nowrap;}
+  .job-status.done{background:#e8f7f1; color:#127a55;}
+  .job-status.running{background:#fff7e8; color:#8a6100;}
+  .job-status.queued{background:var(--page); color:var(--muted);}
+  .job-status.failed{background:#fdeceb; color:#a52a2a;}
+  .job-hist-table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  .job-hist-table th{text-align:left; color:var(--muted); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--border); font-size:10.5px; text-transform:uppercase;}
+  .job-hist-table td{padding:9px 10px; border-bottom:1px solid var(--grid); vertical-align:middle;}
+  .job-hist-table tr:last-child td{border-bottom:none;}
+  .retry-link{font-size:11.5px; color:var(--accent-b); font-weight:600; cursor:pointer;}
+
+  /* Game mode (reused, optional) */
+  .game-wrap{max-width:640px; margin:20px auto; text-align:center;}
+  .game-hud{display:flex; justify-content:space-between; align-items:center; margin-bottom:28px;}
+  .timer-ring{width:64px;height:64px;border-radius:50%; background:conic-gradient(var(--critical) 0% 62%, var(--grid) 62% 100%); display:flex;align-items:center;justify-content:center;}
+  .timer-ring span{width:48px;height:48px;border-radius:50%;background:var(--panel);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;}
+  .hud-stat{font-size:12px; color:var(--text-secondary);}
+  .hud-stat b{display:block; font-size:20px; color:var(--text-primary);}
+  .game-card{background:var(--panel); border:1px solid var(--border); border-radius:18px; padding:44px 24px; margin-bottom:20px;}
+  .game-card .label{font-size:11px; text-transform:uppercase; color:var(--muted); letter-spacing:.05em; margin-bottom:10px;}
+  .game-card .name{font-size:34px; font-weight:700; margin-bottom:6px;}
+  .game-card .dates{font-size:13px; color:var(--text-secondary);}
+  .help-btn{display:inline-block; margin-top:16px; font-size:12px; color:var(--accent); border:1px dashed var(--accent); padding:6px 14px; border-radius:999px; cursor:pointer;}
+  .game-actions{display:grid; grid-template-columns:repeat(4,1fr); gap:10px;}
+  .game-btn{padding:18px 8px; border-radius:14px; font-weight:700; font-size:13px; color:#fff; cursor:pointer; border:none;}
+  .gb-male{background:var(--male-text);} .gb-female{background:var(--female-text);} .gb-uncertain{background:var(--uncertain); color:#3a2c00;} .gb-institution{background:var(--institution-text);}
+  .combo-pill{display:inline-block; background:#fff1e0; color:#8a4a00; font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; margin-bottom:8px;}
+
+  .toggle{display:inline-flex; align-items:center; gap:8px; font-size:12px; color:var(--text-secondary);}
+  .toggle .sw{width:34px; height:19px; border-radius:999px; background:var(--grid); position:relative; cursor:pointer;}
+  .toggle .sw::after{content:""; position:absolute; top:2px; left:2px; width:15px; height:15px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.3);}
+  .toggle .sw.on{background:var(--accent-b);}
+  .toggle .sw.on::after{left:17px;}
+
+  .footer-note{margin-top:26px; font-size:11px; color:var(--muted); text-align:center; padding-bottom:20px;}
+
+  @media (max-width: 1080px){
+    .sidebar{width:60px; padding:20px 6px;}
+    .sidebar .nav-item{font-size:0; justify-content:center; padding:10px 6px;}
+    .sidebar .nav-item .ic{font-size:18px;}
+    .sidebar .nav-section, .sidebar .variant-tag, .sidebar .brand span:not(.dot){display:none;}
+    .annotate-layout{grid-template-columns:1fr; height:auto;}
+    .annotate-layout .col{max-height:60vh;}
+    .kpi-row{grid-template-columns:repeat(2,1fr);}
+    .cta-row{grid-template-columns:1fr 1fr;}
+    .two-col{grid-template-columns:1fr;}
+    .parse-summary{grid-template-columns:repeat(2,1fr) !important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="brand" data-goto="projects" role="button" tabindex="0" style="cursor:pointer;"><span class="dot"></span> genderTagger</div>
+    <div class="variant-tag">Variante C — Hybrid, ausgebaut</div>
+    <div class="nav-item" data-target="projects" role="button" tabindex="0"><span class="ic">▦</span> Projekte</div>
+    <div class="nav-section">Aktuelles Projekt</div>
+    <div class="nav-item active" data-target="ov" role="button" tabindex="0"><span class="ic">◱</span> Übersicht</div>
+    <div class="nav-item" data-target="import" role="button" tabindex="0"><span class="ic">⇧</span> Import</div>
+    <div class="nav-item" data-target="jobs" role="button" tabindex="0"><span class="ic">⏳</span> Klassifikation</div>
+    <div class="nav-item" data-target="review" role="button" tabindex="0"><span class="ic">✓</span> Redigieren</div>
+    <div class="nav-item" data-target="manual" role="button" tabindex="0"><span class="ic">✎</span> Manuell annotieren</div>
+    <div class="nav-section">Zusätzlich <span class="opt-pill">optional</span></div>
+    <div class="nav-item optional" data-target="game" role="button" tabindex="0"><span class="ic">▶</span> Spielmodus</div>
+    <div class="nav-section">Auswertung</div>
+    <div class="nav-item" data-target="stats" role="button" tabindex="0"><span class="ic">◷</span> Statistik &amp; Methoden</div>
+    <div class="nav-section">Admin</div>
+    <div class="nav-item" data-target="settings" role="button" tabindex="0"><span class="ic">⚙</span> Einstellungen</div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="proj-switch">
+        <button class="proj-switch-btn" id="proj-switch-btn">Projekt: <b>Schleiermacher digital</b> · 8.021 Personen ▾</button>
+        <div class="proj-menu" id="proj-menu">
+          <div class="proj-menu-item current" id="proj-menu-current" role="button" tabindex="0"><span class="pn">✓ Schleiermacher digital</span><span class="ppct">82%</span></div>
+          <div class="proj-menu-item" role="button" tabindex="0" title="Zur Veranschaulichung — in diesem Wireframe nicht vollständig ausgebaut"><span class="pn">Humboldt digital</span><span class="ppct">61%</span></div>
+          <div class="proj-menu-item" role="button" tabindex="0" title="Zur Veranschaulichung — in diesem Wireframe nicht vollständig ausgebaut"><span class="pn">Briefe der Romantik</span><span class="ppct">12%</span></div>
+          <div class="proj-menu-sep"></div>
+          <div class="proj-menu-action" id="proj-menu-new" role="button" tabindex="0">+ Neues Projekt anlegen</div>
+          <div class="proj-menu-action" data-goto="projects" role="button" tabindex="0">Alle Projekte ansehen →</div>
+        </div>
+      </div>
+      <div class="right">
+        <div class="save-block"><span class="save-dot" id="save-dot"></span><span id="save-text">Zuletzt gespeichert vor 2&nbsp;Min.</span></div>
+        <button class="btn-ghost" id="save-btn">Jetzt speichern</button>
+        <div class="dl-wrap">
+          <button class="btn-solid" id="dl-btn">Ergebnis herunterladen ▾</button>
+          <div class="dl-menu" id="dl-menu">
+            <div class="dl-item" role="button" tabindex="0"><b>TEI-XML (angereichert)</b><span>Vollständiges Register mit @sex-Attributen &amp; Konfidenzwerten</span></div>
+            <div class="dl-item" role="button" tabindex="0"><b>CSV-Report</b><span>Eine Zeile je Person, inkl. Quelle &amp; Methode</span></div>
+            <div class="dl-sep"></div>
+            <div class="dl-item disabled"><b>Nur geprüfte Fälle (CSV)</b><span>Verfügbar nach Abschluss der laufenden Review</span></div>
+            <div class="dl-sep"></div>
+            <div class="dl-item" role="button" tabindex="0"><b>Als Commit ins Repository schreiben</b><span>Neuer Branch in gitlab.bbaw.de/telota/schleiermacher-digital</span></div>
+          </div>
+        </div>
+        <span class="bell" role="button" tabindex="0">🔔<span class="badge">2</span></span>
+        <span>Sam Kurator:in</span><span class="avatar">SA</span>
+      </div>
+    </div>
+
+    <div class="screen-tabs">
+      <div class="stab active" data-screen="ov" role="button" tabindex="0">Übersicht</div>
+      <div class="stab" data-screen="import" role="button" tabindex="0">Import</div>
+      <div class="stab" data-screen="jobs" role="button" tabindex="0">Klassifikation</div>
+      <div class="stab" data-screen="review" role="button" tabindex="0">Redigieren</div>
+      <div class="stab" data-screen="manual" role="button" tabindex="0">Manuell annotieren</div>
+      <div class="stab optional" data-screen="game" role="button" tabindex="0">Spielmodus (optional)</div>
+      <div class="stab" data-screen="stats" role="button" tabindex="0">Statistik &amp; Methoden</div>
+      <div class="stab" data-screen="settings" role="button" tabindex="0">Einstellungen</div>
+    </div>
+
+    <div class="view">
+
+      <!-- ================= PROJEKTE ================= -->
+      <div class="screen" id="projects">
+        <h1>Projekte</h1>
+        <p class="sub">Jedes Projekt hat ein eigenes Register, eigene Klassifikationsläufe, eigenen Fortschritt und eine eigene Datenquelle — unabhängig von allen anderen Projekten. Team-Mitgliedschaften gelten projektweise.</p>
+
+        <div class="project-grid">
+          <div class="project-card" data-goto="ov" role="button" tabindex="0">
+            <div class="ptitle">Schleiermacher digital</div>
+            <span class="psrc">🔗 GitLab-Repository</span>
+            <div class="pmeta">8.021 Personen · 6.577 abgeschlossen</div>
+            <div class="pprogress-track"><div class="pprogress-fill" style="width:82%"></div></div>
+            <div class="pfoot"><span>82% abgeschlossen</span><span>bearbeitet vor 2 Min.</span></div>
+          </div>
+
+          <div class="project-card static" role="button" tabindex="0" title="Zur Veranschaulichung der Listenansicht — in diesem Wireframe nicht vollständig ausgebaut">
+            <div class="ptitle">Humboldt digital</div>
+            <span class="psrc">🗂 Ordner</span>
+            <div class="pmeta">3.402 Personen · 2.075 abgeschlossen</div>
+            <div class="pprogress-track"><div class="pprogress-fill" style="width:61%; background:var(--institution);"></div></div>
+            <div class="pfoot"><span>61% abgeschlossen</span><span>bearbeitet gestern</span></div>
+          </div>
+
+          <div class="project-card static" role="button" tabindex="0" title="Zur Veranschaulichung der Listenansicht — in diesem Wireframe nicht vollständig ausgebaut">
+            <div class="ptitle">Briefe der Romantik</div>
+            <span class="psrc">📄 Einzelne Datei</span>
+            <div class="pmeta">1.180 Personen · 142 abgeschlossen</div>
+            <div class="pprogress-track"><div class="pprogress-fill" style="width:12%; background:var(--uncertain);"></div></div>
+            <div class="pfoot"><span>12% abgeschlossen</span><span>bearbeitet vor 9 Tagen</span></div>
+          </div>
+
+          <div class="project-card new" id="proj-new-card" role="button" tabindex="0">
+            <div class="plus">＋</div>
+            <div style="font-weight:600; font-size:13.5px;">Neues Projekt anlegen</div>
+            <div style="font-size:11.5px; color:var(--muted);">Register hochladen oder verknüpfen</div>
+          </div>
+        </div>
+
+        <p class="sub" style="margin-top:18px; font-size:12px;">In diesem Wireframe ist nur „Schleiermacher digital" vollständig ausgebaut; die übrigen Projekte sind zur Veranschaulichung der Listenansicht dargestellt.</p>
+      </div>
+
+      <!-- ================= ÜBERSICHT ================= -->
+      <div class="screen active" id="ov">
+        <h1>Übersicht</h1>
+        <p class="sub">Projektfortschritt auf einen Blick — Automatisierung, offene Fälle und der aktuelle Stand des Registers. Der Spielmodus ist ein optionaler Nebenpfad, kein Pflichtschritt.</p>
+
+        <div class="note optional">
+          <span>🎮 Sie möchten stattdessen im Spielmodus annotieren? Punkte und Kombos als zusätzliche Motivation — schreibt in dieselben Daten wie „Redigieren" und „Manuell annotieren".</span>
+          <span class="help-btn" style="margin:0;white-space:nowrap;" data-goto="game" role="button" tabindex="0">Ausprobieren</span>
+        </div>
+
+        <div class="kpi-row" style="grid-template-columns:1.3fr 1fr 1fr 1fr;">
+          <div class="card progress-card">
+            <div class="ring" style="background: conic-gradient(var(--accent-b) 0% 82%, var(--grid) 82% 100%);"><span>82%</span></div>
+            <div class="txt"><b>6.577 / 8.021 abgeschlossen</b>Automatisch entschieden + manuell bestätigt · 1.444 offen</div>
+          </div>
+          <div class="stat-tile"><div class="lbl">Automatisch entschieden</div><div class="val">5.640</div><div class="delta">Konfidenz ≥ 90%</div></div>
+          <div class="stat-tile"><div class="lbl">Zur Prüfung</div><div class="val">381</div><div class="delta" style="color:var(--warning);">unterhalb Schwelle / Konflikt</div></div>
+          <div class="stat-tile"><div class="lbl">Manuell annotiert</div><div class="val">937</div><div class="delta">davon 62 im Spielmodus, optional</div></div>
+        </div>
+
+        <div class="cta-row">
+          <div class="cta b" data-goto="review" role="button" tabindex="0"><div class="icon">✓</div><h3>Zur Review Queue</h3><p>381 unsichere Fälle warten auf Entscheidung</p></div>
+          <div class="cta b" data-goto="manual" role="button" tabindex="0"><div class="icon">✎</div><h3>Manuell annotieren</h3><p>Gesamtes Korpus durchsuchen &amp; bearbeiten</p></div>
+          <div class="cta b" data-goto="import" role="button" tabindex="0"><div class="icon">⇧</div><h3>Neuen Import starten</h3><p>TEI-XML hochladen &amp; automatisch klassifizieren</p></div>
+          <div class="cta" data-goto="game" role="button" tabindex="0"><div class="icon">▶</div><h3>Spielmodus <span class="opt-pill">optional</span></h3><p>Alternative Oberfläche für dieselbe Aufgabe</p></div>
+        </div>
+
+        <div class="two-col">
+          <div class="card">
+            <h3 style="margin-top:0;font-size:14px;">Aktivität</h3>
+            <div class="feed-row"><b>Klassifikationslauf</b> abgeschlossen: 5.640 Einträge automatisch übernommen · vor 1 Std.</div>
+            <div class="feed-row"><b>Mira</b> hat 24 Fälle redigiert · vor 12 Min.</div>
+            <div class="feed-row"><b>Jo</b> hat 15 Einträge manuell annotiert (Kapitel „Salons") · vor 40 Min.</div>
+            <div class="feed-row"><b>Automatische Speicherung</b> hat den Zwischenstand gesichert · vor 2 Min.</div>
+            <div class="feed-row"><b>Team</b> hat den Export „v0.4 — CSV-Report" erzeugt · gestern</div>
+          </div>
+          <div class="card">
+            <h3 style="margin-top:0;font-size:14px;">Woher stammen die 6.577 fertigen Einträge?</h3>
+            <div class="kappa-row"><span>Automatisch, ≥ 90% Konfidenz</span><span class="kappa-val">5.640</span></div>
+            <div class="kappa-row"><span>Manuell in „Redigieren" entschieden</span><span class="kappa-val">875</span></div>
+            <div class="kappa-row"><span>Manuell im Spielmodus entschieden <span class="opt-pill" style="margin-left:4px;">optional</span></span><span class="kappa-val">62</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= IMPORT ================= -->
+      <div class="screen" id="import">
+        <h1>Import</h1>
+        <p class="sub">Ein Register liegt selten als eine einzelne Datei vor. genderTagger akzeptiert wahlweise eine einzelne TEI-XML-Datei, einen ganzen Ordner mit mehreren Dateien, oder ein GitLab-Repository, aus dem die Dateien direkt bezogen und bei Bedarf erneut synchronisiert werden.</p>
+
+        <div class="src-switch">
+          <div class="src-opt active" data-src="src-file" role="button" tabindex="0"><div class="stitle">📄 Einzelne Datei</div><div class="ssub">Eine TEI-XML-Datei hochladen</div></div>
+          <div class="src-opt" data-src="src-folder" role="button" tabindex="0"><div class="stitle">🗂 Ordner</div><div class="ssub">Mehrere Dateien auf einmal, z.&nbsp;B. je Werkgruppe</div></div>
+          <div class="src-opt" data-src="src-gitlab" role="button" tabindex="0"><div class="stitle">🔗 GitLab-Repository</div><div class="ssub">Verknüpfen &amp; bei neuen Commits erneut synchronisieren</div></div>
+        </div>
+
+        <!-- ===== Quelle: Einzelne Datei ===== -->
+        <div class="src-panel active" id="src-file">
+          <div class="upload-zone"><div class="ic">⇧</div><div><b>schleiermacher-personen.xml</b> hochgeladen · 4,1&nbsp;MB · vor 3&nbsp;Min.</div></div>
+
+          <div class="note b">Datei erfolgreich geparst: TEI-Namespace erkannt, 8.021 <code>&lt;person&gt;</code>-Elemente gefunden, 0 Strukturfehler. 14 Einträge ohne <code>&lt;persName&gt;</code> werden separat markiert.</div>
+
+          <div class="parse-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0;">
+            <div class="stat-tile"><div class="lbl">Personen gefunden</div><div class="val">8.021</div></div>
+            <div class="stat-tile"><div class="lbl">Bereits mit @sex</div><div class="val">142</div><div class="delta">werden nicht überschrieben</div></div>
+            <div class="stat-tile"><div class="lbl">Ohne Namenselement</div><div class="val">14</div><div class="delta" style="color:var(--warning);">zur Prüfung markiert</div></div>
+            <div class="stat-tile"><div class="lbl">Dubletten (gleiche GND-ID)</div><div class="val">3</div><div class="delta" style="color:var(--warning);">zur Prüfung markiert</div></div>
+          </div>
+        </div>
+
+        <!-- ===== Quelle: Ordner ===== -->
+        <div class="src-panel" id="src-folder">
+          <div class="upload-zone"><div class="ic">🗂</div><div><b>register-schleiermacher/</b> hochgeladen · 5 XML-Dateien · 3,8&nbsp;MB gesamt · vor 2&nbsp;Min.</div></div>
+
+          <div class="note warn"><code>schleiermacher-nachlass-c.xml</code> konnte nicht geparst werden (ungültiges TEI-Wurzelelement, Zeile 1). Diese Datei wird vom Import ausgeschlossen — die übrigen 4 Dateien werden regulär verarbeitet.</div>
+
+          <div class="parse-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0;">
+            <div class="stat-tile"><div class="lbl">Dateien im Ordner</div><div class="val">5</div><div class="delta" style="color:var(--critical);">1 nicht lesbar</div></div>
+            <div class="stat-tile"><div class="lbl">Personen gesamt</div><div class="val">8.021</div><div class="delta">über 4 Dateien summiert</div></div>
+            <div class="stat-tile"><div class="lbl">Dateien mit Warnung</div><div class="val">1</div></div>
+            <div class="stat-tile"><div class="lbl">Dubletten über Dateien hinweg</div><div class="val">3</div><div class="delta" style="color:var(--warning);">gleiche GND-ID in 2 Dateien</div></div>
+          </div>
+
+          <div class="card" style="margin-bottom:16px;">
+            <h3 style="margin-top:0;font-size:14px;">Erkannte Dateien</h3>
+            <table class="file-list-table">
+              <tr><th>Datei</th><th>Personen</th><th>Status</th></tr>
+              <tr><td class="fname">schleiermacher-briefe.xml</td><td>3.204</td><td><span class="file-status ok">ok</span></td></tr>
+              <tr><td class="fname">schleiermacher-vorlesungen.xml</td><td>2.114</td><td><span class="file-status ok">ok</span></td></tr>
+              <tr><td class="fname">schleiermacher-tagebuecher.xml</td><td>1.890</td><td><span class="file-status ok">ok</span></td></tr>
+              <tr><td class="fname">schleiermacher-nachlass-a.xml</td><td>813</td><td><span class="file-status warn">14 ohne persName</span></td></tr>
+              <tr><td class="fname">schleiermacher-nachlass-c.xml</td><td>0</td><td><span class="file-status err">Parsefehler — ausgeschlossen</span></td></tr>
+            </table>
+          </div>
+          <div class="note" style="margin-bottom:16px;">Alle erkannten Personen aus allen Dateien werden zu einem gemeinsamen Register zusammengeführt und in einem einzigen Klassifikationslauf verarbeitet — die Herkunftsdatei bleibt je Person nachvollziehbar.</div>
+        </div>
+
+        <!-- ===== Quelle: GitLab-Repository ===== -->
+        <div class="src-panel" id="src-gitlab">
+          <div class="gitlab-bar">
+            <div class="repo">
+              <div class="gitlab-ic">⎇</div>
+              <div>
+                <div class="repo-name">gitlab.bbaw.de/telota/schleiermacher-digital</div>
+                <div class="repo-meta">Branch <b>main</b> · Pfad <code>/register/</code> · zuletzt synchronisiert vor 5&nbsp;Min.</div>
+              </div>
+            </div>
+            <button class="btn-ghost">Jetzt synchronisieren</button>
+          </div>
+
+          <div class="note warn">2 Dateien wurden im Repository geändert, seit sie zuletzt importiert wurden: <code>schleiermacher-briefe.xml</code> (Commit <code>a3f91c2</code>, vor 20&nbsp;Min. von M.&nbsp;Musterfrau) und <code>schleiermacher-vorlesungen.xml</code> (Commit <code>9e01ffa</code>, vor 2&nbsp;Std.). Diese Änderungen sind noch nicht in genderTagger übernommen.</div>
+          <button class="btn-solid" style="margin-bottom:16px;">Änderungen jetzt importieren</button>
+
+          <div class="card" style="margin-bottom:16px;">
+            <h3 style="margin-top:0;font-size:14px;">Dateien im Repository-Pfad</h3>
+            <table class="file-list-table">
+              <tr><th>Datei</th><th>Personen</th><th>Letzter Commit</th><th>Status</th></tr>
+              <tr><td class="fname">register/schleiermacher-briefe.xml</td><td>3.204</td><td>vor 20&nbsp;Min. · <code>a3f91c2</code></td><td><span class="file-status pending">Änderung nicht importiert</span></td></tr>
+              <tr><td class="fname">register/schleiermacher-vorlesungen.xml</td><td>2.114</td><td>vor 2&nbsp;Std. · <code>9e01ffa</code></td><td><span class="file-status pending">Änderung nicht importiert</span></td></tr>
+              <tr><td class="fname">register/schleiermacher-tagebuecher.xml</td><td>1.890</td><td>vor 4&nbsp;Tagen</td><td><span class="file-status ok">aktuell</span></td></tr>
+              <tr><td class="fname">register/schleiermacher-nachlass-a.xml</td><td>813</td><td>vor 4&nbsp;Tagen</td><td><span class="file-status warn">aktuell · 14 ohne persName</span></td></tr>
+            </table>
+          </div>
+
+          <div class="collapse" onclick="this.nextElementSibling.classList.toggle('open')" role="button" tabindex="0">
+            <span>Verbindungseinstellungen anzeigen</span>
+            <span>▾</span>
+          </div>
+          <div class="collapse-body" style="margin-bottom:16px;">
+            <div class="gitlab-form">
+              <div class="field"><label>Repository-URL</label><input value="https://gitlab.bbaw.de/telota/schleiermacher-digital.git" disabled></div>
+              <div class="field"><label>Branch</label><input value="main" disabled></div>
+              <div class="field"><label>Pfad im Repository</label><input value="/register/" disabled></div>
+              <div class="field"><label>Zugriffstoken</label><input value="••••••••••••••••" disabled></div>
+              <div class="field full" style="flex-direction:row; align-items:center; justify-content:space-between; padding-top:4px;">
+                <span class="toggle">Automatisch auf neue Commits prüfen <span class="sw on" style="margin-left:8px;"></span></span>
+                <button class="btn-ghost">Verbindung trennen</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+          <h3 style="margin-top:0;font-size:14px;">Erkannte Struktur</h3>
+          <table class="mapping">
+            <tr><th>TEI-Element</th><th>Erkannt als</th><th>Beispiel</th></tr>
+            <tr><td><span class="tag">persName</span></td><td>Anzeigename</td><td>Friedrich Schleiermacher</td></tr>
+            <tr><td><span class="tag">birth / death</span></td><td>Lebensdaten</td><td>* 1768 · † 1834</td></tr>
+            <tr><td><span class="tag">idno[@type=gnd]</span></td><td>GND-Verknüpfung</td><td>gnd:118611874</td></tr>
+            <tr><td><span class="tag">@sex</span></td><td>Zielattribut der Klassifikation</td><td>wird gesetzt / überschrieben</td></tr>
+          </table>
+        </div>
+
+        <div class="threshold-box">
+          <div class="row"><b>Automatisierungsschwelle</b><span>Einträge ab dieser Konfidenz automatisch übernehmen</span></div>
+          <div class="slider-track"><div class="slider-fill" style="width:90%"></div><div class="slider-handle" style="left:90%"></div></div>
+          <div class="row"><span>0%</span><span style="font-weight:700;color:var(--accent-b);">90% ausgewählt</span><span>100%</span></div>
+          <div class="note b" style="margin:14px 0 0;">Vorschau: Bei 90% werden ca. 5.640 von 8.021 Einträgen automatisch übernommen, 381 verbleiben zur manuellen Prüfung. Schwelle jederzeit in den Einstellungen änderbar.</div>
+        </div>
+
+        <button class="btn-solid" style="margin-top:16px; padding:11px 20px; font-size:13px;" data-goto="jobs">Klassifikation jetzt starten →</button>
+      </div>
+
+      <!-- ================= JOBS / KLASSIFIKATION ================= -->
+      <div class="screen" id="jobs">
+        <h1>Klassifikation</h1>
+        <p class="sub">Klassifizierungsläufe laufen im Hintergrund — insbesondere die LLM-Methode kann je nach Registergröße mehrere Stunden dauern. Sie können diese Seite jederzeit verlassen; eine Benachrichtigung (🔔) informiert Sie, sobald der Lauf abgeschlossen ist.</p>
+
+        <div class="card" style="margin-bottom:18px;">
+          <h3 style="margin-top:0;font-size:14px;">Neuen Lauf konfigurieren</h3>
+          <div class="filt-label" style="margin-top:0;">Methoden auswählen</div>
+          <div class="method-pick">
+            <span class="chip on" role="button" tabindex="0">GND API</span>
+            <span class="chip on" role="button" tabindex="0">GND Local Lookup</span>
+            <span class="chip on" role="button" tabindex="0">gender-guesser</span>
+            <span class="chip on" role="button" tabindex="0">HF Gender-Classification</span>
+            <span class="chip" role="button" tabindex="0">HF Genderize</span>
+            <span class="chip on" role="button" tabindex="0">LLM (Ollama) — langsam</span>
+            <span class="chip disabled" title="Nur im Batch-Modus verfügbar, noch nicht ins UI integriert">nomquamgender</span>
+            <span class="chip disabled" title="Nur im Batch-Modus verfügbar, noch nicht ins UI integriert">HIVOTO</span>
+            <span class="chip disabled" title="Nur im Batch-Modus verfügbar, noch nicht ins UI integriert">HIVOTO-XGBoost</span>
+          </div>
+          <div class="note" style="margin:12px 0 0;">6 von 9 Methoden ins UI integriert und für diesen Lauf wählbar. Die grau markierten laufen aktuell nur im Batch-Skript außerhalb der Oberfläche.</div>
+        </div>
+
+        <div class="card" style="margin-bottom:18px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <h3 style="margin:0;font-size:14px;">Aktueller Lauf — #A214</h3>
+            <span class="job-status running">läuft</span>
+          </div>
+          <p class="sub" style="margin-bottom:12px;">Gestartet vor 34 Min. von Sam Kurator:in · 8.021 Personen · geschätzte Restzeit 2&nbsp;Std. 10&nbsp;Min. (LLM-Methode dominiert die Laufzeit)</p>
+          <div class="conf-track" style="height:10px; margin-bottom:16px;"><div class="conf-fill" style="width:38%"></div></div>
+
+          <div class="classifier-card"><div class="row1"><span class="method">GND API</span><span class="job-status done">fertig</span></div><div class="conf-track"><div class="conf-fill" style="width:100%"></div></div></div>
+          <div class="classifier-card"><div class="row1"><span class="method">GND Local Lookup</span><span class="job-status done">fertig</span></div><div class="conf-track"><div class="conf-fill" style="width:100%"></div></div></div>
+          <div class="classifier-card"><div class="row1"><span class="method">gender-guesser</span><span class="job-status done">fertig</span></div><div class="conf-track"><div class="conf-fill" style="width:100%"></div></div></div>
+          <div class="classifier-card"><div class="row1"><span class="method">HF Gender-Classification</span><span class="job-status running">läuft — 6.104 / 8.021</span></div><div class="conf-track"><div class="conf-fill" style="width:76%"></div></div></div>
+          <div class="classifier-card"><div class="row1"><span class="method">LLM (Ollama)</span><span class="job-status queued">wartet — startet nach HF-Methode</span></div><div class="conf-track"><div class="conf-fill" style="width:0%"></div></div></div>
+
+          <div class="note" style="margin:14px 0 0;">Ergebnisse werden fortlaufend übernommen: Bereits fertige Methoden fließen sofort in „Übersicht" und „Redigieren" ein, auch während der Lauf noch weiterläuft.</div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;font-size:14px;">Lauf-Historie</h3>
+          <table class="job-hist-table">
+            <tr><th>Lauf</th><th>Gestartet</th><th>Dauer</th><th>Status</th><th></th></tr>
+            <tr><td>#A214</td><td>vor 34 Min.</td><td>läuft…</td><td><span class="job-status running">läuft</span></td><td>—</td></tr>
+            <tr><td>#A213 — Nachimport Kapitel 7</td><td>gestern, 14:02</td><td>41 Min.</td><td><span class="job-status done">fertig</span></td><td>—</td></tr>
+            <tr><td>#A212 — Volllauf</td><td>vor 3 Tagen</td><td>abgebrochen nach 12 Min.</td><td><span class="job-status failed">fehlgeschlagen</span></td><td><span class="retry-link" role="button" tabindex="0">Erneut versuchen ↻</span></td></tr>
+            <tr><td>#A211 — Volllauf</td><td>vor 5 Tagen</td><td>3&nbsp;Std. 05&nbsp;Min.</td><td><span class="job-status done">fertig</span></td><td>—</td></tr>
+          </table>
+          <div class="note warn" style="margin:12px 0 0;">#A212 ist am Ollama-Dienst fehlgeschlagen, bevor die LLM-Methode startete. Ein erneuter Versuch setzt an der GND-API-Stufe fort — bereits berechnete Ergebnisse gehen nicht verloren.</div>
+        </div>
+      </div>
+
+      <!-- ================= REDIGIEREN ================= -->
+      <div class="screen" id="review">
+        <h1>Redigieren</h1>
+        <p class="sub">Schnellkorrektur der Fälle mit geringer Sicherheit — standardmäßig alles unterhalb der Automatisierungsschwelle oder mit Klassifizierer-Konflikt, sortiert nach geringster Konfidenz.</p>
+        <div class="note b">Automatisch entschiedene Einträge (≥ 90% Konfidenz) erscheinen hier nicht — sie wurden bereits ohne manuelle Prüfung übernommen. Diese Fälle finden Sie in „Manuell annotieren", falls Sie sie dennoch prüfen möchten.</div>
+
+        <div class="annotate-layout">
+          <div class="col">
+            <div class="filt-label">Grund für Prüfung</div>
+            <span class="chip on" role="button" tabindex="0">Alle (381)</span><span class="chip" role="button" tabindex="0">Niedrige Konfidenz</span><span class="chip" role="button" tabindex="0">Klassifizierer uneinig</span><span class="chip" role="button" tabindex="0">Kein GND-Treffer</span>
+            <div class="filt-label">Sortierung</div>
+            <span class="chip on" role="button" tabindex="0">Konfidenz aufsteigend</span><span class="chip" role="button" tabindex="0">Alphabetisch</span>
+            <div class="filt-label">Suche</div>
+            <input class="search-box" placeholder="Name suchen…" disabled>
+          </div>
+          <div class="col">
+            <div class="bulk-bar"><span>3 ausgewählt</span><span><button class="btn">Als Institution markieren</button> <button class="btn" style="background:var(--muted);margin-left:6px;">Auswahl aufheben</button></span></div>
+            <div class="person-row sel" role="button" tabindex="0"><span class="cb on"></span><span class="consensus-dot dot-yellow" title="Teilweise Übereinstimmung" aria-label="Teilweise Übereinstimmung">!</span><span class="pname">Adelheid von Arnim</span><span class="preason">Konfidenz 60%</span></div>
+            <div class="person-row" role="button" tabindex="0"><span class="cb on"></span><span class="consensus-dot dot-red" title="Starker Widerspruch" aria-label="Starker Widerspruch">✕</span><span class="pname">M. Herz</span><span class="preason">Klassifizierer uneinig</span></div>
+            <div class="person-row" role="button" tabindex="0"><span class="cb on"></span><span class="consensus-dot dot-yellow" title="Teilweise Übereinstimmung" aria-label="Teilweise Übereinstimmung">!</span><span class="pname">Herz'sche Erben</span><span class="preason">Konfidenz 55%</span></div>
+            <div class="person-row" role="button" tabindex="0"><span class="cb"></span><span class="consensus-dot dot-red" title="Starker Widerspruch" aria-label="Starker Widerspruch">✕</span><span class="pname">S. Cohen</span><span class="preason">Kein GND-Treffer</span></div>
+            <div class="person-row" role="button" tabindex="0"><span class="cb"></span><span class="consensus-dot dot-yellow" title="Teilweise Übereinstimmung" aria-label="Teilweise Übereinstimmung">!</span><span class="pname">Fr. W. Cohen</span><span class="preason">Konfidenz 58%</span></div>
+            <div class="preason" style="text-align:center;padding:10px;">… 376 weitere Fälle — oder alternativ im <a href="#" data-goto="game">Spielmodus</a> bearbeiten</div>
+          </div>
+          <div class="col" style="display:flex; flex-direction:column; overflow:hidden;">
+            <div style="flex:1; overflow:auto;">
+              <div class="detail-name">Adelheid von Arnim</div>
+              <div class="detail-sub">Grund: Konfidenz unterhalb Schwelle (60% &lt; 90%) · GND: nicht verknüpft</div>
+              <div class="tei-snippet">&lt;person xml:id="p0142"&gt;
+  &lt;persName&gt;Adelheid von Arnim&lt;/persName&gt;
+&lt;/person&gt;</div>
+              <div class="classifier-card"><div class="row1"><span class="method">GND API</span><span class="badge female">Female</span></div><div class="conf-track"><div class="conf-fill" style="width:88%"></div></div></div>
+              <div class="classifier-card"><div class="row1"><span class="method">gender-guesser</span><span class="badge female">Female</span></div><div class="conf-track"><div class="conf-fill" style="width:74%"></div></div></div>
+              <div class="classifier-card"><div class="row1"><span class="method">nomquamgender</span><span class="badge uncertain">Uncertain</span></div><div class="conf-track"><div class="conf-fill" style="width:41%"></div></div></div>
+            </div>
+            <div class="action-bar">
+              <div class="act-btn male" role="button" tabindex="0">Male<small>Taste 1</small></div>
+              <div class="act-btn female" role="button" tabindex="0">Female<small>Taste 2</small></div>
+              <div class="act-btn uncertain" role="button" tabindex="0">Uncertain<small>Taste 3</small></div>
+              <div class="act-btn institution" role="button" tabindex="0">Institution<small>Taste 4</small></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= MANUELL ANNOTIEREN ================= -->
+      <div class="screen" id="manual">
+        <h1>Manuell annotieren</h1>
+        <p class="sub">Anders als „Redigieren" ist dies nicht auf unsichere Fälle beschränkt: Jede der 8.021 Personen kann unabhängig vom Automatisierungsergebnis durchsucht und manuell überschrieben werden — etwa für eine vollständige Handannotation eines Teilkorpus.</p>
+
+        <div class="annotate-layout">
+          <div class="col">
+            <div class="filt-label">Status</div>
+            <span class="chip on" role="button" tabindex="0">Alle (8.021)</span>
+            <span class="chip" role="button" tabindex="0">Automatisch</span>
+            <span class="chip" role="button" tabindex="0">Manuell bestätigt</span>
+            <span class="chip" role="button" tabindex="0">Noch offen</span>
+            <div class="filt-label">Klassifikation</div>
+            <span class="chip" role="button" tabindex="0">Male</span><span class="chip" role="button" tabindex="0">Female</span><span class="chip" role="button" tabindex="0">Institution</span><span class="chip" role="button" tabindex="0">Uncertain</span>
+            <div class="filt-label">Suche</div>
+            <input class="search-box" placeholder="Name, GND-ID oder xml:id…" disabled>
+          </div>
+          <div class="col">
+            <div class="preason" style="padding:2px 4px 10px;">Zeige 1–6 von 8.021 · sortiert nach Registerreihenfolge</div>
+            <div class="person-row" role="button" tabindex="0"><span class="src-tag auto">auto</span><span class="pname">Friedrich Schleiermacher</span><span class="badge male">Male</span></div>
+            <div class="person-row" role="button" tabindex="0"><span class="src-tag auto">auto</span><span class="pname">Henriette Herz</span><span class="badge female">Female</span></div>
+            <div class="person-row sel" role="button" tabindex="0"><span class="src-tag manual">manuell</span><span class="pname">Berliner Sing-Akademie</span><span class="badge institution">Institution</span></div>
+            <div class="person-row" role="button" tabindex="0"><span class="src-tag open">offen</span><span class="pname">C. G. von Brinckmann</span><span class="badge uncertain">Uncertain</span></div>
+            <div class="person-row" role="button" tabindex="0"><span class="src-tag manual">manuell</span><span class="pname">Herz'sche Erben</span><span class="badge institution">Institution</span></div>
+            <div class="person-row" role="button" tabindex="0"><span class="src-tag auto">auto</span><span class="pname">Alexander von Humboldt</span><span class="badge male">Male</span></div>
+            <div class="preason" style="text-align:center;padding:10px;">… 8.015 weitere Einträge, blättern oder suchen</div>
+          </div>
+          <div class="col" style="display:flex; flex-direction:column; overflow:hidden;">
+            <div style="flex:1; overflow:auto;">
+              <div class="detail-name">Berliner Sing-Akademie</div>
+              <div class="detail-sub">Bereits manuell auf „Institution" gesetzt von Jo, vor 3 Tagen · überschreibt automatisches Ergebnis</div>
+              <div class="tei-snippet">&lt;person xml:id="p3390"&gt;
+  &lt;persName&gt;Berliner Sing-Akademie&lt;/persName&gt;
+  &lt;sex value="institution"&gt;institution&lt;/sex&gt;
+&lt;/person&gt;</div>
+              <div class="classifier-card"><div class="row1"><span class="method">GND API (automatisch)</span><span class="badge female">Female</span></div><div class="conf-track"><div class="conf-fill" style="width:52%"></div></div></div>
+              <div class="note" style="margin-top:10px;">Automatische Klassifizierer erkennen Vereins-/Institutionsnamen häufiger falsch als Personennamen — dieser Fall wurde bewusst manuell korrigiert.</div>
+            </div>
+            <div class="action-bar">
+              <div class="act-btn male" role="button" tabindex="0">Male<small>Taste 1</small></div>
+              <div class="act-btn female" role="button" tabindex="0">Female<small>Taste 2</small></div>
+              <div class="act-btn uncertain" role="button" tabindex="0">Uncertain<small>Taste 3</small></div>
+              <div class="act-btn institution" role="button" tabindex="0">Institution<small>Taste 4</small></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= SPIELMODUS (optional) ================= -->
+      <div class="screen" id="game">
+        <h1>Spielmodus <span class="opt-pill">optional</span></h1>
+        <p class="sub">Ein bewusst sekundärer, klar gekennzeichneter Pfad — nie der Startbildschirm. Schreibt in dieselben Daten wie „Redigieren" und „Manuell annotieren"; Punkte und Kombo sind reine Motivationsschicht ohne Auswirkung auf die Klassifikation.</p>
+        <div class="game-wrap">
+          <div class="game-hud"><div class="hud-stat">Runde<b>02:14</b></div><div class="timer-ring"><span>38s</span></div><div class="hud-stat">Score<b>860</b></div></div>
+          <span class="combo-pill">🔥 Kombo ×4</span>
+          <div class="game-card"><div class="label">Person 214 — unklassifiziert</div><div class="name">Henriette Herz</div><div class="dates">* 1764 Berlin · Salonnière</div><div class="help-btn" role="button" tabindex="0">Hilfe anzeigen (−15 Pkt.)</div></div>
+          <div class="game-actions"><button class="game-btn gb-male">Male</button><button class="game-btn gb-female">Female</button><button class="game-btn gb-uncertain">Uncertain</button><button class="game-btn gb-institution">Institution</button></div>
+        </div>
+      </div>
+
+      <!-- ================= STATISTIK & METHODEN ================= -->
+      <div class="screen" id="stats">
+        <h1>Statistik &amp; Methoden</h1>
+        <p class="sub">Qualitätskontrolle für das Register sowie Zuverlässigkeit der einzelnen Klassifikationsmethoden im Vergleich zur GND als Referenz.</p>
+
+        <div class="kpi-row">
+          <div class="stat-tile"><div class="lbl">Coverage gesamt</div><div class="val">93,7%</div></div>
+          <div class="stat-tile"><div class="lbl">Fleiss' κ (Team)</div><div class="val">0.81</div></div>
+          <div class="stat-tile"><div class="lbl">Automatisierungsquote</div><div class="val">93,7%</div></div>
+          <div class="stat-tile"><div class="lbl">Ø Review-Zeit / Fall</div><div class="val">18s</div></div>
+        </div>
+
+        <div class="two-col" style="margin-bottom:16px;">
+          <div class="card">
+            <h3 style="margin-top:0;font-size:14px;">Klassifikationsverteilung</h3>
+            <div class="bars">
+              <div class="bar" style="height:88%; background:var(--male);"><span class="cap">44%</span></div>
+              <div class="bar" style="height:76%; background:var(--female);"><span class="cap">38%</span></div>
+              <div class="bar" style="height:22%; background:var(--uncertain);"><span class="cap">11%</span></div>
+              <div class="bar" style="height:14%; background:var(--institution);"><span class="cap">7%</span></div>
+            </div>
+            <div class="legend"><span><i class="sw" style="background:var(--male);"></i>Male</span><span><i class="sw" style="background:var(--female);"></i>Female</span><span><i class="sw" style="background:var(--uncertain);"></i>Uncertain</span><span><i class="sw" style="background:var(--institution);"></i>Institution</span></div>
+          </div>
+          <div class="card">
+            <h3 style="margin-top:0;font-size:14px;">Agreement-Metriken</h3>
+            <div class="kappa-row"><span>Fleiss' κ (Team)</span><span class="kappa-val">0.81</span></div>
+            <div class="kappa-row"><span>Klassifizierer ↔ GND</span><span class="kappa-val">0.84</span></div>
+            <div class="kappa-row"><span>Spielmodus ↔ Redigieren (Konsistenz)</span><span class="kappa-val">0.93</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;font-size:14px;">Methoden-Zuverlässigkeit — Benchmark gegen GND</h3>
+          <p class="sub" style="margin-bottom:10px;">Genauigkeit nur über Fälle mit vorhandenem GND-Abgleich berechnet (6.104 von 8.021 Personen).</p>
+          <div class="table-scroll">
+            <table class="method-table">
+              <tr><th>Methode</th><th>Genauigkeit ggü. GND</th><th>Abdeckung</th><th>Ø Konfidenz</th><th>Im UI</th></tr>
+              <tr><td><span class="mname">GND Local Lookup</span><span class="msub">lokale Namensliste</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:96%"></div></div>96%</td><td>76%</td><td>0.91</td><td><span class="m-status ui">integriert</span></td></tr>
+              <tr><td><span class="mname">GND API</span><span class="msub">Live-Abfrage GND-Datensatz</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:94%"></div></div>94%</td><td>76%</td><td>0.89</td><td><span class="m-status ui">integriert</span></td></tr>
+              <tr><td><span class="mname">HF Gender-Classification</span><span class="msub">Transformer-Modell, Vorname</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:89%"></div></div>89%</td><td>99%</td><td>0.82</td><td><span class="m-status ui">integriert</span></td></tr>
+              <tr><td><span class="mname">LLM (Ollama)</span><span class="msub">Kontextuelle Analyse, langsam</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:87%"></div></div>87%</td><td>98%</td><td>0.80</td><td><span class="m-status ui">integriert</span></td></tr>
+              <tr><td><span class="mname">gender-guesser</span><span class="msub">Vornamens-Wörterbuch</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:81%"></div></div>81%</td><td>91%</td><td>0.77</td><td><span class="m-status ui">integriert</span></td></tr>
+              <tr><td><span class="mname">HF Genderize</span><span class="msub">API-basiert, Vorname</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:80%"></div></div>80%</td><td>85%</td><td>0.75</td><td><span class="m-status ui">integriert</span></td></tr>
+              <tr><td><span class="mname">nomquamgender</span><span class="msub">statistisches Namensmodell</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:78%"></div></div>78%</td><td>88%</td><td>0.71</td><td><span class="m-status batch">nur Batch</span></td></tr>
+              <tr><td><span class="mname">HIVOTO-XGBoost</span><span class="msub">Gradient-Boosting-Klassifikator</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:75%"></div></div>75%</td><td>93%</td><td>0.69</td><td><span class="m-status batch">nur Batch</span></td></tr>
+              <tr><td><span class="mname">HIVOTO</span><span class="msub">regelbasiertes Verfahren</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:69%"></div></div>69%</td><td>90%</td><td>0.64</td><td><span class="m-status batch">nur Batch</span></td></tr>
+            </table>
+          </div>
+          <div class="note" style="margin:14px 0 0;">GND Local Lookup führt bei Genauigkeit, deckt aber wie GND API nur Personen mit vorhandenem GND-Datensatz ab. Für die restlichen ~24% des Registers tragen HF-Methoden und LLM die Hauptlast.</div>
+        </div>
+
+        <div class="collapse" onclick="this.nextElementSibling.classList.toggle('open')" role="button" tabindex="0">
+          <span>🎮 Gamification-Elemente anzeigen (Rangliste, Badges) <span class="opt-pill">optional, eingeklappt</span></span>
+          <span>▾</span>
+        </div>
+        <div class="collapse-body">
+          <div class="lb-row"><span style="display:flex;align-items:center;"><span class="lb-rank">1</span>Mira</span><span>612 Pkt.</span></div>
+          <div class="lb-row"><span style="display:flex;align-items:center;"><span class="lb-rank">2</span>Sam (Du)</span><span>580 Pkt.</span></div>
+          <div class="lb-row"><span style="display:flex;align-items:center;"><span class="lb-rank">3</span>Jo</span><span>494 Pkt.</span></div>
+        </div>
+      </div>
+
+      <!-- ================= EINSTELLUNGEN ================= -->
+      <div class="screen" id="settings">
+        <h1>Einstellungen</h1>
+        <p class="sub">Datenquelle, Automatisierung, Speicherverhalten und der optionale Spielmodus.</p>
+
+        <div class="card" style="margin-bottom:14px;">
+          <h3 style="margin-top:0;font-size:14px;">Datenquelle</h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--grid);">
+            <span style="font-size:13px;">Aktuelle Quelle</span>
+            <span style="font-weight:700; font-family:ui-monospace,monospace; font-size:12px;">🔗 gitlab.bbaw.de/telota/schleiermacher-digital <span style="color:var(--muted);font-family:inherit;font-weight:400;">(main, /register/)</span></span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--grid);">
+            <span style="font-size:13px;">Automatisch auf neue Commits prüfen</span>
+            <span class="toggle"><span class="sw on"></span></span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;">
+            <span style="font-size:13px;">Ergebnis-Export als Commit erlauben</span>
+            <span class="toggle"><span class="sw on"></span></span>
+          </div>
+          <div style="padding-top:12px;"><span class="help-btn" data-goto="import" role="button" tabindex="0">Datenquelle ändern →</span></div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px;">
+          <h3 style="margin-top:0;font-size:14px;">Automatisierung</h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--grid);">
+            <span style="font-size:13px;">Automatisierungsschwelle (Konfidenz)</span>
+            <span style="font-weight:700;color:var(--accent-b);">90%</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;">
+            <span style="font-size:13px;">Bereits gesetztes @sex-Attribut nie überschreiben</span>
+            <span class="toggle"><span class="sw on"></span></span>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px;">
+          <h3 style="margin-top:0;font-size:14px;">Speichern</h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--grid);">
+            <span style="font-size:13px;">Automatisch speichern</span>
+            <span class="toggle"><span class="sw on"></span></span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;">
+            <span style="font-size:13px;">Intervall</span>
+            <span style="font-weight:700;">alle 2 Minuten</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;font-size:14px;">Gamification</h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--grid);">
+            <span style="font-size:13px;">Spielmodus für dieses Team sichtbar machen</span>
+            <span class="toggle"><span class="sw on"></span></span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;">
+            <span style="font-size:13px;">Gamification-Statistik standardmäßig eingeklappt zeigen</span>
+            <span class="toggle"><span class="sw on"></span></span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="footer-note">genderTagger · Variante C — Hybrid, ausgebaut (Low/Mid-Fidelity Wireframe) · TELOTA KI-Lab &amp; Gender &amp; Data, BBAW · Nicht die finale visuelle Gestaltung</div>
+
+<div class="modal-overlay" id="new-project-modal">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="npm-title">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+      <div>
+        <h2 id="npm-title">Neues Projekt anlegen</h2>
+        <p class="sub" style="margin-bottom:20px;">Jedes Projekt hat ein eigenes Register, eigene Klassifikationsläufe und eigenen Fortschritt — unabhängig von anderen Projekten.</p>
+      </div>
+      <span class="help-btn" style="margin:0;" id="npm-close" role="button" tabindex="0">✕</span>
+    </div>
+
+    <div class="modal-field">
+      <label>Projektname</label>
+      <input type="text" placeholder="z. B. Humboldt digital" id="npm-name">
+    </div>
+
+    <div class="modal-field">
+      <label>Datenquelle</label>
+      <div class="src-switch" style="margin-bottom:0;">
+        <div class="msrc-card active" data-msrc="file" role="button" tabindex="0"><div class="stitle">📄 Einzelne Datei</div><div class="ssub">Eine TEI-XML-Datei hochladen</div></div>
+        <div class="msrc-card" data-msrc="folder" role="button" tabindex="0"><div class="stitle">🗂 Ordner</div><div class="ssub">Mehrere Dateien auf einmal</div></div>
+        <div class="msrc-card" data-msrc="gitlab" role="button" tabindex="0"><div class="stitle">🔗 GitLab</div><div class="ssub">Verknüpfen &amp; synchronisieren</div></div>
+      </div>
+    </div>
+
+    <div class="modal-field" id="npm-gitlab-field" style="display:none;">
+      <label>Repository-URL</label>
+      <input type="text" placeholder="https://gitlab.bbaw.de/team/projekt.git" id="npm-repo-url">
+    </div>
+
+    <div class="note" style="margin-top:4px;">Im nächsten Schritt richten Sie die Datenquelle im Detail ein — inklusive Automatisierungsschwelle und Vorschau, wie im Import-Bereich von „Schleiermacher digital".</div>
+
+    <div class="modal-actions">
+      <button class="btn-ghost" id="npm-cancel">Abbrechen</button>
+      <button class="btn-solid" id="npm-create" data-goto="import">Projekt anlegen und Datenquelle einrichten →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('keydown', (e) => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[role="button"]')) {
+      e.preventDefault();
+      e.target.click();
+    }
+  });
+
+  function goto(targetId){
+    document.querySelectorAll('.nav-item').forEach(i=>{ i.classList.remove('active'); i.setAttribute('aria-current','false'); });
+    document.querySelectorAll('.stab').forEach(t=>{ t.classList.remove('active'); t.setAttribute('aria-selected','false'); });
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+
+    const nav = document.querySelector('.nav-item[data-target="'+targetId+'"]');
+    const tab = document.querySelector('.stab[data-screen="'+targetId+'"]');
+    const scr = document.getElementById(targetId);
+    if(nav){ nav.classList.add('active'); nav.setAttribute('aria-current','page'); }
+    if(tab){ tab.classList.add('active'); tab.setAttribute('aria-selected','true'); }
+    if(scr){ scr.classList.add('active'); }
+    document.querySelector('.view').scrollTo(0,0);
+  }
+
+  document.querySelectorAll('.nav-item[data-target]').forEach(item=>{
+    item.setAttribute('aria-current', item.classList.contains('active') ? 'page' : 'false');
+    item.addEventListener('click', ()=>goto(item.dataset.target));
+  });
+  document.querySelectorAll('.stab[data-screen]').forEach(tab=>{
+    tab.setAttribute('role','tab');
+    tab.setAttribute('aria-selected', tab.classList.contains('active') ? 'true' : 'false');
+    tab.addEventListener('click', ()=>goto(tab.dataset.screen));
+  });
+  document.querySelectorAll('[data-goto]').forEach(el=>{
+    el.addEventListener('click', (e)=>{ e.preventDefault(); goto(el.dataset.goto); });
+  });
+
+  // Project switcher (topbar dropdown)
+  const projBtn = document.getElementById('proj-switch-btn');
+  const projMenu = document.getElementById('proj-menu');
+  projBtn.addEventListener('click', (e)=>{ e.stopPropagation(); projMenu.classList.toggle('open'); });
+  document.addEventListener('click', (e)=>{ if(!projMenu.contains(e.target) && e.target!==projBtn) projMenu.classList.remove('open'); });
+  document.getElementById('proj-menu-current').addEventListener('click', ()=>projMenu.classList.remove('open'));
+
+  // New-project modal
+  const npModal = document.getElementById('new-project-modal');
+  function openNewProjectModal(){ npModal.classList.add('open'); document.getElementById('npm-name').focus(); }
+  function closeNewProjectModal(){ npModal.classList.remove('open'); }
+  document.getElementById('proj-new-card').addEventListener('click', openNewProjectModal);
+  document.getElementById('proj-menu-new').addEventListener('click', ()=>{ projMenu.classList.remove('open'); openNewProjectModal(); });
+  document.getElementById('npm-close').addEventListener('click', closeNewProjectModal);
+  document.getElementById('npm-cancel').addEventListener('click', closeNewProjectModal);
+  npModal.addEventListener('click', (e)=>{ if(e.target === npModal) closeNewProjectModal(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && npModal.classList.contains('open')) closeNewProjectModal(); });
+
+  document.querySelectorAll('.msrc-card').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      document.querySelectorAll('.msrc-card').forEach(c=>c.classList.remove('active'));
+      card.classList.add('active');
+      document.getElementById('npm-gitlab-field').style.display = (card.dataset.msrc === 'gitlab') ? 'flex' : 'none';
+    });
+  });
+
+  document.getElementById('npm-create').addEventListener('click', closeNewProjectModal);
+
+  // Import screen — source switch (Einzelne Datei / Ordner / GitLab)
+  document.querySelectorAll('.src-opt').forEach(opt=>{
+    opt.addEventListener('click', ()=>{
+      document.querySelectorAll('.src-opt').forEach(o=>o.classList.remove('active'));
+      document.querySelectorAll('.src-panel').forEach(p=>p.classList.remove('active'));
+      opt.classList.add('active');
+      document.getElementById(opt.dataset.src).classList.add('active');
+    });
+  });
+
+  // method chips (jobs screen) — toggle selection, ignore disabled
+  document.querySelectorAll('.method-pick .chip:not(.disabled)').forEach(chip=>{
+    chip.addEventListener('click', ()=> chip.classList.toggle('on'));
+  });
+
+  // save button
+  document.getElementById('save-btn').addEventListener('click', ()=>{
+    document.getElementById('save-text').textContent = 'Zuletzt gespeichert gerade eben';
+    const dot = document.getElementById('save-dot');
+    dot.style.background = 'var(--good)';
+  });
+
+  // download dropdown
+  const dlBtn = document.getElementById('dl-btn');
+  const dlMenu = document.getElementById('dl-menu');
+  dlBtn.addEventListener('click', (e)=>{ e.stopPropagation(); dlMenu.classList.toggle('open'); });
+  document.addEventListener('click', (e)=>{ if(!dlMenu.contains(e.target) && e.target!==dlBtn) dlMenu.classList.remove('open'); });
+</script>
+</body>
+</html>
