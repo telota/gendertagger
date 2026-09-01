@@ -24,4 +24,5 @@
 | [`20-method-adapters-reference.md`](20-method-adapters-reference.md) | Comprehensive reference for classification method adapters |
 | [`21-production-promotion.md`](21-production-promotion.md) | Production promotion SOP and lifecycle |
 | [`22-future-development.md`](22-future-development.md) | Deferred capabilities and the constraints they must respect |
+| [`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md) | Wireframe component/screen inventory and Vue transfer specification |
 | [Architecture Decision Records](decisions/) | Accepted decisions and ADR template |
