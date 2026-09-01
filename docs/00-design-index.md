@@ -26,4 +26,6 @@
 | [`22-future-development.md`](22-future-development.md) | Deferred capabilities and the constraints they must respect |
 | [`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md) | Wireframe component/screen inventory and Vue transfer specification |
 | [`24-frontend-delivery-plan.md`](24-frontend-delivery-plan.md) | Phase 8 milestones, open decisions, and frontend delivery risks |
+| [`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md) | Visual system, scientific-vocabulary rendering, states, and accessibility |
+| [`26-frontend-coding-guidelines.md`](26-frontend-coding-guidelines.md) | Vue 3 + TypeScript conventions, boundaries, testing, and validation |
 | [Architecture Decision Records](decisions/) | Accepted decisions and ADR template |
