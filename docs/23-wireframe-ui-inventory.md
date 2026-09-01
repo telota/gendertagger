@@ -49,8 +49,9 @@ Typography is a single system stack (`system-ui, -apple-system, "Segoe UI", sans
 stack (`ui-monospace, monospace`) for TEI snippets, file names, and repository identifiers. Sizes range
 10–34 px with no scale abstraction; the Vue port should introduce a named scale.
 
-`color-scheme: light` is declared and there is no dark palette. Decide before implementation whether the
-Vue application ships dark mode; retrofitting it after component work is more expensive.
+`color-scheme: light` is declared and there is no dark palette. Decision D8 ships dark mode, so the tokens
+become semantic and theme-scoped rather than a single palette; the verified dark values are in
+[`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md).
 
 The label palette carries scientific meaning and must be defined once, centrally. Note the naming conflict
 recorded under [Semantic conflicts](#semantic-conflicts-to-resolve-before-implementation): the token is
@@ -86,8 +87,7 @@ button, export dropdown, notification bell with count badge, user name and avata
 ### Screen tabs
 
 A second, redundant navigation row duplicating the sidebar targets. In the wireframe both drive the same
-`goto()` function. **Decide during the port whether to keep both** — two synchronized navigation surfaces for
-the same eight destinations is likely wireframe scaffolding rather than intended product behavior.
+`goto()` function. Decision D7 drops it: the Vue client has one navigation surface, the sidebar.
 
 ### Navigation behavior
 
@@ -111,7 +111,7 @@ that supplies the component's data.
 | `.app`, `.main`, `.view` | `AppShell` | — |
 | `.sidebar`, `.brand`, `.nav-item`, `.nav-section`, `.opt-pill`, `.ic` | `AppSidebar`, `NavItem` | route table |
 | `.topbar`, `.right`, `.avatar` | `AppTopbar` | `GET /me` |
-| `.screen-tabs`, `.stab` | `ScreenTabs` | route table |
+| `.screen-tabs`, `.stab` | — | dropped per D7 |
 | `.proj-switch`, `.proj-menu`, `.proj-menu-item`, `.proj-menu-action`, `.pn`, `.ppct` | `ProjectSwitcher` | **Gap (backend):** no project-list endpoint |
 | `.dl-wrap`, `.dl-menu`, `.dl-item`, `.dl-sep` | `ExportMenu` | `POST /exports`, `GET /exports/{id}/download` |
 | `.save-block`, `.save-dot` | `SaveIndicator` | **Gap (backend):** no autosave concept |

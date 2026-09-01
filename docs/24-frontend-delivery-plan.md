@@ -62,7 +62,7 @@ Deployment and CI already anticipate the client. Reusing it correctly is cheaper
 | ID | Milestone | Size | Hard dependencies |
 |---|---|---|---|
 | M0 | Decisions and backend prerequisites | M | D1; D6 before `GET /projects` ships; three read endpoints |
-| M1 | Scaffold and transport | S | Node toolchain decision (D12); i18n per D3 |
+| M1 | Scaffold and transport | S | none — D3, D8, D11, D12 all resolved |
 | M2 | Application shell | M | M1; a working auth backend |
 | M3 | Projects and import | M | M2; `GET /projects` (D6) |
 | M4 | Runs and aggregation | L | M3 |
@@ -70,7 +70,7 @@ Deployment and CI already anticipate the client. Reusing it correctly is cheaper
 | M6 | Person browser and audit view | M | M5; annotation history endpoint; **D5 (open)** |
 | M7 | Evaluation and statistics | M | M4 |
 | M8 | Export | S | M4 |
-| M9 | Optional paths and production build | M | M5; D13, D14 |
+| M9 | Optional paths and production build | M | M5 |
 
 ### M0 — Decisions and backend prerequisites
 
@@ -107,8 +107,10 @@ person's full method results and annotation history through `/api/v1`.
 - Enable the real build stages in the Dockerfile and wire the dev target.
 - Set up i18n for German and English per D3: message catalogues, locale-aware dates and numbers, and a lint
   rule against hard-coded user-facing strings. Canonical labels and tier names are excluded from translation.
-- Establish the frontend test stack and join it to the existing CI stages (D11), including a
-  missing-translation check.
+- Establish the semantic, theme-scoped token layer for both themes per D8, so no component is ever written
+  against a single-theme palette.
+- Establish the frontend test stack, the 80 % coverage floor, and the missing-translation check, and join
+  them to the existing `validate`/`test`/`coverage` stages (D11). Tests exist from the first component.
 
 **Exit criterion.** `npm run build` produces the image served by the gateway, and a deliberate backend
 contract change fails CI.
@@ -127,11 +129,12 @@ contract change fails CI.
 - Design tokens, typography scale, and the primitive components — with real `<button>`/`<a>` elements,
   focus management, and a focus trap for modals. The wireframe's `role="button"` keyboard shim is not
   carried over.
-- Locale switch, and the shared vocabulary components that render `CanonicalLabel`, `CertaintyTier`, and
-  `AgreementTier` as canonical token plus translated gloss (D2, D3).
+- Locale switch and theme switch (system, light, dark), and the shared vocabulary components that render
+  `CanonicalLabel`, `CertaintyTier`, and `AgreementTier` as canonical token plus translated gloss (D2, D3).
+- Overlay primitives on the chosen headless accessibility library (D9); everything else in-house.
 
-**Exit criterion.** A viewer, reviewer, and operator each see a correctly scoped shell in both locales; an
-expired session and a server error both render correctly.
+**Exit criterion.** A viewer, reviewer, and operator each see a correctly scoped shell in both locales and
+both themes; an expired session and a server error both render correctly.
 
 ### M3 — Projects and import
 
@@ -236,12 +239,12 @@ checksum against the manifest.
 
 **Work.**
 
-- Spielmodus as a presentation layer over the annotation contract, scoring deferred, subject to D14 — the
+- Spielmodus as a presentation layer over the annotation contract, scoring deferred per D14 — the
   constraint from [`22-future-development.md`](22-future-development.md) holds: it must never influence
   which records are shown.
 - Einstellungen reduced to whatever persistence exists, or read-only deployment facts.
 - SPA routing fallback in the frontend image (D13), production build, same-origin smoke test through the
-  gateway.
+  gateway in both themes.
 - Accessibility pass: keyboard paths, focus order, contrast against the token palette, screen-reader labels
   for the agreement indicators.
 
@@ -339,9 +342,50 @@ and an exact subset of executions — remains available as an advanced action.
 - Auto-creation must be idempotent and must fail visibly, not silently, when the execution set is not
   aggregatable — `POST /runs/{id}/aggregations` returns `409` in that case.
 
+### Architectural decisions
+
+All resolved. They are binding on
+[`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md) and
+[`26-frontend-coding-guidelines.md`](26-frontend-coding-guidelines.md).
+
+**D7 — Sidebar only.** The wireframe's second navigation row is dropped. One navigation surface, one current
+location.
+
+**D8 — Dark mode ships.** Both themes are built from the first milestone rather than retrofitted. Tokens
+become semantic and theme-scoped, both palettes are contrast-verified, and the theme follows
+`prefers-color-scheme` with an explicit user override. The verified dark palette is in
+[`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md).
+
+**D9 — A small headless accessibility library for overlay primitives.** Menus, modals, listboxes, and
+tooltips use it; everything else is built in-house on the project tokens. The library is chosen for
+unstyled behavior and focus management only — it brings no visual opinion and no design system.
+
+**D10 — Charts are hand-rolled SVG.** Distribution bars, the κ matrix, and confusion matrices are built
+against the tokens. Revisit only if a chart requirement appears that SVG plus the existing components
+genuinely cannot serve.
+
+**D11 — Testing from the first commit, in CI, with an 80 % coverage floor.** The frontend suite joins the
+existing `validate`/`test`/`coverage` stages rather than arriving later. Layers, rules, and the floor are
+specified in [`26-frontend-coding-guidelines.md`](26-frontend-coding-guidelines.md). The floor is ratcheted
+upward, never gamed, matching the backend policy in
+[`18-engineering-and-quality.md`](18-engineering-and-quality.md).
+
+**D12 — Node 22, pinned; client dependencies in `frontend/`.** `frontend/package.json` and
+`frontend/package-lock.json` own the client tree; the root `package.json` stays the Pyright-only manifest.
+CI installs with `npm ci`, and the existing `lockfile` and `dependency_audit` jobs extend to cover it.
+
+**D13 — History-mode routing.** The SPA fallback is added to the frontend nginx image. Hash routing is
+rejected because scholarly URLs are shared and cited.
+
+**D14 — The game mode ships in v1, without scoring.** It is a presentation layer over the same annotation
+contract. Scores, combos, streaks, and the leaderboard are deferred, and the constraint from
+[`22-future-development.md`](22-future-development.md) holds regardless: nothing in the game path may
+influence which records are shown for review.
+
 ## Decisions still open
 
-Both are deliberately deferred. What follows is what that costs and when it must be answered.
+Three remain: D1, which is outside the frontend team's control, and D5 and D6, which are deliberately
+deferred. What follows is what each costs and when it must be answered.
 
 ### D5 — Data source for "Manuell annotieren"
 
@@ -370,41 +414,6 @@ change for any client already relying on it.
 authenticated viewer, document it as provisional in the OpenAPI description, and keep per-project
 membership language out of the UI until scoped permissions exist. Record that narrowing is anticipated, so
 it is not read as a regression later.
-
-### Early architectural decisions
-
-Not blocking M1, but expensive to reverse after M2.
-
-**D7 — Dual navigation.** The wireframe has both a sidebar and a redundant tab row for the same eight
-destinations. *Recommendation: keep the sidebar only.*
-
-**D8 — Dark mode.** `color-scheme: light` is currently fixed. Retrofitting after component work is more
-expensive than deciding now.
-
-**D9 — Dependency budget.** In-house primitives versus a component library. The repository publishes an SBOM
-for the frontend image and audits dependencies, so every package has a governance cost; against that, a
-DIY modal, menu, and combobox carry real accessibility risk. *Recommendation: a small headless
-accessibility library for overlay primitives, everything else in-house on the existing tokens.*
-
-**D10 — Charting.** The distribution bars are trivial inline SVG; the κ and confusion matrices are not.
-*Recommendation: hand-rolled SVG for bars and matrices before adopting a charting dependency.*
-
-**D11 — Frontend test stack and CI placement.** Unit, component, and end-to-end layers, and how they join
-the existing `validate`/`test`/`coverage` stages under [`14-testing.md`](14-testing.md) and
-[`18-engineering-and-quality.md`](18-engineering-and-quality.md). Now also covers locale coverage per D3.
-Note that the golden fixtures gate scientific behavior but say nothing about the UI; M5's exit criterion
-needs its own seeded-snapshot acceptance test.
-
-**D12 — Node toolchain and lockfile policy.** Node 22 is implied by the Dockerfile. Pin the version, decide
-where `frontend/package-lock.json` sits relative to the root `package.json`, and extend the existing
-`lockfile` and `dependency_audit` CI jobs to cover it.
-
-**D13 — Routing mode.** History-mode routing requires an SPA fallback in the frontend nginx image, which
-does not exist yet. *Recommendation: add the fallback and use history mode; hash routing is a visible
-compromise in shareable scholarly URLs.*
-
-**D14 — Does v1 ship the Spielmodus?** It is buildable as a presentation layer without any backend, but it
-is also the clearest candidate to defer. *Recommendation: build it, defer scoring.*
 
 ### Remaining blocking decision
 

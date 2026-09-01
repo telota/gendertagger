@@ -31,8 +31,12 @@ Documentation and naming policy remains [`19-coding-and-documentation-style.md`]
 
 ### Palette
 
-The palette is inherited from the wireframe and is normative. No colour outside these tokens may appear in
-the application.
+Both themes ship from the first milestone (decision D8). Tokens are **semantic and theme-scoped**: a
+component references `--text-secondary`, never a hex value and never a theme-specific name. Every token
+below is defined once per theme, so no component is ever written against a single palette.
+
+The light palette is inherited from the wireframe and is normative. No colour outside these tokens may
+appear in the application.
 
 | Role | Token | Value |
 |---|---|---|
@@ -41,13 +45,13 @@ the application.
 | Raised surface | `--surface-1` | `#fcfcfb` |
 | Primary text | `--text-primary` | `#0b0b0b` |
 | Secondary text | `--text-secondary` | `#52514e` |
-| Muted text | `--muted` | see [Contrast](#contrast) |
+| Muted text | `--muted` | `#706e68` |
 | Hairline / table rule | `--grid` | `#e1e0d9` |
 | Border | `--border` | `rgba(11,11,11,0.12)` |
 | Navigation accent | `--accent` | `#4a3aa7` |
 | Action accent | `--accent-b` | `#0f7a63` |
 | Focus ring | `--focus-ring` | `#1f5aa0` |
-| Success | `--good` | `#0ca30c` |
+| Success | `--good` | `#088a08` |
 | Warning | `--warning` | `#fab219` |
 | Critical | `--critical` | `#d03b3b` |
 
@@ -64,9 +68,66 @@ The wireframe names this fourth group `--uncertain*`. It is renamed to `--unknow
 renders the canonical label `unknown`, and `uncertain` is a certainty tier. Reusing one name for both is the
 conflation the published method explicitly warns against.
 
+### Dark theme
+
+Derived from the light palette, keeping its warm-neutral cast, and verified to the same standard. Values are
+a starting palette: they meet the contrast requirements and may be refined visually, but any refinement is
+re-verified before it lands.
+
+| Role | Light | Dark |
+|---|---|---|
+| `--page` | `#f2f1ee` | `#1a1917` |
+| `--panel` | `#ffffff` | `#232220` |
+| `--surface-1` | `#fcfcfb` | `#2c2a27` |
+| `--text-primary` | `#0b0b0b` | `#f4f3f0` |
+| `--text-secondary` | `#52514e` | `#c2bfb8` |
+| `--muted` | `#706e68` | `#9c9890` |
+| `--grid` | `#e1e0d9` | `#3a3835` |
+| `--border` | `rgba(11,11,11,0.12)` | `rgba(244,243,240,0.14)` |
+| `--accent` | `#4a3aa7` | `#a99bf0` |
+| `--accent-b` | `#0f7a63` | `#4fc0a3` |
+| `--focus-ring` | `#1f5aa0` | `#8fbdf0` |
+| `--good` | `#088a08` | `#4fc94f` |
+| `--warning` | `#fab219` | `#f0b843` |
+| `--critical` | `#d03b3b` | `#f0736f` |
+
+Label tokens invert their relationship: the tint becomes a dark, desaturated ground and the text colour
+becomes light.
+
+| Label | Dark solid | Dark text | Dark tint |
+|---|---|---|---|
+| `male` | `#5a9ee8` | `#8fbdf0` | `#17293d` |
+| `female` | `#f08055` | `#f0a184` | `#3a1e14` |
+| `institution` | `#35c894` | `#6fd6ae` | `#102e24` |
+| `unknown` | `#e8b53c` | `#e8bd5e` | `#332813` |
+
+Measured dark-theme ratios: label text on its own tint 7.37–8.28; `--text-primary` on panel 14.32;
+`--text-secondary` 8.66; `--muted` 5.53; `--accent` 6.54; `--accent-b` 7.12; `--critical` 5.59;
+`--warning` 8.81; `--good` 7.42; focus ring on page 8.96. Label solids as borders on the dark panel measure
+5.67–8.41.
+
+Rules specific to the dark theme:
+
+- **Solids are theme-scoped and must not cross over.** The dark solids measure 1.89–2.80 on a white panel
+  and fail there; the light solids are dimmer than they should be on a dark panel. A component that
+  hard-codes either has a bug.
+- Do not render pure white text on pure black. `--text-primary` on `--page` measures 15.83, which is high
+  contrast without the halation of `#ffffff` on `#000000`.
+- Elevation reads through surface lightness, not shadow: `--surface-1` is *lighter* than `--panel` in dark
+  and *lighter* than `--page` in light. Shadows stay reserved for menus and modals in both themes and are
+  weaker in dark.
+- Dark is not a filter. Never derive it with a global CSS `invert()` or opacity overlay; TEI snippets,
+  charts, and label colours all break under that approach.
+
+Theme selection follows `prefers-color-scheme` by default, with an explicit three-state user override
+(system, light, dark) persisted per user. The choice must not flash on load. Charts, focus rings, and the
+label palette are all theme-aware; screenshots in documentation state which theme they show.
+
 ### Contrast
 
-Measured against WCAG 2.1 AA. These are computed values, not estimates.
+Measured against WCAG 2.1 AA. These are computed values, not estimates. The table below is the light
+theme; the dark theme's measured values are listed in [Dark theme](#dark-theme). **Both themes are
+verified independently** — passing in one proves nothing about the other.
 
 | Pair | Ratio | Verdict |
 |---|---|---|
@@ -85,16 +146,17 @@ Measured against WCAG 2.1 AA. These are computed values, not estimates.
 | `--warning` as text on `--panel` | 1.83 | **fails** |
 | `--good` behind white glyphs | 3.35 | **fails** |
 
-Three corrections follow and are binding:
+The failures are corrections already applied to the token tables above, and the rules behind them are
+binding:
 
-1. **Solid label colours are fills, borders, and chart marks only.** They never carry text. The
-   badge pattern is tint background, solid border, `-text` foreground — which is why the wireframe's badges
-   pass while a solid-coloured label would not.
-2. **`--muted` is darkened to `#706e68`** (4.51 on page, 5.10 on panel). The wireframe applies `--muted` to
-   10–11 px captions, which is the worst case for a failing ratio. If a lighter grey is wanted for
-   decoration, introduce a separate non-text token.
+1. **Solid label colours are fills, borders, and chart marks only.** They never carry text. The badge
+   pattern is tint background, solid border, `-text` foreground — which is why the wireframe's badges pass
+   while a solid-coloured label would not.
+2. **`--muted` is `#706e68`, darkened from the wireframe's `#898781`** (4.51 on page, 5.10 on panel). The
+   wireframe applies `--muted` to 10–11 px captions, the worst case for a failing ratio. If a lighter grey
+   is wanted for decoration, introduce a separate non-text token rather than relaxing this one.
 3. **Status colours never carry text at their nominal value.** `--warning` takes dark text (`#3a2c00` on
-   amber measures 7.43). Where white glyphs sit on `--good`, darken it to `#088a08` (4.52).
+   amber measures 7.43). `--good` is `#088a08`, darkened from `#0ca30c` so white glyphs on it reach 4.52.
 
 ### Colour usage rules
 
@@ -106,6 +168,8 @@ Three corrections follow and are binding:
 - Never introduce a colour scale for certainty. Tiers are categorical, not ordinal-continuous — see
   [Rendering the scientific vocabulary](#rendering-the-scientific-vocabulary).
 - Charts use the label tokens for label-keyed series only. Any other series uses a neutral ramp.
+- Charts are hand-rolled SVG against the tokens (decision D10), so they inherit both themes and the label
+  palette for free. This covers the distribution bars, the Cohen's κ matrix, and the confusion matrices.
 
 ## Typography
 
@@ -261,8 +325,10 @@ scrolls horizontally.
 
 **Cards.** Border and background, no shadow. A card has at most one title and does not nest.
 
-**Menus and modals.** Dismiss on outside click and Escape, trap focus while open, and restore focus to the
-trigger on close.
+**Menus and modals.** Built on the headless accessibility library chosen in decision D9 — menus, modals,
+listboxes, and tooltips take their behaviour and focus management from it and their appearance from the
+project tokens. Dismiss on outside click and Escape, trap focus while open, restore focus to the trigger on
+close. Do not hand-roll these; do not accept the library's visual defaults.
 
 **Forms.** Every control has a visible label. Validation messages sit next to the field, state what to do,
 and never rely on colour alone. Server-side validation errors from the shared envelope map onto the
@@ -323,7 +389,7 @@ A screen is ready for implementation when:
 2. all eight interface states are specified;
 3. no certainty or agreement value is rendered as a percentage or a score;
 4. labels, tiers, and statuses are distinguishable without colour;
-5. contrast is verified against the corrected tokens;
+5. contrast is verified in **both themes** against the corrected tokens;
 6. the keyboard path through the screen is described;
-7. both locales fit without truncation or reflow;
+7. both locales fit without truncation or reflow, in both themes;
 8. every displayed decision has a visible route to its evidence and provenance.

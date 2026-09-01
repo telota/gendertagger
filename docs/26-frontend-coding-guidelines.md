@@ -29,6 +29,10 @@ depend on ORM, Celery, Redis, or filesystem details.
 - Every new dependency is justified in the merge request: what it does, why the platform is insufficient,
   its licence, and its transitive weight. The frontend image publishes an SBOM, so dependencies are
   governance surface, not a free choice.
+- Decision D9 admits exactly one behavioural dependency beyond the framework: a small headless
+  accessibility library for overlay primitives (menu, modal, listbox, tooltip). It supplies behaviour and
+  focus management only; its visual defaults are not used. Charting libraries are excluded by decision
+  D10 — charts are hand-rolled SVG against the tokens.
 
 ## Project structure
 
@@ -193,6 +197,10 @@ and CSRF attachment.
 - Scoped styles in components. No global styles outside `src/styles/`.
 - Colours, spacing, radii, and type steps come from tokens. A raw hex value, a raw pixel spacing, or a
   hard-coded font size in a component is a review rejection.
+- Tokens are semantic and theme-scoped (decision D8). A component references `--text-secondary`, never a
+  theme-specific name and never a literal. No component branches on the active theme, and no style is
+  written for one theme only; if a rule needs a theme condition, the token layer is wrong.
+- Never derive the dark theme with `filter: invert()` or a translucent overlay.
 - No deep selectors into a child component's internals (`:deep()` requires a comment justifying it).
 - No `!important`.
 - Utility classes, if introduced, are token-backed and enumerable; ad-hoc inline `style` attributes carrying
@@ -236,8 +244,11 @@ Rules:
 - At least one end-to-end path per locale.
 - The M5 exit criterion — a reviewer corrects a machine result and the final-decision view changes without
   mutating `Prediction` or `AggregatedResult` — is an end-to-end test, not a manual check.
-- Coverage is measured with a floor agreed when the suite is introduced, and ratcheted rather than gamed,
-  consistent with the backend policy.
+- Branch coverage with an **80 % floor** (decision D11), enforced in the `coverage` stage from the first
+  milestone. The floor is ratcheted upward as the suite matures and is never met by writing tests against
+  implementation details. Tests are written alongside the code, not scheduled afterwards.
+- Component tests run in both themes and both locales where rendering differs; the theme and locale
+  switches are themselves tested.
 
 ## Performance
 
@@ -272,6 +283,8 @@ Rules:
 - Reaching for Celery IDs, queue names, database fields, or filesystem paths.
 - `any`, non-null assertions outside tests, empty catch blocks, `v-html`, `!important`, index keys.
 - Global event buses, cross-feature imports, and page-specific backend endpoints.
+- Theme-conditional styling in components, and hard-coded palette values of either theme.
+- A charting library, or an overlay primitive hand-rolled instead of taken from the D9 library.
 
 ## Automated validation
 
@@ -282,9 +295,10 @@ npm --prefix frontend ci
 npm --prefix frontend run lint          # ESLint: vue, typescript, a11y, i18n rules
 npm --prefix frontend run format:check  # Prettier
 npm --prefix frontend run typecheck     # vue-tsc --noEmit
-npm --prefix frontend run test
+npm --prefix frontend run test           # vitest, 80% branch-coverage floor
 npm --prefix frontend run build
 npm --prefix frontend run api:check     # regenerate transport types, fail on drift
+npm --prefix frontend run i18n:check    # fail on missing or orphaned message keys
 ```
 
 These join the existing `validate` and `test` stages in `.gitlab-ci.yml` alongside the Python gates, and run
