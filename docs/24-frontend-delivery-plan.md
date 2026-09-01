@@ -78,8 +78,10 @@ Deployment and CI already anticipate the client. Reusing it correctly is cheaper
 
 **Work.**
 
-- Take decisions D1–D6 and record each one as an ADR where it changes a contract or a scientific
-  presentation rule, per [`AGENTS.md`](../AGENTS.md).
+- Take D1, and D6 before `GET /projects` is specified. D2, D3, and D4 are resolved; record D3 as an ADR
+  when M1 starts, since it fixes a durable client-boundary rule.
+- Apply D2 to the screen content of Import, Übersicht, and Einstellungen before those screens are designed
+  in detail — the threshold control is removed, not reskinned.
 - Implement the three blocking read endpoints from
   [`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md): `GET /projects`, a per-person
   method-result read model, and annotation history.
@@ -103,7 +105,10 @@ person's full method results and annotation history through `/api/v1`.
 - Add a CI job that regenerates the client and fails on drift, closing the gap recorded under "Generated
   TypeScript transport client" in [`22-future-development.md`](22-future-development.md).
 - Enable the real build stages in the Dockerfile and wire the dev target.
-- Establish the frontend test stack and join it to the existing CI stages (D11).
+- Set up i18n for German and English per D3: message catalogues, locale-aware dates and numbers, and a lint
+  rule against hard-coded user-facing strings. Canonical labels and tier names are excluded from translation.
+- Establish the frontend test stack and join it to the existing CI stages (D11), including a
+  missing-translation check.
 
 **Exit criterion.** `npm run build` produces the image served by the gateway, and a deliberate backend
 contract change fails CI.
@@ -122,9 +127,11 @@ contract change fails CI.
 - Design tokens, typography scale, and the primitive components — with real `<button>`/`<a>` elements,
   focus management, and a focus trap for modals. The wireframe's `role="button"` keyboard shim is not
   carried over.
+- Locale switch, and the shared vocabulary components that render `CanonicalLabel`, `CertaintyTier`, and
+  `AgreementTier` as canonical token plus translated gloss (D2, D3).
 
-**Exit criterion.** A viewer, reviewer, and operator each see a correctly scoped shell; an expired session
-and a server error both render correctly.
+**Exit criterion.** A viewer, reviewer, and operator each see a correctly scoped shell in both locales; an
+expired session and a server error both render correctly.
 
 ### M3 — Projects and import
 
@@ -153,7 +160,9 @@ reach `ready` with their checksums.
 - Per-execution failure surface: `failed_count`, `failure_class`, `failure_diagnostic`.
 - Run and method provenance display — the reproducibility story from
   [`11-provenance-and-reproducibility.md`](11-provenance-and-reproducibility.md).
-- **Aggregation as a first-class step**, per decision D4.
+- **Aggregation as a first-class step**, per D4: automatic default `reference_v1` aggregation on run
+  completion, an explicit advanced path, and a listing that makes re-aggregation without re-running
+  methods a cheap, visible action.
 
 **Exit criterion.** An operator starts a run, watches it complete live, produces an aggregation, and can
 read back the exact configuration hash and code provenance that produced it.
@@ -167,6 +176,8 @@ read back the exact configuration hash and code provenance that produced it.
 - Three-column workbench driven by `GET /review-items` with the complete server-side filter set, both sort
   orders, and cursor pagination keyed to the filter tuple.
 - Detail panel with per-method results, `override_source`, agreement and certainty tiers.
+- Two distinct queue entry points per D2 — contested evidence (`low`, `contested`) and thin evidence
+  (`single`, `uncertain`) — rather than one undifferentiated "below threshold" list.
 - `verify`, `correct`, and `defer` actions with `comment`, keyboard shortcuts, and correct
   `expected_revision` handling.
 - The `409 annotation_conflict` recovery flow as a designed interaction, not an error toast.
@@ -200,7 +211,8 @@ person is visible with its author.
 - Coverage, accuracy and effective accuracy, per-class recall with confidence intervals, confusion
   matrices, the pairwise Cohen's κ matrix, benchmark composition, and the ensemble tier distributions.
 - Correct labelling of what each metric measures — see the Fleiss/Cohen conflict in
-  [`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md).
+  [`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md). Per D2 there is no cross-method mean
+  confidence column.
 
 **Exit criterion.** The published reference study's tables are reproducible from the browser against a
 stored run.
@@ -236,47 +248,128 @@ checksum against the manifest.
 **Exit criterion.** The production Compose profile serves the built client through the gateway, deep links
 resolve, and the review path works end to end behind a real session.
 
-## Open decisions
+## Decisions taken
 
-### Blocking decisions
+### D2 — Certainty and agreement tiers, not a confidence threshold
 
-These change what gets built, not just how. Each needs an owner and a date.
+**Resolved from the paper** ([`paper/article.tex`](paper/article.tex), §Aggregation). The wireframe's
+percentage threshold has no counterpart in the published method and is not implementable: *"The per-method
+confidence values are recorded but do not influence the vote."* Aggregation is an unweighted majority vote
+under a fixed authority priority chain, and decision quality is expressed categorically.
 
-**D1 — Production authentication provider.** `RejectAllAuthenticationBackend` fails closed by design
-([`16-open-questions.md`](16-open-questions.md)). Local accounts, institutional OIDC/SSO, or both? OIDC is
-currently recorded as deferred in [`22-future-development.md`](22-future-development.md), which conflicts
-with shipping a browser client. *Owner: infrastructure and project lead. Recommendation: implement a local
-account backend now to unblock delivery, and treat SSO as a later backend swap — the `CurrentUser`
-abstraction makes that a contained change.*
+The UI adopts the paper's vocabulary verbatim. Certainty tiers:
 
-**D2 — Automation threshold semantics.** The wireframe's percentage threshold has no backend equivalent and
-conflicts with rule 10 of [`AGENTS.md`](../AGENTS.md). *Recommendation: restate the UI in `CertaintyTier`
-and `AgreementTier` vocabulary. Introducing a calibrated threshold instead would require an ADR and
-contradicts [ADR-0009](decisions/ADR-0009-reference-agreement-certainty.md).*
+| Tier | Condition |
+|---|---|
+| `high` | at least two methods voted and at least three quarters agreed, or an authority signal fired in agreement with the vote |
+| `low` | at least two voted and a majority of half or more agreed |
+| `contested` | at least two voted but agreement fell below half |
+| `single` | only the LLM had usable output, with self-reported `high` confidence |
+| `uncertain` | only the LLM had usable output, with `low` or `uncertain` self-reported confidence |
+| `no_data` | no method could vote |
 
-**D3 — UI label vocabulary and interface language.** The canonical labels are `male`, `female`, `unknown`,
-`institution`; the wireframe renders the third as "Uncertain", which is a certainty tier. The UI is German
-throughout while the API and documentation are English. Decide the German label vocabulary, resolve the
-collision, and decide whether v1 is German-only or introduces i18n from the start. *Recommendation: fix a
-German label vocabulary that keeps `unknown` and `uncertain` distinct, and ship German-only with strings
-centralised so i18n stays a later addition.*
+Agreement tiers are the share of answering methods that voted for the winning label: `unanimous`,
+`strong_majority` (≥ 75 %), `weak_majority` (≥ 50 %), `no_consensus` (< 50 %), `single_rater`, `no_answer`.
 
-**D4 — Is aggregation implicit or explicit?** The backend allows many aggregations per run over arbitrary
-method-execution subsets. The wireframe assumes one implicit result. *Recommendation: automatically create a
-default `reference_v1` aggregation over all completed executions when a run finishes, and expose explicit
-aggregation creation as an advanced path. This keeps the common workflow short without hiding the model.*
+**Consequences for the UI.**
 
-**D5 — Data source for "Manuell annotieren".** `GET /snapshots/{id}/people` has no filters and no `q`;
-`GET /review-items` has both but requires an aggregation. *Recommendation: drive the screen from
-`review-items` with `sort=tei_id`. Consequence to accept explicitly: browsing the register requires a
-completed aggregation.*
+- Replace the threshold slider on Import and the threshold row on Einstellungen. Automation is not tunable
+  by the reviewer; it is a property of the aggregation strategy.
+- Übersicht's "automatisch entschieden" tile becomes `certainty_tier = high`; "zur Prüfung" becomes the
+  `review_triage_v1` ordering the backend already produces.
+- The two review buckets are distinct and must not be merged: contested evidence (`low`, `contested`) and
+  thin evidence (`single`, `uncertain`). On the case-study register these are 3.6 % and 12.7 % of entries
+  respectively, against 83.8 % at `high` — so a queue built on "everything below a threshold" would be
+  roughly four times the size of the genuinely contested set and would bury it.
+- Per-method confidence may be displayed as method-specific provenance but must never be aggregated,
+  averaged across methods, or used for ordering. This also removes the "Ø Konfidenz" column from the
+  Statistik table.
+- Triage is driven by disagreement, which the paper states is the intended signal: the entries on which the
+  methods cannot agree *"concentrates exactly the cases where editorial attention is most warranted."*
 
-**D6 — Project visibility and role scope.** The wireframe states "Team-Mitgliedschaften gelten projektweise",
-but roles are currently global and project-scoped permissions are deferred in
-[`22-future-development.md`](22-future-development.md). Decide what `GET /projects` returns for a viewer
-before it is implemented, because changing it later is a breaking contract change. *Recommendation: return
-all projects for any authenticated viewer in v1 and drop the per-project membership language from the UI
-until scoped permissions exist.*
+No backend change and therefore no ADR: this aligns the UI with
+[ADR-0009](decisions/ADR-0009-reference-agreement-certainty.md) and
+[ADR-0022](decisions/ADR-0022-uncertainty-first-review-ordering.md) rather than altering them.
+
+### D3 — English label vocabulary, bilingual interface
+
+**Resolved.** The four canonical labels — `male`, `female`, `unknown`, `institution` — and the tier names
+stay in English and untranslated in every locale. They are the controlled vocabulary written into the TEI
+output, reported in the paper, and returned by the API; translating them in the UI would create a second
+vocabulary for the same scientific values.
+
+The interface chrome is internationalised in **German and English from M1**, not retrofitted.
+
+**Consequences.**
+
+- i18n is a scaffold-time concern: message catalogues, a locale switch, locale-aware dates and numbers, and
+  a lint rule against hard-coded user-facing strings all land in M1/M2 rather than after the screens exist.
+- Canonical values render as their token plus a translated gloss where a gloss helps — for example
+  `unknown` with "nicht bestimmbar" / "not determinable", `uncertain` with "nur LLM, geringe Sicherheit" /
+  "LLM only, low confidence".
+- This dissolves the `uncertain`/`unknown` collision from
+  [`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md). The paper explicitly warns against
+  conflating them: `uncertain` *"identifies entries where only the LLM responded and did so with low
+  confidence, not a vote-level output category."* The wireframe's fourth action button is therefore
+  relabelled `unknown`.
+- The action bar becomes `male` / `female` / `unknown` / `institution`, matching the vote alphabet exactly.
+- Locale coverage belongs in the test strategy (D11): a missing-translation check, and at least one
+  end-to-end path per locale.
+
+Worth an ADR when M1 starts, since it fixes a durable client-boundary rule alongside
+[ADR-0006](decisions/ADR-0006-vue-browser-client-boundary.md).
+
+### D4 — Aggregation is created automatically, with an explicit advanced path
+
+**Resolved as recommended.** When a run reaches a terminal successful state, the client creates a default
+`reference_v1` aggregation over all completed method executions. Explicit aggregation — choosing a strategy
+and an exact subset of executions — remains available as an advanced action.
+
+**Consequences.**
+
+- The route keeps the aggregation identifier
+  (`/runs/:runId/aggregations/:aggregationId/...`). The model stays visible and shareable; only the common
+  path is shortened.
+- Re-aggregation is a first-class action, not a hidden one. The paper treats it as a design benefit:
+  methods are kept independent so *"slow methods need only run once before being re-aggregated freely."*
+  Excluding a method and re-aggregating without re-running the LLM is exactly the workflow the UI should
+  make cheap.
+- Multiple aggregations per run must therefore be listable and comparable, and the UI must always show
+  which aggregation the current review queue and export belong to.
+- Auto-creation must be idempotent and must fail visibly, not silently, when the execution set is not
+  aggregatable — `POST /runs/{id}/aggregations` returns `409` in that case.
+
+## Decisions still open
+
+Both are deliberately deferred. What follows is what that costs and when it must be answered.
+
+### D5 — Data source for "Manuell annotieren"
+
+`GET /snapshots/{id}/people` has no filters and no free-text search; `GET /review-items` has both but
+requires a completed aggregation.
+
+**Blocks M6 only.** The cost of deferring is low: M5 builds the shared workbench against `review-items`
+regardless, so M6 is a second binding of an existing component. Decide before M6 starts.
+
+**What changes with the answer.** Choosing `review-items` means browsing the register requires a completed
+aggregation, and the screen inherits the full filter set for free. Choosing `snapshots/people` keeps
+browsing independent of any run but requires new server-side filter and search support on that endpoint —
+a backend change that would need to be scheduled.
+
+### D6 — Project visibility and role scope
+
+Roles are currently global (`viewer` < `reviewer` < `operator` < `admin`); project-scoped permissions are
+deferred in [`22-future-development.md`](22-future-development.md). The wireframe nevertheless states that
+team membership is per project.
+
+**Blocks the `GET /projects` contract, and therefore M0 and M3.** This is the one open decision with a real
+deferral cost: the endpoint cannot be specified without it, and narrowing the response later is a breaking
+change for any client already relying on it.
+
+**Interim position if it stays open past M0.** Ship `GET /projects` returning every project to any
+authenticated viewer, document it as provisional in the OpenAPI description, and keep per-project
+membership language out of the UI until scoped permissions exist. Record that narrowing is anticipated, so
+it is not read as a regression later.
 
 ### Early architectural decisions
 
@@ -298,9 +391,9 @@ accessibility library for overlay primitives, everything else in-house on the ex
 
 **D11 — Frontend test stack and CI placement.** Unit, component, and end-to-end layers, and how they join
 the existing `validate`/`test`/`coverage` stages under [`14-testing.md`](14-testing.md) and
-[`18-engineering-and-quality.md`](18-engineering-and-quality.md). Note that the golden fixtures gate
-scientific behavior but say nothing about the UI; M5's exit criterion needs its own seeded-snapshot
-acceptance test.
+[`18-engineering-and-quality.md`](18-engineering-and-quality.md). Now also covers locale coverage per D3.
+Note that the golden fixtures gate scientific behavior but say nothing about the UI; M5's exit criterion
+needs its own seeded-snapshot acceptance test.
 
 **D12 — Node toolchain and lockfile policy.** Node 22 is implied by the Dockerfile. Pin the version, decide
 where `frontend/package-lock.json` sits relative to the root `package.json`, and extend the existing
@@ -312,6 +405,15 @@ compromise in shareable scholarly URLs.*
 
 **D14 — Does v1 ship the Spielmodus?** It is buildable as a presentation layer without any backend, but it
 is also the clearest candidate to defer. *Recommendation: build it, defer scoring.*
+
+### Remaining blocking decision
+
+**D1 — Production authentication provider.** `RejectAllAuthenticationBackend` fails closed by design
+([`16-open-questions.md`](16-open-questions.md)). Local accounts, institutional OIDC/SSO, or both? OIDC is
+currently recorded as deferred in [`22-future-development.md`](22-future-development.md), which conflicts
+with shipping a browser client. *Owner: infrastructure and project lead. Recommendation: implement a local
+account backend now to unblock delivery, and treat SSO as a later backend swap — the `CurrentUser`
+abstraction makes that a contained change.*
 
 ### Scope exclusions to confirm
 
@@ -331,16 +433,20 @@ expectations. Each is analysed in [`23-wireframe-ui-inventory.md`](23-wireframe-
 | Risk | Impact | Mitigation |
 |---|---|---|
 | No production authentication provider | Client cannot ship regardless of its completeness | Decide D1 at M0; build against a local backend meanwhile |
-| Aggregation is invisible in the accepted design | Users expect review immediately after classification | Decide D4 early and make the step legible in M4 rather than hiding it again |
-| Threshold decision reverberates across three screens | Late reversal invalidates Import, Übersicht, Einstellungen | Decide D2 before M3 |
+| Aggregation is invisible in the accepted design | Users expect review immediately after classification | Resolved by D4: auto-create the default aggregation, keep the step legible in the route and the UI |
+| D6 left open while `GET /projects` is implemented | Narrowing the response later is a breaking contract change | Ship it provisional and documented as such, or answer D6 before M0 completes |
+| Tier vocabulary is unfamiliar to reviewers | Six certainty tiers replace one intuitive percentage | Glosses per D3, and two clearly separated queue entry points rather than six raw filters |
 | Wireframe promises unbuilt features | Stakeholder expectation gap at delivery | Confirm the scope exclusions in writing at M0 |
 | Frontend dependency tree meets a provenance-strict repository | SBOM and licence review friction late in delivery | Set the dependency budget (D9) before M2 |
 | No UI-level acceptance coverage | Scientific fixtures pass while the review path is broken | Define the seeded-snapshot acceptance test as part of D11 |
 
 ## Immediate next steps
 
-1. Assign owners and dates to D1–D6.
+1. Assign an owner and a date to D1, and decide D6 before `GET /projects` is specified.
 2. Implement the three blocking read endpoints.
 3. Stand up a development authentication backend.
-4. Confirm the v1 scope exclusions with the stakeholders who reviewed the wireframe.
-5. Begin M1 in parallel with items 1–4, since scaffolding and transport generation depend on none of them.
+4. Confirm the v1 scope exclusions with the stakeholders who reviewed the wireframe, and confirm with them
+   that the threshold control is removed rather than redesigned (D2) — this is the most visible change
+   against the accepted wireframe.
+5. Begin M1 in parallel with items 1–4, since scaffolding, i18n, and transport generation depend on none of
+   them.

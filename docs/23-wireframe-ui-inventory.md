@@ -512,6 +512,9 @@ Grouped by whether they need a backend decision before or after v1.
 These are not missing features but contradictions between the wireframe's vocabulary and the canonical
 contracts. Each will produce wrong UI if carried over unchanged.
 
+The first two are resolved; their resolutions are recorded as D2 and D3 in
+[`24-frontend-delivery-plan.md`](24-frontend-delivery-plan.md).
+
 ### The automation threshold does not exist
 
 The wireframe's central control is a percentage threshold ("90 % ausgewählt", "Konfidenz unterhalb Schwelle
@@ -526,17 +529,25 @@ decision quality categorically:
 [`AGENTS.md`](../AGENTS.md) forbids treating it as a probability. A percentage threshold over it is not
 implementable as drawn.
 
-**Recommendation:** restate the UI in tier vocabulary — "automatisch entschieden" becomes
-`certainty_tier ∈ {high}`, "zur Prüfung" becomes the `review_triage_v1` ordering the backend already
-produces. Changing the backend to introduce a calibrated threshold would require an ADR and contradicts
-[ADR-0009](decisions/ADR-0009-reference-agreement-certainty.md).
+**Resolved (D2):** the UI is restated in tier vocabulary. The published method
+([`paper/article.tex`](paper/article.tex)) is explicit that per-method confidence values are recorded but
+do not influence the vote, so a threshold over them has no counterpart in the pipeline. "Automatisch
+entschieden" becomes `certainty_tier = high`; "zur Prüfung" becomes the `review_triage_v1` ordering the
+backend already produces, split into contested evidence (`low`, `contested`) and thin evidence (`single`,
+`uncertain`). The threshold slider and the Einstellungen threshold row are removed rather than reskinned.
 
 ### Uncertain is used as a label
 
 The action bar offers Male / Female / **Uncertain** / Institution. `CanonicalLabel` is
 `male` / `female` / **`unknown`** / `institution`; `uncertain` is a `CertaintyTier` value. Rule 9 of
-[`AGENTS.md`](../AGENTS.md) requires `unknown`, `abstain`, and `error` to stay distinct. Rename the button
-and the `--uncertain*` tokens, or the UI will teach reviewers a wrong model.
+[`AGENTS.md`](../AGENTS.md) requires `unknown`, `abstain`, and `error` to stay distinct. The paper warns
+against exactly this conflation: `uncertain` identifies entries where only the LLM responded and did so
+with low confidence, and is not a vote-level output category.
+
+**Resolved (D3):** canonical labels and tier names stay in English and untranslated in every locale, since
+they are the controlled vocabulary written into the TEI output. The action bar becomes
+`male` / `female` / `unknown` / `institution`, and the `--uncertain*` tokens are renamed accordingly. The
+interface chrome is internationalised in German and English from the first milestone.
 
 ### A GND API method does not exist
 
