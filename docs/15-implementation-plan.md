@@ -163,6 +163,11 @@ Exit criterion: reference study outputs can be regenerated from a stored run.
 
 ## Phase 8: Vue annotation/review UI
 
+Milestone sequencing, open decisions, and delivery risks for this phase are expanded in
+[`24-frontend-delivery-plan.md`](24-frontend-delivery-plan.md); the component-level source material
+is [`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md). The checklist below remains the
+definition of done.
+
 - stabilize review-items/query API [DONE]
 - add review-stream revision conflict handling (`409`) [DONE]
 - scaffold Vue 3 + TypeScript + Vite in `frontend/`
