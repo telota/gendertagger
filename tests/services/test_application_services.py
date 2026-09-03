@@ -1,4 +1,5 @@
-from datetime import UTC, datetime
+import hashlib
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from pathlib import Path
 from types import TracebackType
@@ -21,6 +22,7 @@ from gendertagger.models.aggregation import (
     VoteCounts,
 )
 from gendertagger.models.artifact import Artifact, ArtifactCreate
+from gendertagger.models.auth import LocalCredential, UserSession
 from gendertagger.models.classification import (
     AgreementTier,
     CanonicalLabel,
@@ -57,13 +59,17 @@ from gendertagger.models.review import (
     ReviewWorkflowState,
 )
 from gendertagger.models.run import Progress, Run, RunCreate, RunCreateRequest
+from gendertagger.models.user import CurrentUser, Role, User, UserCreate
 from gendertagger.services.aggregation_repository import AggregationRepository
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.annotations import AnnotationService
 from gendertagger.services.artifact_repository import ArtifactRepository
+from gendertagger.services.auth_repository import AuthRepository
+from gendertagger.services.authentication import AuthenticationService, InvalidCredentialsError
 from gendertagger.services.dispatch_repository import DispatchRepository
 from gendertagger.services.method_registry import MethodRegistry
 from gendertagger.services.pagination import CursorCodec, InvalidCursorError
+from gendertagger.services.password_hashing import PasswordHasherProtocol
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
@@ -80,6 +86,7 @@ from gendertagger.services.review_repository import ReviewItemCursor, ReviewRepo
 from gendertagger.services.run_repository import RunRepository
 from gendertagger.services.runs import RunProvenance, RunService
 from gendertagger.services.unit_of_work import UnitOfWork
+from gendertagger.services.user_repository import UserRepository
 from gendertagger.storage.local import LocalArtifactStorage
 
 NOW = datetime(2026, 8, 13, 10, 0, tzinfo=UTC)
@@ -121,6 +128,8 @@ class StubUnitOfWork:
         aggregations: object | None = None,
         dispatches: object | None = None,
         reviews: object | None = None,
+        users: object | None = None,
+        auth: object | None = None,
     ) -> None:
         self._projects = projects if projects is not None else Mock(spec=ProjectRepository)
         self._artifacts = artifacts if artifacts is not None else Mock(spec=ArtifactRepository)
@@ -130,6 +139,8 @@ class StubUnitOfWork:
         )
         self._dispatches = dispatches if dispatches is not None else Mock(spec=DispatchRepository)
         self._reviews = reviews if reviews is not None else Mock(spec=ReviewRepository)
+        self._users = users if users is not None else Mock(spec=UserRepository)
+        self._auth = auth if auth is not None else Mock(spec=AuthRepository)
         self.commit_count = 0
         self.rollback_count = 0
 
@@ -167,6 +178,14 @@ class StubUnitOfWork:
     @property
     def reviews(self) -> ReviewRepository:
         return cast(ReviewRepository, self._reviews)
+
+    @property
+    def users(self) -> UserRepository:
+        return cast(UserRepository, self._users)
+
+    @property
+    def auth(self) -> AuthRepository:
+        return cast(AuthRepository, self._auth)
 
     def commit(self) -> None:
         self.commit_count += 1
@@ -872,4 +891,280 @@ def test_annotation_service_commits_attributable_append_only_decision() -> None:
 
     assert created == annotation
     assert review_repository.add_annotation.call_args.kwargs == {"reviewer_user_id": REVIEWER_ID}
+    assert unit_of_work.commit_count == 1
+
+
+class FakePasswordHasher:
+    """Deterministic, non-cryptographic stand-in so authentication tests stay fast."""
+
+    def hash(self, password: str) -> str:
+        return f"hashed:{password}"
+
+    def verify(self, password_hash: str, password: str) -> bool:
+        return password_hash == f"hashed:{password}"
+
+
+AUTH_USER_ID = UUID("c0000000-0000-0000-0000-000000000001")
+AUTH_USERNAME = "reviewer.one"
+SESSION_TTL = timedelta(hours=8)
+
+
+def _local_user(*, is_active: bool = True) -> User:
+    return User(
+        id=AUTH_USER_ID,
+        display_name="Reviewer One",
+        roles={Role.reviewer},
+        is_active=is_active,
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+
+def _local_credential(*, must_change_password: bool = False) -> LocalCredential:
+    return LocalCredential(
+        user_id=AUTH_USER_ID,
+        username=AUTH_USERNAME,
+        password_hash="hashed:correct-horse-battery",
+        must_change_password=must_change_password,
+        updated_at=NOW,
+    )
+
+
+def _authentication_service(
+    *,
+    unit_of_work: StubUnitOfWork,
+    password_hasher: PasswordHasherProtocol | None = None,
+    clock: object = lambda: NOW,
+) -> AuthenticationService:
+    return AuthenticationService(
+        unit_of_work_factory=unit_of_work.factory,
+        password_hasher=password_hasher or FakePasswordHasher(),
+        clock=clock,  # type: ignore[arg-type]  # A fixed-time lambda satisfies the Clock protocol.
+        session_ttl=SESSION_TTL,
+    )
+
+
+def test_authentication_service_login_issues_session_for_verified_credentials() -> None:
+    users_repository = Mock(spec=UserRepository)
+    users_repository.get_user.return_value = _local_user()
+    auth_repository = Mock(spec=AuthRepository)
+    auth_repository.get_credential_by_username.return_value = _local_credential()
+    unit_of_work = StubUnitOfWork(users=users_repository, auth=auth_repository)
+    service = _authentication_service(unit_of_work=unit_of_work)
+
+    issued = service.login(username=AUTH_USERNAME, password="correct-horse-battery")
+
+    assert issued.user == CurrentUser(
+        id=AUTH_USER_ID, display_name="Reviewer One", roles={Role.reviewer}
+    )
+    create_session_kwargs = auth_repository.create_session.call_args.kwargs
+    assert create_session_kwargs["user_id"] == AUTH_USER_ID
+    assert create_session_kwargs["csrf_secret"] == issued.csrf_secret
+    assert (
+        create_session_kwargs["session_id"]
+        == hashlib.sha256(issued.token.encode("ascii")).hexdigest()
+    )
+    assert create_session_kwargs["expires_at"] == NOW + SESSION_TTL
+    assert unit_of_work.commit_count == 1
+
+
+def test_authentication_service_login_rejects_unknown_username_without_revealing_it() -> None:
+    auth_repository = Mock(spec=AuthRepository)
+    auth_repository.get_credential_by_username.return_value = None
+    unit_of_work = StubUnitOfWork(auth=auth_repository)
+    service = _authentication_service(unit_of_work=unit_of_work)
+
+    with pytest.raises(InvalidCredentialsError):
+        service.login(username="nobody", password="whatever-they-tried")
+
+    assert auth_repository.create_session.call_count == 0
+    assert unit_of_work.commit_count == 0
+
+
+@pytest.mark.parametrize(
+    ("credential", "user", "password"),
+    [
+        (_local_credential(), _local_user(is_active=False), "correct-horse-battery"),
+        (_local_credential(), _local_user(), "wrong-password"),
+    ],
+)
+def test_authentication_service_login_rejects_inactive_user_or_wrong_password(
+    credential: LocalCredential, user: User, password: str
+) -> None:
+    users_repository = Mock(spec=UserRepository)
+    users_repository.get_user.return_value = user
+    auth_repository = Mock(spec=AuthRepository)
+    auth_repository.get_credential_by_username.return_value = credential
+    unit_of_work = StubUnitOfWork(users=users_repository, auth=auth_repository)
+    service = _authentication_service(unit_of_work=unit_of_work)
+
+    with pytest.raises(InvalidCredentialsError):
+        service.login(username=AUTH_USERNAME, password=password)
+
+    assert auth_repository.create_session.call_count == 0
+    assert unit_of_work.commit_count == 0
+
+
+def test_authentication_service_resolve_session_returns_state_for_valid_session() -> None:
+    auth_repository = Mock(spec=AuthRepository)
+    auth_repository.get_session.return_value = UserSession(
+        user_id=AUTH_USER_ID,
+        csrf_secret="csrf-secret",
+        expires_at=NOW + timedelta(hours=1),
+        revoked_at=None,
+    )
+    auth_repository.get_credential.return_value = _local_credential(must_change_password=True)
+    unit_of_work = StubUnitOfWork(auth=auth_repository)
+    service = _authentication_service(unit_of_work=unit_of_work)
+
+    resolved = service.resolve_session(session_token="raw-session-token")
+
+    assert resolved is not None
+    assert resolved.user_id == AUTH_USER_ID
+    assert resolved.csrf_secret == "csrf-secret"
+    assert resolved.must_change_password is True
+    assert (
+        auth_repository.get_session.call_args.args[0]
+        == hashlib.sha256(b"raw-session-token").hexdigest()
+    )
+
+
+def test_authentication_service_resolve_session_tolerates_missing_local_credential() -> None:
+    auth_repository = Mock(spec=AuthRepository)
+    auth_repository.get_session.return_value = UserSession(
+        user_id=AUTH_USER_ID,
+        csrf_secret="csrf-secret",
+        expires_at=NOW + timedelta(hours=1),
+        revoked_at=None,
+    )
+    auth_repository.get_credential.return_value = None
+    unit_of_work = StubUnitOfWork(auth=auth_repository)
+    service = _authentication_service(unit_of_work=unit_of_work)
+
+    resolved = service.resolve_session(session_token="raw-session-token")
+
+    assert resolved is not None
+    assert resolved.must_change_password is False
+
+
+@pytest.mark.parametrize(
+    "session",
+    [
+        None,
+        UserSession(
+            user_id=AUTH_USER_ID,
+            csrf_secret="csrf-secret",
+            expires_at=NOW + timedelta(hours=1),
+            revoked_at=NOW,
+        ),
+        UserSession(
+            user_id=AUTH_USER_ID,
+            csrf_secret="csrf-secret",
+            expires_at=NOW - timedelta(seconds=1),
+            revoked_at=None,
+        ),
+    ],
+)
+def test_authentication_service_resolve_session_rejects_missing_revoked_or_expired(
+    session: UserSession | None,
+) -> None:
+    auth_repository = Mock(spec=AuthRepository)
+    auth_repository.get_session.return_value = session
+    unit_of_work = StubUnitOfWork(auth=auth_repository)
+    service = _authentication_service(unit_of_work=unit_of_work)
+
+    assert service.resolve_session(session_token="raw-session-token") is None
+    assert auth_repository.get_credential.call_count == 0
+
+
+def test_authentication_service_logout_revokes_hashed_session_and_commits() -> None:
+    auth_repository = Mock(spec=AuthRepository)
+    unit_of_work = StubUnitOfWork(auth=auth_repository)
+    service = _authentication_service(unit_of_work=unit_of_work)
+
+    service.logout(session_token="raw-session-token")
+
+    assert (
+        auth_repository.revoke_session.call_args.args[0]
+        == hashlib.sha256(b"raw-session-token").hexdigest()
+    )
+    assert unit_of_work.commit_count == 1
+
+
+def test_authentication_service_change_password_verifies_current_and_clears_flag() -> None:
+    auth_repository = Mock(spec=AuthRepository)
+    auth_repository.get_credential.return_value = _local_credential(must_change_password=True)
+    unit_of_work = StubUnitOfWork(auth=auth_repository)
+    service = _authentication_service(unit_of_work=unit_of_work)
+
+    service.change_password(
+        user_id=AUTH_USER_ID,
+        current_password="correct-horse-battery",
+        new_password="a-brand-new-passphrase",
+    )
+
+    auth_repository.set_password.assert_called_once_with(
+        user_id=AUTH_USER_ID,
+        password_hash="hashed:a-brand-new-passphrase",
+        must_change_password=False,
+    )
+    assert unit_of_work.commit_count == 1
+
+
+def test_authentication_service_change_password_rejects_wrong_current_password() -> None:
+    auth_repository = Mock(spec=AuthRepository)
+    auth_repository.get_credential.return_value = _local_credential()
+    unit_of_work = StubUnitOfWork(auth=auth_repository)
+    service = _authentication_service(unit_of_work=unit_of_work)
+
+    with pytest.raises(InvalidCredentialsError):
+        service.change_password(
+            user_id=AUTH_USER_ID,
+            current_password="not-the-current-password",
+            new_password="a-brand-new-passphrase",
+        )
+
+    assert auth_repository.set_password.call_count == 0
+    assert unit_of_work.commit_count == 0
+
+
+def test_authentication_service_create_local_account_persists_user_and_credential() -> None:
+    users_repository = Mock(spec=UserRepository)
+    users_repository.add_user.return_value = _local_user()
+    auth_repository = Mock(spec=AuthRepository)
+    unit_of_work = StubUnitOfWork(users=users_repository, auth=auth_repository)
+    service = _authentication_service(unit_of_work=unit_of_work)
+
+    created = service.create_local_account(
+        display_name="Reviewer One",
+        roles={Role.reviewer},
+        username=AUTH_USERNAME,
+        password="an-initial-passphrase",
+    )
+
+    assert created == _local_user()
+    users_repository.add_user.assert_called_once_with(
+        UserCreate(display_name="Reviewer One", roles={Role.reviewer}, is_active=True)
+    )
+    auth_repository.add_credential.assert_called_once_with(
+        user_id=AUTH_USER_ID,
+        username=AUTH_USERNAME,
+        password_hash="hashed:an-initial-passphrase",
+    )
+    assert unit_of_work.commit_count == 1
+
+
+def test_authentication_service_reset_password_revokes_every_session() -> None:
+    auth_repository = Mock(spec=AuthRepository)
+    unit_of_work = StubUnitOfWork(auth=auth_repository)
+    service = _authentication_service(unit_of_work=unit_of_work)
+
+    service.reset_password(user_id=AUTH_USER_ID, new_password="a-forced-new-passphrase")
+
+    auth_repository.set_password.assert_called_once_with(
+        user_id=AUTH_USER_ID,
+        password_hash="hashed:a-forced-new-passphrase",
+        must_change_password=True,
+    )
+    auth_repository.revoke_all_sessions.assert_called_once_with(AUTH_USER_ID)
     assert unit_of_work.commit_count == 1

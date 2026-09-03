@@ -2,7 +2,7 @@
 
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from functools import partial
 from importlib.metadata import version
 from platform import python_version
@@ -12,11 +12,15 @@ from sqlalchemy import Engine
 
 from gendertagger.api.authentication import (
     AuthenticationBackend,
-    RejectAllAuthenticationBackend,
+    DatabaseAuthenticationBackend,
 )
 from gendertagger.api.errors import install_error_handlers
 from gendertagger.api.request_ids import RequestIdMiddleware, generate_request_id
-from gendertagger.api.router import create_api_router
+from gendertagger.api.router import (
+    create_api_router,
+    create_password_change_exempt_router,
+    create_unauthenticated_router,
+)
 from gendertagger.api.settings import AppSettings, load_settings
 from gendertagger.db.session import create_database_engine, create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
@@ -24,6 +28,7 @@ from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.models.project import SnapshotImportLimits
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.annotations import AnnotationService
+from gendertagger.services.authentication import AuthenticationService
 from gendertagger.services.classification import DirectClassificationService
 from gendertagger.services.evaluations import EvaluationService
 from gendertagger.services.execution import RunScheduler
@@ -32,6 +37,7 @@ from gendertagger.services.lookup_assets import RegisteredLookupAssetResolver
 from gendertagger.services.method_registry import default_method_registry
 from gendertagger.services.model_assets import RegisteredModelDirectoryResolver
 from gendertagger.services.pagination import CursorCodec
+from gendertagger.services.password_hashing import Argon2PasswordHasher
 from gendertagger.services.projects import ProjectService
 from gendertagger.services.review_items import ReviewItemService
 from gendertagger.services.runs import RunProvenance, RunService
@@ -69,8 +75,14 @@ def create_app(
         )
         session_factory = create_session_factory(engine)
         unit_of_work_factory = partial(SqlAlchemyUnitOfWork, session_factory)
+    authentication_service = AuthenticationService(
+        unit_of_work_factory=unit_of_work_factory,
+        password_hasher=Argon2PasswordHasher(),
+        clock=partial(datetime.now, UTC),
+        session_ttl=timedelta(seconds=resolved_settings.session_ttl_seconds),
+    )
     if authentication_backend is None:
-        authentication_backend = RejectAllAuthenticationBackend()
+        authentication_backend = DatabaseAuthenticationBackend(authentication_service)
     cursor_codec = CursorCodec()
     artifact_storage = LocalArtifactStorage(resolved_settings.artifact_root)
     project_service = ProjectService(
@@ -161,10 +173,13 @@ def create_app(
     )
     install_error_handlers(application)
     application.include_router(create_api_router())
+    application.include_router(create_password_change_exempt_router())
+    application.include_router(create_unauthenticated_router())
     application.state.settings = resolved_settings
     application.state.database_engine = engine
     application.state.unit_of_work_factory = unit_of_work_factory
     application.state.authentication_backend = authentication_backend
+    application.state.authentication_service = authentication_service
     application.state.project_service = project_service
     application.state.aggregation_service = aggregation_service
     application.state.evaluation_service = evaluation_service

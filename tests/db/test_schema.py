@@ -23,7 +23,9 @@ EXPECTED_TABLES = {
     "runs",
     "snapshot_source_members",
     "task_batches",
+    "user_credentials",
     "user_roles",
+    "user_sessions",
     "users",
 }
 

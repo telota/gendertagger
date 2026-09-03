@@ -6,6 +6,7 @@ from typing import Protocol, Self, TypeAlias
 
 from gendertagger.services.aggregation_repository import AggregationRepository
 from gendertagger.services.artifact_repository import ArtifactRepository
+from gendertagger.services.auth_repository import AuthRepository
 from gendertagger.services.dispatch_repository import DispatchRepository
 from gendertagger.services.evaluation_repository import EvaluationRepository
 from gendertagger.services.export_repository import ExportRepository
@@ -69,6 +70,11 @@ class UnitOfWork(Protocol):
     @property
     def users(self) -> UserRepository:
         """Return user persistence bound to the current transaction."""
+        ...
+
+    @property
+    def auth(self) -> AuthRepository:
+        """Return local-account credential and session persistence bound to the current transaction."""
         ...
 
     @property

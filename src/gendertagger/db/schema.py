@@ -8,6 +8,7 @@ from gendertagger.db.aggregations import (
     AggregationMethodExecutionRow,
 )
 from gendertagger.db.artifacts import ArtifactRow
+from gendertagger.db.auth import UserCredentialRow, UserSessionRow
 from gendertagger.db.base import Base
 from gendertagger.db.dispatches import BatchDispatchRow
 from gendertagger.db.evaluations import EvaluationExecutionRow, EvaluationMethodExecutionRow
@@ -41,6 +42,8 @@ ORM_ROW_TYPES: tuple[type[Base], ...] = (
     ExportExecutionRow,
     UserRow,
     UserRoleRow,
+    UserCredentialRow,
+    UserSessionRow,
     AnnotationRow,
     ReviewStateRow,
     ArtifactRow,

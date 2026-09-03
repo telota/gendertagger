@@ -5,6 +5,7 @@ requires = ["hatchling==1.32.0"]
 [project]
 dependencies = [
   "alembic>=1.16,<2",
+  "argon2-cffi>=23.1,<26",
   "celery>=5.4,<6",
   "fastapi>=0.116,<1",
   "gender-guesser>=0.4,<1",

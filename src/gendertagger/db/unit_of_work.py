@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from gendertagger.db.aggregation_repository import SqlAlchemyAggregationRepository
 from gendertagger.db.artifact_repository import SqlAlchemyArtifactRepository
+from gendertagger.db.auth_repository import SqlAlchemyAuthRepository
 from gendertagger.db.dispatch_repository import SqlAlchemyDispatchRepository
 from gendertagger.db.evaluation_repository import SqlAlchemyEvaluationRepository
 from gendertagger.db.export_repository import SqlAlchemyExportRepository
@@ -88,6 +89,11 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
     def users(self) -> SqlAlchemyUserRepository:
         """Return user persistence bound to the active session."""
         return SqlAlchemyUserRepository(self._require_session())
+
+    @property
+    def auth(self) -> SqlAlchemyAuthRepository:
+        """Return local-account credential and session persistence bound to the active session."""
+        return SqlAlchemyAuthRepository(self._require_session())
 
     @property
     def reviews(self) -> SqlAlchemyReviewRepository:

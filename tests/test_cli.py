@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
 
@@ -12,7 +13,11 @@ from sqlalchemy.orm import Session
 
 from gendertagger.cli.main import _build_parser, _download_https, main
 from gendertagger.db.artifact_repository import SqlAlchemyArtifactRepository
+from gendertagger.db.auth_repository import SqlAlchemyAuthRepository
+from gendertagger.db.user_repository import SqlAlchemyUserRepository
 from gendertagger.models.artifact import LookupArtifactMetadata
+from gendertagger.models.user import Role
+from gendertagger.services.password_hashing import Argon2PasswordHasher
 from gendertagger.storage.local import LocalArtifactStorage
 
 
@@ -124,3 +129,141 @@ def test_prepare_wiki_cli_registers_source_and_compiled_lookup(
     finally:
         connection.close()
     assert rows == [("Karl", "M"), ("Maria", "F")]
+
+
+def test_users_create_cli_collects_repeated_roles() -> None:
+    args = _build_parser().parse_args(
+        [
+            "users",
+            "create",
+            "--display-name",
+            "Reviewer One",
+            "--username",
+            "reviewer.one",
+            "--role",
+            "reviewer",
+            "--role",
+            "viewer",
+        ]
+    )
+
+    assert args.display_name == "Reviewer One"
+    assert args.username == "reviewer.one"
+    assert args.roles == ["reviewer", "viewer"]
+    assert args.password is None
+
+
+def test_users_reset_password_cli_parses_user_id() -> None:
+    user_id = UUID("d0000000-0000-0000-0000-000000000001")
+
+    args = _build_parser().parse_args(
+        ["users", "reset-password", "--user-id", str(user_id), "--password", "a-supplied-pass-99"]
+    )
+
+    assert args.user_id == user_id
+    assert args.password == "a-supplied-pass-99"
+
+
+@pytest.mark.postgres
+def test_users_create_cli_provisions_local_account_with_generated_password(
+    repository_database_url: str,
+    postgres_engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    database_url = make_url(repository_database_url).set(drivername="postgresql+psycopg")
+    monkeypatch.setenv(
+        "GENDERTAGGER_DATABASE_URL", database_url.render_as_string(hide_password=False)
+    )
+
+    exit_code = main(
+        [
+            "users",
+            "create",
+            "--display-name",
+            "Reviewer One",
+            "--username",
+            "Reviewer.One",
+            "--role",
+            "reviewer",
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["username"] == "reviewer.one"
+    assert len(payload["generated_password"]) >= 12
+
+    with Session(postgres_engine) as session:
+        credential = SqlAlchemyAuthRepository(session).get_credential_by_username("reviewer.one")
+        assert credential is not None
+        user = SqlAlchemyUserRepository(session).get_user(credential.user_id)
+
+    assert credential.must_change_password is True
+    assert Argon2PasswordHasher().verify(credential.password_hash, payload["generated_password"])
+    assert user is not None
+    assert user.roles == {Role.reviewer}
+    assert str(user.id) == payload["user_id"]
+
+
+@pytest.mark.postgres
+def test_users_reset_password_cli_forces_change_and_revokes_sessions(
+    repository_database_url: str,
+    postgres_engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    database_url = make_url(repository_database_url).set(drivername="postgresql+psycopg")
+    monkeypatch.setenv(
+        "GENDERTAGGER_DATABASE_URL", database_url.render_as_string(hide_password=False)
+    )
+    main(
+        [
+            "users",
+            "create",
+            "--display-name",
+            "Reviewer Two",
+            "--username",
+            "reviewer.two",
+            "--role",
+            "viewer",
+            "--password",
+            "an-original-passphrase-1",
+        ]
+    )
+    created = json.loads(capsys.readouterr().out)
+    with Session(postgres_engine) as session:
+        auth_repository = SqlAlchemyAuthRepository(session)
+        auth_repository.create_session(
+            session_id="a" * 64,
+            user_id=UUID(created["user_id"]),
+            csrf_secret="csrf-secret",
+            expires_at=datetime(2099, 1, 1, tzinfo=UTC),
+        )
+        session.commit()
+
+    exit_code = main(
+        [
+            "users",
+            "reset-password",
+            "--user-id",
+            created["user_id"],
+            "--password",
+            "a-forced-new-passphrase-2",
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload == {"user_id": created["user_id"]}
+
+    with Session(postgres_engine) as session:
+        auth_repository = SqlAlchemyAuthRepository(session)
+        credential = auth_repository.get_credential(UUID(created["user_id"]))
+        assert credential is not None
+        active_session = auth_repository.get_session("a" * 64)
+
+    assert credential.must_change_password is True
+    assert Argon2PasswordHasher().verify(credential.password_hash, "a-forced-new-passphrase-2")
+    assert active_session is not None
+    assert active_session.revoked_at is not None

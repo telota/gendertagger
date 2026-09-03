@@ -38,6 +38,11 @@ class AppSettings(BaseSettings):
     max_import_record_count: int = Field(default=1_000_000, gt=0)
     max_tabular_cell_bytes: int = Field(default=1024 * 1024, gt=0)
     tei_import_batch_record_count: int = Field(default=500, gt=0, le=10_000)
+    session_ttl_seconds: int = Field(
+        default=8 * 60 * 60,
+        gt=0,
+        description="Fixed absolute lifetime of a local-account session (ADR-0031). No sliding refresh.",
+    )
 
     @field_validator("database_url")
     @classmethod

@@ -24,11 +24,14 @@ therefore an administrative act, not a public endpoint.
 Ship `DatabaseAuthenticationBackend`, a local-account implementation of `AuthenticationBackend` backed
 entirely by Postgres. No JWT, no external identity provider.
 
-**Provisioning.** Accounts are admin-provisioned only. `admin` creates a user (existing `UserCreate`) with
-an initial password it sets or generates; the account is flagged `must_change_password`. There is no public
-registration endpoint. Password recovery is an admin action (`POST /api/v1/users/{id}/reset-password`,
-`require_admin`), which sets a new password, re-flags `must_change_password`, and revokes every existing
-session for that user. There is no email-based reset flow.
+**Provisioning.** Accounts are admin-provisioned only, and provisioning is a CLI concern, not an API
+endpoint — no v1 frontend screen manages users or projects settings (both are explicit v1 scope
+exclusions), so an HTTP surface for it would have no caller. `gendertagger users create` (existing
+`UserCreate`, extended with a local credential) and `gendertagger users reset-password` run against the
+database directly, the same way `gendertagger assets ...` already provisions method lookup data. Both set
+or generate an initial password and flag the account `must_change_password`; reset additionally revokes
+every existing session for that user. There is no public registration endpoint and no email-based reset
+flow.
 
 **Credentials.** A new `user_credential` table, one row per local-account user, separate from `UserRow` so a
 future SSO-provisioned user carries no credential row:

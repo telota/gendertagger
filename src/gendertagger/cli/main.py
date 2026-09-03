@@ -1,20 +1,23 @@
-"""Command-line provisioning for immutable method lookup assets."""
+"""Command-line provisioning for immutable method lookup assets and local-account users."""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import secrets
 import sqlite3
 import sys
 import tempfile
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from functools import partial
 from pathlib import Path
 from typing import Final, Protocol
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
+from uuid import UUID
 
 from pydantic import JsonValue, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -73,10 +76,14 @@ from gendertagger.models.artifact import (
     ModelManifestMember,
     ModelManifestMetadata,
 )
+from gendertagger.models.auth import normalize_username, validate_local_password_length
+from gendertagger.models.user import Role
+from gendertagger.services.authentication import AuthenticationService
 from gendertagger.services.lookup_assets import (
     LookupAssetRegistrationService,
     RegisteredLookupAssetResolver,
 )
+from gendertagger.services.password_hashing import Argon2PasswordHasher
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
 
@@ -117,6 +124,32 @@ class AssetCliSettings(BaseSettings):
     database_url: SecretStr
     artifact_root: Path = Path("data/artifacts")
     max_method_asset_bytes: int = 20 * 1024 * 1024 * 1024
+
+    @field_validator("database_url")
+    @classmethod
+    def _validate_database_url(cls, value: SecretStr) -> SecretStr:
+        try:
+            database_url = make_url(value.get_secret_value())
+        except ArgumentError as error:
+            msg = "database_url must be a valid SQLAlchemy URL"
+            raise ValueError(msg) from error
+        if database_url.drivername != "postgresql+psycopg":
+            msg = "database_url must use the postgresql+psycopg driver"
+            raise ValueError(msg)
+        return value
+
+
+class UsersCliSettings(BaseSettings):
+    """Validated settings for local-account provisioning (ADR-0031)."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="GENDERTAGGER_",
+        extra="ignore",
+        frozen=True,
+        hide_input_in_errors=True,
+    )
+
+    database_url: SecretStr
 
     @field_validator("database_url")
     @classmethod
@@ -671,6 +704,31 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     fetch_gnd.add_argument("--source-version")
     fetch_gnd.add_argument("--license-identifier")
+
+    users = commands.add_parser("users", help="Provision local-account users (ADR-0031)")
+    user_commands = users.add_subparsers(dest="user_command", required=True)
+    create_user = user_commands.add_parser(
+        "create", help="Admin-provision one local account, flagged for a forced password change"
+    )
+    create_user.add_argument("--display-name", required=True)
+    create_user.add_argument("--username", required=True)
+    create_user.add_argument(
+        "--role",
+        action="append",
+        required=True,
+        dest="roles",
+        choices=sorted(role.value for role in Role),
+        help="Repeatable; pass once per assigned role.",
+    )
+    create_user.add_argument(
+        "--password", help="Omit to generate and print a random initial password."
+    )
+    reset_password = user_commands.add_parser(
+        "reset-password",
+        help="Force a new password on an existing account and revoke its sessions",
+    )
+    reset_password.add_argument("--user-id", required=True, type=UUID)
+    reset_password.add_argument("--password", help="Omit to generate and print a random password.")
     return parser
 
 
@@ -822,10 +880,57 @@ def _run_assets(args: argparse.Namespace, settings: AssetCliSettings) -> str:
         dispose()
 
 
+def _run_users(args: argparse.Namespace, settings: UsersCliSettings) -> str:
+    """Provision or reset one local-account user (ADR-0031) and emit the result as JSON.
+
+    Account provisioning is deliberately CLI-only: no v1 frontend screen manages users, so there
+    is no HTTP surface for it. See ADR-0031.
+    """
+    engine = create_database_engine(settings.database_url.get_secret_value())
+    session_factory = create_session_factory(engine)
+    unit_of_work_factory: UnitOfWorkFactory = partial(SqlAlchemyUnitOfWork, session_factory)
+    authentication_service = AuthenticationService(
+        unit_of_work_factory=unit_of_work_factory,
+        password_hasher=Argon2PasswordHasher(),
+        clock=partial(datetime.now, UTC),
+        # No session is issued by either command below; the TTL is unused.
+        session_ttl=timedelta(hours=8),
+    )
+    try:
+        if args.user_command == "create":
+            username = normalize_username(str(args.username))
+            generated = args.password is None
+            password = secrets.token_urlsafe(16) if generated else str(args.password)
+            validate_local_password_length(password)
+            user = authentication_service.create_local_account(
+                display_name=str(args.display_name),
+                roles={Role(role) for role in args.roles},
+                username=username,
+                password=password,
+            )
+            payload: dict[str, JsonValue] = {"user_id": str(user.id), "username": username}
+        else:
+            user_id = UUID(str(args.user_id))
+            generated = args.password is None
+            password = secrets.token_urlsafe(16) if generated else str(args.password)
+            validate_local_password_length(password)
+            authentication_service.reset_password(user_id=user_id, new_password=password)
+            payload = {"user_id": str(user_id)}
+        if generated:
+            payload["generated_password"] = password
+        return json.dumps(payload, sort_keys=True)
+    finally:
+        engine.dispose()
+
+
 def main(argv: Sequence[str] | None = None) -> int:
-    """Provision assets and emit their identifiers as one JSON line."""
+    """Provision assets or local-account users and emit the result as one JSON line."""
     args = _build_parser().parse_args(argv)
-    settings = AssetCliSettings()  # type: ignore[call-arg]  # Loaded from environment.
-    payload = _run_assets(args, settings)
+    if args.command == "users":
+        users_settings = UsersCliSettings()  # type: ignore[call-arg]  # Loaded from environment.
+        payload = _run_users(args, users_settings)
+    else:
+        settings = AssetCliSettings()  # type: ignore[call-arg]  # Loaded from environment.
+        payload = _run_assets(args, settings)
     sys.stdout.write(f"{payload}\n")
     return 0

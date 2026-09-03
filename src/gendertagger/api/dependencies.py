@@ -6,6 +6,7 @@ from fastapi import Request
 
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.annotations import AnnotationService
+from gendertagger.services.authentication import AuthenticationService
 from gendertagger.services.classification import DirectClassificationService
 from gendertagger.services.evaluations import EvaluationService
 from gendertagger.services.execution import RunScheduler
@@ -70,3 +71,8 @@ def get_run_scheduler(request: Request) -> RunScheduler:
 def get_classification_service(request: Request) -> DirectClassificationService:
     """Return the composed direct classification application service."""
     return cast(DirectClassificationService, request.app.state.classification_service)
+
+
+def get_authentication_service(request: Request) -> AuthenticationService:
+    """Return the composed local-account authentication application service."""
+    return cast(AuthenticationService, request.app.state.authentication_service)

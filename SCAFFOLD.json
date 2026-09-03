@@ -59,7 +59,8 @@
     "docs/decisions/ADR-0027-gnd-benchmark-evaluation-definition.md",
     "docs/decisions/ADR-0028-synchronous-on-demand-classification-api.md",
     "docs/decisions/ADR-0029-unconditional-method-dependencies.md",
-    "docs/decisions/ADR-0030-bilingual-client-with-untranslated-canonical-vocabulary.md"
+    "docs/decisions/ADR-0030-bilingual-client-with-untranslated-canonical-vocabulary.md",
+    "docs/decisions/ADR-0031-local-database-authentication.md"
   ],
   "top_level_entrypoints": [
     "README.md",
