@@ -10,9 +10,9 @@
     --surface-1:#fcfcfb; --page:#f2f1ee; --panel:#ffffff;
     --text-primary:#0b0b0b; --text-secondary:#52514e; --muted:#898781;
     --grid:#e1e0d9; --border:rgba(11,11,11,0.12);
-    --male:#2a78d6; --female:#eb6834; --institution:#1baf7a; --uncertain:#eda100;
-    --male-text:#1f5aa0; --female-text:#b04e27; --institution-text:#127a55; --uncertain-text:#7a5900;
-    --male-tint:#e9f1fa; --female-tint:#fdefea; --institution-tint:#e8f7f1; --uncertain-tint:#fdf5e5;
+    --male:#2a78d6; --female:#eb6834; --institution:#1baf7a; --unknown:#eda100;
+    --male-text:#1f5aa0; --female-text:#b04e27; --institution-text:#127a55; --unknown-text:#7a5900;
+    --male-tint:#e9f1fa; --female-tint:#fdefea; --institution-tint:#e8f7f1; --unknown-tint:#fdf5e5;
     --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
     --accent:#4a3aa7; --accent-b:#0f7a63; --focus-ring:#1f5aa0;
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -121,11 +121,6 @@
   .card{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px;}
   .two-col{display:grid; grid-template-columns:1.4fr 1fr; gap:16px;}
 
-  .screen-tabs{display:flex; gap:6px; padding:14px 24px 0; background:var(--panel); border-bottom:1px solid var(--border); flex-wrap:wrap;}
-  .stab{padding:10px 14px; font-size:13px; color:var(--text-secondary); cursor:pointer; border-bottom:2px solid transparent; user-select:none;}
-  .stab.active{color:var(--accent); border-bottom-color:var(--accent); font-weight:600;}
-  .stab.optional{color:#8a6a00;}
-  .stab.optional.active{border-bottom-color:#e0a100;}
   .screen{display:none;}
   .screen.active{display:block;}
 
@@ -188,7 +183,7 @@
   .badge{font-size:11px; padding:2px 8px; border-radius:999px; font-weight:700; border:1.5px solid transparent;}
   .badge.male{background:var(--male-tint); color:var(--male-text); border-color:var(--male);}
   .badge.female{background:var(--female-tint); color:var(--female-text); border-color:var(--female);}
-  .badge.uncertain{background:var(--uncertain-tint); color:var(--uncertain-text); border-color:var(--uncertain);}
+  .badge.unknown{background:var(--unknown-tint); color:var(--unknown-text); border-color:var(--unknown);}
   .badge.institution{background:var(--institution-tint); color:var(--institution-text); border-color:var(--institution);}
   .conf-track{height:6px; background:var(--grid); border-radius:3px; overflow:hidden;}
   .conf-fill{height:100%; background:var(--accent-b);}
@@ -198,7 +193,7 @@
   .act-btn small{display:block; font-weight:400; color:var(--muted); font-size:10px; margin-top:2px;}
   .act-btn.male{border-color:var(--male); color:var(--male-text);}
   .act-btn.female{border-color:var(--female); color:var(--female-text);}
-  .act-btn.uncertain{border-color:var(--uncertain); color:var(--uncertain-text);}
+  .act-btn.unknown{border-color:var(--unknown); color:var(--unknown-text);}
   .act-btn.institution{border-color:var(--institution); color:var(--institution-text);}
 
   /* Stats */
@@ -272,12 +267,6 @@
   table.mapping td{padding:9px 10px; border-bottom:1px solid var(--grid);}
   .tag{display:inline-block; font-size:11px; padding:2px 8px; border-radius:6px; background:var(--page); color:var(--text-secondary);}
 
-  .threshold-box{border:1px solid var(--border); border-radius:10px; padding:16px; margin-top:14px;}
-  .threshold-box .row{display:flex; justify-content:space-between; font-size:12px; margin-bottom:8px;}
-  .slider-track{height:8px; background:var(--grid); border-radius:4px; position:relative; margin:14px 0 6px;}
-  .slider-fill{position:absolute; left:0; top:0; bottom:0; background:var(--accent-b); border-radius:4px;}
-  .slider-handle{position:absolute; top:50%; transform:translate(-50%,-50%); width:18px; height:18px; border-radius:50%; background:#fff; border:3px solid var(--accent-b);}
-
   /* Jobs */
   .method-pick{display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 4px;}
   .job-status{font-size:10px; font-weight:700; padding:2px 9px; border-radius:999px; white-space:nowrap;}
@@ -305,7 +294,7 @@
   .help-btn{display:inline-block; margin-top:16px; font-size:12px; color:var(--accent); border:1px dashed var(--accent); padding:6px 14px; border-radius:999px; cursor:pointer;}
   .game-actions{display:grid; grid-template-columns:repeat(4,1fr); gap:10px;}
   .game-btn{padding:18px 8px; border-radius:14px; font-weight:700; font-size:13px; color:#fff; cursor:pointer; border:none;}
-  .gb-male{background:var(--male-text);} .gb-female{background:var(--female-text);} .gb-uncertain{background:var(--uncertain); color:#3a2c00;} .gb-institution{background:var(--institution-text);}
+  .gb-male{background:var(--male-text);} .gb-female{background:var(--female-text);} .gb-unknown{background:var(--unknown); color:#3a2c00;} .gb-institution{background:var(--institution-text);}
   .combo-pill{display:inline-block; background:#fff1e0; color:#8a4a00; font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; margin-bottom:8px;}
 
   .toggle{display:inline-flex; align-items:center; gap:8px; font-size:12px; color:var(--text-secondary);}
@@ -383,17 +372,6 @@
       </div>
     </div>
 
-    <div class="screen-tabs">
-      <div class="stab active" data-screen="ov" role="button" tabindex="0">Übersicht</div>
-      <div class="stab" data-screen="import" role="button" tabindex="0">Import</div>
-      <div class="stab" data-screen="jobs" role="button" tabindex="0">Klassifikation</div>
-      <div class="stab" data-screen="review" role="button" tabindex="0">Redigieren</div>
-      <div class="stab" data-screen="manual" role="button" tabindex="0">Manuell annotieren</div>
-      <div class="stab optional" data-screen="game" role="button" tabindex="0">Spielmodus (optional)</div>
-      <div class="stab" data-screen="stats" role="button" tabindex="0">Statistik &amp; Methoden</div>
-      <div class="stab" data-screen="settings" role="button" tabindex="0">Einstellungen</div>
-    </div>
-
     <div class="view">
 
       <!-- ================= PROJEKTE ================= -->
@@ -422,7 +400,7 @@
             <div class="ptitle">Briefe der Romantik</div>
             <span class="psrc">📄 Einzelne Datei</span>
             <div class="pmeta">1.180 Personen · 142 abgeschlossen</div>
-            <div class="pprogress-track"><div class="pprogress-fill" style="width:12%; background:var(--uncertain);"></div></div>
+            <div class="pprogress-track"><div class="pprogress-fill" style="width:12%; background:var(--unknown);"></div></div>
             <div class="pfoot"><span>12% abgeschlossen</span><span>bearbeitet vor 9 Tagen</span></div>
           </div>
 
@@ -451,8 +429,8 @@
             <div class="ring" style="background: conic-gradient(var(--accent-b) 0% 82%, var(--grid) 82% 100%);"><span>82%</span></div>
             <div class="txt"><b>6.577 / 8.021 abgeschlossen</b>Automatisch entschieden + manuell bestätigt · 1.444 offen</div>
           </div>
-          <div class="stat-tile"><div class="lbl">Automatisch entschieden</div><div class="val">5.640</div><div class="delta">Konfidenz ≥ 90%</div></div>
-          <div class="stat-tile"><div class="lbl">Zur Prüfung</div><div class="val">381</div><div class="delta" style="color:var(--warning);">unterhalb Schwelle / Konflikt</div></div>
+          <div class="stat-tile"><div class="lbl">Automatisch entschieden</div><div class="val">5.640</div><div class="delta">Certainty-Tier „high"</div></div>
+          <div class="stat-tile"><div class="lbl">Zur Prüfung</div><div class="val">381</div><div class="delta" style="color:var(--warning);">geringe/umstrittene Beleglage (low, contested, single, uncertain)</div></div>
           <div class="stat-tile"><div class="lbl">Manuell annotiert</div><div class="val">937</div><div class="delta">davon 62 im Spielmodus, optional</div></div>
         </div>
 
@@ -474,7 +452,7 @@
           </div>
           <div class="card">
             <h3 style="margin-top:0;font-size:14px;">Woher stammen die 6.577 fertigen Einträge?</h3>
-            <div class="kappa-row"><span>Automatisch, ≥ 90% Konfidenz</span><span class="kappa-val">5.640</span></div>
+            <div class="kappa-row"><span>Automatisch, Certainty-Tier „high"</span><span class="kappa-val">5.640</span></div>
             <div class="kappa-row"><span>Manuell in „Redigieren" entschieden</span><span class="kappa-val">875</span></div>
             <div class="kappa-row"><span>Manuell im Spielmodus entschieden <span class="opt-pill" style="margin-left:4px;">optional</span></span><span class="kappa-val">62</span></div>
           </div>
@@ -589,12 +567,7 @@
           </table>
         </div>
 
-        <div class="threshold-box">
-          <div class="row"><b>Automatisierungsschwelle</b><span>Einträge ab dieser Konfidenz automatisch übernehmen</span></div>
-          <div class="slider-track"><div class="slider-fill" style="width:90%"></div><div class="slider-handle" style="left:90%"></div></div>
-          <div class="row"><span>0%</span><span style="font-weight:700;color:var(--accent-b);">90% ausgewählt</span><span>100%</span></div>
-          <div class="note b" style="margin:14px 0 0;">Vorschau: Bei 90% werden ca. 5.640 von 8.021 Einträgen automatisch übernommen, 381 verbleiben zur manuellen Prüfung. Schwelle jederzeit in den Einstellungen änderbar.</div>
-        </div>
+        <div class="note b" style="margin-top:14px;">Es gibt keine einstellbare Automatisierungsschwelle: Ergebnisse werden nach Sicherheitsstufe (Certainty-Tier) und Übereinstimmung zwischen den Methoden (Agreement-Tier) eingeordnet. Certainty-Tier „high" gilt als automatisch entschieden; alles mit geringer, dünner oder umstrittener Beleglage geht nach „Redigieren".</div>
 
         <button class="btn-solid" style="margin-top:16px; padding:11px 20px; font-size:13px;" data-goto="jobs">Klassifikation jetzt starten →</button>
       </div>
@@ -608,17 +581,18 @@
           <h3 style="margin-top:0;font-size:14px;">Neuen Lauf konfigurieren</h3>
           <div class="filt-label" style="margin-top:0;">Methoden auswählen</div>
           <div class="method-pick">
-            <span class="chip on" role="button" tabindex="0">GND API</span>
-            <span class="chip on" role="button" tabindex="0">GND Local Lookup</span>
+            <span class="chip on" role="button" tabindex="0">Parenthetical Qualifier</span>
+            <span class="chip on" role="button" tabindex="0">GND</span>
             <span class="chip on" role="button" tabindex="0">gender-guesser</span>
-            <span class="chip on" role="button" tabindex="0">HF Gender-Classification</span>
-            <span class="chip" role="button" tabindex="0">HF Genderize</span>
-            <span class="chip on" role="button" tabindex="0">LLM (Ollama) — langsam</span>
-            <span class="chip disabled" title="Nur im Batch-Modus verfügbar, noch nicht ins UI integriert">nomquamgender</span>
-            <span class="chip disabled" title="Nur im Batch-Modus verfügbar, noch nicht ins UI integriert">HIVOTO</span>
-            <span class="chip disabled" title="Nur im Batch-Modus verfügbar, noch nicht ins UI integriert">HIVOTO-XGBoost</span>
+            <span class="chip on" role="button" tabindex="0">Wiki-Gendersort</span>
+            <span class="chip on" role="button" tabindex="0">HIVOTO</span>
+            <span class="chip on" role="button" tabindex="0">nomquamgender</span>
+            <span class="chip on" role="button" tabindex="0">HF DistilBERT</span>
+            <span class="chip on" role="button" tabindex="0">HF Genderize</span>
+            <span class="chip on" role="button" tabindex="0">Local LLM (Ollama) — langsam</span>
+            <span class="chip" role="button" tabindex="0" title="Experimentell — kein Bestandteil des Referenzensembles reference_v1">HIVOTO-XGBoost <span class="opt-pill" style="margin-left:4px;">experimentell</span></span>
           </div>
-          <div class="note" style="margin:12px 0 0;">6 von 9 Methoden ins UI integriert und für diesen Lauf wählbar. Die grau markierten laufen aktuell nur im Batch-Skript außerhalb der Oberfläche.</div>
+          <div class="note" style="margin:12px 0 0;">Alle zehn registrierten Methoden sind hier wählbar. Neun bilden das Referenzensemble <code>reference_v1</code> und sind standardmäßig ausgewählt; HIVOTO-XGBoost ist ein experimentelles Zusatzverfahren, das nicht in die Abstimmung einfließt.</div>
         </div>
 
         <div class="card" style="margin-bottom:18px;">
@@ -629,11 +603,15 @@
           <p class="sub" style="margin-bottom:12px;">Gestartet vor 34 Min. von Sam Kurator:in · 8.021 Personen · geschätzte Restzeit 2&nbsp;Std. 10&nbsp;Min. (LLM-Methode dominiert die Laufzeit)</p>
           <div class="conf-track" style="height:10px; margin-bottom:16px;"><div class="conf-fill" style="width:38%"></div></div>
 
-          <div class="classifier-card"><div class="row1"><span class="method">GND API</span><span class="job-status done">fertig</span></div><div class="conf-track"><div class="conf-fill" style="width:100%"></div></div></div>
-          <div class="classifier-card"><div class="row1"><span class="method">GND Local Lookup</span><span class="job-status done">fertig</span></div><div class="conf-track"><div class="conf-fill" style="width:100%"></div></div></div>
+          <div class="classifier-card"><div class="row1"><span class="method">Parenthetical Qualifier</span><span class="job-status done">fertig</span></div><div class="conf-track"><div class="conf-fill" style="width:100%"></div></div></div>
+          <div class="classifier-card"><div class="row1"><span class="method">GND</span><span class="job-status done">fertig</span></div><div class="conf-track"><div class="conf-fill" style="width:100%"></div></div></div>
+          <div class="classifier-card"><div class="row1"><span class="method">Wiki-Gendersort</span><span class="job-status done">fertig</span></div><div class="conf-track"><div class="conf-fill" style="width:100%"></div></div></div>
           <div class="classifier-card"><div class="row1"><span class="method">gender-guesser</span><span class="job-status done">fertig</span></div><div class="conf-track"><div class="conf-fill" style="width:100%"></div></div></div>
-          <div class="classifier-card"><div class="row1"><span class="method">HF Gender-Classification</span><span class="job-status running">läuft — 6.104 / 8.021</span></div><div class="conf-track"><div class="conf-fill" style="width:76%"></div></div></div>
-          <div class="classifier-card"><div class="row1"><span class="method">LLM (Ollama)</span><span class="job-status queued">wartet — startet nach HF-Methode</span></div><div class="conf-track"><div class="conf-fill" style="width:0%"></div></div></div>
+          <div class="classifier-card"><div class="row1"><span class="method">HIVOTO</span><span class="job-status done">fertig</span></div><div class="conf-track"><div class="conf-fill" style="width:100%"></div></div></div>
+          <div class="classifier-card"><div class="row1"><span class="method">nomquamgender</span><span class="job-status running">läuft — 6.104 / 8.021</span></div><div class="conf-track"><div class="conf-fill" style="width:76%"></div></div></div>
+          <div class="classifier-card"><div class="row1"><span class="method">HF DistilBERT</span><span class="job-status queued">wartet</span></div><div class="conf-track"><div class="conf-fill" style="width:0%"></div></div></div>
+          <div class="classifier-card"><div class="row1"><span class="method">HF Genderize</span><span class="job-status queued">wartet</span></div><div class="conf-track"><div class="conf-fill" style="width:0%"></div></div></div>
+          <div class="classifier-card"><div class="row1"><span class="method">Local LLM (Ollama)</span><span class="job-status queued">wartet — startet nach HF-Methoden</span></div><div class="conf-track"><div class="conf-fill" style="width:0%"></div></div></div>
 
           <div class="note" style="margin:14px 0 0;">Ergebnisse werden fortlaufend übernommen: Bereits fertige Methoden fließen sofort in „Übersicht" und „Redigieren" ein, auch während der Lauf noch weiterläuft.</div>
         </div>
@@ -647,15 +625,15 @@
             <tr><td>#A212 — Volllauf</td><td>vor 3 Tagen</td><td>abgebrochen nach 12 Min.</td><td><span class="job-status failed">fehlgeschlagen</span></td><td><span class="retry-link" role="button" tabindex="0">Erneut versuchen ↻</span></td></tr>
             <tr><td>#A211 — Volllauf</td><td>vor 5 Tagen</td><td>3&nbsp;Std. 05&nbsp;Min.</td><td><span class="job-status done">fertig</span></td><td>—</td></tr>
           </table>
-          <div class="note warn" style="margin:12px 0 0;">#A212 ist am Ollama-Dienst fehlgeschlagen, bevor die LLM-Methode startete. Ein erneuter Versuch setzt an der GND-API-Stufe fort — bereits berechnete Ergebnisse gehen nicht verloren.</div>
+          <div class="note warn" style="margin:12px 0 0;">#A212 ist am Ollama-Dienst fehlgeschlagen, bevor die Local-LLM-Methode startete. Ein erneuter Versuch setzt bei den bereits abgeschlossenen Methoden fort — berechnete Ergebnisse gehen nicht verloren.</div>
         </div>
       </div>
 
       <!-- ================= REDIGIEREN ================= -->
       <div class="screen" id="review">
         <h1>Redigieren</h1>
-        <p class="sub">Schnellkorrektur der Fälle mit geringer Sicherheit — standardmäßig alles unterhalb der Automatisierungsschwelle oder mit Klassifizierer-Konflikt, sortiert nach geringster Konfidenz.</p>
-        <div class="note b">Automatisch entschiedene Einträge (≥ 90% Konfidenz) erscheinen hier nicht — sie wurden bereits ohne manuelle Prüfung übernommen. Diese Fälle finden Sie in „Manuell annotieren", falls Sie sie dennoch prüfen möchten.</div>
+        <p class="sub">Schnellkorrektur der Fälle mit geringer Sicherheit — standardmäßig alles mit geringer, dünner oder umstrittener Beleglage (Certainty-Tier „low"/„contested"/„single"/„uncertain"), sortiert nach der Uncertainty-First-Reihenfolge (<code>review_triage_v1</code>).</p>
+        <div class="note b">Automatisch entschiedene Einträge (Certainty-Tier „high") erscheinen hier nicht — sie wurden bereits ohne manuelle Prüfung übernommen. Diese Fälle finden Sie in „Manuell annotieren", falls Sie sie dennoch prüfen möchten.</div>
 
         <div class="annotate-layout">
           <div class="col">
@@ -668,29 +646,29 @@
           </div>
           <div class="col">
             <div class="bulk-bar"><span>3 ausgewählt</span><span><button class="btn">Als Institution markieren</button> <button class="btn" style="background:var(--muted);margin-left:6px;">Auswahl aufheben</button></span></div>
-            <div class="person-row sel" role="button" tabindex="0"><span class="cb on"></span><span class="consensus-dot dot-yellow" title="Teilweise Übereinstimmung" aria-label="Teilweise Übereinstimmung">!</span><span class="pname">Adelheid von Arnim</span><span class="preason">Konfidenz 60%</span></div>
-            <div class="person-row" role="button" tabindex="0"><span class="cb on"></span><span class="consensus-dot dot-red" title="Starker Widerspruch" aria-label="Starker Widerspruch">✕</span><span class="pname">M. Herz</span><span class="preason">Klassifizierer uneinig</span></div>
-            <div class="person-row" role="button" tabindex="0"><span class="cb on"></span><span class="consensus-dot dot-yellow" title="Teilweise Übereinstimmung" aria-label="Teilweise Übereinstimmung">!</span><span class="pname">Herz'sche Erben</span><span class="preason">Konfidenz 55%</span></div>
+            <div class="person-row sel" role="button" tabindex="0"><span class="cb on"></span><span class="consensus-dot dot-yellow" title="Teilweise Übereinstimmung" aria-label="Teilweise Übereinstimmung">!</span><span class="pname">Adelheid von Arnim</span><span class="preason">Agreement-Tier „weak_majority"</span></div>
+            <div class="person-row" role="button" tabindex="0"><span class="cb on"></span><span class="consensus-dot dot-red" title="Starker Widerspruch" aria-label="Starker Widerspruch">✕</span><span class="pname">M. Herz</span><span class="preason">Agreement-Tier „no_consensus"</span></div>
+            <div class="person-row" role="button" tabindex="0"><span class="cb on"></span><span class="consensus-dot dot-yellow" title="Teilweise Übereinstimmung" aria-label="Teilweise Übereinstimmung">!</span><span class="pname">Herz'sche Erben</span><span class="preason">Agreement-Tier „weak_majority"</span></div>
             <div class="person-row" role="button" tabindex="0"><span class="cb"></span><span class="consensus-dot dot-red" title="Starker Widerspruch" aria-label="Starker Widerspruch">✕</span><span class="pname">S. Cohen</span><span class="preason">Kein GND-Treffer</span></div>
-            <div class="person-row" role="button" tabindex="0"><span class="cb"></span><span class="consensus-dot dot-yellow" title="Teilweise Übereinstimmung" aria-label="Teilweise Übereinstimmung">!</span><span class="pname">Fr. W. Cohen</span><span class="preason">Konfidenz 58%</span></div>
+            <div class="person-row" role="button" tabindex="0"><span class="cb"></span><span class="consensus-dot dot-yellow" title="Teilweise Übereinstimmung" aria-label="Teilweise Übereinstimmung">!</span><span class="pname">Fr. W. Cohen</span><span class="preason">Agreement-Tier „weak_majority"</span></div>
             <div class="preason" style="text-align:center;padding:10px;">… 376 weitere Fälle — oder alternativ im <a href="#" data-goto="game">Spielmodus</a> bearbeiten</div>
           </div>
           <div class="col" style="display:flex; flex-direction:column; overflow:hidden;">
             <div style="flex:1; overflow:auto;">
               <div class="detail-name">Adelheid von Arnim</div>
-              <div class="detail-sub">Grund: Konfidenz unterhalb Schwelle (60% &lt; 90%) · GND: nicht verknüpft</div>
+              <div class="detail-sub">Grund: Agreement-Tier „weak_majority" · GND: nicht verknüpft</div>
               <div class="tei-snippet">&lt;person xml:id="p0142"&gt;
   &lt;persName&gt;Adelheid von Arnim&lt;/persName&gt;
 &lt;/person&gt;</div>
-              <div class="classifier-card"><div class="row1"><span class="method">GND API</span><span class="badge female">Female</span></div><div class="conf-track"><div class="conf-fill" style="width:88%"></div></div></div>
-              <div class="classifier-card"><div class="row1"><span class="method">gender-guesser</span><span class="badge female">Female</span></div><div class="conf-track"><div class="conf-fill" style="width:74%"></div></div></div>
-              <div class="classifier-card"><div class="row1"><span class="method">nomquamgender</span><span class="badge uncertain">Uncertain</span></div><div class="conf-track"><div class="conf-fill" style="width:41%"></div></div></div>
+              <div class="classifier-card"><div class="row1"><span class="method">GND</span><span class="badge female" lang="en">female</span></div><div class="conf-track"><div class="conf-fill" style="width:88%"></div></div></div>
+              <div class="classifier-card"><div class="row1"><span class="method">gender-guesser</span><span class="badge female" lang="en">female</span></div><div class="conf-track"><div class="conf-fill" style="width:74%"></div></div></div>
+              <div class="classifier-card"><div class="row1"><span class="method">nomquamgender</span><span class="badge unknown" lang="en">unknown</span></div><div class="conf-track"><div class="conf-fill" style="width:41%"></div></div></div>
             </div>
             <div class="action-bar">
-              <div class="act-btn male" role="button" tabindex="0">Male<small>Taste 1</small></div>
-              <div class="act-btn female" role="button" tabindex="0">Female<small>Taste 2</small></div>
-              <div class="act-btn uncertain" role="button" tabindex="0">Uncertain<small>Taste 3</small></div>
-              <div class="act-btn institution" role="button" tabindex="0">Institution<small>Taste 4</small></div>
+              <div class="act-btn male" role="button" tabindex="0" lang="en">male<small>Taste 1</small></div>
+              <div class="act-btn female" role="button" tabindex="0" lang="en">female<small>Taste 2</small></div>
+              <div class="act-btn unknown" role="button" tabindex="0" lang="en">unknown<small>Taste 3</small></div>
+              <div class="act-btn institution" role="button" tabindex="0" lang="en">institution<small>Taste 4</small></div>
             </div>
           </div>
         </div>
@@ -709,36 +687,36 @@
             <span class="chip" role="button" tabindex="0">Manuell bestätigt</span>
             <span class="chip" role="button" tabindex="0">Noch offen</span>
             <div class="filt-label">Klassifikation</div>
-            <span class="chip" role="button" tabindex="0">Male</span><span class="chip" role="button" tabindex="0">Female</span><span class="chip" role="button" tabindex="0">Institution</span><span class="chip" role="button" tabindex="0">Uncertain</span>
+            <span class="chip" role="button" tabindex="0" lang="en">male</span><span class="chip" role="button" tabindex="0" lang="en">female</span><span class="chip" role="button" tabindex="0" lang="en">institution</span><span class="chip" role="button" tabindex="0" lang="en">unknown</span>
             <div class="filt-label">Suche</div>
             <input class="search-box" placeholder="Name, GND-ID oder xml:id…" disabled>
           </div>
           <div class="col">
             <div class="preason" style="padding:2px 4px 10px;">Zeige 1–6 von 8.021 · sortiert nach Registerreihenfolge</div>
-            <div class="person-row" role="button" tabindex="0"><span class="src-tag auto">auto</span><span class="pname">Friedrich Schleiermacher</span><span class="badge male">Male</span></div>
-            <div class="person-row" role="button" tabindex="0"><span class="src-tag auto">auto</span><span class="pname">Henriette Herz</span><span class="badge female">Female</span></div>
-            <div class="person-row sel" role="button" tabindex="0"><span class="src-tag manual">manuell</span><span class="pname">Berliner Sing-Akademie</span><span class="badge institution">Institution</span></div>
-            <div class="person-row" role="button" tabindex="0"><span class="src-tag open">offen</span><span class="pname">C. G. von Brinckmann</span><span class="badge uncertain">Uncertain</span></div>
-            <div class="person-row" role="button" tabindex="0"><span class="src-tag manual">manuell</span><span class="pname">Herz'sche Erben</span><span class="badge institution">Institution</span></div>
-            <div class="person-row" role="button" tabindex="0"><span class="src-tag auto">auto</span><span class="pname">Alexander von Humboldt</span><span class="badge male">Male</span></div>
+            <div class="person-row" role="button" tabindex="0"><span class="src-tag auto">auto</span><span class="pname">Friedrich Schleiermacher</span><span class="badge male" lang="en">male</span></div>
+            <div class="person-row" role="button" tabindex="0"><span class="src-tag auto">auto</span><span class="pname">Henriette Herz</span><span class="badge female" lang="en">female</span></div>
+            <div class="person-row sel" role="button" tabindex="0"><span class="src-tag manual">manuell</span><span class="pname">Berliner Sing-Akademie</span><span class="badge institution" lang="en">institution</span></div>
+            <div class="person-row" role="button" tabindex="0"><span class="src-tag open">offen</span><span class="pname">C. G. von Brinckmann</span><span class="badge unknown" lang="en">unknown</span></div>
+            <div class="person-row" role="button" tabindex="0"><span class="src-tag manual">manuell</span><span class="pname">Herz'sche Erben</span><span class="badge institution" lang="en">institution</span></div>
+            <div class="person-row" role="button" tabindex="0"><span class="src-tag auto">auto</span><span class="pname">Alexander von Humboldt</span><span class="badge male" lang="en">male</span></div>
             <div class="preason" style="text-align:center;padding:10px;">… 8.015 weitere Einträge, blättern oder suchen</div>
           </div>
           <div class="col" style="display:flex; flex-direction:column; overflow:hidden;">
             <div style="flex:1; overflow:auto;">
               <div class="detail-name">Berliner Sing-Akademie</div>
-              <div class="detail-sub">Bereits manuell auf „Institution" gesetzt von Jo, vor 3 Tagen · überschreibt automatisches Ergebnis</div>
+              <div class="detail-sub">Bereits manuell auf „institution" gesetzt von Jo, vor 3 Tagen · überschreibt automatisches Ergebnis</div>
               <div class="tei-snippet">&lt;person xml:id="p3390"&gt;
   &lt;persName&gt;Berliner Sing-Akademie&lt;/persName&gt;
   &lt;sex value="institution"&gt;institution&lt;/sex&gt;
 &lt;/person&gt;</div>
-              <div class="classifier-card"><div class="row1"><span class="method">GND API (automatisch)</span><span class="badge female">Female</span></div><div class="conf-track"><div class="conf-fill" style="width:52%"></div></div></div>
+              <div class="classifier-card"><div class="row1"><span class="method">GND (automatisch)</span><span class="badge female" lang="en">female</span></div><div class="conf-track"><div class="conf-fill" style="width:52%"></div></div></div>
               <div class="note" style="margin-top:10px;">Automatische Klassifizierer erkennen Vereins-/Institutionsnamen häufiger falsch als Personennamen — dieser Fall wurde bewusst manuell korrigiert.</div>
             </div>
             <div class="action-bar">
-              <div class="act-btn male" role="button" tabindex="0">Male<small>Taste 1</small></div>
-              <div class="act-btn female" role="button" tabindex="0">Female<small>Taste 2</small></div>
-              <div class="act-btn uncertain" role="button" tabindex="0">Uncertain<small>Taste 3</small></div>
-              <div class="act-btn institution" role="button" tabindex="0">Institution<small>Taste 4</small></div>
+              <div class="act-btn male" role="button" tabindex="0" lang="en">male<small>Taste 1</small></div>
+              <div class="act-btn female" role="button" tabindex="0" lang="en">female<small>Taste 2</small></div>
+              <div class="act-btn unknown" role="button" tabindex="0" lang="en">unknown<small>Taste 3</small></div>
+              <div class="act-btn institution" role="button" tabindex="0" lang="en">institution<small>Taste 4</small></div>
             </div>
           </div>
         </div>
@@ -748,11 +726,15 @@
       <div class="screen" id="game">
         <h1>Spielmodus <span class="opt-pill">optional</span></h1>
         <p class="sub">Ein bewusst sekundärer, klar gekennzeichneter Pfad — nie der Startbildschirm. Schreibt in dieselben Daten wie „Redigieren" und „Manuell annotieren"; Punkte und Kombo sind reine Motivationsschicht ohne Auswirkung auf die Klassifikation.</p>
+        <div class="note" style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+          <span>Rundenzeit ist standardmäßig aktiv und ändert nichts an den geschriebenen Daten.</span>
+          <span class="toggle">Rundenzeit anzeigen <span class="sw on" role="switch" aria-checked="true" tabindex="0" style="margin-left:8px;"></span></span>
+        </div>
         <div class="game-wrap">
           <div class="game-hud"><div class="hud-stat">Runde<b>02:14</b></div><div class="timer-ring"><span>38s</span></div><div class="hud-stat">Score<b>860</b></div></div>
           <span class="combo-pill">🔥 Kombo ×4</span>
           <div class="game-card"><div class="label">Person 214 — unklassifiziert</div><div class="name">Henriette Herz</div><div class="dates">* 1764 Berlin · Salonnière</div><div class="help-btn" role="button" tabindex="0">Hilfe anzeigen (−15 Pkt.)</div></div>
-          <div class="game-actions"><button class="game-btn gb-male">Male</button><button class="game-btn gb-female">Female</button><button class="game-btn gb-uncertain">Uncertain</button><button class="game-btn gb-institution">Institution</button></div>
+          <div class="game-actions"><button class="game-btn gb-male" lang="en">male</button><button class="game-btn gb-female" lang="en">female</button><button class="game-btn gb-unknown" lang="en">unknown</button><button class="game-btn gb-institution" lang="en">institution</button></div>
         </div>
       </div>
 
@@ -763,7 +745,7 @@
 
         <div class="kpi-row">
           <div class="stat-tile"><div class="lbl">Coverage gesamt</div><div class="val">93,7%</div></div>
-          <div class="stat-tile"><div class="lbl">Fleiss' κ (Team)</div><div class="val">0.81</div></div>
+          <div class="stat-tile"><div class="lbl">Cohen's κ (Ø, Methoden)</div><div class="val">0.81</div></div>
           <div class="stat-tile"><div class="lbl">Automatisierungsquote</div><div class="val">93,7%</div></div>
           <div class="stat-tile"><div class="lbl">Ø Review-Zeit / Fall</div><div class="val">18s</div></div>
         </div>
@@ -774,14 +756,14 @@
             <div class="bars">
               <div class="bar" style="height:88%; background:var(--male);"><span class="cap">44%</span></div>
               <div class="bar" style="height:76%; background:var(--female);"><span class="cap">38%</span></div>
-              <div class="bar" style="height:22%; background:var(--uncertain);"><span class="cap">11%</span></div>
+              <div class="bar" style="height:22%; background:var(--unknown);"><span class="cap">11%</span></div>
               <div class="bar" style="height:14%; background:var(--institution);"><span class="cap">7%</span></div>
             </div>
-            <div class="legend"><span><i class="sw" style="background:var(--male);"></i>Male</span><span><i class="sw" style="background:var(--female);"></i>Female</span><span><i class="sw" style="background:var(--uncertain);"></i>Uncertain</span><span><i class="sw" style="background:var(--institution);"></i>Institution</span></div>
+            <div class="legend"><span><i class="sw" style="background:var(--male);"></i><span lang="en">male</span></span><span><i class="sw" style="background:var(--female);"></i><span lang="en">female</span></span><span><i class="sw" style="background:var(--unknown);"></i><span lang="en">unknown</span></span><span><i class="sw" style="background:var(--institution);"></i><span lang="en">institution</span></span></div>
           </div>
           <div class="card">
             <h3 style="margin-top:0;font-size:14px;">Agreement-Metriken</h3>
-            <div class="kappa-row"><span>Fleiss' κ (Team)</span><span class="kappa-val">0.81</span></div>
+            <div class="kappa-row"><span>Cohen's κ, paarweise (Ø über alle Methodenpaare)</span><span class="kappa-val">0.81</span></div>
             <div class="kappa-row"><span>Klassifizierer ↔ GND</span><span class="kappa-val">0.84</span></div>
             <div class="kappa-row"><span>Spielmodus ↔ Redigieren (Konsistenz)</span><span class="kappa-val">0.93</span></div>
           </div>
@@ -789,22 +771,23 @@
 
         <div class="card">
           <h3 style="margin-top:0;font-size:14px;">Methoden-Zuverlässigkeit — Benchmark gegen GND</h3>
-          <p class="sub" style="margin-bottom:10px;">Genauigkeit nur über Fälle mit vorhandenem GND-Abgleich berechnet (6.104 von 8.021 Personen).</p>
+          <p class="sub" style="margin-bottom:10px;">Genauigkeit nur über Fälle mit vorhandenem GND-Abgleich berechnet (6.104 von 8.021 Personen). Alle zehn Methoden sind ins UI integriert; HIVOTO-XGBoost bleibt außerhalb des Referenzensembles.</p>
           <div class="table-scroll">
             <table class="method-table">
-              <tr><th>Methode</th><th>Genauigkeit ggü. GND</th><th>Abdeckung</th><th>Ø Konfidenz</th><th>Im UI</th></tr>
-              <tr><td><span class="mname">GND Local Lookup</span><span class="msub">lokale Namensliste</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:96%"></div></div>96%</td><td>76%</td><td>0.91</td><td><span class="m-status ui">integriert</span></td></tr>
-              <tr><td><span class="mname">GND API</span><span class="msub">Live-Abfrage GND-Datensatz</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:94%"></div></div>94%</td><td>76%</td><td>0.89</td><td><span class="m-status ui">integriert</span></td></tr>
-              <tr><td><span class="mname">HF Gender-Classification</span><span class="msub">Transformer-Modell, Vorname</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:89%"></div></div>89%</td><td>99%</td><td>0.82</td><td><span class="m-status ui">integriert</span></td></tr>
-              <tr><td><span class="mname">LLM (Ollama)</span><span class="msub">Kontextuelle Analyse, langsam</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:87%"></div></div>87%</td><td>98%</td><td>0.80</td><td><span class="m-status ui">integriert</span></td></tr>
-              <tr><td><span class="mname">gender-guesser</span><span class="msub">Vornamens-Wörterbuch</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:81%"></div></div>81%</td><td>91%</td><td>0.77</td><td><span class="m-status ui">integriert</span></td></tr>
-              <tr><td><span class="mname">HF Genderize</span><span class="msub">API-basiert, Vorname</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:80%"></div></div>80%</td><td>85%</td><td>0.75</td><td><span class="m-status ui">integriert</span></td></tr>
-              <tr><td><span class="mname">nomquamgender</span><span class="msub">statistisches Namensmodell</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:78%"></div></div>78%</td><td>88%</td><td>0.71</td><td><span class="m-status batch">nur Batch</span></td></tr>
-              <tr><td><span class="mname">HIVOTO-XGBoost</span><span class="msub">Gradient-Boosting-Klassifikator</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:75%"></div></div>75%</td><td>93%</td><td>0.69</td><td><span class="m-status batch">nur Batch</span></td></tr>
-              <tr><td><span class="mname">HIVOTO</span><span class="msub">regelbasiertes Verfahren</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:69%"></div></div>69%</td><td>90%</td><td>0.64</td><td><span class="m-status batch">nur Batch</span></td></tr>
+              <tr><th>Methode</th><th>Genauigkeit ggü. GND</th><th>Abdeckung</th><th>Status</th></tr>
+              <tr><td><span class="mname">GND</span><span class="msub">lokaler SQLite-Abgleich</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:96%"></div></div>96%</td><td>76%</td><td><span class="m-status ui">Referenzensemble</span></td></tr>
+              <tr><td><span class="mname">Parenthetical Qualifier</span><span class="msub">Verwandtschaftsangaben in Klammern</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:92%"></div></div>92%</td><td>4%</td><td><span class="m-status ui">Referenzensemble</span></td></tr>
+              <tr><td><span class="mname">HF DistilBERT</span><span class="msub">Transformer-Modell, Vorname</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:89%"></div></div>89%</td><td>99%</td><td><span class="m-status ui">Referenzensemble</span></td></tr>
+              <tr><td><span class="mname">Local LLM (Ollama)</span><span class="msub">Kontextuelle Analyse, langsam</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:87%"></div></div>87%</td><td>98%</td><td><span class="m-status ui">Referenzensemble</span></td></tr>
+              <tr><td><span class="mname">Wiki-Gendersort</span><span class="msub">Vornamens-Häufigkeitstabelle</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:83%"></div></div>83%</td><td>90%</td><td><span class="m-status ui">Referenzensemble</span></td></tr>
+              <tr><td><span class="mname">gender-guesser</span><span class="msub">Vornamens-Wörterbuch</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:81%"></div></div>81%</td><td>91%</td><td><span class="m-status ui">Referenzensemble</span></td></tr>
+              <tr><td><span class="mname">HF Genderize</span><span class="msub">API-basiert, Vorname</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:80%"></div></div>80%</td><td>85%</td><td><span class="m-status ui">Referenzensemble</span></td></tr>
+              <tr><td><span class="mname">nomquamgender</span><span class="msub">statistisches Namensmodell</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:78%"></div></div>78%</td><td>88%</td><td><span class="m-status ui">Referenzensemble</span></td></tr>
+              <tr><td><span class="mname">HIVOTO</span><span class="msub">regelbasiertes Verfahren</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:69%"></div></div>69%</td><td>90%</td><td><span class="m-status ui">Referenzensemble</span></td></tr>
+              <tr><td><span class="mname">HIVOTO-XGBoost</span><span class="msub">Gradient-Boosting-Klassifikator</span></td><td style="display:flex;align-items:center;gap:8px;"><div class="hbar-track"><div class="hbar-fill" style="width:75%"></div></div>75%</td><td>93%</td><td><span class="m-status batch">experimentell</span></td></tr>
             </table>
           </div>
-          <div class="note" style="margin:14px 0 0;">GND Local Lookup führt bei Genauigkeit, deckt aber wie GND API nur Personen mit vorhandenem GND-Datensatz ab. Für die restlichen ~24% des Registers tragen HF-Methoden und LLM die Hauptlast.</div>
+          <div class="note" style="margin:14px 0 0;">GND führt bei Genauigkeit, deckt aber nur Personen mit vorhandenem GND-Datensatz ab. Für die restlichen ~24% des Registers tragen die namensbasierten und LLM-Methoden die Hauptlast. Einzelne Methodenkonfidenz wird hier bewusst nicht ausgewiesen — <code>method_confidence</code> ist nicht global kalibriert und nicht methodenübergreifend vergleichbar.</div>
         </div>
 
         <div class="collapse" onclick="this.nextElementSibling.classList.toggle('open')" role="button" tabindex="0">
@@ -842,10 +825,7 @@
 
         <div class="card" style="margin-bottom:14px;">
           <h3 style="margin-top:0;font-size:14px;">Automatisierung</h3>
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--grid);">
-            <span style="font-size:13px;">Automatisierungsschwelle (Konfidenz)</span>
-            <span style="font-weight:700;color:var(--accent-b);">90%</span>
-          </div>
+          <p class="sub" style="margin-bottom:10px;">Es gibt keine einstellbare Automatisierungsschwelle — die Einordnung erfolgt über Certainty- und Agreement-Tiers, nicht über eine Konfidenzgrenze.</p>
           <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;">
             <span style="font-size:13px;">Bereits gesetztes @sex-Attribut nie überschreiben</span>
             <span class="toggle"><span class="sw on"></span></span>
@@ -912,7 +892,7 @@
       <input type="text" placeholder="https://gitlab.bbaw.de/team/projekt.git" id="npm-repo-url">
     </div>
 
-    <div class="note" style="margin-top:4px;">Im nächsten Schritt richten Sie die Datenquelle im Detail ein — inklusive Automatisierungsschwelle und Vorschau, wie im Import-Bereich von „Schleiermacher digital".</div>
+    <div class="note" style="margin-top:4px;">Im nächsten Schritt richten Sie die Datenquelle im Detail ein, wie im Import-Bereich von „Schleiermacher digital".</div>
 
     <div class="modal-actions">
       <button class="btn-ghost" id="npm-cancel">Abbrechen</button>
@@ -931,14 +911,11 @@
 
   function goto(targetId){
     document.querySelectorAll('.nav-item').forEach(i=>{ i.classList.remove('active'); i.setAttribute('aria-current','false'); });
-    document.querySelectorAll('.stab').forEach(t=>{ t.classList.remove('active'); t.setAttribute('aria-selected','false'); });
     document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
 
     const nav = document.querySelector('.nav-item[data-target="'+targetId+'"]');
-    const tab = document.querySelector('.stab[data-screen="'+targetId+'"]');
     const scr = document.getElementById(targetId);
     if(nav){ nav.classList.add('active'); nav.setAttribute('aria-current','page'); }
-    if(tab){ tab.classList.add('active'); tab.setAttribute('aria-selected','true'); }
     if(scr){ scr.classList.add('active'); }
     document.querySelector('.view').scrollTo(0,0);
   }
@@ -946,11 +923,6 @@
   document.querySelectorAll('.nav-item[data-target]').forEach(item=>{
     item.setAttribute('aria-current', item.classList.contains('active') ? 'page' : 'false');
     item.addEventListener('click', ()=>goto(item.dataset.target));
-  });
-  document.querySelectorAll('.stab[data-screen]').forEach(tab=>{
-    tab.setAttribute('role','tab');
-    tab.setAttribute('aria-selected', tab.classList.contains('active') ? 'true' : 'false');
-    tab.addEventListener('click', ()=>goto(tab.dataset.screen));
   });
   document.querySelectorAll('[data-goto]').forEach(el=>{
     el.addEventListener('click', (e)=>{ e.preventDefault(); goto(el.dataset.goto); });

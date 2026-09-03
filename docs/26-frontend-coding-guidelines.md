@@ -211,6 +211,9 @@ and CSRF attachment.
 
 ## Accessibility in code
 
+Target is WCAG 2.2 AA. Automated checks are a floor, not a strategy: none of the wireframe's non-semantic
+toggles, sliders, or checkboxes would have been fully caught by them.
+
 - Interactive elements are `<button>` or `<a href>`. `role="button"` on a `div` is forbidden.
 - Every form control has an associated `<label>`; icon-only controls carry an accessible name.
 - Focus is visible, never removed. Modals trap focus and restore it on close.
@@ -218,8 +221,21 @@ and CSRF attachment.
 - Images and icons that carry meaning have text alternatives; decorative ones are hidden from assistive
   technology.
 - Keyboard shortcuts are suppressed while a text input has focus.
-- Accessibility violations found by automated checks fail CI; automated checks are a floor, not a substitute
-  for the keyboard pass in the design checklist.
+- Native form controls before ARIA. A switch is `<input type="checkbox" role="switch">` or a real button with
+  `aria-checked`, never a styled `<span>`. Reach for a custom widget pattern only when no native element
+  fits, and then take it from the D9 library.
+- Decorative icons and glyphs carry `aria-hidden="true"`; meaningful ones carry an accessible name. A bare
+  Unicode symbol is never left in the accessibility tree.
+- Canonical labels and tier names render in English inside a German interface (decision D3), so they carry
+  `lang="en"` where they appear as prose, giving screen readers the right pronunciation.
+- Font sizes and text-tracking spacing use `rem`, never `px`, so browser font settings apply.
+- Live regions are created once and updated, never inserted on demand, and are not used for content the user
+  can already see change.
+- `axe-core` runs in component tests and fails CI on violations; the linter's Vue accessibility ruleset runs
+  in `lint`. Neither replaces the manual passes required by decision D17 — keyboard on every screen in both
+  themes and locales, NVDA with Firefox, VoiceOver with Safari, and a zoom/reflow check at 400 % — which are
+  recorded with date, scope, and findings. The assessment is internal (D16), so that record is the only
+  evidence there is.
 
 ## Testing
 
@@ -231,6 +247,7 @@ Layers, mirroring the backend pyramid in [`14-testing.md`](14-testing.md):
 | component | rendering, props/emits contracts, states, accessibility roles |
 | integration | screens against a mocked transport layer, including error and conflict paths |
 | end-to-end | the review path against a seeded snapshot in a running stack |
+| accessibility | automated `axe-core` per component, plus the recorded manual passes of the D17 matrix |
 
 Rules:
 
@@ -284,6 +301,7 @@ Rules:
 - `any`, non-null assertions outside tests, empty catch blocks, `v-html`, `!important`, index keys.
 - Global event buses, cross-feature imports, and page-specific backend endpoints.
 - Theme-conditional styling in components, and hard-coded palette values of either theme.
+- Non-semantic interactive elements, unlabelled controls, `px` font sizes, and unhidden decorative glyphs.
 - A charting library, or an overlay primitive hand-rolled instead of taken from the D9 library.
 
 ## Automated validation

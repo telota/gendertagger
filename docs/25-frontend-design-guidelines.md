@@ -176,15 +176,21 @@ binding:
 One system stack for interface text, one monospace stack for identifiers, code, and TEI. The wireframe uses
 eighteen ad-hoc sizes; they normalise to this scale.
 
-| Step | Size / line height | Use |
-|---|---|---|
-| `caption` | 11 / 16 | table headers, metadata, pill text |
-| `small` | 12 / 18 | secondary rows, helper text, filter labels |
-| `body` | 13 / 20 | default interface text, list rows |
-| `body-strong` | 14 / 20 | card headings, emphasised rows |
-| `title` | 16 / 24 | panel and detail titles |
-| `page` | 20 / 28 | screen title, one per screen |
-| `display` | 34 / 40 | game mode only |
+Sizes are declared in `rem` so the reader's browser font setting applies. Pixel equivalents assume the
+16 px default and are informational only; a component never declares a font size in `px`.
+
+| Step | Size | ≈ px | Line height | Use |
+|---|---|---|---|---|
+| `caption` | 0.6875rem | 11 | 1.45 | table headers, metadata, pill text |
+| `small` | 0.75rem | 12 | 1.5 | secondary rows, helper text, filter labels |
+| `body` | 0.8125rem | 13 | 1.55 | default interface text, list rows |
+| `body-strong` | 0.875rem | 14 | 1.45 | card headings, emphasised rows |
+| `title` | 1rem | 16 | 1.5 | panel and detail titles |
+| `page` | 1.25rem | 20 | 1.4 | screen title, one per screen |
+| `display` | 2.125rem | 34 | 1.2 | game mode only |
+
+Line heights are unitless so they scale with the step. Spacing that must track text size uses `rem`;
+spacing that must stay fixed against the viewport may use `px`.
 
 Weights are 400, 600, and 700 only. Do not introduce intermediate weights or rely on faux bold.
 
@@ -351,7 +357,10 @@ Every data-bearing view specifies all of these before it is considered designed:
 
 ## Accessibility
 
-Target is WCAG 2.1 AA.
+**Target is WCAG 2.2 AA.** The application is built for a public-sector body, so conformance is a legal
+obligation rather than a quality goal; the applicable regime and its evidence requirements are decision D15
+in [`24-frontend-delivery-plan.md`](24-frontend-delivery-plan.md). Whatever regime applies references
+EN 301 549, which in turn references WCAG, so building to the current 2.2 level satisfies any of them.
 
 - Semantic elements. Interactive things are `<button>` or `<a>`. The wireframe's `div role="button"` pattern
   and its global Enter/Space shim are not carried over.
@@ -362,8 +371,29 @@ Target is WCAG 2.1 AA.
 - Every status dot, badge, and chart mark has a text alternative. Charts have an accessible table equivalent.
 - Live regions announce asynchronous state changes — run progress, save results, conflicts.
 - Respect `prefers-reduced-motion`.
-- Minimum interactive target 24 × 24 px, with the review action buttons noticeably larger since they are
-  used repeatedly at speed.
+- Minimum interactive target 24 × 24 CSS px (2.5.8), with the review action buttons noticeably larger since
+  they are used repeatedly at speed.
+- Content reflows without horizontal scrolling down to 320 CSS px width, equivalently at 400 % zoom (1.4.10),
+  and survives the text-spacing overrides of 1.4.12. The three-column workbench collapses rather than
+  compressing.
+- Nothing the user focuses is obscured by sticky furniture (2.4.11). The review workbench's pinned action bar
+  is the specific risk: the focused list row must never end up behind it.
+- No interaction depends on dragging (2.5.7). Anything draggable also has a keyboard and click equivalent.
+- Help and navigation stay in a consistent place across screens (3.2.6), and information already given is not
+  demanded again within a flow (3.3.7).
+- Authentication does not rely on a cognitive function test (3.3.8): password managers, autofill, and paste
+  must work. This is a requirement on the provider chosen in decision D1, not only on the login form.
+- Time limits are adjustable, extendable, or switchable off (2.2.1). Two places are affected. Session expiry
+  during a long review session must warn before it happens and never silently discard an unsent decision.
+  The game-mode timer is switchable off per decision D19: the control is reachable **before the first timed
+  round starts**, the choice persists, and disabling it changes nothing about which records are shown or how
+  the annotation is written.
+- Status messages use the correct role so they are announced without stealing focus (4.1.3).
+
+The wireframe is explicitly not a reference for interaction markup. Its 90 `div role="button"` constructs,
+its non-semantic toggles, slider, and checkboxes, its unhidden decorative glyphs, and its incomplete tab
+pattern are all replaced rather than ported. See
+[`24-frontend-delivery-plan.md`](24-frontend-delivery-plan.md).
 
 ## Internationalisation and content
 
@@ -390,6 +420,8 @@ A screen is ready for implementation when:
 3. no certainty or agreement value is rendered as a percentage or a score;
 4. labels, tiers, and statuses are distinguishable without colour;
 5. contrast is verified in **both themes** against the corrected tokens;
-6. the keyboard path through the screen is described;
+6. the keyboard path through the screen is described, including focus order and what is announced;
 7. both locales fit without truncation or reflow, in both themes;
-8. every displayed decision has a visible route to its evidence and provenance.
+8. every displayed decision has a visible route to its evidence and provenance;
+9. it reflows to 320 CSS px without horizontal scrolling, and no sticky element can obscure the focused
+   control.

@@ -57,6 +57,55 @@ Deployment and CI already anticipate the client. Reusing it correctly is cheaper
 - `frontend_sbom` will begin producing a real dependency tree. The repository's provenance and licence
   culture applies to npm packages too — see decision [D9](#early-architectural-decisions).
 
+## Accessibility as a delivery workstream
+
+Accessibility is a legal obligation for a public-sector body, not a quality goal, and it cannot be a closing
+phase. Retrofitting it after the components exist is the expensive path, and an audit at the end discovers
+structural problems when they are hardest to fix.
+
+It is therefore treated as a constraint on every milestone, with its own acceptance criteria, rather than as
+a milestone of its own. The conformance target is **WCAG 2.2 AA**, specified in
+[`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md).
+
+### Why the wireframe cannot be carried over
+
+The accepted wireframe is a layout reference and was never built for conformance. Measured against the file:
+90 `div role="button"` constructs against 15 real buttons; 13 ARIA attributes in 1016 lines; only two roles
+used; 591 `px` values against 11 `rem`; no skip link and no reduced-motion handling. The toggles, the
+threshold slider, and the selection checkboxes are non-semantic `<span>` elements that no keyboard or screen
+reader can operate, and the runtime tab pattern sets `role="tab"` without a `tablist` or panels.
+
+Three of these disappear with decisions already taken — the slider with D2, the tab row with D7, the
+`role="button"` shim with the coding guidelines. The rest are a standing instruction: **the wireframe's
+interaction markup is not a reference for implementation**, only its layout and information architecture.
+
+### Per-milestone accessibility criteria
+
+| Milestone | Added criterion |
+|---|---|
+| M0 | Accessibility owner appointed (D18); statement obligation confirmed; test protocol drafted (D17) |
+| M1 | `rem`-based token scale; automated checks in CI — linter accessibility rules, `axe-core` in component tests, contrast assertions for both themes |
+| M2 | Skip link, focus management, live-region infrastructure, accessible theme and locale switches, documented keyboard model; the shell passes a manual screen-reader pass |
+| M3 | Form labelling and error association; upload limits announced, not only shown |
+| M4 | Long-running progress announced through a live region without flooding it |
+| M5 | The hardest screen: pinned action bar must not obscure focus (2.4.11); shortcuts suppressed in text inputs; annotation results and conflicts announced; list selection state exposed |
+| M6 | Annotation history readable as a structured list, not a visual timeline only |
+| M7 | Every chart has a table equivalent; no meaning carried by colour alone |
+| M8 | Export lifecycle and completion announced |
+| M9 | Full internal conformance pass across the D17 matrix; user testing round completed (D18); statement and feedback mechanism published if required |
+
+No milestone is complete while its criterion is outstanding. Automated checks are a floor: they catch a
+minority of real defects, and none of the wireframe's non-semantic controls would have been fully caught by
+them.
+
+### Evidence and declaration
+
+The conformance target is WCAG 2.2 AA (D15) and the assessment is internal (D16). Self-declaration is an
+accepted basis, but it shifts the burden onto the record: the test protocol from D17 is written down before
+M1, every pass is logged with date, scope, and findings, and the accessibility owner from D18 holds that
+evidence. An accessibility statement, if required, is drafted during M9 from that accumulated record rather
+than reconstructed at the end.
+
 ## Milestones
 
 | ID | Milestone | Size | Hard dependencies |
@@ -382,10 +431,54 @@ contract. Scores, combos, streaks, and the leaderboard are deferred, and the con
 [`22-future-development.md`](22-future-development.md) holds regardless: nothing in the game path may
 influence which records are shown for review.
 
+### Accessibility decisions
+
+**D15 — Conformance target is WCAG 2.2 AA.** The client is built to WCAG 2.2 AA, which satisfies every
+regime that could apply to a jointly maintained Berlin/Brandenburg public-law body, so implementation does
+not wait on the legal question.
+
+One administrative item remains and is **not** settled by this decision: whether a published accessibility
+statement, a feedback mechanism, and a named enforcement path are legally mandatory here, and who signs the
+statement off. That is a deliverable question rather than a build-target question, it cannot be answered
+from inside the repository, and it is tracked in [Outstanding assignments](#outstanding-assignments).
+
+**D16 — Internal self-assessment only.** No external examination is commissioned. Self-declaration is an
+accepted basis under EN 301 549, but the rigour then has to come from the process rather than from an
+external report: the test protocol is written down, every pass is recorded with date, scope, and findings,
+and the evidence accumulates across milestones instead of being reconstructed at the end. Without an
+external check, D17 and D18 carry the whole weight of the assessment.
+
+**D17 — Test matrix.** Required on every screen:
+
+| Layer | Scope |
+|---|---|
+| Automated | `axe-core` in component tests; linter accessibility ruleset; contrast assertions in both themes |
+| Keyboard | Full pass on every screen, both themes, both locales — no pointer used |
+| Screen reader | NVDA with Firefox, and VoiceOver with Safari |
+| Zoom and reflow | 400 % zoom / 320 CSS px width; text-spacing overrides applied |
+
+JAWS with Chrome is added only if the institutional user base requires it; that is a question for the
+accessibility owner once the user base is known. Automated coverage alone is explicitly not a test strategy.
+
+**D18 — One named owner, and users involved once.** A single named person owns accessibility for the client:
+they maintain the test protocol, sign off the per-milestone criteria, and hold the evidence that the
+declaration would rest on. The person is still to be appointed — see
+[Outstanding assignments](#outstanding-assignments).
+
+At least one round of testing with people with disabilities takes place before M9. With no external audit
+(D16), this is the only point at which the assessment is exposed to users who are not its authors, so it is
+scheduled rather than left to goodwill.
+
+**D19 — The game-mode timer is switchable off.** The countdown may exist, but the user can disable it, the
+setting is reachable **before the first timed round begins**, and the choice persists. Disabling the timer
+must not degrade the annotation path: the same records, the same actions, the same writes. This satisfies
+WCAG 2.2.1 through its "turn off" provision.
+
 ## Decisions still open
 
-Three remain: D1, which is outside the frontend team's control, and D5 and D6, which are deliberately
-deferred. What follows is what each costs and when it must be answered.
+Three decisions remain — D1, which is outside the frontend team's control, and D5 and D6, which are
+deliberately deferred — plus two administrative assignments. What follows is what each costs and when it
+must be answered.
 
 ### D5 — Data source for "Manuell annotieren"
 
@@ -424,6 +517,14 @@ with shipping a browser client. *Owner: infrastructure and project lead. Recomme
 account backend now to unblock delivery, and treat SSO as a later backend swap — the `CurrentUser`
 abstraction makes that a contained change.*
 
+### Outstanding assignments
+
+Not decisions, but named tasks that gate M0 and can only be discharged outside the repository:
+
+- confirm whether a published accessibility statement and feedback mechanism are legally required, and who
+  signs the statement off (follows from D15);
+- appoint the accessibility owner (follows from D18).
+
 ### Scope exclusions to confirm
 
 Recommend recording these as explicitly out of scope for v1, so the wireframe does not create silent
@@ -448,6 +549,9 @@ expectations. Each is analysed in [`23-wireframe-ui-inventory.md`](23-wireframe-
 | Wireframe promises unbuilt features | Stakeholder expectation gap at delivery | Confirm the scope exclusions in writing at M0 |
 | Frontend dependency tree meets a provenance-strict repository | SBOM and licence review friction late in delivery | Set the dependency budget (D9) before M2 |
 | No UI-level acceptance coverage | Scientific fixtures pass while the review path is broken | Define the seeded-snapshot acceptance test as part of D11 |
+| Accessibility deferred to a closing phase | Legal exposure plus structural rework; the wireframe's controls are unusable as drawn | Per-milestone criteria above; automated checks from M1 |
+| Internal-only assessment misses defects (D16) | No external check before release | The D17 matrix is mandatory, not advisory, and the D18 user round is scheduled rather than optional |
+| Game-mode timer conflicts with WCAG 2.2.1 | A shipped feature that cannot be made conformant | Resolved by D19: the timer is switchable off before the first round |
 
 ## Immediate next steps
 
@@ -457,5 +561,7 @@ expectations. Each is analysed in [`23-wireframe-ui-inventory.md`](23-wireframe-
 4. Confirm the v1 scope exclusions with the stakeholders who reviewed the wireframe, and confirm with them
    that the threshold control is removed rather than redesigned (D2) — this is the most visible change
    against the accepted wireframe.
-5. Begin M1 in parallel with items 1–4, since scaffolding, i18n, and transport generation depend on none of
-   them.
+5. Appoint the accessibility owner and confirm whether an accessibility statement is legally required.
+   Both are organisational, both gate M0, and neither is resolvable from inside the repository.
+6. Begin M1 in parallel with items 1–5, since scaffolding, i18n, tokens, and transport generation depend on
+   none of them.
