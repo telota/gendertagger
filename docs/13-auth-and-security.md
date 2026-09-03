@@ -69,6 +69,12 @@ state, and the shipped `RejectAllAuthenticationBackend` fails closed until a dep
 provider. Every backend terminates into the same `CurrentUser` principal, which `GET /api/v1/me`
 returns without persistence-only fields.
 
+The production provider is a local, database-backed account system: admin-provisioned users,
+Argon2id password hashes, and server-side revocable sessions, with no external identity provider and
+no self-service registration or email-based password recovery. See
+[ADR-0031](decisions/ADR-0031-local-database-authentication.md) for the exact schema, endpoints, and
+cookie contract. Institutional SSO remains a later, additive `AuthenticationBackend` implementation.
+
 The whole `/api/v1` router carries the `require_csrf_protection` dependency. Every request is
 therefore authenticated, and every unsafe method — anything outside `GET`, `HEAD`, `OPTIONS`, and
 `TRACE` — additionally requires backend-owned CSRF validation, returning `403 forbidden` when it

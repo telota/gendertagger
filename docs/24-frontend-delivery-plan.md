@@ -117,7 +117,7 @@ than reconstructed at the end.
 
 | ID | Milestone | Size | Hard dependencies |
 |---|---|---|---|
-| M0 | Decisions and backend prerequisites | M | D1; D6 before `GET /projects` ships; three read endpoints |
+| M0 | Decisions and backend prerequisites | M | D1 resolved, pending implementation; D6 before `GET /projects` ships; three read endpoints |
 | M1 | Scaffold and transport | S | none — D3, D8, D11, D12 all resolved |
 | M2 | Application shell | M | M1; a working auth backend |
 | M3 | Projects and import | M | M2; `GET /projects` (D6) |
@@ -134,15 +134,16 @@ than reconstructed at the end.
 
 **Work.**
 
-- Take D1, and D6 before `GET /projects` is specified. D2, D3, and D4 are resolved, and D3 is recorded as
+- D6 before `GET /projects` is specified. D1, D2, D3, and D4 are resolved, and D3 is recorded as
   [ADR-0030](decisions/ADR-0030-bilingual-client-with-untranslated-canonical-vocabulary.md).
+- Implement D1 per [ADR-0031](decisions/ADR-0031-local-database-authentication.md): admin-provisioned local
+  accounts, DB-backed sessions, admin-only password reset. This *is* "stand up a development authentication
+  backend" below — there is no separate throwaway dev backend to build first.
 - Apply D2 to the screen content of Import, Übersicht, and Einstellungen before those screens are designed
   in detail — the threshold control is removed, not reskinned.
 - Implement the three blocking read endpoints from
   [`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md): `GET /projects`, a per-person
   method-result read model, and annotation history.
-- Stand up a development authentication backend so the client is exercisable end to end. This is separate
-  from choosing the production provider (D1) and should not wait for it.
 - Confirm the v1 scope exclusions in writing, so the wireframe's unsupported features are not silently
   expected.
 
@@ -489,9 +490,9 @@ WCAG 2.2.1 through its "turn off" provision.
 
 ## Decisions still open
 
-Three decisions remain — D1, which is outside the frontend team's control, and D5 and D6, which are
-deliberately deferred — plus two administrative assignments. What follows is what each costs and when it
-must be answered.
+Two decisions remain, D5 and D6, both deliberately deferred, plus two administrative assignments. D1 is
+resolved — see [ADR-0031](decisions/ADR-0031-local-database-authentication.md). What follows is what each
+costs and when it must be answered.
 
 ### D5 — Data source for "Manuell annotieren"
 
@@ -521,15 +522,6 @@ authenticated viewer, document it as provisional in the OpenAPI description, and
 membership language out of the UI until scoped permissions exist. Record that narrowing is anticipated, so
 it is not read as a regression later.
 
-### Remaining blocking decision
-
-**D1 — Production authentication provider.** `RejectAllAuthenticationBackend` fails closed by design
-([`16-open-questions.md`](16-open-questions.md)). Local accounts, institutional OIDC/SSO, or both? OIDC is
-currently recorded as deferred in [`22-future-development.md`](22-future-development.md), which conflicts
-with shipping a browser client. *Owner: infrastructure and project lead. Recommendation: implement a local
-account backend now to unblock delivery, and treat SSO as a later backend swap — the `CurrentUser`
-abstraction makes that a contained change.*
-
 ### Outstanding assignments
 
 Not decisions, but named tasks that gate M0 and can only be discharged outside the repository:
@@ -555,7 +547,7 @@ expectations. Each is analysed in [`23-wireframe-ui-inventory.md`](23-wireframe-
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| No production authentication provider | Client cannot ship regardless of its completeness | Decide D1 at M0; build against a local backend meanwhile |
+| Local authentication backend (ADR-0031) not yet implemented | Client cannot ship regardless of its completeness | Implement it as part of M0, ahead of M2's hard dependency on a working auth backend |
 | Aggregation is invisible in the accepted design | Users expect review immediately after classification | Resolved by D4: auto-create the default aggregation, keep the step legible in the route and the UI |
 | D6 left open while `GET /projects` is implemented | Narrowing the response later is a breaking contract change | Ship it provisional and documented as such, or answer D6 before M0 completes |
 | Tier vocabulary is unfamiliar to reviewers | Six certainty tiers replace one intuitive percentage | Glosses per D3, and two clearly separated queue entry points rather than six raw filters |
@@ -568,9 +560,11 @@ expectations. Each is analysed in [`23-wireframe-ui-inventory.md`](23-wireframe-
 
 ## Immediate next steps
 
-1. Assign an owner and a date to D1, and decide D6 before `GET /projects` is specified.
+1. Decide D6 before `GET /projects` is specified.
 2. Implement the three blocking read endpoints.
-3. Stand up a development authentication backend.
+3. Implement ADR-0031 (local database authentication) — migration, credential/session tables, the
+   `auth`/`me` endpoints, and `DatabaseAuthenticationBackend` wired in as the process's authentication
+   backend.
 4. Confirm the v1 scope exclusions with the stakeholders who reviewed the wireframe, and confirm with them
    that the threshold control is removed rather than redesigned (D2) — this is the most visible change
    against the accepted wireframe.
