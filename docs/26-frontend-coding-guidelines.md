@@ -17,7 +17,7 @@ depend on ORM, Celery, Redis, or filesystem details.
 
 ## Toolchain and dependencies
 
-- Node 22, pinned. The version is declared in `frontend/package.json` `engines` and in the Dockerfile, and
+- Node 26, pinned. The version is declared in `frontend/package.json` `engines` and in the Dockerfile, and
   the two must agree.
 - `frontend/package.json` and `frontend/package-lock.json` own the client's dependencies. The repository
   root `package.json` remains the Pyright-only development tool manifest and does not gain client

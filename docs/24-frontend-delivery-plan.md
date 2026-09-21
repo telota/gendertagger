@@ -462,9 +462,12 @@ specified in [`26-frontend-coding-guidelines.md`](26-frontend-coding-guidelines.
 upward, never gamed, matching the backend policy in
 [`18-engineering-and-quality.md`](18-engineering-and-quality.md).
 
-**D12 — Node 22, pinned; client dependencies in `frontend/`.** `frontend/package.json` and
+**D12 — Node 26, pinned; client dependencies in `frontend/`.** `frontend/package.json` and
 `frontend/package-lock.json` own the client tree; the root `package.json` stays the Pyright-only manifest.
 CI installs with `npm ci`, and the existing `lockfile` and `dependency_audit` jobs extend to cover it.
+Node 26 replaced the original Node 22 pin: Node 22 is in maintenance and reaches end of life in April 2027,
+while Node 26 enters LTS in October 2026 and is supported until April 2029. Every locked dependency supports
+it.
 
 **D13 — History-mode routing.** The SPA fallback is added to the frontend nginx image. Hash routing is
 rejected because scholarly URLs are shared and cited.

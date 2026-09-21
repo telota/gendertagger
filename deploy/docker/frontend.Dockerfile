@@ -3,7 +3,7 @@
 #
 # Node is pinned by version and multi-platform index digest. The version must satisfy the `engines`
 # range in frontend/package.json (decision D12); update both together.
-ARG NODE_IMAGE=node:22.23.2-alpine@sha256:b6f26b36c8ff49624cfdac716b8ea1138d606df02586a77d364bb5536a634f85
+ARG NODE_IMAGE=node:26.9.0-alpine@sha256:dbaa92e5758cbbcf85d65d5403fdb530fe3442cbe8c6dbfb7ef23365450d5070
 
 FROM ${NODE_IMAGE} AS dependencies
 WORKDIR /app

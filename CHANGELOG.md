@@ -162,6 +162,9 @@ the phased plan that resumes application code.
   cursors are not portable across the change.
 - Reordered the remaining implementation phases so evaluation/export and deployment hardening precede the
   Vue review client, which is now the final Phase 8 deliverable.
+- The browser client's Node pin moved from 22 to 26 (`engines` `^26.9.0`, image `node:26.9.0-alpine`, and
+  `@types/node` 26), because Node 22 reaches end of life in April 2027 and Node 26 is supported until April
+  2029 (decision D12 in [`docs/24-frontend-delivery-plan.md`](docs/24-frontend-delivery-plan.md)).
 
 ### Fixed
 

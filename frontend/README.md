@@ -18,7 +18,7 @@ Read before changing anything here:
 
 ## Requirements
 
-Node `^22.22.2` (declared in `package.json` `engines`, enforced by `.npmrc`, and pinned to the same version in
+Node `^26.9.0` (declared in `package.json` `engines`, enforced by `.npmrc`, and pinned to the same version in
 [`deploy/docker/frontend.Dockerfile`](../deploy/docker/frontend.Dockerfile) and `.gitlab-ci.yml`). Install from
 the committed lockfile:
 
