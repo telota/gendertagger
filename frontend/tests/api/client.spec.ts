@@ -79,6 +79,21 @@ describe('createApiClient', () => {
 
     expect(requests[0]?.headers.get(CSRF_HEADER_NAME)).toBe('from-cookie')
   })
+
+  it('uses the global fetch when none is injected', async () => {
+    const requests: Request[] = []
+    vi.stubGlobal('fetch', (request: Request) => {
+      requests.push(request)
+      return Promise.resolve(jsonResponse([]))
+    })
+    try {
+      await createApiClient({ csrfToken: () => null }).GET('/api/v1/methods')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+
+    expect(new URL(requests[0]?.url ?? '').pathname).toBe('/api/v1/methods')
+  })
 })
 
 describe('unwrap', () => {
