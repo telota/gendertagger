@@ -220,8 +220,8 @@ class LocalLlmMethod(GenderMethod[LocalLlmConfig]):
                         raw_output=raw_output,
                         metadata=metadata,
                     )
-                except Exception as exc:
-                    # Catch transport and validation errors for the individual record
+                # Transport, parsing, and validation failures become a per-record `error` prediction.
+                except Exception as exc:  # noqa: BLE001
                     result = PredictionResult(
                         label=None,
                         status=PredictionStatus.error,

@@ -17,6 +17,8 @@ from gendertagger.models.common import UtcDatetime, canonical_json_sha256
 from gendertagger.models.lifecycle import AggregationExecutionStatus
 from gendertagger.models.project import SHA256_PATTERN
 
+_MINIMUM_TIED_LABEL_COUNT = 2
+
 
 class AggregationOutcome(StrEnum):
     """Decision state produced by reference aggregation before certainty assignment."""
@@ -74,6 +76,12 @@ class ReferenceAggregationDecision(BaseModel):
 
     @model_validator(mode="after")
     def _validate_decision_invariants(self) -> Self:
+        self._validate_label_and_ties()
+        self._validate_pooled_vote_presence()
+        self._validate_override_support()
+        return self
+
+    def _validate_label_and_ties(self) -> None:
         if len(set(self.tied_labels)) != len(self.tied_labels):
             msg = "tied_labels must not contain duplicates"
             raise ValueError(msg)
@@ -94,7 +102,7 @@ class ReferenceAggregationDecision(BaseModel):
                 raise ValueError(msg)
 
         if self.outcome is AggregationOutcome.unresolved_tie:
-            if len(self.tied_labels) < 2:
+            if len(self.tied_labels) < _MINIMUM_TIED_LABEL_COUNT:
                 msg = "an unresolved tie requires at least two tied labels"
                 raise ValueError(msg)
             if self.pooled_vote_counts.total == 0:
@@ -104,6 +112,7 @@ class ReferenceAggregationDecision(BaseModel):
             msg = "tied_labels are only valid for an unresolved tie"
             raise ValueError(msg)
 
+    def _validate_pooled_vote_presence(self) -> None:
         if self.outcome is AggregationOutcome.no_data and self.pooled_vote_counts.total != 0:
             msg = "a no-data aggregation must not contain pooled votes"
             raise ValueError(msg)
@@ -115,6 +124,7 @@ class ReferenceAggregationDecision(BaseModel):
             msg = "a non-override decision requires pooled votes"
             raise ValueError(msg)
 
+    def _validate_override_support(self) -> None:
         agreeing_count = self.override_agreeing_count
         comparison_count = self.override_comparison_count
         if self.override_source is None:
@@ -128,8 +138,6 @@ class ReferenceAggregationDecision(BaseModel):
             if agreeing_count > comparison_count:
                 msg = "override agreeing count must not exceed comparison count"
                 raise ValueError(msg)
-
-        return self
 
 
 class ReferenceAggregationResult(ReferenceAggregationDecision):

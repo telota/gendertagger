@@ -71,9 +71,7 @@ def normalize_source_member_logical_name(value: str) -> str:
     if "\\" in logical_name:
         msg = "source member logical_name must use forward slashes"
         raise ValueError(msg)
-    if logical_name.startswith("/") or (
-        len(logical_name) >= 2 and logical_name[0].isalpha() and logical_name[1] == ":"
-    ):
+    if logical_name.startswith("/") or (logical_name[:1].isalpha() and logical_name[1:2] == ":"):
         msg = "source member logical_name must be relative"
         raise ValueError(msg)
     parts = logical_name.split("/")

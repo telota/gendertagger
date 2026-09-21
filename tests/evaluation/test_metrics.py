@@ -84,8 +84,8 @@ class TestBenchmarkSummary:
 class TestMethodAccuracy:
     def test_matches_hand_computed_accuracy_and_recall(self) -> None:
         definition = EvaluationDefinition()
-        # truth=male, pred=male (correct); truth=male, pred=female (wrong);
-        # truth=female, pred=female (correct); truth=female, pred=abstain (unanswered).
+        # Truth male, predicted male (correct); truth male, predicted female (wrong);
+        # truth female, predicted female (correct); truth female, abstained (unanswered).
         subset = [
             (CanonicalLabel.male, {"gender_guesser": _success(CanonicalLabel.male)}),
             (CanonicalLabel.male, {"gender_guesser": _success(CanonicalLabel.female)}),

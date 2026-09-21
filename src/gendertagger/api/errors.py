@@ -103,7 +103,7 @@ def install_error_handlers(application: FastAPI) -> None:
     @application.exception_handler(Exception)
     async def _handle_unexpected_exception(
         request: Request,
-        exception: Exception,
+        _exception: Exception,
     ) -> JSONResponse:
         return _error_response(
             request,

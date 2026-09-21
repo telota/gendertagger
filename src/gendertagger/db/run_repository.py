@@ -609,46 +609,7 @@ class SqlAlchemyRunRepository:
             raise ValueError(msg)
         task_batch_id = next(iter(task_batch_ids))
 
-        batch = self._session.scalar(
-            select(TaskBatchRow)
-            .where(TaskBatchRow.id == task_batch_id)
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        )
-        if batch is None:
-            msg = f"task batch {task_batch_id} does not exist"
-            raise ResourceNotFoundError(msg)
-        if batch.method_execution_id != method_execution_id:
-            msg = (
-                f"task batch {task_batch_id} does not belong to method execution "
-                f"{method_execution_id}"
-            )
-            raise InvalidResourceStateError(msg)
-        execution = self._session.scalar(
-            select(MethodExecutionRow)
-            .where(MethodExecutionRow.id == method_execution_id)
-            .execution_options(populate_existing=True)
-        )
-        if execution is None:
-            msg = f"method execution {method_execution_id} does not exist"
-            raise ResourceNotFoundError(msg)
-        run = self._session.scalar(
-            select(RunRow)
-            .where(RunRow.id == execution.run_id)
-            .execution_options(populate_existing=True)
-        )
-        if run is None:
-            msg = f"run {execution.run_id} does not exist"
-            raise ResourceNotFoundError(msg)
-        if run.status is not RunStatus.running:
-            msg = f"run {run.id} must be running to add predictions"
-            raise InvalidResourceStateError(msg)
-        if execution.status is not MethodExecutionStatus.running:
-            msg = f"method execution {execution.id} must be running to add predictions"
-            raise InvalidResourceStateError(msg)
-        if batch.status is not TaskBatchStatus.running:
-            msg = f"task batch {batch.id} must be running to add predictions"
-            raise InvalidResourceStateError(msg)
+        batch, run = self._lock_running_batch(method_execution_id, task_batch_id)
 
         person_ids = {prediction.person_record_id for prediction in predictions}
         if len(person_ids) != len(predictions):
@@ -703,30 +664,83 @@ class SqlAlchemyRunRepository:
 
         retried_person_ids = person_ids - inserted_person_ids
         if retried_person_ids:
-            existing_rows = {
-                row.person_record_id: row
-                for row in self._session.scalars(
-                    select(PredictionRow).where(
-                        PredictionRow.method_execution_id == method_execution_id,
-                        PredictionRow.person_record_id.in_(retried_person_ids),
-                    )
-                )
-            }
-            for prediction in predictions:
-                if prediction.person_record_id not in retried_person_ids:
-                    continue
-                existing_row = existing_rows.get(prediction.person_record_id)
-                if existing_row is None or not self._prediction_matches(existing_row, prediction):
-                    msg = (
-                        "an immutable prediction already exists with different output or provenance"
-                    )
-                    raise ImmutableResourceError(msg)
+            self._verify_retried_predictions(method_execution_id, predictions, retried_person_ids)
         return len(predictions)
 
     def get_prediction(self, prediction_id: UUID) -> Prediction | None:
         """Return a persisted prediction contract by ID without exposing its row."""
         row = self._session.get(PredictionRow, prediction_id)
         return None if row is None else self._prediction_from_row(row)
+
+    def _lock_running_batch(
+        self,
+        method_execution_id: UUID,
+        task_batch_id: UUID,
+    ) -> tuple[TaskBatchRow, RunRow]:
+        batch = self._session.scalar(
+            select(TaskBatchRow)
+            .where(TaskBatchRow.id == task_batch_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if batch is None:
+            msg = f"task batch {task_batch_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        if batch.method_execution_id != method_execution_id:
+            msg = (
+                f"task batch {task_batch_id} does not belong to method execution "
+                f"{method_execution_id}"
+            )
+            raise InvalidResourceStateError(msg)
+        execution = self._session.scalar(
+            select(MethodExecutionRow)
+            .where(MethodExecutionRow.id == method_execution_id)
+            .execution_options(populate_existing=True)
+        )
+        if execution is None:
+            msg = f"method execution {method_execution_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        run = self._session.scalar(
+            select(RunRow)
+            .where(RunRow.id == execution.run_id)
+            .execution_options(populate_existing=True)
+        )
+        if run is None:
+            msg = f"run {execution.run_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        if run.status is not RunStatus.running:
+            msg = f"run {run.id} must be running to add predictions"
+            raise InvalidResourceStateError(msg)
+        if execution.status is not MethodExecutionStatus.running:
+            msg = f"method execution {execution.id} must be running to add predictions"
+            raise InvalidResourceStateError(msg)
+        if batch.status is not TaskBatchStatus.running:
+            msg = f"task batch {batch.id} must be running to add predictions"
+            raise InvalidResourceStateError(msg)
+        return batch, run
+
+    def _verify_retried_predictions(
+        self,
+        method_execution_id: UUID,
+        predictions: Sequence[PredictionWrite],
+        retried_person_ids: set[UUID],
+    ) -> None:
+        existing_rows = {
+            row.person_record_id: row
+            for row in self._session.scalars(
+                select(PredictionRow).where(
+                    PredictionRow.method_execution_id == method_execution_id,
+                    PredictionRow.person_record_id.in_(retried_person_ids),
+                )
+            )
+        }
+        for prediction in predictions:
+            if prediction.person_record_id not in retried_person_ids:
+                continue
+            existing_row = existing_rows.get(prediction.person_record_id)
+            if existing_row is None or not self._prediction_matches(existing_row, prediction):
+                msg = "an immutable prediction already exists with different output or provenance"
+                raise ImmutableResourceError(msg)
 
     @staticmethod
     def _prediction_matches(row: PredictionRow, prediction: PredictionWrite) -> bool:

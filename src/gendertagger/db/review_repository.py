@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import cast
 from uuid import UUID
 
-from sqlalchemy import and_, case, exists, func, or_, select
+from sqlalchemy import ColumnElement, and_, case, exists, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from gendertagger.db.aggregations import (
@@ -260,56 +260,14 @@ class SqlAlchemyReviewRepository:
             .where(AggregatedResultRow.aggregation_execution_id == query.aggregation_id)
         )
 
-        if query.final_label is not None:
-            statement = statement.where(final_label == query.final_label)
-        if query.certainty_tier is not None:
-            statement = statement.where(AggregatedResultRow.certainty_tier == query.certainty_tier)
-        if query.agreement_tier is not None:
-            statement = statement.where(AggregatedResultRow.agreement_tier == query.agreement_tier)
-        if query.workflow_state is ReviewWorkflowState.unreviewed:
-            statement = statement.where(
-                or_(
-                    ReviewStateRow.workflow_state.is_(None),
-                    ReviewStateRow.workflow_state == ReviewWorkflowState.unreviewed,
-                )
+        statement = statement.where(
+            *self._review_item_filters(
+                query,
+                final_label=final_label,
+                has_authority_conflict=has_authority_conflict,
+                selected_prediction=selected_prediction,
             )
-        elif query.workflow_state is not None:
-            statement = statement.where(ReviewStateRow.workflow_state == query.workflow_state)
-        if query.has_authority_conflict is not None:
-            statement = statement.where(has_authority_conflict.is_(query.has_authority_conflict))
-        if query.has_prediction_error is not None:
-            statement = statement.where(
-                AggregatedResultRow.has_prediction_error.is_(query.has_prediction_error)
-            )
-        if query.method_name is not None:
-            statement = statement.where(selected_prediction.id.is_not(None))
-            if query.method_label is not None:
-                statement = statement.where(selected_prediction.label == query.method_label)
-            if query.prediction_status is not None:
-                statement = statement.where(selected_prediction.status == query.prediction_status)
-        if query.q is not None:
-            pattern = self._contains_pattern(query.q)
-            external_id_match = exists(
-                select(1).where(
-                    PersonExternalIdRow.person_record_id == PersonRecordRow.id,
-                    PersonExternalIdRow.value.ilike(pattern, escape="\\"),
-                )
-            )
-            statement = statement.where(
-                or_(
-                    PersonRecordRow.tei_id.ilike(pattern, escape="\\"),
-                    PersonRecordRow.surname.ilike(pattern, escape="\\"),
-                    func.array_to_string(PersonRecordRow.forenames, " ").ilike(
-                        pattern,
-                        escape="\\",
-                    ),
-                    func.array_to_string(PersonRecordRow.alt_names, " ").ilike(
-                        pattern,
-                        escape="\\",
-                    ),
-                    external_id_match,
-                )
-            )
+        )
         if after is not None:
             after_register_position = or_(
                 PersonRecordRow.tei_id > after.tei_id,
@@ -382,6 +340,65 @@ class SqlAlchemyReviewRepository:
                 )
             )
         return tuple(items)
+
+    def _review_item_filters(
+        self,
+        query: ReviewItemQuery,
+        *,
+        final_label: ColumnElement[CanonicalLabel | None],
+        has_authority_conflict: ColumnElement[bool],
+        selected_prediction: type[PredictionRow],
+    ) -> list[ColumnElement[bool]]:
+        filters: list[ColumnElement[bool]] = []
+        if query.final_label is not None:
+            filters.append(final_label == query.final_label)
+        if query.certainty_tier is not None:
+            filters.append(AggregatedResultRow.certainty_tier == query.certainty_tier)
+        if query.agreement_tier is not None:
+            filters.append(AggregatedResultRow.agreement_tier == query.agreement_tier)
+        if query.workflow_state is ReviewWorkflowState.unreviewed:
+            filters.append(
+                or_(
+                    ReviewStateRow.workflow_state.is_(None),
+                    ReviewStateRow.workflow_state == ReviewWorkflowState.unreviewed,
+                )
+            )
+        elif query.workflow_state is not None:
+            filters.append(ReviewStateRow.workflow_state == query.workflow_state)
+        if query.has_authority_conflict is not None:
+            filters.append(has_authority_conflict.is_(query.has_authority_conflict))
+        if query.has_prediction_error is not None:
+            filters.append(AggregatedResultRow.has_prediction_error.is_(query.has_prediction_error))
+        if query.method_name is not None:
+            filters.append(selected_prediction.id.is_not(None))
+            if query.method_label is not None:
+                filters.append(selected_prediction.label == query.method_label)
+            if query.prediction_status is not None:
+                filters.append(selected_prediction.status == query.prediction_status)
+        if query.q is not None:
+            pattern = self._contains_pattern(query.q)
+            external_id_match = exists(
+                select(1).where(
+                    PersonExternalIdRow.person_record_id == PersonRecordRow.id,
+                    PersonExternalIdRow.value.ilike(pattern, escape="\\"),
+                )
+            )
+            filters.append(
+                or_(
+                    PersonRecordRow.tei_id.ilike(pattern, escape="\\"),
+                    PersonRecordRow.surname.ilike(pattern, escape="\\"),
+                    func.array_to_string(PersonRecordRow.forenames, " ").ilike(
+                        pattern,
+                        escape="\\",
+                    ),
+                    func.array_to_string(PersonRecordRow.alt_names, " ").ilike(
+                        pattern,
+                        escape="\\",
+                    ),
+                    external_id_match,
+                )
+            )
+        return filters
 
     @staticmethod
     def _contains_pattern(value: str) -> str:

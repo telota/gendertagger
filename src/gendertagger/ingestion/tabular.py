@@ -63,6 +63,9 @@ _XLSX_CELL_OR_RANGE_PATTERN = re.compile(
     r"(?::\$?(?P<end_column>[A-Za-z]{1,3})\$?(?P<end_row>[1-9][0-9]*))?$"
 )
 _MAX_JSON_INTEGER_DIGITS = 1_000
+# Bounds row-number strings before int() conversion.
+_MAX_XLSX_ROW_DIGITS = 10
+_ASCII_CONTROL_CHARACTERS = frozenset(map(chr, [*range(32), 127]))
 _CSV_FIELD_SIZE_LIMIT_LOCK = threading.RLock()
 
 
@@ -663,65 +666,8 @@ class TeiEquivalentPersonRegisterParser:
             raise TabularImportError(msg)
 
     def _validate_xlsx_container(self, payload: bytes) -> None:
-        source = io.BytesIO(payload)
-        try:
-            preflight_zip_directory(
-                source,
-                max_entry_count=self._policy.max_xlsx_archive_members,
-            )
-        except ZipPreflightError as error:
-            if error.code is ZipPreflightErrorCode.entry_count:
-                msg = "XLSX source exceeds the archive-member limit"
-            elif error.code is ZipPreflightErrorCode.metadata_size:
-                msg = "XLSX source exceeds the archive-metadata limit"
-            else:
-                msg = "XLSX source is not a valid ZIP container"
-            raise TabularImportError(msg) from error
-        try:
-            archive = zipfile.ZipFile(source, mode="r")
-        except (zipfile.BadZipFile, zipfile.LargeZipFile) as error:
-            msg = "XLSX source is not a valid ZIP container"
-            raise TabularImportError(msg) from error
-
-        with archive:
-            infos = archive.infolist()
-            if len(infos) > self._policy.max_xlsx_archive_members:
-                msg = "XLSX source exceeds the archive-member limit"
-                raise TabularImportError(msg)
-            normalized_names: set[str] = set()
-            members: dict[str, tuple[str, zipfile.ZipInfo]] = {}
-            total_expanded = 0
-            for info in infos:
-                normalized_name = _normalize_xlsx_member_name(info.filename)
-                folded_name = unicodedata.normalize("NFC", normalized_name).casefold()
-                if folded_name in normalized_names:
-                    msg = "XLSX source contains duplicate normalized archive names"
-                    raise TabularImportError(msg)
-                normalized_names.add(folded_name)
-                if info.flag_bits & 0x1:
-                    msg = "XLSX source contains an encrypted archive member"
-                    raise TabularImportError(msg)
-                _require_regular_xlsx_member(info)
-                if _is_active_xlsx_part(folded_name):
-                    msg = "XLSX macros are not supported"
-                    raise TabularImportError(msg)
-                if folded_name.startswith("xl/externallinks/"):
-                    msg = "XLSX external links are not supported"
-                    raise TabularImportError(msg)
-                if info.file_size > self._policy.max_xlsx_member_expanded_bytes:
-                    msg = "XLSX archive member exceeds the expanded-byte limit"
-                    raise TabularImportError(msg)
-                total_expanded += info.file_size
-                if total_expanded > self._policy.max_xlsx_total_expanded_bytes:
-                    msg = "XLSX source exceeds the total expanded-byte limit"
-                    raise TabularImportError(msg)
-                if _compression_ratio(info.file_size, info.compress_size) > (
-                    self._policy.max_xlsx_compression_ratio
-                ):
-                    msg = "XLSX source exceeds the compression-ratio limit"
-                    raise TabularImportError(msg)
-                self._read_and_validate_xlsx_member(archive, info)
-                members[folded_name] = (normalized_name, info)
+        with self._open_xlsx_archive(payload) as archive:
+            members = self._collect_xlsx_members(archive)
 
             content_types_member = members.get("[content_types].xml")
             if content_types_member is None:
@@ -742,6 +688,72 @@ class TeiEquivalentPersonRegisterParser:
                     msg = "XLSX workbook could not be decoded"
                     raise TabularImportError(msg)
                 self._validate_xlsx_worksheet_xml(archive, member[1])
+
+    def _open_xlsx_archive(self, payload: bytes) -> zipfile.ZipFile:
+        source = io.BytesIO(payload)
+        try:
+            preflight_zip_directory(
+                source,
+                max_entry_count=self._policy.max_xlsx_archive_members,
+            )
+        except ZipPreflightError as error:
+            if error.code is ZipPreflightErrorCode.entry_count:
+                msg = "XLSX source exceeds the archive-member limit"
+            elif error.code is ZipPreflightErrorCode.metadata_size:
+                msg = "XLSX source exceeds the archive-metadata limit"
+            else:
+                msg = "XLSX source is not a valid ZIP container"
+            raise TabularImportError(msg) from error
+        try:
+            archive = zipfile.ZipFile(source, mode="r")
+        except (zipfile.BadZipFile, zipfile.LargeZipFile) as error:
+            msg = "XLSX source is not a valid ZIP container"
+            raise TabularImportError(msg) from error
+        return archive
+
+    def _collect_xlsx_members(
+        self,
+        archive: zipfile.ZipFile,
+    ) -> dict[str, tuple[str, zipfile.ZipInfo]]:
+        infos = archive.infolist()
+        if len(infos) > self._policy.max_xlsx_archive_members:
+            msg = "XLSX source exceeds the archive-member limit"
+            raise TabularImportError(msg)
+        normalized_names: set[str] = set()
+        members: dict[str, tuple[str, zipfile.ZipInfo]] = {}
+        total_expanded = 0
+        for info in infos:
+            normalized_name = _normalize_xlsx_member_name(info.filename)
+            folded_name = unicodedata.normalize("NFC", normalized_name).casefold()
+            if folded_name in normalized_names:
+                msg = "XLSX source contains duplicate normalized archive names"
+                raise TabularImportError(msg)
+            normalized_names.add(folded_name)
+            if info.flag_bits & 0x1:
+                msg = "XLSX source contains an encrypted archive member"
+                raise TabularImportError(msg)
+            _require_regular_xlsx_member(info)
+            if _is_active_xlsx_part(folded_name):
+                msg = "XLSX macros are not supported"
+                raise TabularImportError(msg)
+            if folded_name.startswith("xl/externallinks/"):
+                msg = "XLSX external links are not supported"
+                raise TabularImportError(msg)
+            if info.file_size > self._policy.max_xlsx_member_expanded_bytes:
+                msg = "XLSX archive member exceeds the expanded-byte limit"
+                raise TabularImportError(msg)
+            total_expanded += info.file_size
+            if total_expanded > self._policy.max_xlsx_total_expanded_bytes:
+                msg = "XLSX source exceeds the total expanded-byte limit"
+                raise TabularImportError(msg)
+            if _compression_ratio(info.file_size, info.compress_size) > (
+                self._policy.max_xlsx_compression_ratio
+            ):
+                msg = "XLSX source exceeds the compression-ratio limit"
+                raise TabularImportError(msg)
+            self._read_and_validate_xlsx_member(archive, info)
+            members[folded_name] = (normalized_name, info)
+        return members
 
     def _read_and_validate_xlsx_member(
         self,
@@ -1135,7 +1147,7 @@ def _validate_xlsx_reference(
         raise TabularImportError(msg)
     row_values = [match.group("start_row"), match.group("end_row")]
     column_values = [match.group("start_column"), match.group("end_column")]
-    if any(value is not None and len(value) > 10 for value in row_values):
+    if any(value is not None and len(value) > _MAX_XLSX_ROW_DIGITS for value in row_values):
         msg = "XLSX source exceeds the worksheet-row limit"
         raise TabularImportError(msg)
     if any(value is not None and int(value) > max_rows for value in row_values):
@@ -1149,7 +1161,12 @@ def _validate_xlsx_reference(
 
 
 def _validate_xlsx_row_number(value: str, *, max_rows: int) -> None:
-    if not value.isascii() or not value.isdigit() or len(value) > 10 or int(value) > max_rows:
+    if (
+        not value.isascii()
+        or not value.isdigit()
+        or len(value) > _MAX_XLSX_ROW_DIGITS
+        or int(value) > max_rows
+    ):
         msg = "XLSX source exceeds the worksheet-row limit"
         raise TabularImportError(msg)
 
@@ -1167,7 +1184,7 @@ def _normalize_xlsx_member_name(value: str) -> str:
         or "\\" in value
         or value.startswith("/")
         or _WINDOWS_DRIVE_PREFIX.match(value)
-        or any(ord(character) < 32 or ord(character) == 127 for character in value)
+        or any(character in _ASCII_CONTROL_CHARACTERS for character in value)
     ):
         msg = "XLSX source contains an unsafe archive-member name"
         raise TabularImportError(msg)

@@ -27,6 +27,7 @@ GND_LOOKUP_COMPILER_VERSION: Final = "gnd_marcxml_compiler_v1"
 _MARC_NAMESPACE: Final = "http://www.loc.gov/MARC21/slim"
 _RECORD_TAGS: Final = (f"{{{_MARC_NAMESPACE}}}record", "record")
 _HEADING_TAGS: Final = ("100", "110", "111", "130", "150", "151")
+_MARC_LEADER_RECORD_STATUS_POSITION: Final = 5
 _PREFERRED_NAME_SUBFIELDS: Final = frozenset({"a", "b", "c", "d", "g", "n", "p"})
 _GENDER_MALE_URI: Final = "https://d-nb.info/standards/vocab/gnd/gender#male"
 _GENDER_FEMALE_URI: Final = "https://d-nb.info/standards/vocab/gnd/gender#female"
@@ -199,7 +200,9 @@ def _record_status(record: etree._Element) -> str | None:
     if not leaders:
         return None
     leader = (leaders[0].text or "").strip()
-    return leader[5] if len(leader) > 5 else None
+    if len(leader) <= _MARC_LEADER_RECORD_STATUS_POSITION:
+        return None
+    return leader[_MARC_LEADER_RECORD_STATUS_POSITION]
 
 
 def _parse_record(record: etree._Element) -> GndSnapshotRecord | None:

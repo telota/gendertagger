@@ -160,7 +160,8 @@ class OutboxRelay:
                     queue_name=dispatch.queue_name,
                     task_id=dispatch.target_id,
                 )
-            except Exception as error:
+            # Broker failures are unbounded; each is recorded on the dispatch for a later retry.
+            except Exception as error:  # noqa: BLE001
                 failed_count += 1
                 failed_at = self._clock()
                 try:

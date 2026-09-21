@@ -7,7 +7,7 @@ import ast
 import re
 import sys
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -111,19 +111,90 @@ def _check_protocol_bodies(
     ]
 
 
-def check_repository(root: Path) -> list[Diagnostic]:
-    """Scan the repository for dead code, orphan symbols, and invalid protocols."""
-    src_dir = root / _SOURCE_ROOT
-    if not src_dir.exists():
-        return []
+def _is_exempt_definition(node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef) -> bool:
+    is_dunder = node.name.startswith("__") and node.name.endswith("__")
+    return is_dunder or bool(_decorator_names(node.decorator_list) & _FRAMEWORK_DECORATORS)
 
+
+def _reference_count(
+    name: str,
+    defining_path: Path,
+    file_word_counts: Mapping[Path, Counter[str]],
+) -> int:
+    """Count word occurrences of ``name`` across all files, excluding its own definition."""
+    total = 0
+    for path, counts in file_word_counts.items():
+        count = counts.get(name, 0)
+        if path == defining_path:
+            count = max(0, count - 1)
+        total += count
+    return total
+
+
+def _unreferenced(
+    relative_path: str,
+    node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef,
+    subject: str,
+) -> Diagnostic:
+    return Diagnostic(
+        relative_path,
+        node.lineno,
+        node.col_offset + 1,
+        "DED001",
+        f"{subject} is defined but never referenced anywhere",
+    )
+
+
+def _unreferenced_methods(
+    relative_path: str,
+    path: Path,
+    node: ast.ClassDef,
+    file_word_counts: Mapping[Path, Counter[str]],
+) -> list[Diagnostic]:
+    return [
+        _unreferenced(relative_path, item, f"method '{node.name}.{item.name}'")
+        for item in node.body
+        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and item.name not in _KNOWN_POLYMORPHIC_METHODS
+        and not _is_exempt_definition(item)
+        and _reference_count(item.name, path, file_word_counts) == 0
+    ]
+
+
+def _unreferenced_symbols(
+    relative_path: str,
+    path: Path,
+    tree: ast.Module,
+    file_word_counts: Mapping[Path, Counter[str]],
+) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if (
+                not _is_exempt_definition(node)
+                and _reference_count(node.name, path, file_word_counts) == 0
+            ):
+                diagnostics.append(_unreferenced(relative_path, node, f"function '{node.name}'"))
+        elif isinstance(node, ast.ClassDef):
+            if (
+                not _is_exempt_definition(node)
+                and _reference_count(node.name, path, file_word_counts) == 0
+            ):
+                diagnostics.append(_unreferenced(relative_path, node, f"class '{node.name}'"))
+            diagnostics.extend(_unreferenced_methods(relative_path, path, node, file_word_counts))
+    return diagnostics
+
+
+def _load_python_sources(
+    root: Path,
+) -> tuple[list[Path], dict[Path, Counter[str]], dict[Path, ast.Module]]:
     all_py_files = [
         p
         for p in root.rglob("*.py")
         if "__pycache__" not in p.parts and ".venv" not in p.parts and "__scrap" not in p.parts
     ]
     file_word_counts: dict[Path, Counter[str]] = {}
-    file_trees: dict[Path, ast.AST] = {}
+    file_trees: dict[Path, ast.Module] = {}
     for p in all_py_files:
         try:
             content = p.read_text(encoding="utf-8")
@@ -131,105 +202,32 @@ def check_repository(root: Path) -> list[Diagnostic]:
             file_trees[p] = ast.parse(content, filename=str(p.relative_to(root)))
         except (OSError, UnicodeError, SyntaxError):
             continue
+    return all_py_files, file_word_counts, file_trees
 
+
+def check_repository(root: Path) -> list[Diagnostic]:
+    """Scan the repository for dead code, orphan symbols, and invalid protocols."""
+    src_dir = root / _SOURCE_ROOT
+    if not src_dir.exists():
+        return []
+
+    all_py_files, file_word_counts, file_trees = _load_python_sources(root)
     src_files = [p for p in all_py_files if src_dir in p.parents or p == src_dir]
     diagnostics: list[Diagnostic] = []
 
     # 1. Protocol body checks
     for p in src_files:
-        rel = p.relative_to(root).as_posix()
         tree = file_trees.get(p)
         if tree is not None:
-            diagnostics.extend(_check_protocol_bodies(rel, tree))
+            diagnostics.extend(_check_protocol_bodies(p.relative_to(root).as_posix(), tree))
 
     # 2. Unreferenced symbol checks in src
     for p in src_files:
-        rel = p.relative_to(root).as_posix()
         tree = file_trees.get(p)
-        if tree is None:
-            continue
-
-        for node in tree.body:  # type: ignore[attr-defined]
-            # Check top-level functions
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                fname = node.name
-                if fname.startswith("__") and fname.endswith("__"):
-                    continue
-                decs = _decorator_names(node.decorator_list)
-                if decs.intersection(_FRAMEWORK_DECORATORS):
-                    continue
-
-                total_refs = 0
-                for other_p, counts in file_word_counts.items():
-                    c = counts.get(fname, 0)
-                    if other_p == p:
-                        c = max(0, c - 1)
-                    total_refs += c
-
-                if total_refs == 0:
-                    diagnostics.append(
-                        Diagnostic(
-                            rel,
-                            node.lineno,
-                            node.col_offset + 1,
-                            "DED001",
-                            f"function '{fname}' is defined but never referenced anywhere",
-                        )
-                    )
-
-            # Check classes and their methods
-            elif isinstance(node, ast.ClassDef):
-                cname = node.name
-                if not (cname.startswith("__") and cname.endswith("__")):
-                    c_decs = _decorator_names(node.decorator_list)
-                    if not c_decs.intersection(_FRAMEWORK_DECORATORS):
-                        total_refs = 0
-                        for other_p, counts in file_word_counts.items():
-                            c = counts.get(cname, 0)
-                            if other_p == p:
-                                c = max(0, c - 1)
-                            total_refs += c
-                        if total_refs == 0:
-                            diagnostics.append(
-                                Diagnostic(
-                                    rel,
-                                    node.lineno,
-                                    node.col_offset + 1,
-                                    "DED001",
-                                    f"class '{cname}' is defined but never referenced anywhere",
-                                )
-                            )
-
-                # Check methods within classes
-                for item in node.body:
-                    if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                        mname = item.name
-                        if mname.startswith("__") and mname.endswith("__"):
-                            continue
-                        if mname in _KNOWN_POLYMORPHIC_METHODS:
-                            continue
-                        m_decs = _decorator_names(item.decorator_list)
-                        if m_decs.intersection(_FRAMEWORK_DECORATORS):
-                            continue
-
-                        # Check if method is called anywhere
-                        total_refs = 0
-                        for other_p, counts in file_word_counts.items():
-                            c = counts.get(mname, 0)
-                            if other_p == p:
-                                c = max(0, c - 1)
-                            total_refs += c
-
-                        if total_refs == 0:
-                            diagnostics.append(
-                                Diagnostic(
-                                    rel,
-                                    item.lineno,
-                                    item.col_offset + 1,
-                                    "DED001",
-                                    f"method '{node.name}.{mname}' is defined but never referenced anywhere",
-                                )
-                            )
+        if tree is not None:
+            diagnostics.extend(
+                _unreferenced_symbols(p.relative_to(root).as_posix(), p, tree, file_word_counts)
+            )
 
     return sorted(diagnostics)
 

@@ -48,6 +48,12 @@ WIKI_GENDERSORT_LOOKUP_LOGICAL_TYPE: Final = "wiki_gendersort_lookup"
 WIKI_GENDERSORT_LOOKUP_SCHEMA_VERSION: Final = "wiki_gendersort_lookup_v1"
 WIKI_GENDERSORT_LOOKUP_COMPILER_VERSION: Final = "wiki_gendersort_lookup_compiler_v1"
 _SQLITE_PARAMETER_BATCH_SIZE: Final = 900
+# Upstream ``nameclean`` length limits for splitting a fused trailing initial ("AnnaM.")
+# and for dropping the period from a short abbreviation ("M.", "Ma.").
+_FUSED_INITIAL_MIN_LENGTH: Final = 4
+_ABBREVIATION_LENGTH_LIMIT: Final = 4
+# A ``NamesOut.txt`` line holds a name and a trailing native label, separated by tabs.
+_NAMES_OUT_MIN_FIELDS: Final = 2
 _NATIVE_LABELS: Final = frozenset(_LABEL_MAP)
 
 
@@ -87,7 +93,8 @@ def _count_vowel(name: str, transliterate: Transliterate) -> int:
     return sum(1 for char in name if transliterate(char) in "aeiouyAEIOUY")
 
 
-def _clean_name(first_name: str, transliterate: Transliterate) -> list[str]:
+# Kept structurally aligned with upstream ``nameclean`` so the port stays auditable.
+def _clean_name(first_name: str, transliterate: Transliterate) -> list[str]:  # noqa: C901
     """Port of Wiki-Gendersort ``nameclean`` returning candidate lookup strings.
 
     Adapted verbatim for single-token inputs: quoted/parenthetical text is moved
@@ -121,14 +128,14 @@ def _clean_name(first_name: str, transliterate: Transliterate) -> list[str]:
     while index < len(candidates):
         current = candidates[index]
         if (
-            len(current) >= 4
+            len(current) >= _FUSED_INITIAL_MIN_LENGTH
             and current[-1] == "."
             and current[-2].isupper()
             and current[-3].islower()
         ):
             candidates.insert(index + 1, current[-2:])
             candidates[index] = current[:-2]
-        if candidates[index][-1] == "." and 4 > len(candidates[index]) > 1:
+        if candidates[index][-1] == "." and _ABBREVIATION_LENGTH_LIMIT > len(candidates[index]) > 1:
             candidates.append(candidates[index][:-1])
             del candidates[index]
             index -= 1
@@ -244,7 +251,7 @@ def compile_wiki_gendersort_lookup(
     with source_path.open(encoding="utf-8") as handle:
         for line_number, line in enumerate(handle, start=1):
             parts = line.rstrip("\n").split("\t")
-            if len(parts) < 2:
+            if len(parts) < _NAMES_OUT_MIN_FIELDS:
                 continue
             raw_name = "\t".join(parts[:-1]).upper()
             normalized_name = raw_name[0] + raw_name[1:].lower() if raw_name else raw_name

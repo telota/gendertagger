@@ -7,7 +7,7 @@ from collections import Counter, OrderedDict
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from pydantic import JsonValue, ValidationError
+from pydantic import JsonValue
 
 from gendertagger.domain.aggregation import (
     REFERENCE_REQUIRED_METHODS,
@@ -151,7 +151,8 @@ class DirectClassificationService:
             config_key = (
                 config.model_dump_json() if hasattr(config, "model_dump_json") else str(config)
             )
-        except (MethodDependencyError, ValidationError, Exception) as error:
+        # Any adapter failure becomes a per-record `error` prediction rather than aborting the request.
+        except Exception as error:  # noqa: BLE001
             error_message = f"{type(error).__name__}: {error}".strip()
             return [
                 PredictionResult(
@@ -192,7 +193,8 @@ class DirectClassificationService:
                     miss_people, config
                 )
                 validate_prediction_batch(registration.descriptor, miss_people, new_predictions)
-            except (MethodDependencyError, ValidationError, Exception) as error:
+            # Any adapter failure becomes a per-record `error` prediction rather than aborting the request.
+            except Exception as error:  # noqa: BLE001
                 error_message = f"{type(error).__name__}: {error}".strip()
                 new_predictions = [
                     PredictionResult(

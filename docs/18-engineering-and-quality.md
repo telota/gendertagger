@@ -30,6 +30,11 @@ feedback mechanism.
 - Ruff owns formatting, import sorting, and linting. Do not hand-format around it.
 - Ruff enforces Python naming, built-in shadowing, and Google-style public docstrings. Repository-specific
   Pydantic/config field vocabulary is checked by `scripts/check_contract_naming.py`.
+- Ruff also rejects blind `except Exception` handlers, boolean positional parameters, unused arguments,
+  commented-out code, unnamed numeric literals in comparisons, and functions above McCabe complexity 15.
+  Name thresholds that carry scientific meaning once, next to the ADR that defines them. A handler that turns
+  arbitrary adapter or broker failures into an `error` result may stay broad with a reasoned suppression.
+  Lower the complexity limit toward 10 as code is refactored rather than raising it.
 - Regular production packages use explicit, docstring-only initializers. The package-initializer policy rejects
   re-exports, assignments, runtime setup, and accidental namespace packages.
 - Strict mypy applies to `src/`, `tests/`, and `scripts/`. Public contracts, service boundaries,

@@ -134,6 +134,10 @@ the phased plan that resumes application code.
 
 ### Changed
 
+- Ruff now enforces blind-exception, boolean-trap, unused-argument, commented-out-code, magic-value, and
+  McCabe complexity (15) rules. The ADR-0009 agreement thresholds are named once, the readiness probe reports
+  only database errors as `Database unavailable`, and the review-item query, prediction batch write, XLSX
+  container check, and dead-code checker were split into smaller helpers without changing behavior.
 - Restored the documented local quality gates with repository-owned pre-commit/pre-push hooks, YAML
   front-matter-aware documentation validation, valid headings in maintained Markdown, and explicit Ruff
   exclusions for preserved research notebooks and upstream reference snapshots.

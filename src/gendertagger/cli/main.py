@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import secrets
 import sqlite3
 import sys
@@ -77,6 +78,7 @@ from gendertagger.models.artifact import (
     ModelManifestMetadata,
 )
 from gendertagger.models.auth import normalize_username, validate_local_password_length
+from gendertagger.models.project import SHA256_PATTERN
 from gendertagger.models.user import Role
 from gendertagger.services.authentication import AuthenticationService, SessionLifetimePolicy
 from gendertagger.services.lookup_assets import (
@@ -383,9 +385,7 @@ def _metadata_values(args: argparse.Namespace) -> dict[str, JsonValue]:
 
 def _sha256_argument(value: str) -> str:
     normalized = value.casefold()
-    if len(normalized) != 64 or any(
-        character not in "0123456789abcdef" for character in normalized
-    ):
+    if re.fullmatch(SHA256_PATTERN, normalized) is None:
         msg = "expected a 64-character hexadecimal SHA-256 digest"
         raise argparse.ArgumentTypeError(msg)
     return normalized

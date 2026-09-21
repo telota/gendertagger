@@ -67,6 +67,8 @@ _DISPATCHABLE_EVALUATION_STATUSES = frozenset(
 _DISPATCHABLE_EXPORT_STATUSES = frozenset(
     {ExportExecutionStatus.pending, ExportExecutionStatus.queued}
 )
+# Matches the ``String(255)`` width of ``dispatches.lease_owner``.
+_LEASE_OWNER_MAX_LENGTH = 255
 _STALE_REARM_DIAGNOSTIC = "published dispatch was not claimed before reconciliation timeout"
 
 
@@ -989,8 +991,8 @@ class SqlAlchemyDispatchRepository:
         if not lease_owner.strip():
             msg = "dispatch lease_owner must not be blank"
             raise ValueError(msg)
-        if len(lease_owner) > 255:
-            msg = "dispatch lease_owner must not exceed 255 characters"
+        if len(lease_owner) > _LEASE_OWNER_MAX_LENGTH:
+            msg = f"dispatch lease_owner must not exceed {_LEASE_OWNER_MAX_LENGTH} characters"
             raise ValueError(msg)
         return lease_owner
 

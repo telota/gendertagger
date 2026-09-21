@@ -94,7 +94,8 @@ class RunConfig(_ClosedConfigModel):
 class _UniqueKeySafeLoader(yaml.SafeLoader):
     """Safe YAML loader that rejects ambiguous duplicate mapping keys."""
 
-    def construct_mapping(self, node: MappingNode, deep: bool = False) -> dict[Any, Any]:
+    # The positional ``deep`` flag is PyYAML's ``BaseConstructor.construct_mapping`` signature.
+    def construct_mapping(self, node: MappingNode, deep: bool = False) -> dict[Any, Any]:  # noqa: FBT001, FBT002
         self.flatten_mapping(node)
         mapping: dict[Any, Any] = {}
         for key_node, value_node in node.value:

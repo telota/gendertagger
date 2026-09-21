@@ -24,6 +24,9 @@ from gendertagger.models.classification import (
 )
 
 _AGREEMENT_DECIMAL_PLACES = 3
+# ADR-0009: agreement tiers and pooled-vote certainty share these score thresholds.
+_STRONG_MAJORITY_THRESHOLD = 0.75
+_WEAK_MAJORITY_THRESHOLD = 0.50
 
 
 class ReferenceAssessmentError(ValueError):
@@ -133,9 +136,9 @@ def _assign_reference_certainty(
         return CertaintyTier.uncertain
 
     score = cast(float, agreement_score)
-    if score >= 0.75:
+    if score >= _STRONG_MAJORITY_THRESHOLD:
         return CertaintyTier.high
-    if score >= 0.50:
+    if score >= _WEAK_MAJORITY_THRESHOLD:
         return CertaintyTier.low
     return CertaintyTier.contested
 
@@ -169,8 +172,8 @@ def _rounded_share(numerator: int, denominator: int) -> float:
 def _agreement_tier_for_score(score: float) -> AgreementTier:
     if score == 1.0:
         return AgreementTier.unanimous
-    if score >= 0.75:
+    if score >= _STRONG_MAJORITY_THRESHOLD:
         return AgreementTier.strong_majority
-    if score >= 0.50:
+    if score >= _WEAK_MAJORITY_THRESHOLD:
         return AgreementTier.weak_majority
     return AgreementTier.no_consensus

@@ -52,6 +52,8 @@ _HARD_LABELS_TO_PROBA: Final[dict[str, float]] = {
     "andy": 0.5,
 }
 _DEFAULT_PROBA: Final = 0.5
+# Legacy decision boundary: a female probability at or above it reads as female.
+_FEMALE_PROBA_THRESHOLD: Final = 0.5
 
 
 class HivotoXgboostConfig(LookupMethodConfig):
@@ -172,7 +174,7 @@ def _consensus(labels: Sequence[str], probabilities: Sequence[float]) -> str:
     if all(label == "andy" for label in labels):
         return "andy"
     if probabilities:
-        return "female" if fmean(probabilities) >= 0.5 else "male"
+        return "female" if fmean(probabilities) >= _FEMALE_PROBA_THRESHOLD else "male"
     return "unknown"
 
 
@@ -250,7 +252,7 @@ class HivotoXgboostMethod:
                 probabilities.append(_HARD_LABELS_TO_PROBA.get(raw_gender, _DEFAULT_PROBA))
             else:
                 proba = proba_by_token[token]
-                labels.append("female" if proba >= 0.5 else "male")
+                labels.append("female" if proba >= _FEMALE_PROBA_THRESHOLD else "male")
                 probabilities.append(proba)
 
         raw_label = _consensus(labels, probabilities) if tokens else NO_NAME_LABEL

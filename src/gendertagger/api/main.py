@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import Response, status
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from gendertagger.api.app import create_app
 
@@ -32,7 +33,7 @@ def ready() -> Response:
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
-    except Exception:
+    except SQLAlchemyError:
         return Response(
             content="Database unavailable",
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

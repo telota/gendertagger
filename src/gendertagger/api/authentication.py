@@ -48,11 +48,11 @@ class AuthenticationBackend(Protocol):
 class RejectAllAuthenticationBackend:
     """Fail closed until deployment supplies an authentication provider."""
 
-    def authenticate(self, request: Request) -> UUID | None:
+    def authenticate(self, request: Request) -> UUID | None:  # noqa: ARG002 - protocol signature
         """Reject every request without inspecting untrusted credentials."""
         return None
 
-    def validate_csrf(self, request: Request, *, user_id: UUID) -> bool:
+    def validate_csrf(self, request: Request, *, user_id: UUID) -> bool:  # noqa: ARG002 - protocol signature
         """Reject every state-changing request without a configured session."""
         return False
 
@@ -81,7 +81,8 @@ class DatabaseAuthenticationBackend:
         request.state.keep_signed_in = resolved.keep_signed_in
         return resolved.user_id
 
-    def validate_csrf(self, request: Request, *, user_id: UUID) -> bool:
+    # The CSRF secret on request.state was bound to this user's session by authenticate().
+    def validate_csrf(self, request: Request, *, user_id: UUID) -> bool:  # noqa: ARG002
         """Compare the ``X-CSRF-Token`` header against the session's stored secret."""
         csrf_secret = cast(str | None, getattr(request.state, "csrf_secret", None))
         header_value = request.headers.get(CSRF_HEADER_NAME)

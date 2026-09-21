@@ -28,6 +28,7 @@ _REFERENCE_LINK_PATTERN = re.compile(r"^[ \t]{0,3}\[[^\]]+\]:[ \t]*(?P<target><[
 _NUMBERED_DOCUMENT_PATTERN = re.compile(r"^(?P<number>\d{2})-[a-z0-9][a-z0-9-]*\.md$")
 _ADR_PATTERN = re.compile(r"^ADR-(?P<number>\d{4})-[a-z0-9][a-z0-9-]*\.md$")
 _ADR_TITLE_PATTERN = re.compile(r"^# ADR-(?P<number>\d{4}): \S.*$")
+_ADR_SECTION_LEVEL = 2
 _ADR_STATUS_PATTERN = re.compile(r"^\*\*Status:\*\* (?:Proposed|Accepted|Superseded|Deprecated)$")
 _ALLOWED_EXTERNAL_SCHEMES = {"http", "https", "mailto"}
 
@@ -206,7 +207,13 @@ def check_markdown_file(root: Path, path: Path) -> tuple[MarkdownDocument, list[
     try:
         document = _parse_markdown(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError) as error:
-        empty = MarkdownDocument((), (), None, None, False)
+        empty = MarkdownDocument(
+            headings=(),
+            links=(),
+            first_content_line=None,
+            unclosed_fence_line=None,
+            unclosed_front_matter=False,
+        )
         return empty, [Diagnostic(relative_path, 1, "DOC002", f"cannot read document: {error}")]
 
     diagnostics: list[Diagnostic] = []
@@ -442,7 +449,9 @@ def _check_adrs(
                 )
             )
 
-        sections = [(title, line) for level, title, line in document.headings if level == 2]
+        sections = [
+            (title, line) for level, title, line in document.headings if level == _ADR_SECTION_LEVEL
+        ]
         section_titles = [title for title, _line in sections]
         positions: list[int] = []
         for required in required_sections:
