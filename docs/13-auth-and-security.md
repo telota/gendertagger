@@ -77,8 +77,12 @@ no self-service registration or email-based password recovery. Administrators cr
 flag the account to change its password at next use. See
 [ADR-0031](decisions/ADR-0031-local-database-authentication.md) for the exact schema, endpoints, and
 cookie contract. Institutional SSO remains a later, additive `AuthenticationBackend` implementation.
-Login rate limiting and lockout are not implemented yet; see
-[`22-future-development.md`](22-future-development.md).
+The gateway throttles `POST /api/v1/auth/login` per client address: six attempts at once, then one every
+12 seconds, answering further attempts with `429 rate_limited` in the API's error envelope and a
+`Retry-After` header ([`deploy/proxy/nginx.conf`](../deploy/proxy/nginx.conf)). Every attempt costs an
+Argon2id hash of about 64 MiB, so the limit guards the API's memory as well as passwords. It is per
+address, not per account, and a stack reached without the gateway is not throttled; a per-username backoff
+is recorded in [`22-future-development.md`](22-future-development.md).
 
 `/api/v1` is assembled from three routers in [`api/router.py`](../src/gendertagger/api/router.py):
 

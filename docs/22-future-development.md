@@ -168,13 +168,17 @@ semantics, and mapping provider claims onto local roles without letting an exter
 grant `admin`. SSO users need no `user_credentials` row, so local and SSO accounts can coexist. See
 [`13-auth-and-security.md`](13-auth-and-security.md).
 
-### Login rate limiting and lockout
+### Per-account login throttling
 
-The local account backend accepts unlimited login attempts. Repeated failures are neither throttled nor
-counted toward a lockout.
+The gateway throttles login attempts per client address (see
+[`13-auth-and-security.md`](13-auth-and-security.md)), but the application itself counts nothing: failures
+against one account from many addresses are neither slowed nor counted, and a stack reached without the
+gateway is not throttled at all. Add a per-username backoff before the service is reachable from outside the
+institution's network.
 
-Any throttle must keep the generic `401 invalid_credentials` response, so it does not reveal whether a
-username exists. A per-account lockout must not become a way for an outsider to lock a reviewer out. See
+It must key on the normalized username whether or not an account exists, and it must keep the generic
+`401 invalid_credentials` response, so it does not reveal whether a username exists. Prefer a growing delay
+to a hard lockout: a lockout would let an outsider lock a reviewer out on purpose. See
 [ADR-0031](decisions/ADR-0031-local-database-authentication.md).
 
 ### Self-service password recovery

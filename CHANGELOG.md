@@ -176,6 +176,9 @@ the phased plan that resumes application code.
   (`GENDERTAGGER_SESSION_IDLE_SECONDS`, `GENDERTAGGER_SESSION_KEEP_SIGNED_IN_IDLE_SECONDS`,
   `GENDERTAGGER_SESSION_MAX_LIFETIME_SECONDS`) replace `GENDERTAGGER_SESSION_TTL_SECONDS`, and migration
   `20260921_0003` adds the session kind and absolute limit; existing sessions keep their original end.
+- The gateway throttles `POST /api/v1/auth/login` per client address to six attempts at once and then one
+  every 12 seconds, answering with `429 rate_limited` in the API's error envelope and a `Retry-After`
+  header. This bounds password guessing and the Argon2id memory each attempt costs.
 - `GET /api/v1/auth/session` reports whether the session owes a password change and whether it was kept
   signed in. `POST /api/v1/me/password` now answers a wrong current password with
   `400 invalid_current_password` instead of `401 invalid_credentials`, so a `401` always means the session

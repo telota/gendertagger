@@ -208,4 +208,11 @@ This reduces CORS/cookie complexity and keeps the browser API boundary explicit.
 
 The reverse proxy must support Server-Sent Events for run progress. Disable proxy response buffering on SSE routes and allow long-lived HTTP connections/keepalives.
 
+The gateway also throttles `POST /api/v1/auth/login` per client address (see
+[`13-auth-and-security.md`](13-auth-and-security.md)). The limit keys on the address nginx sees. If another
+proxy or load balancer sits in front of the gateway, configure `set_real_ip_from` and `real_ip_header` for
+that proxy only; otherwise every user shares the front proxy's address and therefore one login budget. Never
+trust a forwarded-address header from arbitrary clients, since that would let an attacker pick a fresh
+address per attempt.
+
 The frontend is built/deployed independently of scientific workers. A frontend rebuild must never be required to change queue topology or worker placement.

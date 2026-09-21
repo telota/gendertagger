@@ -194,7 +194,9 @@ contract change fails CI.
 - Session handling against `GET /me` and `GET /auth/session`: login with a "keep me signed in" checkbox
   (unchecked by default), logout, role-aware hiding and disabling, and the forced password change (D1).
 - Recovery from a `401` at any moment: keep the unsent decision, offer an inline sign-in, and retry the
-  request rather than redirecting away and losing the user's place (D1).
+  request rather than redirecting away and losing the user's place (D1). The login form handles its own
+  failures, `401 invalid_credentials` and the gateway's `429 rate_limited` with its `Retry-After`, so the
+  global `401` recovery ignores `POST /auth/login`.
 - The eight cross-cutting concerns listed in that document: error envelope, `409` recovery, `413` limits,
   async `202`-poll composable, SSE composable, cursor pagination, roles, CSRF.
 - Design tokens, typography scale, and the primitive components — with real `<button>`/`<a>` elements,
