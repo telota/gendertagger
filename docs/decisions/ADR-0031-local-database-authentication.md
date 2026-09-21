@@ -2,6 +2,11 @@
 
 **Status:** Accepted
 
+The fixed 8-hour session lifetime, the `LoginRequest` shape, the `401` for a wrong current password, and the
+anticipated hashing settings in this decision are superseded by
+[ADR-0032](ADR-0032-sliding-session-lifetime.md). Credential and session storage, cookie names, the CSRF
+scheme, CLI provisioning, and the password-change gate remain accepted.
+
 ## Context
 
 [`13-auth-and-security.md`](../13-auth-and-security.md) defines `AuthenticationBackend` as a provider-neutral
