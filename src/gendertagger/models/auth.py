@@ -44,6 +44,13 @@ class LoginRequest(BaseModel):
 
     username: Username
     password: SecretStr = Field(min_length=1)
+    keep_signed_in: bool = Field(
+        default=False,
+        description=(
+            "Issue persistent cookies and a 7-day idle limit instead of browser-session "
+            "cookies and a 24-hour idle limit (ADR-0032)."
+        ),
+    )
 
 
 class ChangePasswordRequest(BaseModel):
@@ -74,11 +81,26 @@ class LocalCredential(BaseModel):
 
 
 class UserSession(BaseModel):
-    """Persistence-adjacent read model for one issued, not-yet-reaped session."""
+    """Persistence-adjacent read model for one issued, not-yet-reaped session.
+
+    ``expires_at`` is the sliding idle expiry and never passes ``absolute_expires_at``, the limit
+    fixed at login (ADR-0032).
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     user_id: UUID
     csrf_secret: str
+    keep_signed_in: bool
     expires_at: UtcDatetime
+    absolute_expires_at: UtcDatetime
     revoked_at: UtcDatetime | None = None
+
+
+class CurrentSession(BaseModel):
+    """Public state of the presented local-account session, readable before a password change."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    must_change_password: bool
+    keep_signed_in: bool

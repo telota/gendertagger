@@ -449,11 +449,12 @@ trapped — the Vue port must add a focus trap and restore focus on close.
 
 ## Backend endpoint coverage
 
-All twenty-eight delivered `/api/v1` endpoints, and how the wireframe treats each.
+All twenty-nine delivered `/api/v1` endpoints, and how the wireframe treats each.
 
 | Endpoint | Role | Wireframe treatment |
 |---|---|---|
 | `GET /me` | authenticated | mocked ("Sam Kurator:in") |
+| `GET /auth/session` | authenticated | **absent** |
 | `POST /auth/login` | unauthenticated | **absent — no login screen** |
 | `POST /auth/logout` | authenticated | **absent** |
 | `POST /me/password` | authenticated | **absent — no password-change screen** |

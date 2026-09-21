@@ -43,7 +43,7 @@ read, command, and message models are additionally frozen.
 | `models/classify.py` | Synchronous on-demand classification request and response |
 | `models/api.py` | `ApiErrorDetail`, `ApiErrorEnvelope`, `CursorPage` |
 | `models/user.py` | `Role`, `CurrentUser`, `UserCreate`, `User` |
-| `models/auth.py` | Local-account `LoginRequest`, `ChangePasswordRequest`, `LocalCredential`, `UserSession`, and username/password validation |
+| `models/auth.py` | Local-account `LoginRequest`, `ChangePasswordRequest`, `CurrentSession`, `LocalCredential`, `UserSession`, and username/password validation |
 | `models/common.py` | `UtcDatetime`, `canonical_json_sha256` |
 | `models/queues.py` | Operational queue-routing vocabulary |
 

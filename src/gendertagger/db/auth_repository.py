@@ -61,7 +61,9 @@ class SqlAlchemyAuthRepository:
         session_id: str,
         user_id: UUID,
         csrf_secret: str,
+        keep_signed_in: bool,
         expires_at: datetime,
+        absolute_expires_at: datetime,
     ) -> None:
         """Persist a new session keyed by the hash of its bearer token."""
         self._session.add(
@@ -69,7 +71,9 @@ class SqlAlchemyAuthRepository:
                 id=session_id,
                 user_id=user_id,
                 csrf_secret=csrf_secret,
+                keep_signed_in=keep_signed_in,
                 expires_at=expires_at,
+                absolute_expires_at=absolute_expires_at,
             )
         )
         self._session.flush()
@@ -78,6 +82,18 @@ class SqlAlchemyAuthRepository:
         """Return a session by its hashed token, or ``None`` when absent."""
         row = self._session.get(UserSessionRow, session_id)
         return None if row is None else self._session_from_row(row)
+
+    def renew_session(self, session_id: str, *, expires_at: datetime) -> None:
+        """Move an unrevoked session's idle expiry forward; never moves it backwards."""
+        self._session.execute(
+            update(UserSessionRow)
+            .where(
+                UserSessionRow.id == session_id,
+                UserSessionRow.revoked_at.is_(None),
+                UserSessionRow.expires_at < expires_at,
+            )
+            .values(expires_at=expires_at)
+        )
 
     def revoke_session(self, session_id: str) -> None:
         """Mark one session revoked; a no-op if it does not exist or is already revoked."""
@@ -110,6 +126,8 @@ class SqlAlchemyAuthRepository:
         return UserSession(
             user_id=row.user_id,
             csrf_secret=row.csrf_secret,
+            keep_signed_in=row.keep_signed_in,
             expires_at=row.expires_at,
+            absolute_expires_at=row.absolute_expires_at,
             revoked_at=row.revoked_at,
         )

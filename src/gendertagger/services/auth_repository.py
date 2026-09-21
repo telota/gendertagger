@@ -36,13 +36,19 @@ class AuthRepository(Protocol):
         session_id: str,
         user_id: UUID,
         csrf_secret: str,
+        keep_signed_in: bool,
         expires_at: datetime,
+        absolute_expires_at: datetime,
     ) -> None:
         """Persist a new session keyed by the hash of its bearer token."""
         ...
 
     def get_session(self, session_id: str) -> UserSession | None:
         """Return a session by its hashed token, or ``None`` when absent."""
+        ...
+
+    def renew_session(self, session_id: str, *, expires_at: datetime) -> None:
+        """Move an unrevoked session's idle expiry forward; never moves it backwards."""
         ...
 
     def revoke_session(self, session_id: str) -> None:

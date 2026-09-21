@@ -1,4 +1,4 @@
-"""Application use case for local-account authentication (ADR-0031).
+"""Application use case for local-account authentication (ADR-0031, ADR-0032).
 
 Issuing, resolving, and revoking sessions is deliberately separate from the transport-facing
 ``AuthenticationBackend`` protocol in ``gendertagger.api.authentication``: this service is plain,
@@ -21,18 +21,43 @@ Clock = Callable[[], UtcDatetime]
 
 _SESSION_TOKEN_BYTES = 32
 _CSRF_SECRET_BYTES = 32
+# An active session is written back at most once per interval rather than on every request.
+_SESSION_RENEWAL_INTERVAL = timedelta(minutes=5)
+
+DEFAULT_SESSION_IDLE = timedelta(hours=24)
+DEFAULT_KEEP_SIGNED_IN_IDLE = timedelta(days=7)
+DEFAULT_SESSION_MAX_LIFETIME = timedelta(days=30)
 
 
 class InvalidCredentialsError(Exception):
-    """Raised when a login attempt or a password change fails to verify."""
+    """Raised when a login attempt fails to verify."""
+
+
+class InvalidCurrentPasswordError(Exception):
+    """Raised when a password change presents the wrong current password."""
+
+
+@dataclass(frozen=True)
+class SessionLifetimePolicy:
+    """Idle and absolute session limits (ADR-0032); every limit exceeds WCAG 2.2.1's 20 hours."""
+
+    idle: timedelta = DEFAULT_SESSION_IDLE
+    keep_signed_in_idle: timedelta = DEFAULT_KEEP_SIGNED_IN_IDLE
+    max_lifetime: timedelta = DEFAULT_SESSION_MAX_LIFETIME
+
+    def idle_for(self, *, keep_signed_in: bool) -> timedelta:
+        """Return the idle limit for one kind of session."""
+        return self.keep_signed_in_idle if keep_signed_in else self.idle
 
 
 @dataclass(frozen=True)
 class IssuedSession:
-    """A newly created session's bearer token, CSRF secret, and owning principal."""
+    """A newly created session's bearer token, CSRF secret, kind, limit, and owning principal."""
 
     token: str
     csrf_secret: str
+    keep_signed_in: bool
+    absolute_expires_at: UtcDatetime
     user: CurrentUser
 
 
@@ -43,6 +68,7 @@ class ResolvedSession:
     user_id: UUID
     csrf_secret: str
     must_change_password: bool
+    keep_signed_in: bool
 
 
 def _hash_token(token: str) -> str:
@@ -58,14 +84,14 @@ class AuthenticationService:
         unit_of_work_factory: UnitOfWorkFactory,
         password_hasher: PasswordHasherProtocol,
         clock: Clock,
-        session_ttl: timedelta,
+        session_lifetime: SessionLifetimePolicy,
     ) -> None:
         self._unit_of_work_factory = unit_of_work_factory
         self._password_hasher = password_hasher
         self._clock = clock
-        self._session_ttl = session_ttl
+        self._session_lifetime = session_lifetime
 
-    def login(self, *, username: str, password: str) -> IssuedSession:
+    def login(self, *, username: str, password: str, keep_signed_in: bool = False) -> IssuedSession:
         """Verify credentials and issue a new session, or raise ``InvalidCredentialsError``."""
         with self._unit_of_work_factory() as unit_of_work:
             credential = unit_of_work.auth.get_credential_by_username(username)
@@ -82,34 +108,54 @@ class AuthenticationService:
                 raise InvalidCredentialsError
             token = secrets.token_urlsafe(_SESSION_TOKEN_BYTES)
             csrf_secret = secrets.token_urlsafe(_CSRF_SECRET_BYTES)
+            now = self._clock()
+            absolute_expires_at = now + self._session_lifetime.max_lifetime
             unit_of_work.auth.create_session(
                 session_id=_hash_token(token),
                 user_id=user.id,
                 csrf_secret=csrf_secret,
-                expires_at=self._clock() + self._session_ttl,
+                keep_signed_in=keep_signed_in,
+                expires_at=min(
+                    now + self._session_lifetime.idle_for(keep_signed_in=keep_signed_in),
+                    absolute_expires_at,
+                ),
+                absolute_expires_at=absolute_expires_at,
             )
             unit_of_work.commit()
         return IssuedSession(
             token=token,
             csrf_secret=csrf_secret,
+            keep_signed_in=keep_signed_in,
+            absolute_expires_at=absolute_expires_at,
             user=CurrentUser(id=user.id, display_name=user.display_name, roles=user.roles),
         )
 
     def resolve_session(self, *, session_token: str) -> ResolvedSession | None:
-        """Return the session behind a bearer token, or ``None`` if absent, expired, or revoked."""
+        """Return the session behind a bearer token, or ``None`` if absent, expired, or revoked.
+
+        A valid session's idle expiry slides forward with use, up to its absolute limit. The move is
+        persisted only once it has advanced by at least ``_SESSION_RENEWAL_INTERVAL``, so an active
+        session costs one write per interval rather than one per request.
+        """
+        session_id = _hash_token(session_token)
         with self._unit_of_work_factory() as unit_of_work:
-            session = unit_of_work.auth.get_session(_hash_token(session_token))
-            if (
-                session is None
-                or session.revoked_at is not None
-                or session.expires_at <= self._clock()
-            ):
+            session = unit_of_work.auth.get_session(session_id)
+            now = self._clock()
+            if session is None or session.revoked_at is not None or session.expires_at <= now:
                 return None
             credential = unit_of_work.auth.get_credential(session.user_id)
+            renewed_expires_at = min(
+                now + self._session_lifetime.idle_for(keep_signed_in=session.keep_signed_in),
+                session.absolute_expires_at,
+            )
+            if renewed_expires_at - session.expires_at >= _SESSION_RENEWAL_INTERVAL:
+                unit_of_work.auth.renew_session(session_id, expires_at=renewed_expires_at)
+                unit_of_work.commit()
         return ResolvedSession(
             user_id=session.user_id,
             csrf_secret=session.csrf_secret,
             must_change_password=credential is not None and credential.must_change_password,
+            keep_signed_in=session.keep_signed_in,
         )
 
     def logout(self, *, session_token: str) -> None:
@@ -125,7 +171,7 @@ class AuthenticationService:
             if credential is None or not self._password_hasher.verify(
                 credential.password_hash, current_password
             ):
-                raise InvalidCredentialsError
+                raise InvalidCurrentPasswordError
             unit_of_work.auth.set_password(
                 user_id=user_id,
                 password_hash=self._password_hasher.hash(new_password),

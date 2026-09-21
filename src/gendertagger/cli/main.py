@@ -11,7 +11,7 @@ import sys
 import tempfile
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
 from typing import Final, Protocol
@@ -78,7 +78,7 @@ from gendertagger.models.artifact import (
 )
 from gendertagger.models.auth import normalize_username, validate_local_password_length
 from gendertagger.models.user import Role
-from gendertagger.services.authentication import AuthenticationService
+from gendertagger.services.authentication import AuthenticationService, SessionLifetimePolicy
 from gendertagger.services.lookup_assets import (
     LookupAssetRegistrationService,
     RegisteredLookupAssetResolver,
@@ -893,8 +893,8 @@ def _run_users(args: argparse.Namespace, settings: UsersCliSettings) -> str:
         unit_of_work_factory=unit_of_work_factory,
         password_hasher=Argon2PasswordHasher(),
         clock=partial(datetime.now, UTC),
-        # No session is issued by either command below; the TTL is unused.
-        session_ttl=timedelta(hours=8),
+        # No session is issued by either command below; the lifetime policy is unused.
+        session_lifetime=SessionLifetimePolicy(),
     )
     try:
         if args.user_command == "create":

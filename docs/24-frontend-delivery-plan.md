@@ -191,8 +191,10 @@ contract change fails CI.
 
 - Router with the nested project/snapshot/run/aggregation structure from
   [`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md).
-- Session handling against `GET /me`, login/logout, `401` redirect, role-aware hiding and disabling, and
-  the forced password change that `403 password_change_required` signals (D1).
+- Session handling against `GET /me` and `GET /auth/session`: login with a "keep me signed in" checkbox
+  (unchecked by default), logout, role-aware hiding and disabling, and the forced password change (D1).
+- Recovery from a `401` at any moment: keep the unsent decision, offer an inline sign-in, and retry the
+  request rather than redirecting away and losing the user's place (D1).
 - The eight cross-cutting concerns listed in that document: error envelope, `409` recovery, `413` limits,
   async `202`-poll composable, SSE composable, cursor pagination, roles, CSRF.
 - Design tokens, typography scale, and the primitive components — with real `<button>`/`<a>` elements,
@@ -328,7 +330,8 @@ resolve, and the review path works end to end behind a real session.
 system: admin-provisioned accounts, Argon2id password hashes, and server-side sessions that can be revoked.
 Institutional OIDC/SSO remains a later, additive `AuthenticationBackend`; every backend terminates into the
 same `CurrentUser`, so that swap stays contained. Recorded as
-[ADR-0031](decisions/ADR-0031-local-database-authentication.md).
+[ADR-0031](decisions/ADR-0031-local-database-authentication.md), with session lifetimes revised by
+[ADR-0032](decisions/ADR-0032-sliding-session-lifetime.md).
 
 **Consequences.**
 
@@ -337,13 +340,17 @@ same `CurrentUser`, so that swap stays contained. Recorded as
   which the client mirrors into the `X-CSRF-Token` header on every unsafe request.
 - Accounts are created by an administrator with `gendertagger users create`. No screen manages users, and
   there is neither self-registration nor email-based password recovery.
-- A new or reset account must change its password first. Until `POST /me/password` succeeds, every endpoint
-  except `GET /me`, `POST /auth/logout`, and `POST /me/password` returns `403 password_change_required`, so
-  the shell needs a forced password-change view. A wrong current password on `POST /me/password` is
-  `401 invalid_credentials`, not a lost session, so the shell's `401` redirect must key on the error `code`.
-- Sessions last a fixed 8 hours by default, with no sliding refresh. The API does not expose a session's
-  expiry time, so warning before expiry, as
-  [`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md) requires, has to be designed in M2.
+- A new or reset account must change its password first. `GET /auth/session` reports this right after login
+  and on page load, and until `POST /me/password` succeeds, every endpoint except `GET /me`,
+  `GET /auth/session`, `POST /auth/logout`, and `POST /me/password` returns
+  `403 password_change_required`. The shell therefore needs a forced password-change view. A wrong current
+  password is `400 invalid_current_password`; a `401` always means that the session is gone.
+- The login form offers "keep me signed in", unchecked by default. Unchecked, the session uses
+  browser-session cookies and ends after 24 hours without a request; checked, its cookies persist and the
+  idle limit is 7 days. Use slides both limits forward, and every session ends 30 days after login.
+- Every limit exceeds 20 hours, so session expiry falls under WCAG 2.2.1's 20-hour exception: the client
+  shows no pre-expiry warning. It must still recover from a `401` without losing an unsent decision, since a
+  session can also end through a logout elsewhere or an administrative password reset.
 
 ### D2 — Certainty and agreement tiers, not a confidence threshold
 

@@ -769,6 +769,26 @@
         "title": "ClassifyNamesResponse",
         "type": "object"
       },
+      "CurrentSession": {
+        "additionalProperties": false,
+        "description": "Public state of the presented local-account session, readable before a password change.",
+        "properties": {
+          "keep_signed_in": {
+            "title": "Keep Signed In",
+            "type": "boolean"
+          },
+          "must_change_password": {
+            "title": "Must Change Password",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "must_change_password",
+          "keep_signed_in"
+        ],
+        "title": "CurrentSession",
+        "type": "object"
+      },
       "CurrentUser": {
         "additionalProperties": false,
         "description": "Authenticated principal exposed at the public API boundary.",
@@ -1417,6 +1437,12 @@
         "additionalProperties": false,
         "description": "Public credentials submitted to establish a session.",
         "properties": {
+          "keep_signed_in": {
+            "default": false,
+            "description": "Issue persistent cookies and a 7-day idle limit instead of browser-session cookies and a 24-hour idle limit (ADR-0032).",
+            "title": "Keep Signed In",
+            "type": "boolean"
+          },
           "password": {
             "format": "password",
             "minLength": 1,
@@ -3444,6 +3470,108 @@
           }
         },
         "summary": "Logout",
+        "tags": [
+          "authentication"
+        ]
+      }
+    },
+    "/api/v1/auth/session": {
+      "get": {
+        "description": "Return whether the session owes a password change and whether it was kept signed in.",
+        "operationId": "read_current_session_api_v1_auth_session_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentSession"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Read Current Session",
         "tags": [
           "authentication"
         ]

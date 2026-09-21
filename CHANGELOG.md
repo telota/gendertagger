@@ -162,6 +162,17 @@ the phased plan that resumes application code.
   cursors are not portable across the change.
 - Reordered the remaining implementation phases so evaluation/export and deployment hardening precede the
   Vue review client, which is now the final Phase 8 deliverable.
+- Local-account sessions no longer end a fixed 8 hours after login
+  ([ADR-0032](docs/decisions/ADR-0032-sliding-session-lifetime.md)). Each request slides the idle limit
+  forward: 24 hours for an ordinary login with browser-session cookies, 7 days for a login with the new
+  `keep_signed_in` flag, whose cookies persist. Every session ends 30 days after login. Three settings
+  (`GENDERTAGGER_SESSION_IDLE_SECONDS`, `GENDERTAGGER_SESSION_KEEP_SIGNED_IN_IDLE_SECONDS`,
+  `GENDERTAGGER_SESSION_MAX_LIFETIME_SECONDS`) replace `GENDERTAGGER_SESSION_TTL_SECONDS`, and migration
+  `20260921_0003` adds the session kind and absolute limit; existing sessions keep their original end.
+- `GET /api/v1/auth/session` reports whether the session owes a password change and whether it was kept
+  signed in. `POST /api/v1/me/password` now answers a wrong current password with
+  `400 invalid_current_password` instead of `401 invalid_credentials`, so a `401` always means the session
+  is gone.
 - The browser client's Node pin moved from 22 to 26 (`engines` `^26.9.0`, image `node:26.9.0-alpine`, and
   `@types/node` 26), because Node 22 reaches end of life in April 2027 and Node 26 is supported until April
   2029 (decision D12 in [`docs/24-frontend-delivery-plan.md`](docs/24-frontend-delivery-plan.md)).

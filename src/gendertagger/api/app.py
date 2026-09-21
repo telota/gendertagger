@@ -28,7 +28,7 @@ from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.models.project import SnapshotImportLimits
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.annotations import AnnotationService
-from gendertagger.services.authentication import AuthenticationService
+from gendertagger.services.authentication import AuthenticationService, SessionLifetimePolicy
 from gendertagger.services.classification import DirectClassificationService
 from gendertagger.services.evaluations import EvaluationService
 from gendertagger.services.execution import RunScheduler
@@ -79,7 +79,13 @@ def create_app(
         unit_of_work_factory=unit_of_work_factory,
         password_hasher=Argon2PasswordHasher(),
         clock=partial(datetime.now, UTC),
-        session_ttl=timedelta(seconds=resolved_settings.session_ttl_seconds),
+        session_lifetime=SessionLifetimePolicy(
+            idle=timedelta(seconds=resolved_settings.session_idle_seconds),
+            keep_signed_in_idle=timedelta(
+                seconds=resolved_settings.session_keep_signed_in_idle_seconds
+            ),
+            max_lifetime=timedelta(seconds=resolved_settings.session_max_lifetime_seconds),
+        ),
     )
     if authentication_backend is None:
         authentication_backend = DatabaseAuthenticationBackend(authentication_service)

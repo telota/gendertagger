@@ -58,6 +58,7 @@ below). The following table is the whole public API:
 | `GET` | `/api/v1/methods` | `200` | viewer |
 | `GET` | `/api/v1/me` | `200` | any authenticated user |
 | `POST` | `/api/v1/me/password` | `204` | any authenticated user |
+| `GET` | `/api/v1/auth/session` | `200` | any authenticated user |
 | `POST` | `/api/v1/auth/login` | `200` | none (unauthenticated) |
 | `POST` | `/api/v1/auth/logout` | `204` | any authenticated user |
 
@@ -69,10 +70,10 @@ before any handler body. Because that dependency in turn depends on `require_aut
 `/api/v1` boundary is fail-closed for reading as well as writing: an unauthenticated request is rejected
 with `401` even on a safe method. `require_csrf_protection` additionally validates the browser session for
 unsafe methods; `GET`, `HEAD`, `OPTIONS`, and `TRACE` return early without a CSRF check. Every route except
-`GET /me`, `POST /me/password`, and `POST /auth/logout` also carries `require_password_current`, which
-returns `403 password_change_required` while a local account still owes a password change. Per-route role
-dependencies (`require_viewer`, `require_reviewer`, `require_operator`) then narrow the capability, and the
-roles are hierarchical, so an operator satisfies a reviewer route.
+`GET /me`, `GET /auth/session`, `POST /me/password`, and `POST /auth/logout` also carries
+`require_password_current`, which returns `403 password_change_required` while a local account still owes a
+password change. Per-route role dependencies (`require_viewer`, `require_reviewer`, `require_operator`)
+then narrow the capability, and the roles are hierarchical, so an operator satisfies a reviewer route.
 
 All three routers declare `ApiErrorEnvelope` as the documented response model for `400`, `401`, `403`,
 `404`, `409`, `413`, `422`, and `500` across every route, so the error contract is uniform in OpenAPI.
@@ -394,11 +395,13 @@ Stale writes return `409 Conflict` with code `annotation_conflict`. This protect
 
 Expose `/api/v1/me` using a typed `CurrentUser` contract. Authorization belongs in FastAPI dependencies/application services, never only in the Vue UI.
 
-For the same-origin browser application, secure HTTP-only session cookies plus CSRF protection cover state-changing requests. The local account provider ([ADR-0031](decisions/ADR-0031-local-database-authentication.md)) supplies them:
+For the same-origin browser application, secure HTTP-only session cookies plus CSRF protection cover state-changing requests. The local account provider ([ADR-0031](decisions/ADR-0031-local-database-authentication.md), with session lifetimes from [ADR-0032](decisions/ADR-0032-sliding-session-lifetime.md)) supplies them:
 
-- `POST /auth/login` takes a `LoginRequest` (`username`, `password`), returns `CurrentUser`, and sets two cookies: `session`, which is `HttpOnly`, and `csrf_token`, which the client reads and mirrors into the `X-CSRF-Token` header on unsafe requests. A failed login is a generic `401 invalid_credentials`.
+- `POST /auth/login` takes a `LoginRequest` (`username`, `password`, and `keep_signed_in`, default `false`), returns `CurrentUser`, and sets two cookies: `session`, which is `HttpOnly`, and `csrf_token`, which the client reads and mirrors into the `X-CSRF-Token` header on unsafe requests. A failed login is a generic `401 invalid_credentials`.
+- Without `keep_signed_in`, both cookies are browser-session cookies and the session ends after 24 hours without a request. With it, both cookies persist until the session's absolute limit and the idle limit is 7 days. Every session ends 30 days after login at the latest. Each request slides the idle limit forward, so an active user is not signed out before the absolute limit.
+- `GET /auth/session` returns `CurrentSession` (`must_change_password`, `keep_signed_in`), so the client can learn about a forced password change right after login or on page load.
 - `POST /auth/logout` revokes the current session and clears both cookies.
-- `POST /me/password` takes a `ChangePasswordRequest` (`current_password`, `new_password`, at least 12 characters) and clears the forced-change flag. A wrong current password is `401 invalid_credentials`.
+- `POST /me/password` takes a `ChangePasswordRequest` (`current_password`, `new_password`, at least 12 characters) and clears the forced-change flag. A wrong current password is `400 invalid_current_password`, never `401`: a `401` always means that no valid session exists.
 
 Account provisioning is CLI-only (`gendertagger users create` / `reset-password`); there is no HTTP surface for it. A separate token/OIDC mechanism for external machine clients is recorded in [`22-future-development.md`](22-future-development.md).
 

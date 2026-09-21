@@ -385,7 +385,9 @@ EN 301 549, which in turn references WCAG, so building to the current 2.2 level 
   must work. The local account provider chosen in decision D1 asks only for a username and password, so
   the requirement rests on the login and password-change forms: neither may block paste or autofill.
 - Time limits are adjustable, extendable, or switchable off (2.2.1). Two places are affected. Session expiry
-  during a long review session must warn before it happens and never silently discard an unsent decision.
+  falls under the criterion's 20-hour exception, because every session limit exceeds 20 hours
+  ([ADR-0032](decisions/ADR-0032-sliding-session-lifetime.md)), so no pre-expiry warning is required; an
+  expired session must still never silently discard an unsent decision.
   The game-mode timer is switchable off per decision D19: the control is reachable **before the first timed
   round starts**, the choice persists, and disabling it changes nothing about which records are shown or how
   the annotation is written.

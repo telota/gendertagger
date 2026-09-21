@@ -87,8 +87,9 @@ Login rate limiting and lockout are not implemented yet; see
   `OPTIONS`, and `TRACE` — additionally requires backend-owned CSRF validation, returning
   `403 forbidden` when it fails. A local account still flagged to change its password receives
   `403 password_change_required`.
-- `GET /me`, `POST /auth/logout`, and `POST /me/password` carry only `require_csrf_protection`, so a
-  flagged account can still reach the one route that clears the flag.
+- `GET /me`, `GET /auth/session`, `POST /auth/logout`, and `POST /me/password` carry only
+  `require_csrf_protection`, so a flagged account can learn about the flag and still reach the one route
+  that clears it.
 - `POST /auth/login` is the only unauthenticated route, since no session exists yet. A failed login
   returns a generic `401 invalid_credentials` whether or not the username exists.
 
@@ -100,3 +101,23 @@ Production does not require permissive CORS. Development CORS must be an explici
 and must never combine credentialed requests with `*`.
 
 Annotation optimistic concurrency is a data-integrity control as well as a UX feature: stale review writes return `409 Conflict` rather than silently replacing another reviewer's decision.
+
+## Session lifetime
+
+Session lifetimes follow [ADR-0032](decisions/ADR-0032-sliding-session-lifetime.md). The login form's
+"keep me signed in" checkbox, unchecked by default, chooses between two kinds of session:
+
+| | Unchecked (default) | "Keep me signed in" |
+|---|---|---|
+| Cookies | Browser-session cookies, discarded when the browser closes | Persistent until the absolute limit |
+| Idle limit | 24 hours (`GENDERTAGGER_SESSION_IDLE_SECONDS`) | 7 days (`GENDERTAGGER_SESSION_KEEP_SIGNED_IN_IDLE_SECONDS`) |
+| Absolute limit from login | 30 days (`GENDERTAGGER_SESSION_MAX_LIFETIME_SECONDS`) | 30 days |
+
+Each authenticated request slides the idle limit forward, never past the absolute limit, so an active
+user is not signed out mid-work. The move is written back at most once per five minutes per session. Every
+limit exceeds 20 hours, which places session expiry under WCAG 2.2.1's 20-hour exception; lowering a
+limit to 20 hours or less removes that exemption and would require a pre-expiry warning in the client.
+
+Browsers that restore the previous session keep browser-session cookies across a restart, so on a shared
+machine the 24-hour server-side idle limit, not the browser closing, is what ends a forgotten unchecked
+session. Background requests, such as polling a long-running run, count as activity.

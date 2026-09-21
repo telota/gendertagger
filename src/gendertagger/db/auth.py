@@ -48,11 +48,15 @@ class UserSessionRow(CreatedAtMixin, Base):
 
     The raw token is never persisted, only its hash, mirroring the repository's existing caution around
     not storing secrets in the clear. A session is revoked in place rather than deleted, so its lifetime
-    remains auditable.
+    remains auditable. ``expires_at`` slides with use but never passes ``absolute_expires_at``
+    (ADR-0032).
     """
 
     __tablename__ = "user_sessions"
-    __table_args__ = (Index("ix_user_sessions_user_id", "user_id"),)
+    __table_args__ = (
+        Index("ix_user_sessions_user_id", "user_id"),
+        CheckConstraint("expires_at <= absolute_expires_at", name="expiry_within_lifetime"),
+    )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     user_id: Mapped[UUID] = mapped_column(
@@ -61,5 +65,9 @@ class UserSessionRow(CreatedAtMixin, Base):
         nullable=False,
     )
     csrf_secret: Mapped[str] = mapped_column(String(64), nullable=False)
+    keep_signed_in: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    absolute_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

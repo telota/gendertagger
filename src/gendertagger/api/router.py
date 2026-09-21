@@ -7,7 +7,7 @@ requirements (ADR-0031):
   account still owes a password change. Everything except the routes below.
 - :func:`create_password_change_exempt_router` — authenticated and CSRF-protected, but reachable
   even while a password change is owed, since a user must be able to reach these to clear the gate:
-  ``GET /me``, ``POST /auth/logout``, ``POST /me/password``.
+  ``GET /me``, ``GET /auth/session``, ``POST /auth/logout``, ``POST /me/password``.
 - :func:`create_unauthenticated_router` — reachable before a session exists: ``POST /auth/login``.
 
 ``gendertagger.api.app.create_app`` mounts all three.

@@ -1,6 +1,7 @@
-"""End-to-end tests for the local-account authentication endpoints (ADR-0031)."""
+"""End-to-end tests for the local-account authentication endpoints (ADR-0031, ADR-0032)."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from email.utils import parsedate_to_datetime
 from types import TracebackType
 from typing import Self, cast
 from uuid import UUID
@@ -90,13 +91,32 @@ class _InMemoryAuthRepository:
             update={"password_hash": password_hash, "must_change_password": must_change_password}
         )
 
-    def create_session(self, *, session_id, user_id, csrf_secret, expires_at) -> None:  # type: ignore[no-untyped-def]
+    def create_session(
+        self,
+        *,
+        session_id: str,
+        user_id: UUID,
+        csrf_secret: str,
+        keep_signed_in: bool,
+        expires_at: datetime,
+        absolute_expires_at: datetime,
+    ) -> None:
         self._store.sessions[session_id] = UserSession(
-            user_id=user_id, csrf_secret=csrf_secret, expires_at=expires_at, revoked_at=None
+            user_id=user_id,
+            csrf_secret=csrf_secret,
+            keep_signed_in=keep_signed_in,
+            expires_at=expires_at,
+            absolute_expires_at=absolute_expires_at,
+            revoked_at=None,
         )
 
     def get_session(self, session_id: str) -> UserSession | None:
         return self._store.sessions.get(session_id)
+
+    def renew_session(self, session_id: str, *, expires_at: datetime) -> None:
+        session = self._store.sessions[session_id]
+        if session.revoked_at is None and session.expires_at < expires_at:
+            self._store.sessions[session_id] = session.model_copy(update={"expires_at": expires_at})
 
     def revoke_session(self, session_id: str) -> None:
         session = self._store.sessions.get(session_id)
@@ -139,8 +159,10 @@ class _InMemoryUnitOfWork:
         return None
 
 
-def _client(*, must_change_password: bool = False) -> TestClient:
-    store = _InMemoryStore(must_change_password=must_change_password)
+def _client(
+    *, must_change_password: bool = False, store: _InMemoryStore | None = None
+) -> TestClient:
+    store = store or _InMemoryStore(must_change_password=must_change_password)
 
     def unit_of_work_factory() -> UnitOfWork:
         return cast(UnitOfWork, _InMemoryUnitOfWork(store))
@@ -171,6 +193,64 @@ def test_login_with_valid_credentials_issues_session_and_csrf_cookies() -> None:
     }
     assert SESSION_COOKIE_NAME in client.cookies
     assert CSRF_COOKIE_NAME in client.cookies
+
+
+def _set_cookie_headers(headers: list[str]) -> dict[str, str]:
+    return {header.split("=", 1)[0]: header.lower() for header in headers}
+
+
+def test_login_without_keep_signed_in_issues_browser_session_cookies() -> None:
+    client = _client()
+
+    response = client.post("/api/v1/auth/login", json={"username": USERNAME, "password": PASSWORD})
+
+    cookies = _set_cookie_headers(response.headers.get_list("set-cookie"))
+    assert set(cookies) == {SESSION_COOKIE_NAME, CSRF_COOKIE_NAME}
+    for header in cookies.values():
+        assert "expires=" not in header
+        assert "max-age=" not in header
+
+
+def test_login_with_keep_signed_in_issues_persistent_cookies_until_the_absolute_limit() -> None:
+    store = _InMemoryStore()
+    client = _client(store=store)
+
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"username": USERNAME, "password": PASSWORD, "keep_signed_in": True},
+    )
+
+    assert response.status_code == 200
+    (session,) = store.sessions.values()
+    assert session.keep_signed_in is True
+    assert session.absolute_expires_at - session.expires_at == timedelta(days=23)
+    cookies = _set_cookie_headers(response.headers.get_list("set-cookie"))
+    assert set(cookies) == {SESSION_COOKIE_NAME, CSRF_COOKIE_NAME}
+    for header in cookies.values():
+        expires = header.split("expires=", 1)[1].split(";", 1)[0]
+        assert parsedate_to_datetime(expires) == session.absolute_expires_at.replace(microsecond=0)
+
+
+def test_session_state_reports_the_kind_and_is_reachable_before_a_password_change() -> None:
+    client = _client(must_change_password=True)
+    client.post(
+        "/api/v1/auth/login",
+        json={"username": USERNAME, "password": PASSWORD, "keep_signed_in": True},
+    )
+
+    response = client.get("/api/v1/auth/session")
+
+    assert response.status_code == 200
+    assert response.json() == {"must_change_password": True, "keep_signed_in": True}
+
+
+def test_session_state_requires_a_session() -> None:
+    client = _client()
+
+    response = client.get("/api/v1/auth/session")
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "authentication_required"
 
 
 def test_login_with_wrong_password_is_rejected_without_setting_cookies() -> None:
@@ -270,6 +350,8 @@ def test_change_password_with_wrong_current_password_is_rejected_and_leaves_the_
         json={"current_password": "not-the-current-password", "new_password": "irrelevant-pass-99"},
     )
 
-    assert response.status_code == 401
-    assert response.json()["error"]["code"] == "invalid_credentials"
+    # 400, not 401: a 401 means the session is gone, and the session here is intact.
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "invalid_current_password"
+    assert client.get("/api/v1/me").status_code == 200
     assert client.get("/api/v1/methods").status_code == 403

@@ -8,6 +8,11 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
 
 from gendertagger.models.project import SHA256_PATTERN
+from gendertagger.services.authentication import (
+    DEFAULT_KEEP_SIGNED_IN_IDLE,
+    DEFAULT_SESSION_IDLE,
+    DEFAULT_SESSION_MAX_LIFETIME,
+)
 
 
 class AppSettings(BaseSettings):
@@ -38,10 +43,23 @@ class AppSettings(BaseSettings):
     max_import_record_count: int = Field(default=1_000_000, gt=0)
     max_tabular_cell_bytes: int = Field(default=1024 * 1024, gt=0)
     tei_import_batch_record_count: int = Field(default=500, gt=0, le=10_000)
-    session_ttl_seconds: int = Field(
-        default=8 * 60 * 60,
+    session_idle_seconds: int = Field(
+        default=int(DEFAULT_SESSION_IDLE.total_seconds()),
         gt=0,
-        description="Fixed absolute lifetime of a local-account session (ADR-0031). No sliding refresh.",
+        description=(
+            "Idle limit of a browser-session login; each request slides it forward (ADR-0032). "
+            "Limits of 20 hours or less lose WCAG 2.2.1's 20-hour exception."
+        ),
+    )
+    session_keep_signed_in_idle_seconds: int = Field(
+        default=int(DEFAULT_KEEP_SIGNED_IN_IDLE.total_seconds()),
+        gt=0,
+        description="Idle limit of a 'keep me signed in' login; slides like the default (ADR-0032).",
+    )
+    session_max_lifetime_seconds: int = Field(
+        default=int(DEFAULT_SESSION_MAX_LIFETIME.total_seconds()),
+        gt=0,
+        description="Absolute limit of any session from its login, however active (ADR-0032).",
     )
 
     @field_validator("database_url")

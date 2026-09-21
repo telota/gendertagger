@@ -2,10 +2,12 @@
 
 See [ADR-0031](../../../docs/decisions/ADR-0031-local-database-authentication.md) for the cookie
 contract, session model, and the ``must_change_password`` gate that ``require_password_current``
-enforces.
+enforces, and [ADR-0032](../../../docs/decisions/ADR-0032-sliding-session-lifetime.md) for session
+lifetimes and persistent sign-in.
 """
 
 import hmac
+from datetime import datetime
 from typing import Annotated, Protocol, cast
 from uuid import UUID
 
@@ -13,9 +15,13 @@ from fastapi import APIRouter, Depends, Request, Response, status
 
 from gendertagger.api.dependencies import get_authentication_service, get_unit_of_work_factory
 from gendertagger.api.errors import ApiRequestError
-from gendertagger.models.auth import ChangePasswordRequest, LoginRequest
+from gendertagger.models.auth import ChangePasswordRequest, CurrentSession, LoginRequest
 from gendertagger.models.user import CurrentUser
-from gendertagger.services.authentication import AuthenticationService, InvalidCredentialsError
+from gendertagger.services.authentication import (
+    AuthenticationService,
+    InvalidCredentialsError,
+    InvalidCurrentPasswordError,
+)
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 
 SESSION_COOKIE_NAME = "session"
@@ -54,9 +60,9 @@ class RejectAllAuthenticationBackend:
 class DatabaseAuthenticationBackend:
     """Local-account ``AuthenticationBackend`` backed by ``AuthenticationService`` (ADR-0031).
 
-    Resolves the ``session`` cookie into a user ID, and stashes the session's CSRF secret and
-    forced-password-change flag on ``request.state`` so ``validate_csrf`` and
-    ``require_password_current`` need no second session lookup.
+    Resolves the ``session`` cookie into a user ID, and stashes the session's CSRF secret, its
+    forced-password-change flag, and its kind on ``request.state`` so ``validate_csrf``,
+    ``require_password_current``, and ``GET /auth/session`` need no second session lookup.
     """
 
     def __init__(self, authentication_service: AuthenticationService) -> None:
@@ -72,6 +78,7 @@ class DatabaseAuthenticationBackend:
             return None
         request.state.csrf_secret = resolved.csrf_secret
         request.state.must_change_password = resolved.must_change_password
+        request.state.keep_signed_in = resolved.keep_signed_in
         return resolved.user_id
 
     def validate_csrf(self, request: Request, *, user_id: UUID) -> bool:
@@ -158,6 +165,18 @@ def read_current_user(
     return current_user
 
 
+@router.get("/auth/session", response_model=CurrentSession)
+def read_current_session(
+    request: Request,
+    _current_user: Annotated[CurrentUser, Depends(require_authenticated_user)],
+) -> CurrentSession:
+    """Return whether the session owes a password change and whether it was kept signed in."""
+    return CurrentSession(
+        must_change_password=cast(bool, getattr(request.state, "must_change_password", False)),
+        keep_signed_in=cast(bool, getattr(request.state, "keep_signed_in", False)),
+    )
+
+
 @router.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
     request: Request,
@@ -185,10 +204,11 @@ def change_own_password(
             current_password=body.current_password.get_secret_value(),
             new_password=body.new_password.get_secret_value(),
         )
-    except InvalidCredentialsError as error:
+    except InvalidCurrentPasswordError as error:
+        # Not 401: that status means the session is gone, and the client would sign the user out.
         raise ApiRequestError(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            code="invalid_credentials",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="invalid_current_password",
             message="The current password is incorrect.",
         ) from error
 
@@ -204,6 +224,7 @@ def login(
         issued = authentication_service.login(
             username=body.username,
             password=body.password.get_secret_value(),
+            keep_signed_in=body.keep_signed_in,
         )
     except InvalidCredentialsError as error:
         raise ApiRequestError(
@@ -211,14 +232,24 @@ def login(
             code="invalid_credentials",
             message="The username or password is incorrect.",
         ) from error
-    _set_session_cookies(response, token=issued.token, csrf_secret=issued.csrf_secret)
+    _set_session_cookies(
+        response,
+        token=issued.token,
+        csrf_secret=issued.csrf_secret,
+        # A kept-signed-in session survives browser restarts until its absolute limit; any other
+        # session gets browser-session cookies that the browser discards when it closes.
+        expires=issued.absolute_expires_at if issued.keep_signed_in else None,
+    )
     return issued.user
 
 
-def _set_session_cookies(response: Response, *, token: str, csrf_secret: str) -> None:
+def _set_session_cookies(
+    response: Response, *, token: str, csrf_secret: str, expires: datetime | None
+) -> None:
     response.set_cookie(
         SESSION_COOKIE_NAME,
         token,
+        expires=expires,
         httponly=True,
         secure=True,
         samesite="lax",
@@ -227,6 +258,7 @@ def _set_session_cookies(response: Response, *, token: str, csrf_secret: str) ->
     response.set_cookie(
         CSRF_COOKIE_NAME,
         csrf_secret,
+        expires=expires,
         httponly=False,
         secure=True,
         samesite="lax",

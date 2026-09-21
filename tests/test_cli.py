@@ -238,7 +238,9 @@ def test_users_reset_password_cli_forces_change_and_revokes_sessions(
             session_id="a" * 64,
             user_id=UUID(created["user_id"]),
             csrf_secret="csrf-secret",
+            keep_signed_in=False,
             expires_at=datetime(2099, 1, 1, tzinfo=UTC),
+            absolute_expires_at=datetime(2099, 1, 1, tzinfo=UTC),
         )
         session.commit()
 

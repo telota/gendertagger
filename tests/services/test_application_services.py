@@ -65,7 +65,12 @@ from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.annotations import AnnotationService
 from gendertagger.services.artifact_repository import ArtifactRepository
 from gendertagger.services.auth_repository import AuthRepository
-from gendertagger.services.authentication import AuthenticationService, InvalidCredentialsError
+from gendertagger.services.authentication import (
+    AuthenticationService,
+    InvalidCredentialsError,
+    InvalidCurrentPasswordError,
+    SessionLifetimePolicy,
+)
 from gendertagger.services.dispatch_repository import DispatchRepository
 from gendertagger.services.method_registry import MethodRegistry
 from gendertagger.services.pagination import CursorCodec, InvalidCursorError
@@ -906,7 +911,28 @@ class FakePasswordHasher:
 
 AUTH_USER_ID = UUID("c0000000-0000-0000-0000-000000000001")
 AUTH_USERNAME = "reviewer.one"
-SESSION_TTL = timedelta(hours=8)
+SESSION_LIFETIME = SessionLifetimePolicy(
+    idle=timedelta(hours=24),
+    keep_signed_in_idle=timedelta(days=7),
+    max_lifetime=timedelta(days=30),
+)
+
+
+def _user_session(
+    *,
+    expires_at: datetime,
+    absolute_expires_at: datetime | None = None,
+    keep_signed_in: bool = False,
+    revoked_at: datetime | None = None,
+) -> UserSession:
+    return UserSession(
+        user_id=AUTH_USER_ID,
+        csrf_secret="csrf-secret",
+        keep_signed_in=keep_signed_in,
+        expires_at=expires_at,
+        absolute_expires_at=absolute_expires_at or NOW + timedelta(days=30),
+        revoked_at=revoked_at,
+    )
 
 
 def _local_user(*, is_active: bool = True) -> User:
@@ -935,12 +961,13 @@ def _authentication_service(
     unit_of_work: StubUnitOfWork,
     password_hasher: PasswordHasherProtocol | None = None,
     clock: object = lambda: NOW,
+    session_lifetime: SessionLifetimePolicy = SESSION_LIFETIME,
 ) -> AuthenticationService:
     return AuthenticationService(
         unit_of_work_factory=unit_of_work.factory,
         password_hasher=password_hasher or FakePasswordHasher(),
         clock=clock,  # type: ignore[arg-type]  # A fixed-time lambda satisfies the Clock protocol.
-        session_ttl=SESSION_TTL,
+        session_lifetime=session_lifetime,
     )
 
 
@@ -964,8 +991,53 @@ def test_authentication_service_login_issues_session_for_verified_credentials() 
         create_session_kwargs["session_id"]
         == hashlib.sha256(issued.token.encode("ascii")).hexdigest()
     )
-    assert create_session_kwargs["expires_at"] == NOW + SESSION_TTL
+    assert create_session_kwargs["keep_signed_in"] is False
+    assert create_session_kwargs["expires_at"] == NOW + timedelta(hours=24)
+    assert create_session_kwargs["absolute_expires_at"] == NOW + timedelta(days=30)
+    assert issued.keep_signed_in is False
+    assert issued.absolute_expires_at == NOW + timedelta(days=30)
     assert unit_of_work.commit_count == 1
+
+
+def test_authentication_service_login_keep_signed_in_uses_the_longer_idle_limit() -> None:
+    users_repository = Mock(spec=UserRepository)
+    users_repository.get_user.return_value = _local_user()
+    auth_repository = Mock(spec=AuthRepository)
+    auth_repository.get_credential_by_username.return_value = _local_credential()
+    unit_of_work = StubUnitOfWork(users=users_repository, auth=auth_repository)
+    service = _authentication_service(unit_of_work=unit_of_work)
+
+    issued = service.login(
+        username=AUTH_USERNAME, password="correct-horse-battery", keep_signed_in=True
+    )
+
+    create_session_kwargs = auth_repository.create_session.call_args.kwargs
+    assert create_session_kwargs["keep_signed_in"] is True
+    assert create_session_kwargs["expires_at"] == NOW + timedelta(days=7)
+    assert create_session_kwargs["absolute_expires_at"] == NOW + timedelta(days=30)
+    assert issued.keep_signed_in is True
+
+
+def test_authentication_service_login_caps_the_idle_limit_at_the_absolute_limit() -> None:
+    users_repository = Mock(spec=UserRepository)
+    users_repository.get_user.return_value = _local_user()
+    auth_repository = Mock(spec=AuthRepository)
+    auth_repository.get_credential_by_username.return_value = _local_credential()
+    unit_of_work = StubUnitOfWork(users=users_repository, auth=auth_repository)
+    service = _authentication_service(
+        unit_of_work=unit_of_work,
+        session_lifetime=SessionLifetimePolicy(
+            idle=timedelta(hours=24),
+            keep_signed_in_idle=timedelta(days=7),
+            max_lifetime=timedelta(days=2),
+        ),
+    )
+
+    service.login(username=AUTH_USERNAME, password="correct-horse-battery", keep_signed_in=True)
+
+    create_session_kwargs = auth_repository.create_session.call_args.kwargs
+    assert create_session_kwargs["expires_at"] == NOW + timedelta(days=2)
+    assert create_session_kwargs["absolute_expires_at"] == NOW + timedelta(days=2)
 
 
 def test_authentication_service_login_rejects_unknown_username_without_revealing_it() -> None:
@@ -1007,12 +1079,7 @@ def test_authentication_service_login_rejects_inactive_user_or_wrong_password(
 
 def test_authentication_service_resolve_session_returns_state_for_valid_session() -> None:
     auth_repository = Mock(spec=AuthRepository)
-    auth_repository.get_session.return_value = UserSession(
-        user_id=AUTH_USER_ID,
-        csrf_secret="csrf-secret",
-        expires_at=NOW + timedelta(hours=1),
-        revoked_at=None,
-    )
+    auth_repository.get_session.return_value = _user_session(expires_at=NOW + timedelta(hours=1))
     auth_repository.get_credential.return_value = _local_credential(must_change_password=True)
     unit_of_work = StubUnitOfWork(auth=auth_repository)
     service = _authentication_service(unit_of_work=unit_of_work)
@@ -1023,6 +1090,7 @@ def test_authentication_service_resolve_session_returns_state_for_valid_session(
     assert resolved.user_id == AUTH_USER_ID
     assert resolved.csrf_secret == "csrf-secret"
     assert resolved.must_change_password is True
+    assert resolved.keep_signed_in is False
     assert (
         auth_repository.get_session.call_args.args[0]
         == hashlib.sha256(b"raw-session-token").hexdigest()
@@ -1031,12 +1099,7 @@ def test_authentication_service_resolve_session_returns_state_for_valid_session(
 
 def test_authentication_service_resolve_session_tolerates_missing_local_credential() -> None:
     auth_repository = Mock(spec=AuthRepository)
-    auth_repository.get_session.return_value = UserSession(
-        user_id=AUTH_USER_ID,
-        csrf_secret="csrf-secret",
-        expires_at=NOW + timedelta(hours=1),
-        revoked_at=None,
-    )
+    auth_repository.get_session.return_value = _user_session(expires_at=NOW + timedelta(hours=1))
     auth_repository.get_credential.return_value = None
     unit_of_work = StubUnitOfWork(auth=auth_repository)
     service = _authentication_service(unit_of_work=unit_of_work)
@@ -1051,18 +1114,9 @@ def test_authentication_service_resolve_session_tolerates_missing_local_credenti
     "session",
     [
         None,
-        UserSession(
-            user_id=AUTH_USER_ID,
-            csrf_secret="csrf-secret",
-            expires_at=NOW + timedelta(hours=1),
-            revoked_at=NOW,
-        ),
-        UserSession(
-            user_id=AUTH_USER_ID,
-            csrf_secret="csrf-secret",
-            expires_at=NOW - timedelta(seconds=1),
-            revoked_at=None,
-        ),
+        _user_session(expires_at=NOW + timedelta(hours=1), revoked_at=NOW),
+        _user_session(expires_at=NOW - timedelta(seconds=1)),
+        _user_session(expires_at=NOW),
     ],
 )
 def test_authentication_service_resolve_session_rejects_missing_revoked_or_expired(
@@ -1075,6 +1129,72 @@ def test_authentication_service_resolve_session_rejects_missing_revoked_or_expir
 
     assert service.resolve_session(session_token="raw-session-token") is None
     assert auth_repository.get_credential.call_count == 0
+    assert auth_repository.renew_session.call_count == 0
+    assert unit_of_work.commit_count == 0
+
+
+@pytest.mark.parametrize(
+    ("session", "renewed_expires_at"),
+    [
+        # An hour into a browser-session login, use slides the idle expiry to a full 24 hours.
+        (_user_session(expires_at=NOW + timedelta(hours=23)), NOW + timedelta(hours=24)),
+        # A kept-signed-in session slides by its own, longer idle limit.
+        (
+            _user_session(expires_at=NOW + timedelta(days=6), keep_signed_in=True),
+            NOW + timedelta(days=7),
+        ),
+        # Near the absolute limit, the idle expiry stops at it rather than passing it.
+        (
+            _user_session(
+                expires_at=NOW + timedelta(hours=1),
+                absolute_expires_at=NOW + timedelta(hours=2),
+            ),
+            NOW + timedelta(hours=2),
+        ),
+    ],
+)
+def test_authentication_service_resolve_session_slides_the_idle_expiry(
+    session: UserSession, renewed_expires_at: datetime
+) -> None:
+    auth_repository = Mock(spec=AuthRepository)
+    auth_repository.get_session.return_value = session
+    auth_repository.get_credential.return_value = _local_credential()
+    unit_of_work = StubUnitOfWork(auth=auth_repository)
+    service = _authentication_service(unit_of_work=unit_of_work)
+
+    resolved = service.resolve_session(session_token="raw-session-token")
+
+    assert resolved is not None
+    assert resolved.keep_signed_in is session.keep_signed_in
+    auth_repository.renew_session.assert_called_once_with(
+        hashlib.sha256(b"raw-session-token").hexdigest(), expires_at=renewed_expires_at
+    )
+    assert unit_of_work.commit_count == 1
+
+
+@pytest.mark.parametrize(
+    "session",
+    [
+        # Renewed moments ago: the next move would be under five minutes, so nothing is written.
+        _user_session(expires_at=NOW + timedelta(hours=24) - timedelta(minutes=4)),
+        # Already at the absolute limit: there is nowhere left to slide.
+        _user_session(
+            expires_at=NOW + timedelta(hours=2), absolute_expires_at=NOW + timedelta(hours=2)
+        ),
+    ],
+)
+def test_authentication_service_resolve_session_skips_small_or_capped_renewals(
+    session: UserSession,
+) -> None:
+    auth_repository = Mock(spec=AuthRepository)
+    auth_repository.get_session.return_value = session
+    auth_repository.get_credential.return_value = _local_credential()
+    unit_of_work = StubUnitOfWork(auth=auth_repository)
+    service = _authentication_service(unit_of_work=unit_of_work)
+
+    assert service.resolve_session(session_token="raw-session-token") is not None
+    assert auth_repository.renew_session.call_count == 0
+    assert unit_of_work.commit_count == 0
 
 
 def test_authentication_service_logout_revokes_hashed_session_and_commits() -> None:
@@ -1117,7 +1237,7 @@ def test_authentication_service_change_password_rejects_wrong_current_password()
     unit_of_work = StubUnitOfWork(auth=auth_repository)
     service = _authentication_service(unit_of_work=unit_of_work)
 
-    with pytest.raises(InvalidCredentialsError):
+    with pytest.raises(InvalidCurrentPasswordError):
         service.change_password(
             user_id=AUTH_USER_ID,
             current_password="not-the-current-password",
