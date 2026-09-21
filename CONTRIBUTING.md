@@ -87,9 +87,15 @@ npm --prefix frontend test
 npm --prefix frontend run build
 ```
 
-A backend contract change updates `tests/fixtures/openapi-v1.json`; regenerate the client with
-`npm --prefix frontend run api:generate` and commit `frontend/src/api/schema.d.ts` with it, or
-`api:check` fails.
+A backend contract change is two commands, and both outputs are committed with the change:
+
+```bash
+uv run --locked python scripts/update_openapi_snapshot.py   # tests/fixtures/openapi-v1.json
+npm --prefix frontend run api:generate                      # frontend/src/api/schema.d.ts
+```
+
+Review the snapshot diff as a public contract change. The backend contract test fails when the first step
+was skipped, and `api:check` fails when the second was.
 
 The PostgreSQL test role must be allowed to create temporary databases. The integration suite creates a
 randomly named database per migration/repository scope and removes it after the session.

@@ -415,6 +415,6 @@ Development may explicitly allow the Vite origin (for example `http://localhost:
 
 Treat generated OpenAPI as part of the public contract.
 
-A committed OpenAPI snapshot test detects unintended schema changes: `tests/fixtures/openapi-v1.json` must equal the live schema. The frontend generates its TypeScript transport types from that snapshot, and the `frontend_quality` CI job (`npm run api:check`) fails when the committed `frontend/src/api/schema.d.ts` is stale, so a contract change must also regenerate the client with `npm --prefix frontend run api:generate`. Do not maintain duplicate handwritten transport models.
+A committed OpenAPI snapshot test detects unintended schema changes: `tests/fixtures/openapi-v1.json` must equal the live schema. `scripts/update_openapi_snapshot.py` owns the one rendering of that snapshot; it rewrites the file, and the contract test runs it with `--check`. The frontend generates its TypeScript transport types from that snapshot, and the `frontend_quality` CI job (`npm run api:check`) fails when the committed `frontend/src/api/schema.d.ts` is stale, so a contract change must also regenerate the client with `npm --prefix frontend run api:generate`. Do not maintain duplicate handwritten transport models.
 
 See `17-frontend-integration.md` and `decisions/ADR-0006-vue-browser-client-boundary.md`.

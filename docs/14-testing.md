@@ -187,8 +187,10 @@ Backend contract tests cover:
 - `/api/v1/me` authorization behavior;
 - production CORS defaults and explicit development origin behavior.
 
-The frontend's TypeScript transport types are generated from the committed OpenAPI snapshot, and the
-`frontend_quality` CI job fails when they drift from it (`npm run api:check`).
+The OpenAPI contract test runs `scripts/update_openapi_snapshot.py --check`, so the snapshot has a single
+rendering and a failure names the command that fixes it. The frontend's TypeScript transport types are
+generated from the committed snapshot, and the `frontend_quality` CI job fails when they drift from it
+(`npm run api:check`).
 
 ## Suites and markers
 

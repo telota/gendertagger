@@ -1,44 +1,54 @@
-import json
+import subprocess
+import sys
 from pathlib import Path
 
-from pydantic import SecretStr
+import pytest
 
-from gendertagger.api.app import create_app
-from gendertagger.api.settings import AppSettings
-from gendertagger.services.unit_of_work import UnitOfWork
-
-DATABASE_URL = "postgresql+psycopg://api:secret@localhost/gendertagger"
-CODE_GIT_COMMIT = "a" * 40
-DEPENDENCY_LOCK_SHA256 = "b" * 64
-OPENAPI_SNAPSHOT = Path(__file__).parents[1] / "fixtures" / "openapi-v1.json"
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+OPENAPI_SNAPSHOT = _REPOSITORY_ROOT / "tests" / "fixtures" / "openapi-v1.json"
+SNAPSHOT_SCRIPT = _REPOSITORY_ROOT / "scripts" / "update_openapi_snapshot.py"
 
 
-def _unused_unit_of_work_factory() -> UnitOfWork:
-    raise AssertionError("OpenAPI generation must not open persistence")
+def _run_snapshot_script(*arguments: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(  # noqa: S603 -- the interpreter and script paths are repository-controlled.
+        [sys.executable, str(SNAPSHOT_SCRIPT), *arguments],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
 
 
 def test_openapi_matches_committed_public_contract() -> None:
-    application = create_app(
-        settings=AppSettings(
-            database_url=SecretStr(DATABASE_URL),
-            code_git_commit=CODE_GIT_COMMIT,
-            dependency_lock_sha256=DEPENDENCY_LOCK_SHA256,
-        ),
-        unit_of_work_factory=_unused_unit_of_work_factory,
-    )
+    # The script owns the one rendering of the contract; on drift its output names the fix.
+    result = _run_snapshot_script("--check")
 
-    rendered_schema = (
-        json.dumps(
-            application.openapi(),
-            ensure_ascii=False,
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n"
-    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
-    assert rendered_schema == OPENAPI_SNAPSHOT.read_text(encoding="utf-8")
-    assert "storage_uri" not in rendered_schema
-    assert "task_id" not in rendered_schema
-    assert "queue_name" not in rendered_schema
-    assert "worker_metadata" not in rendered_schema
+
+@pytest.mark.parametrize("field", ["storage_uri", "task_id", "queue_name", "worker_metadata"])
+def test_committed_public_contract_exposes_no_infrastructure_detail(field: str) -> None:
+    assert field not in OPENAPI_SNAPSHOT.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("committed", [None, "{}\n"])
+def test_snapshot_check_rejects_a_missing_or_stale_snapshot_and_names_both_fixes(
+    tmp_path: Path, committed: str | None
+) -> None:
+    if committed is not None:
+        snapshot = tmp_path / "tests" / "fixtures" / "openapi-v1.json"
+        snapshot.parent.mkdir(parents=True)
+        snapshot.write_text(committed, encoding="utf-8")
+
+    result = _run_snapshot_script("--check", "--root", str(tmp_path))
+
+    assert result.returncode == 1
+    assert "scripts/update_openapi_snapshot.py" in result.stdout
+    assert "npm --prefix frontend run api:generate" in result.stdout
+
+
+def test_snapshot_update_writes_the_committed_rendering(tmp_path: Path) -> None:
+    result = _run_snapshot_script("--root", str(tmp_path))
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    written = tmp_path / "tests" / "fixtures" / "openapi-v1.json"
+    assert written.read_text(encoding="utf-8") == OPENAPI_SNAPSHOT.read_text(encoding="utf-8")

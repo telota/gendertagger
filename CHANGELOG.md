@@ -128,6 +128,9 @@ the phased plan that resumes application code.
   ([ADR-0030](docs/decisions/ADR-0030-bilingual-client-with-untranslated-canonical-vocabulary.md)),
   theme-scoped design tokens for both themes, automated accessibility and contrast checks, a pinned
   multi-stage image with a history-mode fallback, and `frontend_*` CI jobs and pre-commit hooks.
+- `scripts/update_openapi_snapshot.py`, which owns the one rendering of the committed OpenAPI snapshot. It
+  rewrites `tests/fixtures/openapi-v1.json`, and with `--check` it is what the contract test runs, so a stale
+  snapshot now fails with the commands that fix it instead of a bare string diff.
 
 ### Changed
 
