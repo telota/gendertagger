@@ -10,8 +10,10 @@ does not precede a deployable, tested vertical slice.
 
 - Hatchling builds the Python distribution.
 - uv resolves and installs dependencies. Commit `uv.lock`; CI uses only locked installs.
-- npm installs the official Pyright CLI from the committed `package-lock.json`; Node.js is a development
+- npm installs the official Pyright CLI from the committed root `package-lock.json`; Node.js is a development
   runtime and does not enter the Python package metadata.
+- The Vue client has its own `frontend/package.json` and `frontend/package-lock.json`. Its `.npmrc` sets
+  `engine-strict=true`, so `npm ci` in `frontend/` needs the Node version in its `engines` field.
 - Direct development tools are pinned in `pyproject.toml`; the lockfile records the complete transitive
   Python environment. JavaScript development tools are pinned exactly in `package.json`.
 - Runtime libraries belong in `[project.dependencies]`. Heavy method/model dependencies should use
@@ -110,7 +112,9 @@ The initial GitLab pipeline performs:
 4. locked Python and npm dependency vulnerability audits;
 5. the fast, PostgreSQL, and Redis pytest suites with combined branch coverage;
 6. wheel and source-distribution construction plus a sensitive-content policy check;
-7. GitLab SAST and secret detection.
+7. GitLab SAST and secret detection;
+8. frontend lint, formatting, type checking, message-catalogue and transport-drift checks, npm audit, Vitest
+   with its coverage floor, and the production build.
 
 The base CI image is pinned by version and multi-platform manifest digest. Review and update both together;
 do not replace the digest with a mutable convenience tag.
@@ -125,8 +129,8 @@ fail with a direct diagnostic instead of consuming the entire test-job timeout.
 
 The merge-request pipeline covers PostgreSQL/Alembic, API/OpenAPI, Redis/Celery, conformance coverage for
 every reference adapter, and the complete evaluation/export workflow, plus the packaging, SBOM, and
-secret-detection gates from Phase 7's operational hardening. Phase 8 adds frontend validation once the Vue
-client exists, as listed in `14-testing.md`; heavy-model checks remain on protected or scheduled runners.
+secret-detection gates from Phase 7's operational hardening, and the Phase 8 frontend jobs listed in
+`14-testing.md`; heavy-model checks remain on protected or scheduled runners.
 
 Ordinary merge-request jobs have no production secrets and must not use private-network, GPU, model, or
 deployment runners. Such runners are protected and accept only trusted protected refs or schedules.

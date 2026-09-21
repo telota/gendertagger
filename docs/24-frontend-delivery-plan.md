@@ -16,17 +16,17 @@ is deliberately not asserted here.
 
 ## Where the work actually starts
 
-Phase 8's backend prerequisites are met, but three practical preconditions are not, and two of them are
-outside the frontend team's control.
+Phase 8's backend prerequisites are met. Of the three practical preconditions for the client, one is met and
+two are not.
 
 | Precondition | State | Blocks |
 |---|---|---|
-| A real `AuthenticationBackend` | **Not met.** `RejectAllAuthenticationBackend` fails closed; every `/api/v1` call returns `401`. | Everything past a login screen |
+| A real `AuthenticationBackend` | **Met.** `DatabaseAuthenticationBackend` is the default: admin-provisioned local accounts and server-side sessions ([ADR-0031](decisions/ADR-0031-local-database-authentication.md)). | — |
 | Three missing read endpoints | **Not met.** Project list, per-person method results, annotation history. | Shell, review detail panel, audit view |
-| Blocking semantic decisions | **Partly taken.** D2, D3, D4 resolved; D5 and D6 deliberately open. See [Decisions](#decisions-taken). | `GET /projects` shape (D6); Manuell annotieren (D5) |
+| Blocking semantic decisions | **Partly taken.** D1–D4 resolved; D5 and D6 deliberately open. See [Decisions](#decisions-taken). | `GET /projects` shape (D6); Manuell annotieren (D5) |
 
-The frontend can be scaffolded against a mocked or development authentication backend, so M1 and M2 are not
-hard-blocked. M3 onward are.
+M1 is delivered and M2 is not blocked, since a real authentication backend is in place. M3 onward wait on
+the missing read endpoints.
 
 ## Existing scaffolding and what it still needs
 
@@ -117,7 +117,7 @@ than reconstructed at the end.
 
 | ID | Milestone | Size | Hard dependencies |
 |---|---|---|---|
-| M0 | Decisions and backend prerequisites | M | D1 resolved, pending implementation; D6 before `GET /projects` ships; three read endpoints |
+| M0 | Decisions and backend prerequisites | M | D6 before `GET /projects` ships; three read endpoints |
 | M1 | Scaffold and transport | S | none — D3, D8, D11, D12 all resolved |
 | M2 | Application shell | M | M1; a working auth backend |
 | M3 | Projects and import | M | M2; `GET /projects` (D6) |
@@ -132,13 +132,18 @@ than reconstructed at the end.
 
 **Goal.** Remove the things that would force rework later.
 
+**Status.** In progress. D1 is implemented: `DatabaseAuthenticationBackend` is the default backend,
+`gendertagger users create` provisions accounts, and the generated transport already covers the login,
+logout, and password-change endpoints. D6, the three read endpoints, the written confirmation of the scope
+exclusions, and the two [outstanding assignments](#outstanding-assignments) remain.
+
 **Work.**
 
 - D6 before `GET /projects` is specified. D1, D2, D3, and D4 are resolved, and D3 is recorded as
   [ADR-0030](decisions/ADR-0030-bilingual-client-with-untranslated-canonical-vocabulary.md).
 - Implement D1 per [ADR-0031](decisions/ADR-0031-local-database-authentication.md): admin-provisioned local
-  accounts, DB-backed sessions, admin-only password reset. This *is* "stand up a development authentication
-  backend" below — there is no separate throwaway dev backend to build first.
+  accounts, DB-backed sessions, admin-only password reset. The same backend serves development and
+  production; there is no separate throwaway development backend. **Done.**
 - Apply D2 to the screen content of Import, Übersicht, and Einstellungen before those screens are designed
   in detail — the threshold control is removed, not reskinned.
 - Implement the three blocking read endpoints from
@@ -154,7 +159,7 @@ person's full method results and annotation history through `/api/v1`.
 
 **Goal.** A buildable, type-safe client skeleton with no hand-written schema.
 
-**Status.** Delivered on branch `feat/frontend-m1-scaffold`. Lint, formatting, type checking, the test suite
+**Status.** Delivered and merged to `main`. Lint, formatting, type checking, the test suite
 with its coverage floor, the production build, the message-catalogue check, and the transport drift check all
 pass locally from a clean `npm ci`, and each check was shown to fail on a deliberate violation. The Docker
 image build and the GitLab jobs are written but have not been run yet.
@@ -186,7 +191,8 @@ contract change fails CI.
 
 - Router with the nested project/snapshot/run/aggregation structure from
   [`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md).
-- Session handling against `GET /me`, login/logout, `401` redirect, role-aware hiding and disabling.
+- Session handling against `GET /me`, login/logout, `401` redirect, role-aware hiding and disabling, and
+  the forced password change that `403 password_change_required` signals (D1).
 - The eight cross-cutting concerns listed in that document: error envelope, `409` recovery, `413` limits,
   async `202`-poll composable, SSE composable, cursor pagination, roles, CSRF.
 - Design tokens, typography scale, and the primitive components — with real `<button>`/`<a>` elements,
@@ -315,6 +321,29 @@ checksum against the manifest.
 resolve, and the review path works end to end behind a real session.
 
 ## Decisions taken
+
+### D1 — Local accounts now, institutional SSO later
+
+**Resolved as recommended and implemented.** The production provider is a local, database-backed account
+system: admin-provisioned accounts, Argon2id password hashes, and server-side sessions that can be revoked.
+Institutional OIDC/SSO remains a later, additive `AuthenticationBackend`; every backend terminates into the
+same `CurrentUser`, so that swap stays contained. Recorded as
+[ADR-0031](decisions/ADR-0031-local-database-authentication.md).
+
+**Consequences.**
+
+- The client signs in with `POST /auth/login`, reads its principal from `GET /me`, and signs out with
+  `POST /auth/logout`. The backend sets an HTTP-only `session` cookie and a readable `csrf_token` cookie,
+  which the client mirrors into the `X-CSRF-Token` header on every unsafe request.
+- Accounts are created by an administrator with `gendertagger users create`. No screen manages users, and
+  there is neither self-registration nor email-based password recovery.
+- A new or reset account must change its password first. Until `POST /me/password` succeeds, every endpoint
+  except `GET /me`, `POST /auth/logout`, and `POST /me/password` returns `403 password_change_required`, so
+  the shell needs a forced password-change view. A wrong current password on `POST /me/password` is
+  `401 invalid_credentials`, not a lost session, so the shell's `401` redirect must key on the error `code`.
+- Sessions last a fixed 8 hours by default, with no sliding refresh. The API does not expose a session's
+  expiry time, so warning before expiry, as
+  [`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md) requires, has to be designed in M2.
 
 ### D2 — Certainty and agreement tiers, not a confidence threshold
 
@@ -547,7 +576,7 @@ expectations. Each is analysed in [`23-wireframe-ui-inventory.md`](23-wireframe-
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Local authentication backend (ADR-0031) not yet implemented | Client cannot ship regardless of its completeness | Implement it as part of M0, ahead of M2's hard dependency on a working auth backend |
+| No real authentication provider | Client cannot ship regardless of its completeness | Resolved by D1: the local account backend (ADR-0031) is implemented and is the default |
 | Aggregation is invisible in the accepted design | Users expect review immediately after classification | Resolved by D4: auto-create the default aggregation, keep the step legible in the route and the UI |
 | D6 left open while `GET /projects` is implemented | Narrowing the response later is a breaking contract change | Ship it provisional and documented as such, or answer D6 before M0 completes |
 | Tier vocabulary is unfamiliar to reviewers | Six certainty tiers replace one intuitive percentage | Glosses per D3, and two clearly separated queue entry points rather than six raw filters |
@@ -562,13 +591,10 @@ expectations. Each is analysed in [`23-wireframe-ui-inventory.md`](23-wireframe-
 
 1. Decide D6 before `GET /projects` is specified.
 2. Implement the three blocking read endpoints.
-3. Implement ADR-0031 (local database authentication) — migration, credential/session tables, the
-   `auth`/`me` endpoints, and `DatabaseAuthenticationBackend` wired in as the process's authentication
-   backend.
-4. Confirm the v1 scope exclusions with the stakeholders who reviewed the wireframe, and confirm with them
+3. Confirm the v1 scope exclusions with the stakeholders who reviewed the wireframe, and confirm with them
    that the threshold control is removed rather than redesigned (D2) — this is the most visible change
    against the accepted wireframe.
-5. Appoint the accessibility owner and confirm whether an accessibility statement is legally required.
+4. Appoint the accessibility owner and confirm whether an accessibility statement is legally required.
    Both are organisational, both gate M0, and neither is resolvable from inside the repository.
-6. Begin M1 in parallel with items 1–5, since scaffolding, i18n, tokens, and transport generation depend on
-   none of them.
+5. Begin M2 in parallel with items 1–4. Its hard dependencies, M1 and a working authentication backend, are
+   both in place; its overlay primitives still need the headless accessibility library chosen (D9).

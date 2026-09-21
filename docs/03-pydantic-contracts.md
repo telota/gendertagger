@@ -43,6 +43,7 @@ read, command, and message models are additionally frozen.
 | `models/classify.py` | Synchronous on-demand classification request and response |
 | `models/api.py` | `ApiErrorDetail`, `ApiErrorEnvelope`, `CursorPage` |
 | `models/user.py` | `Role`, `CurrentUser`, `UserCreate`, `User` |
+| `models/auth.py` | Local-account `LoginRequest`, `ChangePasswordRequest`, `LocalCredential`, `UserSession`, and username/password validation |
 | `models/common.py` | `UtcDatetime`, `canonical_json_sha256` |
 | `models/queues.py` | Operational queue-routing vocabulary |
 
@@ -609,7 +610,8 @@ class CurrentUser(BaseModel):
     roles: set[Role]
 ```
 
-The exact identity provider is infrastructure. Phase 3 exposes global roles only; project-scoped permissions remain deferred until their semantics are defined. Services consume this explicit authenticated principal.
+The exact identity provider is infrastructure: local-account credentials and sessions live in
+`models/auth.py` so `CurrentUser` stays provider-neutral. Phase 3 exposes global roles only; project-scoped permissions remain deferred until their semantics are defined. Services consume this explicit authenticated principal.
 
 ### Review concurrency
 ```python

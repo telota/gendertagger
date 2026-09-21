@@ -26,9 +26,9 @@ The scientific `unknown` label is never represented by `null`.
 
 ## Resource outline
 
-[`gendertagger.api.router`](../src/gendertagger/api/router.py) composes the complete versioned surface.
-`create_api_router` mounts every resource module under the `/api/v1` prefix, so the following table is the
-whole public API:
+[`gendertagger.api.router`](../src/gendertagger/api/router.py) composes the complete versioned surface from
+three routers under the `/api/v1` prefix, which differ only in their authentication requirements (see
+below). The following table is the whole public API:
 
 | Method | Path | Success status | Least role |
 |---|---|---|---|
@@ -57,19 +57,24 @@ whole public API:
 | `POST` | `/api/v1/classify` | `200` | viewer |
 | `GET` | `/api/v1/methods` | `200` | viewer |
 | `GET` | `/api/v1/me` | `200` | any authenticated user |
+| `POST` | `/api/v1/me/password` | `204` | any authenticated user |
+| `POST` | `/api/v1/auth/login` | `200` | none (unauthenticated) |
+| `POST` | `/api/v1/auth/logout` | `204` | any authenticated user |
 
 Predictions have no public collection of their own. A run's per-method outputs are read through its
 executions and through the aggregated results that summarize them.
 
-The router itself carries `Depends(require_csrf_protection)`, so the dependency runs for every route above
+Every route except `POST /auth/login` carries `Depends(require_csrf_protection)`, so the dependency runs
 before any handler body. Because that dependency in turn depends on `require_authenticated_user`, the
 `/api/v1` boundary is fail-closed for reading as well as writing: an unauthenticated request is rejected
 with `401` even on a safe method. `require_csrf_protection` additionally validates the browser session for
-unsafe methods; `GET`, `HEAD`, `OPTIONS`, and `TRACE` return early without a CSRF check. Per-route role
+unsafe methods; `GET`, `HEAD`, `OPTIONS`, and `TRACE` return early without a CSRF check. Every route except
+`GET /me`, `POST /me/password`, and `POST /auth/logout` also carries `require_password_current`, which
+returns `403 password_change_required` while a local account still owes a password change. Per-route role
 dependencies (`require_viewer`, `require_reviewer`, `require_operator`) then narrow the capability, and the
 roles are hierarchical, so an operator satisfies a reviewer route.
 
-The router also declares `ApiErrorEnvelope` as the documented response model for `400`, `401`, `403`,
+All three routers declare `ApiErrorEnvelope` as the documented response model for `400`, `401`, `403`,
 `404`, `409`, `413`, `422`, and `500` across every route, so the error contract is uniform in OpenAPI.
 
 Only the unversioned liveness endpoints `GET /health` and `GET /ready` sit outside the router, and
@@ -389,7 +394,13 @@ Stale writes return `409 Conflict` with code `annotation_conflict`. This protect
 
 Expose `/api/v1/me` using a typed `CurrentUser` contract. Authorization belongs in FastAPI dependencies/application services, never only in the Vue UI.
 
-For the same-origin browser application, secure HTTP-only session cookies plus CSRF protection cover state-changing requests. A separate token/OIDC mechanism for external machine clients is recorded in [`22-future-development.md`](22-future-development.md).
+For the same-origin browser application, secure HTTP-only session cookies plus CSRF protection cover state-changing requests. The local account provider ([ADR-0031](decisions/ADR-0031-local-database-authentication.md)) supplies them:
+
+- `POST /auth/login` takes a `LoginRequest` (`username`, `password`), returns `CurrentUser`, and sets two cookies: `session`, which is `HttpOnly`, and `csrf_token`, which the client reads and mirrors into the `X-CSRF-Token` header on unsafe requests. A failed login is a generic `401 invalid_credentials`.
+- `POST /auth/logout` revokes the current session and clears both cookies.
+- `POST /me/password` takes a `ChangePasswordRequest` (`current_password`, `new_password`, at least 12 characters) and clears the forced-change flag. A wrong current password is `401 invalid_credentials`.
+
+Account provisioning is CLI-only (`gendertagger users create` / `reset-password`); there is no HTTP surface for it. A separate token/OIDC mechanism for external machine clients is recorded in [`22-future-development.md`](22-future-development.md).
 
 ## CORS
 
@@ -401,6 +412,6 @@ Development may explicitly allow the Vite origin (for example `http://localhost:
 
 Treat generated OpenAPI as part of the public contract.
 
-A committed OpenAPI snapshot test detects unintended schema changes. Generating and drift-checking a TypeScript client from this schema once the Vue frontend exists is recorded in [`22-future-development.md`](22-future-development.md). Do not maintain duplicate handwritten transport models.
+A committed OpenAPI snapshot test detects unintended schema changes: `tests/fixtures/openapi-v1.json` must equal the live schema. The frontend generates its TypeScript transport types from that snapshot, and the `frontend_quality` CI job (`npm run api:check`) fails when the committed `frontend/src/api/schema.d.ts` is stale, so a contract change must also regenerate the client with `npm --prefix frontend run api:generate`. Do not maintain duplicate handwritten transport models.
 
 See `17-frontend-integration.md` and `decisions/ADR-0006-vue-browser-client-boundary.md`.

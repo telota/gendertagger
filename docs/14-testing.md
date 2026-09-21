@@ -187,8 +187,8 @@ Backend contract tests cover:
 - `/api/v1/me` authorization behavior;
 - production CORS defaults and explicit development origin behavior.
 
-Generating and drift-checking a TypeScript transport client from OpenAPI in CI is recorded in
-[`22-future-development.md`](22-future-development.md); it becomes actionable once the Vue client exists.
+The frontend's TypeScript transport types are generated from the committed OpenAPI snapshot, and the
+`frontend_quality` CI job fails when they drift from it (`npm run api:check`).
 
 ## Suites and markers
 
@@ -219,9 +219,9 @@ baseline instead of manufacturing tests solely to hit a global number.
 
 ## CI progression
 
-Every gate below through Phase 7 is live in `.gitlab-ci.yml`, whose stages are `validate`, `test`,
-`coverage`, `package`, `secret-detection`, `publish`, and `sbom`. Phase 8 adds frontend gates once the Vue
-client exists.
+Every gate below is live in `.gitlab-ci.yml`, whose stages are `validate`, `test`, `coverage`, `package`,
+`secret-detection`, `publish`, and `sbom`. The Phase 8 frontend gates run as `frontend_quality`,
+`frontend_dependency_audit`, `frontend_test`, and `frontend_build`.
 
 | Phase | Required gates added |
 |---|---|

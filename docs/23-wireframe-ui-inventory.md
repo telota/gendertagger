@@ -449,11 +449,14 @@ trapped — the Vue port must add a focus trap and restore focus on close.
 
 ## Backend endpoint coverage
 
-All twenty-five delivered `/api/v1` endpoints, and how the wireframe treats each.
+All twenty-eight delivered `/api/v1` endpoints, and how the wireframe treats each.
 
 | Endpoint | Role | Wireframe treatment |
 |---|---|---|
 | `GET /me` | authenticated | mocked ("Sam Kurator:in") |
+| `POST /auth/login` | unauthenticated | **absent — no login screen** |
+| `POST /auth/logout` | authenticated | **absent** |
+| `POST /me/password` | authenticated | **absent — no password-change screen** |
 | `POST /projects` | operator | modal, missing `slug`/`description` |
 | `GET /projects/{id}` | viewer | mocked in topbar |
 | `POST /projects/{id}/snapshots` | operator | partial — TEI/single only |
@@ -479,8 +482,9 @@ All twenty-five delivered `/api/v1` endpoints, and how the wireframe treats each
 | `GET /exports/{id}` | viewer | **absent** |
 | `GET /exports/{id}/download` | viewer | mocked menu item |
 
-Authentication is fail-closed: the default backend is `RejectAllAuthenticationBackend` and the whole
-`/api/v1` router carries `require_csrf_protection`. Roles are hierarchical — `viewer` < `reviewer` <
+Authentication is fail-closed: every `/api/v1` route except `POST /auth/login` carries
+`require_csrf_protection`, and the default backend is the local account system from
+[ADR-0031](decisions/ADR-0031-local-database-authentication.md). Roles are hierarchical — `viewer` < `reviewer` <
 `operator` < `admin` ([`api/authorization.py`](../src/gendertagger/api/authorization.py)). The wireframe has
 no login, no session handling, and no role-conditional affordances; per
 [`17-frontend-integration.md`](17-frontend-integration.md) the UI hides or disables controls for convenience

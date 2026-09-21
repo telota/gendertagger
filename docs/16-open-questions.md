@@ -9,13 +9,16 @@ Expansion candidates that remain deliberately unimplemented are recorded in
 
 ## Authentication identity provider
 
-Resolved by making the provider pluggable instead of choosing one. Browser mechanics are fixed:
+Resolved in two steps. First, the provider was made pluggable. Browser mechanics are fixed:
 same-origin secure HTTP-only session cookies, with CSRF validation required for every unsafe method
-on the `/api/v1` router. The identity provider itself is deliberately not fixed in code.
-`AuthenticationBackend` is a protocol, the shipped `RejectAllAuthenticationBackend` fails closed
-until a deployment supplies a real one, and every backend terminates into the same `CurrentUser`
-abstraction. Local accounts and institutional SSO therefore need no divergent authorization path.
-See [`13-auth-and-security.md`](13-auth-and-security.md).
+on the `/api/v1` router. `AuthenticationBackend` is a protocol, and every backend terminates into the
+same `CurrentUser` abstraction, so local accounts and institutional SSO need no divergent
+authorization path.
+
+Second, the default provider was chosen: `DatabaseAuthenticationBackend`, a local account system with
+admin-provisioned users, Argon2id password hashes, and revocable server-side sessions
+([ADR-0031](decisions/ADR-0031-local-database-authentication.md)). Institutional SSO remains a later,
+additive backend. See [`13-auth-and-security.md`](13-auth-and-security.md).
 
 ## Exact batch sizes and concurrency
 

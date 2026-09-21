@@ -176,7 +176,8 @@ definition of done.
 - frontend browse/game interface
 - verify/correct/defer actions
 - audit/history view
-- secure HTTP-only session + CSRF integration
+- secure HTTP-only session + CSRF integration (backend provider done per
+  [ADR-0031](decisions/ADR-0031-local-database-authentication.md); client session handling remains)
 - same-origin production build/routing
 
 Exit criterion: a reviewer can correct a machine result and the final-decision view changes without mutating Predictions/AggregatedResults.
@@ -191,7 +192,11 @@ persisted API-to-worker workflow.
 The active work is Phase 8, the Vue annotation and review client. Its backend prerequisites are already
 met: the review-items query API is stable and review-stream revision conflicts return `409`. The remaining
 Phase 8 items are frontend work. The scaffold and the generated transport client are in place
-(milestone M1); the application shell and every screen remain to be built. The second active track is
+(milestone M1), and the local account authentication backend
+([ADR-0031](decisions/ADR-0031-local-database-authentication.md)) is the default provider. The
+application shell and every screen remain to be built, and three read endpoints they depend on (project
+list, per-person method results, annotation history) are still missing; see
+[`24-frontend-delivery-plan.md`](24-frontend-delivery-plan.md). The second active track is
 operating the stack in production under [`21-production-promotion.md`](21-production-promotion.md).
 
 The transformer classifiers (`hf_distilbert`, `hf_genderize`) and the experimental HIVOTO-XGBoost adapter

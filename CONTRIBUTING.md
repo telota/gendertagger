@@ -72,6 +72,25 @@ uv build --no-sources
 uv run --locked python scripts/check_distribution.py dist/*
 ```
 
+The Vue client has its own lockfile and requires the Node version in `frontend/package.json` `engines`. Its CI
+jobs run:
+
+```bash
+npm --prefix frontend ci
+npm --prefix frontend run lint
+npm --prefix frontend run format:check
+npm --prefix frontend run typecheck
+npm --prefix frontend run i18n:check
+npm --prefix frontend run api:check
+npm --prefix frontend audit --audit-level=high
+npm --prefix frontend test
+npm --prefix frontend run build
+```
+
+A backend contract change updates `tests/fixtures/openapi-v1.json`; regenerate the client with
+`npm --prefix frontend run api:generate` and commit `frontend/src/api/schema.d.ts` with it, or
+`api:check` fails.
+
 The PostgreSQL test role must be allowed to create temporary databases. The integration suite creates a
 randomly named database per migration/repository scope and removes it after the session.
 

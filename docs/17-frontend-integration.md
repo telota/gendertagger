@@ -180,7 +180,9 @@ The domain revision is authoritative. Mirroring it into ETag/`If-Match` headers 
 
 The browser deployment uses secure, HTTP-only session cookies rather than storing long-lived bearer tokens in JavaScript-accessible storage.
 
-CSRF protection is enforced for state-changing browser requests: the `/api/v1` router carries the `require_csrf_protection` dependency, so every unsafe method is validated against its browser session.
+CSRF protection is enforced for state-changing browser requests: every `/api/v1` route except `POST /auth/login` carries the `require_csrf_protection` dependency, so every unsafe method is validated against its browser session.
+
+The session comes from the local account provider ([ADR-0031](decisions/ADR-0031-local-database-authentication.md)). `POST /api/v1/auth/login` sets an HTTP-only `session` cookie and a readable `csrf_token` cookie; the client's transport layer mirrors the latter into the `X-CSRF-Token` header on every unsafe request. `POST /api/v1/auth/logout` ends the session. A new or reset account receives `403 password_change_required` from every other endpoint until it changes its password through `POST /api/v1/me/password`.
 
 The backend exposes a typed `CurrentUser`/`/api/v1/me` contract. Application services authorize actions from that identity; the UI merely hides/disables controls for convenience.
 
@@ -218,7 +220,10 @@ When the Vue UI is implemented:
 - keep scientific normalization, aggregation, permission checks, and final-decision logic on the backend;
 - optimistic UI is acceptable only where it cannot obscure a failed scholarly write.
 
-No frontend library choice beyond Vue 3 + TypeScript + Vite is normative yet.
+Beyond Vue 3 + TypeScript + Vite, the libraries in use are listed and justified in
+[`frontend/README.md`](../frontend/README.md). Overlay primitives use a small headless accessibility library
+per decision D9 in [`24-frontend-delivery-plan.md`](24-frontend-delivery-plan.md); the specific library is
+still to be chosen.
 
 ## Upload and download boundary
 
@@ -251,7 +256,7 @@ Every backend prerequisite for frontend implementation is delivered:
 - reconnect-safe SSE convenience stream;
 - append-only annotation commands with optimistic concurrency;
 - explicit `CurrentUser` contract;
-- browser-safe session/CSRF design;
+- browser-safe session/CSRF design, with a real local account provider behind it;
 - same-origin production topology;
 - upload/download via artifacts rather than paths.
 

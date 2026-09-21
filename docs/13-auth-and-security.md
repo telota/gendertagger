@@ -65,20 +65,34 @@ Do not log secrets or unnecessarily duplicate sensitive source content.
 Authentication is provider-neutral. `AuthenticationBackend` in
 [`api/authentication.py`](../src/gendertagger/api/authentication.py) is a protocol with two
 operations, `authenticate` and `validate_csrf`. The application resolves one backend from process
-state, and the shipped `RejectAllAuthenticationBackend` fails closed until a deployment supplies a
-provider. Every backend terminates into the same `CurrentUser` principal, which `GET /api/v1/me`
-returns without persistence-only fields.
+state: `create_app` installs `DatabaseAuthenticationBackend` unless the caller supplies another, and
+`RejectAllAuthenticationBackend` remains available as a backend that fails closed. Every backend
+terminates into the same `CurrentUser` principal, which `GET /api/v1/me` returns without
+persistence-only fields.
 
 The production provider is a local, database-backed account system: admin-provisioned users,
 Argon2id password hashes, and server-side revocable sessions, with no external identity provider and
-no self-service registration or email-based password recovery. See
+no self-service registration or email-based password recovery. Administrators create accounts with
+`gendertagger users create` and force a new password with `gendertagger users reset-password`; both
+flag the account to change its password at next use. See
 [ADR-0031](decisions/ADR-0031-local-database-authentication.md) for the exact schema, endpoints, and
 cookie contract. Institutional SSO remains a later, additive `AuthenticationBackend` implementation.
+Login rate limiting and lockout are not implemented yet; see
+[`22-future-development.md`](22-future-development.md).
 
-The whole `/api/v1` router carries the `require_csrf_protection` dependency. Every request is
-therefore authenticated, and every unsafe method — anything outside `GET`, `HEAD`, `OPTIONS`, and
-`TRACE` — additionally requires backend-owned CSRF validation, returning `403 forbidden` when it
-fails. Same-origin deployment uses secure HTTP-only session cookies with appropriate `Secure`,
+`/api/v1` is assembled from three routers in [`api/router.py`](../src/gendertagger/api/router.py):
+
+- Every route not listed below carries `require_csrf_protection` and `require_password_current`.
+  Every request is therefore authenticated, and every unsafe method — anything outside `GET`, `HEAD`,
+  `OPTIONS`, and `TRACE` — additionally requires backend-owned CSRF validation, returning
+  `403 forbidden` when it fails. A local account still flagged to change its password receives
+  `403 password_change_required`.
+- `GET /me`, `POST /auth/logout`, and `POST /me/password` carry only `require_csrf_protection`, so a
+  flagged account can still reach the one route that clears the flag.
+- `POST /auth/login` is the only unauthenticated route, since no session exists yet. A failed login
+  returns a generic `401 invalid_credentials` whether or not the username exists.
+
+Same-origin deployment uses secure HTTP-only session cookies with appropriate `Secure`,
 `HttpOnly`, and `SameSite` settings, so authentication secrets are never stored in
 JavaScript-accessible local or session storage.
 

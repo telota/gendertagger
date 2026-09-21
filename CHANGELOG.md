@@ -116,6 +116,18 @@ the phased plan that resumes application code.
   `data/models/hivoto_xgboost/PROVENANCE.md`), verified byte-exact against the original, and committed
   directly since it was trained by this project rather than externally licensed. Adds a new
   `assets prepare-hivoto-xgboost` CLI command and `hivoto-xgboost` optional dependency extra.
+- Local database authentication as the default `AuthenticationBackend`
+  ([ADR-0031](docs/decisions/ADR-0031-local-database-authentication.md)): admin-provisioned accounts through
+  `gendertagger users create` and `users reset-password`, Argon2id password hashes, revocable server-side
+  sessions with a fixed configurable lifetime, `POST /api/v1/auth/login`, `POST /api/v1/auth/logout`, and
+  `POST /api/v1/me/password`, a forced password change on new and reset accounts
+  (`403 password_change_required`), and a migration adding `user_credentials` and `user_sessions`.
+- The Vue 3 + TypeScript + Vite client scaffold in [`frontend/`](frontend/) (milestone M1): transport types
+  generated from the committed OpenAPI snapshot with a CI drift check, a typed fetch client with CSRF
+  attachment and stable-code error mapping, German and English message catalogues
+  ([ADR-0030](docs/decisions/ADR-0030-bilingual-client-with-untranslated-canonical-vocabulary.md)),
+  theme-scoped design tokens for both themes, automated accessibility and contrast checks, a pinned
+  multi-stage image with a history-mode fallback, and `frontend_*` CI jobs and pre-commit hooks.
 
 ### Changed
 
@@ -163,6 +175,9 @@ the phased plan that resumes application code.
 - Count every record covered by a terminal whole-batch failure in execution and run progress.
 - Isolated committed PostgreSQL/Redis test state between cases so the complete service-backed suite remains
   order-independent when concurrency tests use independent sessions.
+- The client read its CSRF token from a provisional `gendertagger_csrf` cookie, but the local account
+  backend sets `csrf_token`, so every unsafe request from a signed-in browser would have failed with
+  `403 forbidden`. The client now reads `csrf_token`.
 
 ### Removed
 

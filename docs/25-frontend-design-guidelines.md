@@ -382,7 +382,8 @@ EN 301 549, which in turn references WCAG, so building to the current 2.2 level 
 - Help and navigation stay in a consistent place across screens (3.2.6), and information already given is not
   demanded again within a flow (3.3.7).
 - Authentication does not rely on a cognitive function test (3.3.8): password managers, autofill, and paste
-  must work. This is a requirement on the provider chosen in decision D1, not only on the login form.
+  must work. The local account provider chosen in decision D1 asks only for a username and password, so
+  the requirement rests on the login and password-change forms: neither may block paste or autofill.
 - Time limits are adjustable, extendable, or switchable off (2.2.1). Two places are affected. Session expiry
   during a long review session must warn before it happens and never silently discard an unsent decision.
   The game-mode timer is switchable off per decision D19: the control is reachable **before the first timed

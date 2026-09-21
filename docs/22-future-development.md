@@ -158,14 +158,33 @@ checksum. See [`08-ingestion-and-export.md`](08-ingestion-and-export.md).
 
 ### Institutional OIDC/SSO integration
 
-Authentication is deliberately provider-neutral: `AuthenticationBackend` is a protocol and the shipped
-`RejectAllAuthenticationBackend` fails closed until a deployment supplies a real provider. No concrete
-institutional provider is integrated.
+Authentication is deliberately provider-neutral: `AuthenticationBackend` is a protocol. The shipped
+provider is the local account backend from
+[ADR-0031](decisions/ADR-0031-local-database-authentication.md); no institutional provider is integrated.
 
 Because every backend terminates into the same `CurrentUser` abstraction, adding one should not require
 a divergent authorization path. The work is in session establishment, logout and token refresh
 semantics, and mapping provider claims onto local roles without letting an external directory silently
-grant `admin`. See [`13-auth-and-security.md`](13-auth-and-security.md).
+grant `admin`. SSO users need no `user_credentials` row, so local and SSO accounts can coexist. See
+[`13-auth-and-security.md`](13-auth-and-security.md).
+
+### Login rate limiting and lockout
+
+The local account backend accepts unlimited login attempts. Repeated failures are neither throttled nor
+counted toward a lockout.
+
+Any throttle must keep the generic `401 invalid_credentials` response, so it does not reveal whether a
+username exists. A per-account lockout must not become a way for an outsider to lock a reviewer out. See
+[ADR-0031](decisions/ADR-0031-local-database-authentication.md).
+
+### Self-service password recovery
+
+Passwords are reset only by an administrator through `gendertagger users reset-password`. There is no
+"forgot password" flow.
+
+Adding one needs outbound email, which the repository does not have. The reset token must be single-use
+and short-lived, and using it must revoke the account's existing sessions, as the administrative reset
+already does.
 
 ### Project-scoped role permissions
 

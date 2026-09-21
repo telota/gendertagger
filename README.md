@@ -18,7 +18,22 @@ docker compose -f compose.yaml -f compose.dev.yaml up -d db redis
 docker compose -f compose.yaml -f compose.dev.yaml --profile ops run --rm migrate
 ```
 
-### 2. Provision method data
+### 2. Create a login account
+
+Every `/api/v1` endpoint requires a session, and accounts are created only by an administrator from the CLI
+([ADR-0031](docs/decisions/ADR-0031-local-database-authentication.md)):
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml run --rm api \
+  gendertagger users create --username admin --display-name "Admin" --role admin
+```
+
+Omit `--password` to have one generated; the command prints it once in its JSON output. A new account must
+change its password before any other endpoint accepts it: sign in with `POST /api/v1/auth/login`, then call
+`POST /api/v1/me/password`. `gendertagger users reset-password --user-id <uuid>` forces a new password later
+and signs the account out everywhere.
+
+### 3. Provision method data
 
 Several reference methods classify from a compiled, content-addressed data artifact rather than at request
 time, so they need one-time provisioning before a run can use them:
@@ -87,7 +102,7 @@ retained as content-addressed artifacts. See
 [`ADR-0023`](docs/decisions/ADR-0023-content-addressed-sqlite-method-lookups.md) for provenance and
 licensing rules.
 
-### 3. Start the remaining services
+### 4. Start the remaining services
 
 ```bash
 docker compose -f compose.yaml -f compose.dev.yaml up -d api worker-cpu frontend gateway
@@ -100,6 +115,9 @@ The services are available at:
 - API readiness: <http://localhost:8000/ready>
 - Gateway: <http://localhost:8080>
 - Frontend (static build): <http://localhost:5173>
+
+For hot reload while working on the client, run `npm run dev` in `frontend/` on the host instead; it proxies
+`/api/v1` to `http://localhost:8000`. See [`frontend/README.md`](frontend/README.md).
 
 Inspect service status and logs with:
 
@@ -130,7 +148,7 @@ intentionally want to remove local service data.
 - Per-method predictions are immutable scientific evidence. Aggregation and human annotations never overwrite them.
 - The published aggregation strategy remains the default reference strategy.
 - The review/game UI is an annotation client, not a separate source of truth.
-- The planned UI stack is **Vue 3 + TypeScript + Vite**, consuming `/api/v1` through OpenAPI-generated transport contracts.
+- The UI stack is **Vue 3 + TypeScript + Vite** in [`frontend/`](frontend/), consuming `/api/v1` through OpenAPI-generated transport contracts.
 - Long-running work is exposed as persisted asynchronous resources with optional SSE progress; Celery remains invisible to clients.
 - Production should prefer same-origin Vue/FastAPI routing and secure HTTP-only browser sessions.
 
@@ -140,7 +158,7 @@ intentionally want to remove local service data.
 2. Read [`docs/01-architecture.md`](docs/01-architecture.md).
 3. Read [`docs/02-domain-model.md`](docs/02-domain-model.md).
 4. Read [`docs/03-pydantic-contracts.md`](docs/03-pydantic-contracts.md).
-5. Read [`docs/17-frontend-integration.md`](docs/17-frontend-integration.md) for the later Vue boundary.
+5. Read [`docs/17-frontend-integration.md`](docs/17-frontend-integration.md) for the Vue client boundary.
 6. Follow [`docs/15-implementation-plan.md`](docs/15-implementation-plan.md).
 7. Follow [`docs/18-engineering-and-quality.md`](docs/18-engineering-and-quality.md) for local and CI checks.
 8. Follow [`docs/19-coding-and-documentation-style.md`](docs/19-coding-and-documentation-style.md) for naming,
@@ -169,7 +187,15 @@ Phases 0 through 7 are complete:
   JSON, and CSV export profiles with provenance manifests.
 - Phase 7 deployment hardening is fully implemented, shifting the application from development scripts to a hardened containerized architecture with a robust compose topology, GitLab CI publication, and operational runbooks.
 
-The Vue review client (Phase 8) is the active work; its backend prerequisites are already met. See
+The Vue review client (Phase 8) is the active work; its backend prerequisites are already met. So far:
+
+- the client scaffold in [`frontend/`](frontend/) with its OpenAPI-generated transport, German/English
+  message catalogues, theme tokens, accessibility checks, and CI jobs (milestone M1);
+- the local account authentication backend, with CLI provisioning and login, logout, and password-change
+  endpoints ([ADR-0031](docs/decisions/ADR-0031-local-database-authentication.md)).
+
+The application shell and every screen remain. Their sequencing, open decisions, and missing read endpoints
+are in [`docs/24-frontend-delivery-plan.md`](docs/24-frontend-delivery-plan.md). See
 [`docs/15-implementation-plan.md`](docs/15-implementation-plan.md) for the authoritative phase plan and
 [`docs/22-future-development.md`](docs/22-future-development.md) for deferred, unimplemented candidates.
 
@@ -192,6 +218,17 @@ uv run --locked pytest \
   --hypothesis-profile=ci --cov --cov-fail-under=70
 uv build --no-sources
 uv run --locked python scripts/check_distribution.py dist/*
+```
+
+The Vue client has its own lockfile and needs the Node version in `frontend/package.json` `engines`, which
+`frontend/.npmrc` enforces:
+
+```bash
+npm --prefix frontend ci
+npm --prefix frontend run lint
+npm --prefix frontend run format:check
+npm --prefix frontend run check   # type check, message catalogues, transport drift, tests
+npm --prefix frontend run build
 ```
 
 Install Git hooks after `git init` with `uv run --locked pre-commit install --install-hooks`. Full contributor

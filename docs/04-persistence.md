@@ -24,7 +24,8 @@ tests and non-HTTP entry points use the same transaction semantics.
 
 ## Tables
 
-The baseline revision creates exactly the 21 tables mapped under `gendertagger.db`:
+The baseline revision creates 21 tables, and revision `20260903_0002` adds the two local-account
+authentication tables, for 23 tables mapped under `gendertagger.db`:
 
 - projects and ingestion (`db/projects.py`): `projects`, `dataset_snapshots`,
   `snapshot_source_members`, `person_records`, `person_external_ids`;
@@ -34,6 +35,8 @@ The baseline revision creates exactly the 21 tables mapped under `gendertagger.d
 - evaluation (`db/evaluations.py`): `evaluation_executions`, `evaluation_method_executions`;
 - export (`db/exports.py`): `export_executions`;
 - review (`db/reviews.py`): `users`, `user_roles`, `annotations`, `review_states`;
+- authentication (`db/auth.py`): `user_credentials`, `user_sessions`, per
+  [ADR-0031](decisions/ADR-0031-local-database-authentication.md);
 - artifacts (`db/artifacts.py`): `artifacts`;
 - dispatch (`db/dispatches.py`): `batch_dispatches`, the generic transactional outbox whose typed
   owners are task batches, aggregation executions, dataset snapshots, evaluation executions, and
