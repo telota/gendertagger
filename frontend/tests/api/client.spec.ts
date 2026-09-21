@@ -65,7 +65,8 @@ describe('createApiClient', () => {
   })
 
   it('reads the CSRF token from the cookie by default', async () => {
-    document.cookie = 'gendertagger_csrf=from-cookie'
+    // The literal backend cookie name (ADR-0031), not the constant, so a client-side rename fails here.
+    document.cookie = 'csrf_token=from-cookie'
     const requests: Request[] = []
     const client = createApiClient({
       fetch: (request) => {

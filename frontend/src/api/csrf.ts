@@ -1,9 +1,8 @@
-// PROVISIONAL (decision D1): the backend deliberately leaves CSRF issuance to the authentication
-// provider (`AuthenticationBackend.validate_csrf`), and no provider exists yet. This double-submit
-// convention is the client-side default until the development authentication backend fixes the real
-// header and cookie names. Both names live here so that change stays a one-file edit.
+// The local account provider (ADR-0031) sets a readable `csrf_token` cookie at login and validates it
+// against the `X-CSRF-Token` header on every unsafe request. Both names must match
+// `gendertagger.api.authentication`; they live here so a provider change stays a one-file edit.
 export const CSRF_HEADER_NAME = 'X-CSRF-Token'
-export const CSRF_COOKIE_NAME = 'gendertagger_csrf'
+export const CSRF_COOKIE_NAME = 'csrf_token'
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS', 'TRACE'])
 

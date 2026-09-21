@@ -9,7 +9,7 @@ export type ApiClient = Client<paths>
 export interface ApiClientOptions {
   /** Custom `fetch`, used by tests to keep the network at the transport boundary. */
   fetch?: (request: Request) => Promise<Response>
-  /** Source of the CSRF token; defaults to the provisional cookie convention. */
+  /** Source of the CSRF token; defaults to the provider's `csrf_token` cookie. */
   csrfToken?: () => string | null
 }
 

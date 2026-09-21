@@ -57,9 +57,9 @@ when the live FastAPI schema differs from that snapshot, so a contract change fo
 typed client sends the session cookie, attaches the CSRF header to every unsafe method, and `unwrap` turns a
 failure into an `ApiError` classified by the shared envelope's stable `code`.
 
-The CSRF header and cookie names in `src/api/csrf.ts` are provisional. The backend leaves CSRF issuance to the
-authentication provider, and none exists yet (decision D1), so the names must be confirmed when the development
-authentication backend lands.
+The CSRF cookie and header names in `src/api/csrf.ts` (`csrf_token`, `X-CSRF-Token`) match the local account
+provider from [ADR-0031](../docs/decisions/ADR-0031-local-database-authentication.md), which sets the cookie at
+`POST /api/v1/auth/login`. Both names must change together with `gendertagger.api.authentication`.
 
 ## Layout
 
