@@ -205,6 +205,10 @@ contract change fails CI.
 - Locale switch and theme switch (system, light, dark), and the shared vocabulary components that render
   `CanonicalLabel`, `CertaintyTier`, and `AgreementTier` as canonical token plus translated gloss (D2, D3).
 - Overlay primitives on the chosen headless accessibility library (D9); everything else in-house.
+- The publication footer on every page, the start-page publication details, and the public legal notice
+  required by the BBAW guideline for digital publications, as specified in
+  [`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md#publication-details-footer-and-legal-notice).
+  The legal notice route stays exempt from the session guard, so it is reachable without signing in.
 
 **Exit criterion.** A viewer, reviewer, and operator each see a correctly scoped shell in both locales and
 both themes; an expired session and a server error both render correctly.
@@ -569,7 +573,13 @@ Not decisions, but named tasks that gate M0 and can only be discharged outside t
 
 - confirm whether a published accessibility statement and feedback mechanism are legally required, and who
   signs the statement off (follows from D15);
-- appoint the accessibility owner (follows from D18).
+- appoint the accessibility owner (follows from D18);
+- have the BBAW administration confirm the provider details and the wording of the legal notice, and the
+  data protection officer decide whether the application needs a privacy statement of its own, given the
+  session and CSRF cookies of [ADR-0031](decisions/ADR-0031-local-database-authentication.md). Both gate any
+  public deployment;
+- supply the publisher's logo files, and confirm the list of editors and the publication period shown on the
+  start page. These gate the M2 footer.
 
 ### Scope exclusions to confirm
 
@@ -598,6 +608,7 @@ expectations. Each is analysed in [`23-wireframe-ui-inventory.md`](23-wireframe-
 | Accessibility deferred to a closing phase | Legal exposure plus structural rework; the wireframe's controls are unusable as drawn | Per-milestone criteria above; automated checks from M1 |
 | Internal-only assessment misses defects (D16) | No external check before release | The D17 matrix is mandatory, not advisory, and the D18 user round is scheduled rather than optional |
 | Game-mode timer conflicts with WCAG 2.2.1 | A shipped feature that cannot be made conformant | Resolved by D19: the timer is switchable off before the first round |
+| Unconfirmed legal notice goes public | Wrong provider, representative, or tax details in a legally binding statement | Its confirmation is an outstanding assignment that gates public deployment, and production promotion stays manual |
 
 ## Immediate next steps
 

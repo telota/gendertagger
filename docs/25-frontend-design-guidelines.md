@@ -398,6 +398,55 @@ its non-semantic toggles, slider, and checkboxes, its unhidden decorative glyphs
 pattern are all replaced rather than ported. See
 [`24-frontend-delivery-plan.md`](24-frontend-delivery-plan.md).
 
+## Publication details, footer, and legal notice
+
+The client is a digital publication of the BBAW and has to follow the academy's guideline for digital
+scientific resources, which asks for bibliographic, administrative, and legal information in fixed places.
+The source is the guideline "Leitlinien Startseite und Footer", kept in the academy's internal team wiki. It
+is deliberately not linked here, because these documents ship with the package. Ask TELOTA for the current
+version, and compare it with this section whenever the guideline changes. The table restates its
+requirements in the project's own words and records the decisions the project team took on 2026-09-21.
+
+| Guideline item | Where | Decision |
+|---|---|---|
+| Title, editors, publisher, and publication period, clearly visible | Start page | Editors: Frederike Neuber, Lou Klappenbach, Tim Westphal, taken from the published paper and still to be confirmed. Period: "since 2026", to be confirmed. |
+| Citation hint, DOI or URN | Start page | Omitted until the resource has an identifier and a stable public address |
+| Publisher, by logo or name, on every page | Footer | The BBAW as text, plus its logo once the team supplies the official file |
+| Funders | Footer | None: the application has no external funding. If that changes, the guideline's funder block is added. |
+| Institutional context | Start page and footer | Linked by name: "KI-Lab bei TELOTA" (`https://www.bbaw.de/bbaw-digital/ki`) and "Gender & Data" (`https://gender-data.bbaw.de/`), labelled "Entstanden im Rahmen von" and "Developed within". The names are proper names and stay untranslated. |
+| Contact, and technical notes | Footer | One address, `telota@bbaw.de`, serves both |
+| Licence, with a link to its text | Footer | Source-code licence (MIT), which has no version |
+| Privacy notice of the BBAW | Footer link | `https://www.bbaw.de/datenschutz` |
+| Legal notice | Footer link to `/impressum` | Modelled on `https://www.bbaw.de/impressum/`; see below |
+
+**Legal notice.** It is a public route, reachable without a session, so it is exempt from the authentication
+requirement. Its sections follow the BBAW notice: provider and legal form, address, telephone, representative,
+and VAT identification number; responsibility and contact (TELOTA); copyright and licence; liability; privacy.
+It also states that the gender annotations the application produces are machine suggestions that need editorial
+review. The provider values are copied from the current BBAW page when the notice is built, and they are not
+recorded in this document. They and the wording need confirmation by the BBAW administration before any public
+deployment.
+
+**Contact address.** The guideline replaces the project address with the function address of the academy's
+administration after the project ends. The Gender & Data initiative runs from April 2026 to April 2028, so the
+contact address has to be reviewed before that date.
+
+**Licence scope.** The footer licence covers the application's source code. Register data imported into a
+project stays under the licences of its edition, and the legal notice says so. A licence for content or data
+needs its own entry chosen under the BBAW licensing guideline, with the version, a link to the licence text,
+and the licence icon.
+
+**Publisher logo.** Logos are official brand assets and are supplied by the project team, not drawn or fetched
+by the build. The footer shows the logo as a decorative image beside the publisher's name when a file is
+present.
+
+**Privacy.** The footer links the general BBAW notice. The application sets a session cookie and a CSRF cookie
+at login ([ADR-0031](decisions/ADR-0031-local-database-authentication.md)), so whether it needs a privacy
+statement of its own is a question for the BBAW data protection officer.
+
+**Facts and wording are separate.** Names, addresses, identifiers, and URLs are typed data in one module, and
+the surrounding text is in the message catalogues and is translated. Each fact then has one source.
+
 ## Internationalisation and content
 
 German and English from the first milestone (decision D3).
