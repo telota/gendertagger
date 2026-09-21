@@ -104,3 +104,22 @@ repos:
         stages: [pre-push]
         always_run: true
         pass_filenames: false
+      - id: frontend-format
+        name: Frontend format check
+        entry: npm --prefix frontend run format:check
+        language: system
+        files: ^frontend/.*\.(?:ts|vue|js|mjs|json|css|html)$
+        pass_filenames: false
+      - id: frontend-lint
+        name: Frontend lint
+        entry: npm --prefix frontend run lint
+        language: system
+        files: ^frontend/(?:src|tests|scripts|public)/.*\.(?:ts|vue|js|mjs|json)$|^frontend/eslint\.config\.js$
+        pass_filenames: false
+      - id: frontend-checks
+        name: Frontend typecheck, catalogues, and transport drift
+        entry: npm --prefix frontend run check
+        language: system
+        stages: [pre-push]
+        always_run: true
+        pass_filenames: false

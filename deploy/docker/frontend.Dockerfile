@@ -1,18 +1,29 @@
-FROM node:22-alpine AS builder
+# The build context is the `frontend/` directory (compose.dev.yaml and the CI image job both use it),
+# so package.json and package-lock.json are the client's own manifests.
+#
+# Node is pinned by version and multi-platform index digest. The version must satisfy the `engines`
+# range in frontend/package.json (decision D12); update both together.
+ARG NODE_IMAGE=node:22.23.2-alpine@sha256:b6f26b36c8ff49624cfdac716b8ea1138d606df02586a77d364bb5536a634f85
 
+FROM ${NODE_IMAGE} AS dependencies
 WORKDIR /app
-# We'll use a placeholder for now since frontend doesn't exist
-# COPY package.json package-lock.json ./
-# RUN npm ci
-# COPY . .
-# RUN npm run build
-RUN mkdir -p dist && echo "<h1>GenderTagger Frontend Placeholder</h1>" > dist/index.html
+COPY package.json package-lock.json .npmrc ./
+RUN npm ci --ignore-scripts --no-audit --no-fund
 
+# Vite development server with hot reload. Bind-mount `frontend/` over /app for live edits, or run
+# `npm run dev` on the host against http://localhost:8000; the dev server proxies /api/v1.
+FROM dependencies AS development
+COPY . .
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+
+FROM dependencies AS builder
+COPY . .
+RUN npm run build
+
+# Static assets behind the same-origin gateway. nginx/default.conf adds the history-mode fallback
+# (decision D13) so a deep link resolves to the application instead of a 404.
 FROM nginx:1.25-alpine AS production
+COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
-
-FROM node:22-alpine AS development
-WORKDIR /app
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
