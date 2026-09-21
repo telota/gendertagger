@@ -170,8 +170,8 @@ definition of done.
 
 - stabilize review-items/query API [DONE]
 - add review-stream revision conflict handling (`409`) [DONE]
-- scaffold Vue 3 + TypeScript + Vite in `frontend/`
-- generate transport client/types from FastAPI OpenAPI
+- scaffold Vue 3 + TypeScript + Vite in `frontend/` [DONE]
+- generate transport client/types from FastAPI OpenAPI [DONE]
 - use a server-state query/cache layer; keep Pinia for genuinely shared client state only
 - frontend browse/game interface
 - verify/correct/defer actions
@@ -190,7 +190,8 @@ persisted API-to-worker workflow.
 
 The active work is Phase 8, the Vue annotation and review client. Its backend prerequisites are already
 met: the review-items query API is stable and review-stream revision conflicts return `409`. The remaining
-Phase 8 items are frontend work, and `frontend/` is still a placeholder. The second active track is
+Phase 8 items are frontend work. The scaffold and the generated transport client are in place
+(milestone M1); the application shell and every screen remain to be built. The second active track is
 operating the stack in production under [`21-production-promotion.md`](21-production-promotion.md).
 
 The transformer classifiers (`hf_distilbert`, `hf_genderize`) and the experimental HIVOTO-XGBoost adapter

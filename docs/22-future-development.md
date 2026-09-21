@@ -231,16 +231,6 @@ only as work that silently never starts.
 
 ## Frontend and API integration
 
-### Generated TypeScript transport client
-
-FastAPI's OpenAPI document is the canonical machine-readable frontend contract, but no TypeScript client
-is generated from it, because `frontend/` is still a placeholder.
-
-The intent is that Python and TypeScript schema definitions are never hand-maintained in parallel: the
-client is generated, regenerated in CI, and CI fails on unexpected contract drift. The generated client
-is transport code only — UI view models may wrap it, but must not redefine scientific semantics. See
-[`17-frontend-integration.md`](17-frontend-integration.md).
-
 ### SSE `Last-Event-ID` resume
 
 `GET /runs/{run_id}/events` projects current state rather than replaying history, and no event log is

@@ -43,19 +43,26 @@ Deployment and CI already anticipate the client. Reusing it correctly is cheaper
   resource limits.
 - `.gitlab-ci.yml` already has `build_and_publish_frontend` and `frontend_sbom` jobs.
 
+**Delivered by M1.**
+
+- [`deploy/docker/frontend.Dockerfile`](../deploy/docker/frontend.Dockerfile) now runs `npm ci` and
+  `npm run build` from `frontend/package.json` and its lockfile, separate from the root `package.json`,
+  which exists only for Pyright. Node is pinned by version and digest and agrees with `engines`.
+- The production stage serves the build with a history-mode fallback
+  ([`frontend/nginx/default.conf`](../frontend/nginx/default.conf)), decision D13.
+- The `development` stage installs dependencies and starts the Vite server. `npm run dev` on the host,
+  proxying `/api/v1` to `http://localhost:8000`, is the working hot-reload path.
+- The image job built its context from the repository root, which cannot see `frontend/package.json` as a
+  top-level file. `.kaniko_build` now takes an `IMAGE_CONTEXT` per image, and the frontend uses `frontend/`,
+  matching `compose.dev.yaml`.
+
 **Still needed.**
 
-- [`deploy/docker/frontend.Dockerfile`](../deploy/docker/frontend.Dockerfile) has its real build commented
-  out and emits a placeholder `index.html`. The build context is `./frontend`, so `frontend/package.json`
-  and its lockfile must live there — separate from the root `package.json`, which exists only for Pyright.
-- The production stage serves the built assets from a stock nginx image with **no SPA history fallback**.
-  A history-mode router will 404 on any deep link. Either add a `try_files $uri $uri/ /index.html;` config
-  to the frontend image or accept hash routing. This is decision [D13](#early-architectural-decisions).
-- The `development` stage installs no dependencies and `compose.dev.yaml` builds the `production` target,
-  so there is currently no Vite HMR path. Wire the dev target and a bind mount, or run Vite outside Compose
-  against `http://localhost:8000`.
-- `frontend_sbom` will begin producing a real dependency tree. The repository's provenance and licence
-  culture applies to npm packages too — see decision [D9](#early-architectural-decisions).
+- `compose.dev.yaml` still builds the `production` target, so there is no hot reload inside Compose. Switching
+  it to the `development` target with a bind mount is left until someone needs it.
+- `frontend_sbom` now produces a real dependency tree. The repository's provenance and licence culture applies
+  to npm packages too: the M1 dependencies are justified in [`frontend/README.md`](../frontend/README.md), and
+  the headless accessibility library still has to be chosen — see decision D9.
 
 ## Accessibility as a delivery workstream
 
@@ -127,8 +134,8 @@ than reconstructed at the end.
 
 **Work.**
 
-- Take D1, and D6 before `GET /projects` is specified. D2, D3, and D4 are resolved; record D3 as an ADR
-  when M1 starts, since it fixes a durable client-boundary rule.
+- Take D1, and D6 before `GET /projects` is specified. D2, D3, and D4 are resolved, and D3 is recorded as
+  [ADR-0030](decisions/ADR-0030-bilingual-client-with-untranslated-canonical-vocabulary.md).
 - Apply D2 to the screen content of Import, Übersicht, and Einstellungen before those screens are designed
   in detail — the threshold control is removed, not reskinned.
 - Implement the three blocking read endpoints from
@@ -146,13 +153,19 @@ person's full method results and annotation history through `/api/v1`.
 
 **Goal.** A buildable, type-safe client skeleton with no hand-written schema.
 
+**Status.** Delivered on branch `feat/frontend-m1-scaffold`. Lint, formatting, type checking, the test suite
+with its coverage floor, the production build, the message-catalogue check, and the transport drift check all
+pass locally from a clean `npm ci`, and each check was shown to fail on a deliberate violation. The Docker
+image build and the GitLab jobs are written but have not been run yet.
+
 **Work.**
 
 - Scaffold Vite + Vue 3 + TypeScript in `frontend/`, keeping the existing Docker build context.
 - Generate `schema.d.ts` from the FastAPI OpenAPI document; wrap it in a typed fetch client with
   `credentials: 'include'` and CSRF header attachment.
-- Add a CI job that regenerates the client and fails on drift, closing the gap recorded under "Generated
-  TypeScript transport client" in [`22-future-development.md`](22-future-development.md).
+- Add a CI job that regenerates the client and fails on drift. The source is the committed snapshot
+  `tests/fixtures/openapi-v1.json`, which the backend contract test already keeps equal to the live schema,
+  so a contract change is caught even when nobody touches the frontend.
 - Enable the real build stages in the Dockerfile and wire the dev target.
 - Set up i18n for German and English per D3: message catalogues, locale-aware dates and numbers, and a lint
   rule against hard-coded user-facing strings. Canonical labels and tier names are excluded from translation.
@@ -368,8 +381,8 @@ The interface chrome is internationalised in **German and English from M1**, not
 - Locale coverage belongs in the test strategy (D11): a missing-translation check, and at least one
   end-to-end path per locale.
 
-Worth an ADR when M1 starts, since it fixes a durable client-boundary rule alongside
-[ADR-0006](decisions/ADR-0006-vue-browser-client-boundary.md).
+Recorded as [ADR-0030](decisions/ADR-0030-bilingual-client-with-untranslated-canonical-vocabulary.md), since it
+fixes a durable client-boundary rule alongside [ADR-0006](decisions/ADR-0006-vue-browser-client-boundary.md).
 
 ### D4 — Aggregation is created automatically, with an explicit advanced path
 

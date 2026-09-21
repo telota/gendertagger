@@ -24,7 +24,8 @@ persisted API-to-worker workflow.
 
 Active work is Phase 8, the annotation and review client. Its backend prerequisites are already met:
 the review-items query API is stable and review-stream revision conflicts return `409`. The remaining
-Phase 8 items are frontend work, and `frontend/` is still a placeholder. The second active track is
+Phase 8 items are frontend work: `frontend/` holds the scaffold and transport layer (milestone M1), and the
+application shell and every screen remain to be built. The second active track is
 operating the stack in production following [`docs/21-production-promotion.md`](docs/21-production-promotion.md).
 
 The repository-specific guidance in [`AGENTS.md`](AGENTS.md) and the authoritative phased plan in [`docs/15-implementation-plan.md`](docs/15-implementation-plan.md) remain the source of truth. This summary should be read as a status note, not as the canonical roadmap.

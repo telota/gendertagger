@@ -101,8 +101,9 @@ type Async<T> =
 
 ## Transport layer
 
-- Transport types are **generated** from the FastAPI OpenAPI document. Hand-writing or hand-editing a type
-  that mirrors a Pydantic model is forbidden; CI regenerates and fails on drift.
+- Transport types are **generated** from the FastAPI OpenAPI document, taken from the committed snapshot
+  `tests/fixtures/openapi-v1.json` that the backend contract test already guards. Hand-writing or
+  hand-editing a type that mirrors a Pydantic model is forbidden; CI regenerates and fails on drift.
 - `src/api/` is the only place that knows about HTTP. No component, composable, store, or view issues a
   request directly.
 - Requests are same-origin with `credentials: 'include'`. The CSRF token is attached centrally to every

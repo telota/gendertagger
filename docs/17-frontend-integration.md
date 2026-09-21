@@ -255,6 +255,6 @@ Every backend prerequisite for frontend implementation is delivered:
 - same-origin production topology;
 - upload/download via artifacts rather than paths.
 
-`frontend/` itself is still a placeholder. Scaffolding Vue 3 + TypeScript + Vite, generating the
-transport client, and building the review interface are the remaining Phase 8 items in
+`frontend/` holds the Vue 3 + TypeScript + Vite scaffold and the generated transport client (milestone M1).
+The application shell and the review interface are the remaining Phase 8 items in
 [`15-implementation-plan.md`](15-implementation-plan.md).

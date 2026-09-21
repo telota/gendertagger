@@ -113,7 +113,7 @@ One Compose project carries the whole system. `compose.yaml` defines:
 - `worker-external` — Celery worker on `external` (profile `external`)
 - `db` — PostgreSQL
 - `redis` — Celery broker and result backend
-- `frontend` — static build, served as a placeholder image until Phase 8 delivers the Vue client
+- `frontend` — static build of the Vue client, served by nginx with a history-mode fallback
 - `gateway` — nginx reverse proxy serving same-origin `/` and `/api/v1`
 - `migrate` — one-shot `alembic upgrade head` (profile `ops`)
 

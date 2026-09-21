@@ -99,7 +99,7 @@ The services are available at:
 - API health: <http://localhost:8000/health>
 - API readiness: <http://localhost:8000/ready>
 - Gateway: <http://localhost:8080>
-- Frontend placeholder: <http://localhost:5173>
+- Frontend (static build): <http://localhost:5173>
 
 Inspect service status and logs with:
 
