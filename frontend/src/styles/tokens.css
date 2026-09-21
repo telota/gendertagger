@@ -1,0 +1,130 @@
+/*
+ * Semantic, theme-scoped design tokens (decision D8).
+ *
+ * Source of truth: docs/25-frontend-design-guidelines.md. Components reference these names and never a
+ * literal value, and no component branches on the active theme. Every colour token below is defined
+ * once per theme; tests/styles/tokens.spec.ts verifies that both themes stay complete and that each
+ * documented pairing meets its contrast requirement in both.
+ *
+ * The active theme is the `data-theme` attribute on <html>, set before first paint by
+ * public/theme-init.js. Light is the default when the attribute is absent.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces and text */
+  --page: #f2f1ee;
+  --panel: #ffffff;
+  --surface-1: #fcfcfb;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --muted: #706e68;
+  --grid: #e1e0d9;
+  --border: rgba(11, 11, 11, 0.12);
+
+  /* Accents and status */
+  --accent: #4a3aa7;
+  --accent-b: #0f7a63;
+  --focus-ring: #1f5aa0;
+  --good: #088a08;
+  --warning: #fab219;
+  --critical: #d03b3b;
+
+  /* Canonical labels: solid (fills, borders, chart marks), text, tint */
+  --male: #2a78d6;
+  --male-text: #1f5aa0;
+  --male-tint: #e9f1fa;
+  --female: #eb6834;
+  --female-text: #b04e27;
+  --female-tint: #fdefea;
+  --institution: #1baf7a;
+  --institution-text: #127a55;
+  --institution-tint: #e8f7f1;
+  --unknown: #eda100;
+  --unknown-text: #7a5900;
+  --unknown-tint: #fdf5e5;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --page: #1a1917;
+  --panel: #232220;
+  --surface-1: #2c2a27;
+  --text-primary: #f4f3f0;
+  --text-secondary: #c2bfb8;
+  --muted: #9c9890;
+  --grid: #3a3835;
+  --border: rgba(244, 243, 240, 0.14);
+
+  --accent: #a99bf0;
+  --accent-b: #4fc0a3;
+  --focus-ring: #8fbdf0;
+  --good: #4fc94f;
+  --warning: #f0b843;
+  --critical: #f0736f;
+
+  --male: #5a9ee8;
+  --male-text: #8fbdf0;
+  --male-tint: #17293d;
+  --female: #f08055;
+  --female-text: #f0a184;
+  --female-tint: #3a1e14;
+  --institution: #35c894;
+  --institution-text: #6fd6ae;
+  --institution-tint: #102e24;
+  --unknown: #e8b53c;
+  --unknown-text: #e8bd5e;
+  --unknown-tint: #332813;
+}
+
+/* Theme-independent scales */
+:root {
+  /* Typography: sizes in rem so the reader's browser font setting applies */
+  --font-sans:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  --font-mono:
+    ui-monospace, 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace;
+
+  --font-size-caption: 0.6875rem;
+  --font-size-small: 0.75rem;
+  --font-size-body: 0.8125rem;
+  --font-size-body-strong: 0.875rem;
+  --font-size-title: 1rem;
+  --font-size-page: 1.25rem;
+  --font-size-display: 2.125rem;
+
+  --line-height-caption: 1.45;
+  --line-height-small: 1.5;
+  --line-height-body: 1.55;
+  --line-height-body-strong: 1.45;
+  --line-height-title: 1.5;
+  --line-height-page: 1.4;
+  --line-height-display: 1.2;
+
+  --weight-regular: 400;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Spacing: the 4 px scale, expressed in rem so it tracks text size */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  /* Motion: state transitions stay under 150 ms; base.css zeroes this for reduced motion */
+  --motion-state: 120ms;
+
+  /* Radii */
+  --radius-control: 4px;
+  --radius-input: 8px;
+  --radius-card: 12px;
+  --radius-modal: 16px;
+  --radius-full: 9999px;
+}

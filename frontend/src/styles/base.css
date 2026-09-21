@@ -1,0 +1,48 @@
+/* Global resets. Component styling lives in scoped component styles; global rules stay here. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* Percentage, not px: the reader's browser font size stays authoritative. */
+  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-body);
+  font-weight: var(--weight-regular);
+  line-height: var(--line-height-body);
+}
+
+/* Focus is always visible and never removed (WCAG 2.4.7, 2.4.11). */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-mono);
+}
+
+/*
+ * Motion is limited to state transitions and honours the reader's preference. Components take their
+ * transition duration from --motion-state, so no rule here needs to override them.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-state: 0.01ms;
+    scroll-behavior: auto;
+  }
+}
