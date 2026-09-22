@@ -19,6 +19,7 @@ from gendertagger.db.project_repository import SqlAlchemyProjectRepository
 from gendertagger.db.projects import DatasetSnapshotRow
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
+from gendertagger.ingestion.registry import version_for_snapshot_import
 from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.models.artifact import ArtifactCreate
 from gendertagger.models.dispatch import SnapshotDispatch, SnapshotDispatchCreate
@@ -28,8 +29,11 @@ from gendertagger.models.project import (
     DatasetSnapshot,
     DatasetSnapshotCreate,
     ProjectCreate,
+    SnapshotImportConfig,
+    SnapshotImportLimits,
     SnapshotImportRequest,
     SnapshotImportTaskMessage,
+    SnapshotSourceMemberCreate,
     SourceFormat,
     SourcePackaging,
     TabularImportProfile,
@@ -88,14 +92,28 @@ def _seed_snapshot(
                 project_id=project.id,
             )
         )
+        import_config = SnapshotImportConfig(profile=profile, limits=SnapshotImportLimits())
         snapshot = unit_of_work.projects.add_snapshot(
             DatasetSnapshotCreate(
                 project_id=project.id,
                 source_artifact_id=artifact.id,
                 source_sha256=artifact.sha256,
-                parser_version=TeiPersonParser.version_for_profile(profile),
-                import_config={"profile": profile.value},
+                parser_version=version_for_snapshot_import(import_config),
+                import_config=import_config.model_dump(mode="json"),
             )
+        )
+        unit_of_work.projects.add_snapshot_source_members(
+            snapshot.id,
+            [
+                SnapshotSourceMemberCreate(
+                    artifact_id=artifact.id,
+                    ordinal=0,
+                    logical_name="register.xml",
+                    sha256=artifact.sha256,
+                    byte_size=artifact.byte_size,
+                    media_type=artifact.media_type,
+                )
+            ],
         )
         unit_of_work.commit()
     return snapshot.id
@@ -224,8 +242,8 @@ def test_snapshot_import_is_atomic_and_duplicate_delivery_is_a_noop(
     with unit_of_work_factory() as unit_of_work:
         people = unit_of_work.projects.list_person_records(snapshot_id, limit=10)
     assert [person.tei_id for person in people] == ["p1", "p2"]
-    assert all(person.source_member_name is None for person in people)
-    assert all(person.source_record_locator is None for person in people)
+    assert all(person.source_member_name == "register.xml" for person in people)
+    assert [person.source_record_locator for person in people] == ["xml:id=p1", "xml:id=p2"]
 
 
 def test_loose_tei_acceptance_and_import_round_trip_source_provenance(

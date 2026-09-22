@@ -628,52 +628,6 @@ def test_ready_transition_rechecks_modern_parser_provenance(db_session: Session)
         projects.complete_snapshot_import(snapshot.id, ready_at=datetime.now(UTC))
 
 
-def test_exact_legacy_snapshot_can_become_ready_without_source_members(
-    db_session: Session,
-) -> None:
-    artifacts = SqlAlchemyArtifactRepository(db_session)
-    source = artifacts.add_artifact(
-        ArtifactCreate(
-            logical_type="source_tei",
-            storage_uri="file:///synthetic/legacy.xml",
-            sha256="b" * 64,
-            byte_size=42,
-            media_type="application/tei+xml",
-        )
-    )
-    projects = SqlAlchemyProjectRepository(db_session)
-    project = projects.add_project(
-        ProjectCreate(
-            slug=f"legacy-ready-{uuid4().hex}",
-            display_name="Legacy ready transition fixture",
-        )
-    )
-    with pytest.raises(InvalidResourceStateError, match="parser version"):
-        projects.add_snapshot(
-            DatasetSnapshotCreate(
-                project_id=project.id,
-                source_artifact_id=source.id,
-                source_sha256=source.sha256,
-                parser_version="tei_parser_v1",
-                import_config={"profile": TeiImportProfile.tei_p5_person_register_v2.value},
-            )
-        )
-    snapshot = projects.add_snapshot(
-        DatasetSnapshotCreate(
-            project_id=project.id,
-            source_artifact_id=source.id,
-            source_sha256=source.sha256,
-            parser_version="tei_parser_v2",
-            import_config={"profile": TeiImportProfile.tei_p5_person_register_v2.value},
-        )
-    )
-    projects.begin_snapshot_import(snapshot.id)
-
-    ready = projects.complete_snapshot_import(snapshot.id, ready_at=datetime.now(UTC))
-
-    assert ready.record_count == 0
-
-
 def test_source_members_and_imported_person_provenance_round_trip(db_session: Session) -> None:
     artifacts = SqlAlchemyArtifactRepository(db_session)
     projects = SqlAlchemyProjectRepository(db_session)
@@ -770,21 +724,6 @@ def test_source_members_and_imported_person_provenance_round_trip(db_session: Se
     assert projects.list_snapshot_source_members(snapshot.id) == persisted_members
 
     projects.begin_snapshot_import(snapshot.id)
-    with pytest.raises(InvalidResourceStateError, match="non-blank source_member_name"):
-        projects.add_imported_person_records(
-            snapshot.id,
-            [
-                ImportedPerson(
-                    person=PersonInput(
-                        tei_id="missing-provenance",
-                        surname="Missing",
-                        name_forms=[PersonNameForm(type=PersonNameType.regular, surname="Missing")],
-                    ),
-                    source_member_name="",
-                    source_record_locator="xml:id:missing-provenance",
-                )
-            ],
-        )
     with pytest.raises(InvalidResourceStateError, match="not attached"):
         projects.add_imported_person_records(
             snapshot.id,

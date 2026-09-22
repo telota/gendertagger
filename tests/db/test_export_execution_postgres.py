@@ -93,7 +93,11 @@ def _seed_reference_run_with_completed_aggregation(
             project_id=project.id,
         )
     )
-    import_config = SnapshotImportConfig(limits=SnapshotImportLimits())
+    # The legacy profile captures no structured name forms, which this fixture does not model.
+    import_config = SnapshotImportConfig(
+        profile=TeiImportProfile.tei_p5_person_register_v1,
+        limits=SnapshotImportLimits(),
+    )
     snapshot = projects.add_snapshot(
         DatasetSnapshotCreate(
             project_id=project.id,
@@ -244,6 +248,10 @@ def _create(run_id: UUID, aggregation_execution_id: UUID) -> ExportExecutionCrea
 
 
 def test_add_export_rejects_an_incomplete_aggregation(db_session: Session) -> None:
+    projects = SqlAlchemyProjectRepository(db_session)
+    project = projects.add_project(
+        ProjectCreate(slug=f"export-incomplete-{uuid4().hex}", display_name="Incomplete fixture")
+    )
     other_source = SqlAlchemyArtifactRepository(db_session).add_artifact(
         ArtifactCreate(
             logical_type="source_tei",
@@ -251,20 +259,34 @@ def test_add_export_rejects_an_incomplete_aggregation(db_session: Session) -> No
             sha256=uuid4().hex * 2,
             byte_size=1,
             media_type="application/tei+xml",
+            project_id=project.id,
         )
     )
-    projects = SqlAlchemyProjectRepository(db_session)
-    project = projects.add_project(
-        ProjectCreate(slug=f"export-incomplete-{uuid4().hex}", display_name="Incomplete fixture")
+    import_config = SnapshotImportConfig(
+        profile=TeiImportProfile.tei_p5_person_register_v1,
+        limits=SnapshotImportLimits(),
     )
     snapshot = projects.add_snapshot(
         DatasetSnapshotCreate(
             project_id=project.id,
             source_artifact_id=other_source.id,
             source_sha256=other_source.sha256,
-            parser_version="tei_parser_v1",
-            import_config={"profile": "tei_p5_person_register_v1"},
+            parser_version=version_for_snapshot_import(import_config),
+            import_config=import_config.model_dump(mode="json"),
         )
+    )
+    projects.add_snapshot_source_members(
+        snapshot.id,
+        [
+            SnapshotSourceMemberCreate(
+                artifact_id=other_source.id,
+                ordinal=0,
+                logical_name="source.xml",
+                sha256=other_source.sha256,
+                byte_size=other_source.byte_size,
+                media_type=other_source.media_type,
+            )
+        ],
     )
     projects.begin_snapshot_import(snapshot.id)
     projects.complete_snapshot_import(snapshot.id, ready_at=NOW)
@@ -598,28 +620,6 @@ def test_load_export_inputs_rejects_tei_format_for_unsupported_packaging(
     repository.claim_export(export.id, started_at=NOW)
 
     with pytest.raises(InvalidResourceStateError, match="does not yet support"):
-        repository.load_export_inputs(export.id)
-
-
-def test_load_export_inputs_rejects_missing_source_member_locator_for_tei_format(
-    db_session: Session,
-) -> None:
-    run_id, aggregation_id, _person_id = _seed_reference_run_with_completed_aggregation(db_session)
-    repository = SqlAlchemyExportRepository(db_session)
-    export = repository.add_export(
-        ExportExecutionCreate(
-            run_id=run_id,
-            aggregation_execution_id=aggregation_id,
-            format=ExportFormat.tei,
-            tei_profile=TeiExportProfile.tei_p5_gender_v1,
-        )
-    )
-    repository.claim_export(export.id, started_at=NOW)
-
-    with pytest.raises(
-        InvalidResourceStateError,
-        match="cannot be exported as TEI",
-    ):
         repository.load_export_inputs(export.id)
 
 

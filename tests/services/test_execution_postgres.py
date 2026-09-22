@@ -34,6 +34,7 @@ from gendertagger.models.project import (
     SnapshotImportConfig,
     SnapshotImportLimits,
     SnapshotSourceMemberCreate,
+    TeiImportProfile,
 )
 from gendertagger.models.run import Run, RunCreate, TaskBatch, TaskBatchMessage
 from gendertagger.services.dispatch import OutboxRelay
@@ -88,7 +89,11 @@ def _seed_created_run(factory: UnitOfWorkFactory) -> UUID:
                 project_id=project.id,
             )
         )
-        import_config = SnapshotImportConfig(limits=SnapshotImportLimits())
+        # The legacy profile captures no structured name forms, which this fixture does not model.
+        import_config = SnapshotImportConfig(
+            profile=TeiImportProfile.tei_p5_person_register_v1,
+            limits=SnapshotImportLimits(),
+        )
         snapshot = unit_of_work.projects.add_snapshot(
             DatasetSnapshotCreate(
                 project_id=project.id,
@@ -174,7 +179,11 @@ def _seed_gnd_lookup_run(
             if register_lookup
             else None
         )
-        import_config = SnapshotImportConfig(limits=SnapshotImportLimits())
+        # The legacy profile captures no structured name forms, which this fixture does not model.
+        import_config = SnapshotImportConfig(
+            profile=TeiImportProfile.tei_p5_person_register_v1,
+            limits=SnapshotImportLimits(),
+        )
         snapshot = unit_of_work.projects.add_snapshot(
             DatasetSnapshotCreate(
                 project_id=project.id,

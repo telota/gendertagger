@@ -92,6 +92,13 @@ def test_person_events_and_import_provenance_round_trip() -> None:
             source_member_name="../register.xml",
             source_record_locator="row:2",
         )
+    for blank_name in ("", "   "):
+        with pytest.raises(ValidationError, match="source_member_name"):
+            ImportedPerson(
+                person=person,
+                source_member_name=blank_name,
+                source_record_locator="row:2",
+            )
     with pytest.raises(ValidationError, match="source_record_locator"):
         ImportedPerson(
             person=person,

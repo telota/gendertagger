@@ -37,6 +37,7 @@ from gendertagger.models.project import (
     SnapshotImportLimits,
     SnapshotImportTaskMessage,
     SnapshotSourceMemberCreate,
+    TeiImportProfile,
 )
 from gendertagger.models.run import (
     MethodExecution,
@@ -79,7 +80,11 @@ def _execution_context(
             project_id=project.id,
         )
     )
-    import_config = SnapshotImportConfig(limits=SnapshotImportLimits())
+    # The legacy profile captures no structured name forms, which this fixture does not model.
+    import_config = SnapshotImportConfig(
+        profile=TeiImportProfile.tei_p5_person_register_v1,
+        limits=SnapshotImportLimits(),
+    )
     snapshot = projects.add_snapshot(
         DatasetSnapshotCreate(
             project_id=project.id,
@@ -244,6 +249,13 @@ def _aggregation_dispatch_command(
 def _pending_snapshot_context(
     session: Session,
 ) -> tuple[SqlAlchemyProjectRepository, DatasetSnapshot]:
+    projects = SqlAlchemyProjectRepository(session)
+    project = projects.add_project(
+        ProjectCreate(
+            slug=f"snapshot-dispatch-{uuid4().hex}",
+            display_name="Snapshot dispatch repository project",
+        )
+    )
     artifacts = SqlAlchemyArtifactRepository(session)
     source = artifacts.add_artifact(
         ArtifactCreate(
@@ -252,22 +264,20 @@ def _pending_snapshot_context(
             sha256=uuid4().hex * 2,
             byte_size=1,
             media_type="application/tei+xml",
+            project_id=project.id,
         )
     )
-    projects = SqlAlchemyProjectRepository(session)
-    project = projects.add_project(
-        ProjectCreate(
-            slug=f"snapshot-dispatch-{uuid4().hex}",
-            display_name="Snapshot dispatch repository project",
-        )
+    import_config = SnapshotImportConfig(
+        profile=TeiImportProfile.tei_p5_person_register_v2,
+        limits=SnapshotImportLimits(),
     )
     snapshot = projects.add_snapshot(
         DatasetSnapshotCreate(
             project_id=project.id,
             source_artifact_id=source.id,
             source_sha256=source.sha256,
-            parser_version="tei_parser_v2",
-            import_config={"profile": "tei_p5_person_register_v2"},
+            parser_version=version_for_snapshot_import(import_config),
+            import_config=import_config.model_dump(mode="json"),
         )
     )
     return projects, snapshot

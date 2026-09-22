@@ -20,6 +20,7 @@ from gendertagger.models.project import (
     SnapshotImportConfig,
     SnapshotImportLimits,
     SnapshotSourceMemberCreate,
+    TeiImportProfile,
 )
 from gendertagger.models.run import MethodExecution, MethodExecutionCreate, RunCreate
 from gendertagger.services.persistence_errors import ResourceNotFoundError
@@ -47,7 +48,11 @@ def _ready_execution(
             project_id=project.id,
         )
     )
-    import_config = SnapshotImportConfig(limits=SnapshotImportLimits())
+    # The legacy profile captures no structured name forms, which this fixture does not model.
+    import_config = SnapshotImportConfig(
+        profile=TeiImportProfile.tei_p5_person_register_v1,
+        limits=SnapshotImportLimits(),
+    )
     snapshot = projects.add_snapshot(
         DatasetSnapshotCreate(
             project_id=project.id,
