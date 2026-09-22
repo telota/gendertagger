@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import { ApiError } from '@/api'
+import AppButton from '@/components/base/AppButton.vue'
+import AppTextField from '@/components/base/AppTextField.vue'
 import { useSessionStore } from '@/stores/session'
 
 const MIN_PASSWORD_LENGTH = 12
@@ -74,45 +76,37 @@ async function submit(): Promise<void> {
     <template v-else-if="session.isSignedIn">
       <p class="change-password-notice">{{ t('changePassword.notice') }}</p>
       <form class="change-password-form" novalidate @submit.prevent="submit">
-        <div class="change-password-field">
-          <label for="change-password-current">{{ t('changePassword.current') }}</label>
-          <input
-            id="change-password-current"
-            v-model="currentPassword"
-            name="current-password"
-            type="password"
-            autocomplete="current-password"
-            required
-          />
-        </div>
-        <div class="change-password-field">
-          <label for="change-password-new">{{ t('changePassword.new') }}</label>
-          <input
-            id="change-password-new"
-            v-model="newPassword"
-            name="new-password"
-            type="password"
-            autocomplete="new-password"
-            :minlength="MIN_PASSWORD_LENGTH"
-            required
-          />
-        </div>
-        <div class="change-password-field">
-          <label for="change-password-repeat">{{ t('changePassword.repeat') }}</label>
-          <input
-            id="change-password-repeat"
-            v-model="repeatNewPassword"
-            name="new-password-repeat"
-            type="password"
-            autocomplete="new-password"
-            :minlength="MIN_PASSWORD_LENGTH"
-            required
-          />
-        </div>
+        <AppTextField
+          id="change-password-current"
+          v-model="currentPassword"
+          name="current-password"
+          type="password"
+          :label="t('changePassword.current')"
+          autocomplete="current-password"
+          required
+        />
+        <AppTextField
+          id="change-password-new"
+          v-model="newPassword"
+          name="new-password"
+          type="password"
+          :label="t('changePassword.new')"
+          autocomplete="new-password"
+          :minlength="MIN_PASSWORD_LENGTH"
+          required
+        />
+        <AppTextField
+          id="change-password-repeat"
+          v-model="repeatNewPassword"
+          name="new-password-repeat"
+          type="password"
+          :label="t('changePassword.repeat')"
+          autocomplete="new-password"
+          :minlength="MIN_PASSWORD_LENGTH"
+          required
+        />
         <p v-if="errorMessage" role="alert" class="change-password-error">{{ errorMessage }}</p>
-        <button type="submit" class="change-password-submit" :disabled="isSubmitting">
-          {{ submitLabel }}
-        </button>
+        <AppButton type="submit" :disabled="isSubmitting">{{ submitLabel }}</AppButton>
       </form>
     </template>
   </main>
@@ -142,48 +136,12 @@ async function submit(): Promise<void> {
 .change-password-form {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: var(--space-4);
-}
-
-.change-password-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.change-password-field label {
-  font-size: var(--font-size-small);
-  color: var(--text-secondary);
-}
-
-.change-password-field input {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-input);
-  background: var(--panel);
-  color: var(--text-primary);
-  font: inherit;
-  padding: var(--space-2) var(--space-3);
 }
 
 .change-password-error {
   margin: 0;
   color: var(--critical);
-}
-
-.change-password-submit {
-  align-self: flex-start;
-  border: 1px solid var(--accent-b);
-  border-radius: var(--radius-control);
-  background: var(--accent-b);
-  color: var(--panel);
-  font: inherit;
-  font-weight: var(--weight-semibold);
-  padding: var(--space-2) var(--space-4);
-  cursor: pointer;
-}
-
-.change-password-submit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 </style>

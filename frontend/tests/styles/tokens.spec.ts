@@ -24,8 +24,11 @@ function ratio(theme: ThemeName, foreground: string, background: string): number
 
 describe('theme completeness', () => {
   const css = readStylesheet('tokens.css')
+  // Matches anywhere in the value, not just at the start, so a compound value that merely contains
+  // a colour (a box-shadow's `rgba(...)`) still counts as theme-scoped.
+  const containsColour = (value: string): boolean => /#|rgba?\(|hsla?\(/.test(value)
   const lightColours = [...parseTokens(css, ':root')]
-    .filter(([, value]) => value.startsWith('#') || value.startsWith('rgba('))
+    .filter(([, value]) => containsColour(value))
     .map(([name]) => name)
     .sort()
   const darkColours = [...parseTokens(css, DARK_SELECTOR).keys()]

@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import { ApiError } from '@/api'
+import AppButton from '@/components/base/AppButton.vue'
+import AppTextField from '@/components/base/AppTextField.vue'
 import { useSessionStore } from '@/stores/session'
 
 const { t } = useI18n()
@@ -61,36 +63,29 @@ async function submit(): Promise<void> {
   <main class="login">
     <h1 class="login-title">{{ t('login.title') }}</h1>
     <form class="login-form" novalidate @submit.prevent="submit">
-      <div class="login-field">
-        <label for="login-username">{{ t('login.username') }}</label>
-        <input
-          id="login-username"
-          v-model="username"
-          name="username"
-          type="text"
-          autocomplete="username"
-          required
-        />
-      </div>
-      <div class="login-field">
-        <label for="login-password">{{ t('login.password') }}</label>
-        <input
-          id="login-password"
-          v-model="password"
-          name="password"
-          type="password"
-          autocomplete="current-password"
-          required
-        />
-      </div>
+      <AppTextField
+        id="login-username"
+        v-model="username"
+        name="username"
+        :label="t('login.username')"
+        autocomplete="username"
+        required
+      />
+      <AppTextField
+        id="login-password"
+        v-model="password"
+        name="password"
+        type="password"
+        :label="t('login.password')"
+        autocomplete="current-password"
+        required
+      />
       <div class="login-checkbox">
         <input id="login-keep-signed-in" v-model="keepSignedIn" type="checkbox" />
         <label for="login-keep-signed-in">{{ t('login.keepSignedIn') }}</label>
       </div>
       <p v-if="errorMessage" role="alert" class="login-error">{{ errorMessage }}</p>
-      <button type="submit" class="login-submit" :disabled="isSubmitting">
-        {{ submitLabel }}
-      </button>
+      <AppButton type="submit" :disabled="isSubmitting">{{ submitLabel }}</AppButton>
     </form>
   </main>
 </template>
@@ -114,27 +109,8 @@ async function submit(): Promise<void> {
 .login-form {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: var(--space-4);
-}
-
-.login-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.login-field label {
-  font-size: var(--font-size-small);
-  color: var(--text-secondary);
-}
-
-.login-field input {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-input);
-  background: var(--panel);
-  color: var(--text-primary);
-  font: inherit;
-  padding: var(--space-2) var(--space-3);
 }
 
 .login-checkbox {
@@ -150,22 +126,5 @@ async function submit(): Promise<void> {
 .login-error {
   margin: 0;
   color: var(--critical);
-}
-
-.login-submit {
-  align-self: flex-start;
-  border: 1px solid var(--accent-b);
-  border-radius: var(--radius-control);
-  background: var(--accent-b);
-  color: var(--panel);
-  font: inherit;
-  font-weight: var(--weight-semibold);
-  padding: var(--space-2) var(--space-4);
-  cursor: pointer;
-}
-
-.login-submit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 </style>

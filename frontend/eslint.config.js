@@ -73,6 +73,9 @@ export default tseslint.config(
       'vue/html-closing-bracket-newline': 'off',
       // Prettier always self-closes void elements (<img ... />); the recommended rule disagrees.
       'vue/html-self-closing': 'off',
+      // TypeScript's exactOptionalPropertyTypes (docs/26) forbids an explicit `undefined` default,
+      // which is the only default this rule would accept for a prop that is genuinely optional.
+      'vue/require-default-prop': 'off',
 
       // No user-facing string literal in a component; the key style is dot-separated camelCase.
       '@intlify/vue-i18n/no-raw-text': 'error',
