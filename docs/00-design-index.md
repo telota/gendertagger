@@ -17,7 +17,6 @@
 | [`13-auth-and-security.md`](13-auth-and-security.md) | Authentication, authorization, data boundaries |
 | [`14-testing.md`](14-testing.md) | Test strategy and scientific regression fixtures |
 | [`15-implementation-plan.md`](15-implementation-plan.md) | Ordered build plan for the IDE/coding agent |
-| [`16-open-questions.md`](16-open-questions.md) | Design questions and how implementation resolved them |
 | [`17-frontend-integration.md`](17-frontend-integration.md) | Vue/browser client contract and backend readiness |
 | [`18-engineering-and-quality.md`](18-engineering-and-quality.md) | Toolchain, quality gates, CI, and delivery policy |
 | [`19-coding-and-documentation-style.md`](19-coding-and-documentation-style.md) | Naming, docstrings, Markdown, and ADR style |

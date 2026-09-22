@@ -11,7 +11,7 @@ A local-first, reproducible, human-in-the-loop service for enriching TEI/XML per
 
 - FastAPI is the canonical public interface and application composition root.
 - Pydantic is the canonical contract layer.
-- The planned Vue 3 + TypeScript + Vite UI is an ordinary client of `/api/v1`, never a privileged backend layer.
+- The Vue 3 + TypeScript + Vite UI is an ordinary client of `/api/v1`, never a privileged backend layer.
 - OpenAPI is the machine-readable client contract; frontend transport types/client code are generated from it.
 - SQLAlchemy/PostgreSQL are persistence infrastructure, not the domain/API model.
 - Celery/Redis execute asynchronous batched work.
@@ -41,19 +41,5 @@ A substantive `unknown` is not an abstention. Method-specific confidence is stor
 
 ## Reference aggregation
 
-The first implementation must reproduce the published reference strategy in `docs/07-methods-and-aggregation.md` before alternative strategies are introduced.
-
-## Definition of first usable vertical slice
-
-A user can:
-
-1. create a Project;
-2. import TEI/XML into an immutable DatasetSnapshot;
-3. create a Run from validated YAML/Pydantic configuration;
-4. execute at least one method asynchronously;
-5. persist Predictions;
-6. aggregate completed predictions;
-7. inspect results through FastAPI;
-8. create a human Annotation;
-9. export TEI without mutating the source artifact;
-10. inspect provenance sufficient to reconstruct the computation.
+The default implementation reproduces the published reference strategy in
+`docs/07-methods-and-aggregation.md`; alternative strategies must not change that reference behavior.

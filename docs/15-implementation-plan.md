@@ -181,26 +181,3 @@ definition of done.
 - same-origin production build/routing
 
 Exit criterion: a reviewer can correct a machine result and the final-decision view changes without mutating Predictions/AggregatedResults.
-
-## Current implementation focus
-
-Phases 0 through 7 are complete. All nine reference method adapters are implemented and registered,
-alongside the experimental HIVOTO-XGBoost adapter, and the asynchronous snapshot-import, lookup-asset,
-method-execution, reference-aggregation, evaluation, and export paths all run end to end through the
-persisted API-to-worker workflow.
-
-The active work is Phase 8, the Vue annotation and review client. Its backend prerequisites are already
-met: the review-items query API is stable and review-stream revision conflicts return `409`. The remaining
-Phase 8 items are frontend work. The scaffold and the generated transport client are in place
-(milestone M1), and the local account authentication backend
-([ADR-0031](decisions/ADR-0031-local-database-authentication.md)) is the default provider. The
-application shell and every screen remain to be built. The read endpoints and collections they depend on
-are delivered; see [`24-frontend-delivery-plan.md`](24-frontend-delivery-plan.md). The second active track is
-operating the stack in production under [`21-production-promotion.md`](21-production-promotion.md).
-
-The transformer classifiers (`hf_distilbert`, `hf_genderize`) and the experimental HIVOTO-XGBoost adapter
-share the content-addressed multi-file model manifest (see
-[ADR-0024](decisions/ADR-0024-hf-transformer-model-manifest-adapters.md) and
-[ADR-0025](decisions/ADR-0025-hivoto-xgboost-adapter.md)); HIVOTO-XGBoost's manifest reuses the
-already-compiled `hivoto_lookup` artifact rather than recompiling it. Scientific behavior stays gated on
-the golden fixtures as the client is built on top of it.

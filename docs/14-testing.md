@@ -192,46 +192,8 @@ rendering and a failure names the command that fixes it. The frontend's TypeScri
 generated from the committed snapshot, and the `frontend_quality` CI job fails when they drift from it
 (`npm run api:check`).
 
-## Suites and markers
+## Operational execution
 
-- `unit`, `contract`, `scientific`: required, deterministic merge-request tests;
-- `integration`, `postgres`, `redis`: tests with service/process boundaries;
-- `e2e`: complete workflow tests over tiny fixtures;
-- `slow`, `gpu`, `external`: explicitly enabled protected or scheduled jobs.
-
-Marker selection does not make a suite optional. Every phase declares which suites are required for merge.
-Infrastructure-specific tests also carry the `integration` marker; separate CI jobs select their narrower
-`postgres`, `redis`, or `e2e` requirement when those suites are introduced.
-
-## Coverage
-
-Use branch coverage. Fast, PostgreSQL, and Redis jobs publish separate raw coverage data; the downstream
-`coverage` stage combines them and enforces the configured 85% project floor. The fast suite independently
-enforces a 70% non-regression floor. The normative scientific modules carry their own per-file 100% gates in
-the same job, so a global percentage cannot conceal a regression there:
-
-- `methods/normalization.py`
-- `domain/aggregation.py`
-- `domain/aggregation_assessment.py`
-- `export/tei_profile.py`
-
-Service-backed repository code remains measured through the service-backed suites rather than mock-only tests
-written to satisfy a fast-only percentage. Ratchet the overall project floor upward from the configured
-baseline instead of manufacturing tests solely to hit a global number.
-
-## CI progression
-
-Every gate below is live in `.gitlab-ci.yml`, whose stages are `validate`, `test`, `coverage`, `package`,
-`secret-detection`, `publish`, and `sbom`. The Phase 8 frontend gates run as `frontend_quality`,
-`frontend_dependency_audit`, `frontend_test`, and `frontend_build`.
-
-| Phase | Required gates added |
-|---|---|
-| 0–1 | lockfile, Ruff, mypy, Pyright, import boundaries, package build, contract/domain/scientific tests |
-| 2 | PostgreSQL repositories plus Alembic clean-head and drift checks |
-| 3 | API/auth/error/pagination/OpenAPI contract tests |
-| 4 | Redis and at least one real non-eager Celery worker path |
-| 5 | adapter conformance, asynchronous snapshot-import atomicity, and asynchronous reference-aggregation completeness; heavy models only on protected/scheduled runners |
-| 6 | complete tiny-fixture workflow and reproducibility/export checks |
-| 7 | backend image/Compose smoke, previous-release migration, backup/restore, SBOM/security gates |
-| 8 | frontend lint/type/unit/build plus generated-client drift |
+Test markers, coverage thresholds, and CI requirements are defined in
+[`18-engineering-and-quality.md`](18-engineering-and-quality.md). Exact local and service-backed commands are
+maintained in [`CONTRIBUTING.md`](../CONTRIBUTING.md).

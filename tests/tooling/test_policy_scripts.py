@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import subprocess
 import sys
 from pathlib import Path
@@ -52,14 +51,6 @@ Decision.
 Consequences.
 """,
     )
-    scaffold = {
-        "design_docs": [
-            "docs/00-design-index.md",
-            "docs/01-topic.md",
-            "docs/decisions/ADR-0001-example.md",
-        ]
-    }
-    _write(root / "SCAFFOLD.json", f"{json.dumps(scaffold)}\n")
 
 
 def test_documentation_policy_accepts_a_complete_repository(tmp_path: Path) -> None:
@@ -76,6 +67,19 @@ def test_documentation_policy_accepts_yaml_front_matter_before_h1(tmp_path: Path
         tmp_path / "docs/01-topic.md",
         "---\ntitle: Topic metadata\n---\n\n# Topic\n",
     )
+
+    result = _run_policy("check_documentation.py", tmp_path)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_documentation_policy_accepts_stable_design_document_numbering_gaps(tmp_path: Path) -> None:
+    _write_minimal_documentation(tmp_path)
+    _write(
+        tmp_path / "docs/00-design-index.md",
+        "# Design document index\n\n[Topic](01-topic.md)\n[Later topic](03-later-topic.md)\n",
+    )
+    _write(tmp_path / "docs/03-later-topic.md", "# Later topic\n")
 
     result = _run_policy("check_documentation.py", tmp_path)
 
@@ -109,7 +113,7 @@ def test_documentation_policy_reports_structure_and_link_errors(tmp_path: Path) 
     assert "DOC202" in result.stdout
 
 
-def test_documentation_policy_reports_manifest_and_adr_errors(tmp_path: Path) -> None:
+def test_documentation_policy_reports_index_and_adr_errors(tmp_path: Path) -> None:
     _write_minimal_documentation(tmp_path)
     _write(
         tmp_path / "docs/decisions/ADR-0001-example.md",
@@ -126,15 +130,12 @@ Decision.
 Consequences.
 """,
     )
-    _write(
-        tmp_path / "SCAFFOLD.json",
-        '{"design_docs": ["docs/00-design-index.md", "docs/decisions/ADR-0001-example.md"]}\n',
-    )
+    _write(tmp_path / "docs/00-design-index.md", "# Design document index\n")
 
     result = _run_policy("check_documentation.py", tmp_path)
 
     assert result.returncode == 1
-    assert "DOC403" in result.stdout
+    assert "DOC301" in result.stdout
     assert "DOC503" in result.stdout
 
 

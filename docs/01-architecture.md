@@ -99,35 +99,12 @@ selects its asset by `lookup_sha256`; run scheduling resolves that digest agains
 logical type and stores the exact artifact in `MethodExecution.data_artifact_id`.
 
 ### Browser client boundary
-The planned Vue 3 + TypeScript + Vite UI consumes the public `/api/v1` interface like any other client. It receives domain resources, typed JSON, downloads, and optional SSE progress only. It does not see SQLAlchemy models, Celery task IDs, Redis keys, queue names, worker identities, or filesystem paths. OpenAPI is the machine-readable transport contract. See `17-frontend-integration.md`.
+The Vue 3 + TypeScript + Vite UI consumes the public `/api/v1` interface like any other client. It receives
+domain resources, typed JSON, downloads, and optional SSE progress only. It does not see SQLAlchemy models,
+Celery task IDs, Redis keys, queue names, worker identities, or filesystem paths. OpenAPI is the
+machine-readable transport contract. See `17-frontend-integration.md`.
 
 ## Deployment topology
 
-One Compose project carries the whole system. `compose.yaml` defines:
-
-- `api` — FastAPI application (`gendertagger.api.main:app`)
-- `dispatch-coordinator` — outbox relay (`python -m gendertagger.tasks.relay`)
-- `worker-cpu` — Celery worker on `default,cpu,export`
-- `worker-gpu` — Celery worker on `gpu` (profile `gpu`)
-- `worker-llm` — Celery worker on `llm` (profile `llm`)
-- `worker-external` — Celery worker on `external` (profile `external`)
-- `db` — PostgreSQL
-- `redis` — Celery broker and result backend
-- `frontend` — static build of the Vue client, served by nginx with a history-mode fallback
-- `gateway` — nginx reverse proxy serving same-origin `/` and `/api/v1`
-- `migrate` — one-shot `alembic upgrade head` (profile `ops`)
-
-Segmented Compose networks (`public`, `edge`, `core`, `model`, `egress`) keep PostgreSQL and Redis off the
-public network, and only the LLM and external workers reach `egress`. Host-topology variations beyond this
-single Compose project are collected in [`22-future-development.md`](22-future-development.md).
-
-## Explicit non-goals for v1
-
-- Kubernetes
-- Kafka
-- one microservice per classifier
-- event sourcing
-- a workflow engine in addition to Celery
-- global entity resolution across projects
-- live GND dependency for the reference pipeline
-- confidence-weighted voting as default behavior
+The Compose services, network boundaries, startup order, and host-topology constraints are defined in
+[`12-deployment-and-operations.md`](12-deployment-and-operations.md).

@@ -1,6 +1,7 @@
 # Agent implementation instructions
 
-This repository is an architecture-first scaffold. Treat the design documents as the current specification.
+This repository is an architecture-first implementation. Treat the design documents as the current
+specification.
 
 ## Non-negotiable architecture rules
 
@@ -28,7 +29,8 @@ This repository is an architecture-first scaffold. Treat the design documents as
 
 ## Implementation order
 
-Follow `docs/15-implementation-plan.md`. Do not begin with the frontend or Docker Compose. Establish contracts and tests first.
+Follow the current phase in `PLAN.md` and the sequencing in `docs/15-implementation-plan.md`. Preserve the
+established contract-first architecture when extending later phases.
 
 ## Expected stack
 
@@ -43,19 +45,18 @@ Follow `docs/15-implementation-plan.md`. Do not begin with the frontend or Docke
 - lxml
 - YAML configuration validated through Pydantic
 - pytest
-- Vue 3 + TypeScript + Vite (Phase 8, not before)
+- Vue 3 + TypeScript + Vite
 
-Runtime dependency versions are deliberately not yet selected in this scaffold. Add compatible direct
-constraints and refresh the committed lockfile when implementation begins; record the exact resolved
-environment in run provenance.
+Direct dependency constraints live in `pyproject.toml`, and `uv.lock` records the resolved environment. Keep
+both current when dependencies change and record the exact resolved environment in run provenance.
 
 ## Engineering quality gates
 
 Follow `docs/18-engineering-and-quality.md` and `CONTRIBUTING.md`. Keep `uv.lock` committed and run the locked
 documentation, contract-naming, package-initializer, Ruff, mypy, Import Linter, pytest, and package-build
 checks before handing off implementation changes. Naming, docstring, package-initializer, Markdown, and ADR
-conventions are defined in `docs/19-coding-and-documentation-style.md`. CI grows with each implementation
-phase; do not defer basic automated checks until deployment hardening.
+conventions are defined in `docs/19-coding-and-documentation-style.md`. Keep CI aligned with every applicable
+quality gate as implementation evolves.
 
 ## Scientific behavior
 

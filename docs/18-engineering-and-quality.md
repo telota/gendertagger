@@ -111,7 +111,7 @@ decision-table and property-based tests.
 The initial GitLab pipeline performs:
 
 1. lockfile validation;
-2. documentation structure/link/manifest/ADR validation, semantic contract naming, and package-initializer
+2. documentation structure/link/index/ADR validation, semantic contract naming, and package-initializer
    checks;
 3. Ruff, strict mypy, complementary Pyright, and import-boundary checks;
 4. locked Python and npm dependency vulnerability audits;
@@ -134,8 +134,8 @@ fail with a direct diagnostic instead of consuming the entire test-job timeout.
 
 The merge-request pipeline covers PostgreSQL/Alembic, API/OpenAPI, Redis/Celery, conformance coverage for
 every reference adapter, and the complete evaluation/export workflow, plus the packaging, SBOM, and
-secret-detection gates from Phase 7's operational hardening, and the Phase 8 frontend jobs listed in
-`14-testing.md`; heavy-model checks remain on protected or scheduled runners.
+secret-detection gates from Phase 7's operational hardening and the frontend jobs described above;
+heavy-model checks remain on protected or scheduled runners.
 
 Ordinary merge-request jobs have no production secrets and must not use private-network, GPU, model, or
 deployment runners. Such runners are protected and accept only trusted protected refs or schedules.
@@ -165,4 +165,3 @@ fields, leaving ordinary local naming to Ruff and review.
 `scripts/check_package_initializers.py` keeps imports and behavior in defining modules rather than hiding them
 behind package import side effects. `scripts/check_dead_code.py` prevents orphan symbols and dead code from
 accumulating in `src/gendertagger`.
-

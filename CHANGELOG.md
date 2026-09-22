@@ -16,7 +16,7 @@ the phased plan that resumes application code.
 
 - vNext specification and contributor entry points: [`SPEC.md`](SPEC.md), [`PLAN.md`](PLAN.md),
   [`AGENTS.md`](AGENTS.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), and the
-  [`SCAFFOLD.json`](SCAFFOLD.json) design manifest.
+  former `SCAFFOLD.json` design manifest.
 - Twenty numbered design documents under [`docs/`](docs/), indexed by
   [`docs/00-design-index.md`](docs/00-design-index.md), covering architecture, domain model, Pydantic
   contracts, persistence, API, task queue, methods and aggregation, ingestion/export, annotation and review,

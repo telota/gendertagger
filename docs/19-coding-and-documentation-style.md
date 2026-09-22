@@ -107,8 +107,10 @@ Wrap prose near 100 characters where practical for reviewable diffs. Tables, lon
 and scientifically significant source text may exceed that target; line length is therefore advisory for
 Markdown rather than an automated gate.
 
-Numbered design documents use `NN-kebab-case.md`, retain contiguous numbers, and are linked from
-`00-design-index.md`. `SCAFFOLD.json` lists every numbered design document and numbered ADR exactly once.
+Numbered design documents use `NN-kebab-case.md`, retain stable numbers with gaps permitted after deletion,
+and are linked from `00-design-index.md`. The filesystem is the authoritative document inventory; the
+documentation validator discovers numbered design documents and ADRs directly. ADR numbers remain
+contiguous because they are an immutable decision sequence.
 
 ## Architecture Decision Records
 
@@ -133,8 +135,8 @@ uv run --locked python scripts/check_documentation.py
 uv run --locked python scripts/check_dead_code.py
 ```
 
-The documentation validator checks structure, local link targets, numbered-document/index coverage,
-`SCAFFOLD.json`, and ADR shape without accessing the network. The naming validator emits stable `GTN` rule
+The documentation validator checks structure, local link targets, numbered-document/index coverage, and ADR
+shape without accessing the network. The naming validator emits stable `GTN` rule
 codes for the additional contract vocabulary rules. The initializer validator enforces regular package
 markers without hidden imports or behavior. The dead-code validator enforces clean symbol definitions without
 unreferenced functions or broken protocols. All four run in pre-commit and GitLab CI.

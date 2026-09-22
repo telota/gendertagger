@@ -139,6 +139,6 @@ fully attributable.
   grace period remains an operational capability; it must never delete bytes concurrently being accepted.
 
 Possible extensions beyond this accepted contract are tracked in
-[`16-open-questions.md`](../16-open-questions.md), including artifact garbage collection, HTTP acceptance
-idempotency, resumable progress and cancellation, object-storage staging, and additional tabular packaging.
-They are not prerequisites for the supported matrix defined by this decision.
+[`22-future-development.md`](../22-future-development.md), including artifact garbage collection, HTTP
+acceptance idempotency, resumable progress and cancellation, object-storage staging, and additional tabular
+packaging. They are not prerequisites for the supported matrix defined by this decision.

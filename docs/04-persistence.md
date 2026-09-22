@@ -2,331 +2,151 @@
 
 ## Database
 
-PostgreSQL is the durable source of truth for application state, scientific results, annotation history, and provenance metadata.
-Redis is not durable scientific storage.
+PostgreSQL is the durable source of truth for application state, scientific results, annotation history, and
+provenance metadata. Redis is a broker and operational coordination service, never durable scientific
+storage.
 
-Persistence is implemented with SQLAlchemy 2.x declarative mappings under `gendertagger.db` and
-Alembic migrations. The schema ships as a single baseline revision,
-`migrations/versions/20260815_0001_baseline.py`, and `gendertagger.db.session` refuses any engine or
-session whose dialect is not PostgreSQL.
+SQLAlchemy 2.x mappings live under [`src/gendertagger/db/`](../src/gendertagger/db/), and Alembic migrations
+under [`migrations/`](../migrations/) define the exact tables, columns, constraints, indexes, and triggers.
+The application refuses a non-PostgreSQL database because its integrity model depends on PostgreSQL behavior.
 
-## Transaction and repository boundaries
+This document records persistence boundaries and invariants rather than duplicating the current schema.
 
-Application services own a unit of work. One unit of work owns one SQLAlchemy session and therefore one
-database transaction. Repositories share that session, flush when generated identifiers or constraint results
-are needed, and never commit independently. Leaving a unit-of-work context rolls back any uncommitted work and
-closes the session; successful commands call `commit()` explicitly.
+## Transactions and repositories
 
-Repository interfaces belong to the application boundary. Their inputs and outputs are canonical Pydantic
-contracts or explicit scalar identifiers, never SQLAlchemy rows. The implementations under `gendertagger.db`
-perform the row/contract mapping and may use SQLAlchemy internally. Services receive a unit-of-work factory so
-tests and non-HTTP entry points use the same transaction semantics.
+Application services own units of work. One unit of work owns one SQLAlchemy session and transaction.
+Repositories share that session, may flush for generated identifiers or constraint feedback, and never commit
+independently. Exiting without an explicit commit rolls back and closes the session.
 
-## Tables
+Repository interfaces accept and return Pydantic contracts or explicit scalar identifiers, never ORM rows.
+Implementations perform mapping internally. Services receive unit-of-work factories so HTTP, CLI, workers,
+and tests share the same transaction semantics.
 
-The baseline revision creates 21 tables, and revision `20260903_0002` adds the two local-account
-authentication tables, for 23 tables mapped under `gendertagger.db`:
+## Ownership and identity
 
-- projects and ingestion (`db/projects.py`): `projects`, `dataset_snapshots`,
-  `snapshot_source_members`, `person_records`, `person_external_ids`;
-- execution (`db/executions.py`): `runs`, `method_executions`, `task_batches`, `predictions`;
-- aggregation (`db/aggregations.py`): `aggregation_executions`, `aggregation_method_executions`,
-  `aggregated_results`;
-- evaluation (`db/evaluations.py`): `evaluation_executions`, `evaluation_method_executions`;
-- export (`db/exports.py`): `export_executions`;
-- review (`db/reviews.py`): `users`, `user_roles`, `project_memberships`, `annotations`,
-  `review_states`; `user_roles` holds only the global `operator` and `admin` roles, and
-  `project_memberships` holds one project role per `(project_id, user_id)`, per
-  [ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md);
-- authentication (`db/auth.py`): `user_credentials`, `user_sessions`, per
-  [ADR-0031](decisions/ADR-0031-local-database-authentication.md);
-- artifacts (`db/artifacts.py`): `artifacts`;
-- dispatch (`db/dispatches.py`): `batch_dispatches`, the generic transactional outbox whose typed
-  owners are task batches, aggregation executions, dataset snapshots, evaluation executions, and
-  exports.
+Every persisted resource has one unambiguous owner chain back to a project. Dataset snapshots belong to
+projects; people belong to snapshots; runs belong to snapshots; executions and Predictions belong to runs;
+aggregations, evaluations, and exports identify their exact run inputs.
 
-## Key constraints
+A person is unique by TEI `xml:id` within one snapshot. Cross-snapshot logical identity remains
+`(project_id, tei_id)` through the snapshot relationship; no global person table or identity layer exists.
+Composite foreign keys prevent annotations or review state from pairing a person with the wrong snapshot.
 
-### Projects and snapshots
+The project working-aggregation pointer may reference only a completed aggregation produced by one of that
+project's snapshots. The repository enforces the cross-resource ownership and lifecycle rule described in
+[ADR-0035](decisions/ADR-0035-project-working-aggregation.md).
 
-- `projects.slug` unique.
-- `projects.working_aggregation_execution_id` is a nullable `ON DELETE RESTRICT` foreign key to
-  `aggregation_executions.id`. `projects` is created before `aggregation_executions` in the baseline
-  migration, so the column is declared with `use_alter=True`, matching every other forward-referencing
-  foreign key in `db/artifacts.py`. The repository, not a database constraint, enforces that the referenced
-  aggregation belongs to a run of this project's own snapshot and is `completed`
-  ([ADR-0035](decisions/ADR-0035-project-working-aggregation.md)).
-- `dataset_snapshots` immutable when status becomes `ready`.
-- unique `(dataset_snapshot_id, tei_id)` for person records, plus a unique `(id, dataset_snapshot_id)`
-  key that the review tables reference compositely.
-- the cross-snapshot logical identity `(project_id, tei_id)` resolves through
-  `dataset_snapshots.project_id`; `person_records` carries no denormalized project column.
+## Immutable snapshots and import atomicity
 
-`person_records` retains ordinary columns for the stable `surname`, `forenames`, and `alt_names` projections
-used by methods and browser search. It also has JSONB `events` and a nullable JSONB `name_forms` column for the
-ordered, Pydantic-validated source structures defined by
-[ADR-0017](decisions/ADR-0017-structured-tei-person-name-forms.md). The `name_forms_array` check
-requires a JSON array whenever the column is non-null, and `events_array` requires one
-unconditionally. Null means the legacy import profile did not capture the structure. A v2 value is
-a populated array with exactly one regular form, and v3 retains that contract. The repository rejects non-null
-forms for a v1 TEI snapshot and missing forms for a v2, v3, or tabular snapshot. It also requires empty events
-for TEI v1 and v2 while permitting the event-aware v3 and tabular profiles, so alternate application callers
-cannot persist profile/projection provenance that disagrees.
+A ready DatasetSnapshot and its source/member/person projection are immutable. Structured name forms, events,
+flat search fields, authority identifiers, source-member names, and record locators are sealed together.
+Repositories validate that the parser version and projected fields agree with the persisted import profile.
+Legacy profile distinctions are preserved rather than backfilled into ready snapshots.
 
-For a complete import config, the repository resolves the canonical parser, collection, and packaging
-version through the same closed importer registry used at acceptance and requires an exact `parser_version`
-match before source-member or completion persistence. This prevents alternate repository callers from
-combining a profile with misleading implementation provenance.
+Snapshot acceptance stages bounded bytes first, then atomically registers artifacts, ordered source members,
+the pending snapshot, and its dispatch intent. A database rollback accepts none of those records, although
+content-addressed storage may retain an unreferenced blob for later garbage collection.
 
-Every imported PersonRecord stores non-null `source_member_name` and `source_record_locator` together. The
-repository verifies that a loose or single named member belongs to the snapshot; for archive packaging it
-verifies the snapshot's one exact source container and accepts the package reader's validated internal member
-name. The record locator then identifies the person within that member. Non-blank constraints and non-null
-columns ensure complete source provenance. Ready-snapshot mutation protection covers these
-source structures and locators together with the stable flat fields.
+Import claim, validation, streamed PersonRecord insertion, and the ready transition share one transaction at
+the supported dataset scale. A transient failure or worker loss rolls back the claim and every projection
+row. A permanent parsing failure rolls back before a separate transaction records the sanitized terminal
+failure. Readers therefore observe `pending` followed by one atomic transition to `ready` or `failed`, never a
+committed prefix. See
+[ADR-0020](decisions/ADR-0020-asynchronous-snapshot-import-outbox.md) and
+[ADR-0021](decisions/ADR-0021-versioned-multi-format-snapshot-ingestion.md).
 
-The migration adding `name_forms` does not backfill ready snapshots. Flat alternative-name strings cannot
-recover component boundaries, order metadata, or subtype, and reparsing into an existing ready snapshot would
-violate immutability. Re-importing the preserved source with an explicit structured profile creates a new
-snapshot; new imports default to v3. Because the structured value is stored on `person_records`, the existing
-ready-snapshot row-mutation protection applies to it without a separate child-table trigger.
+## Predictions and task batches
 
-Snapshot acceptance first stores every bounded upload outside PostgreSQL. One database transaction then
-registers all source Artifacts, creates the pending DatasetSnapshot, inserts its ordered source-member rows,
-and creates the snapshot's dispatch intent. A loose TEI collection additionally registers its canonical
-manifest as the snapshot's primary Artifact. A database rollback therefore accepts neither the artifact
-records nor source provenance nor the snapshot nor its work intent, although the content-addressed storage
-backend may retain unreferenced blobs for later garbage collection.
+One MethodExecution can persist at most one Prediction per person. Prediction label and status must agree;
+confidence is finite; raw output, metadata, input fingerprint, and owning TaskBatch remain attached as
+immutable provenance.
 
-`snapshot_source_members` is unique by `(dataset_snapshot_id, ordinal)` and by
-`(dataset_snapshot_id, logical_name)`. Each row references one exact Artifact and repeats its checksum, size,
-media type, and safe logical name as immutable snapshot provenance. Ordinals are zero-based and contiguous at
-the application boundary. Source-member rows cannot be inserted, updated, or deleted after their snapshot is
-ready. See [ADR-0021](decisions/ADR-0021-versioned-multi-format-snapshot-ingestion.md).
+Prediction insertion validates the running execution and batch, the owning run, and the exact deterministic
+person slice assigned to that batch. Completing a batch and committing its complete Prediction set happen in
+one transaction. Database guards reject late, partial, cross-run, cross-batch, or update/delete mutations even
+when a caller bypasses the repository.
 
-At the current bounded-source scale, the worker's conditional pending claim, `importing` transition, package
-validation, streamed parser, PersonRecord inserts, and ready transition share one transaction. Repository
-flushes may keep insert groups bounded but do not commit them independently. A transient exception or worker
-loss rolls back both the claim and all rows. A permanent parse or contract error also rolls back before a
-separate transaction marks the snapshot failed, so failed and retried imports expose no committed prefix. See
-[ADR-0020](decisions/ADR-0020-asynchronous-snapshot-import-outbox.md).
+## Aggregation results
 
-Consequently, `importing` is a transaction-local persistence state for new asynchronous imports, not an
-externally observable progress update. Normal readers see the previously committed `pending` row while the
-worker holds its claim, then see one atomic transition to `ready` or, after rollback, to `failed`.
+An AggregationExecution stores the exact ordered MethodExecutions it selected; persistence never infers the
+selection later from the run. Membership is nonempty and ordered before scheduling, then sealed.
 
-### Predictions
+One aggregation has at most one result per snapshot person. The executor commits the complete result set and
+completed lifecycle together, with cardinality and ownership equal to the immutable snapshot population.
+Failed or retried attempts expose no partial results. Existing AggregatedResults are immutable.
 
-`predictions` is unique on:
+Matching aggregation creation serializes on the run so concurrent identical requests reuse one active or
+completed resource. See [ADR-0034](decisions/ADR-0034-reuse-matching-aggregation-on-creation.md).
 
-```text
-(method_execution_id, person_record_id)
-```
+## Lifecycle and provenance sealing
 
-so one method execution holds at most one result per person.
+PostgreSQL enforces legal lifecycle transitions in addition to repository validation. Terminal resources
+cannot reopen or accept late output. Parent resources cannot complete before their owned executions or batches
+reach compatible terminal states. Status-specific timestamps and failure diagnostics remain consistent.
 
-Each row stores:
+Creation-time scientific provenance is immutable. While work is active, only operational lifecycle fields,
+progress, attempt/worker metadata, tallies, timestamps, and sanitized failure details may change. Once a
+resource is terminal, the entire row is sealed. Lifecycle resources are not deleted to rewrite history.
 
-- normalized `label`, which `status_label_consistent` requires to be present for `success` and absent
-  for `abstain` and `error`
-- `status`
-- `method_confidence`, rejected when it is `NaN` or infinite
-- `raw_label`
-- `raw_output` JSONB
-- `metadata` JSONB
-- `input_fingerprint`, constrained to 64 lowercase hex characters
-- `created_at`
+## Transactional dispatch outbox
 
-Every Prediction belongs to one persisted TaskBatch; `task_batch_id` is required rather than optional
-provenance. Prediction insertion locks the target TaskBatch and validates its owning Run and MethodExecution.
-All three must be `running`, the batch must belong to the execution, and the people supplied must exactly match
-the batch's deterministic `(record_offset, record_count)` slice of the Run's snapshot. A single write cannot
-mix TaskBatches.
+Each outbox row belongs to exactly one durable work target: task batch, aggregation execution, dataset
+snapshot, evaluation execution, or export. Database and Pydantic constraints require one owner, one outbox row
+per target, and agreement among owner type, identifier-only payload, task name, and queue.
 
-The complete prediction set and the completed TaskBatch state are committed in one transaction. Deferred
-database checks reject a commit when prediction rows remain beneath a running batch, when a completed batch
-does not have exactly its assigned people, or when its tallies disagree with those immutable outputs. Insert
-guards enforce the same lifecycle, ownership, and snapshot-slice rules for direct SQLAlchemy or SQL callers.
-Existing Prediction rows remain update/delete-immutable.
-
-### Aggregation
-
-Aggregation executions reference the exact MethodExecutions included. Do not infer "all methods in run" later
-if a subset was selected.
-
-`aggregated_results` is unique on `(aggregation_execution_id, person_record_id)`. At the current dataset scale,
-the executor inserts the full person-result set and marks the AggregationExecution completed in one
-transaction. Completion requires result cardinality equal to the immutable snapshot's person cardinality.
-The repository requires the supplied unique person IDs to equal the snapshot's complete person set before
-insertion. Insert and deferred database guards apply the same rule to direct callers: results may be inserted
-only while the aggregation is `running`, every person must belong to its Run's snapshot, committed results
-must have a completed parent, and a completed aggregation must have exact coverage. Failed or retried attempts
-expose no partial rows. Existing AggregatedResult rows remain update/delete-immutable.
-
-### Execution lifecycle and provenance sealing
-
-PostgreSQL enforces legal lifecycle transitions for Runs, MethodExecutions, TaskBatches, and
-AggregationExecutions in addition to repository validation. Terminal execution resources cannot be reopened
-to admit late output. A MethodExecution cannot become terminal until all of its TaskBatches are terminal, and
-a Run cannot become terminal until all of its MethodExecutions are terminal. Lifecycle rows cannot be deleted,
-and status-specific start/finish timestamps and failure details are enforced at the database boundary.
-
-New MethodExecutions may be appended only while their Run is non-terminal, and new TaskBatches only while
-their MethodExecution is non-terminal. AggregationExecutions remain independently rerunnable and may be
-created for an existing terminal Run; their selected MethodExecutions must still be completed outputs from
-that Run. Creation locks the Run row with `FOR NO KEY UPDATE` before it looks for a matching live or
-completed aggregation, so concurrent identical requests serialize and return one aggregation between them
-([ADR-0034](decisions/ADR-0034-reuse-matching-aggregation-on-creation.md)). The lock admits the
-`FOR KEY SHARE` locks of foreign-key checks, so it does not block workers writing rows that reference the
-Run.
-
-Creation-time scientific provenance is immutable. Updates to those rows are limited to operational fields:
-
-- Runs: lifecycle status, start/finish timestamps, and failure diagnostic;
-- MethodExecutions: lifecycle status, progress counts, timestamps, and failure details;
-- TaskBatches: lifecycle status, worker/attempt metadata, tallies, timestamps, and failure details;
-- AggregationExecutions: lifecycle status, timestamps, and failure details.
-
-Consequently, snapshot/configuration hashes, code/runtime versions, method/model/data identifiers, queue and
-batch-slice definitions, aggregation strategy/configuration, and owning-resource IDs cannot be rewritten.
-The ordered `aggregation_method_executions` membership may be inserted only while its aggregation is pending;
-before transition to queued or running it must be nonempty with contiguous positions starting at zero. After
-scheduling it is sealed, and existing membership rows cannot be updated or deleted. Once any execution
-resource reaches a terminal state, the entire row is sealed, including fields that were operationally mutable
-while work was active.
-
-### Transactional dispatch outbox
-
-One outbox row belongs to exactly one durable work target. `batch_dispatches` has five nullable
-`ON DELETE RESTRICT` foreign keys - `task_batch_id`, `aggregation_execution_id`,
-`dataset_snapshot_id`, `evaluation_execution_id`, and `export_id`, the last pointing at
-`export_executions.id` - with:
-
-- the `exactly_one_target` check, `num_nonnulls(...) = 1` over all five owner columns;
-- a unique constraint per owner column, so a target never has two outbox rows;
-- a `DispatchTarget` kind consistent with the selected owner and payload, enforced by the
-  discriminated-union create contracts in `gendertagger.models.dispatch`;
-- explicit `pending`/`published` state, availability time, attempt count, relay lease, publication time, and
-  sanitized last-error diagnostic.
-
-The outbox row is created in the same transaction as its target. Relay and reconciliation update delivery
-metadata without owning scientific results. Reconciliation locks both dispatch and target rows with
-`FOR UPDATE SKIP LOCKED`; it does not infer that an old timestamp alone proves a worker has stopped. See
-[ADR-0015](decisions/ADR-0015-transactional-batch-dispatch-outbox.md) and
+The target and dispatch intent are created in the same transaction. Relay and reconciliation update delivery
+metadata without owning scientific state. Claims use row locking that permits concurrent workers while
+preventing duplicate ownership; age alone never proves a worker stopped. See
+[ADR-0015](decisions/ADR-0015-transactional-batch-dispatch-outbox.md),
 [ADR-0016](decisions/ADR-0016-asynchronous-aggregation-outbox.md), and
 [ADR-0020](decisions/ADR-0020-asynchronous-snapshot-import-outbox.md).
 
-### Annotations
+## Annotation history and review state
 
-`annotations` is append-only: the `trg_annotations_append_only` trigger rejects every UPDATE and
-DELETE. Each row stores:
+Annotation rows are append-only. Verify and correct actions carry a canonical label; defer carries none. Each
+new decision identifies its reviewer, optional aggregation context, predecessor, resulting revision, and
+timestamp. Database triggers reject updates and deletes.
 
-- `dataset_snapshot_id` and `person_record_id`, bound together by a composite foreign key to the
-  `(id, dataset_snapshot_id)` key on `person_records`, so an annotation cannot name a person from a
-  different snapshot;
-- `action` (`verify`, `correct`, `defer`) and `label`, kept consistent by `action_label_consistent`:
-  verify and correct carry a canonical label, defer carries none;
-- `reviewer_user_id`;
-- `comment` where supplied;
-- `aggregated_result_id` where the decision references one;
-- `supersedes_annotation_id`, which `does_not_supersede_self` forbids from pointing at the row itself;
-- `resulting_revision`, positive and unique per `(dataset_snapshot_id, person_record_id)` through the
-  `review_stream_revision` constraint;
-- `created_at`.
+ReviewState is the small mutable head projection for one snapshot/person stream. Revision zero means no head
+and an unreviewed workflow state. Higher revisions identify the current annotation and a reviewed or deferred
+state. The projection is rebuildable from Annotation history and does not replace it.
 
-### Review state and optimistic concurrency
+Creating an annotation locks the person and review-state row, compares `expected_revision`, inserts the next
+immutable annotation, advances the projection, and commits once. A stale revision becomes an application-level
+conflict rather than an overwrite.
 
-`review_states` is a small mutable projection whose composite primary key is the snapshot/person
-record:
+## Query indexes
 
-```text
-PRIMARY KEY (dataset_snapshot_id, person_record_id)
-revision NOT NULL
-current_annotation_id NULLABLE
-workflow_state NOT NULL
-updated_at NOT NULL
-```
+Indexes support ownership traversal, lifecycle polling, stable cursor orders, review filters, uncertainty
+ordering, labels and prediction status, annotation heads, and name/authority search. Core query fields remain
+ordinary typed columns rather than JSONB. New indexes follow measured query plans rather than speculative UI
+requirements.
 
-It carries the same composite foreign key to `person_records (id, dataset_snapshot_id)` as
-`annotations`, and `revision_head_consistent` ties its mutable fields together: revision `0` means no
-head and `unreviewed`, while any higher revision means a non-null head and either `reviewed` or
-`deferred`.
-
-Creating an annotation is one database transaction:
-
-1. lock the person record and its ReviewState row with `SELECT ... FOR UPDATE`, inserting a
-   revision-0 state when none exists yet;
-2. compare the command's `expected_revision`;
-3. fail with an application-level conflict if it is stale;
-4. insert the immutable Annotation;
-5. increment ReviewState.revision and update its current head/workflow state;
-6. commit.
-
-ReviewState is a query/concurrency projection and must be rebuildable from annotation history. It does not make historical Annotation rows mutable.
-
-### Query indexes for browser review
-
-The review query in `gendertagger.db.review_repository` filters and orders on ordinary indexed
-columns:
-
-- snapshot/person identity, via the `(dataset_snapshot_id, tei_id)` unique key and
-  `ix_person_records_dataset_snapshot_id_surname`;
-- canonical/final label and aggregation outcome, via `ix_aggregated_results_person_record_id_outcome`;
-- certainty and agreement tiers, via `ix_aggregated_results_aggregation_execution_id_certainty_tier`
-  and `ix_aggregated_results_aggregation_execution_id_agreement_tier`;
-- review workflow state, via `ix_review_states_workflow_state_updated_at`;
-- reviewer and annotation head, via `ix_annotations_reviewer_user_id_created_at` and
-  `ix_annotations_person_record_id_created_at`;
-- selected method execution, prediction label, and prediction status, via
-  `ix_predictions_method_execution_id_status` and `ix_predictions_person_record_id_status`;
-- name and identifier search over `tei_id`, `surname`, `forenames`, `alt_names`, and
-  `person_external_ids.value`, via `ix_person_external_ids_scheme_value`.
-
-Further indexes follow actual query plans. These frequently queried fields stay out of JSONB.
+Exact index definitions belong to the SQLAlchemy metadata and Alembic migrations.
 
 ## JSONB policy
 
-Use JSONB for method-specific raw outputs, flexible provenance fragments, bounded source structures such as
-`name_forms` and `events`, and configuration snapshots. Do not hide core queryable fields such as labels,
-states, IDs, timestamps, agreement values, or the flat name-search projection inside JSONB.
+Use JSONB for method-specific raw output, flexible provenance fragments, validated bounded source structures,
+and configuration snapshots. Do not hide core queryable fields such as labels, states, IDs, timestamps,
+agreement values, or flat name-search projections inside JSONB.
 
 ## Artifact storage
 
-Artifact bytes live outside PostgreSQL. Each `artifacts` row contains:
+Artifact bytes live outside PostgreSQL behind the ArtifactStorage boundary. Immutable database records bind a
+logical type and producer provenance to storage location, SHA-256 checksum, byte size, media type, and bounded
+metadata. Domain and API contracts never receive filesystem paths.
 
-- logical type
-- storage URI/path
-- SHA-256 checksum
-- byte size
-- media type
-- nullable producer references: `project_id`, `dataset_snapshot_id`, `run_id`, `method_execution_id`,
-  `aggregation_execution_id`, `evaluation_execution_id`, `export_id`
-- `metadata` JSONB
-
-`gendertagger.services.artifact_storage.ArtifactStorage` is the boundary protocol - `store`, `open`,
-and `materialize` - and `gendertagger.storage.local.LocalArtifactStorage` is the v1 filesystem
-backend, so domain contracts never see a filesystem path. Rows are immutable: `trg_artifacts_immutable`
-rejects UPDATE and DELETE.
-
-Large method lookup datasets remain artifacts rather than application tables. Wiki-Gendersort, HIVOTO, and
-GND use separate immutable SQLite files compiled from retained source artifacts; PostgreSQL stores their
-checksums, metadata, and MethodExecution references only. Workers validate and materialize a selected digest
-to a local read-only path. This keeps retained authority revisions out of application backups and replication
-while preserving exact method-data provenance. See
-[ADR-0023](decisions/ADR-0023-content-addressed-sqlite-method-lookups.md).
+Large lookup datasets and directory-shaped models remain content-addressed artifacts rather than application
+tables. Workers resolve an approved digest, verify it, and materialize it read-only. Original sources and
+compiled derivatives remain independently attributable. See
+[ADR-0023](decisions/ADR-0023-content-addressed-sqlite-method-lookups.md),
+[ADR-0024](decisions/ADR-0024-hf-transformer-model-manifest-adapters.md), and
+[ADR-0025](decisions/ADR-0025-hivoto-xgboost-adapter.md).
 
 ## Caching
 
-Caches are optimizations, not truth. No cache table exists, and run execution computes and persists
-every Prediction with its own Run-local provenance.
+Caches are optimizations, not truth. Run execution persists every Prediction with Run-local provenance.
 
-The only cache is in-process. `gendertagger.services.classification.DirectClassificationService`
-keeps a bounded LRU, `DEFAULT_CACHE_MAX_SIZE = 50_000`, keyed by
-
-```text
-(method name, resolved method configuration serialized as JSON, input name)
-```
-
-and serves the synchronous `POST /classify` endpoint only. It is per-process, never persisted, and
-never a substitute for Prediction rows. A durable cross-run method cache is described in
-[`22-future-development.md`](22-future-development.md).
+The synchronous classification service may use a bounded in-process cache keyed by method, resolved
+configuration, and input name. It is process-local, non-durable, and never substitutes for Prediction rows. A
+durable cross-run cache remains deferred in [`22-future-development.md`](22-future-development.md).

@@ -1,9 +1,8 @@
-"""Validate maintained documentation structure, links, manifests, and ADRs."""
+"""Validate maintained documentation structure, links, indexes, and ADRs."""
 
 from __future__ import annotations
 
 import argparse
-import json
 import re
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
@@ -276,7 +275,13 @@ def check_markdown_file(root: Path, path: Path) -> tuple[MarkdownDocument, list[
 
 
 def _numbered_paths(
-    paths: Iterable[Path], pattern: re.Pattern[str], root: Path, code: str, start: int
+    paths: Iterable[Path],
+    pattern: re.Pattern[str],
+    root: Path,
+    code: str,
+    start: int,
+    *,
+    require_contiguous: bool = True,
 ) -> tuple[list[Path], list[Diagnostic]]:
     numbered: list[tuple[int, Path]] = []
     diagnostics: list[Diagnostic] = []
@@ -302,7 +307,7 @@ def _numbered_paths(
         numbered.append((number, path))
 
     numbered.sort()
-    if numbered:
+    if numbered and require_contiguous:
         actual = sorted({number for number, _path in numbered})
         expected = list(range(start, max(actual) + 1))
         if actual != expected:
@@ -346,62 +351,6 @@ def _check_design_index(
         )
         for missing_path in sorted(expected - linked_docs)
     ]
-
-
-def _check_scaffold_manifest(
-    root: Path, numbered_docs: Sequence[Path], adr_paths: Sequence[Path]
-) -> list[Diagnostic]:
-    manifest_path = root / "SCAFFOLD.json"
-    if not manifest_path.is_file():
-        return [Diagnostic("SCAFFOLD.json", 1, "DOC401", "design-document manifest is missing")]
-
-    try:
-        payload: object = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as error:
-        return [Diagnostic("SCAFFOLD.json", 1, "DOC401", f"cannot parse manifest: {error}")]
-
-    if not isinstance(payload, dict) or not isinstance(payload.get("design_docs"), list):
-        return [Diagnostic("SCAFFOLD.json", 1, "DOC401", "design_docs must be an array of paths")]
-    design_docs = payload["design_docs"]
-    if not all(isinstance(item, str) for item in design_docs):
-        return [Diagnostic("SCAFFOLD.json", 1, "DOC401", "design_docs entries must all be strings")]
-
-    entries = [item for item in design_docs if isinstance(item, str)]
-    diagnostics: list[Diagnostic] = []
-    duplicates = sorted({item for item in entries if entries.count(item) > 1})
-    if duplicates:
-        diagnostics.append(
-            Diagnostic(
-                "SCAFFOLD.json",
-                1,
-                "DOC402",
-                f"design_docs contains duplicate paths: {', '.join(duplicates)}",
-            )
-        )
-
-    expected = {path.relative_to(root).as_posix() for path in [*numbered_docs, *adr_paths]}
-    actual = set(entries)
-    missing = sorted(expected - actual)
-    extra = sorted(actual - expected)
-    if missing:
-        diagnostics.append(
-            Diagnostic(
-                "SCAFFOLD.json",
-                1,
-                "DOC403",
-                f"design_docs is missing: {', '.join(missing)}",
-            )
-        )
-    if extra:
-        diagnostics.append(
-            Diagnostic(
-                "SCAFFOLD.json",
-                1,
-                "DOC403",
-                f"design_docs has unrecognized paths: {', '.join(extra)}",
-            )
-        )
-    return diagnostics
 
 
 def _check_adrs(
@@ -508,6 +457,7 @@ def check_repository(root: Path) -> list[Diagnostic]:
         root,
         "DOC302",
         0,
+        require_contiguous=False,
     )
     diagnostics.extend(numbering_diagnostics)
 
@@ -532,7 +482,6 @@ def check_repository(root: Path) -> list[Diagnostic]:
     )
     diagnostics.extend(adr_numbering_diagnostics)
     diagnostics.extend(_check_design_index(root, numbered_docs, parsed))
-    diagnostics.extend(_check_scaffold_manifest(root, numbered_docs, adr_paths))
     diagnostics.extend(_check_adrs(root, adr_paths, parsed))
     return sorted(diagnostics)
 
