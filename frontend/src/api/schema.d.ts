@@ -506,6 +506,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/working-aggregation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Working Aggregation
+         * @description Point the project at one of its own completed aggregations, or clear the pointer.
+         */
+        put: operations["set_working_aggregation_api_v1_projects__project_id__working_aggregation_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/review-items": {
         parameters: {
             query?: never;
@@ -763,6 +783,11 @@ export interface components {
             id: string;
             /** Slug */
             slug: string;
+            /**
+             * Working Aggregation Execution Id
+             * @description The completed AggregationExecution, from one of this project's own runs, that its review queue and dashboard currently summarize (ADR-0035). Set explicitly through PUT /projects/{project_id}/working-aggregation; never inferred from recency.
+             */
+            working_aggregation_execution_id?: string | null;
         };
         /**
          * AggregatedClassification
@@ -1912,6 +1937,14 @@ export interface components {
          */
         ProjectRole: "viewer" | "reviewer" | "operator";
         /**
+         * ProjectWorkingAggregationUpdate
+         * @description Command setting or clearing a project's working-aggregation pointer (ADR-0035).
+         */
+        ProjectWorkingAggregationUpdate: {
+            /** Aggregation Execution Id */
+            aggregation_execution_id?: string | null;
+        };
+        /**
          * ResultMethodPrediction
          * @description One selected method's persisted output for the person behind an aggregated result.
          *
@@ -2027,18 +2060,27 @@ export interface components {
             aggregation_execution_id: string;
             /** Groups */
             groups: components["schemas"]["ReviewSummaryGroup"][];
+            /**
+             * Last Annotated At
+             * @description Most recent review activity among the aggregation's people, or null before it.
+             */
+            last_annotated_at?: string | null;
             /** Result Count */
             result_count: number;
         };
         /**
          * ReviewSummaryGroup
-         * @description Number of one aggregation's results that share a tier and review-state combination.
+         * @description Number of one aggregation's results that share a tier, label, and review-state combination.
          */
         ReviewSummaryGroup: {
             agreement_tier: components["schemas"]["AgreementTier"];
             certainty_tier: components["schemas"]["CertaintyTier"];
+            /** @description The same latest-human-annotation-otherwise-machine-label resolution as the human_overrides export policy, so a label count matches what that export would write. */
+            final_label?: components["schemas"]["CanonicalLabel"] | null;
             /** Result Count */
             result_count: number;
+            /** @description The current annotation's action, or null for a person nobody has annotated. */
+            review_action?: components["schemas"]["ReviewAction"] | null;
             workflow_state: components["schemas"]["ReviewWorkflowState"];
         };
         /**
@@ -4760,6 +4802,104 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DatasetSnapshot"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    set_working_aggregation_api_v1_projects__project_id__working_aggregation_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectWorkingAggregationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessibleProject"];
                 };
             };
             /** @description Invalid request */

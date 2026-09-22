@@ -78,14 +78,15 @@ class ReviewItemService:
         return CursorPage(items=items, next_cursor=next_cursor, has_more=has_more)
 
     def summarize_review(self, aggregation_id: UUID) -> ReviewSummary:
-        """Return a completed aggregation's result counts by tier and current review state."""
+        """Return a completed aggregation's result counts by tier, label, action, and state."""
         self._require_completed_aggregation(aggregation_id)
         with self._unit_of_work_factory() as unit_of_work:
-            groups = unit_of_work.reviews.count_review_groups(aggregation_id)
+            data = unit_of_work.reviews.count_review_groups(aggregation_id)
         return ReviewSummary(
             aggregation_execution_id=aggregation_id,
-            result_count=sum(group.result_count for group in groups),
-            groups=list(groups),
+            result_count=sum(group.result_count for group in data.groups),
+            last_annotated_at=data.last_annotated_at,
+            groups=list(data.groups),
         )
 
     def _require_completed_aggregation(self, aggregation_id: UUID) -> None:

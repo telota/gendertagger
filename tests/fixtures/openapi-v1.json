@@ -40,6 +40,19 @@
             "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
             "title": "Slug",
             "type": "string"
+          },
+          "working_aggregation_execution_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The completed AggregationExecution, from one of this project's own runs, that its review queue and dashboard currently summarize (ADR-0035). Set explicitly through PUT /projects/{project_id}/working-aggregation; never inferred from recency.",
+            "title": "Working Aggregation Execution Id"
           }
         },
         "required": [
@@ -2792,6 +2805,26 @@
         "title": "ProjectRole",
         "type": "string"
       },
+      "ProjectWorkingAggregationUpdate": {
+        "additionalProperties": false,
+        "description": "Command setting or clearing a project's working-aggregation pointer (ADR-0035).",
+        "properties": {
+          "aggregation_execution_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aggregation Execution Id"
+          }
+        },
+        "title": "ProjectWorkingAggregationUpdate",
+        "type": "object"
+      },
       "ResultMethodPrediction": {
         "additionalProperties": false,
         "description": "One selected method's persisted output for the person behind an aggregated result.\n\n``prediction`` is ``None`` when the method execution persisted no prediction for the\nperson, which stays distinct from an explicit ``abstain`` or ``error`` result. Each\n``method_confidence`` is method-specific and is not comparable across methods.",
@@ -3053,6 +3086,19 @@
             "title": "Groups",
             "type": "array"
           },
+          "last_annotated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Most recent review activity among the aggregation's people, or null before it.",
+            "title": "Last Annotated At"
+          },
           "result_count": {
             "minimum": 0.0,
             "title": "Result Count",
@@ -3069,7 +3115,7 @@
       },
       "ReviewSummaryGroup": {
         "additionalProperties": false,
-        "description": "Number of one aggregation's results that share a tier and review-state combination.",
+        "description": "Number of one aggregation's results that share a tier, label, and review-state combination.",
         "properties": {
           "agreement_tier": {
             "$ref": "#/components/schemas/AgreementTier"
@@ -3077,10 +3123,32 @@
           "certainty_tier": {
             "$ref": "#/components/schemas/CertaintyTier"
           },
+          "final_label": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CanonicalLabel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The same latest-human-annotation-otherwise-machine-label resolution as the human_overrides export policy, so a label count matches what that export would write."
+          },
           "result_count": {
             "minimum": 1.0,
             "title": "Result Count",
             "type": "integer"
+          },
+          "review_action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewAction"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The current annotation's action, or null for a person nobody has annotated."
           },
           "workflow_state": {
             "$ref": "#/components/schemas/ReviewWorkflowState"
@@ -6639,6 +6707,130 @@
           }
         },
         "summary": "Import Snapshot",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/working-aggregation": {
+      "put": {
+        "description": "Point the project at one of its own completed aggregations, or clear the pointer.",
+        "operationId": "set_working_aggregation_api_v1_projects__project_id__working_aggregation_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectWorkingAggregationUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessibleProject"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Set Working Aggregation",
         "tags": [
           "projects"
         ]

@@ -216,6 +216,107 @@ def test_review_summary_groups_are_distinct_and_add_up() -> None:
         _summary_group(CertaintyTier.single, 0)
 
 
+def test_review_summary_group_requires_a_review_action_exactly_when_reviewed() -> None:
+    unreviewed = ReviewSummaryGroup(
+        certainty_tier=CertaintyTier.high,
+        agreement_tier=AgreementTier.unanimous,
+        workflow_state=ReviewWorkflowState.unreviewed,
+        result_count=1,
+    )
+    verified = ReviewSummaryGroup(
+        certainty_tier=CertaintyTier.high,
+        agreement_tier=AgreementTier.unanimous,
+        workflow_state=ReviewWorkflowState.reviewed,
+        final_label=CanonicalLabel.female,
+        review_action=ReviewAction.verify,
+        result_count=1,
+    )
+    deferred = ReviewSummaryGroup(
+        certainty_tier=CertaintyTier.high,
+        agreement_tier=AgreementTier.unanimous,
+        workflow_state=ReviewWorkflowState.deferred,
+        review_action=ReviewAction.defer,
+        result_count=1,
+    )
+
+    assert unreviewed.review_action is None
+    assert verified.final_label is CanonicalLabel.female
+    assert deferred.review_action is ReviewAction.defer
+
+    with pytest.raises(ValidationError, match="unreviewed group must not carry a review action"):
+        ReviewSummaryGroup(
+            certainty_tier=CertaintyTier.high,
+            agreement_tier=AgreementTier.unanimous,
+            workflow_state=ReviewWorkflowState.unreviewed,
+            review_action=ReviewAction.verify,
+            result_count=1,
+        )
+    with pytest.raises(ValidationError, match="requires a review action"):
+        ReviewSummaryGroup(
+            certainty_tier=CertaintyTier.high,
+            agreement_tier=AgreementTier.unanimous,
+            workflow_state=ReviewWorkflowState.reviewed,
+            final_label=CanonicalLabel.female,
+            result_count=1,
+        )
+    with pytest.raises(ValidationError, match="deferred group's review action must be defer"):
+        ReviewSummaryGroup(
+            certainty_tier=CertaintyTier.high,
+            agreement_tier=AgreementTier.unanimous,
+            workflow_state=ReviewWorkflowState.deferred,
+            review_action=ReviewAction.verify,
+            result_count=1,
+        )
+    with pytest.raises(
+        ValidationError, match="reviewed group's review action must be verify or correct"
+    ):
+        ReviewSummaryGroup(
+            certainty_tier=CertaintyTier.high,
+            agreement_tier=AgreementTier.unanimous,
+            workflow_state=ReviewWorkflowState.reviewed,
+            final_label=CanonicalLabel.female,
+            review_action=ReviewAction.defer,
+            result_count=1,
+        )
+    with pytest.raises(ValidationError, match="reviewed group requires a final label"):
+        ReviewSummaryGroup(
+            certainty_tier=CertaintyTier.high,
+            agreement_tier=AgreementTier.unanimous,
+            workflow_state=ReviewWorkflowState.reviewed,
+            review_action=ReviewAction.correct,
+            result_count=1,
+        )
+
+
+def test_review_summary_groups_distinguish_by_label_and_action() -> None:
+    verified = ReviewSummaryGroup(
+        certainty_tier=CertaintyTier.high,
+        agreement_tier=AgreementTier.unanimous,
+        workflow_state=ReviewWorkflowState.reviewed,
+        final_label=CanonicalLabel.female,
+        review_action=ReviewAction.verify,
+        result_count=2,
+    )
+    corrected = verified.model_copy(
+        update={"review_action": ReviewAction.correct, "result_count": 1}
+    )
+
+    summary = ReviewSummary(
+        aggregation_execution_id=AGGREGATED_RESULT_ID,
+        result_count=3,
+        last_annotated_at=CREATED_AT,
+        groups=[verified, corrected],
+    )
+
+    assert summary.last_annotated_at == CREATED_AT
+    with pytest.raises(ValidationError, match="must not repeat"):
+        ReviewSummary(
+            aggregation_execution_id=AGGREGATED_RESULT_ID,
+            result_count=3,
+            groups=[verified, verified.model_copy(update={"result_count": 1})],
+        )
+
+
 def test_annotation_preserves_append_only_revision_provenance() -> None:
     annotation = Annotation(
         id=ANNOTATION_ID,

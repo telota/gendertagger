@@ -190,9 +190,10 @@ the wireframe intends ([ADR-0033](decisions/ADR-0033-project-scoped-membership-r
 
 **Gaps.**
 
-- **Gap (backend):** no per-project progress projection. A card can reach the counts behind "82 %
-  abgeschlossen" and "6.577 abgeschlossen" by walking snapshot → run → aggregation → review summary, but
-  a project has no notion of its current aggregation, and "bearbeitet vor 2 Min." has no source.
+- **Resolved (backend):** a project's `working_aggregation_execution_id`
+  ([ADR-0035](decisions/ADR-0035-project-working-aggregation.md)) names the aggregation its card summarizes,
+  so "82 % abgeschlossen" and "6.577 abgeschlossen" are one `GET /aggregations/{id}/review-summary` call away,
+  and its `last_annotated_at` is "bearbeitet vor 2 Min."
 - **Gap (frontend):** the creation modal collects a name and a source kind but not `slug` or `description`.
   Either collect the slug or derive and confirm it from the display name.
 - **Gap (backend):** no project update or delete.
@@ -207,16 +208,19 @@ activity.
 with an activity feed and a "where did the finished entries come from" breakdown.
 
 **Backend.** `GET /aggregations/{id}/review-summary` counts one completed aggregation's results by certainty
-tier, agreement tier, and current review state, so "Automatisch entschieden" (`high`), both "Zur Prüfung"
-queues, and "Manuell annotiert" (`reviewed`) read from one request. `EnsembleMetrics` in
-[`models/evaluation.py`](../src/gendertagger/models/evaluation.py) additionally supplies
-`canonical_label_distribution` and `human_correction_count`, but only inside a completed evaluation report.
+tier, agreement tier, current review state, final label, and review action, so "Automatisch entschieden"
+(`high`), both "Zur Prüfung" queues, "Manuell annotiert" (`reviewed`), and the "wo kamen die fertigen
+Einträge her" breakdown (verified vs. corrected, via `review_action`) all read from one request, and
+`last_annotated_at` covers "bearbeitet vor 2 Min." `EnsembleMetrics` in
+[`models/evaluation.py`](../src/gendertagger/models/evaluation.py) remains the source for
+`canonical_label_distribution` inside a completed evaluation report, where the case-study statistics live.
 
 **Gaps.**
 
 - **Gap (backend):** every KPI on this screen is threshold-derived ("Konfidenz ≥ 90 %", "unterhalb
   Schwelle"). See [Semantic conflicts](#semantic-conflicts-to-resolve-before-implementation).
 - **Gap (backend):** no activity or audit feed endpoint.
+- **Resolved (backend):** the label-source breakdown reads `review_action` on `GET /aggregations/{id}/review-summary`.
 - **Gap (frontend/backend):** "davon 62 im Spielmodus" requires annotations to record their capture path.
   `Annotation` has no such field.
 
@@ -675,9 +679,11 @@ Ordered by whether the Vue port is blocked without them.
 
 ### Near-term
 
-1. Per-project progress projection, so the project cards and Übersicht KPIs have a source. The Übersicht
-   counts are **delivered** as `GET /aggregations/{aggregation_id}/review-summary`; a project card still has
-   to choose which aggregation it summarizes.
+1. Per-project progress projection, so the project cards and Übersicht KPIs have a source. **Delivered**:
+   `GET /aggregations/{aggregation_id}/review-summary` supplies the counts, and
+   `PUT /projects/{project_id}/working-aggregation`
+   ([ADR-0035](decisions/ADR-0035-project-working-aggregation.md)) lets a project name the aggregation its
+   card summarizes.
 2. A run list for the history table. **Delivered** as `GET /snapshots/{snapshot_id}/runs`, together with the
    other collections the routes need to discover their identifiers: `GET /projects/{project_id}/snapshots`
    and `GET /runs/{run_id}/aggregations`, `/evaluations`, and `/exports`.

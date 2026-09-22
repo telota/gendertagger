@@ -132,6 +132,25 @@ class ProjectService:
             raise ResourceNotFoundError(msg)
         return project
 
+    def set_working_aggregation(
+        self,
+        project_id: UUID,
+        *,
+        aggregation_execution_id: UUID | None,
+    ) -> Project:
+        """Point a project at one of its own completed aggregations, or clear the pointer.
+
+        The project's review queue and dashboard summarize this aggregation
+        (ADR-0035); auto-creating the default aggregation does not set it.
+        """
+        with self._unit_of_work_factory() as unit_of_work:
+            project = unit_of_work.projects.set_working_aggregation(
+                project_id,
+                aggregation_execution_id=aggregation_execution_id,
+            )
+            unit_of_work.commit()
+        return project
+
     def get_snapshot(self, snapshot_id: UUID) -> DatasetSnapshot:
         """Return one dataset snapshot or raise a resource-level not-found failure."""
         with self._unit_of_work_factory() as unit_of_work:

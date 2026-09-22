@@ -241,12 +241,28 @@ class Project(ProjectCreate):
 
     id: UUID
     created_at: UtcDatetime
+    working_aggregation_execution_id: UUID | None = Field(
+        default=None,
+        description=(
+            "The completed AggregationExecution, from one of this project's own runs, that its "
+            "review queue and dashboard currently summarize (ADR-0035). Set explicitly through "
+            "PUT /projects/{project_id}/working-aggregation; never inferred from recency."
+        ),
+    )
 
 
 class AccessibleProject(Project):
     """A project as its caller sees it, with the caller's effective role in it (ADR-0033)."""
 
     current_user_role: ProjectRole
+
+
+class ProjectWorkingAggregationUpdate(BaseModel):
+    """Command setting or clearing a project's working-aggregation pointer (ADR-0035)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    aggregation_execution_id: UUID | None = None
 
 
 class ProjectMemberUpdate(BaseModel):

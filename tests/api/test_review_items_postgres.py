@@ -656,9 +656,13 @@ def test_review_summary_counts_what_the_review_queue_returns(
     )
 
     summary = client.get(f"/api/v1/aggregations/{aggregation_id}/review-summary")
+    summary_body = summary.json()
 
     assert summary.status_code == 200
-    assert summary.json() == {
+    last_annotated_at = summary_body.pop("last_annotated_at")
+    assert last_annotated_at is not None
+    assert datetime.fromisoformat(last_annotated_at) > NOW
+    assert summary_body == {
         "aggregation_execution_id": str(aggregation_id),
         "result_count": 4,
         "groups": [
@@ -666,24 +670,36 @@ def test_review_summary_counts_what_the_review_queue_returns(
                 "certainty_tier": "high",
                 "agreement_tier": "weak_majority",
                 "workflow_state": "deferred",
+                # p3 deferred: defer never overrides, so the machine's own gnd-backed label stands.
+                "final_label": "female",
+                "review_action": "defer",
                 "result_count": 1,
             },
             {
                 "certainty_tier": "contested",
                 "agreement_tier": "no_consensus",
                 "workflow_state": "unreviewed",
+                # p1's unresolved tie has no machine label and nobody has annotated it.
+                "final_label": None,
+                "review_action": None,
                 "result_count": 1,
             },
             {
                 "certainty_tier": "single",
                 "agreement_tier": "single_rater",
                 "workflow_state": "unreviewed",
+                # p4 unreviewed: the machine's own label is still the final decision.
+                "final_label": "male",
+                "review_action": None,
                 "result_count": 1,
             },
             {
                 "certainty_tier": "uncertain",
                 "agreement_tier": "single_rater",
                 "workflow_state": "reviewed",
+                # p2 corrected: the human label supersedes the machine's "male".
+                "final_label": "female",
+                "review_action": "correct",
                 "result_count": 1,
             },
         ],

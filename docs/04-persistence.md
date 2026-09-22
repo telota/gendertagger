@@ -50,6 +50,12 @@ authentication tables, for 23 tables mapped under `gendertagger.db`:
 ### Projects and snapshots
 
 - `projects.slug` unique.
+- `projects.working_aggregation_execution_id` is a nullable `ON DELETE RESTRICT` foreign key to
+  `aggregation_executions.id`. `projects` is created before `aggregation_executions` in the baseline
+  migration, so the column is declared with `use_alter=True`, matching every other forward-referencing
+  foreign key in `db/artifacts.py`. The repository, not a database constraint, enforces that the referenced
+  aggregation belongs to a run of this project's own snapshot and is `completed`
+  ([ADR-0035](decisions/ADR-0035-project-working-aggregation.md)).
 - `dataset_snapshots` immutable when status becomes `ready`.
 - unique `(dataset_snapshot_id, tei_id)` for person records, plus a unique `(id, dataset_snapshot_id)`
   key that the review tables reference compositely.

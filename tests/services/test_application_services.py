@@ -91,7 +91,11 @@ from gendertagger.services.projects import (
     SnapshotUploadTooLargeError,
 )
 from gendertagger.services.review_items import ReviewItemService
-from gendertagger.services.review_repository import ReviewItemCursor, ReviewRepository
+from gendertagger.services.review_repository import (
+    ReviewItemCursor,
+    ReviewRepository,
+    ReviewSummaryData,
+)
 from gendertagger.services.run_repository import RunRepository
 from gendertagger.services.runs import RunProvenance, RunService
 from gendertagger.services.unit_of_work import UnitOfWork
@@ -333,6 +337,25 @@ def test_project_service_validates_limits_and_project_resources(tmp_path: Path) 
             artifact_root=tmp_path,
             max_total_upload_bytes=0,
         )
+
+
+def test_project_service_sets_working_aggregation_atomically(tmp_path: Path) -> None:
+    project_repository = Mock(spec=ProjectRepository)
+    pointed_project = _project().model_copy(
+        update={"working_aggregation_execution_id": AGGREGATION_ID}
+    )
+    project_repository.set_working_aggregation.return_value = pointed_project
+    unit_of_work = StubUnitOfWork(projects=project_repository)
+    service = _project_service(unit_of_work=unit_of_work, artifact_root=tmp_path)
+
+    updated = service.set_working_aggregation(PROJECT_ID, aggregation_execution_id=AGGREGATION_ID)
+
+    assert updated == pointed_project
+    project_repository.set_working_aggregation.assert_called_once_with(
+        PROJECT_ID,
+        aggregation_execution_id=AGGREGATION_ID,
+    )
+    assert unit_of_work.commit_count == 1
 
 
 def test_project_service_reads_snapshots_and_paginates_ready_people(tmp_path: Path) -> None:
@@ -960,10 +983,15 @@ def test_review_item_service_summarizes_only_a_completed_aggregation() -> None:
             certainty_tier=CertaintyTier.uncertain,
             agreement_tier=AgreementTier.single_rater,
             workflow_state=ReviewWorkflowState.reviewed,
+            final_label=CanonicalLabel.female,
+            review_action=ReviewAction.correct,
             result_count=2,
         ),
     )
-    review_repository.count_review_groups.return_value = groups
+    review_repository.count_review_groups.return_value = ReviewSummaryData(
+        groups=groups,
+        last_annotated_at=NOW,
+    )
     service = ReviewItemService(
         unit_of_work_factory=StubUnitOfWork(
             aggregations=aggregation_repository,
@@ -977,6 +1005,7 @@ def test_review_item_service_summarizes_only_a_completed_aggregation() -> None:
     assert summary == ReviewSummary(
         aggregation_execution_id=AGGREGATION_ID,
         result_count=7,
+        last_annotated_at=NOW,
         groups=list(groups),
     )
     review_repository.count_review_groups.assert_called_once_with(AGGREGATION_ID)

@@ -59,7 +59,10 @@ erDiagram
 ```
 
 ### Project
-Long-lived corpus/editorial project.
+Long-lived corpus/editorial project. Carries a nullable `working_aggregation_execution_id` naming the
+completed AggregationExecution, from one of its own runs, that its review queue and dashboard currently
+summarize. It is an explicit, operator-set pointer, not an inferred "most recent" — see
+[ADR-0035](decisions/ADR-0035-project-working-aggregation.md).
 
 ### ProjectMembership
 One user's role — `viewer`, `reviewer`, or `operator` — in one project. A project owns every snapshot, run,

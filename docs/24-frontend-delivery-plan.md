@@ -393,7 +393,8 @@ Agreement tiers are the share of answering methods that voted for the winning la
   by the reviewer; it is a property of the aggregation strategy.
 - Übersicht's "automatisch entschieden" tile becomes `certainty_tier = high`; "zur Prüfung" becomes the
   `review_triage_v1` ordering the backend already produces. Both tiles, and the badge on each queue entry
-  point, add up groups of `GET /aggregations/{id}/review-summary` rather than counting pages.
+  point, add up groups of `GET /aggregations/{id}/review-summary` rather than counting pages, and the
+  breakdown of where finished entries came from adds up the same response's `review_action` groups.
 - The two review buckets are distinct and must not be merged: contested evidence (`low`, `contested`) and
   thin evidence (`single`, `uncertain`). On the case-study register these are 3.6 % and 12.7 % of entries
   respectively, against 83.8 % at `high` — so a queue built on "everything below a threshold" would be

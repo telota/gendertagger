@@ -12,7 +12,8 @@ project:
 
 - `viewer`: read the project and everything it owns
 - `reviewer`: viewer + create annotations
-- `operator`: reviewer + import snapshots, create runs/aggregations/evaluations/exports
+- `operator`: reviewer + import snapshots, create runs/aggregations/evaluations/exports, set the project's
+  working aggregation ([ADR-0035](decisions/ADR-0035-project-working-aggregation.md))
 
 `GlobalRole` applies outside any one project:
 

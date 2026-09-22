@@ -35,6 +35,7 @@ below). The following table is the whole public API:
 | `POST` | `/api/v1/projects` | `201` | global operator |
 | `GET` | `/api/v1/projects` | `200` | any authenticated user; lists the caller's projects |
 | `GET` | `/api/v1/projects/{project_id}` | `200` | project viewer of `project_id` |
+| `PUT` | `/api/v1/projects/{project_id}/working-aggregation` | `200` | project operator of `project_id` |
 | `GET` | `/api/v1/projects/{project_id}/members` | `200` | global admin |
 | `PUT` | `/api/v1/projects/{project_id}/members/{user_id}` | `200` | global admin |
 | `DELETE` | `/api/v1/projects/{project_id}/members/{user_id}` | `204` | global admin |
@@ -109,6 +110,14 @@ Every project representation — from `POST /projects`, `GET /projects`, and `GE
 an `AccessibleProject`: the `Project` fields plus `current_user_role`, the caller's effective project role,
 so a client can scope its controls without a second request. `GET /projects` is cursor-paginated in slug
 order and returns only the projects where the caller has a role.
+
+`Project` also carries a nullable `working_aggregation_execution_id`, the completed aggregation — from one of
+the project's own runs — that the project's review queue and dashboard currently summarize
+([ADR-0035](decisions/ADR-0035-project-working-aggregation.md)).
+`PUT /projects/{project_id}/working-aggregation` sets or, with a `null` body field, clears it; `404` if the
+aggregation does not exist or belongs to a different project, `409 resource_conflict` if it is not
+`completed`. Auto-creating the default aggregation (D4) does not move this pointer by itself; a client moves
+it with an explicit call, the same way it treats aggregation as a visible step.
 
 All three routers declare `ApiErrorEnvelope` as the documented response model for `400`, `401`, `403`,
 `404`, `409`, `413`, `422`, and `500` across every route, so the error contract is uniform in OpenAPI.
@@ -211,6 +220,17 @@ command against an already scheduled run returns `409` with code `resource_confl
 `GET /api/v1/runs/{run_id}/executions` lists the same run's executions as `MethodExecutionSummary`
 objects. The service returns the internal `MethodExecution`, and the declared response model narrows both
 the payload and the OpenAPI schema, so queue names and worker identities never reach a client.
+
+### Working aggregation
+
+`PUT /api/v1/projects/{project_id}/working-aggregation`
+
+```json
+{"aggregation_execution_id": "9f2b..."}
+```
+
+or `{"aggregation_execution_id": null}` to clear it. Returns the updated `AccessibleProject`. See
+[ADR-0035](decisions/ADR-0035-project-working-aggregation.md).
 
 ### Aggregate
 
@@ -395,17 +415,32 @@ GET /api/v1/review-items
 ### Review summary
 
 `GET /api/v1/aggregations/{aggregation_id}/review-summary` counts one completed aggregation's results by
-certainty tier, agreement tier, and current review state. It returns a `ReviewSummary`: the aggregation ID,
-the total `result_count`, and one `ReviewSummaryGroup` for every combination that has results, each with its
-`result_count`. Groups follow the declaration order of the three vocabularies, a combination without results
-is absent, and the group counts add up to the total.
+certainty tier, agreement tier, current review state, final label, and review action. It returns a
+`ReviewSummary`: the aggregation ID, the total `result_count`, `last_annotated_at`, and one
+`ReviewSummaryGroup` for every combination that has results, each with its `result_count`. Groups follow the
+declaration order of the five vocabularies, a combination without results is absent, and the group counts add
+up to the total.
 
 The summary joins results to review state exactly as the review-item query does, so the count of any
 combination of tiers and states equals the number of items the same `certainty_tiers`, `agreement_tiers`, and
 `workflow_states` filters return. A client therefore sizes a queue by adding the matching groups, without
-paging through it. Certainty and agreement are immutable for a completed aggregation; the review states are
-those at read time. An aggregation that is not `completed` returns `409 resource_conflict`, like
-`review-items`.
+paging through it. Certainty and agreement are immutable for a completed aggregation; the review states,
+final labels, and review actions are those at read time. An aggregation that is not `completed` returns
+`409 resource_conflict`, like `review-items`.
+
+`ReviewSummaryGroup.final_label` is the same `latest valid human annotation, otherwise the selected machine
+label` resolution as [`09-annotation-and-review.md`](09-annotation-and-review.md#final-decision) and the
+`human_overrides` export policy, so a label count matches what that export would write. `review_action` is
+the current annotation's `verify`, `correct`, or `defer`, or `null` for a person nobody has annotated; it is
+`null` exactly when `workflow_state` is `unreviewed`. Together they give the "where did finished entries come
+from" breakdown: machine-decided (`workflow_state = unreviewed`), human-verified (`review_action = verify`),
+and human-corrected (`review_action = correct`).
+
+`last_annotated_at` is the most recent `ReviewState.updated_at` among the aggregation's people, or `null`
+before the first annotation. It differs from `EnsembleMetrics.human_reviewed_count` in
+[`10-evaluation.md`](10-evaluation.md), which counts a `deferred` person as reviewed; this summary's
+`workflow_state = reviewed` group does not. Changing that evaluation definition would need its own ADR per
+[`AGENTS.md`](../AGENTS.md); this summary is a new read, not a redefinition, so it does not.
 
 The summary is a projection of the review domain, not a dashboard endpoint: it carries no screen-specific
 selection, and each screen composes its figures from the groups.

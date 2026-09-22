@@ -9,7 +9,9 @@ from gendertagger.models.person import PersonEvent, PersonNameForm, PersonNameTy
 from gendertagger.models.project import (
     DatasetSnapshot,
     DatasetSnapshotCreate,
+    Project,
     ProjectCreate,
+    ProjectWorkingAggregationUpdate,
     SnapshotImportConfig,
     SnapshotImportLimits,
     SnapshotImportRequest,
@@ -25,6 +27,7 @@ PROJECT_ID = UUID("10000000-0000-0000-0000-000000000001")
 SNAPSHOT_ID = UUID("20000000-0000-0000-0000-000000000001")
 ARTIFACT_ID = UUID("30000000-0000-0000-0000-000000000001")
 PERSON_ID = UUID("40000000-0000-0000-0000-000000000001")
+AGGREGATION_ID = UUID("50000000-0000-0000-0000-000000000001")
 SHA256 = "a" * 64
 CREATED_AT = datetime(2026, 8, 13, 10, 0, tzinfo=UTC)
 
@@ -54,6 +57,37 @@ def test_project_create_rejects_blank_display_name_and_unknown_fields() -> None:
         ProjectCreate.model_validate(
             {"slug": "edition", "display_name": "Edition", "unexpected": True}
         )
+
+
+def test_project_working_aggregation_defaults_to_none_and_is_settable() -> None:
+    without_pointer = Project(
+        id=PROJECT_ID,
+        slug="edition",
+        display_name="Edition",
+        created_at=CREATED_AT,
+    )
+    with_pointer = without_pointer.model_copy(
+        update={"working_aggregation_execution_id": AGGREGATION_ID}
+    )
+
+    assert without_pointer.working_aggregation_execution_id is None
+    assert with_pointer.working_aggregation_execution_id == AGGREGATION_ID
+
+
+def test_project_working_aggregation_update_accepts_a_pointer_or_null() -> None:
+    assert (
+        ProjectWorkingAggregationUpdate(
+            aggregation_execution_id=AGGREGATION_ID
+        ).aggregation_execution_id
+        == AGGREGATION_ID
+    )
+    assert ProjectWorkingAggregationUpdate().aggregation_execution_id is None
+    assert (
+        ProjectWorkingAggregationUpdate(aggregation_execution_id=None).aggregation_execution_id
+        is None
+    )
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        ProjectWorkingAggregationUpdate.model_validate({"unexpected": True})
 
 
 def test_snapshot_import_request_defaults_to_v3_and_keeps_older_profiles_selectable() -> None:

@@ -18,6 +18,7 @@ from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.domain.aggregation import REFERENCE_REQUIRED_METHODS
 from gendertagger.ingestion.registry import version_for_snapshot_import
 from gendertagger.models.aggregation import (
+    AggregationCreateRequest,
     AggregationTaskMessage,
 )
 from gendertagger.models.artifact import ArtifactCreate
@@ -45,6 +46,8 @@ from gendertagger.models.run import (
 )
 from gendertagger.models.user import ProjectRole, UserCreate
 from gendertagger.services.aggregation_execution import AggregationExecutor
+from gendertagger.services.aggregations import AggregationService
+from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
@@ -459,3 +462,121 @@ def test_repeated_aggregation_requests_reuse_live_or_completed_matches_only(
     assert second_page["has_more"] is False
     assert second_page["items"][0]["method_execution_ids"] == selection
     assert client.get(f"/api/v1/runs/{uuid4()}/aggregations").status_code == 404
+
+
+def _owning_project_id(unit_of_work_factory: UnitOfWorkFactory, run_id: UUID) -> UUID:
+    with unit_of_work_factory() as unit_of_work:
+        run = unit_of_work.runs.get_run(run_id)
+        assert run is not None
+        snapshot = unit_of_work.projects.get_snapshot(run.dataset_snapshot_id)
+        assert snapshot is not None
+        return snapshot.project_id
+
+
+def test_project_working_aggregation_points_at_ones_own_completed_aggregation(
+    postgres_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    unit_of_work_factory, session_factory = _unit_of_work_factory(postgres_engine)
+    user_id, run_id, execution_ids, _person_ids = _seed_completed_reference_executions(
+        unit_of_work_factory,
+        session_factory,
+    )
+    _other_user_id, other_run_id, other_execution_ids, _other_person_ids = (
+        _seed_completed_reference_executions(unit_of_work_factory, session_factory)
+    )
+    project_id = _owning_project_id(unit_of_work_factory, run_id)
+
+    # The other project's own completed aggregation, built directly through the service so it
+    # does not need a client authenticated as that project's own operator.
+    aggregation_service = AggregationService(
+        unit_of_work_factory=unit_of_work_factory,
+        cursor_codec=CursorCodec(),
+        clock=lambda: NOW,
+    )
+    other_aggregation_id = aggregation_service.create_aggregation(
+        run_id=other_run_id,
+        command=AggregationCreateRequest(method_execution_ids=other_execution_ids),
+    ).aggregation.id
+    AggregationExecutor(unit_of_work_factory=unit_of_work_factory, clock=lambda: NOW).execute(
+        AggregationTaskMessage(aggregation_execution_id=other_aggregation_id),
+        attempt_count=1,
+    )
+
+    application = create_app(
+        settings=AppSettings(
+            database_url=SecretStr(DATABASE_URL),
+            code_git_commit=CODE_GIT_COMMIT,
+            dependency_lock_sha256=DEPENDENCY_LOCK_SHA256,
+            artifact_root=tmp_path,
+        ),
+        unit_of_work_factory=unit_of_work_factory,
+        authentication_backend=StaticAuthenticationBackend(user_id),
+    )
+    client = TestClient(application)
+    aggregation_id = UUID(
+        client.post(
+            f"/api/v1/runs/{run_id}/aggregations",
+            json={"method_execution_ids": [str(execution_id) for execution_id in execution_ids]},
+        ).json()["id"]
+    )
+
+    not_completed_response = client.put(
+        f"/api/v1/projects/{project_id}/working-aggregation",
+        json={"aggregation_execution_id": str(aggregation_id)},
+    )
+    wrong_project_response = client.put(
+        f"/api/v1/projects/{project_id}/working-aggregation",
+        json={"aggregation_execution_id": str(other_aggregation_id)},
+    )
+    missing_aggregation_response = client.put(
+        f"/api/v1/projects/{project_id}/working-aggregation",
+        json={"aggregation_execution_id": str(uuid4())},
+    )
+    missing_project_response = client.put(
+        f"/api/v1/projects/{uuid4()}/working-aggregation",
+        json={"aggregation_execution_id": str(aggregation_id)},
+    )
+
+    assert not_completed_response.status_code == 409
+    assert not_completed_response.json()["error"]["code"] == "resource_conflict"
+    assert wrong_project_response.status_code == 404
+    assert missing_aggregation_response.status_code == 404
+    assert missing_project_response.status_code == 404
+
+    AggregationExecutor(unit_of_work_factory=unit_of_work_factory, clock=lambda: NOW).execute(
+        AggregationTaskMessage(aggregation_execution_id=aggregation_id),
+        attempt_count=1,
+    )
+    pointed_response = client.put(
+        f"/api/v1/projects/{project_id}/working-aggregation",
+        json={"aggregation_execution_id": str(aggregation_id)},
+    )
+    read_after_pointing = client.get(f"/api/v1/projects/{project_id}").json()
+    listed_after_pointing = client.get("/api/v1/projects").json()
+    cleared_response = client.put(
+        f"/api/v1/projects/{project_id}/working-aggregation",
+        json={"aggregation_execution_id": None},
+    )
+    read_after_clearing = client.get(f"/api/v1/projects/{project_id}").json()
+
+    assert pointed_response.status_code == 200
+    assert pointed_response.json()["working_aggregation_execution_id"] == str(aggregation_id)
+    assert pointed_response.json()["current_user_role"] == ProjectRole.operator.value
+    assert read_after_pointing["working_aggregation_execution_id"] == str(aggregation_id)
+    assert {
+        item["id"]: item["working_aggregation_execution_id"]
+        for item in listed_after_pointing["items"]
+    }[str(project_id)] == str(aggregation_id)
+    assert cleared_response.status_code == 200
+    assert cleared_response.json()["working_aggregation_execution_id"] is None
+    assert read_after_clearing["working_aggregation_execution_id"] is None
+
+    application.state.authentication_backend = StaticAuthenticationBackend(
+        _outsider_id(unit_of_work_factory)
+    )
+    hidden_response = client.put(
+        f"/api/v1/projects/{project_id}/working-aggregation",
+        json={"aggregation_execution_id": str(aggregation_id)},
+    )
+    assert hidden_response.status_code == 404

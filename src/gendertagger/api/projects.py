@@ -24,6 +24,7 @@ from gendertagger.models.project import (
     DatasetSnapshot,
     ImportProfile,
     ProjectCreate,
+    ProjectWorkingAggregationUpdate,
     SnapshotImportRequest,
     SourceFormat,
     SourcePackaging,
@@ -83,6 +84,34 @@ def get_project(
         project = service.get_project(project_id)
     except ResourceNotFoundError as error:
         raise _not_found() from error
+    return AccessibleProject(**project.model_dump(), current_user_role=role)
+
+
+@router.put(
+    "/projects/{project_id}/working-aggregation",
+    response_model=AccessibleProject,
+)
+def set_working_aggregation(
+    project_id: UUID,
+    command: ProjectWorkingAggregationUpdate,
+    service: Annotated[ProjectService, Depends(get_project_service)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
+) -> AccessibleProject:
+    """Point the project at one of its own completed aggregations, or clear the pointer."""
+    role = access.require(ProjectScope.project, project_id, ProjectRole.operator)
+    try:
+        project = service.set_working_aggregation(
+            project_id,
+            aggregation_execution_id=command.aggregation_execution_id,
+        )
+    except ResourceNotFoundError as error:
+        raise _not_found() from error
+    except InvalidResourceStateError as error:
+        raise ApiRequestError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="resource_conflict",
+            message="The aggregation execution is not completed.",
+        ) from error
     return AccessibleProject(**project.model_dump(), current_user_role=role)
 
 

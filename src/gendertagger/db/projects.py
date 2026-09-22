@@ -44,6 +44,14 @@ class ProjectRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
     slug: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     display_name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
+    # Forward reference: `projects` is created before `aggregation_executions` in the baseline
+    # migration, so this column needs `use_alter=True`, like every other forward FK in
+    # db/artifacts.py. The repository enforces that the referenced aggregation belongs to a run
+    # of this project's own snapshot and is completed (ADR-0035); the database does not.
+    working_aggregation_execution_id: Mapped[UUID | None] = mapped_column(
+        POSTGRESQL_UUID(as_uuid=True),
+        ForeignKey("aggregation_executions.id", ondelete="RESTRICT", use_alter=True),
+    )
 
 
 class DatasetSnapshotRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):

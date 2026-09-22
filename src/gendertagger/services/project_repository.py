@@ -41,6 +41,21 @@ class ProjectRepository(Protocol):
         """Return one keyset slice of every project in unique-slug order."""
         ...
 
+    def set_working_aggregation(
+        self,
+        project_id: UUID,
+        *,
+        aggregation_execution_id: UUID | None,
+    ) -> Project:
+        """Point a project at one of its own completed aggregations, or clear the pointer.
+
+        Raises:
+            ResourceNotFoundError: If the project does not exist, the aggregation does not
+                exist, or the aggregation belongs to a different project.
+            InvalidResourceStateError: If the aggregation is not ``completed``.
+        """
+        ...
+
     def add_snapshot(self, command: DatasetSnapshotCreate) -> DatasetSnapshot:
         """Persist and return a new pending dataset snapshot."""
         ...

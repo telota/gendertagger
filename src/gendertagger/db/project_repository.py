@@ -10,7 +10,9 @@ from pydantic import ValidationError
 from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.orm import Session
 
+from gendertagger.db.aggregations import AggregationExecutionRow
 from gendertagger.db.artifacts import ArtifactRow
+from gendertagger.db.executions import RunRow
 from gendertagger.db.keyset import newest_first_slice
 from gendertagger.db.projects import (
     DatasetSnapshotRow,
@@ -21,7 +23,7 @@ from gendertagger.db.projects import (
 )
 from gendertagger.ingestion.registry import version_for_snapshot_import
 from gendertagger.models.common import normalize_utc_datetime
-from gendertagger.models.lifecycle import DatasetSnapshotStatus
+from gendertagger.models.lifecycle import AggregationExecutionStatus, DatasetSnapshotStatus
 from gendertagger.models.person import (
     ImportedPerson,
     PersonEvent,
@@ -91,6 +93,41 @@ class SqlAlchemyProjectRepository:
             statement = statement.where(ProjectRow.slug > after_slug)
         rows = self._session.scalars(statement.order_by(ProjectRow.slug).limit(limit))
         return tuple(self._project_from_row(row) for row in rows)
+
+    def set_working_aggregation(
+        self,
+        project_id: UUID,
+        *,
+        aggregation_execution_id: UUID | None,
+    ) -> Project:
+        """Point a project at one of its own completed aggregations, or clear the pointer."""
+        row = self._session.get(ProjectRow, project_id)
+        if row is None:
+            msg = f"project {project_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        if aggregation_execution_id is not None:
+            owning_project_id, status = self._session.execute(
+                select(DatasetSnapshotRow.project_id, AggregationExecutionRow.status)
+                .select_from(AggregationExecutionRow)
+                .join(RunRow, RunRow.id == AggregationExecutionRow.run_id)
+                .join(DatasetSnapshotRow, DatasetSnapshotRow.id == RunRow.dataset_snapshot_id)
+                .where(AggregationExecutionRow.id == aggregation_execution_id)
+            ).first() or (None, None)
+            if owning_project_id is None:
+                msg = f"aggregation execution {aggregation_execution_id} does not exist"
+                raise ResourceNotFoundError(msg)
+            if owning_project_id != project_id:
+                msg = (
+                    f"aggregation execution {aggregation_execution_id} "
+                    f"does not exist under project {project_id}"
+                )
+                raise ResourceNotFoundError(msg)
+            if status is not AggregationExecutionStatus.completed:
+                msg = f"aggregation execution {aggregation_execution_id} is not completed"
+                raise InvalidResourceStateError(msg)
+        row.working_aggregation_execution_id = aggregation_execution_id
+        self._session.flush()
+        return self._project_from_row(row)
 
     def add_snapshot(self, command: DatasetSnapshotCreate) -> DatasetSnapshot:
         """Persist and flush a new pending snapshot without committing."""
@@ -781,6 +818,7 @@ class SqlAlchemyProjectRepository:
             display_name=row.display_name,
             description=row.description,
             created_at=row.created_at,
+            working_aggregation_execution_id=row.working_aggregation_execution_id,
         )
 
     @staticmethod

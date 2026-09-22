@@ -41,7 +41,15 @@ from gendertagger.services.persistence_errors import (
     ResourceNotFoundError,
     ReviewConflictError,
 )
-from gendertagger.services.review_repository import ReviewItemCursor
+from gendertagger.services.review_repository import ReviewItemCursor, ReviewSummaryData
+
+_ReviewGroupKey = tuple[
+    CertaintyTier,
+    AgreementTier,
+    ReviewWorkflowState,
+    CanonicalLabel | None,
+    ReviewAction | None,
+]
 
 
 class SqlAlchemyReviewRepository:
@@ -259,13 +267,7 @@ class SqlAlchemyReviewRepository:
             (AggregatedResultRow.has_prediction_error, PREDICTION_ERROR_TRIAGE_RANK),
             else_=RESIDUAL_TRIAGE_RANK,
         )
-        final_label = case(
-            (
-                AnnotationRow.action.in_((ReviewAction.verify, ReviewAction.correct)),
-                AnnotationRow.label,
-            ),
-            else_=AggregatedResultRow.label,
-        )
+        final_label = self._final_label_expression()
 
         statement = (
             select(
@@ -384,18 +386,22 @@ class SqlAlchemyReviewRepository:
             )
         return tuple(items)
 
-    def count_review_groups(self, aggregation_id: UUID) -> Sequence[ReviewSummaryGroup]:
-        """Count one aggregation's results per certainty tier, agreement tier, and review state.
+    def count_review_groups(self, aggregation_id: UUID) -> ReviewSummaryData:
+        """Count one aggregation's results and find its most recent review activity.
 
-        The joins are the review-item query's, so each count equals the number of items the
-        same tier and state filters return. A person without a review-state row counts as
-        unreviewed.
+        Groups are keyed by certainty tier, agreement tier, review state, final label, and
+        review action. The joins are the review-item query's, so each count equals the number
+        of items the same tier, state, label, and action filters return. A person without a
+        review-state row counts as unreviewed with no final-label override and no review action.
         """
+        final_label = self._final_label_expression()
         rows = self._session.execute(
             select(
                 AggregatedResultRow.certainty_tier,
                 AggregatedResultRow.agreement_tier,
                 ReviewStateRow.workflow_state,
+                final_label,
+                AnnotationRow.action,
                 func.count(),
             )
             .join(PersonRecordRow, PersonRecordRow.id == AggregatedResultRow.person_record_id)
@@ -406,36 +412,88 @@ class SqlAlchemyReviewRepository:
                     ReviewStateRow.person_record_id == PersonRecordRow.id,
                 ),
             )
+            .outerjoin(AnnotationRow, AnnotationRow.id == ReviewStateRow.current_annotation_id)
             .where(AggregatedResultRow.aggregation_execution_id == aggregation_id)
             .group_by(
                 AggregatedResultRow.certainty_tier,
                 AggregatedResultRow.agreement_tier,
                 ReviewStateRow.workflow_state,
+                final_label,
+                AnnotationRow.action,
             )
         ).tuples()
-        counts: Counter[tuple[CertaintyTier, AgreementTier, ReviewWorkflowState]] = Counter()
-        for certainty_tier, agreement_tier, workflow_state, result_count in rows:
+        counts: Counter[_ReviewGroupKey] = Counter()
+        for certainty_tier, agreement_tier, workflow_state, label, action, result_count in rows:
             counts[
-                (certainty_tier, agreement_tier, workflow_state or ReviewWorkflowState.unreviewed)
+                (
+                    certainty_tier,
+                    agreement_tier,
+                    workflow_state or ReviewWorkflowState.unreviewed,
+                    label,
+                    action,
+                )
             ] += result_count
         certainty_order = list(CertaintyTier)
         agreement_order = list(AgreementTier)
         workflow_order = list(ReviewWorkflowState)
-        return tuple(
+        label_order = (*CanonicalLabel, None)
+        action_order = (*ReviewAction, None)
+        groups = tuple(
             ReviewSummaryGroup(
                 certainty_tier=certainty_tier,
                 agreement_tier=agreement_tier,
                 workflow_state=workflow_state,
-                result_count=counts[(certainty_tier, agreement_tier, workflow_state)],
+                final_label=final_label_value,
+                review_action=review_action,
+                result_count=counts[
+                    (
+                        certainty_tier,
+                        agreement_tier,
+                        workflow_state,
+                        final_label_value,
+                        review_action,
+                    )
+                ],
             )
-            for certainty_tier, agreement_tier, workflow_state in sorted(
+            for certainty_tier, agreement_tier, workflow_state, final_label_value, review_action in sorted(
                 counts,
                 key=lambda combination: (
                     certainty_order.index(combination[0]),
                     agreement_order.index(combination[1]),
                     workflow_order.index(combination[2]),
+                    label_order.index(combination[3]),
+                    action_order.index(combination[4]),
                 ),
             )
+        )
+        last_annotated_at = self._session.scalar(
+            select(func.max(ReviewStateRow.updated_at))
+            .select_from(AggregatedResultRow)
+            .join(PersonRecordRow, PersonRecordRow.id == AggregatedResultRow.person_record_id)
+            .join(
+                ReviewStateRow,
+                and_(
+                    ReviewStateRow.dataset_snapshot_id == PersonRecordRow.dataset_snapshot_id,
+                    ReviewStateRow.person_record_id == PersonRecordRow.id,
+                ),
+            )
+            .where(AggregatedResultRow.aggregation_execution_id == aggregation_id)
+        )
+        return ReviewSummaryData(groups=groups, last_annotated_at=last_annotated_at)
+
+    @staticmethod
+    def _final_label_expression() -> ColumnElement[CanonicalLabel | None]:
+        """Return the shared final-label projection: latest human label, else the machine label.
+
+        Used identically by the review-item query and the review summary, so a label count
+        always equals the number of review items the same ``final_label`` would select.
+        """
+        return case(
+            (
+                AnnotationRow.action.in_((ReviewAction.verify, ReviewAction.correct)),
+                AnnotationRow.label,
+            ),
+            else_=AggregatedResultRow.label,
         )
 
     def _review_item_filters(

@@ -213,14 +213,46 @@ class ReviewItemQuery(BaseModel):
 
 
 class ReviewSummaryGroup(BaseModel):
-    """Number of one aggregation's results that share a tier and review-state combination."""
+    """Number of one aggregation's results that share a tier, label, and review-state combination."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     certainty_tier: CertaintyTier
     agreement_tier: AgreementTier
     workflow_state: ReviewWorkflowState
+    final_label: CanonicalLabel | None = Field(
+        default=None,
+        description=(
+            "The same latest-human-annotation-otherwise-machine-label resolution as the "
+            "human_overrides export policy, so a label count matches what that export would write."
+        ),
+    )
+    review_action: ReviewAction | None = Field(
+        default=None,
+        description="The current annotation's action, or null for a person nobody has annotated.",
+    )
     result_count: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def _validate_review_state_consistency(self) -> Self:
+        if self.workflow_state is ReviewWorkflowState.unreviewed:
+            if self.review_action is not None:
+                msg = "an unreviewed group must not carry a review action"
+                raise ValueError(msg)
+        elif self.review_action is None:
+            msg = "a reviewed or deferred group requires a review action"
+            raise ValueError(msg)
+        elif self.workflow_state is ReviewWorkflowState.deferred:
+            if self.review_action is not ReviewAction.defer:
+                msg = "a deferred group's review action must be defer"
+                raise ValueError(msg)
+        elif self.review_action not in (ReviewAction.verify, ReviewAction.correct):
+            msg = "a reviewed group's review action must be verify or correct"
+            raise ValueError(msg)
+        if self.workflow_state is ReviewWorkflowState.reviewed and self.final_label is None:
+            msg = "a reviewed group requires a final label"
+            raise ValueError(msg)
+        return self
 
 
 class ReviewSummary(BaseModel):
@@ -235,12 +267,22 @@ class ReviewSummary(BaseModel):
 
     aggregation_execution_id: UUID
     result_count: int = Field(ge=0)
+    last_annotated_at: UtcDatetime | None = Field(
+        default=None,
+        description="Most recent review activity among the aggregation's people, or null before it.",
+    )
     groups: list[ReviewSummaryGroup]
 
     @model_validator(mode="after")
     def _validate_groups(self) -> Self:
         combinations = [
-            (group.certainty_tier, group.agreement_tier, group.workflow_state)
+            (
+                group.certainty_tier,
+                group.agreement_tier,
+                group.workflow_state,
+                group.final_label,
+                group.review_action,
+            )
             for group in self.groups
         ]
         if len(set(combinations)) != len(combinations):

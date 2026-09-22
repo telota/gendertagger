@@ -175,6 +175,13 @@ PATH_VALUES = {
 PROJECT_SCOPED_ROUTES = (
     _ScopedRoute("GET", "/projects/{project_id}", ProjectScope.project, ProjectRole.viewer),
     _ScopedRoute(
+        "PUT",
+        "/projects/{project_id}/working-aggregation",
+        ProjectScope.project,
+        ProjectRole.operator,
+        {"json": {"aggregation_execution_id": _OTHER}},
+    ),
+    _ScopedRoute(
         "POST",
         "/projects/{project_id}/snapshots",
         ProjectScope.project,

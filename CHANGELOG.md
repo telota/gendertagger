@@ -145,8 +145,14 @@ the phased plan that resumes application code.
   `GET /api/v1/runs/{run_id}/aggregations`, `/evaluations`, and `/exports`. Each lists its resources in every
   lifecycle state, so a client can recover identifiers after a reload.
 - `GET /api/v1/aggregations/{aggregation_id}/review-summary`, which counts a completed aggregation's results
-  by certainty tier, agreement tier, and current review state in one grouped read, with the same joins as
-  `review-items`, so a client can size a review queue or fill dashboard tiles without paging.
+  by certainty tier, agreement tier, current review state, final label, and review action in one grouped
+  read, with the same joins as `review-items`, so a client can size a review queue, fill dashboard tiles, or
+  read the verified-versus-corrected breakdown without paging. The response also carries
+  `last_annotated_at`, the most recent review activity in the aggregation.
+- `PUT /api/v1/projects/{project_id}/working-aggregation`, which points a project at one of its own completed
+  aggregations for its dashboard and review queue to summarize, or clears the pointer, gated to project
+  operators ([ADR-0035](docs/decisions/ADR-0035-project-working-aggregation.md)). `AccessibleProject` carries
+  the nullable `working_aggregation_execution_id`.
 
 ### Changed
 

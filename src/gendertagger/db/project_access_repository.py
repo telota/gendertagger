@@ -93,6 +93,7 @@ class SqlAlchemyProjectAccessRepository:
                 display_name=project.display_name,
                 description=project.description,
                 created_at=project.created_at,
+                working_aggregation_execution_id=project.working_aggregation_execution_id,
                 current_user_role=role,
             )
             for project, role in rows

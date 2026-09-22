@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
@@ -28,6 +29,14 @@ class ReviewItemCursor:
     tei_id: str
     person_record_id: UUID
     triage_rank: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ReviewSummaryData:
+    """One aggregation's non-empty review-summary groups and its most recent review activity."""
+
+    groups: Sequence[ReviewSummaryGroup]
+    last_annotated_at: datetime | None
 
 
 class ReviewRepository(Protocol):
@@ -60,6 +69,9 @@ class ReviewRepository(Protocol):
         """Return one filtered slice in the stable order the query selected."""
         ...
 
-    def count_review_groups(self, aggregation_id: UUID) -> Sequence[ReviewSummaryGroup]:
-        """Return one aggregation's non-empty tier and review-state groups in vocabulary order."""
+    def count_review_groups(self, aggregation_id: UUID) -> ReviewSummaryData:
+        """Return one aggregation's non-empty group counts and its most recent review activity.
+
+        Groups are ordered by the declaration order of their five vocabularies.
+        """
         ...
