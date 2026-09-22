@@ -15,6 +15,16 @@ export const routes: readonly RouteRecordRaw[] = [
     component: () => import('@/features/legal/LegalNoticeView.vue'),
   },
   {
+    path: '/login',
+    name: 'login',
+    component: () => import('@/features/auth/LoginView.vue'),
+  },
+  {
+    path: '/change-password',
+    name: 'changePassword',
+    component: () => import('@/features/auth/ChangePasswordView.vue'),
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'notFound',
     component: () => import('@/features/errors/NotFoundView.vue'),

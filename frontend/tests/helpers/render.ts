@@ -1,3 +1,4 @@
+import { createPinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory } from 'vue-router'
 
@@ -15,7 +16,7 @@ export async function mountApplicationAt(path: string, locale: AppLocale, client
   const wrapper = mount(App, {
     attachTo: document.body,
     global: {
-      plugins: [createAppI18n(locale), router],
+      plugins: [createPinia(), createAppI18n(locale), router],
       provide: { [API_CLIENT_KEY as symbol]: client },
     },
   })

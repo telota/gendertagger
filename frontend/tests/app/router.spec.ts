@@ -14,6 +14,8 @@ describe('routes', () => {
   it.each([
     ['/', 'home'],
     ['/impressum', 'legalNotice'],
+    ['/login', 'login'],
+    ['/change-password', 'changePassword'],
     ['/irgendwas', 'notFound'],
     ['/impressum/zu-viel', 'notFound'],
   ])('resolves %s to %s', async (path, name) => {

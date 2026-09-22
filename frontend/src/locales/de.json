@@ -60,5 +60,42 @@
     "title": "Seite nicht gefunden",
     "explanation": "Unter dieser Adresse gibt es keine Seite.",
     "backToStart": "Zur Startseite"
+  },
+  "header": {
+    "signedInAs": "Angemeldet als {name}",
+    "signOut": "Abmelden",
+    "signIn": "Anmelden"
+  },
+  "login": {
+    "title": "Anmelden",
+    "username": "Benutzername",
+    "password": "Passwort",
+    "keepSignedIn": "Angemeldet bleiben",
+    "submit": "Anmelden",
+    "submitting": "Anmeldung läuft …",
+    "errors": {
+      "invalidCredentials": "Benutzername oder Passwort ist falsch.",
+      "rateLimited": "Zu viele Versuche. Bitte versuchen Sie es später erneut.",
+      "validation": "Bitte überprüfen Sie Ihre Eingaben.",
+      "network": "Der Server ist nicht erreichbar.",
+      "generic": "Die Anmeldung ist fehlgeschlagen."
+    }
+  },
+  "changePassword": {
+    "title": "Passwort ändern",
+    "loading": "Wird geladen …",
+    "notice": "Bevor Sie fortfahren können, müssen Sie ein neues Passwort vergeben.",
+    "current": "Aktuelles Passwort",
+    "new": "Neues Passwort",
+    "repeat": "Neues Passwort wiederholen",
+    "submit": "Passwort ändern",
+    "submitting": "Wird gespeichert …",
+    "errors": {
+      "invalidCurrentPassword": "Das aktuelle Passwort ist falsch.",
+      "validation": "Das neue Passwort muss mindestens {minLength} Zeichen lang sein.",
+      "mismatch": "Die Passwörter stimmen nicht überein.",
+      "network": "Der Server ist nicht erreichbar.",
+      "generic": "Das Passwort konnte nicht geändert werden."
+    }
   }
 }

@@ -200,10 +200,21 @@ contract change fails CI.
   (unchecked by default), logout, role-aware hiding and disabling, and the forced password change (D1).
   Project controls follow `current_user_role` on the current project; only project creation and membership
   administration follow the global roles on `GET /me` (D6).
+  **Partly delivered.** `useSessionStore` (Pinia; session and roles are exactly the "genuinely shared client
+  state" docs/26-frontend-coding-guidelines.md assigns there) resolves the session once at app start,
+  and `/login` and `/change-password` cover login with "keep me signed in", the forced-password-change
+  gate and its own view, and logout — verified against a real Chrome instance over the DevTools Protocol,
+  including that the backend's `Secure`-flagged cookies are in fact accepted and sent back over plain
+  `http://localhost` (Chrome's documented allowance for that origin) and that the session survives a full
+  page reload. Role-aware hiding/disabling and `current_user_role`-scoped controls remain open: there is no
+  project-scoped screen yet for them to apply to.
 - Recovery from a `401` at any moment: keep the unsent decision, offer an inline sign-in, and retry the
-  request rather than redirecting away and losing the user's place (D1). The login form handles its own
-  failures, `401 invalid_credentials` and the gateway's `429 rate_limited` with its `Retry-After`, so the
-  global `401` recovery ignores `POST /auth/login`.
+  request rather than redirecting away and losing the user's place (D1). **Not yet delivered** — this needs
+  a global interceptor, not built yet. What exists today is narrower: the login form handles its own
+  failures (`401 invalid_credentials`, `422 validation_error`, the gateway's `429 rate_limited`, and a
+  network failure) inline, so the global `401` recovery will need to ignore `POST /auth/login`; and
+  `/change-password` redirects a signed-out visitor to `/login` once `useSessionStore`'s one `loading` ->
+  `ready` transition has resolved, rather than deciding from the still-`loading` initial state.
 - The eight cross-cutting concerns listed in that document: error envelope, `409` recovery, `413` limits,
   async `202`-poll composable, SSE composable, cursor pagination, roles, CSRF.
 - Design tokens, typography scale, and the primitive components — with real `<button>`/`<a>` elements,

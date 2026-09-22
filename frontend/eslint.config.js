@@ -60,6 +60,9 @@ export default tseslint.config(
         },
       ],
       'vue/no-unused-refs': 'error',
+      // The recommended default demands both nesting AND for/id together; a `for`/`id` pair alone
+      // is already a fully valid, standard label association and is this project's form pattern.
+      'vuejs-accessibility/label-has-for': ['error', { required: { some: ['nesting', 'id'] } }],
 
       // Layout is owned by Prettier; these rules would fight it.
       'vue/singleline-html-element-content-newline': 'off',

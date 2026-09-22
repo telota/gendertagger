@@ -60,5 +60,42 @@
     "title": "Page not found",
     "explanation": "There is no page at this address.",
     "backToStart": "Back to the start page"
+  },
+  "header": {
+    "signedInAs": "Signed in as {name}",
+    "signOut": "Sign out",
+    "signIn": "Sign in"
+  },
+  "login": {
+    "title": "Sign in",
+    "username": "Username",
+    "password": "Password",
+    "keepSignedIn": "Keep me signed in",
+    "submit": "Sign in",
+    "submitting": "Signing in …",
+    "errors": {
+      "invalidCredentials": "The username or password is incorrect.",
+      "rateLimited": "Too many attempts. Please try again later.",
+      "validation": "Please check your input.",
+      "network": "The server could not be reached.",
+      "generic": "Sign-in failed."
+    }
+  },
+  "changePassword": {
+    "title": "Change password",
+    "loading": "Loading …",
+    "notice": "You must set a new password before you can continue.",
+    "current": "Current password",
+    "new": "New password",
+    "repeat": "Repeat new password",
+    "submit": "Change password",
+    "submitting": "Saving …",
+    "errors": {
+      "invalidCurrentPassword": "The current password is incorrect.",
+      "validation": "The new password must be at least {minLength} characters long.",
+      "mismatch": "The passwords do not match.",
+      "network": "The server could not be reached.",
+      "generic": "The password could not be changed."
+    }
   }
 }

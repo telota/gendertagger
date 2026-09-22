@@ -1,3 +1,4 @@
+import { createPinia } from 'pinia'
 import { createApp, type App as VueApp } from 'vue'
 import type { RouterHistory } from 'vue-router'
 
@@ -37,5 +38,8 @@ export function createApplication(environment: {
   applyDocumentLanguage(locale, environment.root)
   const application = createApp(App)
   application.provide(API_CLIENT_KEY, createApiClient())
-  return application.use(createAppI18n(locale)).use(createAppRouter(environment.history))
+  return application
+    .use(createPinia())
+    .use(createAppI18n(locale))
+    .use(createAppRouter(environment.history))
 }
