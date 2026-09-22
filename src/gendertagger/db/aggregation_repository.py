@@ -3,6 +3,7 @@
 from collections import defaultdict
 from collections.abc import Sequence
 from datetime import datetime
+from typing import cast
 from uuid import UUID
 
 from sqlalchemy import and_, func, or_, select, update
@@ -26,6 +27,7 @@ from gendertagger.models.aggregation import (
     AggregationExecutionCreate,
     AggregationPersonPredictions,
     AggregationResultWrite,
+    ResultMethodPrediction,
     VoteCounts,
 )
 from gendertagger.models.classification import CanonicalLabel, PredictionResult
@@ -294,14 +296,7 @@ class SqlAlchemyAggregationRepository:
             for prediction_row in prediction_rows:
                 method_name = execution_names[prediction_row.method_execution_id]
                 predictions_by_person[prediction_row.person_record_id][method_name] = (
-                    PredictionResult(
-                        label=prediction_row.label,
-                        status=prediction_row.status,
-                        method_confidence=prediction_row.method_confidence,
-                        raw_label=prediction_row.raw_label,
-                        raw_output=prediction_row.raw_output,
-                        metadata=prediction_row.prediction_metadata,
-                    )
+                    self._prediction_result_from_row(prediction_row)
                 )
 
         return tuple(
@@ -466,6 +461,52 @@ class SqlAlchemyAggregationRepository:
         row = self._session.get(AggregatedResultRow, aggregated_result_id)
         return None if row is None else self._result_from_row(row)
 
+    def list_result_predictions(
+        self,
+        aggregation_execution_id: UUID,
+        person_record_id: UUID,
+    ) -> Sequence[ResultMethodPrediction]:
+        """Return each selected execution's prediction for one person, in selection order."""
+        # The outer join yields no prediction row for an execution without one for this person.
+        rows = cast(
+            Sequence[tuple[MethodExecutionRow, PredictionRow | None]],
+            self._session.execute(
+                select(MethodExecutionRow, PredictionRow)
+                .select_from(AggregationMethodExecutionRow)
+                .join(
+                    MethodExecutionRow,
+                    MethodExecutionRow.id == AggregationMethodExecutionRow.method_execution_id,
+                )
+                .outerjoin(
+                    PredictionRow,
+                    and_(
+                        PredictionRow.method_execution_id == MethodExecutionRow.id,
+                        PredictionRow.person_record_id == person_record_id,
+                    ),
+                )
+                .where(
+                    AggregationMethodExecutionRow.aggregation_execution_id
+                    == aggregation_execution_id
+                )
+                .order_by(AggregationMethodExecutionRow.position)
+            )
+            .tuples()
+            .all(),
+        )
+        return tuple(
+            ResultMethodPrediction(
+                method_execution_id=execution.id,
+                method_name=execution.method_name,
+                implementation_version=execution.implementation_version,
+                normalization_version=execution.normalization_version,
+                prediction_id=None if prediction is None else prediction.id,
+                prediction=(
+                    None if prediction is None else self._prediction_result_from_row(prediction)
+                ),
+            )
+            for execution, prediction in rows
+        )
+
     def list_results(
         self,
         aggregation_execution_id: UUID,
@@ -501,6 +542,17 @@ class SqlAlchemyAggregationRepository:
             ).limit(limit)
         )
         return tuple(self._result_from_row(row) for row in rows)
+
+    @staticmethod
+    def _prediction_result_from_row(row: PredictionRow) -> PredictionResult:
+        return PredictionResult(
+            label=row.label,
+            status=row.status,
+            method_confidence=row.method_confidence,
+            raw_label=row.raw_label,
+            raw_output=row.raw_output,
+            metadata=row.prediction_metadata,
+        )
 
     @staticmethod
     def _aggregation_from_row(

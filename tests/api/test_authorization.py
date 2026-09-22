@@ -220,6 +220,19 @@ PROJECT_SCOPED_ROUTES = (
     ),
     _ScopedRoute(
         "GET",
+        "/aggregations/{aggregation_id}/results/{result_id}/predictions",
+        ProjectScope.aggregation,
+        ProjectRole.viewer,
+    ),
+    _ScopedRoute(
+        "GET",
+        "/annotations",
+        ProjectScope.snapshot,
+        ProjectRole.viewer,
+        {"params": {"snapshot_id": _ID, "tei_id": "p1"}},
+    ),
+    _ScopedRoute(
+        "GET",
         "/review-items",
         ProjectScope.aggregation,
         ProjectRole.viewer,

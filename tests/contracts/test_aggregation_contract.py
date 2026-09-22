@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 import pytest
 from pydantic import ValidationError
 
@@ -8,9 +10,16 @@ from gendertagger.models.aggregation import (
     OverrideSource,
     ReferenceAggregationDecision,
     ReferenceAggregationResult,
+    ResultMethodPrediction,
     VoteCounts,
 )
-from gendertagger.models.classification import AgreementTier, CanonicalLabel, CertaintyTier
+from gendertagger.models.classification import (
+    AgreementTier,
+    CanonicalLabel,
+    CertaintyTier,
+    PredictionResult,
+    PredictionStatus,
+)
 
 pytestmark = pytest.mark.contract
 
@@ -302,4 +311,34 @@ def test_reference_aggregation_result_rejects_invalid_score() -> None:
                 "agreement_tier": "unanimous",
                 "certainty_tier": "high",
             }
+        )
+
+
+def test_result_method_prediction_keeps_absence_distinct_from_abstention() -> None:
+    execution_id = UUID("20000000-0000-0000-0000-000000000001")
+    absent = ResultMethodPrediction(
+        method_execution_id=execution_id,
+        method_name="gnd",
+        implementation_version="1",
+        normalization_version="1",
+    )
+    abstained = ResultMethodPrediction(
+        method_execution_id=execution_id,
+        method_name="gnd",
+        implementation_version="1",
+        normalization_version="1",
+        prediction_id=UUID("30000000-0000-0000-0000-000000000001"),
+        prediction=PredictionResult(label=None, status=PredictionStatus.abstain),
+    )
+
+    assert absent.prediction is None
+    assert abstained.prediction is not None
+    assert abstained.prediction.status is PredictionStatus.abstain
+    with pytest.raises(ValidationError, match="present together"):
+        ResultMethodPrediction(
+            method_execution_id=execution_id,
+            method_name="gnd",
+            implementation_version="1",
+            normalization_version="1",
+            prediction_id=UUID("30000000-0000-0000-0000-000000000001"),
         )

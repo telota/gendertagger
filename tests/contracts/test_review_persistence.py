@@ -9,6 +9,8 @@ from gendertagger.models.classification import CanonicalLabel
 from gendertagger.models.review import (
     Annotation,
     AnnotationCreate,
+    AnnotationHistory,
+    AttributedAnnotation,
     ReviewAction,
     ReviewItemQuery,
     ReviewState,
@@ -205,3 +207,54 @@ def test_review_conflict_exposes_expected_and_current_revisions() -> None:
     assert error.expected_revision == 1
     assert error.current_revision == 2
     assert str(error) == "stale review revision 1; current revision is 2"
+
+
+def _attributed(revision: int, annotation_id: UUID) -> AttributedAnnotation:
+    return AttributedAnnotation(
+        id=annotation_id,
+        snapshot_id=SNAPSHOT_ID,
+        person_record_id=PERSON_ID,
+        tei_id="p1",
+        action=ReviewAction.verify,
+        label=CanonicalLabel.female,
+        reviewer_user_id=USER_ID,
+        resulting_revision=revision,
+        created_at=CREATED_AT,
+        reviewer_display_name="Reviewer",
+    )
+
+
+def _history(revision: int, annotations: list[AttributedAnnotation]) -> AnnotationHistory:
+    return AnnotationHistory(
+        snapshot_id=SNAPSHOT_ID,
+        person_record_id=PERSON_ID,
+        tei_id="p1",
+        revision=revision,
+        workflow_state=(
+            ReviewWorkflowState.reviewed if revision else ReviewWorkflowState.unreviewed
+        ),
+        current_annotation_id=annotations[0].id if annotations else None,
+        annotations=annotations,
+    )
+
+
+def test_annotation_history_holds_every_revision_newest_first() -> None:
+    head = _attributed(2, UUID("b0000000-0000-0000-0000-000000000002"))
+    first = _attributed(1, ANNOTATION_ID)
+
+    assert _history(0, []).annotations == []
+    assert _history(2, [head, first]).current_annotation_id == head.id
+    with pytest.raises(ValidationError, match="every revision"):
+        _history(2, [first, head])
+    with pytest.raises(ValidationError, match="every revision"):
+        _history(2, [head])
+
+
+def test_annotation_history_head_must_be_the_current_annotation() -> None:
+    with pytest.raises(ValidationError, match="current annotation"):
+        AnnotationHistory(
+            **_history(1, [_attributed(1, ANNOTATION_ID)]).model_dump(
+                exclude={"current_annotation_id"}
+            ),
+            current_annotation_id=UUID("b0000000-0000-0000-0000-000000000009"),
+        )

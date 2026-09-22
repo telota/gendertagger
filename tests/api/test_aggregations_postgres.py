@@ -330,6 +330,31 @@ def test_queued_aggregation_executes_and_results_round_trip_through_http(
     wrong_owner_response = client.get(f"/api/v1/aggregations/{uuid4()}/results/{result_id}")
     assert wrong_owner_response.status_code == 404
 
+    predictions_response = client.get(
+        f"/api/v1/aggregations/{aggregation_id}/results/{result_id}/predictions"
+    )
+    assert predictions_response.status_code == 200
+    method_predictions = predictions_response.json()
+    assert [entry["method_execution_id"] for entry in method_predictions] == [
+        str(execution_id) for execution_id in execution_ids
+    ]
+    predictions_by_method = {
+        entry["method_name"]: entry["prediction"] for entry in method_predictions
+    }
+    assert predictions_by_method["local_llm"]["status"] == "success"
+    assert predictions_by_method["local_llm"]["label"] == expected_label.value
+    assert predictions_by_method["local_llm"]["metadata"] == {"self_reported_certainty": "high"}
+    assert {
+        prediction["status"]
+        for method_name, prediction in predictions_by_method.items()
+        if method_name != "local_llm"
+    } == {"abstain"}
+    with unit_of_work_factory() as unit_of_work:
+        unpredicted = unit_of_work.aggregations.list_result_predictions(aggregation_id, uuid4())
+    assert [(entry.prediction_id, entry.prediction) for entry in unpredicted] == [
+        (None, None)
+    ] * len(execution_ids)
+
     application.state.authentication_backend = StaticAuthenticationBackend(
         _outsider_id(unit_of_work_factory)
     )
@@ -337,10 +362,11 @@ def test_queued_aggregation_executes_and_results_round_trip_through_http(
         client.get(f"/api/v1/aggregations/{aggregation_id}"),
         client.get(f"/api/v1/aggregations/{aggregation_id}/results"),
         client.get(f"/api/v1/aggregations/{aggregation_id}/results/{result_id}"),
+        client.get(f"/api/v1/aggregations/{aggregation_id}/results/{result_id}/predictions"),
         client.get(f"/api/v1/runs/{run_id}"),
         client.post(
             f"/api/v1/runs/{run_id}/aggregations",
             json={"method_execution_ids": [str(execution_id) for execution_id in execution_ids]},
         ),
     ]
-    assert [response.status_code for response in hidden_responses] == [404] * 5
+    assert [response.status_code for response in hidden_responses] == [404] * 6

@@ -730,6 +730,31 @@ def test_aggregation_service_creates_and_scopes_resources() -> None:
     assert unit_of_work.commit_count == 1
 
 
+def test_aggregation_service_reads_predictions_only_for_a_result_it_owns() -> None:
+    aggregation_repository = Mock(spec=AggregationRepository)
+    aggregation_repository.get_result.return_value = _aggregation_result(0)
+    aggregation_repository.list_result_predictions.return_value = ()
+    service = AggregationService(
+        unit_of_work_factory=StubUnitOfWork(aggregations=aggregation_repository).factory,
+        cursor_codec=CursorCodec(),
+        clock=lambda: NOW,
+    )
+
+    predictions = service.list_result_predictions(
+        aggregation_id=AGGREGATION_ID, result_id=RESULT_IDS[0]
+    )
+    aggregation_repository.get_result.return_value = _aggregation_result(
+        0, aggregation_id=OTHER_AGGREGATION_ID
+    )
+    with pytest.raises(ResourceNotFoundError, match=str(RESULT_IDS[0])):
+        service.list_result_predictions(aggregation_id=AGGREGATION_ID, result_id=RESULT_IDS[0])
+
+    assert predictions == ()
+    aggregation_repository.list_result_predictions.assert_called_once_with(
+        AGGREGATION_ID, PERSON_IDS[0]
+    )
+
+
 def test_aggregation_service_does_not_queue_or_commit_without_durable_dispatch() -> None:
     aggregation_repository = Mock(spec=AggregationRepository)
     aggregation_repository.add_aggregation.side_effect = _aggregation
@@ -984,6 +1009,17 @@ def _authentication_service(
         clock=clock,  # type: ignore[arg-type]  # A fixed-time lambda satisfies the Clock protocol.
         session_lifetime=session_lifetime,
     )
+
+
+def test_annotation_service_reports_an_absent_person_history_as_not_found() -> None:
+    review_repository = Mock(spec=ReviewRepository)
+    review_repository.get_annotation_history.return_value = None
+    service = AnnotationService(StubUnitOfWork(reviews=review_repository).factory)
+
+    with pytest.raises(ResourceNotFoundError, match="'p9'"):
+        service.get_history(snapshot_id=SNAPSHOT_ID, tei_id="p9")
+
+    review_repository.get_annotation_history.assert_called_once_with(SNAPSHOT_ID, "p9")
 
 
 def test_authentication_service_login_issues_session_for_verified_credentials() -> None:

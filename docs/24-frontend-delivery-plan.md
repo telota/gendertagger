@@ -16,17 +16,17 @@ is deliberately not asserted here.
 
 ## Where the work actually starts
 
-Phase 8's backend prerequisites are met. Of the three practical preconditions for the client, one is met and
-two are partly met.
+Phase 8's backend prerequisites are met. Of the three practical preconditions for the client, two are met and
+one is partly met.
 
 | Precondition | State | Blocks |
 |---|---|---|
 | A real `AuthenticationBackend` | **Met.** `DatabaseAuthenticationBackend` is the default: admin-provisioned local accounts and server-side sessions ([ADR-0031](decisions/ADR-0031-local-database-authentication.md)). | — |
-| Three missing read endpoints | **Partly met.** `GET /projects` is delivered ([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)); per-person method results and annotation history are not. | Review detail panel, audit view |
+| Three missing read endpoints | **Met.** `GET /projects` ([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)), `GET /aggregations/{id}/results/{result_id}/predictions`, and `GET /annotations?snapshot_id=&tei_id=` are delivered. | — |
 | Blocking semantic decisions | **Partly taken.** D1–D4 and D6 resolved; D5 deliberately open. See [Decisions](#decisions-taken). | Manuell annotieren (D5) |
 
-M1 is delivered and M2 is not blocked, since a real authentication backend is in place. M3 can use the
-project list; M5 and M6 wait on the two remaining read endpoints.
+M1 is delivered and M2 is not blocked, since a real authentication backend is in place. No milestone waits on
+a missing read endpoint any more.
 
 ## Existing scaffolding and what it still needs
 
@@ -117,13 +117,13 @@ than reconstructed at the end.
 
 | ID | Milestone | Size | Hard dependencies |
 |---|---|---|---|
-| M0 | Decisions and backend prerequisites | M | the two remaining read endpoints |
+| M0 | Decisions and backend prerequisites | M | scope-exclusion confirmation; accessibility assignments |
 | M1 | Scaffold and transport | S | none — D3, D8, D11, D12 all resolved |
 | M2 | Application shell | M | M1; a working auth backend |
 | M3 | Projects and import | M | M2 |
 | M4 | Runs and aggregation | L | M3 |
-| M5 | Review workbench | L | M4; per-person method results |
-| M6 | Person browser and audit view | M | M5; annotation history endpoint; **D5 (open)** |
+| M5 | Review workbench | L | M4 |
+| M6 | Person browser and audit view | M | M5; **D5 (open)** |
 | M7 | Evaluation and statistics | M | M4 |
 | M8 | Export | S | M4 |
 | M9 | Optional paths and production build | M | M5 |
@@ -136,8 +136,8 @@ than reconstructed at the end.
 `gendertagger users create` provisions accounts, and the generated transport already covers the login,
 logout, and password-change endpoints. D6 is implemented: project roles come from per-project
 memberships, and `GET /projects` lists only the caller's projects
-([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)). The two remaining read endpoints, the
-written confirmation of the scope exclusions, and the two accessibility
+([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)). All three blocking read endpoints are
+delivered. The written confirmation of the scope exclusions and the two accessibility
 [outstanding assignments](#outstanding-assignments) remain.
 
 **Work.**
@@ -151,8 +151,8 @@ written confirmation of the scope exclusions, and the two accessibility
 - Apply D2 to the screen content of Import, Übersicht, and Einstellungen before those screens are designed
   in detail — the threshold control is removed, not reskinned.
 - Implement the three blocking read endpoints from
-  [`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md): `GET /projects` (**done**), a per-person
-  method-result read model, and annotation history.
+  [`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md): `GET /projects`, a per-person
+  method-result read model, and annotation history. **Done.**
 - Confirm the v1 scope exclusions in writing, so the wireframe's unsupported features are not silently
   expected.
 
@@ -629,11 +629,10 @@ expectations. Each is analysed in [`23-wireframe-ui-inventory.md`](23-wireframe-
 
 ## Immediate next steps
 
-1. Implement the two remaining blocking read endpoints: per-person method results and annotation history.
-2. Confirm the v1 scope exclusions with the stakeholders who reviewed the wireframe, and confirm with them
+1. Confirm the v1 scope exclusions with the stakeholders who reviewed the wireframe, and confirm with them
    that the threshold control is removed rather than redesigned (D2) — this is the most visible change
    against the accepted wireframe.
-3. Appoint the accessibility owner and confirm whether an accessibility statement is legally required.
+2. Appoint the accessibility owner and confirm whether an accessibility statement is legally required.
    Both are organisational, both gate M0, and neither is resolvable from inside the repository.
-4. Begin M2 in parallel with items 1–3. Its hard dependencies, M1 and a working authentication backend, are
+3. Begin M2 in parallel with items 1–2. Its hard dependencies, M1 and a working authentication backend, are
    both in place; its overlay primitives still need the headless accessibility library chosen (D9).

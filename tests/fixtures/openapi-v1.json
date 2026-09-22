@@ -606,6 +606,63 @@
         "title": "AnnotationCreate",
         "type": "object"
       },
+      "AnnotationHistory": {
+        "additionalProperties": false,
+        "description": "One person's current review state and complete annotation chain, newest first.\n\nThe chain holds every annotation that ever applied to the person, so the first entry is\nthe current head and each entry supersedes the one after it. ``revision`` is the value a\nclient sends as ``expected_revision`` to append the next decision.",
+        "properties": {
+          "annotations": {
+            "items": {
+              "$ref": "#/components/schemas/AttributedAnnotation"
+            },
+            "title": "Annotations",
+            "type": "array"
+          },
+          "current_annotation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Annotation Id"
+          },
+          "person_record_id": {
+            "format": "uuid",
+            "title": "Person Record Id",
+            "type": "string"
+          },
+          "revision": {
+            "minimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "snapshot_id": {
+            "format": "uuid",
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "tei_id": {
+            "title": "Tei Id",
+            "type": "string"
+          },
+          "workflow_state": {
+            "$ref": "#/components/schemas/ReviewWorkflowState"
+          }
+        },
+        "required": [
+          "snapshot_id",
+          "person_record_id",
+          "tei_id",
+          "revision",
+          "workflow_state",
+          "annotations"
+        ],
+        "title": "AnnotationHistory",
+        "type": "object"
+      },
       "ApiErrorDetail": {
         "additionalProperties": false,
         "description": "Stable client-facing failure information for one HTTP request.",
@@ -658,6 +715,113 @@
           "error"
         ],
         "title": "ApiErrorEnvelope",
+        "type": "object"
+      },
+      "AttributedAnnotation": {
+        "additionalProperties": false,
+        "description": "An immutable annotation with its reviewer's display name for attribution.",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ReviewAction"
+          },
+          "aggregated_result_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aggregated Result Id"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CanonicalLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "person_record_id": {
+            "format": "uuid",
+            "title": "Person Record Id",
+            "type": "string"
+          },
+          "resulting_revision": {
+            "exclusiveMinimum": 0.0,
+            "title": "Resulting Revision",
+            "type": "integer"
+          },
+          "reviewer_display_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reviewer Display Name",
+            "type": "string"
+          },
+          "reviewer_user_id": {
+            "format": "uuid",
+            "title": "Reviewer User Id",
+            "type": "string"
+          },
+          "snapshot_id": {
+            "format": "uuid",
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "supersedes_annotation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedes Annotation Id"
+          },
+          "tei_id": {
+            "title": "Tei Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "snapshot_id",
+          "person_record_id",
+          "tei_id",
+          "action",
+          "reviewer_user_id",
+          "resulting_revision",
+          "created_at",
+          "reviewer_display_name"
+        ],
+        "title": "AttributedAnnotation",
         "type": "object"
       },
       "Body_import_snapshot_api_v1_projects__project_id__snapshots_post": {
@@ -2238,6 +2402,67 @@
         "title": "PersonRecord",
         "type": "object"
       },
+      "PredictionResult": {
+        "additionalProperties": false,
+        "description": "Validated output from one method for one person.\n\nA successful result always has a canonical label, including the substantive\n``unknown`` label. Abstentions and technical errors have no label. Confidence\nremains method-specific and is not globally calibrated.",
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CanonicalLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "description": "Normalization and execution provenance for this result.",
+            "title": "Metadata",
+            "type": "object"
+          },
+          "method_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Finite method-specific confidence in the method's declared range; not globally calibrated.",
+            "title": "Method Confidence"
+          },
+          "raw_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unnormalized label returned by the classification method.",
+            "title": "Raw Label"
+          },
+          "raw_output": {
+            "additionalProperties": true,
+            "description": "Raw method output retained for audit and reproducibility.",
+            "title": "Raw Output",
+            "type": "object"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PredictionStatus"
+          }
+        },
+        "required": [
+          "label",
+          "status"
+        ],
+        "title": "PredictionResult",
+        "type": "object"
+      },
       "PredictionStatus": {
         "description": "Outcome status of one method prediction.",
         "enum": [
@@ -2396,6 +2621,61 @@
         ],
         "title": "ProjectRole",
         "type": "string"
+      },
+      "ResultMethodPrediction": {
+        "additionalProperties": false,
+        "description": "One selected method's persisted output for the person behind an aggregated result.\n\n``prediction`` is ``None`` when the method execution persisted no prediction for the\nperson, which stays distinct from an explicit ``abstain`` or ``error`` result. Each\n``method_confidence`` is method-specific and is not comparable across methods.",
+        "properties": {
+          "implementation_version": {
+            "title": "Implementation Version",
+            "type": "string"
+          },
+          "method_execution_id": {
+            "format": "uuid",
+            "title": "Method Execution Id",
+            "type": "string"
+          },
+          "method_name": {
+            "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+            "title": "Method Name",
+            "type": "string"
+          },
+          "normalization_version": {
+            "title": "Normalization Version",
+            "type": "string"
+          },
+          "prediction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PredictionResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The immutable method output with its raw output and normalization provenance, or null when the execution persisted no prediction for this person."
+          },
+          "prediction_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prediction Id"
+          }
+        },
+        "required": [
+          "method_execution_id",
+          "method_name",
+          "implementation_version",
+          "normalization_version"
+        ],
+        "title": "ResultMethodPrediction",
+        "type": "object"
       },
       "ReviewAction": {
         "description": "Append-only editorial action recorded by an annotation.",
@@ -3261,7 +3541,257 @@
         ]
       }
     },
+    "/api/v1/aggregations/{aggregation_id}/results/{result_id}/predictions": {
+      "get": {
+        "description": "List every selected method's prediction for the person behind one result.\n\nEntries follow the aggregation's method selection order. A method with no persisted\nprediction for the person appears with a null ``prediction``.",
+        "operationId": "list_aggregation_result_predictions_api_v1_aggregations__aggregation_id__results__result_id__predictions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "aggregation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Aggregation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "result_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Result Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ResultMethodPrediction"
+                  },
+                  "title": "Response List Aggregation Result Predictions Api V1 Aggregations  Aggregation Id  Results  Result Id  Predictions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List Aggregation Result Predictions",
+        "tags": [
+          "aggregations"
+        ]
+      }
+    },
     "/api/v1/annotations": {
+      "get": {
+        "description": "Read one person's review state and complete attributed annotation chain.\n\nThe chain is newest first, so its first entry is the current decision, and ``revision``\nis the ``expected_revision`` for the next append.",
+        "operationId": "get_annotation_history_api_v1_annotations_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Snapshot Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tei_id",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Tei Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnnotationHistory"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Annotation History",
+        "tags": [
+          "annotations"
+        ]
+      },
       "post": {
         "description": "Append an attributable decision when the observed revision is current.",
         "operationId": "create_annotation_api_v1_annotations_post",

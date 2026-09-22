@@ -106,6 +106,34 @@ class ReviewState(BaseModel):
         return self
 
 
+class AttributedAnnotation(Annotation):
+    """An immutable annotation with its reviewer's display name for attribution."""
+
+    reviewer_display_name: str = Field(min_length=1, max_length=200)
+
+
+class AnnotationHistory(ReviewState):
+    """One person's current review state and complete annotation chain, newest first.
+
+    The chain holds every annotation that ever applied to the person, so the first entry is
+    the current head and each entry supersedes the one after it. ``revision`` is the value a
+    client sends as ``expected_revision`` to append the next decision.
+    """
+
+    annotations: list[AttributedAnnotation]
+
+    @model_validator(mode="after")
+    def _validate_chain(self) -> Self:
+        revisions = [annotation.resulting_revision for annotation in self.annotations]
+        if revisions != list(range(self.revision, 0, -1)):
+            msg = "annotations must hold every revision of the stream, newest first"
+            raise ValueError(msg)
+        if self.annotations and self.annotations[0].id != self.current_annotation_id:
+            msg = "the newest annotation must be the current annotation"
+            raise ValueError(msg)
+        return self
+
+
 class ReviewItemSort(StrEnum):
     """Server-side ordering available to the review queue.
 

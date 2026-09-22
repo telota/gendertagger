@@ -176,6 +176,9 @@ def test_project_roles_bound_what_members_may_do(deployment: _Deployment) -> Non
     operator_client = deployment.act_as(other_operator)
     foreign_project = operator_client.get(f"/api/v1/projects/{project_id}")
     foreign_snapshot = operator_client.get(f"/api/v1/snapshots/{snapshot_id}")
+    foreign_history = operator_client.get(
+        "/api/v1/annotations", params={"snapshot_id": snapshot_id, "tei_id": "p1"}
+    )
 
     assert project.status_code == 200
     assert project.json()["current_user_role"] == "viewer"
@@ -185,7 +188,11 @@ def test_project_roles_bound_what_members_may_do(deployment: _Deployment) -> Non
         403,
         403,
     ]
-    assert [foreign_project.status_code, foreign_snapshot.status_code] == [404, 404]
+    assert [
+        foreign_project.status_code,
+        foreign_snapshot.status_code,
+        foreign_history.status_code,
+    ] == [404, 404, 404]
 
 
 def test_revoking_the_creators_membership_revokes_access(deployment: _Deployment) -> None:

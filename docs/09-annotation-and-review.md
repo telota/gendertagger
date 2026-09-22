@@ -72,6 +72,15 @@ Human annotation is part of scholarly provenance. Ordinary review history is nev
 Administrative redaction and audit-logged deletion are recorded in
 [`22-future-development.md`](22-future-development.md).
 
+`GET /api/v1/annotations?snapshot_id=&tei_id=` makes that history readable. It returns an
+`AnnotationHistory`: the person's `ReviewState` plus every annotation in the stream, newest first, each as an
+`AttributedAnnotation` carrying the reviewer's display name. The chain is complete by construction —
+revisions run without gaps from the current `revision` down to 1 — so the head is the current decision and
+each entry supersedes the next. A reviewer who receives `409 annotation_conflict` reloads this resource,
+reads what changed and who changed it, and appends against its `revision`. Like every project read, it is
+visible to members of the snapshot's project only, so reviewer names do not leave the project
+([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)).
+
 
 ## Multi-user concurrency
 

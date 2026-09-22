@@ -34,10 +34,10 @@ read, command, and message models are additionally frozen.
 | `models/project.py` | Project, project-membership, dataset-snapshot, source-manifest, and snapshot-import contracts |
 | `models/method.py` | `MethodConfidenceRange`, `MethodDescriptor`, `METHOD_NAME_PATTERN` |
 | `models/run.py` | `Progress`, run, method-execution, task-batch, prediction, and SSE-event contracts |
-| `models/aggregation.py` | Reference-aggregation decision, result, and execution contracts |
+| `models/aggregation.py` | Reference-aggregation decision, result, execution, and per-person method-result contracts |
 | `models/evaluation.py` | Evaluation definition, execution, and report contracts |
 | `models/export.py` | Export command, execution, projection, and manifest contracts |
-| `models/review.py` | Annotation, review-state, and review-queue contracts |
+| `models/review.py` | Annotation, annotation-history, review-state, and review-queue contracts |
 | `models/dispatch.py` | Durable task-dispatch outbox contracts |
 | `models/artifact.py` | Artifact records plus compiled-lookup and model-manifest metadata |
 | `models/classify.py` | Synchronous on-demand classification request and response |
@@ -644,6 +644,36 @@ class ProjectMember(BaseModel):
 
 `AccessibleProject` is the public representation of a project: the persisted fields plus the caller's
 effective role. `ProjectMember` joins a membership to the member's display name for administration.
+
+### Per-person method results
+
+```python
+class ResultMethodPrediction(BaseModel):
+    method_execution_id: UUID
+    method_name: str
+    implementation_version: str
+    normalization_version: str
+    prediction_id: UUID | None = None
+    prediction: PredictionResult | None = None
+```
+
+One entry per method execution an aggregation selected, for the person behind one aggregated result.
+`prediction` and `prediction_id` are present together or absent together; absence means the execution
+persisted no prediction for the person, which is not the same as an `abstain` or `error` result.
+
+### Annotation history
+
+```python
+class AttributedAnnotation(Annotation):
+    reviewer_display_name: str
+
+
+class AnnotationHistory(ReviewState):
+    annotations: list[AttributedAnnotation]
+```
+
+`AnnotationHistory` validates that `annotations` holds every revision of the stream, newest first, and that
+its first entry is `current_annotation_id`.
 
 ### Review concurrency
 ```python

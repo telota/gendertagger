@@ -181,3 +181,58 @@ def test_annotation_rejects_client_reviewer_and_missing_machine_result(
 
     assert reviewer_response.status_code == 422
     assert result_response.status_code == 404
+
+
+def test_annotation_history_returns_the_attributed_chain_newest_first(
+    postgres_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    client, unit_of_work_factory, reviewer_id = _client(postgres_engine, tmp_path)
+    snapshot_id = _ready_snapshot_id(client, unit_of_work_factory, tmp_path)
+    history_params = {"snapshot_id": str(snapshot_id), "tei_id": "p1"}
+
+    unreviewed = client.get("/api/v1/annotations", params=history_params).json()
+    for expected_revision, action, label in (
+        (0, ReviewAction.verify, CanonicalLabel.female),
+        (1, ReviewAction.correct, CanonicalLabel.male),
+    ):
+        response = client.post(
+            "/api/v1/annotations",
+            json={
+                **history_params,
+                "action": action.value,
+                "label": label.value,
+                "expected_revision": expected_revision,
+            },
+        )
+        assert response.status_code == 201
+    history_response = client.get("/api/v1/annotations", params=history_params)
+    history = history_response.json()
+    next_response = client.post(
+        "/api/v1/annotations",
+        json={
+            **history_params,
+            "action": ReviewAction.defer.value,
+            "expected_revision": history["revision"],
+        },
+    )
+    missing = client.get(
+        "/api/v1/annotations", params={"snapshot_id": str(snapshot_id), "tei_id": "absent"}
+    )
+
+    assert (unreviewed["revision"], unreviewed["workflow_state"]) == (0, "unreviewed")
+    assert unreviewed["annotations"] == []
+    assert history_response.status_code == 200
+    assert (history["revision"], history["workflow_state"]) == (2, "reviewed")
+    assert [
+        (item["resulting_revision"], item["action"], item["label"], item["reviewer_display_name"])
+        for item in history["annotations"]
+    ] == [
+        (2, "correct", "male", "Annotation operator"),
+        (1, "verify", "female", "Annotation operator"),
+    ]
+    assert {item["reviewer_user_id"] for item in history["annotations"]} == {str(reviewer_id)}
+    assert history["current_annotation_id"] == history["annotations"][0]["id"]
+    assert history["annotations"][0]["supersedes_annotation_id"] == history["annotations"][1]["id"]
+    assert next_response.status_code == 201
+    assert missing.status_code == 404

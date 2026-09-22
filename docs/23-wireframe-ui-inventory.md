@@ -153,7 +153,7 @@ that supplies the component's data.
 | `.bulk-bar` | `BulkActionBar` | **Gap (backend):** no batch annotation endpoint |
 | `.person-row`, `.cb`, `.pname`, `.preason` | `PersonRow` | `ReviewItem` |
 | `.detail-name`, `.detail-sub`, `.tei-snippet` | `PersonDetailHeader`, `TeiSnippet` | `PersonRecord` |
-| `.classifier-card`, `.row1`, `.method` | `MethodResultCard` | **Gap (backend):** no per-person, per-method read model |
+| `.classifier-card`, `.row1`, `.method` | `MethodResultCard` | `GET /aggregations/{id}/results/{result_id}/predictions` |
 | `.action-bar`, `.act-btn` | `AnnotationActionBar` | `POST /annotations` |
 | `.upload-zone` | `FileDropZone` | `POST /projects/{id}/snapshots` |
 | `.src-switch`, `.src-opt`, `.src-panel`, `.msrc-card`, `.stitle`, `.ssub` | `SourceKindSelector` | `SourceFormat` + `SourcePackaging` |
@@ -332,14 +332,13 @@ bars, and a four-button action bar with keyboard hints 1–4).
 - **Gap (backend):** the bulk bar ("3 ausgewählt → Als Institution markieren") has no batch endpoint. Each
   annotation is a separate `POST` carrying its own `expected_revision`; a client-side loop must handle
   partial failure.
-- **Gap (backend):** the detail column shows every method's label and confidence for one person. No endpoint
-  returns that. `ReviewItem.selected_method_result` returns one method; `AggregatedResult` exposes
-  `pooled_vote_counts` (counts per label) and a `metadata` field that holds only
-  `{"strategy": "reference_v1"}`
-  ([`services/aggregation_execution.py`](../src/gendertagger/services/aggregation_execution.py)).
-- **Gap (backend):** the detail column attributes an earlier decision ("von Jo, vor 3 Tagen"). There is no
-  read endpoint for annotations; [`api/annotations.py`](../src/gendertagger/api/annotations.py) exposes only
-  `POST`, although `supersedes_annotation_id` persists the full chain.
+- **Closed (backend):** the detail column shows every method's label and confidence for one person.
+  `GET /aggregations/{id}/results/{result_id}/predictions` returns each selected method's full
+  `PredictionResult` in selection order, with a null `prediction` where a method persisted none. The UI must
+  still present each `method_confidence` as method-specific rather than comparing them.
+- **Closed (backend):** the detail column attributes an earlier decision ("von Jo, vor 3 Tagen").
+  `GET /annotations?snapshot_id=&tei_id=` returns the complete chain newest first, each entry with the
+  reviewer's display name, together with the current `revision` the conflict flow appends against.
 
 ### Manuell annotieren
 
@@ -451,7 +450,7 @@ trapped — the Vue port must add a focus trap and restore focus on close.
 
 ## Backend endpoint coverage
 
-All thirty-three delivered `/api/v1` endpoints, and how the wireframe treats each. Project-scoped roles are
+All thirty-five delivered `/api/v1` endpoints, and how the wireframe treats each. Project-scoped roles are
 checked against the project that owns the addressed resource.
 
 | Endpoint | Role | Wireframe treatment |
@@ -481,7 +480,9 @@ checked against the project that owns the addressed resource.
 | `GET /aggregations/{id}` | viewer | **absent** |
 | `GET /aggregations/{id}/results` | viewer | **absent** |
 | `GET /aggregations/{id}/results/{result_id}` | viewer | **absent** |
+| `GET /aggregations/{id}/results/{result_id}/predictions` | viewer | mocked per-method cards |
 | `GET /review-items` | viewer | mocked list, filters do not map |
+| `GET /annotations` | viewer | mocked attribution line |
 | `POST /annotations` | reviewer | mocked action bar, no concurrency |
 | `POST /evaluations` | operator | **absent** |
 | `GET /evaluations/{id}` | viewer | **absent** |
@@ -508,9 +509,9 @@ Grouped by whether they need a backend decision before or after v1.
 |---|---|---|
 | GitLab repository source, sync, commit tracking, commit export | Import, Einstellungen, export menu | Defer; needs an ADR and a new resource family. Weigh against [ADR-0005](decisions/ADR-0005-local-first-data-processing.md). |
 | Automation confidence threshold | Import, Übersicht, Einstellungen | **Resolve before v1** — it drives three screens' primary metrics. |
-| Project list and per-project progress | Projekte, topbar switcher | **Add to backend before v1** — the shell depends on it. |
-| Per-person, per-method predictions | Redigieren, Manuell annotieren | **Add to backend before v1** — the detail panel depends on it. |
-| Annotation history read | Redigieren, Manuell annotieren | Add; data already persisted. |
+| Project list and per-project progress | Projekte, topbar switcher | Project list **delivered** (`GET /projects`); per-project progress still to add. |
+| Per-person, per-method predictions | Redigieren, Manuell annotieren | **Delivered.** `GET /aggregations/{id}/results/{result_id}/predictions`. |
+| Annotation history read | Redigieren, Manuell annotieren | **Delivered.** `GET /annotations?snapshot_id=&tei_id=`. |
 | Run retry and cancel | Klassifikation | Add; `cancelled` status already modeled. |
 | Run list | Klassifikation | Add. |
 | Bulk annotation | Redigieren | Client-side loop for v1; batch endpoint later. |
@@ -655,10 +656,11 @@ Ordered by whether the Vue port is blocked without them.
    **Delivered** with project-scoped visibility
    ([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)).
 2. A per-person method-result read model — every method's `PredictionResult` for one person under one
-   aggregation. Blocks the detail column on two screens. Candidate shape:
+   aggregation. Blocks the detail column on two screens. **Delivered** as
    `GET /aggregations/{id}/results/{result_id}/predictions`.
 3. Annotation history read — `GET /annotations?snapshot_id=&tei_id=` returning the superseding chain. Blocks
-   attribution display and the concurrency-conflict resolution flow.
+   attribution display and the concurrency-conflict resolution flow. **Delivered**, with the current review
+   state alongside the chain.
 
 ### Near-term
 
@@ -676,8 +678,8 @@ needs an ADR before it enters the API surface, per [`22-future-development.md`](
 
 1. **Resolve the two blocking semantic questions** — the automation threshold and the `uncertain`/`unknown`
    naming. They change screen content, not just wiring.
-2. **Add the three blocking backend endpoints** (project list — delivered — per-person method results,
-   annotation history).
+2. **Add the three blocking backend endpoints** (project list, per-person method results, annotation
+   history). All three are delivered.
 3. **Scaffold** Vite + Vue 3 + TypeScript, generate the OpenAPI client, wire CI drift checking.
 4. **Build the shell** — routing, session, roles, error envelope, tokens, primitives.
 5. **Import, Klassifikation, Aggregation**, in that order, including SSE. This is the first vertical slice

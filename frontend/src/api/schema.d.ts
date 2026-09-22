@@ -64,6 +64,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/aggregations/{aggregation_id}/results/{result_id}/predictions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Aggregation Result Predictions
+         * @description List every selected method's prediction for the person behind one result.
+         *
+         *     Entries follow the aggregation's method selection order. A method with no persisted
+         *     prediction for the person appears with a null ``prediction``.
+         */
+        get: operations["list_aggregation_result_predictions_api_v1_aggregations__aggregation_id__results__result_id__predictions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/annotations": {
         parameters: {
             query?: never;
@@ -71,7 +94,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get Annotation History
+         * @description Read one person's review state and complete attributed annotation chain.
+         *
+         *     The chain is newest first, so its first entry is the current decision, and ``revision``
+         *     is the ``expected_revision`` for the next append.
+         */
+        get: operations["get_annotation_history_api_v1_annotations_get"];
         put?: never;
         /**
          * Create Annotation
@@ -869,6 +899,35 @@ export interface components {
             tei_id: string;
         };
         /**
+         * AnnotationHistory
+         * @description One person's current review state and complete annotation chain, newest first.
+         *
+         *     The chain holds every annotation that ever applied to the person, so the first entry is
+         *     the current head and each entry supersedes the one after it. ``revision`` is the value a
+         *     client sends as ``expected_revision`` to append the next decision.
+         */
+        AnnotationHistory: {
+            /** Annotations */
+            annotations: components["schemas"]["AttributedAnnotation"][];
+            /** Current Annotation Id */
+            current_annotation_id?: string | null;
+            /**
+             * Person Record Id
+             * Format: uuid
+             */
+            person_record_id: string;
+            /** Revision */
+            revision: number;
+            /**
+             * Snapshot Id
+             * Format: uuid
+             */
+            snapshot_id: string;
+            /** Tei Id */
+            tei_id: string;
+            workflow_state: components["schemas"]["ReviewWorkflowState"];
+        };
+        /**
          * ApiErrorDetail
          * @description Stable client-facing failure information for one HTTP request.
          */
@@ -890,6 +949,51 @@ export interface components {
          */
         ApiErrorEnvelope: {
             error: components["schemas"]["ApiErrorDetail"];
+        };
+        /**
+         * AttributedAnnotation
+         * @description An immutable annotation with its reviewer's display name for attribution.
+         */
+        AttributedAnnotation: {
+            action: components["schemas"]["ReviewAction"];
+            /** Aggregated Result Id */
+            aggregated_result_id?: string | null;
+            /** Comment */
+            comment?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            label?: components["schemas"]["CanonicalLabel"] | null;
+            /**
+             * Person Record Id
+             * Format: uuid
+             */
+            person_record_id: string;
+            /** Resulting Revision */
+            resulting_revision: number;
+            /** Reviewer Display Name */
+            reviewer_display_name: string;
+            /**
+             * Reviewer User Id
+             * Format: uuid
+             */
+            reviewer_user_id: string;
+            /**
+             * Snapshot Id
+             * Format: uuid
+             */
+            snapshot_id: string;
+            /** Supersedes Annotation Id */
+            supersedes_annotation_id?: string | null;
+            /** Tei Id */
+            tei_id: string;
         };
         /** Body_import_snapshot_api_v1_projects__project_id__snapshots_post */
         Body_import_snapshot_api_v1_projects__project_id__snapshots_post: {
@@ -1556,6 +1660,42 @@ export interface components {
             tei_id: string;
         };
         /**
+         * PredictionResult
+         * @description Validated output from one method for one person.
+         *
+         *     A successful result always has a canonical label, including the substantive
+         *     ``unknown`` label. Abstentions and technical errors have no label. Confidence
+         *     remains method-specific and is not globally calibrated.
+         */
+        PredictionResult: {
+            label: components["schemas"]["CanonicalLabel"] | null;
+            /**
+             * Metadata
+             * @description Normalization and execution provenance for this result.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Method Confidence
+             * @description Finite method-specific confidence in the method's declared range; not globally calibrated.
+             */
+            method_confidence?: number | null;
+            /**
+             * Raw Label
+             * @description Unnormalized label returned by the classification method.
+             */
+            raw_label?: string | null;
+            /**
+             * Raw Output
+             * @description Raw method output retained for audit and reproducibility.
+             */
+            raw_output?: {
+                [key: string]: unknown;
+            };
+            status: components["schemas"]["PredictionStatus"];
+        };
+        /**
          * PredictionStatus
          * @description Outcome status of one method prediction.
          * @enum {string}
@@ -1638,6 +1778,31 @@ export interface components {
          * @enum {string}
          */
         ProjectRole: "viewer" | "reviewer" | "operator";
+        /**
+         * ResultMethodPrediction
+         * @description One selected method's persisted output for the person behind an aggregated result.
+         *
+         *     ``prediction`` is ``None`` when the method execution persisted no prediction for the
+         *     person, which stays distinct from an explicit ``abstain`` or ``error`` result. Each
+         *     ``method_confidence`` is method-specific and is not comparable across methods.
+         */
+        ResultMethodPrediction: {
+            /** Implementation Version */
+            implementation_version: string;
+            /**
+             * Method Execution Id
+             * Format: uuid
+             */
+            method_execution_id: string;
+            /** Method Name */
+            method_name: string;
+            /** Normalization Version */
+            normalization_version: string;
+            /** @description The immutable method output with its raw output and normalization provenance, or null when the execution persisted no prediction for this person. */
+            prediction?: components["schemas"]["PredictionResult"] | null;
+            /** Prediction Id */
+            prediction_id?: string | null;
+        };
         /**
          * ReviewAction
          * @description Append-only editorial action recorded by an annotation.
@@ -2066,6 +2231,196 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AggregatedResult"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    list_aggregation_result_predictions_api_v1_aggregations__aggregation_id__results__result_id__predictions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                aggregation_id: string;
+                result_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResultMethodPrediction"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_annotation_history_api_v1_annotations_get: {
+        parameters: {
+            query: {
+                snapshot_id: string;
+                tei_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnotationHistory"];
                 };
             };
             /** @description Invalid request */

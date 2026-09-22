@@ -135,6 +135,11 @@ the phased plan that resumes application code.
   `GET`, `PUT`, and `DELETE /api/v1/projects/{project_id}/members[/{user_id}]` plus the
   `gendertagger projects add-member`, `remove-member`, and `list-members` CLI commands for managing
   project memberships ([ADR-0033](docs/decisions/ADR-0033-project-scoped-membership-roles.md)).
+- `GET /api/v1/aggregations/{aggregation_id}/results/{result_id}/predictions`, which returns every selected
+  method's immutable prediction for the person behind one result, in selection order, with a null
+  `prediction` where a method persisted none, and `GET /api/v1/annotations?snapshot_id=&tei_id=`, which
+  returns a person's review state with the complete annotation chain, newest first and attributed by
+  reviewer display name. They are the last of the three read endpoints blocking the review client.
 
 ### Changed
 

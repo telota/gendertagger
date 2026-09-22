@@ -11,6 +11,7 @@ from gendertagger.models.aggregation import (
     AggregationExecutionCreate,
     AggregationPersonPredictions,
     AggregationResultWrite,
+    ResultMethodPrediction,
 )
 from gendertagger.models.lifecycle import AggregationExecutionStatus
 
@@ -75,6 +76,18 @@ class AggregationRepository(Protocol):
 
     def get_result(self, aggregated_result_id: UUID) -> AggregatedResult | None:
         """Return an aggregated result by ID, or ``None`` when absent."""
+        ...
+
+    def list_result_predictions(
+        self,
+        aggregation_execution_id: UUID,
+        person_record_id: UUID,
+    ) -> Sequence[ResultMethodPrediction]:
+        """Return each selected execution's prediction for one person, in selection order.
+
+        An execution that persisted no prediction for the person is still listed, with no
+        prediction, so absence stays distinct from an ``abstain`` or ``error`` result.
+        """
         ...
 
     def list_results(

@@ -24,6 +24,8 @@ from gendertagger.models.classification import CanonicalLabel
 from gendertagger.models.review import (
     Annotation,
     AnnotationCreate,
+    AnnotationHistory,
+    AttributedAnnotation,
     ReviewAction,
     ReviewItem,
     ReviewItemQuery,
@@ -142,22 +144,61 @@ class SqlAlchemyReviewRepository:
                 PersonRecordRow.tei_id == tei_id,
             )
         )
+        return None if person is None else self._review_state(person)
+
+    def get_annotation_history(self, snapshot_id: UUID, tei_id: str) -> AnnotationHistory | None:
+        """Return one person's review state and attributed annotation chain, newest first.
+
+        A shared lock on the person row waits for an in-flight append and holds off new ones,
+        which lock that row exclusively first, so the state and the chain describe the same
+        revision.
+        """
+        person = self._session.scalar(
+            select(PersonRecordRow)
+            .where(
+                PersonRecordRow.dataset_snapshot_id == snapshot_id,
+                PersonRecordRow.tei_id == tei_id,
+            )
+            .with_for_update(read=True)
+        )
         if person is None:
             return None
-        state = self._session.get(ReviewStateRow, (snapshot_id, person.id))
+        rows = self._session.execute(
+            select(AnnotationRow, UserRow.display_name)
+            .join(UserRow, UserRow.id == AnnotationRow.reviewer_user_id)
+            .where(
+                AnnotationRow.dataset_snapshot_id == snapshot_id,
+                AnnotationRow.person_record_id == person.id,
+            )
+            .order_by(AnnotationRow.resulting_revision.desc())
+        ).tuples()
+        annotations = [
+            AttributedAnnotation(
+                **self._annotation_from_row(row, person.tei_id).model_dump(),
+                reviewer_display_name=display_name,
+            )
+            for row, display_name in rows
+        ]
+        return AnnotationHistory(
+            **self._review_state(person).model_dump(),
+            annotations=annotations,
+        )
+
+    def _review_state(self, person: PersonRecordRow) -> ReviewState:
+        state = self._session.get(ReviewStateRow, (person.dataset_snapshot_id, person.id))
         if state is None:
             return ReviewState(
-                snapshot_id=snapshot_id,
+                snapshot_id=person.dataset_snapshot_id,
                 person_record_id=person.id,
-                tei_id=tei_id,
+                tei_id=person.tei_id,
                 revision=0,
                 workflow_state=ReviewWorkflowState.unreviewed,
                 current_annotation_id=None,
             )
         return ReviewState(
-            snapshot_id=snapshot_id,
+            snapshot_id=person.dataset_snapshot_id,
             person_record_id=person.id,
-            tei_id=tei_id,
+            tei_id=person.tei_id,
             revision=state.revision,
             workflow_state=state.workflow_state,
             current_annotation_id=state.current_annotation_id,

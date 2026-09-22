@@ -8,6 +8,7 @@ from uuid import UUID
 from gendertagger.models.review import (
     Annotation,
     AnnotationCreate,
+    AnnotationHistory,
     ReviewItem,
     ReviewItemQuery,
     ReviewState,
@@ -42,6 +43,10 @@ class ReviewRepository(Protocol):
 
     def get_review_state(self, snapshot_id: UUID, tei_id: str) -> ReviewState | None:
         """Return the current review projection, or ``None`` for an absent person."""
+        ...
+
+    def get_annotation_history(self, snapshot_id: UUID, tei_id: str) -> AnnotationHistory | None:
+        """Return the review state and attributed annotation chain, or ``None`` for an absent person."""
         ...
 
     def list_review_items(

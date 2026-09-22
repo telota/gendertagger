@@ -50,7 +50,9 @@ below). The following table is the whole public API:
 | `GET` | `/api/v1/aggregations/{aggregation_id}` | `200` | project viewer of `aggregation_id` |
 | `GET` | `/api/v1/aggregations/{aggregation_id}/results` | `200` | project viewer of `aggregation_id` |
 | `GET` | `/api/v1/aggregations/{aggregation_id}/results/{result_id}` | `200` | project viewer of `aggregation_id` |
+| `GET` | `/api/v1/aggregations/{aggregation_id}/results/{result_id}/predictions` | `200` | project viewer of `aggregation_id` |
 | `GET` | `/api/v1/review-items` | `200` | project viewer of query `aggregation_id` |
+| `GET` | `/api/v1/annotations` | `200` | project viewer of query `snapshot_id` |
 | `POST` | `/api/v1/annotations` | `201` | project reviewer of body `snapshot_id` |
 | `POST` | `/api/v1/evaluations` | `202` | project operator of body `run_id` |
 | `GET` | `/api/v1/evaluations/{evaluation_id}` | `200` | project viewer of `evaluation_id` |
@@ -68,6 +70,17 @@ below). The following table is the whole public API:
 
 Predictions have no public collection of their own. A run's per-method outputs are read through its
 executions and through the aggregated results that summarize them.
+`GET /aggregations/{aggregation_id}/results/{result_id}/predictions` returns, for the person behind one
+result, one `ResultMethodPrediction` per method execution the aggregation selected, in selection order. Each
+carries the method's immutable `PredictionResult`, including its raw output and normalization provenance,
+or a null `prediction` when the execution persisted none for that person. Absence therefore stays distinct
+from `abstain` and `error`. Each `method_confidence` is method-specific and is not comparable across methods.
+
+`GET /annotations?snapshot_id=&tei_id=` returns one person's `AnnotationHistory`: the current review state
+and every annotation that ever applied to the person, newest first, each with its reviewer's display name.
+Its `revision` is the `expected_revision` for the next `POST /annotations`, so a client recovering from
+`409 annotation_conflict` reloads this one resource. The read takes a shared lock on the person so that the
+state and the chain always describe the same revision.
 
 Every route except `POST /auth/login` carries `Depends(require_csrf_protection)`, so the dependency runs
 before any handler body. Because that dependency in turn depends on `require_authenticated_user`, the

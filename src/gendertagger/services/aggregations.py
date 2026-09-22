@@ -1,6 +1,6 @@
 """Application use cases for independently rerunnable aggregations."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from uuid import UUID
 
 from gendertagger.models.aggregation import (
@@ -9,6 +9,7 @@ from gendertagger.models.aggregation import (
     AggregationExecution,
     AggregationExecutionCreate,
     AggregationTaskMessage,
+    ResultMethodPrediction,
 )
 from gendertagger.models.api import CursorPage
 from gendertagger.models.common import UtcDatetime
@@ -82,6 +83,20 @@ class AggregationService:
             msg = f"aggregation result {result_id} does not exist under {aggregation_id}"
             raise ResourceNotFoundError(msg)
         return result
+
+    def list_result_predictions(
+        self,
+        *,
+        aggregation_id: UUID,
+        result_id: UUID,
+    ) -> Sequence[ResultMethodPrediction]:
+        """Return every selected method's prediction for the person behind one result."""
+        result = self.get_result(aggregation_id=aggregation_id, result_id=result_id)
+        with self._unit_of_work_factory() as unit_of_work:
+            return unit_of_work.aggregations.list_result_predictions(
+                aggregation_id,
+                result.person_record_id,
+            )
 
     def list_results(
         self,

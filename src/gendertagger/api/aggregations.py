@@ -1,5 +1,6 @@
 """Aggregation execution and immutable result HTTP resources."""
 
+from collections.abc import Sequence
 from typing import Annotated
 from uuid import UUID
 
@@ -12,6 +13,7 @@ from gendertagger.models.aggregation import (
     AggregatedResult,
     AggregationCreateRequest,
     AggregationExecution,
+    ResultMethodPrediction,
 )
 from gendertagger.models.api import CursorPage
 from gendertagger.models.user import ProjectRole
@@ -105,6 +107,28 @@ def get_aggregation_result(
     access.require(ProjectScope.aggregation, aggregation_id, ProjectRole.viewer)
     try:
         return service.get_result(aggregation_id=aggregation_id, result_id=result_id)
+    except ResourceNotFoundError as error:
+        raise _not_found() from error
+
+
+@router.get(
+    "/aggregations/{aggregation_id}/results/{result_id}/predictions",
+    response_model=list[ResultMethodPrediction],
+)
+def list_aggregation_result_predictions(
+    aggregation_id: UUID,
+    result_id: UUID,
+    service: Annotated[AggregationService, Depends(get_aggregation_service)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
+) -> Sequence[ResultMethodPrediction]:
+    """List every selected method's prediction for the person behind one result.
+
+    Entries follow the aggregation's method selection order. A method with no persisted
+    prediction for the person appears with a null ``prediction``.
+    """
+    access.require(ProjectScope.aggregation, aggregation_id, ProjectRole.viewer)
+    try:
+        return service.list_result_predictions(aggregation_id=aggregation_id, result_id=result_id)
     except ResourceNotFoundError as error:
         raise _not_found() from error
 

@@ -15,6 +15,7 @@ from gendertagger.models.classification import (
 )
 from gendertagger.models.common import UtcDatetime, canonical_json_sha256
 from gendertagger.models.lifecycle import AggregationExecutionStatus
+from gendertagger.models.method import METHOD_NAME_PATTERN
 from gendertagger.models.project import SHA256_PATTERN
 
 _MINIMUM_TIED_LABEL_COUNT = 2
@@ -324,3 +325,34 @@ class AggregatedResult(ReferenceAggregationResult):
     )
     metadata: dict[str, JsonValue] = Field(default_factory=dict)
     created_at: UtcDatetime
+
+
+class ResultMethodPrediction(BaseModel):
+    """One selected method's persisted output for the person behind an aggregated result.
+
+    ``prediction`` is ``None`` when the method execution persisted no prediction for the
+    person, which stays distinct from an explicit ``abstain`` or ``error`` result. Each
+    ``method_confidence`` is method-specific and is not comparable across methods.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    method_execution_id: UUID
+    method_name: str = Field(pattern=METHOD_NAME_PATTERN)
+    implementation_version: str
+    normalization_version: str
+    prediction_id: UUID | None = None
+    prediction: PredictionResult | None = Field(
+        default=None,
+        description=(
+            "The immutable method output with its raw output and normalization provenance, "
+            "or null when the execution persisted no prediction for this person."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _validate_prediction_identity(self) -> Self:
+        if (self.prediction_id is None) != (self.prediction is None):
+            msg = "prediction_id and prediction must be present together"
+            raise ValueError(msg)
+        return self
