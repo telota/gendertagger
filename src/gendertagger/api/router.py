@@ -8,7 +8,9 @@ requirements (ADR-0031):
 - :func:`create_password_change_exempt_router` — authenticated and CSRF-protected, but reachable
   even while a password change is owed, since a user must be able to reach these to clear the gate:
   ``GET /me``, ``GET /auth/session``, ``POST /auth/logout``, ``POST /me/password``.
-- :func:`create_unauthenticated_router` — reachable before a session exists: ``POST /auth/login``.
+- :func:`create_unauthenticated_router` — reachable before a session exists: ``POST /auth/login`` and
+  ``GET /branding``/``GET /branding/logo`` (ADR-0036), which carry no scientific or project-scoped
+  data and need no grant at all.
 
 ``gendertagger.api.app.create_app`` mounts all three.
 """
@@ -22,6 +24,7 @@ from gendertagger.api.annotations import router as annotations_router
 from gendertagger.api.authentication import require_csrf_protection, require_password_current
 from gendertagger.api.authentication import router as authentication_router
 from gendertagger.api.authentication import unauthenticated_router as login_router
+from gendertagger.api.branding import router as branding_router
 from gendertagger.api.classify import router as classify_router
 from gendertagger.api.evaluations import router as evaluations_router
 from gendertagger.api.exports import router as exports_router
@@ -79,4 +82,5 @@ def create_unauthenticated_router() -> APIRouter:
     """``/api/v1`` routes reachable before a session exists."""
     router = APIRouter(prefix="/api/v1", responses=_ERROR_RESPONSES)
     router.include_router(login_router)
+    router.include_router(branding_router)
     return router

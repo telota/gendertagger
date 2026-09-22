@@ -528,6 +528,13 @@ For the same-origin browser application, secure HTTP-only session cookies plus C
 
 Account provisioning is CLI-only (`gendertagger users create` / `reset-password`); there is no HTTP surface for it. A separate token/OIDC mechanism for external machine clients is recorded in [`22-future-development.md`](22-future-development.md).
 
+## Branding surface
+
+`GET /branding` and `GET /branding/logo` are unauthenticated, need no grant, and carry no scientific or project-scoped data ([ADR-0036](decisions/ADR-0036-institution-branding-configuration.md)). They exist so the client's footer, start page, and legal notice can be reachable without a session and configured per deployment instead of hard-coded.
+
+- `GET /branding` returns `BrandingInfo`, built from the operator's `GENDERTAGGER_BRANDING__*` settings. Every field is `null` when the operator has not configured it; the client renders that as an explicit "not configured" state.
+- `GET /branding/logo` streams the configured logo file with its detected media type, or `404 resource_not_found` when no `logo_path` is set or the file is missing. `BrandingInfo.logo_url` is the literal path `/api/v1/branding/logo` when the file exists and `null` otherwise, so the client never constructs the path itself.
+
 ## CORS
 
 Production should prefer a single origin for Vue and FastAPI, making general CORS unnecessary.

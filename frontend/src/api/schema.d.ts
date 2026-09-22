@@ -194,6 +194,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/branding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Branding
+         * @description Return this deployment's operator-configured branding.
+         *
+         *     A field the operator has not set is `None`: nothing here is invented on its behalf.
+         */
+        get: operations["get_branding_api_v1_branding_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/branding/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Branding Logo
+         * @description Stream the configured logo file, or `404` when none is configured or it is missing.
+         */
+        get: operations["get_branding_logo_api_v1_branding_logo_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/classify": {
         parameters: {
             query?: never;
@@ -1124,6 +1166,67 @@ export interface components {
             source: string[];
             /** @default tei */
             source_format: components["schemas"]["SourceFormat"];
+        };
+        /**
+         * BrandingInfo
+         * @description Deployment branding as the browser client receives it from `GET /api/v1/branding`.
+         *
+         *     An operator who has not configured a field sees it as `None` here; the client renders that as an
+         *     explicit "not configured" state rather than inventing a value.
+         */
+        BrandingInfo: {
+            /** Contact Email */
+            contact_email?: string | null;
+            /** Editors */
+            editors?: string[];
+            /** Initiatives */
+            initiatives?: components["schemas"]["BrandingInitiative"][];
+            /** Institution Name */
+            institution_name?: string | null;
+            /** Institution Url */
+            institution_url?: string | null;
+            legal_entity?: components["schemas"]["BrandingLegalEntity"] | null;
+            /**
+             * Logo Url
+             * @description Same-origin path to GET, e.g. '/api/v1/branding/logo'; absent when no logo is configured.
+             */
+            logo_url?: string | null;
+            /** Privacy Notice Url */
+            privacy_notice_url?: string | null;
+            /** Published Since Year */
+            published_since_year?: number | null;
+        };
+        /**
+         * BrandingInitiative
+         * @description One named institutional context the deployment is developed within.
+         *
+         *     The name is a proper name and is rendered untranslated by the client.
+         */
+        BrandingInitiative: {
+            /** Name */
+            name: string;
+            /** Url */
+            url: string;
+        };
+        /**
+         * BrandingLegalEntity
+         * @description Provider details for the client's legal notice, modelled on a BBAW-style imprint.
+         */
+        BrandingLegalEntity: {
+            /** Address Lines */
+            address_lines?: string[];
+            /** Legal Form */
+            legal_form?: string | null;
+            /** Name */
+            name: string;
+            /** Representative */
+            representative?: string | null;
+            /** Telephone */
+            telephone?: string | null;
+            /** Telephone Href */
+            telephone_href?: string | null;
+            /** Vat Id */
+            vat_id?: string | null;
         };
         /**
          * CanonicalLabel
@@ -3094,6 +3197,190 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CurrentSession"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_branding_api_v1_branding_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandingInfo"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_branding_logo_api_v1_branding_logo_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Invalid request */

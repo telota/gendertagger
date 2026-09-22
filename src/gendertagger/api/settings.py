@@ -2,11 +2,12 @@
 
 from pathlib import Path
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
 
+from gendertagger.models.branding import BrandingInitiative, BrandingLegalEntity
 from gendertagger.models.project import SHA256_PATTERN
 from gendertagger.services.authentication import (
     DEFAULT_KEEP_SIGNED_IN_IDLE,
@@ -15,11 +16,33 @@ from gendertagger.services.authentication import (
 )
 
 
+class BrandingSettings(BaseModel):
+    """Operator-supplied deployment branding (ADR-0036), read from ``GENDERTAGGER_BRANDING__*``.
+
+    Every field is optional and absent by default: an unconfigured deployment serves an empty legal
+    notice rather than one institution's hard-coded identity. ``logo_path`` is a file the deployment
+    mounts into this container; ``GET /api/v1/branding/logo`` serves it and is otherwise ``404``.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    institution_name: str | None = None
+    institution_url: str | None = None
+    logo_path: Path | None = None
+    editors: list[str] = Field(default_factory=list)
+    published_since_year: int | None = None
+    initiatives: list[BrandingInitiative] = Field(default_factory=list)
+    contact_email: str | None = None
+    privacy_notice_url: str | None = None
+    legal_entity: BrandingLegalEntity | None = None
+
+
 class AppSettings(BaseSettings):
     """Validated process settings loaded from ``GENDERTAGGER_*`` variables."""
 
     model_config = SettingsConfigDict(
         env_prefix="GENDERTAGGER_",
+        env_nested_delimiter="__",
         extra="ignore",
         frozen=True,
         hide_input_in_errors=True,
@@ -61,6 +84,7 @@ class AppSettings(BaseSettings):
         gt=0,
         description="Absolute limit of any session from its login, however active (ADR-0032).",
     )
+    branding: BrandingSettings = Field(default_factory=BrandingSettings)
 
     @field_validator("database_url")
     @classmethod

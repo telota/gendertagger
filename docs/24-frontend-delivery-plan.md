@@ -120,7 +120,7 @@ than reconstructed at the end.
 |---|---|---|---|
 | M0 | Decisions and backend prerequisites | M | scope-exclusion confirmation; accessibility assignments |
 | M1 | Scaffold and transport | S | none — D3, D8, D11, D12 all resolved |
-| M2 | Application shell | M | M1; a working auth backend; `GET /api/v1/branding` ([ADR-0036](decisions/ADR-0036-institution-branding-configuration.md)) |
+| M2 | Application shell | M | M1; a working auth backend; `GET /api/v1/branding` ([ADR-0036](decisions/ADR-0036-institution-branding-configuration.md)), **delivered** |
 | M3 | Projects and import | M | M2 |
 | M4 | Runs and aggregation | L | M3 |
 | M5 | Review workbench | L | M4 |
@@ -222,8 +222,8 @@ contract change fails CI.
   `wip/publication-footer-legal-notice`; it hard-codes BBAW's facts and needs rebuilding against the endpoint
   before it can land.
 - The backend prerequisite for the item above: `GET /api/v1/branding` and `GET /api/v1/branding/logo`
-  ([ADR-0036](decisions/ADR-0036-institution-branding-configuration.md)). Small and self-contained, so it can
-  be built independently of the rest of M2.
+  ([ADR-0036](decisions/ADR-0036-institution-branding-configuration.md)). **Delivered**, unauthenticated and
+  needing no grant, both registered in the route-coverage check in `tests/api/test_authorization.py`.
 
 **Exit criterion.** A viewer, reviewer, and operator each see a correctly scoped shell in both locales and
 both themes; an expired session and a server error both render correctly.

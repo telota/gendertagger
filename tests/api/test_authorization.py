@@ -308,6 +308,8 @@ GLOBAL_ROUTES = {
     ("GET", "/auth/session"),
     ("POST", "/auth/login"),
     ("POST", "/auth/logout"),
+    ("GET", "/branding"),
+    ("GET", "/branding/logo"),
 }
 
 

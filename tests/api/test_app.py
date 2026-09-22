@@ -42,6 +42,42 @@ def test_settings_load_prefixed_environment_without_exposing_database_secret(
     assert "secret" not in repr(settings)
 
 
+def test_settings_load_nested_branding_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GENDERTAGGER_DATABASE_URL", DATABASE_URL)
+    monkeypatch.setenv("GENDERTAGGER_CODE_GIT_COMMIT", CODE_GIT_COMMIT)
+    monkeypatch.setenv("GENDERTAGGER_DEPENDENCY_LOCK_SHA256", DEPENDENCY_LOCK_SHA256)
+    monkeypatch.setenv(
+        "GENDERTAGGER_BRANDING__INSTITUTION_NAME", "Berlin-Brandenburgische Akademie"
+    )
+    monkeypatch.setenv("GENDERTAGGER_BRANDING__CONTACT_EMAIL", "telota@bbaw.de")
+    monkeypatch.setenv("GENDERTAGGER_BRANDING__PUBLISHED_SINCE_YEAR", "2026")
+    monkeypatch.setenv("GENDERTAGGER_BRANDING__EDITORS", '["Frederike Neuber", "Lou Klappenbach"]')
+    monkeypatch.setenv("GENDERTAGGER_BRANDING__LEGAL_ENTITY__NAME", "BBAW")
+    monkeypatch.setenv("GENDERTAGGER_BRANDING__LEGAL_ENTITY__VAT_ID", "DE 167 449 058")
+
+    settings = load_settings()
+
+    assert settings.branding.institution_name == "Berlin-Brandenburgische Akademie"
+    assert settings.branding.contact_email == "telota@bbaw.de"
+    assert settings.branding.published_since_year == 2026
+    assert settings.branding.editors == ["Frederike Neuber", "Lou Klappenbach"]
+    assert settings.branding.legal_entity is not None
+    assert settings.branding.legal_entity.name == "BBAW"
+    assert settings.branding.legal_entity.vat_id == "DE 167 449 058"
+
+
+def test_settings_default_branding_is_fully_unconfigured() -> None:
+    settings = AppSettings(
+        database_url=SecretStr(DATABASE_URL),
+        code_git_commit=CODE_GIT_COMMIT,
+        dependency_lock_sha256=DEPENDENCY_LOCK_SHA256,
+    )
+
+    assert settings.branding.institution_name is None
+    assert settings.branding.legal_entity is None
+    assert settings.branding.editors == []
+
+
 def test_settings_require_supported_postgresql_driver() -> None:
     with pytest.raises(ValidationError, match="postgresql\\+psycopg"):
         AppSettings(
