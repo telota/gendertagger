@@ -137,8 +137,8 @@ than reconstructed at the end.
 logout, and password-change endpoints. D6 is implemented: project roles come from per-project
 memberships, and `GET /projects` lists only the caller's projects
 ([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)). The two remaining read endpoints, the
-written confirmation of the scope exclusions, and the two [outstanding assignments](#outstanding-assignments)
-remain.
+written confirmation of the scope exclusions, and the two accessibility
+[outstanding assignments](#outstanding-assignments) remain.
 
 **Work.**
 
@@ -564,7 +564,7 @@ WCAG 2.2.1 through its "turn off" provision.
 
 ## Decisions still open
 
-One decision remains, D5, deliberately deferred, plus two administrative assignments. D1 and D6 are
+One decision remains, D5, deliberately deferred, plus four administrative assignments. D1 and D6 are
 resolved — see [ADR-0031](decisions/ADR-0031-local-database-authentication.md) and
 [ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md). What follows is what each costs and when
 it must be answered.
@@ -584,7 +584,8 @@ a backend change that would need to be scheduled.
 
 ### Outstanding assignments
 
-Not decisions, but named tasks that gate M0 and can only be discharged outside the repository:
+Not decisions, but named tasks that can only be discharged outside the repository. The two accessibility
+tasks gate M0; the other two gate what each names:
 
 - confirm whether a published accessibility statement and feedback mechanism are legally required, and who
   signs the statement off (follows from D15);
