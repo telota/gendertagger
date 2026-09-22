@@ -392,11 +392,14 @@ Agreement tiers are the share of answering methods that voted for the winning la
 - Replace the threshold slider on Import and the threshold row on Einstellungen. Automation is not tunable
   by the reviewer; it is a property of the aggregation strategy.
 - Übersicht's "automatisch entschieden" tile becomes `certainty_tier = high`; "zur Prüfung" becomes the
-  `review_triage_v1` ordering the backend already produces.
+  `review_triage_v1` ordering the backend already produces. Both tiles, and the badge on each queue entry
+  point, add up groups of `GET /aggregations/{id}/review-summary` rather than counting pages.
 - The two review buckets are distinct and must not be merged: contested evidence (`low`, `contested`) and
   thin evidence (`single`, `uncertain`). On the case-study register these are 3.6 % and 12.7 % of entries
   respectively, against 83.8 % at `high` — so a queue built on "everything below a threshold" would be
-  roughly four times the size of the genuinely contested set and would bury it.
+  roughly four times the size of the genuinely contested set and would bury it. Each bucket is one
+  `review-items` query, `certainty_tiers=low&certainty_tiers=contested` and
+  `certainty_tiers=single&certainty_tiers=uncertain`, so its triage order and cursor come from the server.
 - Per-method confidence may be displayed as method-specific provenance but must never be aggregated,
   averaged across methods, or used for ordering. This also removes the "Ø Konfidenz" column from the
   Statistik table.

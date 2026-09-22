@@ -1,5 +1,6 @@
 """SQLAlchemy repository for append-only annotations and review state."""
 
+from collections import Counter
 from collections.abc import Sequence
 from typing import cast
 from uuid import UUID
@@ -20,7 +21,7 @@ from gendertagger.domain.review_triage import (
     PREDICTION_ERROR_TRIAGE_RANK,
     RESIDUAL_TRIAGE_RANK,
 )
-from gendertagger.models.classification import CanonicalLabel
+from gendertagger.models.classification import AgreementTier, CanonicalLabel, CertaintyTier
 from gendertagger.models.review import (
     Annotation,
     AnnotationCreate,
@@ -32,6 +33,7 @@ from gendertagger.models.review import (
     ReviewItemSort,
     ReviewMethodResult,
     ReviewState,
+    ReviewSummaryGroup,
     ReviewWorkflowState,
 )
 from gendertagger.services.persistence_errors import (
@@ -382,6 +384,60 @@ class SqlAlchemyReviewRepository:
             )
         return tuple(items)
 
+    def count_review_groups(self, aggregation_id: UUID) -> Sequence[ReviewSummaryGroup]:
+        """Count one aggregation's results per certainty tier, agreement tier, and review state.
+
+        The joins are the review-item query's, so each count equals the number of items the
+        same tier and state filters return. A person without a review-state row counts as
+        unreviewed.
+        """
+        rows = self._session.execute(
+            select(
+                AggregatedResultRow.certainty_tier,
+                AggregatedResultRow.agreement_tier,
+                ReviewStateRow.workflow_state,
+                func.count(),
+            )
+            .join(PersonRecordRow, PersonRecordRow.id == AggregatedResultRow.person_record_id)
+            .outerjoin(
+                ReviewStateRow,
+                and_(
+                    ReviewStateRow.dataset_snapshot_id == PersonRecordRow.dataset_snapshot_id,
+                    ReviewStateRow.person_record_id == PersonRecordRow.id,
+                ),
+            )
+            .where(AggregatedResultRow.aggregation_execution_id == aggregation_id)
+            .group_by(
+                AggregatedResultRow.certainty_tier,
+                AggregatedResultRow.agreement_tier,
+                ReviewStateRow.workflow_state,
+            )
+        ).tuples()
+        counts: Counter[tuple[CertaintyTier, AgreementTier, ReviewWorkflowState]] = Counter()
+        for certainty_tier, agreement_tier, workflow_state, result_count in rows:
+            counts[
+                (certainty_tier, agreement_tier, workflow_state or ReviewWorkflowState.unreviewed)
+            ] += result_count
+        certainty_order = list(CertaintyTier)
+        agreement_order = list(AgreementTier)
+        workflow_order = list(ReviewWorkflowState)
+        return tuple(
+            ReviewSummaryGroup(
+                certainty_tier=certainty_tier,
+                agreement_tier=agreement_tier,
+                workflow_state=workflow_state,
+                result_count=counts[(certainty_tier, agreement_tier, workflow_state)],
+            )
+            for certainty_tier, agreement_tier, workflow_state in sorted(
+                counts,
+                key=lambda combination: (
+                    certainty_order.index(combination[0]),
+                    agreement_order.index(combination[1]),
+                    workflow_order.index(combination[2]),
+                ),
+            )
+        )
+
     def _review_item_filters(
         self,
         query: ReviewItemQuery,
@@ -393,19 +449,16 @@ class SqlAlchemyReviewRepository:
         filters: list[ColumnElement[bool]] = []
         if query.final_label is not None:
             filters.append(final_label == query.final_label)
-        if query.certainty_tier is not None:
-            filters.append(AggregatedResultRow.certainty_tier == query.certainty_tier)
-        if query.agreement_tier is not None:
-            filters.append(AggregatedResultRow.agreement_tier == query.agreement_tier)
-        if query.workflow_state is ReviewWorkflowState.unreviewed:
-            filters.append(
-                or_(
-                    ReviewStateRow.workflow_state.is_(None),
-                    ReviewStateRow.workflow_state == ReviewWorkflowState.unreviewed,
-                )
-            )
-        elif query.workflow_state is not None:
-            filters.append(ReviewStateRow.workflow_state == query.workflow_state)
+        if query.certainty_tiers:
+            filters.append(AggregatedResultRow.certainty_tier.in_(query.certainty_tiers))
+        if query.agreement_tiers:
+            filters.append(AggregatedResultRow.agreement_tier.in_(query.agreement_tiers))
+        if query.workflow_states:
+            workflow_state_matches = [ReviewStateRow.workflow_state.in_(query.workflow_states)]
+            # A person nobody has annotated has no review-state row and is unreviewed.
+            if ReviewWorkflowState.unreviewed in query.workflow_states:
+                workflow_state_matches.append(ReviewStateRow.workflow_state.is_(None))
+            filters.append(or_(*workflow_state_matches))
         if query.has_authority_conflict is not None:
             filters.append(has_authority_conflict.is_(query.has_authority_conflict))
         if query.has_prediction_error is not None:

@@ -523,10 +523,10 @@ def test_review_item_filters_are_server_side_and_composable(
     client, aggregation_id = _client(postgres_engine, tmp_path)
     base = {"aggregation_id": str(aggregation_id)}
     cases = [
-        ({"certainty_tier": CertaintyTier.contested.value}, ["p1"]),
-        ({"agreement_tier": AgreementTier.weak_majority.value}, ["p3"]),
+        ({"certainty_tiers": CertaintyTier.contested.value}, ["p1"]),
+        ({"agreement_tiers": AgreementTier.weak_majority.value}, ["p3"]),
         ({"final_label": CanonicalLabel.female.value}, ["p2", "p3"]),
-        ({"workflow_state": ReviewWorkflowState.reviewed.value}, ["p2"]),
+        ({"workflow_states": ReviewWorkflowState.reviewed.value}, ["p2"]),
         ({"has_authority_conflict": "true"}, ["p3"]),
         ({"has_prediction_error": "true"}, ["p1"]),
         ({"method_name": "gender_guesser", "prediction_status": "error"}, ["p1"]),
@@ -588,3 +588,135 @@ def test_review_cursor_is_filter_scoped_and_method_filters_require_name(
     assert cross_filter_response.json()["error"]["details"] == {"reason": "invalid_cursor"}
     assert missing_method_response.status_code == 422
     assert missing_method_response.json()["error"]["code"] == "validation_error"
+
+
+def test_review_queue_matches_any_listed_tier_or_state(
+    postgres_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    client, aggregation_id = _client(postgres_engine, tmp_path)
+    base = {"aggregation_id": str(aggregation_id), "sort": "tei_id"}
+    contested_evidence = ["low", "contested"]
+    thin_evidence = ["single", "uncertain"]
+    cases: list[tuple[dict[str, str | list[str]], list[str]]] = [
+        ({"certainty_tiers": contested_evidence, "workflow_states": "unreviewed"}, ["p1"]),
+        ({"certainty_tiers": thin_evidence}, ["p2", "p4"]),
+        ({"certainty_tiers": thin_evidence, "workflow_states": "unreviewed"}, ["p4"]),
+        ({"workflow_states": ["unreviewed", "deferred"]}, ["p1", "p3", "p4"]),
+        ({"agreement_tiers": ["single_rater", "no_consensus"]}, ["p1", "p2", "p4"]),
+    ]
+
+    for filters, expected_tei_ids in cases:
+        response = client.get("/api/v1/review-items", params={**base, **filters})
+        assert response.status_code == 200
+        assert _tei_ids(response.json()) == expected_tei_ids
+
+    first_page = client.get(
+        "/api/v1/review-items",
+        params={**base, "certainty_tiers": thin_evidence, "limit": 1},
+    ).json()
+    reordered = client.get(
+        "/api/v1/review-items",
+        params={
+            **base,
+            "certainty_tiers": list(reversed(thin_evidence)),
+            "limit": 1,
+            "cursor": first_page["next_cursor"],
+        },
+    )
+    repeated = client.get(
+        "/api/v1/review-items",
+        params={**base, "certainty_tiers": ["low", "low"]},
+    )
+
+    assert _tei_ids(first_page) == ["p2"]
+    assert reordered.status_code == 200
+    assert _tei_ids(reordered.json()) == ["p4"]
+    assert repeated.status_code == 422
+    assert repeated.json()["error"]["code"] == "validation_error"
+
+
+def test_review_summary_counts_what_the_review_queue_returns(
+    postgres_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    unit_of_work_factory, session_factory = _unit_of_work_factory(postgres_engine)
+    reviewer_id, aggregation_id = _seed_review_items(unit_of_work_factory, session_factory)
+    client = TestClient(
+        create_app(
+            settings=AppSettings(
+                database_url=SecretStr(DATABASE_URL),
+                code_git_commit=CODE_GIT_COMMIT,
+                dependency_lock_sha256=DEPENDENCY_LOCK_SHA256,
+                artifact_root=tmp_path,
+            ),
+            unit_of_work_factory=unit_of_work_factory,
+            authentication_backend=StaticAuthenticationBackend(reviewer_id),
+        )
+    )
+
+    summary = client.get(f"/api/v1/aggregations/{aggregation_id}/review-summary")
+
+    assert summary.status_code == 200
+    assert summary.json() == {
+        "aggregation_execution_id": str(aggregation_id),
+        "result_count": 4,
+        "groups": [
+            {
+                "certainty_tier": "high",
+                "agreement_tier": "weak_majority",
+                "workflow_state": "deferred",
+                "result_count": 1,
+            },
+            {
+                "certainty_tier": "contested",
+                "agreement_tier": "no_consensus",
+                "workflow_state": "unreviewed",
+                "result_count": 1,
+            },
+            {
+                "certainty_tier": "single",
+                "agreement_tier": "single_rater",
+                "workflow_state": "unreviewed",
+                "result_count": 1,
+            },
+            {
+                "certainty_tier": "uncertain",
+                "agreement_tier": "single_rater",
+                "workflow_state": "reviewed",
+                "result_count": 1,
+            },
+        ],
+    }
+    thin_unreviewed_count = sum(
+        group["result_count"]
+        for group in summary.json()["groups"]
+        if group["certainty_tier"] in {"single", "uncertain"}
+        and group["workflow_state"] == "unreviewed"
+    )
+    thin_unreviewed_queue = client.get(
+        "/api/v1/review-items",
+        params={
+            "aggregation_id": str(aggregation_id),
+            "certainty_tiers": ["single", "uncertain"],
+            "workflow_states": "unreviewed",
+        },
+    ).json()
+    assert thin_unreviewed_count == len(thin_unreviewed_queue["items"]) == 1
+
+    with unit_of_work_factory() as unit_of_work:
+        completed = unit_of_work.aggregations.get_aggregation(aggregation_id)
+        assert completed is not None
+        pending = unit_of_work.aggregations.add_aggregation(
+            AggregationExecutionCreate(
+                run_id=completed.run_id,
+                method_execution_ids=tuple(reversed(completed.method_execution_ids)),
+            )
+        )
+        unit_of_work.commit()
+    not_ready = client.get(f"/api/v1/aggregations/{pending.id}/review-summary")
+    missing = client.get(f"/api/v1/aggregations/{uuid4()}/review-summary")
+
+    assert not_ready.status_code == 409
+    assert not_ready.json()["error"]["code"] == "resource_conflict"
+    assert missing.status_code == 404

@@ -1,7 +1,7 @@
 """Canonical human-review contracts."""
 
 from enum import StrEnum
-from typing import Self
+from typing import Self, TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -15,6 +15,8 @@ from gendertagger.models.classification import (
 )
 from gendertagger.models.common import UtcDatetime
 from gendertagger.models.method import METHOD_NAME_PATTERN
+
+_VocabularyT = TypeVar("_VocabularyT", bound=StrEnum)
 
 
 class ReviewAction(StrEnum):
@@ -148,15 +150,29 @@ class ReviewItemSort(StrEnum):
 
 
 class ReviewItemQuery(BaseModel):
-    """Server-side filters, ordering, and cursor controls for one aggregation."""
+    """Server-side filters, ordering, and cursor controls for one aggregation.
+
+    The three collection filters match a result whose value is any of the listed values, and an
+    empty collection matches every value. Their values are kept in vocabulary order, so a cursor
+    stays valid whichever order a client lists them in.
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     aggregation_id: UUID
     final_label: CanonicalLabel | None = None
-    certainty_tier: CertaintyTier | None = None
-    agreement_tier: AgreementTier | None = None
-    workflow_state: ReviewWorkflowState | None = None
+    certainty_tiers: tuple[CertaintyTier, ...] = Field(
+        default=(),
+        description="Match results in any of these certainty tiers; empty matches every tier.",
+    )
+    agreement_tiers: tuple[AgreementTier, ...] = Field(
+        default=(),
+        description="Match results in any of these agreement tiers; empty matches every tier.",
+    )
+    workflow_states: tuple[ReviewWorkflowState, ...] = Field(
+        default=(),
+        description="Match people in any of these review states; empty matches every state.",
+    )
     has_authority_conflict: bool | None = None
     method_name: str | None = Field(default=None, pattern=METHOD_NAME_PATTERN)
     method_label: CanonicalLabel | None = None
@@ -166,6 +182,14 @@ class ReviewItemQuery(BaseModel):
     sort: ReviewItemSort = ReviewItemSort.uncertainty
     limit: int = Field(default=100, ge=1, le=200)
     cursor: str | None = Field(default=None, min_length=1, max_length=2048)
+
+    @field_validator("certainty_tiers", "agreement_tiers", "workflow_states")
+    @classmethod
+    def _order_alternatives(cls, values: tuple[_VocabularyT, ...]) -> tuple[_VocabularyT, ...]:
+        if len(set(values)) != len(values):
+            msg = "filter values must not repeat"
+            raise ValueError(msg)
+        return tuple(sorted(values, key=_vocabulary_position))
 
     @field_validator("q")
     @classmethod
@@ -184,6 +208,46 @@ class ReviewItemQuery(BaseModel):
             self.method_label is not None or self.prediction_status is not None
         ):
             msg = "method_label and prediction_status require method_name"
+            raise ValueError(msg)
+        return self
+
+
+class ReviewSummaryGroup(BaseModel):
+    """Number of one aggregation's results that share a tier and review-state combination."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    certainty_tier: CertaintyTier
+    agreement_tier: AgreementTier
+    workflow_state: ReviewWorkflowState
+    result_count: int = Field(ge=1)
+
+
+class ReviewSummary(BaseModel):
+    """Result counts of one completed aggregation by certainty, agreement, and review state.
+
+    ``groups`` lists every combination that has results exactly once, in the declaration order of
+    the three vocabularies, so a combination that is absent has none. Certainty and agreement
+    are immutable for a completed aggregation; the review states are those at read time.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    aggregation_execution_id: UUID
+    result_count: int = Field(ge=0)
+    groups: list[ReviewSummaryGroup]
+
+    @model_validator(mode="after")
+    def _validate_groups(self) -> Self:
+        combinations = [
+            (group.certainty_tier, group.agreement_tier, group.workflow_state)
+            for group in self.groups
+        ]
+        if len(set(combinations)) != len(combinations):
+            msg = "review summary groups must not repeat a combination"
+            raise ValueError(msg)
+        if sum(group.result_count for group in self.groups) != self.result_count:
+            msg = "review summary groups must add up to result_count"
             raise ValueError(msg)
         return self
 
@@ -234,3 +298,8 @@ def _validate_review_action_label(
     if action is ReviewAction.defer and label is not None:
         msg = "a defer action must not have a label"
         raise ValueError(msg)
+
+
+def _vocabulary_position(member: StrEnum) -> int:
+    """Return a member's position in its vocabulary's declaration order."""
+    return list(type(member)).index(member)

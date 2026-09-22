@@ -87,6 +87,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/aggregations/{aggregation_id}/review-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Review Summary
+         * @description Count a completed aggregation's results by certainty, agreement, and review state.
+         */
+        get: operations["get_review_summary_api_v1_aggregations__aggregation_id__review_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/annotations": {
         parameters: {
             query?: never;
@@ -1992,6 +2012,36 @@ export interface components {
             status: components["schemas"]["PredictionStatus"];
         };
         /**
+         * ReviewSummary
+         * @description Result counts of one completed aggregation by certainty, agreement, and review state.
+         *
+         *     ``groups`` lists every combination that has results exactly once, in the declaration order of
+         *     the three vocabularies, so a combination that is absent has none. Certainty and agreement
+         *     are immutable for a completed aggregation; the review states are those at read time.
+         */
+        ReviewSummary: {
+            /**
+             * Aggregation Execution Id
+             * Format: uuid
+             */
+            aggregation_execution_id: string;
+            /** Groups */
+            groups: components["schemas"]["ReviewSummaryGroup"][];
+            /** Result Count */
+            result_count: number;
+        };
+        /**
+         * ReviewSummaryGroup
+         * @description Number of one aggregation's results that share a tier and review-state combination.
+         */
+        ReviewSummaryGroup: {
+            agreement_tier: components["schemas"]["AgreementTier"];
+            certainty_tier: components["schemas"]["CertaintyTier"];
+            /** Result Count */
+            result_count: number;
+            workflow_state: components["schemas"]["ReviewWorkflowState"];
+        };
+        /**
          * ReviewWorkflowState
          * @description Current rebuildable workflow projection for a review stream.
          * @enum {string}
@@ -2439,6 +2489,100 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResultMethodPrediction"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_review_summary_api_v1_aggregations__aggregation_id__review_summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                aggregation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewSummary"];
                 };
             };
             /** @description Invalid request */
@@ -4697,9 +4841,12 @@ export interface operations {
             query: {
                 aggregation_id: string;
                 final_label?: components["schemas"]["CanonicalLabel"] | null;
-                certainty_tier?: components["schemas"]["CertaintyTier"] | null;
-                agreement_tier?: components["schemas"]["AgreementTier"] | null;
-                workflow_state?: components["schemas"]["ReviewWorkflowState"] | null;
+                /** @description Match results in any of these certainty tiers; empty matches every tier. */
+                certainty_tiers?: components["schemas"]["CertaintyTier"][];
+                /** @description Match results in any of these agreement tiers; empty matches every tier. */
+                agreement_tiers?: components["schemas"]["AgreementTier"][];
+                /** @description Match people in any of these review states; empty matches every state. */
+                workflow_states?: components["schemas"]["ReviewWorkflowState"][];
                 has_authority_conflict?: boolean | null;
                 method_name?: string | null;
                 method_label?: components["schemas"]["CanonicalLabel"] | null;

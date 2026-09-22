@@ -56,6 +56,7 @@ below). The following table is the whole public API:
 | `GET` | `/api/v1/aggregations/{aggregation_id}/results` | `200` | project viewer of `aggregation_id` |
 | `GET` | `/api/v1/aggregations/{aggregation_id}/results/{result_id}` | `200` | project viewer of `aggregation_id` |
 | `GET` | `/api/v1/aggregations/{aggregation_id}/results/{result_id}/predictions` | `200` | project viewer of `aggregation_id` |
+| `GET` | `/api/v1/aggregations/{aggregation_id}/review-summary` | `200` | project viewer of `aggregation_id` |
 | `GET` | `/api/v1/review-items` | `200` | project viewer of query `aggregation_id` |
 | `GET` | `/api/v1/annotations` | `200` | project viewer of query `snapshot_id` |
 | `POST` | `/api/v1/annotations` | `201` | project reviewer of body `snapshot_id` |
@@ -342,7 +343,9 @@ truthy `has_more` without a cursor to follow. The cursor itself is opaque and ke
 resource scope, the last row's sort values, and the last row's ID, never an offset.
 
 No list response carries a total count. Calculating one would make ordinary navigation expensive, and
-absent counts keep the contract honest while a snapshot is still being reviewed.
+absent counts keep the contract honest while a snapshot is still being reviewed. Counts that a screen needs
+come from a separate resource instead: the [review summary](#review-summary) counts one aggregation's results
+in a single grouped read.
 
 Filtering, search, and sorting are performed server-side. `ReviewItemQuery` in
 [`gendertagger.models.review`](../src/gendertagger/models/review.py) defines the review-oriented filters:
@@ -351,9 +354,9 @@ Filtering, search, and sorting are performed server-side. `ReviewItemQuery` in
 |---|---|
 | `aggregation_id` | Required; scopes the query to one completed aggregation |
 | `final_label` | Canonical label after human override |
-| `certainty_tier` | Reference certainty of the aggregated result |
-| `agreement_tier` | Categorical agreement among answering methods |
-| `workflow_state` | `unreviewed`, `reviewed`, or `deferred` |
+| `certainty_tiers` | Any of these reference certainty tiers of the aggregated result |
+| `agreement_tiers` | Any of these categorical agreement tiers among answering methods |
+| `workflow_states` | Any of `unreviewed`, `reviewed`, and `deferred` |
 | `has_authority_conflict` | Authority-vs-ensemble disagreement |
 | `method_name` | Selects the method projected as `selected_method_result` |
 | `method_label` | Label of that method; requires `method_name` |
@@ -362,6 +365,13 @@ Filtering, search, and sorting are performed server-side. `ReviewItemQuery` in
 | `q` | Text search over `tei_id`, surname, forenames, alternate names, and external IDs |
 | `sort` | `uncertainty` (default) or `tei_id` |
 | `limit`, `cursor` | Pagination controls |
+
+The three plural filters are repeated query parameters. A result matches when its value is any of the listed
+values, an absent parameter matches every value, and a repeated value is a `422` validation error. The
+server keeps the values in vocabulary order, so a cursor stays valid whichever order the client lists them
+in. The two review queues of decision D2 in [`24-frontend-delivery-plan.md`](24-frontend-delivery-plan.md)
+are therefore one query each: contested evidence is `certainty_tiers=low&certainty_tiers=contested`, and thin
+evidence is `certainty_tiers=single&certainty_tiers=uncertain`.
 
 List responses include enough summary data to render a table or card list without one detail request per row. Large raw outputs stay on detail endpoints.
 
@@ -373,12 +383,32 @@ A dedicated `review-items` resource is allowed because review triage is a domain
 GET /api/v1/review-items
     ?aggregation_id=...
     &sort=uncertainty
-    &certainty_tier=contested
+    &certainty_tiers=low
+    &certainty_tiers=contested
+    &workflow_states=unreviewed
     &limit=100
     &cursor=...
 ```
 
 `sort` selects `uncertainty` (the default, applying the versioned `review_triage_v1` rank) or `tei_id`. The sort key is immutable for a completed aggregation, so a concurrent annotation never moves a record between pages; see [annotation and review](09-annotation-and-review.md) and [ADR-0022](decisions/ADR-0022-uncertainty-first-review-ordering.md). A cursor is scoped to both the filters and the sort, so reusing it under a different query returns `422` with `invalid_cursor`.
+
+### Review summary
+
+`GET /api/v1/aggregations/{aggregation_id}/review-summary` counts one completed aggregation's results by
+certainty tier, agreement tier, and current review state. It returns a `ReviewSummary`: the aggregation ID,
+the total `result_count`, and one `ReviewSummaryGroup` for every combination that has results, each with its
+`result_count`. Groups follow the declaration order of the three vocabularies, a combination without results
+is absent, and the group counts add up to the total.
+
+The summary joins results to review state exactly as the review-item query does, so the count of any
+combination of tiers and states equals the number of items the same `certainty_tiers`, `agreement_tiers`, and
+`workflow_states` filters return. A client therefore sizes a queue by adding the matching groups, without
+paging through it. Certainty and agreement are immutable for a completed aggregation; the review states are
+those at read time. An aggregation that is not `completed` returns `409 resource_conflict`, like
+`review-items`.
+
+The summary is a projection of the review domain, not a dashboard endpoint: it carries no screen-specific
+selection, and each screen composes its figures from the groups.
 
 Avoid page-specific endpoints such as `/getDashboardStuff` or `/getDataForRunPage`.
 

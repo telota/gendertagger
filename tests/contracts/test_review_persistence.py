@@ -5,7 +5,7 @@ import pytest
 from pydantic import ValidationError
 
 from gendertagger.models.artifact import Artifact, ArtifactCreate
-from gendertagger.models.classification import CanonicalLabel
+from gendertagger.models.classification import AgreementTier, CanonicalLabel, CertaintyTier
 from gendertagger.models.review import (
     Annotation,
     AnnotationCreate,
@@ -14,6 +14,8 @@ from gendertagger.models.review import (
     ReviewAction,
     ReviewItemQuery,
     ReviewState,
+    ReviewSummary,
+    ReviewSummaryGroup,
     ReviewWorkflowState,
 )
 from gendertagger.models.user import CurrentUser, GlobalRole, User, UserCreate
@@ -157,6 +159,61 @@ def test_review_query_requires_method_name_for_method_outcome_filters() -> None:
         )
     with pytest.raises(ValidationError, match="q must not be blank"):
         ReviewItemQuery(aggregation_id=AGGREGATED_RESULT_ID, q="   ")
+
+
+def test_review_query_orders_alternatives_by_vocabulary_and_rejects_repeats() -> None:
+    query = ReviewItemQuery(
+        aggregation_id=AGGREGATED_RESULT_ID,
+        certainty_tiers=(CertaintyTier.contested, CertaintyTier.low),
+        agreement_tiers=(AgreementTier.single_rater, AgreementTier.unanimous),
+        workflow_states=(ReviewWorkflowState.deferred, ReviewWorkflowState.unreviewed),
+    )
+
+    assert query.certainty_tiers == (CertaintyTier.low, CertaintyTier.contested)
+    assert query.agreement_tiers == (AgreementTier.unanimous, AgreementTier.single_rater)
+    assert query.workflow_states == (
+        ReviewWorkflowState.unreviewed,
+        ReviewWorkflowState.deferred,
+    )
+    assert ReviewItemQuery(aggregation_id=AGGREGATED_RESULT_ID).certainty_tiers == ()
+    with pytest.raises(ValidationError, match="must not repeat"):
+        ReviewItemQuery(
+            aggregation_id=AGGREGATED_RESULT_ID,
+            certainty_tiers=(CertaintyTier.low, CertaintyTier.low),
+        )
+
+
+def _summary_group(
+    certainty_tier: CertaintyTier,
+    result_count: int,
+) -> ReviewSummaryGroup:
+    return ReviewSummaryGroup(
+        certainty_tier=certainty_tier,
+        agreement_tier=AgreementTier.single_rater,
+        workflow_state=ReviewWorkflowState.unreviewed,
+        result_count=result_count,
+    )
+
+
+def test_review_summary_groups_are_distinct_and_add_up() -> None:
+    groups = [_summary_group(CertaintyTier.single, 2), _summary_group(CertaintyTier.uncertain, 1)]
+
+    assert (
+        ReviewSummary(aggregation_execution_id=AGGREGATED_RESULT_ID, result_count=3, groups=groups)
+        .groups[0]
+        .result_count
+        == 2
+    )
+    with pytest.raises(ValidationError, match="must add up"):
+        ReviewSummary(aggregation_execution_id=AGGREGATED_RESULT_ID, result_count=4, groups=groups)
+    with pytest.raises(ValidationError, match="must not repeat"):
+        ReviewSummary(
+            aggregation_execution_id=AGGREGATED_RESULT_ID,
+            result_count=4,
+            groups=[groups[0], groups[0]],
+        )
+    with pytest.raises(ValidationError, match="greater than or equal to 1"):
+        _summary_group(CertaintyTier.single, 0)
 
 
 def test_annotation_preserves_append_only_revision_provenance() -> None:

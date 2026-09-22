@@ -233,6 +233,12 @@ PROJECT_SCOPED_ROUTES = (
     ),
     _ScopedRoute(
         "GET",
+        "/aggregations/{aggregation_id}/review-summary",
+        ProjectScope.aggregation,
+        ProjectRole.viewer,
+    ),
+    _ScopedRoute(
+        "GET",
         "/annotations",
         ProjectScope.snapshot,
         ProjectRole.viewer,

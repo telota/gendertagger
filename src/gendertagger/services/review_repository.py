@@ -12,6 +12,7 @@ from gendertagger.models.review import (
     ReviewItem,
     ReviewItemQuery,
     ReviewState,
+    ReviewSummaryGroup,
 )
 
 
@@ -57,4 +58,8 @@ class ReviewRepository(Protocol):
         after: ReviewItemCursor | None = None,
     ) -> Sequence[ReviewItem]:
         """Return one filtered slice in the stable order the query selected."""
+        ...
+
+    def count_review_groups(self, aggregation_id: UUID) -> Sequence[ReviewSummaryGroup]:
+        """Return one aggregation's non-empty tier and review-state groups in vocabulary order."""
         ...

@@ -144,9 +144,17 @@ the phased plan that resumes application code.
   `GET /api/v1/projects/{project_id}/snapshots`, `GET /api/v1/snapshots/{snapshot_id}/runs`, and
   `GET /api/v1/runs/{run_id}/aggregations`, `/evaluations`, and `/exports`. Each lists its resources in every
   lifecycle state, so a client can recover identifiers after a reload.
+- `GET /api/v1/aggregations/{aggregation_id}/review-summary`, which counts a completed aggregation's results
+  by certainty tier, agreement tier, and current review state in one grouped read, with the same joins as
+  `review-items`, so a client can size a review queue or fill dashboard tiles without paging.
 
 ### Changed
 
+- `review-items` filters on certainty tier, agreement tier, and review state now take several values, as
+  repeated `certainty_tiers`, `agreement_tiers`, and `workflow_states` query parameters that match any listed
+  value. They replace the single-valued `certainty_tier`, `agreement_tier`, and `workflow_state` parameters,
+  so each of the two review queues is one ordered query. Values are kept in vocabulary order for the cursor
+  scope, and a repeated value is rejected.
 - `POST /api/v1/runs/{run_id}/aggregations` now returns an existing aggregation with the same run, strategy,
   configuration hash, and ordered selection with `200 OK` when it is queued, running, or completed, instead
   of queueing a duplicate. A failed or cancelled match still leads to a new attempt with `202`. Concurrent

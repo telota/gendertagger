@@ -57,6 +57,8 @@ from gendertagger.models.review import (
     ReviewItem,
     ReviewItemQuery,
     ReviewItemSort,
+    ReviewSummary,
+    ReviewSummaryGroup,
     ReviewWorkflowState,
 )
 from gendertagger.models.run import Progress, Run, RunCreate, RunCreateRequest
@@ -937,6 +939,53 @@ def test_review_item_service_requires_completed_aggregation_and_paginates() -> N
     aggregation_repository.get_aggregation.return_value = _aggregation(command)
     with pytest.raises(InvalidResourceStateError, match="is not completed"):
         service.list_review_items(ReviewItemQuery(aggregation_id=AGGREGATION_ID))
+
+
+def test_review_item_service_summarizes_only_a_completed_aggregation() -> None:
+    aggregation_repository = Mock(spec=AggregationRepository)
+    review_repository = Mock(spec=ReviewRepository)
+    command = AggregationExecutionCreate(run_id=RUN_ID, method_execution_ids=(EXECUTION_ID,))
+    aggregation_repository.get_aggregation.return_value = _aggregation(
+        command,
+        status=AggregationExecutionStatus.completed,
+    )
+    groups = (
+        ReviewSummaryGroup(
+            certainty_tier=CertaintyTier.high,
+            agreement_tier=AgreementTier.unanimous,
+            workflow_state=ReviewWorkflowState.unreviewed,
+            result_count=5,
+        ),
+        ReviewSummaryGroup(
+            certainty_tier=CertaintyTier.uncertain,
+            agreement_tier=AgreementTier.single_rater,
+            workflow_state=ReviewWorkflowState.reviewed,
+            result_count=2,
+        ),
+    )
+    review_repository.count_review_groups.return_value = groups
+    service = ReviewItemService(
+        unit_of_work_factory=StubUnitOfWork(
+            aggregations=aggregation_repository,
+            reviews=review_repository,
+        ).factory,
+        cursor_codec=CursorCodec(),
+    )
+
+    summary = service.summarize_review(AGGREGATION_ID)
+
+    assert summary == ReviewSummary(
+        aggregation_execution_id=AGGREGATION_ID,
+        result_count=7,
+        groups=list(groups),
+    )
+    review_repository.count_review_groups.assert_called_once_with(AGGREGATION_ID)
+    aggregation_repository.get_aggregation.return_value = _aggregation(command)
+    with pytest.raises(InvalidResourceStateError, match="is not completed"):
+        service.summarize_review(AGGREGATION_ID)
+    aggregation_repository.get_aggregation.return_value = None
+    with pytest.raises(ResourceNotFoundError, match=str(AGGREGATION_ID)):
+        service.summarize_review(AGGREGATION_ID)
 
 
 def test_annotation_service_commits_attributable_append_only_decision() -> None:

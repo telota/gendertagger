@@ -95,3 +95,5 @@ This is optimistic concurrency over the **review stream**, not mutation/versioni
 Review candidates must be queryable server-side by uncertainty, agreement, final label, review status, authority/ensemble conflict, method result, and error presence, and must be **sorted** server-side by the triage rank above. The browser must not download the full snapshot and implement scientific triage locally. A dedicated `review-items` resource is preferred over UI-page-specific endpoints.
 
 Cursors are scoped to the filters *and* the sort. Continuing a cursor under a different query returns `422` with `invalid_cursor` instead of silently reordering a partially reviewed queue.
+
+Certainty tier, agreement tier, and review state each accept several values, and a record matches when it has any of them, so a queue that spans two tiers is one ordered query rather than two streams merged in the browser. `GET /aggregations/{aggregation_id}/review-summary` counts an aggregation's results by the same three dimensions, so a client can show how many records a queue holds, or how many are still unreviewed, without downloading them. See [`05-api.md`](05-api.md#review-summary).

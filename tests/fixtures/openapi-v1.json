@@ -3037,6 +3037,64 @@
         "title": "ReviewMethodResult",
         "type": "object"
       },
+      "ReviewSummary": {
+        "additionalProperties": false,
+        "description": "Result counts of one completed aggregation by certainty, agreement, and review state.\n\n``groups`` lists every combination that has results exactly once, in the declaration order of\nthe three vocabularies, so a combination that is absent has none. Certainty and agreement\nare immutable for a completed aggregation; the review states are those at read time.",
+        "properties": {
+          "aggregation_execution_id": {
+            "format": "uuid",
+            "title": "Aggregation Execution Id",
+            "type": "string"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewSummaryGroup"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "result_count": {
+            "minimum": 0.0,
+            "title": "Result Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "aggregation_execution_id",
+          "result_count",
+          "groups"
+        ],
+        "title": "ReviewSummary",
+        "type": "object"
+      },
+      "ReviewSummaryGroup": {
+        "additionalProperties": false,
+        "description": "Number of one aggregation's results that share a tier and review-state combination.",
+        "properties": {
+          "agreement_tier": {
+            "$ref": "#/components/schemas/AgreementTier"
+          },
+          "certainty_tier": {
+            "$ref": "#/components/schemas/CertaintyTier"
+          },
+          "result_count": {
+            "minimum": 1.0,
+            "title": "Result Count",
+            "type": "integer"
+          },
+          "workflow_state": {
+            "$ref": "#/components/schemas/ReviewWorkflowState"
+          }
+        },
+        "required": [
+          "certainty_tier",
+          "agreement_tier",
+          "workflow_state",
+          "result_count"
+        ],
+        "title": "ReviewSummaryGroup",
+        "type": "object"
+      },
       "ReviewWorkflowState": {
         "description": "Current rebuildable workflow projection for a review stream.",
         "enum": [
@@ -3836,6 +3894,120 @@
         "summary": "List Aggregation Result Predictions",
         "tags": [
           "aggregations"
+        ]
+      }
+    },
+    "/api/v1/aggregations/{aggregation_id}/review-summary": {
+      "get": {
+        "description": "Count a completed aggregation's results by certainty, agreement, and review state.",
+        "operationId": "get_review_summary_api_v1_aggregations__aggregation_id__review_summary_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "aggregation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Aggregation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Review Summary",
+        "tags": [
+          "review"
         ]
       }
     },
@@ -6504,51 +6676,48 @@
             }
           },
           {
+            "description": "Match results in any of these certainty tiers; empty matches every tier.",
             "in": "query",
-            "name": "certainty_tier",
+            "name": "certainty_tiers",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/CertaintyTier"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Certainty Tier"
+              "default": [],
+              "description": "Match results in any of these certainty tiers; empty matches every tier.",
+              "items": {
+                "$ref": "#/components/schemas/CertaintyTier"
+              },
+              "title": "Certainty Tiers",
+              "type": "array"
             }
           },
           {
+            "description": "Match results in any of these agreement tiers; empty matches every tier.",
             "in": "query",
-            "name": "agreement_tier",
+            "name": "agreement_tiers",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/AgreementTier"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Agreement Tier"
+              "default": [],
+              "description": "Match results in any of these agreement tiers; empty matches every tier.",
+              "items": {
+                "$ref": "#/components/schemas/AgreementTier"
+              },
+              "title": "Agreement Tiers",
+              "type": "array"
             }
           },
           {
+            "description": "Match people in any of these review states; empty matches every state.",
             "in": "query",
-            "name": "workflow_state",
+            "name": "workflow_states",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/ReviewWorkflowState"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Workflow State"
+              "default": [],
+              "description": "Match people in any of these review states; empty matches every state.",
+              "items": {
+                "$ref": "#/components/schemas/ReviewWorkflowState"
+              },
+              "title": "Workflow States",
+              "type": "array"
             }
           },
           {

@@ -1,6 +1,7 @@
-"""Application use case for filtered human-review candidate lists."""
+"""Application use cases for filtered human-review candidate lists and their counts."""
 
 from typing import cast
+from uuid import UUID
 
 from pydantic import JsonValue
 
@@ -8,7 +9,7 @@ from gendertagger.domain.review_triage import review_triage_rank
 from gendertagger.models.api import CursorPage
 from gendertagger.models.common import canonical_json_sha256
 from gendertagger.models.lifecycle import AggregationExecutionStatus
-from gendertagger.models.review import ReviewItem, ReviewItemQuery, ReviewItemSort
+from gendertagger.models.review import ReviewItem, ReviewItemQuery, ReviewItemSort, ReviewSummary
 from gendertagger.services.pagination import CursorCodec, InvalidCursorError
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
@@ -36,15 +37,7 @@ class ReviewItemService:
         The cursor scope covers every filter and the requested sort, so a cursor
         minted under one review query is never continued under another.
         """
-        with self._unit_of_work_factory() as unit_of_work:
-            aggregation = unit_of_work.aggregations.get_aggregation(query.aggregation_id)
-        if aggregation is None:
-            msg = f"aggregation execution {query.aggregation_id} does not exist"
-            raise ResourceNotFoundError(msg)
-        if aggregation.status is not AggregationExecutionStatus.completed:
-            msg = f"aggregation execution {query.aggregation_id} is not completed"
-            raise InvalidResourceStateError(msg)
-
+        self._require_completed_aggregation(query.aggregation_id)
         filter_payload = cast(
             JsonValue,
             query.model_dump(mode="json", exclude={"cursor", "limit"}),
@@ -83,6 +76,27 @@ class ReviewItemService:
                 resource_id=last_item.person_record_id,
             )
         return CursorPage(items=items, next_cursor=next_cursor, has_more=has_more)
+
+    def summarize_review(self, aggregation_id: UUID) -> ReviewSummary:
+        """Return a completed aggregation's result counts by tier and current review state."""
+        self._require_completed_aggregation(aggregation_id)
+        with self._unit_of_work_factory() as unit_of_work:
+            groups = unit_of_work.reviews.count_review_groups(aggregation_id)
+        return ReviewSummary(
+            aggregation_execution_id=aggregation_id,
+            result_count=sum(group.result_count for group in groups),
+            groups=list(groups),
+        )
+
+    def _require_completed_aggregation(self, aggregation_id: UUID) -> None:
+        with self._unit_of_work_factory() as unit_of_work:
+            aggregation = unit_of_work.aggregations.get_aggregation(aggregation_id)
+        if aggregation is None:
+            msg = f"aggregation execution {aggregation_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        if aggregation.status is not AggregationExecutionStatus.completed:
+            msg = f"aggregation execution {aggregation_id} is not completed"
+            raise InvalidResourceStateError(msg)
 
     def _decode_position(
         self,
