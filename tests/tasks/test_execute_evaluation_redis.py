@@ -31,6 +31,7 @@ from gendertagger.models.project import (
     SnapshotImportConfig,
     SnapshotImportLimits,
     SnapshotSourceMemberCreate,
+    TeiImportProfile,
 )
 from gendertagger.models.run import (
     MethodExecutionCreate,
@@ -76,7 +77,11 @@ def _seed_completed_reference_run(
                 project_id=project.id,
             )
         )
-        import_config = SnapshotImportConfig(limits=SnapshotImportLimits())
+        # The legacy profile captures no structured name forms, which this fixture does not model.
+        import_config = SnapshotImportConfig(
+            profile=TeiImportProfile.tei_p5_person_register_v1,
+            limits=SnapshotImportLimits(),
+        )
         snapshot = unit_of_work.projects.add_snapshot(
             DatasetSnapshotCreate(
                 project_id=project.id,
