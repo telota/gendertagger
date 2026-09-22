@@ -94,6 +94,7 @@ an SBOM. Versions were chosen for mutual compatibility, not recency: TypeScript 
 | `vue` | MIT | The framework fixed by ADR-0006 |
 | `vue-router` | MIT | History-mode routing (decision D13), needed by the public legal notice route and, from M2, project navigation |
 | `vue-i18n` | MIT | Locale-aware plural, date, and number formatting (ADR-0030) |
+| `@headlessui/vue` | MIT | The one behavioural dependency decision D9 admits, for Menu, Dialog, and Listbox; brings its own `@tanstack/vue-virtual` (MIT). Covers three of the four named primitives — it ships no Tooltip, which is hand-rolled in-house per D9's resolution in [`24-frontend-delivery-plan.md`](../docs/24-frontend-delivery-plan.md) |
 | `openapi-fetch` | MIT | A small typed `fetch` wrapper over the generated schema |
 | `vite`, `@vitejs/plugin-vue`, `vue-tsc`, `typescript` | MIT / Apache-2.0 | Build and type checking |
 | `vitest`, `@vitest/coverage-v8`, `@vue/test-utils`, `jsdom` | MIT | Test runner, component mounting, coverage floor |
@@ -107,8 +108,7 @@ shipped bundle, but review it if the licence policy is strict.
 
 Not yet added, on purpose: `pinia` and a shared server-state cache arrive with the shell in M2 — until then,
 `useBranding()` fetches independently per component rather than through a shared cache, documented in its own
-code comment. The headless accessibility library for overlay primitives (decision D9) is chosen before M2
-starts.
+code comment.
 
 ## Branding
 

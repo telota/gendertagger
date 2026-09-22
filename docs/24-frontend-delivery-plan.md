@@ -62,8 +62,8 @@ Deployment and CI already anticipate the client. Reusing it correctly is cheaper
 - `compose.dev.yaml` still builds the `production` target, so there is no hot reload inside Compose. Switching
   it to the `development` target with a bind mount is left until someone needs it.
 - `frontend_sbom` now produces a real dependency tree. The repository's provenance and licence culture applies
-  to npm packages too: the M1 dependencies are justified in [`frontend/README.md`](../frontend/README.md), and
-  the headless accessibility library still has to be chosen — see decision D9.
+  to npm packages too: the M1 and M2 dependencies are justified in [`frontend/README.md`](../frontend/README.md),
+  including the headless accessibility library chosen under decision D9.
 
 ## Accessibility as a delivery workstream
 
@@ -514,6 +514,17 @@ become semantic and theme-scoped, both palettes are contrast-verified, and the t
 tooltips use it; everything else is built in-house on the project tokens. The library is chosen for
 unstyled behavior and focus management only — it brings no visual opinion and no design system.
 
+**Resolved: `@headlessui/vue`.** Considered against Reka UI and Ark UI (Vue), which cover all four named
+primitives in one package; Headless UI Vue was chosen anyway and has been stalled at v1.7.23 for some time,
+behind its React sibling. It covers Menu, Dialog (modal), and Listbox, but ships no Tooltip primitive.
+**Tooltips are therefore hand-rolled in-house** on the project tokens, following the WAI-ARIA APG tooltip
+pattern (`aria-describedby` to a `role="tooltip"` element, shown on hover and focus, dismissed on `Escape`
+or blur) — the same "everything else in-house" treatment D9 already gives anything the chosen library
+doesn't cover. Decision D9 still admits exactly one behavioural dependency; a second library for tooltips
+alone (for example `@floating-ui/vue`, positioning only) is not added. `@headlessui/vue` also pulls in
+`@tanstack/vue-virtual` as its own dependency, for virtualized Listbox/Combobox rendering; both carry the
+MIT licence.
+
 **D10 — Charts are hand-rolled SVG.** Distribution bars, the κ matrix, and confusion matrices are built
 against the tokens. Revisit only if a chart requirement appears that SVG plus the existing components
 genuinely cannot serve.
@@ -642,7 +653,7 @@ expectations. Each is analysed in [`23-wireframe-ui-inventory.md`](23-wireframe-
 | The membership upgrade removes non-admin access | Users see no projects until an administrator assigns memberships | Plan membership assignment with `gendertagger projects add-member` as part of each deployment's upgrade |
 | Tier vocabulary is unfamiliar to reviewers | Six certainty tiers replace one intuitive percentage | Glosses per D3, and two clearly separated queue entry points rather than six raw filters |
 | Wireframe promises unbuilt features | Stakeholder expectation gap at delivery | Confirm the scope exclusions in writing at M0 |
-| Frontend dependency tree meets a provenance-strict repository | SBOM and licence review friction late in delivery | Set the dependency budget (D9) before M2 |
+| Frontend dependency tree meets a provenance-strict repository | SBOM and licence review friction late in delivery | Resolved: D9 sets the dependency budget at one library, `@headlessui/vue` (MIT), justified in `frontend/README.md` |
 | No UI-level acceptance coverage | Scientific fixtures pass while the review path is broken | Define the seeded-snapshot acceptance test as part of D11 |
 | Accessibility deferred to a closing phase | Legal exposure plus structural rework; the wireframe's controls are unusable as drawn | Per-milestone criteria above; automated checks from M1 |
 | Internal-only assessment misses defects (D16) | No external check before release | The D17 matrix is mandatory, not advisory, and the D18 user round is scheduled rather than optional |
