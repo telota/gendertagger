@@ -42,7 +42,7 @@ ARTIFACT_ID = UUID("30000000-0000-0000-0000-000000000001")
 MEMBER_ID = UUID("40000000-0000-0000-0000-000000000001")
 
 _DEFAULT_CONFIG = SnapshotImportConfig(
-    profile=TeiImportProfile.tei_p5_person_register_v3,
+    profile=TeiImportProfile.tei_p5_person_register,
     source_format=SourceFormat.tei,
     packaging=SourcePackaging.single,
     limits=SnapshotImportLimits(),
@@ -289,7 +289,7 @@ def test_parser_version_mismatch_fails_without_opening_the_source() -> None:
     projects = Mock(spec=ProjectRepository)
     artifacts = Mock(spec=ArtifactRepository)
     importing = _snapshot(DatasetSnapshotStatus.importing).model_copy(
-        update={"parser_version": "tei_parser_v1"}
+        update={"parser_version": "unsupported_parser"}
     )
     projects.claim_snapshot_import.side_effect = [importing, importing]
     artifacts.get_artifact.return_value = Artifact(
@@ -408,7 +408,7 @@ def test_terminal_failure_persistence_error_is_retryable_while_budget_remains() 
     projects = Mock(spec=ProjectRepository)
     artifacts = Mock(spec=ArtifactRepository)
     importing = _snapshot(DatasetSnapshotStatus.importing).model_copy(
-        update={"parser_version": "tei_parser_v1"}
+        update={"parser_version": "unsupported_parser"}
     )
     projects.claim_snapshot_import.side_effect = [importing, importing]
     projects.fail_snapshot_import.side_effect = OSError("database temporarily unavailable")
@@ -429,8 +429,8 @@ def test_terminal_failure_persistence_error_is_retryable_while_budget_remains() 
     "import_config",
     [
         {},
-        {"profile": "tei_p5_person_register_v2", "source_format": "tei"},
-        {"profile": "tei_p5_person_register_v3"},
+        {"profile": "unsupported_profile", "source_format": "tei"},
+        {"profile": "tei_p5_person_register"},
     ],
 )
 def test_executor_rejects_incomplete_or_invalid_import_config(

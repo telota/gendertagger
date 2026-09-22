@@ -36,7 +36,6 @@ from gendertagger.models.project import (
     SnapshotSourceMemberCreate,
     SourceFormat,
     SourcePackaging,
-    TabularImportProfile,
     TeiImportProfile,
 )
 from gendertagger.models.user import UserCreate
@@ -72,7 +71,7 @@ def _seed_snapshot(
     storage: LocalArtifactStorage,
     source: bytes,
     *,
-    profile: TeiImportProfile = TeiImportProfile.tei_p5_person_register_v2,
+    profile: TeiImportProfile = TeiImportProfile.tei_p5_person_register,
 ) -> UUID:
     stored = storage.store(BytesIO(source), max_byte_size=len(source))
     with unit_of_work_factory() as unit_of_work:
@@ -210,17 +209,9 @@ def test_snapshot_acceptance_rolls_back_every_flushed_database_row(
         assert orphaned_source.read() == VALID_TEI
 
 
-@pytest.mark.parametrize(
-    "legacy_profile",
-    [
-        TeiImportProfile.tei_p5_person_register_v1,
-        TeiImportProfile.tei_p5_person_register_v2,
-    ],
-)
 def test_snapshot_import_is_atomic_and_duplicate_delivery_is_a_noop(
     postgres_unit_of_work: tuple[UnitOfWorkFactory, Connection],
     tmp_path: Path,
-    legacy_profile: TeiImportProfile,
 ) -> None:
     unit_of_work_factory, _ = postgres_unit_of_work
     storage = LocalArtifactStorage(tmp_path)
@@ -228,7 +219,6 @@ def test_snapshot_import_is_atomic_and_duplicate_delivery_is_a_noop(
         unit_of_work_factory,
         storage,
         VALID_TEI,
-        profile=legacy_profile,
     )
     executor = _executor(unit_of_work_factory, storage)
     message = SnapshotImportTaskMessage(dataset_snapshot_id=snapshot_id)
@@ -352,7 +342,6 @@ def test_json_acceptance_and_import_round_trip_tei_equivalent_fields(
         project_id=project.id,
         command=SnapshotImportRequest(
             source_format=SourceFormat.json,
-            profile=TabularImportProfile.tei_equivalent_person_register_v1,
         ),
         sources=[SnapshotUpload(source=BytesIO(payload), filename="people.json")],
     )

@@ -379,30 +379,14 @@ class SqlAlchemyProjectRepository:
         people: Sequence[PersonInput],
     ) -> None:
         profile = snapshot.import_config.get("profile")
-        if profile == TeiImportProfile.tei_p5_person_register_v1.value and any(
-            person.name_forms is not None for person in people
-        ):
-            msg = f"snapshot {snapshot.id} uses TEI profile v1 and requires name_forms=None"
-            raise InvalidResourceStateError(msg)
-        eventless_profiles = {
-            TeiImportProfile.tei_p5_person_register_v1.value,
-            TeiImportProfile.tei_p5_person_register_v2.value,
-        }
-        if profile in eventless_profiles and any(person.events for person in people):
-            msg = f"snapshot {snapshot.id} uses profile {profile!r} and requires events=[]"
-            raise InvalidResourceStateError(msg)
         structured_profiles = {
-            TeiImportProfile.tei_p5_person_register_v2.value,
-            TeiImportProfile.tei_p5_person_register_v3.value,
+            TeiImportProfile.tei_p5_person_register.value,
             TabularImportProfile.tei_equivalent_person_register_v1.value,
         }
-        supported_profiles = structured_profiles | {
-            TeiImportProfile.tei_p5_person_register_v1.value
-        }
-        if profile not in supported_profiles:
+        if profile not in structured_profiles:
             msg = f"snapshot {snapshot.id} has unsupported import profile provenance"
             raise InvalidResourceStateError(msg)
-        if profile in structured_profiles and any(person.name_forms is None for person in people):
+        if any(person.name_forms is None for person in people):
             msg = (
                 f"snapshot {snapshot.id} uses profile {profile!r} and requires captured name_forms"
             )

@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import Engine
+from tests.factories import tei_person_input
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.db.session import create_session_factory
@@ -16,7 +17,7 @@ from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.ingestion.registry import version_for_snapshot_import
 from gendertagger.models.artifact import ArtifactCreate
 from gendertagger.models.lifecycle import RunStatus, TaskBatchStatus
-from gendertagger.models.person import ImportedPerson, PersonInput
+from gendertagger.models.person import ImportedPerson
 from gendertagger.models.project import (
     DatasetSnapshotCreate,
     ProjectCreate,
@@ -54,9 +55,8 @@ def _seed_created_run(factory: UnitOfWorkFactory) -> UUID:
                 project_id=project.id,
             )
         )
-        # The legacy profile captures no structured name forms, which this fixture does not model.
         import_config = SnapshotImportConfig(
-            profile=TeiImportProfile.tei_p5_person_register_v1,
+            profile=TeiImportProfile.tei_p5_person_register,
             limits=SnapshotImportLimits(),
         )
         snapshot = unit_of_work.projects.add_snapshot(
@@ -86,12 +86,12 @@ def _seed_created_run(factory: UnitOfWorkFactory) -> UUID:
             snapshot.id,
             [
                 ImportedPerson(
-                    person=PersonInput(tei_id="p01", surname="Frölich (Frau des Heinrich)"),
+                    person=tei_person_input(tei_id="p01", surname="Frölich (Frau des Heinrich)"),
                     source_member_name="source.xml",
                     source_record_locator="1",
                 ),
                 ImportedPerson(
-                    person=PersonInput(tei_id="p02", surname="Schleiermacher"),
+                    person=tei_person_input(tei_id="p02", surname="Schleiermacher"),
                     source_member_name="source.xml",
                     source_record_locator="2",
                 ),

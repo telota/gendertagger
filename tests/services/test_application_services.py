@@ -47,7 +47,6 @@ from gendertagger.models.project import (
     SourceFormat,
     SourceManifestV1,
     SourcePackaging,
-    TabularImportProfile,
 )
 from gendertagger.models.queues import CPU_QUEUE
 from gendertagger.models.review import (
@@ -234,8 +233,8 @@ def _snapshot(status: DatasetSnapshotStatus) -> DatasetSnapshot:
         project_id=PROJECT_ID,
         source_artifact_id=ARTIFACT_ID,
         source_sha256="a" * 64,
-        parser_version="tei_parser_v1",
-        import_config={"profile": "tei_p5_person_register_v1"},
+        parser_version="tei_parser_v3",
+        import_config={"profile": "tei_p5_person_register"},
         status=status,
         created_at=NOW,
         record_count=record_count,
@@ -422,7 +421,7 @@ def test_project_service_stages_upload_and_atomically_queues_snapshot(tmp_path: 
         "tei_parser_v3+tei_collection_v1+tei_single_source_v1"
     )
     import_config = SnapshotImportConfig.model_validate(snapshot_command.import_config)
-    assert import_config.profile.value == "tei_p5_person_register_v3"
+    assert import_config.profile.value == "tei_p5_person_register"
     assert import_config.source_format.value == "tei"
     assert import_config.packaging.value == "single"
     assert import_config.limits.max_member_expanded_bytes == 100_000
@@ -558,7 +557,6 @@ def test_project_service_uses_snapshot_import_version_registry(
         sources=[SnapshotUpload(source=BytesIO(b"[]"), filename="people.json")],
         command=SnapshotImportRequest(
             source_format=SourceFormat.json,
-            profile=TabularImportProfile.tei_equivalent_person_register_v1,
         ),
     )
 

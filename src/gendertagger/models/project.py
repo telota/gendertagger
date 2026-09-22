@@ -19,11 +19,9 @@ SOURCE_MEMBER_LOGICAL_NAME_MAX_LENGTH = 1024
 
 
 class TeiImportProfile(StrEnum):
-    """Versioned TEI extraction profile selected for a snapshot import."""
+    """Supported TEI extraction profile persisted with a snapshot import."""
 
-    tei_p5_person_register_v1 = "tei_p5_person_register_v1"
-    tei_p5_person_register_v2 = "tei_p5_person_register_v2"
-    tei_p5_person_register_v3 = "tei_p5_person_register_v3"
+    tei_p5_person_register = "tei_p5_person_register"
 
 
 class SourceFormat(StrEnum):
@@ -50,7 +48,7 @@ class TabularImportProfile(StrEnum):
     tei_equivalent_person_register_v1 = "tei_equivalent_person_register_v1"
 
 
-DEFAULT_TEI_IMPORT_PROFILE = TeiImportProfile.tei_p5_person_register_v3
+DEFAULT_TEI_IMPORT_PROFILE = TeiImportProfile.tei_p5_person_register
 DEFAULT_SOURCE_FORMAT = SourceFormat.tei
 DEFAULT_SOURCE_PACKAGING = SourcePackaging.single
 
@@ -172,20 +170,13 @@ class SnapshotImportRequest(BaseModel):
 
     source_format: SourceFormat = DEFAULT_SOURCE_FORMAT
     packaging: SourcePackaging = DEFAULT_SOURCE_PACKAGING
-    profile: ImportProfile = DEFAULT_TEI_IMPORT_PROFILE
 
     @model_validator(mode="after")
-    def _validate_profile_for_source(self) -> Self:
-        if isinstance(self.profile, TeiImportProfile):
-            if self.source_format is not SourceFormat.tei:
-                msg = "a TEI import profile requires source_format='tei'"
-                raise ValueError(msg)
-            return self
-
-        if self.source_format is SourceFormat.tei:
-            msg = "the tabular import profile requires CSV, XLSX, or JSON input"
-            raise ValueError(msg)
-        if self.packaging is not SourcePackaging.single:
+    def _validate_packaging_for_source(self) -> Self:
+        if (
+            self.packaging is not SourcePackaging.single
+            and self.source_format is not SourceFormat.tei
+        ):
             msg = "tabular imports require packaging='single'"
             raise ValueError(msg)
         return self
@@ -207,7 +198,27 @@ class SnapshotImportLimits(BaseModel):
 class SnapshotImportConfig(SnapshotImportRequest):
     """Persisted import choices plus the exact resolved safety limits."""
 
+    profile: ImportProfile
     limits: SnapshotImportLimits
+
+    @model_validator(mode="after")
+    def _validate_profile_for_source(self) -> Self:
+        if self.source_format is SourceFormat.tei:
+            if self.profile is not DEFAULT_TEI_IMPORT_PROFILE:
+                msg = "TEI import provenance requires the supported TEI profile"
+                raise ValueError(msg)
+            return self
+        if self.profile is not TabularImportProfile.tei_equivalent_person_register_v1:
+            msg = "tabular import provenance requires the supported tabular profile"
+            raise ValueError(msg)
+        return self
+
+
+def import_profile_for_source_format(source_format: SourceFormat) -> ImportProfile:
+    """Return the sole supported profile for a public source format."""
+    if source_format is SourceFormat.tei:
+        return DEFAULT_TEI_IMPORT_PROFILE
+    return TabularImportProfile.tei_equivalent_person_register_v1
 
 
 class SnapshotImportTaskMessage(BaseModel):

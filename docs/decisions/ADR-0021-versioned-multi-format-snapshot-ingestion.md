@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+The v1/v2 compatibility portions are superseded by
+[ADR-0037](ADR-0037-remove-pre-production-tei-profiles.md), and public profile selection is superseded by
+[ADR-0038](ADR-0038-derive-singleton-import-profiles.md); the remaining ingestion decision stays accepted.
+
 ## Context
 
 The asynchronous snapshot-import boundary in

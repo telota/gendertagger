@@ -41,8 +41,6 @@ from gendertagger.models.project import (
     SourceManifestMember,
     SourceManifestV1,
     SourcePackaging,
-    TabularImportProfile,
-    TeiImportProfile,
 )
 from gendertagger.services.artifact_storage import ArtifactStorage
 from gendertagger.services.persistence_errors import (
@@ -254,14 +252,8 @@ class SnapshotImportExecutor:
     ) -> Iterator[ImportedPerson]:
         """Return a lazy imported-person iterable for one resolved source contract."""
         if config.source_format is SourceFormat.tei:
-            if not isinstance(config.profile, TeiImportProfile):
-                msg = "TEI source has a non-TEI import profile"
-                raise PermanentSnapshotImportError(msg)
             return self._iter_tei_people(config, sources)
 
-        if not isinstance(config.profile, TabularImportProfile):
-            msg = "tabular source has a non-tabular import profile"
-            raise PermanentSnapshotImportError(msg)
         if config.packaging is not SourcePackaging.single or len(sources) != 1:
             msg = "tabular import provenance requires one single-file source"
             raise PermanentSnapshotImportError(msg)
@@ -299,10 +291,6 @@ class SnapshotImportExecutor:
         config: SnapshotImportConfig,
         sources: tuple[_ResolvedSource, ...],
     ) -> Iterator[ImportedPerson]:
-        profile = config.profile
-        if not isinstance(profile, TeiImportProfile):  # Narrow for static type checkers.
-            msg = "TEI source has a non-TEI profile"
-            raise PermanentSnapshotImportError(msg)
         limits = PackageLimits(
             max_member_count=config.limits.max_member_count,
             max_member_expanded_bytes=config.limits.max_member_expanded_bytes,
@@ -342,7 +330,7 @@ class SnapshotImportExecutor:
                         self._artifact_storage.open(sources[0].artifact.storage_uri)
                     )
                     members = iter_tar_gz_xml_members(package_source, limits=limits)
-                yield from importer.iter_people(members, profile=profile)
+                yield from importer.iter_people(members)
 
         return iter_tei()
 

@@ -9,7 +9,6 @@ from urllib.parse import quote
 from gendertagger.ingestion.package import SourceMember
 from gendertagger.ingestion.tei import TeiImportError, TeiPersonParser
 from gendertagger.models.person import ImportedPerson
-from gendertagger.models.project import TeiImportProfile
 
 
 @runtime_checkable
@@ -32,15 +31,13 @@ class TeiCollectionImporter:
     def iter_people(
         self,
         members: Iterable[SourceMember],
-        *,
-        profile: TeiImportProfile,
     ) -> Iterator[ImportedPerson]:
         """Yield people and reject canonical TEI IDs repeated across members."""
         seen_tei_ids: dict[str, str] = {}
         member_iterator = iter(members)
         try:
             for member in member_iterator:
-                for person in self._parser.iter_people(member.source, profile=profile):
+                for person in self._parser.iter_people(member.source):
                     previous_member = seen_tei_ids.get(person.tei_id)
                     if previous_member is not None:
                         msg = (

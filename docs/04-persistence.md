@@ -41,7 +41,7 @@ project's snapshots. The repository enforces the cross-resource ownership and li
 A ready DatasetSnapshot and its source/member/person projection are immutable. Structured name forms, events,
 flat search fields, authority identifiers, source-member names, and record locators are sealed together.
 Repositories validate that the parser version and projected fields agree with the persisted import profile.
-Legacy profile distinctions are preserved rather than backfilled into ready snapshots.
+Every imported record must carry the structured name projection required by its supported profile.
 
 Snapshot acceptance stages bounded bytes first, then atomically registers artifacts, ordered source members,
 the pending snapshot, and its dispatch intent. A database rollback accepts none of those records, although

@@ -65,13 +65,13 @@ Reference extraction supports:
 - biographical note/context
 - ordered typed events with optional `when` and note
 - flattened alternative names
-- ordered structured direct `<persName>` forms when the selected profile supports them
+- ordered structured direct `<persName>` forms
 - GND ID
 - other external identifiers
 
 Preserve source strings. Method-specific preprocessing occurs later in adapters.
 
-The v3 profile recognizes authority URLs only by exact host and path: GND on `d-nb.info` or `www.d-nb.info`
+The TEI importer recognizes authority URLs only by exact host and path: GND on `d-nb.info` or `www.d-nb.info`
 with `/gnd/{id}` or the supported legacy `/{id}` path, VIAF on `viaf.org` or `www.viaf.org` with `/viaf/{id}`,
 and Wikidata on `wikidata.org` or `www.wikidata.org` with `/entity/{id}`. HTTP and HTTPS are accepted; user
 information, ports, queries, fragments, lookalike hosts, and hostname substrings are not authority matches.
@@ -79,63 +79,47 @@ Typed bare IDs and same-authority canonical URIs are projected to their authorit
 unknown URI is ignored, an explicit other safe scheme is preserved, and a declared authority that conflicts
 with the URI authority or supplies a non-canonical URI fails the record. Duplicate normalized schemes also
 fail. The exact URI and any surrounding editorial processing instructions remain in the immutable source
-artifact. Empty `<idno>` elements do not produce identifiers. TEI v1 and the committed v2 profile retain their
-historical identifier projections unchanged; v2's broader URI matching is not silently tightened under
-`tei_parser_v2`.
+artifact. Empty `<idno>` elements do not produce identifiers.
 
-V3 also records each supported direct `<event>` in document order with its required type and optional `when`
-and note values. V1 and v2 retain an empty event projection so historical imports remain reproducible. Direct
+The TEI profile also records each supported direct `<event>` in document order with its required type and
+optional `when` and note values. Direct
 `<sex>` values are deliberately excluded: existing registers may contain labels produced by an earlier gender
 workflow, and passing them to classification methods would leak the target. The exact XML remains preserved;
 importing those values later requires a separate annotation or benchmark contract.
 
-## Person-name profiles
+## Person-name profile
 
-`tei_p5_person_register_v1` preserves the historical flat projection: one regular `surname`, ordered regular
-`forenames`, and flattened `alt_names`. Its records have `name_forms=None`, which means structured person-name
-forms were not captured rather than that the source contained none.
+`tei_p5_person_register` is the only supported TEI profile. It records every direct
+`<person>/<persName>` in document order, ordered events, strict authority normalization, safe visible-text
+boundaries, and validated descendant name markup. Each `PersonNameForm` preserves `@type`, optional `@subtype`,
+and either an unstructured value from direct text or `<name>`, or direct `<surname>` and ordered `<forename>`
+values. Nested `<persName>` references inside descriptive content are not alternative names.
 
-`tei_p5_person_register_v2` additionally records every direct
-`<person>/<persName>` in document order. Each `PersonNameForm` preserves `@type`, optional `@subtype`, and either
-an unstructured value from direct text or `<name>`, or direct `<surname>` and ordered `<forename>` values. The
-parser does not treat nested `<persName>` references inside `<note>`, `<event>`, or other descriptive content as
-alternative names. Its committed text and identifier behavior remains frozen.
-
-`tei_p5_person_register_v3` is the default for new imports. It retains v2's structured-name contract while
-adding ordered events, strict shared authority normalization, safe visible-text boundaries, and explicit
-validation of supported descendant name markup. Callers may still select v1 or v2 explicitly for historical
-reproduction.
-
-V2 and v3 continue to populate the flat fields for existing methods, search, and simple tabular exchange. The
-first regular form supplies the regular surname and forenames; a regular `<name>` retains the v1 projection
-into `surname`. An alternative `<name>` becomes one flat alternative value. For a structured alternative, the
+The profile also populates flat fields for methods, search, and simple tabular exchange. The
+first regular form supplies the regular surname and forenames; a regular `<name>` projects into `surname`. An
+alternative `<name>` becomes one flat alternative value. For a structured alternative, the
 parser joins non-empty surname and forename components with one space. Alternative forenames are not merged
 into the regular `forenames` method input.
 
 The structured projection is source-rich but not an XML syntax tree. Empty name components are normalized to
 absence, empty `<nameLink/>` placeholders, XML comments, and editorial or Oxygen processing instructions do
-not become model fields. V3 inserts a boundary between visible descendant text segments when omitting a
+not become model fields. The importer inserts a boundary between visible descendant text segments when omitting a
 separator would join words, so `van<nameLink/>Helsing` becomes `van Helsing` without adding a space before
 punctuation. Corpus-supported inline `<name type="…">` and nested `<persName key="…">` markup becomes
 normalized component text; other descendant elements and unsupported attributes are rejected rather than
-silently flattened. V1 and v2 retain their historical separator-free descendant concatenation; v2 also
-retains its committed descendant-flattening behavior rather than gaining new validation under the same parser
-version. The immutable artifact retains the exact syntax.
-
-Structured names participate in v2 and v3 person-input fingerprints in their complete source order. When
-`name_forms` is null, fingerprinting retains the v1 projection and omits the new field. Existing ready
-snapshots are never reparsed or backfilled; obtaining the current projection from a preserved artifact creates
-a new immutable snapshot under v3. See
-[ADR-0017](decisions/ADR-0017-structured-tei-person-name-forms.md).
+silently flattened. The immutable artifact retains the exact syntax. Structured names and events participate
+in person-input fingerprints in source order. See
+[ADR-0038](decisions/ADR-0038-derive-singleton-import-profiles.md).
 
 ## Supported formats and packaging
 
-Semantic format and delivery packaging remain separate dimensions. Clients declare both; no importer guesses
-scientific semantics from an extension or media type.
+Semantic format and delivery packaging remain separate dimensions. Clients declare both; the service derives
+the sole supported import profile for the chosen format. No importer guesses scientific semantics from an
+extension or media type.
 
 | Source format | `single` | `loose` | `zip` | `tar_gz` | Import profile |
 |---|---:|---:|---:|---:|---|
-| TEI XML | yes | yes | yes | yes | `tei_p5_person_register_v1`, `tei_p5_person_register_v2`, or `tei_p5_person_register_v3` |
+| TEI XML | yes | yes | yes | yes | `tei_p5_person_register` |
 | CSV | yes | no | no | no | `tei_equivalent_person_register_v1` |
 | XLSX | yes | no | no | no | `tei_equivalent_person_register_v1` |
 | JSON | yes | no | no | no | `tei_equivalent_person_register_v1` |

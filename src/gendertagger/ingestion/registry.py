@@ -1,11 +1,11 @@
 """Version registry for reproducible snapshot-import implementations."""
 
-from gendertagger.ingestion.tabular import version_for_profile as tabular_version_for_profile
-from gendertagger.ingestion.tei import TeiPersonParser
+from gendertagger.ingestion.tabular import TABULAR_PERSON_PARSER_VERSION
+from gendertagger.ingestion.tei import TEI_PARSER_VERSION
 from gendertagger.models.project import (
     SnapshotImportRequest,
+    SourceFormat,
     SourcePackaging,
-    TeiImportProfile,
 )
 
 TEI_COLLECTION_IMPORTER_VERSION = "tei_collection_v1"
@@ -22,9 +22,7 @@ def version_for_snapshot_import(
     command: SnapshotImportRequest,
 ) -> str:
     """Return the exact semantic-parser and source-reader implementation version."""
-    profile = command.profile
-    if isinstance(profile, TeiImportProfile):
-        parser_version = TeiPersonParser.version_for_profile(profile)
+    if command.source_format is SourceFormat.tei:
         packaging_version = _TEI_PACKAGING_VERSIONS[command.packaging]
-        return f"{parser_version}+{TEI_COLLECTION_IMPORTER_VERSION}+{packaging_version}"
-    return tabular_version_for_profile(profile)
+        return f"{TEI_PARSER_VERSION}+{TEI_COLLECTION_IMPORTER_VERSION}+{packaging_version}"
+    return TABULAR_PERSON_PARSER_VERSION

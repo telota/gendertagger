@@ -238,7 +238,7 @@ both themes; an expired session and a server error both render correctly.
 
 - Project list and switcher from `GET /projects`, which returns only the caller's projects with the caller's
   role in each; project creation including `slug` and `description`, offered to global operators (D6).
-- Import with the full `source_format` × `packaging` matrix and explicit profile selection.
+- Import with the full `source_format` × `packaging` matrix; the backend derives the import profile.
 - The asynchronous snapshot lifecycle: `202` → poll → ready or failed, with `failure_diagnostic` surfaced.
 - Upload limits shown before upload and on `413`.
 - Snapshot provenance: `source_sha256`, `parser_version`, per-member manifest entries.

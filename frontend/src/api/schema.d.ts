@@ -1155,11 +1155,6 @@ export interface components {
             /** @default single */
             packaging: components["schemas"]["SourcePackaging"];
             /**
-             * Profile
-             * @default tei_p5_person_register_v3
-             */
-            profile: components["schemas"]["TeiImportProfile"] | components["schemas"]["TabularImportProfile"];
-            /**
              * Source
              * @description One or more exact source files. Repeat the source part for loose TEI files.
              */
@@ -1903,7 +1898,7 @@ export interface components {
             id: string;
             /**
              * Name Forms
-             * @description Ordered direct TEI persName forms, or null when the import profile did not capture structured names.
+             * @description Ordered direct TEI persName forms, or null when structured names were not supplied.
              */
             name_forms?: components["schemas"]["PersonNameForm"][] | null;
             /** Note */
@@ -2277,23 +2272,11 @@ export interface components {
          */
         SourcePackaging: "single" | "loose" | "zip" | "tar_gz";
         /**
-         * TabularImportProfile
-         * @description Versioned person-register extraction profile for tabular sources.
-         * @enum {string}
-         */
-        TabularImportProfile: "tei_equivalent_person_register_v1";
-        /**
          * TeiExportProfile
          * @description Versioned TEI export encoding for the ``<gender>`` annotation.
          * @enum {string}
          */
         TeiExportProfile: "tei_p5_gender_v1";
-        /**
-         * TeiImportProfile
-         * @description Versioned TEI extraction profile selected for a snapshot import.
-         * @enum {string}
-         */
-        TeiImportProfile: "tei_p5_person_register_v1" | "tei_p5_person_register_v2" | "tei_p5_person_register_v3";
         /**
          * VoteCounts
          * @description Complete counts for the four canonical labels in the pooled vote.

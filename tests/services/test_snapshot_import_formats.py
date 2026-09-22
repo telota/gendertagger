@@ -62,7 +62,7 @@ LIMITS = SnapshotImportLimits(
     max_record_count=1_000,
     max_cell_bytes=100_000,
 )
-TEI_PROFILE = TeiImportProfile.tei_p5_person_register_v3
+TEI_PROFILE = TeiImportProfile.tei_p5_person_register
 TABULAR_PROFILE = TabularImportProfile.tei_equivalent_person_register_v1
 TABULAR_PARSER_VERSION = tabular_version_for_profile(TABULAR_PROFILE)
 

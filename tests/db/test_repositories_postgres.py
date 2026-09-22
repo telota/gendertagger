@@ -102,7 +102,7 @@ def modern_import_config(
     *,
     source_format: SourceFormat = SourceFormat.tei,
     packaging: SourcePackaging = SourcePackaging.single,
-    profile: TeiImportProfile | TabularImportProfile = (TeiImportProfile.tei_p5_person_register_v3),
+    profile: TeiImportProfile | TabularImportProfile = (TeiImportProfile.tei_p5_person_register),
 ) -> dict[str, JsonValue]:
     return SnapshotImportConfig(
         source_format=source_format,
@@ -116,7 +116,7 @@ def modern_parser_version(
     *,
     source_format: SourceFormat = SourceFormat.tei,
     packaging: SourcePackaging = SourcePackaging.single,
-    profile: TeiImportProfile | TabularImportProfile = (TeiImportProfile.tei_p5_person_register_v3),
+    profile: TeiImportProfile | TabularImportProfile = (TeiImportProfile.tei_p5_person_register),
 ) -> str:
     config = SnapshotImportConfig.model_validate(
         modern_import_config(
@@ -164,40 +164,7 @@ def test_artifact_content_identity_rejects_ambiguous_records(db_session: Session
     ("profile", "person", "reason"),
     [
         (
-            TeiImportProfile.tei_p5_person_register_v1,
-            PersonInput(
-                tei_id="p1",
-                surname="Example",
-                name_forms=[PersonNameForm(type=PersonNameType.regular, surname="Example")],
-            ),
-            "name_forms",
-        ),
-        (
-            TeiImportProfile.tei_p5_person_register_v1,
-            PersonInput(
-                tei_id="p1",
-                surname="Example",
-                events=[PersonEvent(type="wedding", when="1820")],
-            ),
-            "events",
-        ),
-        (
-            TeiImportProfile.tei_p5_person_register_v2,
-            PersonInput(
-                tei_id="p1",
-                surname="Example",
-                name_forms=[PersonNameForm(type=PersonNameType.regular, surname="Example")],
-                events=[PersonEvent(type="wedding", when="1820")],
-            ),
-            "events",
-        ),
-        (
-            TeiImportProfile.tei_p5_person_register_v2,
-            PersonInput(tei_id="p1", surname="Example"),
-            "name_forms",
-        ),
-        (
-            TeiImportProfile.tei_p5_person_register_v3,
+            TeiImportProfile.tei_p5_person_register,
             PersonInput(tei_id="p1", surname="Example"),
             "name_forms",
         ),
@@ -341,7 +308,7 @@ def test_modern_snapshot_requires_complete_config_and_primary_artifact_provenanc
                 import_config={
                     "source_format": SourceFormat.tei.value,
                     "packaging": SourcePackaging.single.value,
-                    "profile": TeiImportProfile.tei_p5_person_register_v3.value,
+                    "profile": TeiImportProfile.tei_p5_person_register.value,
                 },
             )
         )

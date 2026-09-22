@@ -3,16 +3,12 @@ from io import BytesIO
 import pytest
 
 from gendertagger.ingestion.tei import (
-    TEI_PARSER_V1_VERSION,
-    TEI_PARSER_V2_VERSION,
-    TEI_PARSER_V3_VERSION,
     TEI_PARSER_VERSION,
     TeiImportError,
     TeiPersonParser,
     TeiSourceReadError,
 )
 from gendertagger.models.person import PersonEvent, PersonInput, PersonNameForm, PersonNameType
-from gendertagger.models.project import TeiImportProfile
 
 VALID_TEI = b"""<?xml version="1.0" encoding="UTF-8"?>
 <TEI xmlns="http://www.tei-c.org/ns/1.0">
@@ -55,30 +51,12 @@ class _UnreadableSource(BytesIO):
         raise OSError("simulated staged-artifact read failure")
 
 
-def test_v1_parser_extracts_flat_source_fields_without_name_forms() -> None:
+def test_parser_extracts_source_fields_and_structured_name_forms() -> None:
     parser = TeiPersonParser()
 
-    people = list(
-        parser.iter_people(
-            BytesIO(VALID_TEI),
-            profile=TeiImportProfile.tei_p5_person_register_v1,
-        )
-    )
+    people = list(parser.iter_people(BytesIO(VALID_TEI)))
 
-    assert parser.profile is TeiImportProfile.tei_p5_person_register_v3
-    assert (
-        parser.version_for_profile(TeiImportProfile.tei_p5_person_register_v1)
-        == TEI_PARSER_V1_VERSION
-    )
-    assert (
-        parser.version_for_profile(TeiImportProfile.tei_p5_person_register_v2)
-        == TEI_PARSER_V2_VERSION
-    )
-    assert (
-        parser.version_for_profile(TeiImportProfile.tei_p5_person_register_v3)
-        == TEI_PARSER_V3_VERSION
-        == TEI_PARSER_VERSION
-    )
+    assert TEI_PARSER_VERSION == "tei_parser_v3"
     assert people == [
         PersonInput(
             tei_id="p1",
@@ -88,27 +66,33 @@ def test_v1_parser_extracts_flat_source_fields_without_name_forms() -> None:
             death="1880",
             note="Scholar and editor.",
             alt_names=["Anna Sample"],
+            name_forms=[
+                PersonNameForm(
+                    type=PersonNameType.regular,
+                    surname="Example",
+                    forenames=["Anna Maria", "Luise"],
+                ),
+                PersonNameForm(
+                    type=PersonNameType.alternative,
+                    subtype="married",
+                    name="Anna Sample",
+                ),
+            ],
             gnd_id="123456789",
             external_ids={"wikidata": "Q42", "viaf": "98765"},
         ),
-        PersonInput(tei_id="p2", surname="Mononym"),
+        PersonInput(
+            tei_id="p2",
+            surname="Mononym",
+            name_forms=[PersonNameForm(type=PersonNameType.regular, name="Mononym")],
+        ),
     ]
-    assert all(person.name_forms is None for person in people)
 
 
-@pytest.mark.parametrize(
-    "profile",
-    [
-        TeiImportProfile.tei_p5_person_register_v2,
-        TeiImportProfile.tei_p5_person_register_v3,
-    ],
-)
-def test_structured_profiles_preserve_name_forms_in_document_order(
-    profile: TeiImportProfile,
-) -> None:
+def test_parser_preserves_name_forms_in_document_order() -> None:
     parser = TeiPersonParser()
 
-    [person, mononym] = list(parser.iter_people(BytesIO(STRUCTURED_NAMES_TEI), profile=profile))
+    [person, mononym] = list(parser.iter_people(BytesIO(STRUCTURED_NAMES_TEI)))
 
     assert person.surname == "Example"
     assert person.forenames == ["Anna Maria"]
@@ -150,23 +134,7 @@ def test_structured_profiles_preserve_name_forms_in_document_order(
     assert mononym.name_forms == [PersonNameForm(type=PersonNameType.regular, name="Mononym")]
 
 
-def test_explicit_v1_profile_does_not_change_the_v3_default() -> None:
-    parser = TeiPersonParser()
-
-    [legacy_person, _] = list(
-        parser.iter_people(
-            BytesIO(STRUCTURED_NAMES_TEI),
-            profile=TeiImportProfile.tei_p5_person_register_v1,
-        )
-    )
-    [default_person, _] = list(parser.iter_people(BytesIO(STRUCTURED_NAMES_TEI)))
-
-    assert legacy_person.name_forms is None
-    assert default_person.name_forms is not None
-    assert parser.profile is TeiImportProfile.tei_p5_person_register_v3
-
-
-def test_v3_preserves_direct_events_but_older_profiles_do_not_import_them() -> None:
+def test_parser_preserves_direct_events_and_excludes_sex() -> None:
     source = b"""<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><listPerson>
     <person xml:id="p1">
       <persName type="reg"><name>Example</name></persName>
@@ -178,23 +146,11 @@ def test_v3_preserves_direct_events_but_older_profiles_do_not_import_them() -> N
     </listPerson></body></text></TEI>"""
     parser = TeiPersonParser()
 
-    [modern] = list(parser.iter_people(BytesIO(source)))
-    [legacy] = list(
-        parser.iter_people(
-            source=BytesIO(source), profile=TeiImportProfile.tei_p5_person_register_v1
-        )
-    )
-    [structured_legacy] = list(
-        parser.iter_people(
-            source=BytesIO(source), profile=TeiImportProfile.tei_p5_person_register_v2
-        )
-    )
+    [person] = list(parser.iter_people(BytesIO(source)))
 
-    assert modern.events == [
+    assert person.events == [
         PersonEvent(type="wedding", when="1832-09-20", note="Married in Berlin.")
     ]
-    assert legacy.events == []
-    assert structured_legacy.events == []
     assert "sex" not in PersonInput.model_fields
 
 
@@ -231,32 +187,7 @@ def test_v3_parser_supports_direct_text_and_empty_name_link_placeholders() -> No
     ]
 
 
-def test_v2_retains_committed_direct_text_and_empty_name_link_behavior() -> None:
-    source = b"""<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><listPerson>
-    <person xml:id="p1">
-      <persName type="reg" subtype="indexed"><?editorial keep?>Mononym</persName>
-      <persName type="alt"><surname>Earlier</surname><forename/><nameLink/></persName>
-      <persName type="alt">van<nameLink/>Helsing</persName>
-    </person>
-    </listPerson></body></text></TEI>"""
-
-    [person] = TeiPersonParser().iter_people(
-        BytesIO(source),
-        profile=TeiImportProfile.tei_p5_person_register_v2,
-    )
-
-    assert person.name_forms == [
-        PersonNameForm(
-            type=PersonNameType.regular,
-            subtype="indexed",
-            name="Mononym",
-        ),
-        PersonNameForm(type=PersonNameType.alternative, surname="Earlier"),
-        PersonNameForm(type=PersonNameType.alternative, name="van Helsing"),
-    ]
-
-
-def test_v1_and_v2_retain_historical_text_join_while_v3_inserts_safe_boundaries() -> None:
+def test_parser_inserts_safe_text_boundaries() -> None:
     source = b"""<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><listPerson>
     <person xml:id="p1">
       <persName type="reg"><surname>Example</surname><forename>van<nameLink/>Helsing</forename></persName>
@@ -266,23 +197,14 @@ def test_v1_and_v2_retain_historical_text_join_while_v3_inserts_safe_boundaries(
     </listPerson></body></text></TEI>"""
     parser = TeiPersonParser()
 
-    [legacy] = parser.iter_people(
-        BytesIO(source),
-        profile=TeiImportProfile.tei_p5_person_register_v1,
-    )
-    [structured_legacy] = parser.iter_people(
-        BytesIO(source),
-        profile=TeiImportProfile.tei_p5_person_register_v2,
-    )
-    [modern] = parser.iter_people(BytesIO(source))
+    [person] = parser.iter_people(BytesIO(source))
 
-    assert legacy.forenames == structured_legacy.forenames == ["vanHelsing"]
-    assert modern.forenames == ["van Helsing"]
-    assert legacy.note == structured_legacy.note == modern.note == "Visible text."
-    assert legacy.gnd_id == structured_legacy.gnd_id == modern.gnd_id == "123456789"
+    assert person.forenames == ["van Helsing"]
+    assert person.note == "Visible text."
+    assert person.gnd_id == "123456789"
 
 
-def test_v2_retains_descendant_flattening_that_v3_rejects() -> None:
+def test_parser_rejects_unsupported_descendant_markup() -> None:
     source = b"""<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><listPerson>
     <person xml:id="p1">
       <persName type="reg"><surname>One<foo/>Two</surname></persName>
@@ -290,26 +212,11 @@ def test_v2_retains_descendant_flattening_that_v3_rejects() -> None:
     </listPerson></body></text></TEI>"""
     parser = TeiPersonParser()
 
-    [structured_legacy] = parser.iter_people(
-        BytesIO(source),
-        profile=TeiImportProfile.tei_p5_person_register_v2,
-    )
-
-    assert structured_legacy.surname == "OneTwo"
     with pytest.raises(TeiImportError, match="unsupported descendant elements"):
         list(parser.iter_people(BytesIO(source)))
 
 
-@pytest.mark.parametrize(
-    "profile",
-    [
-        TeiImportProfile.tei_p5_person_register_v2,
-        TeiImportProfile.tei_p5_person_register_v3,
-    ],
-)
-def test_structured_profiles_preserve_supported_legacy_authority_uri_projection(
-    profile: TeiImportProfile,
-) -> None:
+def test_parser_preserves_supported_authority_uri_projection() -> None:
     source = b"""<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><listPerson>
     <person xml:id="gnd-legacy">
       <persName type="reg"><name>GND example</name></persName>
@@ -326,9 +233,7 @@ def test_structured_profiles_preserve_supported_legacy_authority_uri_projection(
     </person>
     </listPerson></body></text></TEI>"""
 
-    legacy_gnd, viaf, commented_gnd = list(
-        TeiPersonParser().iter_people(BytesIO(source), profile=profile)
-    )
+    legacy_gnd, viaf, commented_gnd = list(TeiPersonParser().iter_people(BytesIO(source)))
 
     assert legacy_gnd.gnd_id == "124159206"
     assert legacy_gnd.note == "Visible text."
@@ -365,17 +270,9 @@ def test_structured_profiles_preserve_supported_legacy_authority_uri_projection(
         ),
     ],
 )
-@pytest.mark.parametrize(
-    "profile",
-    [
-        TeiImportProfile.tei_p5_person_register_v2,
-        TeiImportProfile.tei_p5_person_register_v3,
-    ],
-)
-def test_structured_profiles_reject_committed_unsupported_direct_name_structure(
+def test_parser_rejects_unsupported_direct_name_structure(
     pers_name: str,
     diagnostic: str,
-    profile: TeiImportProfile,
 ) -> None:
     source = (
         '<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><listPerson>'
@@ -384,7 +281,7 @@ def test_structured_profiles_reject_committed_unsupported_direct_name_structure(
     ).encode()
 
     with pytest.raises(TeiImportError, match=diagnostic):
-        list(TeiPersonParser().iter_people(BytesIO(source), profile=profile))
+        list(TeiPersonParser().iter_people(BytesIO(source)))
 
 
 def test_parser_rejects_doctype_without_resolving_external_entity() -> None:

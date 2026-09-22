@@ -18,7 +18,6 @@ from gendertagger.ingestion.package import (
     iter_zip_xml_members,
 )
 from gendertagger.ingestion.tei import TeiPersonParser
-from gendertagger.models.project import TeiImportProfile
 
 pytestmark = pytest.mark.unit
 
@@ -56,19 +55,7 @@ def _tar_source(entries: list[tuple[str, bytes]]) -> io.BytesIO:
     return source
 
 
-@pytest.mark.parametrize(
-    ("profile", "expects_name_forms"),
-    [
-        (TeiImportProfile.tei_p5_person_register_v1, False),
-        (TeiImportProfile.tei_p5_person_register_v2, True),
-        (TeiImportProfile.tei_p5_person_register_v3, True),
-    ],
-)
-def test_loose_collection_parses_in_member_order_with_profile_and_provenance(
-    profile: TeiImportProfile,
-    *,
-    expects_name_forms: bool,
-) -> None:
+def test_loose_collection_parses_in_member_order_with_profile_and_provenance() -> None:
     members = iter_loose_xml_members(
         [
             LooseDocument("b.xml", io.BytesIO(_tei_person("p2", "Second"))),
@@ -81,7 +68,7 @@ def test_loose_collection_parses_in_member_order_with_profile_and_provenance(
         limits=LIMITS,
     )
 
-    people = list(TeiCollectionImporter(TeiPersonParser()).iter_people(members, profile=profile))
+    people = list(TeiCollectionImporter(TeiPersonParser()).iter_people(members))
 
     assert [collected.person.tei_id for collected in people] == ["pä1", "p2"]
     assert [collected.source_member_name for collected in people] == ["a.xml", "b.xml"]
@@ -89,9 +76,7 @@ def test_loose_collection_parses_in_member_order_with_profile_and_provenance(
         "xml:id=p%C3%A41",
         "xml:id=p2",
     ]
-    assert all(
-        (collected.person.name_forms is not None) is expects_name_forms for collected in people
-    )
+    assert all(collected.person.name_forms is not None for collected in people)
 
 
 def test_collection_rejects_duplicate_xml_id_across_members() -> None:
@@ -104,12 +89,7 @@ def test_collection_rejects_duplicate_xml_id_across_members() -> None:
     )
 
     with pytest.raises(TeiCollectionError, match="across source members"):
-        list(
-            TeiCollectionImporter(TeiPersonParser()).iter_people(
-                members,
-                profile=TeiImportProfile.tei_p5_person_register_v3,
-            )
-        )
+        list(TeiCollectionImporter(TeiPersonParser()).iter_people(members))
 
 
 @pytest.mark.parametrize("packaging", ["zip", "tar.gz"])
@@ -133,12 +113,7 @@ def test_archive_collection_parses_benign_members_with_exact_member_locators(
             package_locator="artifact:bundle",
         )
 
-    people = list(
-        TeiCollectionImporter(TeiPersonParser()).iter_people(
-            members,
-            profile=TeiImportProfile.tei_p5_person_register_v3,
-        )
-    )
+    people = list(TeiCollectionImporter(TeiPersonParser()).iter_people(members))
 
     assert [collected.person.tei_id for collected in people] == ["p1", "p2"]
     assert [collected.source_member_name for collected in people] == ["A.xml", "letters/B.xml"]

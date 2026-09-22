@@ -53,9 +53,8 @@ the phased plan that resumes application code.
 - Authenticated FastAPI `/api/v1` resources for projects, immutable TEI snapshot imports, runs, the method
   registry, aggregations/results, append-only annotations, and server-filtered review lists; public contracts
   include cursor pagination, normalized error envelopes, a committed OpenAPI snapshot, and typed `CurrentUser`.
-- A versioned TEI v2 import profile that preserves ordered structured register and alternate name forms,
-  records name-form provenance in immutable snapshots, safely extracts direct GND and VIAF identifiers, and
-  retains parser-v1 fingerprint compatibility for existing records.
+- A structured TEI import profile that preserves ordered regular and alternate name forms, records name-form
+  provenance in immutable snapshots, and safely extracts direct GND and VIAF identifiers.
 - Celery/Redis asynchronous execution: a boundary-clean Celery app and worker composition, a runnable
   parenthetical-qualifier method adapter on the CPU queue, reproducible per-batch person slices, idempotent
   batch execution with retry/backoff and permanent-versus-transient failure classification, guarded run and
@@ -72,11 +71,11 @@ the phased plan that resumes application code.
 - Strict TEI-equivalent tabular ingestion with the exact `xml:id`, `persName`, `birth`, `death`, `event`,
   `note`, and `idno` fields; native JSON arrays or JSON-valued CSV/XLSX cells preserve multiple forenames,
   ordered alternative names, events, and typed GND/VIAF/Wikidata identifiers without spreadsheet coercion.
-- A new default `tei_p5_person_register_v3` / `tei_parser_v3` keeps committed v1/v2 projections reproducible
-  while adding ordered events, safe descendant-text boundaries, and supported-inline-markup validation.
-- Shared strict TEI-v3/tabular authority normalization with exact host/path matching, typed bare/URI parity,
+- The `tei_p5_person_register` / `tei_parser_v3` profile adds ordered events, safe descendant-text
+  boundaries, and supported-inline-markup validation.
+- Shared strict TEI/tabular authority normalization with exact host/path matching, typed bare/URI parity,
   conflict and duplicate rejection, spoofed-host protection, bounded JSON integer decoding, and permanent
-  JSON/CSV U+0000 validation while retaining versioned TEI-v1/v2 behavior.
+  JSON/CSV U+0000 validation.
 - Secure archive and workbook readers with deterministic member ordering, traversal/link/special-member and
   active-workbook rejection, pre-allocation ZIP/ZIP64 directory bounds, secure OOXML metadata preflight,
   read-only XLSX streaming, expansion ceilings, compression-ratio checks, and collection-wide TEI-ID

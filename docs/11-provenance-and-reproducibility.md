@@ -25,7 +25,7 @@ are sealed at creation. Only validated lifecycle fields may change afterward.
 
 Persist enough information to re-run the exact importer over the exact accepted source collection:
 
-- source format, packaging, and versioned import profile;
+- source format, packaging, and the derived import profile;
 - importer implementation version;
 - primary Artifact checksum and reference;
 - deterministic source manifest where packaging is `loose`;

@@ -80,7 +80,7 @@ Complete the asynchronous snapshot-import and reference-aggregation paths alongs
 For snapshot imports:
 
 - extend the generic outbox with one unique typed `dataset_snapshot` owner [DONE]
-- define versioned source-format, packaging, profile, manifest, member-provenance, and resolved-limit
+- define source-format, packaging, derived-profile, manifest, member-provenance, and resolved-limit
   contracts [DONE]
 - durably stage single or loose uploads before atomically creating their Artifact records, ordered source
   members, pending snapshot, and dispatch [DONE]
@@ -91,9 +91,8 @@ For snapshot imports:
   coercion, excessive dimensions, and expansion attacks [DONE]
 - preserve structured names, repeated forenames, life dates, notes, events, authority IDs, and exact
   source-member/record-locator provenance while excluding source `<sex>` targets [DONE]
-- add a default TEI v3 profile sharing strict authority normalization with tabular records, reject JSON/CSV
-  persistence-invalid strings and oversized JSON integers, and preserve the versioned TEI v1 and v2
-  projections unchanged [DONE]
+- add the TEI profile sharing strict authority normalization with tabular records and reject JSON/CSV
+  persistence-invalid strings and oversized JSON integers [DONE]
 - conditionally claim duplicate-safe import work and load exact artifacts, manifests, configuration, and limits
   by snapshot ID [DONE]
 - stream package validation, parsing, PersonRecord flushes, and the ready transition in one transaction without
@@ -126,7 +125,7 @@ Migrate adapters incrementally:
 
 Do not wait for all methods before exercising the architecture.
 
-Exit criterion: every declared format/packaging/profile combination reaches one complete immutable
+Exit criterion: every declared format/packaging combination reaches one complete immutable
 DatasetSnapshot asynchronously with reproducible exact-source and record provenance, and the reference
 ensemble reproduces golden outputs through the API, generic dispatch coordinator, CPU worker, persisted
 AggregationExecution, and complete immutable result set.

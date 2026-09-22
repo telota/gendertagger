@@ -19,10 +19,8 @@ from gendertagger.models.person import PersonRecord
 from gendertagger.models.project import (
     DEFAULT_SOURCE_FORMAT,
     DEFAULT_SOURCE_PACKAGING,
-    DEFAULT_TEI_IMPORT_PROFILE,
     AccessibleProject,
     DatasetSnapshot,
-    ImportProfile,
     ProjectCreate,
     ProjectWorkingAggregationUpdate,
     SnapshotImportRequest,
@@ -134,7 +132,6 @@ def import_snapshot(
     access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
     source_format: Annotated[SourceFormat, Form()] = DEFAULT_SOURCE_FORMAT,
     packaging: Annotated[SourcePackaging, Form()] = DEFAULT_SOURCE_PACKAGING,
-    profile: Annotated[ImportProfile, Form()] = DEFAULT_TEI_IMPORT_PROFILE,
 ) -> DatasetSnapshot:
     """Durably stage bounded sources and queue their snapshot import."""
     access.require(ProjectScope.project, project_id, ProjectRole.operator)
@@ -152,7 +149,6 @@ def import_snapshot(
             command=SnapshotImportRequest(
                 source_format=source_format,
                 packaging=packaging,
-                profile=profile,
             ),
         )
     except ResourceNotFoundError as error:

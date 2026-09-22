@@ -45,7 +45,8 @@ boundaries:
 - the multipart endpoint accepts the complete supported matrix—TEI single/loose/ZIP/TAR.GZ and single
   CSV/XLSX/JSON—durably preserves every exact byte sequence and checksum, and returns a persisted pending
   DatasetSnapshot without invoking a content parser;
-- incompatible format/profile/packaging combinations, unsafe or colliding loose names, wrong source-part
+- incompatible format/packaging combinations, invalid persisted profile provenance, unsafe or colliding loose
+  names, wrong source-part
   counts, per-part overflow, aggregate overflow, and source-member-count overflow fail at acceptance;
 - loose member order and canonical manifest bytes are deterministic regardless of multipart order, and every
   snapshot member row resolves to its exact Artifact metadata;
@@ -58,16 +59,16 @@ boundaries:
 - reconciliation repairs missing snapshot intent, rearms stale publication only while the target remains
   pending, and skips a snapshot locked by an active importer;
 - duplicate deliveries have one conditional claim winner, while ready and failed snapshots are no-ops;
-- valid TEI v1/v2/v3 and tabular sources stream PersonRecords and the ready transition in one transaction with
+- valid TEI v3 and tabular sources stream PersonRecords and the ready transition in one transaction with
   matching importer/profile, name-form/event, authority-ID, and member/record-locator provenance;
-- direct repository callers cannot mismatch the composite parser version, omit required v2/v3/tabular name
-  forms, add events to v1/v2, or attach incomplete source artifacts and members;
+- direct repository callers cannot mismatch the composite parser version, omit required imported name forms,
+  or attach incomplete source artifacts and members;
 - loose and archived TEI enforce collection-wide `xml:id` uniqueness and produce the same canonical person
   projections for equivalent logical XML members;
 - JSON native arrays and CSV/XLSX JSON-valued `persName`, `event`, and `idno` cells preserve multiple
   forenames, alternate forms, notes, life dates, events, and GND/VIAF identifiers;
 - TEI v3 and tabular typed bare/URI identifiers have parity, exact canonical authority hosts and paths reject
-  type conflicts and spoofed hosts, and duplicate normalized schemes fail while v1 characterization is stable;
+  type conflicts and spoofed hosts, and duplicate normalized schemes fail;
 - the exact tabular header/order and object shapes reject unknown, missing, duplicate, coerced, or silently
   discarded fields, oversized JSON integers, and JSON/CSV U+0000 strings, while `<sex>` remains excluded from
   classifier PersonInput;
@@ -78,8 +79,8 @@ boundaries:
   entity-encoded external relationship modes, formulas, hyperlinks, merged cells, oversized dimensions,
   populated secondary sheets, and non-string cell values; assertions prove preflight happens before read-only
   workbook materialization and dimension-free bounded sheets remain valid;
-- TEI inline-markup fixtures prove v3 word-boundary insertion excludes comment and Oxygen instruction payloads
-  and rejects unsupported descendants, while v1 and v2 separator-free/flattening behavior remains reproducible;
+- TEI inline-markup fixtures prove word-boundary insertion excludes comment and Oxygen instruction payloads
+  and rejects unsupported descendants;
 - a permanent parse or contract failure rolls back every PersonRecord before persisting a sanitized failed
   lifecycle;
 - injected transient failure or worker loss rolls back the claim and all writes so retry begins again from the

@@ -12,7 +12,6 @@ from gendertagger.ingestion.tabular import (
     TeiEquivalentPersonRegisterParser,
 )
 from gendertagger.ingestion.tei import TeiImportError, TeiPersonParser
-from gendertagger.models.project import TeiImportProfile
 
 
 @pytest.mark.parametrize(
@@ -148,20 +147,3 @@ def test_tei_v3_and_tabular_reject_the_same_authority_conflict_and_duplicate() -
                 io.BytesIO(json.dumps([tabular_record]).encode())
             )
         )
-
-
-def test_tei_v2_retains_legacy_uri_substring_behavior_that_v3_drops() -> None:
-    source = b"""<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><listPerson>
-    <person xml:id="p1"><persName type="reg"><name>Example</name></persName>
-      <idno type="uri">https://evil.example/d-nb.info/gnd/123456789</idno>
-    </person></listPerson></body></text></TEI>"""
-    parser = TeiPersonParser()
-
-    [legacy] = parser.iter_people(
-        io.BytesIO(source),
-        profile=TeiImportProfile.tei_p5_person_register_v2,
-    )
-    [modern] = parser.iter_people(io.BytesIO(source))
-
-    assert legacy.gnd_id == "123456789"
-    assert modern.gnd_id is None

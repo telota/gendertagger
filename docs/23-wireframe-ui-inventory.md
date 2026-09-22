@@ -234,7 +234,7 @@ a per-file table with status pills; a static "Erkannte Struktur" TEI mapping tab
 box with a static slider and a preview callout; and a "Klassifikation jetzt starten" button.
 
 **Backend.** `POST /projects/{project_id}/snapshots` is multipart, accepts repeated `source` parts, and takes
-`source_format`, `packaging`, and `profile` form fields
+`source_format` and `packaging` form fields
 ([`api/projects.py`](../src/gendertagger/api/projects.py)). It returns `202 Accepted` with a pending
 `DatasetSnapshot`; the client then polls `GET /snapshots/{id}` for `status`, `record_count`, and
 `failure_diagnostic`.
@@ -244,8 +244,6 @@ box with a static slider and a preview callout; and a "Klassifikation jetzt star
 - **Gap (frontend):** `source_format` supports `tei`, `csv`, `xlsx`, and `json`; the wireframe offers TEI only.
 - **Gap (frontend):** `packaging` supports `single`, `loose`, `zip`, and `tar_gz`; the wireframe offers single
   file and folder only. Archive upload is unreachable.
-- **Gap (frontend):** import profiles are versioned (`tei_p5_person_register_v1/v2/v3`,
-  `tei_equivalent_person_register_v1`) and there is no selector. Default is `v3`.
 - **Gap (frontend):** the asynchronous snapshot lifecycle (pending → ready/failed) is not represented; the
   wireframe shows a finished parse immediately.
 - **Gap (frontend):** `source_sha256`, `parser_version`, and per-member checksums from `SourceManifestV1` are

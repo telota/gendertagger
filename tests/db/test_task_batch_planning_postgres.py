@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy.orm import Session
+from tests.factories import tei_person_input
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.db.artifact_repository import SqlAlchemyArtifactRepository
@@ -13,7 +14,7 @@ from gendertagger.db.run_repository import SqlAlchemyRunRepository
 from gendertagger.ingestion.registry import version_for_snapshot_import
 from gendertagger.models.artifact import ArtifactCreate
 from gendertagger.models.method import MethodDescriptor
-from gendertagger.models.person import ImportedPerson, PersonInput
+from gendertagger.models.person import ImportedPerson
 from gendertagger.models.project import (
     DatasetSnapshotCreate,
     ProjectCreate,
@@ -48,9 +49,8 @@ def _ready_execution(
             project_id=project.id,
         )
     )
-    # The legacy profile captures no structured name forms, which this fixture does not model.
     import_config = SnapshotImportConfig(
-        profile=TeiImportProfile.tei_p5_person_register_v1,
+        profile=TeiImportProfile.tei_p5_person_register,
         limits=SnapshotImportLimits(),
     )
     snapshot = projects.add_snapshot(
@@ -80,7 +80,7 @@ def _ready_execution(
         snapshot.id,
         [
             ImportedPerson(
-                person=PersonInput(tei_id=f"p{index:04d}"),
+                person=tei_person_input(tei_id=f"p{index:04d}"),
                 source_member_name="source.xml",
                 source_record_locator=str(index),
             )

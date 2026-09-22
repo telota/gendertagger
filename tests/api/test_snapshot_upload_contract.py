@@ -19,8 +19,6 @@ from gendertagger.models.project import (
     SnapshotImportRequest,
     SourceFormat,
     SourcePackaging,
-    TabularImportProfile,
-    TeiImportProfile,
 )
 from gendertagger.models.user import CurrentUser, ProjectRole
 from gendertagger.services.project_access import ProjectAccessService
@@ -106,7 +104,6 @@ def _call_import(
     *,
     source_format: SourceFormat = SourceFormat.tei,
     packaging: SourcePackaging = SourcePackaging.single,
-    profile: TeiImportProfile | TabularImportProfile = (TeiImportProfile.tei_p5_person_register_v3),
 ) -> DatasetSnapshot:
     return import_snapshot(
         project_id=PROJECT_ID,
@@ -118,11 +115,10 @@ def _call_import(
         ),
         source_format=source_format,
         packaging=packaging,
-        profile=profile,
     )
 
 
-def test_single_source_defaults_select_the_current_v3_profile() -> None:
+def test_single_source_defaults_to_tei_without_a_public_profile_option() -> None:
     service = _CapturingProjectService()
 
     snapshot = _call_import(
@@ -135,7 +131,6 @@ def test_single_source_defaults_select_the_current_v3_profile() -> None:
     assert command.model_dump(mode="json") == {
         "source_format": "tei",
         "packaging": "single",
-        "profile": "tei_p5_person_register_v3",
     }
     assert sources == [("register.xml", b"<TEI/>")]
 
@@ -168,7 +163,7 @@ def test_repeated_loose_tei_parts_preserve_all_filenames() -> None:
         (SourceFormat.json, "people.json", "application/json"),
     ],
 )
-def test_tabular_formats_require_and_accept_the_tabular_profile(
+def test_tabular_formats_are_selected_by_source_format(
     source_format: SourceFormat,
     filename: str,
     media_type: str,
@@ -179,46 +174,20 @@ def test_tabular_formats_require_and_accept_the_tabular_profile(
         service,
         [_upload(filename, b"source", media_type)],
         source_format=source_format,
-        profile=TabularImportProfile.tei_equivalent_person_register_v1,
     )
 
     assert service.calls[0][0].source_format is source_format
 
 
-@pytest.mark.parametrize(
-    ("source_format", "packaging", "profile"),
-    [
-        (
-            SourceFormat.csv,
-            SourcePackaging.single,
-            TeiImportProfile.tei_p5_person_register_v2,
-        ),
-        (
-            SourceFormat.tei,
-            SourcePackaging.zip,
-            TabularImportProfile.tei_equivalent_person_register_v1,
-        ),
-        (
-            SourceFormat.json,
-            SourcePackaging.loose,
-            TabularImportProfile.tei_equivalent_person_register_v1,
-        ),
-    ],
-)
-def test_incompatible_format_packaging_and_profile_returns_422(
-    source_format: SourceFormat,
-    packaging: SourcePackaging,
-    profile: TeiImportProfile | TabularImportProfile,
-) -> None:
+def test_incompatible_format_and_packaging_returns_422() -> None:
     service = _CapturingProjectService()
 
     with pytest.raises(ApiRequestError) as caught:
         _call_import(
             service,
             [_upload("source.bin", b"source", "application/octet-stream")],
-            source_format=source_format,
-            packaging=packaging,
-            profile=profile,
+            source_format=SourceFormat.json,
+            packaging=SourcePackaging.loose,
         )
 
     assert caught.value.status_code == 422

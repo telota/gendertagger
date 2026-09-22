@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy import Connection, Engine, func, select, text
 from sqlalchemy.orm import Session
+from tests.factories import tei_person_input
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.db.dispatch_repository import SqlAlchemyDispatchRepository
@@ -27,7 +28,7 @@ from gendertagger.models.dispatch import (
     DispatchMessage,
 )
 from gendertagger.models.lifecycle import MethodExecutionStatus, RunStatus, TaskBatchStatus
-from gendertagger.models.person import ImportedPerson, PersonInput
+from gendertagger.models.person import ImportedPerson
 from gendertagger.models.project import (
     DatasetSnapshotCreate,
     ProjectCreate,
@@ -50,10 +51,10 @@ LATER = datetime(2026, 8, 13, 12, 5, tzinfo=UTC)
 
 # Deterministic parenthetical-qualifier outcomes: female, abstain, male, unknown.
 PEOPLE = [
-    PersonInput(tei_id="p01", surname="Frölich (Frau des Heinrich)"),
-    PersonInput(tei_id="p02", surname="Müller"),
-    PersonInput(tei_id="p03", surname="Schmidt (Sohn des Karl)"),
-    PersonInput(tei_id="p04", surname="Weber (Kind des Johann)"),
+    tei_person_input(tei_id="p01", surname="Frölich (Frau des Heinrich)"),
+    tei_person_input(tei_id="p02", surname="Müller"),
+    tei_person_input(tei_id="p03", surname="Schmidt (Sohn des Karl)"),
+    tei_person_input(tei_id="p04", surname="Weber (Kind des Johann)"),
 ]
 
 
@@ -89,9 +90,8 @@ def _seed_created_run(factory: UnitOfWorkFactory) -> UUID:
                 project_id=project.id,
             )
         )
-        # The legacy profile captures no structured name forms, which this fixture does not model.
         import_config = SnapshotImportConfig(
-            profile=TeiImportProfile.tei_p5_person_register_v1,
+            profile=TeiImportProfile.tei_p5_person_register,
             limits=SnapshotImportLimits(),
         )
         snapshot = unit_of_work.projects.add_snapshot(
@@ -179,9 +179,8 @@ def _seed_gnd_lookup_run(
             if register_lookup
             else None
         )
-        # The legacy profile captures no structured name forms, which this fixture does not model.
         import_config = SnapshotImportConfig(
-            profile=TeiImportProfile.tei_p5_person_register_v1,
+            profile=TeiImportProfile.tei_p5_person_register,
             limits=SnapshotImportLimits(),
         )
         snapshot = unit_of_work.projects.add_snapshot(
@@ -211,7 +210,7 @@ def _seed_gnd_lookup_run(
             snapshot.id,
             [
                 ImportedPerson(
-                    person=PersonInput(tei_id="p-gnd", gnd_id="123"),
+                    person=tei_person_input(tei_id="p-gnd", gnd_id="123"),
                     source_member_name="source.xml",
                     source_record_locator="1",
                 )

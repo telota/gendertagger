@@ -59,7 +59,8 @@ or the `gendertagger projects add-member`, `remove-member`, and `list-members` C
 - protect export/download paths through artifact IDs rather than filesystem paths
 
 Client filenames and media types are descriptive input, never authority for filesystem placement or import
-semantics. The public request must declare source format, packaging, and profile from a closed validated set.
+semantics. The public request declares source format and packaging from closed validated sets; the service
+derives the sole supported profile for that format.
 Detailed parser exceptions and source content do not cross the sanitized snapshot-failure boundary.
 
 ## LLM/external services

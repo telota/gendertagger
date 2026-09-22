@@ -88,12 +88,12 @@ source. Records imported before locator provenance was introduced may retain nul
 compatibility; method Predictions fingerprint the canonical person input separately.
 
 The stable flat name projection consists of `surname`, ordered `forenames`, and flattened `alt_names`. A
-structured-name-aware import additionally preserves ordered direct `<person>/<persName>` forms in
+A TEI import preserves ordered direct `<person>/<persName>` forms in
 `name_forms`, including whether each form is regular or alternative, its optional subtype, and its direct
-`name` or surname/forename components. `name_forms=None` means the importing legacy profile did not capture
-that structure; it does not assert that the source contained no name forms. Inline `<persName>` references in
-notes or other descriptive content are not person name forms. See
-[ADR-0017](decisions/ADR-0017-structured-tei-person-name-forms.md).
+`name` or surname/forename components. Direct classification requests may omit `name_forms` when they provide
+only flat method inputs; imported records may not. Inline `<persName>` references in notes or other descriptive
+content are not person name forms. See
+[ADR-0037](decisions/ADR-0037-remove-pre-production-tei-profiles.md).
 
 The structured forms do not broaden identity: `tei_id` remains the only canonical person identity within a
 project. Alternative forenames also do not implicitly become regular-name classification inputs. Ready

@@ -154,7 +154,7 @@ def test_project_and_ready_snapshot_round_trip_through_http(
     assert snapshot_body["import_config"] == {
         "source_format": SourceFormat.tei.value,
         "packaging": SourcePackaging.single.value,
-        "profile": TeiImportProfile.tei_p5_person_register_v3.value,
+        "profile": TeiImportProfile.tei_p5_person_register.value,
         "limits": {
             "max_member_count": 128,
             "max_member_expanded_bytes": 100 * 1024 * 1024,

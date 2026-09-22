@@ -78,20 +78,20 @@ rather than silently normalized.
 
 Flat surname, forename, and alternate-name fields remain the stable classification and search projection.
 Source-rich name forms preserve document order and distinguish structured from unstructured forms. When both
-representations are present, validators require their deterministic projections to agree. A null source-rich
-form collection records that a legacy profile did not capture it; it is not equivalent to an examined empty
-collection. See [ADR-0017](decisions/ADR-0017-structured-tei-person-name-forms.md).
+representations are present, validators require their deterministic projections to agree. Imported records
+always carry structured forms; `name_forms` remains nullable for direct classification requests that supply
+only the flat method inputs. See [ADR-0038](decisions/ADR-0038-derive-singleton-import-profiles.md).
 
 Events preserve ordered source values. Source `<sex>` values are deliberately excluded from PersonInput so an
 earlier annotation target cannot leak into classification input.
 
 Every imported and persisted person carries the exact source-member name and record locator. Person-input
-fingerprints include the profile-sensitive projection while preserving historical fingerprints for profiles
-that predate structured names or events.
+fingerprints include the complete profile-sensitive projection.
 
-Import format, packaging, and mapping profile are independent explicit values. Unsupported combinations fail
-validation rather than being inferred from extensions or media types. Resolved safety limits are persisted in
-the snapshot import configuration so queued work is not reinterpreted after deployment settings change.
+Public import requests declare format and packaging. The service derives the sole profile for that format and
+persists it with resolved safety limits, so queued work is not reinterpreted after deployment settings change.
+Unsupported format/packaging combinations fail validation rather than being inferred from filenames or media
+types.
 Source manifests are deterministic and bind ordered logical members to checksums, byte sizes, media types, and
 artifact records. The complete import contract is defined in
 [`08-ingestion-and-export.md`](08-ingestion-and-export.md) and

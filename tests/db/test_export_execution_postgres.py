@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
+from tests.factories import tei_person_input
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.db.aggregation_repository import SqlAlchemyAggregationRepository
@@ -36,7 +37,7 @@ from gendertagger.models.lifecycle import (
     TaskBatchStatus,
 )
 from gendertagger.models.method import MethodDescriptor
-from gendertagger.models.person import ImportedPerson, PersonInput
+from gendertagger.models.person import ImportedPerson
 from gendertagger.models.project import (
     DatasetSnapshotCreate,
     ProjectCreate,
@@ -93,9 +94,8 @@ def _seed_reference_run_with_completed_aggregation(
             project_id=project.id,
         )
     )
-    # The legacy profile captures no structured name forms, which this fixture does not model.
     import_config = SnapshotImportConfig(
-        profile=TeiImportProfile.tei_p5_person_register_v1,
+        profile=TeiImportProfile.tei_p5_person_register,
         limits=SnapshotImportLimits(),
     )
     snapshot = projects.add_snapshot(
@@ -125,7 +125,7 @@ def _seed_reference_run_with_completed_aggregation(
         snapshot.id,
         [
             ImportedPerson(
-                person=PersonInput(tei_id="p1", surname="Example"),
+                person=tei_person_input(tei_id="p1", surname="Example"),
                 source_member_name="source.xml",
                 source_record_locator="1",
             )
@@ -263,7 +263,7 @@ def test_add_export_rejects_an_incomplete_aggregation(db_session: Session) -> No
         )
     )
     import_config = SnapshotImportConfig(
-        profile=TeiImportProfile.tei_p5_person_register_v1,
+        profile=TeiImportProfile.tei_p5_person_register,
         limits=SnapshotImportLimits(),
     )
     snapshot = projects.add_snapshot(
@@ -604,7 +604,7 @@ def test_load_export_inputs_rejects_tei_format_for_unsupported_packaging(
         import_config=SnapshotImportConfig(
             source_format=SourceFormat.tei,
             packaging=SourcePackaging.zip,
-            profile=TeiImportProfile.tei_p5_person_register_v1,
+            profile=TeiImportProfile.tei_p5_person_register,
             limits=_TEST_IMPORT_LIMITS,
         ),
     )

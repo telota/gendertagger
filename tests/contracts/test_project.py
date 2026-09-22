@@ -38,8 +38,8 @@ def snapshot_payload(**overrides: object) -> dict[str, object]:
         "project_id": PROJECT_ID,
         "source_artifact_id": ARTIFACT_ID,
         "source_sha256": SHA256,
-        "parser_version": "tei_parser_v1",
-        "import_config": {"profile": TeiImportProfile.tei_p5_person_register_v1.value},
+        "parser_version": "tei_parser_v3",
+        "import_config": {"profile": TeiImportProfile.tei_p5_person_register.value},
         "status": DatasetSnapshotStatus.pending,
         "record_count": None,
         "ready_at": None,
@@ -90,47 +90,29 @@ def test_project_working_aggregation_update_accepts_a_pointer_or_null() -> None:
         ProjectWorkingAggregationUpdate.model_validate({"unexpected": True})
 
 
-def test_snapshot_import_request_defaults_to_v3_and_keeps_older_profiles_selectable() -> None:
+def test_snapshot_import_request_defaults_to_tei_without_exposing_a_profile() -> None:
     command = SnapshotImportRequest()
 
     assert command.model_dump(mode="json") == {
         "source_format": SourceFormat.tei.value,
         "packaging": SourcePackaging.single.value,
-        "profile": TeiImportProfile.tei_p5_person_register_v3.value,
     }
-    assert (
-        SnapshotImportRequest(profile=TeiImportProfile.tei_p5_person_register_v1).profile
-        is TeiImportProfile.tei_p5_person_register_v1
-    )
-    assert (
-        SnapshotImportRequest(profile=TeiImportProfile.tei_p5_person_register_v2).profile
-        is TeiImportProfile.tei_p5_person_register_v2
-    )
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        SnapshotImportRequest.model_validate({"profile": "unsupported_profile"})
     with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
         SnapshotImportRequest.model_validate({"unknown_option": True})
 
 
-def test_snapshot_import_request_pairs_profiles_with_supported_sources() -> None:
+def test_snapshot_import_request_restricts_tabular_sources_to_single_packaging() -> None:
     tei_bundle = SnapshotImportRequest(packaging=SourcePackaging.tar_gz)
-    tabular = SnapshotImportRequest(
-        source_format=SourceFormat.csv,
-        profile=TabularImportProfile.tei_equivalent_person_register_v1,
-    )
+    tabular = SnapshotImportRequest(source_format=SourceFormat.csv)
 
     assert tei_bundle.packaging is SourcePackaging.tar_gz
-    assert tabular.profile is TabularImportProfile.tei_equivalent_person_register_v1
-    with pytest.raises(ValidationError, match="TEI import profile"):
-        SnapshotImportRequest(source_format=SourceFormat.json)
-    with pytest.raises(ValidationError, match="requires CSV, XLSX, or JSON"):
-        SnapshotImportRequest(
-            source_format=SourceFormat.tei,
-            profile=TabularImportProfile.tei_equivalent_person_register_v1,
-        )
+    assert tabular.source_format is SourceFormat.csv
     with pytest.raises(ValidationError, match="packaging='single'"):
         SnapshotImportRequest(
             source_format=SourceFormat.xlsx,
             packaging=SourcePackaging.zip,
-            profile=TabularImportProfile.tei_equivalent_person_register_v1,
         )
 
 
@@ -201,13 +183,35 @@ def test_snapshot_import_config_freezes_resolved_positive_limits() -> None:
         max_record_count=1_000,
         max_cell_bytes=10_000,
     )
-    config = SnapshotImportConfig(limits=limits)
+    config = SnapshotImportConfig(
+        profile=TeiImportProfile.tei_p5_person_register,
+        limits=limits,
+    )
 
-    assert config.profile is TeiImportProfile.tei_p5_person_register_v3
+    assert config.profile is TeiImportProfile.tei_p5_person_register
     assert config.limits.max_record_count == 1_000
     with pytest.raises(ValidationError):
         SnapshotImportLimits.model_validate(
             limits.model_copy(update={"max_compression_ratio": 1}).model_dump()
+        )
+
+
+@pytest.mark.parametrize(
+    ("source_format", "profile"),
+    [
+        (SourceFormat.tei, TabularImportProfile.tei_equivalent_person_register_v1),
+        (SourceFormat.json, TeiImportProfile.tei_p5_person_register),
+    ],
+)
+def test_snapshot_import_config_rejects_mismatched_derived_profile(
+    source_format: SourceFormat,
+    profile: TeiImportProfile | TabularImportProfile,
+) -> None:
+    with pytest.raises(ValidationError, match="provenance requires"):
+        SnapshotImportConfig(
+            source_format=source_format,
+            profile=profile,
+            limits=SnapshotImportLimits(),
         )
 
 
@@ -223,7 +227,7 @@ def test_snapshot_create_requires_json_compatible_config_and_sha256() -> None:
             project_id=PROJECT_ID,
             source_artifact_id=ARTIFACT_ID,
             source_sha256="not-a-sha256",
-            parser_version="tei_parser_v1",
+            parser_version="tei_parser_v3",
         )
     with pytest.raises(ValidationError):
         DatasetSnapshotCreate.model_validate(
@@ -231,7 +235,7 @@ def test_snapshot_create_requires_json_compatible_config_and_sha256() -> None:
                 "project_id": PROJECT_ID,
                 "source_artifact_id": ARTIFACT_ID,
                 "source_sha256": SHA256,
-                "parser_version": "tei_parser_v1",
+                "parser_version": "tei_parser_v3",
                 "import_config": {"unsupported": object()},
             }
         )

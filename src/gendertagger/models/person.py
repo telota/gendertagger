@@ -106,8 +106,7 @@ class PersonInput(BaseModel):
     name_forms: list[PersonNameForm] | None = Field(
         default=None,
         description=(
-            "Ordered direct TEI persName forms, or null when the import profile did not "
-            "capture structured names."
+            "Ordered direct TEI persName forms, or null when structured names were not supplied."
         ),
     )
     gnd_id: str | None = None

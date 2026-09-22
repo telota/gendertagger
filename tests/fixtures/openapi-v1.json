@@ -843,18 +843,6 @@
             "$ref": "#/components/schemas/SourcePackaging",
             "default": "single"
           },
-          "profile": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/TeiImportProfile"
-              },
-              {
-                "$ref": "#/components/schemas/TabularImportProfile"
-              }
-            ],
-            "default": "tei_p5_person_register_v3",
-            "title": "Profile"
-          },
           "source": {
             "description": "One or more exact source files. Repeat the source part for loose TEI files.",
             "items": {
@@ -2720,7 +2708,7 @@
                 "type": "null"
               }
             ],
-            "description": "Ordered direct TEI persName forms, or null when the import profile did not capture structured names.",
+            "description": "Ordered direct TEI persName forms, or null when structured names were not supplied.",
             "title": "Name Forms"
           },
           "note": {
@@ -3589,30 +3577,12 @@
         "title": "SourcePackaging",
         "type": "string"
       },
-      "TabularImportProfile": {
-        "description": "Versioned person-register extraction profile for tabular sources.",
-        "enum": [
-          "tei_equivalent_person_register_v1"
-        ],
-        "title": "TabularImportProfile",
-        "type": "string"
-      },
       "TeiExportProfile": {
         "description": "Versioned TEI export encoding for the ``<gender>`` annotation.",
         "enum": [
           "tei_p5_gender_v1"
         ],
         "title": "TeiExportProfile",
-        "type": "string"
-      },
-      "TeiImportProfile": {
-        "description": "Versioned TEI extraction profile selected for a snapshot import.",
-        "enum": [
-          "tei_p5_person_register_v1",
-          "tei_p5_person_register_v2",
-          "tei_p5_person_register_v3"
-        ],
-        "title": "TeiImportProfile",
         "type": "string"
       },
       "VoteCounts": {

@@ -30,6 +30,7 @@ from gendertagger.models.project import (
     SourceManifestMember,
     SourceManifestV1,
     SourcePackaging,
+    import_profile_for_source_format,
     normalize_source_member_logical_name,
 )
 from gendertagger.models.queues import CPU_QUEUE
@@ -257,6 +258,7 @@ class ProjectService:
         )
         import_config = SnapshotImportConfig(
             **command.model_dump(),
+            profile=import_profile_for_source_format(command.source_format),
             limits=self._import_limits,
         )
 
@@ -271,7 +273,7 @@ class ProjectService:
                         media_type=staged.media_type,
                         project_id=project_id,
                         metadata={
-                            "import_profile": command.profile.value,
+                            "import_profile": import_config.profile.value,
                             "logical_name": staged.logical_name,
                             "ordinal": ordinal,
                             "packaging": command.packaging.value,

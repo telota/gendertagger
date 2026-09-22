@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy import Engine, insert, select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
+from tests.factories import tei_person_input
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.db.aggregations import AggregationExecutionRow, AggregationMethodExecutionRow
@@ -28,7 +29,7 @@ from gendertagger.models.dispatch import (
 )
 from gendertagger.models.lifecycle import AggregationExecutionStatus
 from gendertagger.models.method import MethodDescriptor
-from gendertagger.models.person import ImportedPerson, PersonInput
+from gendertagger.models.person import ImportedPerson
 from gendertagger.models.project import (
     DatasetSnapshot,
     DatasetSnapshotCreate,
@@ -80,9 +81,8 @@ def _execution_context(
             project_id=project.id,
         )
     )
-    # The legacy profile captures no structured name forms, which this fixture does not model.
     import_config = SnapshotImportConfig(
-        profile=TeiImportProfile.tei_p5_person_register_v1,
+        profile=TeiImportProfile.tei_p5_person_register,
         limits=SnapshotImportLimits(),
     )
     snapshot = projects.add_snapshot(
@@ -112,12 +112,12 @@ def _execution_context(
         snapshot.id,
         [
             ImportedPerson(
-                person=PersonInput(tei_id="p1"),
+                person=tei_person_input(tei_id="p1"),
                 source_member_name="source.xml",
                 source_record_locator="1",
             ),
             ImportedPerson(
-                person=PersonInput(tei_id="p2"),
+                person=tei_person_input(tei_id="p2"),
                 source_member_name="source.xml",
                 source_record_locator="2",
             ),
@@ -268,7 +268,7 @@ def _pending_snapshot_context(
         )
     )
     import_config = SnapshotImportConfig(
-        profile=TeiImportProfile.tei_p5_person_register_v2,
+        profile=TeiImportProfile.tei_p5_person_register,
         limits=SnapshotImportLimits(),
     )
     snapshot = projects.add_snapshot(

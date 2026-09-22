@@ -85,7 +85,8 @@ HTTP retries currently create distinct DatasetSnapshot resources even when their
 in artifact storage. Celery delivery is already idempotent independently of this.
 
 An optional idempotency-key contract would need to scope keys to the authenticated actor, project, and
-operation; bind each key to the declared format, packaging, profile, and canonical source fingerprint;
+operation; bind each key to the declared format and packaging, derived profile, and canonical source
+fingerprint;
 return the original accepted snapshot on an exact replay; reject reuse with different input; and define
 expiration and concurrent-reservation behavior.
 

@@ -8,8 +8,6 @@ from gendertagger.models.project import (
     SnapshotImportRequest,
     SourceFormat,
     SourcePackaging,
-    TabularImportProfile,
-    TeiImportProfile,
 )
 
 pytestmark = pytest.mark.unit
@@ -30,7 +28,6 @@ def test_tei_import_version_captures_profile_collection_and_packaging(
 ) -> None:
     command = SnapshotImportRequest(
         packaging=packaging,
-        profile=TeiImportProfile.tei_p5_person_register_v3,
     )
 
     assert version_for_snapshot_import(command) == (
@@ -41,15 +38,6 @@ def test_tei_import_version_captures_profile_collection_and_packaging(
 def test_tabular_import_version_comes_from_the_format_profile() -> None:
     command = SnapshotImportRequest(
         source_format=SourceFormat.json,
-        profile=TabularImportProfile.tei_equivalent_person_register_v1,
     )
 
     assert version_for_snapshot_import(command) == TABULAR_PERSON_PARSER_VERSION
-
-
-def test_committed_v2_import_version_remains_resolvable() -> None:
-    command = SnapshotImportRequest(profile=TeiImportProfile.tei_p5_person_register_v2)
-
-    assert version_for_snapshot_import(command) == (
-        "tei_parser_v2+tei_collection_v1+tei_single_source_v1"
-    )

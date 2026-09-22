@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+The v1/v2 compatibility portions are superseded by
+[ADR-0037](ADR-0037-remove-pre-production-tei-profiles.md); the structured-name decision remains accepted.
+
 ## Context
 
 The first TEI person-register profile projects one regular surname, ordered forenames, and alternative names
