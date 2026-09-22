@@ -19,7 +19,7 @@ from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.models.dispatch import BatchDispatchStatus
 from gendertagger.models.lifecycle import RunStatus
 from gendertagger.models.project import SnapshotImportTaskMessage
-from gendertagger.models.user import Role, UserCreate
+from gendertagger.models.user import GlobalRole, UserCreate
 from gendertagger.services.snapshot_import import SnapshotImportExecutor
 from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
@@ -61,7 +61,7 @@ def _client(
     unit_of_work_factory = _unit_of_work_factory(postgres_engine)
     with unit_of_work_factory() as unit_of_work:
         operator = unit_of_work.users.add_user(
-            UserCreate(display_name="Run operator", roles={Role.operator})
+            UserCreate(display_name="Run operator", roles={GlobalRole.operator})
         )
         unit_of_work.commit()
     application = create_app(

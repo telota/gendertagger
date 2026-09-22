@@ -40,6 +40,7 @@ from gendertagger.models.project import (
     SnapshotImportConfig,
     SnapshotImportLimits,
     SnapshotSourceMemberCreate,
+    TeiImportProfile,
 )
 from gendertagger.models.run import (
     MethodExecutionCreate,
@@ -47,7 +48,7 @@ from gendertagger.models.run import (
     RunCreate,
     TaskBatchCreate,
 )
-from gendertagger.models.user import Role, UserCreate
+from gendertagger.models.user import ProjectRole, UserCreate
 from gendertagger.services.export_execution import ExportExecutor
 from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
@@ -86,15 +87,14 @@ def _seed_completed_aggregation(
     unit_of_work_factory: UnitOfWorkFactory,
 ) -> tuple[UUID, UUID, UUID]:
     with unit_of_work_factory() as unit_of_work:
-        user = unit_of_work.users.add_user(
-            UserCreate(display_name="Export operator", roles={Role.operator})
-        )
+        user = unit_of_work.users.add_user(UserCreate(display_name="Export operator", roles=set()))
         project = unit_of_work.projects.add_project(
             ProjectCreate(
                 slug=f"export-{uuid4().hex}",
                 display_name="Export fixture",
             )
         )
+        unit_of_work.access.set_member_role(project.id, user.id, ProjectRole.operator)
         artifact = unit_of_work.artifacts.add_artifact(
             ArtifactCreate(
                 logical_type="source_tei",
@@ -105,7 +105,11 @@ def _seed_completed_aggregation(
                 project_id=project.id,
             )
         )
-        import_config = SnapshotImportConfig(limits=SnapshotImportLimits())
+        # The legacy profile captures no structured name forms, which this fixture does not model.
+        import_config = SnapshotImportConfig(
+            profile=TeiImportProfile.tei_p5_person_register_v1,
+            limits=SnapshotImportLimits(),
+        )
         snapshot = unit_of_work.projects.add_snapshot(
             DatasetSnapshotCreate(
                 project_id=project.id,
@@ -246,6 +250,13 @@ def _seed_completed_aggregation(
     return user.id, run.id, completed_aggregation.id
 
 
+def _outsider_id(unit_of_work_factory: UnitOfWorkFactory) -> UUID:
+    with unit_of_work_factory() as unit_of_work:
+        outsider = unit_of_work.users.add_user(UserCreate(display_name="Other project member"))
+        unit_of_work.commit()
+    return outsider.id
+
+
 def test_queued_export_executes_and_output_round_trips_through_http(
     postgres_engine: Engine,
     tmp_path: Path,
@@ -302,3 +313,20 @@ def test_queued_export_executes_and_output_round_trips_through_http(
 
     missing_download_response = client.get(f"/api/v1/exports/{uuid4()}/download")
     assert missing_download_response.status_code == 404
+
+    application.state.authentication_backend = StaticAuthenticationBackend(
+        _outsider_id(unit_of_work_factory)
+    )
+    hidden_responses = [
+        client.get(f"/api/v1/exports/{export_id}"),
+        client.get(f"/api/v1/exports/{export_id}/download"),
+        client.post(
+            "/api/v1/exports",
+            json={
+                "run_id": str(run_id),
+                "aggregation_execution_id": str(aggregation_id),
+                "format": "json",
+            },
+        ),
+    ]
+    assert [response.status_code for response in hidden_responses] == [404, 404, 404]

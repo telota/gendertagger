@@ -24,7 +24,7 @@ from gendertagger.models.project import (
     TeiImportProfile,
 )
 from gendertagger.models.queues import CPU_QUEUE
-from gendertagger.models.user import Role, UserCreate
+from gendertagger.models.user import GlobalRole, UserCreate
 from gendertagger.services.snapshot_import import SnapshotImportExecutor
 from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
@@ -77,7 +77,7 @@ def _unit_of_work_factory(engine: Engine) -> UnitOfWorkFactory:
 def _operator_id(unit_of_work_factory: UnitOfWorkFactory) -> UUID:
     with unit_of_work_factory() as unit_of_work:
         operator = unit_of_work.users.add_user(
-            UserCreate(display_name="HTTP operator", roles={Role.operator})
+            UserCreate(display_name="HTTP operator", roles={GlobalRole.operator})
         )
         unit_of_work.commit()
     return operator.id

@@ -12,6 +12,7 @@ from gendertagger.services.evaluations import EvaluationService
 from gendertagger.services.execution import RunScheduler
 from gendertagger.services.exports import ExportService
 from gendertagger.services.method_registry import MethodRegistry
+from gendertagger.services.project_access import ProjectAccessService
 from gendertagger.services.projects import ProjectService
 from gendertagger.services.review_items import ReviewItemService
 from gendertagger.services.runs import RunService
@@ -26,6 +27,11 @@ def get_unit_of_work_factory(request: Request) -> UnitOfWorkFactory:
 def get_project_service(request: Request) -> ProjectService:
     """Return the composed project application service."""
     return cast(ProjectService, request.app.state.project_service)
+
+
+def get_project_access_service(request: Request) -> ProjectAccessService:
+    """Return the composed project authorization and membership service."""
+    return cast(ProjectAccessService, request.app.state.project_access_service)
 
 
 def get_aggregation_service(request: Request) -> AggregationService:

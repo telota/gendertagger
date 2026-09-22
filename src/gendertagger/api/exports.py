@@ -5,16 +5,17 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Response, status
 
-from gendertagger.api.authorization import require_operator, require_viewer
+from gendertagger.api.authorization import ProjectAccessGuard, get_project_access_guard
 from gendertagger.api.dependencies import get_export_service
 from gendertagger.api.errors import ApiRequestError
 from gendertagger.models.export import ExportCreateRequest, ExportExecution
-from gendertagger.models.user import CurrentUser
+from gendertagger.models.user import ProjectRole
 from gendertagger.services.exports import ExportService
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )
+from gendertagger.services.project_access_repository import ProjectScope
 
 router = APIRouter(tags=["exports"])
 
@@ -27,9 +28,10 @@ router = APIRouter(tags=["exports"])
 def create_export(
     command: ExportCreateRequest,
     service: Annotated[ExportService, Depends(get_export_service)],
-    _: Annotated[CurrentUser, Depends(require_operator)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
 ) -> ExportExecution:
     """Queue a durable export over one completed aggregation."""
+    access.require(ProjectScope.run, command.run_id, ProjectRole.operator)
     try:
         return service.create_export(command)
     except ResourceNotFoundError as error:
@@ -46,9 +48,10 @@ def create_export(
 def get_export(
     export_id: UUID,
     service: Annotated[ExportService, Depends(get_export_service)],
-    _: Annotated[CurrentUser, Depends(require_viewer)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
 ) -> ExportExecution:
     """Read one current export lifecycle resource."""
+    access.require(ProjectScope.export, export_id, ProjectRole.viewer)
     try:
         return service.get_export(export_id)
     except ResourceNotFoundError as error:
@@ -59,9 +62,10 @@ def get_export(
 def download_export(
     export_id: UUID,
     service: Annotated[ExportService, Depends(get_export_service)],
-    _: Annotated[CurrentUser, Depends(require_viewer)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
 ) -> Response:
     """Return a completed export's primary output bytes by artifact reference."""
+    access.require(ProjectScope.export, export_id, ProjectRole.viewer)
     try:
         content, media_type = service.download_export(export_id)
     except ResourceNotFoundError as error:

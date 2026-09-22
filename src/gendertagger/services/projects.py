@@ -16,6 +16,7 @@ from gendertagger.models.dispatch import SnapshotDispatchCreate
 from gendertagger.models.lifecycle import DatasetSnapshotStatus
 from gendertagger.models.person import PersonRecord
 from gendertagger.models.project import (
+    AccessibleProject,
     DatasetSnapshot,
     DatasetSnapshotCreate,
     Project,
@@ -32,6 +33,7 @@ from gendertagger.models.project import (
     normalize_source_member_logical_name,
 )
 from gendertagger.models.queues import CPU_QUEUE
+from gendertagger.models.user import ProjectRole
 from gendertagger.services.artifact_storage import ArtifactStorage
 from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.persistence_errors import (
@@ -109,12 +111,13 @@ class ProjectService:
             max_cell_bytes=1024 * 1024,
         )
 
-    def create_project(self, command: ProjectCreate) -> Project:
-        """Create one long-lived editorial project and commit it atomically."""
+    def create_project(self, command: ProjectCreate, *, creator_user_id: UUID) -> AccessibleProject:
+        """Create one editorial project with its creator as operator, atomically (ADR-0033)."""
         with self._unit_of_work_factory() as unit_of_work:
             project = unit_of_work.projects.add_project(command)
+            unit_of_work.access.set_member_role(project.id, creator_user_id, ProjectRole.operator)
             unit_of_work.commit()
-        return project
+        return AccessibleProject(**project.model_dump(), current_user_role=ProjectRole.operator)
 
     def get_project(self, project_id: UUID) -> Project:
         """Return one project or raise a resource-level not-found failure."""

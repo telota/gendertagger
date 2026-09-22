@@ -27,6 +27,8 @@ No global person entity is introduced in v1. GND IDs and other identifiers are e
 ```mermaid
 erDiagram
     PROJECT ||--o{ DATASET_SNAPSHOT : has
+    PROJECT ||--o{ PROJECT_MEMBERSHIP : grants
+    USER ||--o{ PROJECT_MEMBERSHIP : holds
     DATASET_SNAPSHOT ||--|{ SNAPSHOT_SOURCE_MEMBER : preserves
     SNAPSHOT_SOURCE_MEMBER }o--|| ARTIFACT : references
     DATASET_SNAPSHOT ||--o{ PERSON_RECORD : contains
@@ -58,6 +60,12 @@ erDiagram
 
 ### Project
 Long-lived corpus/editorial project.
+
+### ProjectMembership
+One user's role — `viewer`, `reviewer`, or `operator` — in one project. A project owns every snapshot, run,
+aggregation, evaluation, and export beneath it, and a user reaches them only through a membership in that
+project or the global `admin` role
+([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)).
 
 ### DatasetSnapshot
 Immutable imported state of source data. Stores the primary source or manifest hash, importer/config version,

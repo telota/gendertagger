@@ -14,10 +14,13 @@ from sqlalchemy.orm import Session
 from gendertagger.cli.main import _build_parser, _download_https, main
 from gendertagger.db.artifact_repository import SqlAlchemyArtifactRepository
 from gendertagger.db.auth_repository import SqlAlchemyAuthRepository
+from gendertagger.db.project_repository import SqlAlchemyProjectRepository
 from gendertagger.db.user_repository import SqlAlchemyUserRepository
 from gendertagger.models.artifact import LookupArtifactMetadata
-from gendertagger.models.user import Role
+from gendertagger.models.project import ProjectCreate
+from gendertagger.models.user import GlobalRole
 from gendertagger.services.password_hashing import Argon2PasswordHasher
+from gendertagger.services.persistence_errors import ResourceNotFoundError
 from gendertagger.storage.local import LocalArtifactStorage
 
 
@@ -131,26 +134,48 @@ def test_prepare_wiki_cli_registers_source_and_compiled_lookup(
     assert rows == [("Karl", "M"), ("Maria", "F")]
 
 
-def test_users_create_cli_collects_repeated_roles() -> None:
+def test_users_create_cli_collects_repeated_global_roles() -> None:
     args = _build_parser().parse_args(
         [
             "users",
             "create",
             "--display-name",
-            "Reviewer One",
+            "Admin One",
             "--username",
-            "reviewer.one",
+            "admin.one",
             "--role",
-            "reviewer",
+            "operator",
             "--role",
-            "viewer",
+            "admin",
         ]
     )
 
-    assert args.display_name == "Reviewer One"
-    assert args.username == "reviewer.one"
-    assert args.roles == ["reviewer", "viewer"]
+    assert args.display_name == "Admin One"
+    assert args.username == "admin.one"
+    assert args.roles == ["operator", "admin"]
     assert args.password is None
+
+
+def test_users_create_cli_makes_global_roles_optional_and_rejects_project_roles() -> None:
+    parser = _build_parser()
+    args = parser.parse_args(
+        ["users", "create", "--display-name", "Reviewer One", "--username", "reviewer.one"]
+    )
+
+    assert args.roles == []
+    with pytest.raises(SystemExit):
+        parser.parse_args(
+            [
+                "users",
+                "create",
+                "--display-name",
+                "Reviewer One",
+                "--username",
+                "reviewer.one",
+                "--role",
+                "reviewer",
+            ]
+        )
 
 
 def test_users_reset_password_cli_parses_user_id() -> None:
@@ -185,7 +210,7 @@ def test_users_create_cli_provisions_local_account_with_generated_password(
             "--username",
             "Reviewer.One",
             "--role",
-            "reviewer",
+            "operator",
         ]
     )
 
@@ -202,7 +227,7 @@ def test_users_create_cli_provisions_local_account_with_generated_password(
     assert credential.must_change_password is True
     assert Argon2PasswordHasher().verify(credential.password_hash, payload["generated_password"])
     assert user is not None
-    assert user.roles == {Role.reviewer}
+    assert user.roles == {GlobalRole.operator}
     assert str(user.id) == payload["user_id"]
 
 
@@ -225,8 +250,6 @@ def test_users_reset_password_cli_forces_change_and_revokes_sessions(
             "Reviewer Two",
             "--username",
             "reviewer.two",
-            "--role",
-            "viewer",
             "--password",
             "an-original-passphrase-1",
         ]
@@ -269,3 +292,81 @@ def test_users_reset_password_cli_forces_change_and_revokes_sessions(
     assert Argon2PasswordHasher().verify(credential.password_hash, "a-forced-new-passphrase-2")
     assert active_session is not None
     assert active_session.revoked_at is not None
+
+
+@pytest.mark.postgres
+def test_projects_cli_grants_changes_lists_and_revokes_membership(
+    repository_database_url: str,
+    postgres_engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    database_url = make_url(repository_database_url).set(drivername="postgresql+psycopg")
+    monkeypatch.setenv(
+        "GENDERTAGGER_DATABASE_URL", database_url.render_as_string(hide_password=False)
+    )
+    with Session(postgres_engine) as session:
+        project = SqlAlchemyProjectRepository(session).add_project(
+            ProjectCreate(slug="cli-membership", display_name="CLI membership")
+        )
+        session.commit()
+    main(["users", "create", "--display-name", "Member One", "--username", "member.one"])
+    user_id = json.loads(capsys.readouterr().out)["user_id"]
+    membership = ["--project", "cli-membership", "--username", "Member.One"]
+
+    main(["projects", "add-member", *membership, "--role", "viewer"])
+    granted = json.loads(capsys.readouterr().out)
+    main(["projects", "add-member", *membership, "--role", "reviewer"])
+    changed = json.loads(capsys.readouterr().out)
+    main(["projects", "list-members", "--project", "cli-membership"])
+    listed = json.loads(capsys.readouterr().out)
+    main(["projects", "remove-member", *membership])
+    removed = json.loads(capsys.readouterr().out)
+    main(["projects", "list-members", "--project", "cli-membership"])
+    listed_after_removal = json.loads(capsys.readouterr().out)
+
+    assert (granted["user_id"], granted["role"]) == (user_id, "viewer")
+    assert changed["role"] == "reviewer"
+    assert [(member["display_name"], member["role"]) for member in listed] == [
+        ("Member One", "reviewer")
+    ]
+    assert removed == {"project_id": str(project.id), "user_id": user_id}
+    assert listed_after_removal == []
+
+
+@pytest.mark.postgres
+def test_projects_cli_rejects_unknown_projects_users_and_memberships(
+    repository_database_url: str,
+    postgres_engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    database_url = make_url(repository_database_url).set(drivername="postgresql+psycopg")
+    monkeypatch.setenv(
+        "GENDERTAGGER_DATABASE_URL", database_url.render_as_string(hide_password=False)
+    )
+    with Session(postgres_engine) as session:
+        SqlAlchemyProjectRepository(session).add_project(
+            ProjectCreate(slug="cli-unknowns", display_name="CLI unknowns")
+        )
+        session.commit()
+    main(["users", "create", "--display-name", "Outsider", "--username", "outsider"])
+    capsys.readouterr()
+
+    with pytest.raises(ValueError, match="project 'missing' does not exist"):
+        main(["projects", "list-members", "--project", "missing"])
+    with pytest.raises(ValueError, match="user 'nobody' does not exist"):
+        main(
+            [
+                "projects",
+                "add-member",
+                "--project",
+                "cli-unknowns",
+                "--username",
+                "nobody",
+                "--role",
+                "viewer",
+            ]
+        )
+    with pytest.raises(ResourceNotFoundError, match="is not a member"):
+        main(["projects", "remove-member", "--project", "cli-unknowns", "--username", "outsider"])

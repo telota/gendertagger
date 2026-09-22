@@ -55,7 +55,7 @@ from gendertagger.models.run import (
     RunCreate,
     TaskBatchCreate,
 )
-from gendertagger.models.user import Role, UserCreate
+from gendertagger.models.user import UserCreate
 from gendertagger.services.persistence_errors import InvalidResourceStateError
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
@@ -628,7 +628,7 @@ def test_load_export_inputs_projects_human_overrides_when_policy_is_human_overri
 ) -> None:
     run_id, aggregation_id, person_id = _seed_reference_run_with_completed_aggregation(db_session)
     users = SqlAlchemyUserRepository(db_session)
-    reviewer = users.add_user(UserCreate(display_name="Export reviewer", roles={Role.operator}))
+    reviewer = users.add_user(UserCreate(display_name="Export reviewer"))
     snapshot_id = SqlAlchemyRunRepository(db_session).get_run(run_id)
     assert snapshot_id is not None
     SqlAlchemyReviewRepository(db_session).add_annotation(

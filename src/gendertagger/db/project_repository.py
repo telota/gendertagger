@@ -69,6 +69,27 @@ class SqlAlchemyProjectRepository:
         row = self._session.get(ProjectRow, project_id)
         return None if row is None else self._project_from_row(row)
 
+    def get_project_by_slug(self, slug: str) -> Project | None:
+        """Return a project contract by its unique slug without exposing its row."""
+        row = self._session.scalar(select(ProjectRow).where(ProjectRow.slug == slug))
+        return None if row is None else self._project_from_row(row)
+
+    def list_projects(
+        self,
+        *,
+        limit: int,
+        after_slug: str | None = None,
+    ) -> Sequence[Project]:
+        """Return every project in unique-slug order using keyset continuation."""
+        if limit <= 0:
+            msg = "limit must be positive"
+            raise ValueError(msg)
+        statement = select(ProjectRow)
+        if after_slug is not None:
+            statement = statement.where(ProjectRow.slug > after_slug)
+        rows = self._session.scalars(statement.order_by(ProjectRow.slug).limit(limit))
+        return tuple(self._project_from_row(row) for row in rows)
+
     def add_snapshot(self, command: DatasetSnapshotCreate) -> DatasetSnapshot:
         """Persist and flush a new pending snapshot without committing."""
         import_config = self._validated_import_config(command.import_config)

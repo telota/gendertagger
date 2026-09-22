@@ -13,7 +13,7 @@ from datetime import timedelta
 from uuid import UUID
 
 from gendertagger.models.common import UtcDatetime
-from gendertagger.models.user import CurrentUser, Role, User, UserCreate
+from gendertagger.models.user import CurrentUser, GlobalRole, User, UserCreate
 from gendertagger.services.password_hashing import PasswordHasherProtocol
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 
@@ -180,7 +180,7 @@ class AuthenticationService:
             unit_of_work.commit()
 
     def create_local_account(
-        self, *, display_name: str, roles: set[Role], username: str, password: str
+        self, *, display_name: str, roles: set[GlobalRole], username: str, password: str
     ) -> User:
         """Provision one admin-created local account. CLI-only; see ADR-0031."""
         with self._unit_of_work_factory() as unit_of_work:

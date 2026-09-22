@@ -30,32 +30,36 @@ The scientific `unknown` label is never represented by `null`.
 three routers under the `/api/v1` prefix, which differ only in their authentication requirements (see
 below). The following table is the whole public API:
 
-| Method | Path | Success status | Least role |
+| Method | Path | Success status | Access |
 |---|---|---|---|
-| `POST` | `/api/v1/projects` | `201` | operator |
-| `GET` | `/api/v1/projects/{project_id}` | `200` | viewer |
-| `POST` | `/api/v1/projects/{project_id}/snapshots` | `202` | operator |
-| `GET` | `/api/v1/snapshots/{snapshot_id}` | `200` | viewer |
-| `GET` | `/api/v1/snapshots/{snapshot_id}/people` | `200` | viewer |
-| `POST` | `/api/v1/runs` | `202` | operator |
-| `GET` | `/api/v1/runs/{run_id}` | `200` | viewer |
-| `GET` | `/api/v1/runs/{run_id}/executions` | `200` | viewer |
-| `POST` | `/api/v1/runs/{run_id}/executions` | `202` | operator |
-| `GET` | `/api/v1/runs/{run_id}/events` | `200` (SSE) | viewer |
-| `POST` | `/api/v1/runs/{run_id}/aggregations` | `202` | operator |
-| `GET` | `/api/v1/aggregations/{aggregation_id}` | `200` | viewer |
-| `GET` | `/api/v1/aggregations/{aggregation_id}/results` | `200` | viewer |
-| `GET` | `/api/v1/aggregations/{aggregation_id}/results/{result_id}` | `200` | viewer |
-| `GET` | `/api/v1/review-items` | `200` | viewer |
-| `POST` | `/api/v1/annotations` | `201` | reviewer |
-| `POST` | `/api/v1/evaluations` | `202` | operator |
-| `GET` | `/api/v1/evaluations/{evaluation_id}` | `200` | viewer |
-| `GET` | `/api/v1/evaluations/{evaluation_id}/report` | `200` | viewer |
-| `POST` | `/api/v1/exports` | `202` | operator |
-| `GET` | `/api/v1/exports/{export_id}` | `200` | viewer |
-| `GET` | `/api/v1/exports/{export_id}/download` | `200` | viewer |
-| `POST` | `/api/v1/classify` | `200` | viewer |
-| `GET` | `/api/v1/methods` | `200` | viewer |
+| `POST` | `/api/v1/projects` | `201` | global operator |
+| `GET` | `/api/v1/projects` | `200` | any authenticated user; lists the caller's projects |
+| `GET` | `/api/v1/projects/{project_id}` | `200` | project viewer of `project_id` |
+| `GET` | `/api/v1/projects/{project_id}/members` | `200` | global admin |
+| `PUT` | `/api/v1/projects/{project_id}/members/{user_id}` | `200` | global admin |
+| `DELETE` | `/api/v1/projects/{project_id}/members/{user_id}` | `204` | global admin |
+| `POST` | `/api/v1/projects/{project_id}/snapshots` | `202` | project operator of `project_id` |
+| `GET` | `/api/v1/snapshots/{snapshot_id}` | `200` | project viewer of `snapshot_id` |
+| `GET` | `/api/v1/snapshots/{snapshot_id}/people` | `200` | project viewer of `snapshot_id` |
+| `POST` | `/api/v1/runs` | `202` | project operator of body `dataset_snapshot_id` |
+| `GET` | `/api/v1/runs/{run_id}` | `200` | project viewer of `run_id` |
+| `GET` | `/api/v1/runs/{run_id}/executions` | `200` | project viewer of `run_id` |
+| `POST` | `/api/v1/runs/{run_id}/executions` | `202` | project operator of `run_id` |
+| `GET` | `/api/v1/runs/{run_id}/events` | `200` (SSE) | project viewer of `run_id` |
+| `POST` | `/api/v1/runs/{run_id}/aggregations` | `202` | project operator of `run_id` |
+| `GET` | `/api/v1/aggregations/{aggregation_id}` | `200` | project viewer of `aggregation_id` |
+| `GET` | `/api/v1/aggregations/{aggregation_id}/results` | `200` | project viewer of `aggregation_id` |
+| `GET` | `/api/v1/aggregations/{aggregation_id}/results/{result_id}` | `200` | project viewer of `aggregation_id` |
+| `GET` | `/api/v1/review-items` | `200` | project viewer of query `aggregation_id` |
+| `POST` | `/api/v1/annotations` | `201` | project reviewer of body `snapshot_id` |
+| `POST` | `/api/v1/evaluations` | `202` | project operator of body `run_id` |
+| `GET` | `/api/v1/evaluations/{evaluation_id}` | `200` | project viewer of `evaluation_id` |
+| `GET` | `/api/v1/evaluations/{evaluation_id}/report` | `200` | project viewer of `evaluation_id` |
+| `POST` | `/api/v1/exports` | `202` | project operator of body `run_id` |
+| `GET` | `/api/v1/exports/{export_id}` | `200` | project viewer of `export_id` |
+| `GET` | `/api/v1/exports/{export_id}/download` | `200` | project viewer of `export_id` |
+| `POST` | `/api/v1/classify` | `200` | any global role or project membership |
+| `GET` | `/api/v1/methods` | `200` | any global role or project membership |
 | `GET` | `/api/v1/me` | `200` | any authenticated user |
 | `POST` | `/api/v1/me/password` | `204` | any authenticated user |
 | `GET` | `/api/v1/auth/session` | `200` | any authenticated user |
@@ -72,8 +76,20 @@ with `401` even on a safe method. `require_csrf_protection` additionally validat
 unsafe methods; `GET`, `HEAD`, `OPTIONS`, and `TRACE` return early without a CSRF check. Every route except
 `GET /me`, `GET /auth/session`, `POST /me/password`, and `POST /auth/logout` also carries
 `require_password_current`, which returns `403 password_change_required` while a local account still owes a
-password change. Per-route role dependencies (`require_viewer`, `require_reviewer`, `require_operator`)
-then narrow the capability, and the roles are hierarchical, so an operator satisfies a reviewer route.
+password change. Authorization then narrows the capability per route
+([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)). A project-scoped route resolves the
+project that owns the identifier named in the table — a path parameter, or the body or query field shown —
+and requires the caller's role in that project to be at least the listed project role. Project roles are
+hierarchical, so a project operator satisfies a reviewer route, and a global admin holds operator in every
+project. A caller with no role in the owning project receives `404 resource_not_found`, exactly as for a
+resource that does not exist; a member below the least role receives `403 forbidden`. The remaining routes
+check a global role, any grant, or authentication alone. [`13-auth-and-security.md`](13-auth-and-security.md)
+defines the role model.
+
+Every project representation — from `POST /projects`, `GET /projects`, and `GET /projects/{project_id}` — is
+an `AccessibleProject`: the `Project` fields plus `current_user_role`, the caller's effective project role,
+so a client can scope its controls without a second request. `GET /projects` is cursor-paginated in slug
+order and returns only the projects where the caller has a role.
 
 All three routers declare `ApiErrorEnvelope` as the documented response model for `400`, `401`, `403`,
 `404`, `409`, `413`, `422`, and `500` across every route, so the error contract is uniform in OpenAPI.

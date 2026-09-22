@@ -4,20 +4,38 @@ Authentication is required because the system supports imports, compute jobs, an
 
 ## Role model
 
-`Role` in [`models/user.py`](../src/gendertagger/models/user.py) defines four global roles:
+Authorization is scoped to projects ([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)).
+[`models/user.py`](../src/gendertagger/models/user.py) defines two hierarchical role vocabularies.
 
-- `viewer`: read datasets/results
+`ProjectRole` is held per project, through a membership in `project_memberships`, one role per user and
+project:
+
+- `viewer`: read the project and everything it owns
 - `reviewer`: viewer + create annotations
-- `operator`: reviewer + import snapshots, create runs/aggregations/exports
-- `admin`: user/project administration and destructive administrative operations
+- `operator`: reviewer + import snapshots, create runs/aggregations/evaluations/exports
 
-`gendertagger.api.authorization` ranks the roles hierarchically, so a higher role grants every lower
-capability, and exposes them as the `require_viewer`, `require_reviewer`, and `require_operator`
-dependencies. Authorization therefore lives in application dependencies rather than only hiding
-controls in the frontend.
+`GlobalRole` applies outside any one project:
 
-Roles are global rather than per-project. Project-scoped permissions are recorded in
-[`22-future-development.md`](22-future-development.md).
+- `operator`: create projects; the creator becomes the new project's `operator`. It grants no access to
+  any other project.
+- `admin`: `operator` capability in every project, plus project-membership administration
+
+A caller's effective role in a project is `operator` for a global `admin`, otherwise its membership role,
+otherwise none.
+
+[`api/authorization.py`](../src/gendertagger/api/authorization.py) enforces this in application
+dependencies rather than only hiding controls in the frontend. Each project-scoped route asks a
+`ProjectAccessGuard` for the caller's role in the project that owns the route's root identifier; every
+snapshot, run, aggregation, evaluation, and export has exactly one owning project. A resource that does not
+exist and a resource in a project where the caller has no role both return `404 resource_not_found`, so an
+identifier from another project reveals nothing. A member whose role is below the route's least role
+receives `403 forbidden`. `require_project_creator` and `require_admin` gate project creation and membership
+administration, and `require_any_grant` admits any caller holding a global role or a membership to the
+routes that read no project data. [`05-api.md`](05-api.md) lists the root identifier and least role of every
+route.
+
+Administrators manage memberships through the admin-only `/api/v1/projects/{project_id}/members` endpoints
+or the `gendertagger projects add-member`, `remove-member`, and `list-members` CLI commands.
 
 ## Data safety
 
@@ -55,7 +73,8 @@ Record security-relevant and scholarly changes such as:
 - run creation/cancellation
 - annotation creation/supersession
 - export creation
-- user/role changes
+- user/role changes, including project-membership grants and revocations, which are currently logged with
+  the acting administrator rather than kept as an append-only history
 
 Do not log secrets or unnecessarily duplicate sensitive source content.
 

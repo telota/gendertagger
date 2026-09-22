@@ -131,6 +131,10 @@ the phased plan that resumes application code.
 - `scripts/update_openapi_snapshot.py`, which owns the one rendering of the committed OpenAPI snapshot. It
   rewrites `tests/fixtures/openapi-v1.json`, and with `--check` it is what the contract test runs, so a stale
   snapshot now fails with the commands that fix it instead of a bare string diff.
+- `GET /api/v1/projects`, a cursor-paginated list of the projects the caller has a role in, and admin-only
+  `GET`, `PUT`, and `DELETE /api/v1/projects/{project_id}/members[/{user_id}]` plus the
+  `gendertagger projects add-member`, `remove-member`, and `list-members` CLI commands for managing
+  project memberships ([ADR-0033](docs/decisions/ADR-0033-project-scoped-membership-roles.md)).
 
 ### Changed
 
@@ -183,6 +187,15 @@ the phased plan that resumes application code.
   signed in. `POST /api/v1/me/password` now answers a wrong current password with
   `400 invalid_current_password` instead of `401 invalid_credentials`, so a `401` always means the session
   is gone.
+- **Breaking:** authorization is scoped to projects
+  ([ADR-0033](docs/decisions/ADR-0033-project-scoped-membership-roles.md)). Viewer, reviewer, and operator
+  are now project roles held through memberships; the global `Role` schema is renamed `GlobalRole` and keeps
+  only `operator`, which may create projects and becomes operator of each one it creates, and `admin`, which
+  holds operator in every project. A resource in a project where the caller has no role returns `404`. Project
+  responses are `AccessibleProject`, which adds the caller's `current_user_role`. `/methods` and `/classify`
+  require a global role or any membership, and `users create --role` is optional. Migration `20260921_0004`
+  adds `project_memberships` and deletes every global viewer and reviewer role without creating memberships,
+  so non-admin users see no projects until an administrator assigns them.
 - The browser client's Node pin moved from 22 to 26 (`engines` `^26.9.0`, image `node:26.9.0-alpine`, and
   `@types/node` 26), because Node 22 reaches end of life in April 2027 and Node 26 is supported until April
   2029 (decision D12 in [`docs/24-frontend-delivery-plan.md`](docs/24-frontend-delivery-plan.md)).

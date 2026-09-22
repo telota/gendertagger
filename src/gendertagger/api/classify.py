@@ -4,7 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 
-from gendertagger.api.authorization import require_viewer
+from gendertagger.api.authorization import require_any_grant
 from gendertagger.api.dependencies import get_classification_service
 from gendertagger.api.errors import ApiRequestError
 from gendertagger.models.classify import ClassifyNamesRequest, ClassifyNamesResponse
@@ -19,7 +19,7 @@ router = APIRouter(tags=["classification"])
 def classify_names(
     command: ClassifyNamesRequest,
     service: Annotated[DirectClassificationService, Depends(get_classification_service)],
-    _: Annotated[CurrentUser, Depends(require_viewer)],
+    _: Annotated[CurrentUser, Depends(require_any_grant)],
 ) -> ClassifyNamesResponse:
     """Classify one or more names synchronously across enabled methods."""
     try:

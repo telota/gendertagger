@@ -1,4 +1,4 @@
-"""Command-line provisioning for immutable method lookup assets and local-account users."""
+"""Command-line provisioning for method lookup assets, local-account users, and project members."""
 
 from __future__ import annotations
 
@@ -79,13 +79,15 @@ from gendertagger.models.artifact import (
 )
 from gendertagger.models.auth import normalize_username, validate_local_password_length
 from gendertagger.models.project import SHA256_PATTERN
-from gendertagger.models.user import Role
+from gendertagger.models.user import GlobalRole, ProjectRole
 from gendertagger.services.authentication import AuthenticationService, SessionLifetimePolicy
 from gendertagger.services.lookup_assets import (
     LookupAssetRegistrationService,
     RegisteredLookupAssetResolver,
 )
+from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.password_hashing import Argon2PasswordHasher
+from gendertagger.services.project_access import ProjectAccessService
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
 
@@ -142,7 +144,7 @@ class AssetCliSettings(BaseSettings):
 
 
 class UsersCliSettings(BaseSettings):
-    """Validated settings for local-account provisioning (ADR-0031)."""
+    """Validated settings for local-account and project-membership administration (ADR-0031, ADR-0033)."""
 
     model_config = SettingsConfigDict(
         env_prefix="GENDERTAGGER_",
@@ -715,10 +717,13 @@ def _build_parser() -> argparse.ArgumentParser:
     create_user.add_argument(
         "--role",
         action="append",
-        required=True,
+        default=[],
         dest="roles",
-        choices=sorted(role.value for role in Role),
-        help="Repeatable; pass once per assigned role.",
+        choices=sorted(role.value for role in GlobalRole),
+        help=(
+            "Repeatable global role (ADR-0033). Omit for a user who works only through project "
+            "memberships; grant those with 'projects add-member'."
+        ),
     )
     create_user.add_argument(
         "--password", help="Omit to generate and print a random initial password."
@@ -729,6 +734,22 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     reset_password.add_argument("--user-id", required=True, type=UUID)
     reset_password.add_argument("--password", help="Omit to generate and print a random password.")
+
+    projects = commands.add_parser("projects", help="Administer project memberships (ADR-0033)")
+    project_commands = projects.add_subparsers(dest="project_command", required=True)
+    add_member = project_commands.add_parser(
+        "add-member", help="Grant a local-account user a role in a project, or change it"
+    )
+    add_member.add_argument("--project", required=True, help="Project slug.")
+    add_member.add_argument("--username", required=True)
+    add_member.add_argument("--role", required=True, choices=[role.value for role in ProjectRole])
+    remove_member = project_commands.add_parser(
+        "remove-member", help="Revoke a local-account user's membership in a project"
+    )
+    remove_member.add_argument("--project", required=True, help="Project slug.")
+    remove_member.add_argument("--username", required=True)
+    list_members = project_commands.add_parser("list-members", help="List a project's members")
+    list_members.add_argument("--project", required=True, help="Project slug.")
     return parser
 
 
@@ -904,7 +925,7 @@ def _run_users(args: argparse.Namespace, settings: UsersCliSettings) -> str:
             validate_local_password_length(password)
             user = authentication_service.create_local_account(
                 display_name=str(args.display_name),
-                roles={Role(role) for role in args.roles},
+                roles={GlobalRole(role) for role in args.roles},
                 username=username,
                 password=password,
             )
@@ -923,12 +944,63 @@ def _run_users(args: argparse.Namespace, settings: UsersCliSettings) -> str:
         engine.dispose()
 
 
+def _run_projects(args: argparse.Namespace, settings: UsersCliSettings) -> str:
+    """Grant, revoke, or list project memberships (ADR-0033) and emit the result as JSON.
+
+    Projects are addressed by slug and members by local-account username. The admin-only
+    ``/api/v1/projects/{project_id}/members`` endpoints offer the same operations over HTTP.
+    """
+    engine = create_database_engine(settings.database_url.get_secret_value())
+    session_factory = create_session_factory(engine)
+    unit_of_work_factory: UnitOfWorkFactory = partial(SqlAlchemyUnitOfWork, session_factory)
+    access_service = ProjectAccessService(
+        unit_of_work_factory=unit_of_work_factory,
+        cursor_codec=CursorCodec(),
+    )
+    try:
+        with unit_of_work_factory() as unit_of_work:
+            project = unit_of_work.projects.get_project_by_slug(str(args.project))
+            credential = (
+                unit_of_work.auth.get_credential_by_username(normalize_username(str(args.username)))
+                if args.project_command != "list-members"
+                else None
+            )
+        if project is None:
+            msg = f"project {args.project!r} does not exist"
+            raise ValueError(msg)
+        if args.project_command == "list-members":
+            members = access_service.list_members(project.id)
+            return json.dumps(
+                [member.model_dump(mode="json") for member in members], sort_keys=True
+            )
+        if credential is None:
+            msg = f"user {args.username!r} does not exist"
+            raise ValueError(msg)
+        if args.project_command == "add-member":
+            member = access_service.set_member_role(
+                project.id,
+                credential.user_id,
+                ProjectRole(args.role),
+                actor_user_id=None,
+            )
+            return json.dumps(member.model_dump(mode="json"), sort_keys=True)
+        access_service.remove_member(project.id, credential.user_id, actor_user_id=None)
+        return json.dumps(
+            {"project_id": str(project.id), "user_id": str(credential.user_id)}, sort_keys=True
+        )
+    finally:
+        engine.dispose()
+
+
 def main(argv: Sequence[str] | None = None) -> int:
-    """Provision assets or local-account users and emit the result as one JSON line."""
+    """Provision assets, users, or project members and emit the result as one JSON line."""
     args = _build_parser().parse_args(argv)
     if args.command == "users":
         users_settings = UsersCliSettings()  # type: ignore[call-arg]  # Loaded from environment.
         payload = _run_users(args, users_settings)
+    elif args.command == "projects":
+        projects_settings = UsersCliSettings()  # type: ignore[call-arg]  # Loaded from environment.
+        payload = _run_projects(args, projects_settings)
     else:
         settings = AssetCliSettings()  # type: ignore[call-arg]  # Loaded from environment.
         payload = _run_assets(args, settings)

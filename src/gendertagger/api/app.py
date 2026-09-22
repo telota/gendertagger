@@ -38,6 +38,7 @@ from gendertagger.services.method_registry import default_method_registry
 from gendertagger.services.model_assets import RegisteredModelDirectoryResolver
 from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.password_hashing import Argon2PasswordHasher
+from gendertagger.services.project_access import ProjectAccessService
 from gendertagger.services.projects import ProjectService
 from gendertagger.services.review_items import ReviewItemService
 from gendertagger.services.runs import RunProvenance, RunService
@@ -91,6 +92,10 @@ def create_app(
         authentication_backend = DatabaseAuthenticationBackend(authentication_service)
     cursor_codec = CursorCodec()
     artifact_storage = LocalArtifactStorage(resolved_settings.artifact_root)
+    project_access_service = ProjectAccessService(
+        unit_of_work_factory=unit_of_work_factory,
+        cursor_codec=cursor_codec,
+    )
     project_service = ProjectService(
         unit_of_work_factory=unit_of_work_factory,
         artifact_storage=artifact_storage,
@@ -187,6 +192,7 @@ def create_app(
     application.state.authentication_backend = authentication_backend
     application.state.authentication_service = authentication_service
     application.state.project_service = project_service
+    application.state.project_access_service = project_access_service
     application.state.aggregation_service = aggregation_service
     application.state.evaluation_service = evaluation_service
     application.state.export_service = export_service

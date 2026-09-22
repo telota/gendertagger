@@ -6,6 +6,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.exc import IntegrityError
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 
@@ -21,6 +22,7 @@ EXPECTED_APPLICATION_TABLES = {
     "person_external_ids",
     "person_records",
     "predictions",
+    "project_memberships",
     "projects",
     "review_states",
     "runs",
@@ -152,3 +154,42 @@ def test_sliding_session_migration_caps_existing_sessions_at_their_original_expi
     assert row.keep_signed_in is False
     assert row.expires_at == original_expires_at
     assert row.absolute_expires_at == original_expires_at
+
+
+def test_membership_migration_keeps_only_operator_and_admin_global_roles(
+    postgres_database_factory: Callable[[], str],
+) -> None:
+    database_url = postgres_database_factory()
+    config = alembic_config(database_url)
+    command.upgrade(config, "20260921_0003")
+    user_ids = {role: uuid4() for role in ("viewer", "reviewer", "operator", "admin")}
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            for role, user_id in user_ids.items():
+                connection.execute(
+                    text("INSERT INTO users (id, display_name) VALUES (:id, :name)"),
+                    {"id": user_id, "name": f"Former {role}"},
+                )
+                connection.execute(
+                    text("INSERT INTO user_roles (user_id, role) VALUES (:id, :role)"),
+                    {"id": user_id, "role": role},
+                )
+
+        command.upgrade(config, "head")
+
+        with engine.connect() as connection:
+            remaining = set(connection.execute(text("SELECT role FROM user_roles")).scalars())
+            memberships = connection.execute(
+                text("SELECT count(*) FROM project_memberships")
+            ).scalar_one()
+        with pytest.raises(IntegrityError), engine.begin() as connection:
+            connection.execute(
+                text("INSERT INTO user_roles (user_id, role) VALUES (:id, 'viewer')"),
+                {"id": user_ids["viewer"]},
+            )
+    finally:
+        engine.dispose()
+
+    assert remaining == {"operator", "admin"}
+    assert memberships == 0

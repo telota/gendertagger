@@ -35,6 +35,7 @@ from gendertagger.models.project import (
     TabularImportProfile,
     TeiImportProfile,
 )
+from gendertagger.models.user import UserCreate
 from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.projects import ProjectService, SnapshotUpload
 from gendertagger.services.snapshot_import import SnapshotImportExecutor
@@ -113,6 +114,13 @@ def _executor(
     )
 
 
+def _creator_id(unit_of_work_factory: UnitOfWorkFactory) -> UUID:
+    with unit_of_work_factory() as unit_of_work:
+        creator = unit_of_work.users.add_user(UserCreate(display_name="Project creator"))
+        unit_of_work.commit()
+    return creator.id
+
+
 def test_snapshot_acceptance_rolls_back_every_flushed_database_row(
     postgres_engine: Engine,
     tmp_path: Path,
@@ -133,7 +141,8 @@ def test_snapshot_acceptance_rolls_back_every_flushed_database_row(
         ProjectCreate(
             slug=f"snapshot-acceptance-{uuid4().hex}",
             display_name="Snapshot acceptance fixture",
-        )
+        ),
+        creator_user_id=_creator_id(unit_of_work_factory),
     )
 
     flushed = _FlushedAcceptance()
@@ -238,7 +247,8 @@ def test_loose_tei_acceptance_and_import_round_trip_source_provenance(
         ProjectCreate(
             slug=f"loose-snapshot-{uuid4().hex}",
             display_name="Loose snapshot fixture",
-        )
+        ),
+        creator_user_id=_creator_id(unit_of_work_factory),
     )
     a_source = VALID_TEI.replace(b'xml:id="p2"', b'xml:id="a2"')
     b_source = VALID_TEI.replace(b'xml:id="p1"', b'xml:id="b1"')
@@ -294,7 +304,8 @@ def test_json_acceptance_and_import_round_trip_tei_equivalent_fields(
         ProjectCreate(
             slug=f"json-snapshot-{uuid4().hex}",
             display_name="JSON snapshot fixture",
-        )
+        ),
+        creator_user_id=_creator_id(unit_of_work_factory),
     )
     payload = json.dumps(
         [

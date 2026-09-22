@@ -18,6 +18,7 @@ EXPECTED_TABLES = {
     "person_external_ids",
     "person_records",
     "predictions",
+    "project_memberships",
     "projects",
     "review_states",
     "runs",

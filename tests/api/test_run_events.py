@@ -9,7 +9,7 @@ from pydantic import SecretStr
 
 from gendertagger.api.app import create_app
 from gendertagger.api.authentication import require_authenticated_user
-from gendertagger.api.dependencies import get_run_service
+from gendertagger.api.dependencies import get_project_access_service, get_run_service
 from gendertagger.api.run_events import (
     METHOD_EXECUTION_PROGRESS,
     METHOD_EXECUTION_STATE_CHANGED,
@@ -22,8 +22,9 @@ from gendertagger.api.run_events import (
 from gendertagger.api.settings import AppSettings
 from gendertagger.models.lifecycle import MethodExecutionStatus, RunStatus
 from gendertagger.models.run import Progress
-from gendertagger.models.user import CurrentUser, Role
+from gendertagger.models.user import CurrentUser, ProjectRole
 from gendertagger.services.persistence_errors import ResourceNotFoundError
+from gendertagger.services.project_access_repository import ProjectScope
 from gendertagger.services.runs import RunService
 from gendertagger.services.unit_of_work import UnitOfWork
 
@@ -81,11 +82,23 @@ def _unused_unit_of_work_factory() -> UnitOfWork:
     raise AssertionError("the event route test must not open persistence")
 
 
+class _GrantingProjectAccess:
+    """Grant the caller operator in every project without persistence."""
+
+    def effective_role(
+        self, user: CurrentUser, scope: ProjectScope, resource_id: UUID
+    ) -> ProjectRole:
+        return ProjectRole.operator
+
+    def has_any_grant(self, user: CurrentUser) -> bool:
+        return True
+
+
 def _viewer() -> CurrentUser:
     return CurrentUser(
         id=UUID("30000000-0000-0000-0000-000000000001"),
         display_name="Run event viewer",
-        roles={Role.viewer},
+        roles=set(),
     )
 
 
@@ -99,6 +112,7 @@ def _event_client(service: object) -> TestClient:
         unit_of_work_factory=_unused_unit_of_work_factory,
     )
     application.dependency_overrides[require_authenticated_user] = _viewer
+    application.dependency_overrides[get_project_access_service] = _GrantingProjectAccess
     application.dependency_overrides[get_run_service] = lambda: service
     return TestClient(application)
 

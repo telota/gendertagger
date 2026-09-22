@@ -33,6 +33,7 @@ from gendertagger.models.project import (
     SnapshotImportConfig,
     SnapshotImportLimits,
     SnapshotSourceMemberCreate,
+    TeiImportProfile,
 )
 from gendertagger.models.run import (
     MethodExecutionCreate,
@@ -40,7 +41,7 @@ from gendertagger.models.run import (
     RunCreate,
     TaskBatchCreate,
 )
-from gendertagger.models.user import Role, UserCreate
+from gendertagger.models.user import ProjectRole, UserCreate
 from gendertagger.services.evaluation_execution import EvaluationExecutor
 from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
@@ -81,7 +82,7 @@ def _seed_completed_reference_executions(
 ) -> tuple[UUID, UUID, tuple[UUID, ...]]:
     with unit_of_work_factory() as unit_of_work:
         user = unit_of_work.users.add_user(
-            UserCreate(display_name="Evaluation operator", roles={Role.operator})
+            UserCreate(display_name="Evaluation operator", roles=set())
         )
         project = unit_of_work.projects.add_project(
             ProjectCreate(
@@ -89,6 +90,7 @@ def _seed_completed_reference_executions(
                 display_name="Evaluation fixture",
             )
         )
+        unit_of_work.access.set_member_role(project.id, user.id, ProjectRole.operator)
         artifact = unit_of_work.artifacts.add_artifact(
             ArtifactCreate(
                 logical_type="source_tei",
@@ -99,7 +101,11 @@ def _seed_completed_reference_executions(
                 project_id=project.id,
             )
         )
-        import_config = SnapshotImportConfig(limits=SnapshotImportLimits())
+        # The legacy profile captures no structured name forms, which this fixture does not model.
+        import_config = SnapshotImportConfig(
+            profile=TeiImportProfile.tei_p5_person_register_v1,
+            limits=SnapshotImportLimits(),
+        )
         snapshot = unit_of_work.projects.add_snapshot(
             DatasetSnapshotCreate(
                 project_id=project.id,
@@ -216,6 +222,13 @@ def _seed_completed_reference_executions(
     return user.id, run.id, tuple(execution_ids)
 
 
+def _outsider_id(unit_of_work_factory: UnitOfWorkFactory) -> UUID:
+    with unit_of_work_factory() as unit_of_work:
+        outsider = unit_of_work.users.add_user(UserCreate(display_name="Other project member"))
+        unit_of_work.commit()
+    return outsider.id
+
+
 def test_queued_evaluation_executes_and_report_round_trips_through_http(
     postgres_engine: Engine,
     tmp_path: Path,
@@ -272,3 +285,19 @@ def test_queued_evaluation_executes_and_report_round_trips_through_http(
 
     missing_report_response = client.get(f"/api/v1/evaluations/{uuid4()}/report")
     assert missing_report_response.status_code == 404
+
+    application.state.authentication_backend = StaticAuthenticationBackend(
+        _outsider_id(unit_of_work_factory)
+    )
+    hidden_responses = [
+        client.get(f"/api/v1/evaluations/{evaluation_id}"),
+        client.get(f"/api/v1/evaluations/{evaluation_id}/report"),
+        client.post(
+            "/api/v1/evaluations",
+            json={
+                "run_id": str(run_id),
+                "method_execution_ids": [str(execution_id) for execution_id in execution_ids],
+            },
+        ),
+    ]
+    assert [response.status_code for response in hidden_responses] == [404, 404, 404]

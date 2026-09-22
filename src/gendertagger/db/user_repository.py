@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from gendertagger.db.reviews import UserRoleRow, UserRow
-from gendertagger.models.user import Role, User, UserCreate
+from gendertagger.models.user import GlobalRole, User, UserCreate
 
 
 class SqlAlchemyUserRepository:
@@ -40,7 +40,7 @@ class SqlAlchemyUserRepository:
         return self._user_from_row(row, roles)
 
     @staticmethod
-    def _user_from_row(row: UserRow, roles: set[Role]) -> User:
+    def _user_from_row(row: UserRow, roles: set[GlobalRole]) -> User:
         return User(
             id=row.id,
             display_name=row.display_name,

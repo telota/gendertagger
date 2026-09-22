@@ -8,7 +8,7 @@ from pydantic import SecretStr
 
 from gendertagger.api.app import create_app
 from gendertagger.api.authentication import require_authenticated_user, require_csrf_protection
-from gendertagger.api.dependencies import get_aggregation_service
+from gendertagger.api.dependencies import get_aggregation_service, get_project_access_service
 from gendertagger.api.settings import AppSettings
 from gendertagger.models.aggregation import (
     AggregatedResult,
@@ -20,13 +20,14 @@ from gendertagger.models.aggregation import (
 from gendertagger.models.api import CursorPage
 from gendertagger.models.classification import AgreementTier, CanonicalLabel, CertaintyTier
 from gendertagger.models.lifecycle import AggregationExecutionStatus
-from gendertagger.models.user import CurrentUser, Role
+from gendertagger.models.user import CurrentUser, ProjectRole
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.pagination import InvalidCursorError
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )
+from gendertagger.services.project_access_repository import ProjectScope
 from gendertagger.services.unit_of_work import UnitOfWork
 
 pytestmark = pytest.mark.unit
@@ -46,11 +47,23 @@ def _unused_unit_of_work_factory() -> UnitOfWork:
     raise AssertionError("the route test must not open persistence")
 
 
+class _GrantingProjectAccess:
+    """Grant the caller operator in every project without persistence."""
+
+    def effective_role(
+        self, user: CurrentUser, scope: ProjectScope, resource_id: UUID
+    ) -> ProjectRole:
+        return ProjectRole.operator
+
+    def has_any_grant(self, user: CurrentUser) -> bool:
+        return True
+
+
 def _operator() -> CurrentUser:
     return CurrentUser(
         id=UUID("60000000-0000-0000-0000-000000000001"),
         display_name="Aggregation operator",
-        roles={Role.operator},
+        roles=set(),
     )
 
 
@@ -64,6 +77,7 @@ def _client(service: object) -> TestClient:
         unit_of_work_factory=_unused_unit_of_work_factory,
     )
     application.dependency_overrides[require_authenticated_user] = _operator
+    application.dependency_overrides[get_project_access_service] = _GrantingProjectAccess
     application.dependency_overrides[require_csrf_protection] = lambda: None
     application.dependency_overrides[get_aggregation_service] = lambda: service
     return TestClient(application)

@@ -7,7 +7,7 @@ from functools import partial
 from io import BytesIO
 from pathlib import Path
 from typing import cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import Engine
@@ -18,6 +18,7 @@ from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.models.dispatch import BatchDispatchStatus
 from gendertagger.models.lifecycle import DatasetSnapshotStatus
 from gendertagger.models.project import ProjectCreate, SnapshotImportRequest
+from gendertagger.models.user import UserCreate
 from gendertagger.services.dispatch import OutboxRelay
 from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.projects import ProjectService
@@ -43,6 +44,13 @@ _VALID_TEI = b"""<?xml version="1.0" encoding="UTF-8"?>
   </listPerson></body></text>
 </TEI>
 """
+
+
+def _creator_id(unit_of_work_factory: UnitOfWorkFactory) -> UUID:
+    with unit_of_work_factory() as unit_of_work:
+        creator = unit_of_work.users.add_user(UserCreate(display_name="Project creator"))
+        unit_of_work.commit()
+    return creator.id
 
 
 def test_snapshot_import_runs_through_relay_and_real_worker(
@@ -76,7 +84,8 @@ def test_snapshot_import_runs_through_relay_and_real_worker(
         ProjectCreate(
             slug=f"snapshot-redis-{uuid4().hex}",
             display_name="Snapshot Redis e2e project",
-        )
+        ),
+        creator_user_id=_creator_id(factory),
     )
     snapshot = project_service.import_snapshot(
         project_id=project.id,

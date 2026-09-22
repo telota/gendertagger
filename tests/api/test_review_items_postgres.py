@@ -45,6 +45,7 @@ from gendertagger.models.project import (
     SnapshotImportConfig,
     SnapshotImportLimits,
     SnapshotSourceMemberCreate,
+    TeiImportProfile,
 )
 from gendertagger.models.review import (
     AnnotationCreate,
@@ -58,7 +59,7 @@ from gendertagger.models.run import (
     RunCreate,
     TaskBatchCreate,
 )
-from gendertagger.models.user import Role, UserCreate
+from gendertagger.models.user import ProjectRole, UserCreate
 from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
@@ -97,7 +98,7 @@ def _seed_review_items(
 ) -> tuple[UUID, UUID]:
     with unit_of_work_factory() as unit_of_work:
         reviewer = unit_of_work.users.add_user(
-            UserCreate(display_name="Review query operator", roles={Role.operator})
+            UserCreate(display_name="Review query operator", roles=set())
         )
         project = unit_of_work.projects.add_project(
             ProjectCreate(
@@ -105,6 +106,7 @@ def _seed_review_items(
                 display_name="Review query fixture",
             )
         )
+        unit_of_work.access.set_member_role(project.id, reviewer.id, ProjectRole.operator)
         artifact = unit_of_work.artifacts.add_artifact(
             ArtifactCreate(
                 logical_type="source_tei",
@@ -115,7 +117,11 @@ def _seed_review_items(
                 project_id=project.id,
             )
         )
-        import_config = SnapshotImportConfig(limits=SnapshotImportLimits())
+        # The legacy profile captures no structured name forms, which this fixture does not model.
+        import_config = SnapshotImportConfig(
+            profile=TeiImportProfile.tei_p5_person_register_v1,
+            limits=SnapshotImportLimits(),
+        )
         snapshot = unit_of_work.projects.add_snapshot(
             DatasetSnapshotCreate(
                 project_id=project.id,

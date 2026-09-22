@@ -184,10 +184,12 @@ card opening the creation modal.
 
 **Backend.** `POST /projects` creates a project from `slug` (pattern `^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$`),
 `display_name`, and optional `description` ([`models/project.py`](../src/gendertagger/models/project.py)).
+`GET /projects` serves the grid and the topbar switcher: a cursor-paginated list, in slug order, of the
+projects where the caller has a role, each carrying `current_user_role`. Team membership is per project, as
+the wireframe intends ([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)).
 
 **Gaps.**
 
-- **Gap (backend):** there is no `GET /projects`. The grid and the topbar switcher cannot be served.
 - **Gap (backend):** no per-project progress projection. "82 % abgeschlossen", "6.577 abgeschlossen", and
   "bearbeitet vor 2 Min." have no source. Progress is currently derivable only by walking
   snapshot → run → aggregation → review items.
@@ -449,7 +451,8 @@ trapped — the Vue port must add a focus trap and restore focus on close.
 
 ## Backend endpoint coverage
 
-All twenty-nine delivered `/api/v1` endpoints, and how the wireframe treats each.
+All thirty-three delivered `/api/v1` endpoints, and how the wireframe treats each. Project-scoped roles are
+checked against the project that owns the addressed resource.
 
 | Endpoint | Role | Wireframe treatment |
 |---|---|---|
@@ -458,13 +461,17 @@ All twenty-nine delivered `/api/v1` endpoints, and how the wireframe treats each
 | `POST /auth/login` | unauthenticated | **absent — no login screen** |
 | `POST /auth/logout` | authenticated | **absent** |
 | `POST /me/password` | authenticated | **absent — no password-change screen** |
-| `POST /projects` | operator | modal, missing `slug`/`description` |
+| `POST /projects` | global operator | modal, missing `slug`/`description` |
+| `GET /projects` | authenticated; own projects only | mocked card grid and switcher |
 | `GET /projects/{id}` | viewer | mocked in topbar |
+| `GET /projects/{id}/members` | global admin | **absent — no member screen** |
+| `PUT /projects/{id}/members/{user_id}` | global admin | **absent** |
+| `DELETE /projects/{id}/members/{user_id}` | global admin | **absent** |
 | `POST /projects/{id}/snapshots` | operator | partial — TEI/single only |
 | `GET /snapshots/{id}` | viewer | absent — no lifecycle shown |
 | `GET /snapshots/{id}/people` | viewer | mocked list, unsupported filters |
-| `GET /methods` | viewer | hardcoded, wrong roster |
-| `POST /classify` | viewer | **absent — no screen** |
+| `GET /methods` | any role or membership | hardcoded, wrong roster |
+| `POST /classify` | any role or membership | **absent — no screen** |
 | `POST /runs` | operator | mocked button |
 | `GET /runs/{id}` | viewer | mocked card |
 | `GET /runs/{id}/executions` | viewer | mocked per-method cards |
@@ -485,8 +492,10 @@ All twenty-nine delivered `/api/v1` endpoints, and how the wireframe treats each
 
 Authentication is fail-closed: every `/api/v1` route except `POST /auth/login` carries
 `require_csrf_protection`, and the default backend is the local account system from
-[ADR-0031](decisions/ADR-0031-local-database-authentication.md). Roles are hierarchical — `viewer` < `reviewer` <
-`operator` < `admin` ([`api/authorization.py`](../src/gendertagger/api/authorization.py)). The wireframe has
+[ADR-0031](decisions/ADR-0031-local-database-authentication.md). Project roles are hierarchical — `viewer` <
+`reviewer` < `operator` — and held per project; the global roles are `operator`, which may create projects,
+and `admin` ([`api/authorization.py`](../src/gendertagger/api/authorization.py),
+[ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)). The wireframe has
 no login, no session handling, and no role-conditional affordances; per
 [`17-frontend-integration.md`](17-frontend-integration.md) the UI hides or disables controls for convenience
 while the server authorizes.
@@ -643,6 +652,8 @@ Ordered by whether the Vue port is blocked without them.
 ### Blocking
 
 1. `GET /projects` — cursor-paginated project list. Blocks the shell, the switcher, and the Projekte screen.
+   **Delivered** with project-scoped visibility
+   ([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)).
 2. A per-person method-result read model — every method's `PredictionResult` for one person under one
    aggregation. Blocks the detail column on two screens. Candidate shape:
    `GET /aggregations/{id}/results/{result_id}/predictions`.
@@ -665,7 +676,8 @@ needs an ADR before it enters the API surface, per [`22-future-development.md`](
 
 1. **Resolve the two blocking semantic questions** — the automation threshold and the `uncertain`/`unknown`
    naming. They change screen content, not just wiring.
-2. **Add the three blocking backend endpoints** (project list, per-person method results, annotation history).
+2. **Add the three blocking backend endpoints** (project list — delivered — per-person method results,
+   annotation history).
 3. **Scaffold** Vite + Vue 3 + TypeScript, generate the OpenAPI client, wire CI drift checking.
 4. **Build the shell** — routing, session, roles, error envelope, tokens, primitives.
 5. **Import, Klassifikation, Aggregation**, in that order, including SSE. This is the first vertical slice

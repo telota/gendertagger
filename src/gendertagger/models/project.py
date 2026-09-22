@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator, m
 
 from gendertagger.models.common import UtcDatetime
 from gendertagger.models.lifecycle import DatasetSnapshotStatus
+from gendertagger.models.user import ProjectRole
 
 SHA256_PATTERN = r"^[0-9a-f]{64}$"
 PROJECT_SLUG_PATTERN = r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
@@ -240,6 +241,33 @@ class Project(ProjectCreate):
 
     id: UUID
     created_at: UtcDatetime
+
+
+class AccessibleProject(Project):
+    """A project as its caller sees it, with the caller's effective role in it (ADR-0033)."""
+
+    current_user_role: ProjectRole
+
+
+class ProjectMemberUpdate(BaseModel):
+    """Administrative command granting or changing one user's role in a project."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    role: ProjectRole
+
+
+class ProjectMember(BaseModel):
+    """Canonical read model for one user's membership in a project (ADR-0033)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    project_id: UUID
+    user_id: UUID
+    display_name: str = Field(min_length=1, max_length=200)
+    role: ProjectRole
+    created_at: UtcDatetime
+    updated_at: UtcDatetime
 
 
 class DatasetSnapshotCreate(BaseModel):

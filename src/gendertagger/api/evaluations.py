@@ -5,16 +5,17 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Response, status
 
-from gendertagger.api.authorization import require_operator, require_viewer
+from gendertagger.api.authorization import ProjectAccessGuard, get_project_access_guard
 from gendertagger.api.dependencies import get_evaluation_service
 from gendertagger.api.errors import ApiRequestError
 from gendertagger.models.evaluation import EvaluationCreateRequest, EvaluationExecution
-from gendertagger.models.user import CurrentUser
+from gendertagger.models.user import ProjectRole
 from gendertagger.services.evaluations import EvaluationService
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )
+from gendertagger.services.project_access_repository import ProjectScope
 
 router = APIRouter(tags=["evaluations"])
 
@@ -27,9 +28,10 @@ router = APIRouter(tags=["evaluations"])
 def create_evaluation(
     command: EvaluationCreateRequest,
     service: Annotated[EvaluationService, Depends(get_evaluation_service)],
-    _: Annotated[CurrentUser, Depends(require_operator)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
 ) -> EvaluationExecution:
     """Queue a durable evaluation over exact completed method executions."""
+    access.require(ProjectScope.run, command.run_id, ProjectRole.operator)
     try:
         return service.create_evaluation(command)
     except ResourceNotFoundError as error:
@@ -46,9 +48,10 @@ def create_evaluation(
 def get_evaluation(
     evaluation_id: UUID,
     service: Annotated[EvaluationService, Depends(get_evaluation_service)],
-    _: Annotated[CurrentUser, Depends(require_viewer)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
 ) -> EvaluationExecution:
     """Read one current evaluation lifecycle resource."""
+    access.require(ProjectScope.evaluation, evaluation_id, ProjectRole.viewer)
     try:
         return service.get_evaluation(evaluation_id)
     except ResourceNotFoundError as error:
@@ -59,9 +62,10 @@ def get_evaluation(
 def get_evaluation_report(
     evaluation_id: UUID,
     service: Annotated[EvaluationService, Depends(get_evaluation_service)],
-    _: Annotated[CurrentUser, Depends(require_viewer)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
 ) -> Response:
     """Return a completed evaluation's report bytes by artifact reference."""
+    access.require(ProjectScope.evaluation, evaluation_id, ProjectRole.viewer)
     try:
         content, media_type = service.get_report(evaluation_id)
     except ResourceNotFoundError as error:

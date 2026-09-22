@@ -34,7 +34,10 @@ authentication tables, for 23 tables mapped under `gendertagger.db`:
   `aggregated_results`;
 - evaluation (`db/evaluations.py`): `evaluation_executions`, `evaluation_method_executions`;
 - export (`db/exports.py`): `export_executions`;
-- review (`db/reviews.py`): `users`, `user_roles`, `annotations`, `review_states`;
+- review (`db/reviews.py`): `users`, `user_roles`, `project_memberships`, `annotations`,
+  `review_states`; `user_roles` holds only the global `operator` and `admin` roles, and
+  `project_memberships` holds one project role per `(project_id, user_id)`, per
+  [ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md);
 - authentication (`db/auth.py`): `user_credentials`, `user_sessions`, per
   [ADR-0031](decisions/ADR-0031-local-database-authentication.md);
 - artifacts (`db/artifacts.py`): `artifacts`;

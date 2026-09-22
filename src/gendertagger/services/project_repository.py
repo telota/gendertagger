@@ -27,6 +27,19 @@ class ProjectRepository(Protocol):
         """Return a project by ID, or ``None`` when absent."""
         ...
 
+    def get_project_by_slug(self, slug: str) -> Project | None:
+        """Return a project by its unique slug, or ``None`` when absent."""
+        ...
+
+    def list_projects(
+        self,
+        *,
+        limit: int,
+        after_slug: str | None = None,
+    ) -> Sequence[Project]:
+        """Return one keyset slice of every project in unique-slug order."""
+        ...
+
     def add_snapshot(self, command: DatasetSnapshotCreate) -> DatasetSnapshot:
         """Persist and return a new pending dataset snapshot."""
         ...

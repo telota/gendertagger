@@ -17,16 +17,16 @@ is deliberately not asserted here.
 ## Where the work actually starts
 
 Phase 8's backend prerequisites are met. Of the three practical preconditions for the client, one is met and
-two are not.
+two are partly met.
 
 | Precondition | State | Blocks |
 |---|---|---|
 | A real `AuthenticationBackend` | **Met.** `DatabaseAuthenticationBackend` is the default: admin-provisioned local accounts and server-side sessions ([ADR-0031](decisions/ADR-0031-local-database-authentication.md)). | — |
-| Three missing read endpoints | **Not met.** Project list, per-person method results, annotation history. | Shell, review detail panel, audit view |
-| Blocking semantic decisions | **Partly taken.** D1–D4 resolved; D5 and D6 deliberately open. See [Decisions](#decisions-taken). | `GET /projects` shape (D6); Manuell annotieren (D5) |
+| Three missing read endpoints | **Partly met.** `GET /projects` is delivered ([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)); per-person method results and annotation history are not. | Review detail panel, audit view |
+| Blocking semantic decisions | **Partly taken.** D1–D4 and D6 resolved; D5 deliberately open. See [Decisions](#decisions-taken). | Manuell annotieren (D5) |
 
-M1 is delivered and M2 is not blocked, since a real authentication backend is in place. M3 onward wait on
-the missing read endpoints.
+M1 is delivered and M2 is not blocked, since a real authentication backend is in place. M3 can use the
+project list; M5 and M6 wait on the two remaining read endpoints.
 
 ## Existing scaffolding and what it still needs
 
@@ -117,10 +117,10 @@ than reconstructed at the end.
 
 | ID | Milestone | Size | Hard dependencies |
 |---|---|---|---|
-| M0 | Decisions and backend prerequisites | M | D6 before `GET /projects` ships; three read endpoints |
+| M0 | Decisions and backend prerequisites | M | the two remaining read endpoints |
 | M1 | Scaffold and transport | S | none — D3, D8, D11, D12 all resolved |
 | M2 | Application shell | M | M1; a working auth backend |
-| M3 | Projects and import | M | M2; `GET /projects` (D6) |
+| M3 | Projects and import | M | M2 |
 | M4 | Runs and aggregation | L | M3 |
 | M5 | Review workbench | L | M4; per-person method results |
 | M6 | Person browser and audit view | M | M5; annotation history endpoint; **D5 (open)** |
@@ -134,20 +134,24 @@ than reconstructed at the end.
 
 **Status.** In progress. D1 is implemented: `DatabaseAuthenticationBackend` is the default backend,
 `gendertagger users create` provisions accounts, and the generated transport already covers the login,
-logout, and password-change endpoints. D6, the three read endpoints, the written confirmation of the scope
-exclusions, and the two [outstanding assignments](#outstanding-assignments) remain.
+logout, and password-change endpoints. D6 is implemented: project roles come from per-project
+memberships, and `GET /projects` lists only the caller's projects
+([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)). The two remaining read endpoints, the
+written confirmation of the scope exclusions, and the two [outstanding assignments](#outstanding-assignments)
+remain.
 
 **Work.**
 
-- D6 before `GET /projects` is specified. D1, D2, D3, and D4 are resolved, and D3 is recorded as
-  [ADR-0030](decisions/ADR-0030-bilingual-client-with-untranslated-canonical-vocabulary.md).
+- D1, D2, D3, D4, and D6 are resolved. D3 is recorded as
+  [ADR-0030](decisions/ADR-0030-bilingual-client-with-untranslated-canonical-vocabulary.md) and D6 as
+  [ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md).
 - Implement D1 per [ADR-0031](decisions/ADR-0031-local-database-authentication.md): admin-provisioned local
   accounts, DB-backed sessions, admin-only password reset. The same backend serves development and
   production; there is no separate throwaway development backend. **Done.**
 - Apply D2 to the screen content of Import, Übersicht, and Einstellungen before those screens are designed
   in detail — the threshold control is removed, not reskinned.
 - Implement the three blocking read endpoints from
-  [`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md): `GET /projects`, a per-person
+  [`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md): `GET /projects` (**done**), a per-person
   method-result read model, and annotation history.
 - Confirm the v1 scope exclusions in writing, so the wireframe's unsupported features are not silently
   expected.
@@ -193,6 +197,8 @@ contract change fails CI.
   [`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md).
 - Session handling against `GET /me` and `GET /auth/session`: login with a "keep me signed in" checkbox
   (unchecked by default), logout, role-aware hiding and disabling, and the forced password change (D1).
+  Project controls follow `current_user_role` on the current project; only project creation and membership
+  administration follow the global roles on `GET /me` (D6).
 - Recovery from a `401` at any moment: keep the unsent decision, offer an inline sign-in, and retry the
   request rather than redirecting away and losing the user's place (D1). The login form handles its own
   failures, `401 invalid_credentials` and the gateway's `429 rate_limited` with its `Retry-After`, so the
@@ -219,7 +225,8 @@ both themes; an expired session and a server error both render correctly.
 
 **Work.**
 
-- Project list, project creation including `slug` and `description`, project switcher.
+- Project list and switcher from `GET /projects`, which returns only the caller's projects with the caller's
+  role in each; project creation including `slug` and `description`, offered to global operators (D6).
 - Import with the full `source_format` × `packaging` matrix and explicit profile selection.
 - The asynchronous snapshot lifecycle: `202` → poll → ready or failed, with `failure_diagnostic` surfaced.
 - Upload limits shown before upload and on `413`.
@@ -447,6 +454,28 @@ and an exact subset of executions — remains available as an advanced action.
 - Auto-creation must be idempotent and must fail visibly, not silently, when the execution set is not
   aggregatable — `POST /runs/{id}/aggregations` returns `409` in that case.
 
+### D6 — Project visibility and role scope
+
+**Resolved and implemented: project-scoped membership roles.** Recorded as
+[ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md). Team membership is per project, as the
+wireframe states. Viewer, reviewer, and operator are project roles held through memberships; only two global
+roles remain — `operator`, which may create projects and becomes operator of each one it creates, and
+`admin`, which holds operator in every project and administers memberships.
+
+**Consequences.**
+
+- `GET /projects` lists only the projects where the caller has a role, cursor-paginated in slug order. Every
+  project representation carries `current_user_role`, the caller's effective role, which the shell uses to
+  scope controls for the current project.
+- A resource in a project the caller does not belong to returns `404`, exactly like one that does not exist;
+  a member below a route's least role receives `403`. The client treats both as it already treats missing
+  resources and forbidden actions.
+- Memberships are managed by administrators through admin-only `/projects/{project_id}/members` endpoints
+  and the `gendertagger projects` CLI. No v1 screen manages them; an administrator screen would first need a
+  user directory ([`22-future-development.md`](22-future-development.md)).
+- The upgrade drops the global viewer and reviewer roles and assigns no memberships, so every deployment
+  must assign project memberships after migrating.
+
 ### Architectural decisions
 
 All resolved. They are binding on
@@ -535,9 +564,10 @@ WCAG 2.2.1 through its "turn off" provision.
 
 ## Decisions still open
 
-Two decisions remain, D5 and D6, both deliberately deferred, plus two administrative assignments. D1 is
-resolved — see [ADR-0031](decisions/ADR-0031-local-database-authentication.md). What follows is what each
-costs and when it must be answered.
+One decision remains, D5, deliberately deferred, plus two administrative assignments. D1 and D6 are
+resolved — see [ADR-0031](decisions/ADR-0031-local-database-authentication.md) and
+[ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md). What follows is what each costs and when
+it must be answered.
 
 ### D5 — Data source for "Manuell annotieren"
 
@@ -551,21 +581,6 @@ regardless, so M6 is a second binding of an existing component. Decide before M6
 aggregation, and the screen inherits the full filter set for free. Choosing `snapshots/people` keeps
 browsing independent of any run but requires new server-side filter and search support on that endpoint —
 a backend change that would need to be scheduled.
-
-### D6 — Project visibility and role scope
-
-Roles are currently global (`viewer` < `reviewer` < `operator` < `admin`); project-scoped permissions are
-deferred in [`22-future-development.md`](22-future-development.md). The wireframe nevertheless states that
-team membership is per project.
-
-**Blocks the `GET /projects` contract, and therefore M0 and M3.** This is the one open decision with a real
-deferral cost: the endpoint cannot be specified without it, and narrowing the response later is a breaking
-change for any client already relying on it.
-
-**Interim position if it stays open past M0.** Ship `GET /projects` returning every project to any
-authenticated viewer, document it as provisional in the OpenAPI description, and keep per-project
-membership language out of the UI until scoped permissions exist. Record that narrowing is anticipated, so
-it is not read as a regression later.
 
 ### Outstanding assignments
 
@@ -600,7 +615,8 @@ expectations. Each is analysed in [`23-wireframe-ui-inventory.md`](23-wireframe-
 |---|---|---|
 | No real authentication provider | Client cannot ship regardless of its completeness | Resolved by D1: the local account backend (ADR-0031) is implemented and is the default |
 | Aggregation is invisible in the accepted design | Users expect review immediately after classification | Resolved by D4: auto-create the default aggregation, keep the step legible in the route and the UI |
-| D6 left open while `GET /projects` is implemented | Narrowing the response later is a breaking contract change | Ship it provisional and documented as such, or answer D6 before M0 completes |
+| D6 left open while `GET /projects` is implemented | Narrowing the response later is a breaking contract change | Resolved by D6: `GET /projects` shipped with its final visibility rule (ADR-0033) |
+| The membership upgrade removes non-admin access | Users see no projects until an administrator assigns memberships | Plan membership assignment with `gendertagger projects add-member` as part of each deployment's upgrade |
 | Tier vocabulary is unfamiliar to reviewers | Six certainty tiers replace one intuitive percentage | Glosses per D3, and two clearly separated queue entry points rather than six raw filters |
 | Wireframe promises unbuilt features | Stakeholder expectation gap at delivery | Confirm the scope exclusions in writing at M0 |
 | Frontend dependency tree meets a provenance-strict repository | SBOM and licence review friction late in delivery | Set the dependency budget (D9) before M2 |
@@ -612,12 +628,11 @@ expectations. Each is analysed in [`23-wireframe-ui-inventory.md`](23-wireframe-
 
 ## Immediate next steps
 
-1. Decide D6 before `GET /projects` is specified.
-2. Implement the three blocking read endpoints.
-3. Confirm the v1 scope exclusions with the stakeholders who reviewed the wireframe, and confirm with them
+1. Implement the two remaining blocking read endpoints: per-person method results and annotation history.
+2. Confirm the v1 scope exclusions with the stakeholders who reviewed the wireframe, and confirm with them
    that the threshold control is removed rather than redesigned (D2) — this is the most visible change
    against the accepted wireframe.
-4. Appoint the accessibility owner and confirm whether an accessibility statement is legally required.
+3. Appoint the accessibility owner and confirm whether an accessibility statement is legally required.
    Both are organisational, both gate M0, and neither is resolvable from inside the repository.
-5. Begin M2 in parallel with items 1–4. Its hard dependencies, M1 and a working authentication backend, are
+4. Begin M2 in parallel with items 1–3. Its hard dependencies, M1 and a working authentication backend, are
    both in place; its overlay primitives still need the headless accessibility library chosen (D9).

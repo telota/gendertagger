@@ -9,6 +9,7 @@ from pydantic import SecretStr
 from starlette.datastructures import Headers
 
 from gendertagger.api.app import create_app
+from gendertagger.api.authorization import ProjectAccessGuard
 from gendertagger.api.errors import ApiRequestError
 from gendertagger.api.projects import import_snapshot
 from gendertagger.api.settings import AppSettings
@@ -21,7 +22,9 @@ from gendertagger.models.project import (
     TabularImportProfile,
     TeiImportProfile,
 )
-from gendertagger.models.user import CurrentUser, Role
+from gendertagger.models.user import CurrentUser, ProjectRole
+from gendertagger.services.project_access import ProjectAccessService
+from gendertagger.services.project_access_repository import ProjectScope
 from gendertagger.services.projects import (
     InvalidSnapshotSourceError,
     ProjectService,
@@ -76,8 +79,17 @@ def _operator() -> CurrentUser:
     return CurrentUser(
         id=UUID("a2f03480-77a7-4f24-82cb-07604d5c2483"),
         display_name="Snapshot operator",
-        roles={Role.operator},
+        roles=set(),
     )
+
+
+class _GrantingProjectAccess:
+    """Grant the caller operator in every project without persistence."""
+
+    def effective_role(
+        self, user: CurrentUser, scope: ProjectScope, resource_id: UUID
+    ) -> ProjectRole:
+        return ProjectRole.operator
 
 
 def _upload(filename: str, content: bytes, media_type: str) -> UploadFile:
@@ -100,7 +112,10 @@ def _call_import(
         project_id=PROJECT_ID,
         source=uploads,
         service=cast(ProjectService, service),
-        _=_operator(),
+        access=ProjectAccessGuard(
+            user=_operator(),
+            service=cast(ProjectAccessService, _GrantingProjectAccess()),
+        ),
         source_format=source_format,
         packaging=packaging,
         profile=profile,

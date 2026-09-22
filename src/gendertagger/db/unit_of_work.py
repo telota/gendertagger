@@ -11,6 +11,7 @@ from gendertagger.db.auth_repository import SqlAlchemyAuthRepository
 from gendertagger.db.dispatch_repository import SqlAlchemyDispatchRepository
 from gendertagger.db.evaluation_repository import SqlAlchemyEvaluationRepository
 from gendertagger.db.export_repository import SqlAlchemyExportRepository
+from gendertagger.db.project_access_repository import SqlAlchemyProjectAccessRepository
 from gendertagger.db.project_repository import SqlAlchemyProjectRepository
 from gendertagger.db.review_repository import SqlAlchemyReviewRepository
 from gendertagger.db.run_repository import SqlAlchemyRunRepository
@@ -84,6 +85,11 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
     def exports(self) -> SqlAlchemyExportRepository:
         """Return export persistence bound to the active session."""
         return SqlAlchemyExportRepository(self._require_session())
+
+    @property
+    def access(self) -> SqlAlchemyProjectAccessRepository:
+        """Return project ownership and membership persistence bound to the active session."""
+        return SqlAlchemyProjectAccessRepository(self._require_session())
 
     @property
     def users(self) -> SqlAlchemyUserRepository:

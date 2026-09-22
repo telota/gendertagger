@@ -15,7 +15,7 @@ from gendertagger.api.authentication import (
 )
 from gendertagger.api.router import create_api_router
 from gendertagger.api.settings import AppSettings
-from gendertagger.models.user import CurrentUser, Role, User
+from gendertagger.models.user import CurrentUser, GlobalRole, User
 from gendertagger.services.unit_of_work import UnitOfWork
 from gendertagger.services.user_repository import UserRepository
 
@@ -76,7 +76,7 @@ def _user(*, is_active: bool = True) -> User:
     return User(
         id=USER_ID,
         display_name="API Reviewer",
-        roles={Role.reviewer},
+        roles={GlobalRole.operator},
         is_active=is_active,
         created_at=NOW,
         updated_at=NOW,
@@ -161,7 +161,7 @@ def test_me_exposes_typed_principal_without_persistence_fields() -> None:
     assert response.json() == {
         "id": str(USER_ID),
         "display_name": "API Reviewer",
-        "roles": [Role.reviewer.value],
+        "roles": [GlobalRole.operator.value],
     }
 
 

@@ -190,15 +190,20 @@ Adding one needs outbound email, which the repository does not have. The reset t
 and short-lived, and using it must revoke the account's existing sessions, as the administrative reset
 already does.
 
-### Project-scoped role permissions
+### User directory for membership administration
 
-`Role` is global: a `reviewer` is a reviewer everywhere. Multi-tenant or multi-institution deployments
-would need permissions scoped per project.
+Project roles are held through memberships
+([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)). The admin-only
+`PUT /api/v1/projects/{project_id}/members/{user_id}` addresses the member by user ID, but no endpoint lists
+users, so only the CLI, which addresses members by username, is practical today. An administrator screen
+would need an admin-only user directory with search, and a decision about how much of it viewers may see.
 
-The design constraint is already respected — authorization lives in application dependencies rather than
-in the UI — so scoping is a change to how a role is resolved for a request, not a rewrite of every
-endpoint. Role resolution would need a project context, and every project-scoped resource would need to
-derive that context unambiguously.
+### Append-only history of role and membership changes
+
+Membership grants, role changes, and revocations are logged with the acting administrator, and a
+membership row keeps only its creation and last-update times. Global role assignment through
+`gendertagger users create` is not recorded at all. A durable, queryable audit trail would append one
+immutable record per change instead, mirroring how annotations supersede rather than overwrite.
 
 ### Separate machine and API token flow
 

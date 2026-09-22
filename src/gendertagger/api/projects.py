@@ -6,8 +6,13 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from pydantic import ValidationError
 
-from gendertagger.api.authorization import require_operator, require_viewer
-from gendertagger.api.dependencies import get_project_service
+from gendertagger.api.authentication import require_authenticated_user
+from gendertagger.api.authorization import (
+    ProjectAccessGuard,
+    get_project_access_guard,
+    require_project_creator,
+)
+from gendertagger.api.dependencies import get_project_access_service, get_project_service
 from gendertagger.api.errors import ApiRequestError
 from gendertagger.models.api import CursorPage
 from gendertagger.models.person import PersonRecord
@@ -15,20 +20,22 @@ from gendertagger.models.project import (
     DEFAULT_SOURCE_FORMAT,
     DEFAULT_SOURCE_PACKAGING,
     DEFAULT_TEI_IMPORT_PROFILE,
+    AccessibleProject,
     DatasetSnapshot,
     ImportProfile,
-    Project,
     ProjectCreate,
     SnapshotImportRequest,
     SourceFormat,
     SourcePackaging,
 )
-from gendertagger.models.user import CurrentUser
+from gendertagger.models.user import CurrentUser, ProjectRole
 from gendertagger.services.pagination import InvalidCursorError
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )
+from gendertagger.services.project_access import ProjectAccessService
+from gendertagger.services.project_access_repository import ProjectScope
 from gendertagger.services.projects import (
     InvalidSnapshotSourceError,
     ProjectService,
@@ -40,27 +47,48 @@ from gendertagger.storage.local import ArtifactTooLargeError
 router = APIRouter(tags=["projects"])
 
 
-@router.post("/projects", response_model=Project, status_code=status.HTTP_201_CREATED)
+@router.post("/projects", response_model=AccessibleProject, status_code=status.HTTP_201_CREATED)
 def create_project(
     command: ProjectCreate,
     service: Annotated[ProjectService, Depends(get_project_service)],
-    _: Annotated[CurrentUser, Depends(require_operator)],
-) -> Project:
-    """Create one editorial project as an operator."""
-    return service.create_project(command)
+    creator: Annotated[CurrentUser, Depends(require_project_creator)],
+) -> AccessibleProject:
+    """Create one editorial project and make its creator the project operator."""
+    return service.create_project(command, creator_user_id=creator.id)
 
 
-@router.get("/projects/{project_id}", response_model=Project)
+@router.get("/projects", response_model=CursorPage[AccessibleProject])
+def list_projects(
+    service: Annotated[ProjectAccessService, Depends(get_project_access_service)],
+    user: Annotated[CurrentUser, Depends(require_authenticated_user)],
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    cursor: Annotated[str | None, Query(max_length=2048)] = None,
+) -> CursorPage[AccessibleProject]:
+    """List the projects the caller has a role in, in slug order, with that role."""
+    try:
+        return service.list_projects(user, limit=limit, cursor=cursor)
+    except InvalidCursorError as error:
+        raise ApiRequestError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            code="validation_error",
+            message="The cursor is invalid.",
+            details={"reason": "invalid_cursor"},
+        ) from error
+
+
+@router.get("/projects/{project_id}", response_model=AccessibleProject)
 def get_project(
     project_id: UUID,
     service: Annotated[ProjectService, Depends(get_project_service)],
-    _: Annotated[CurrentUser, Depends(require_viewer)],
-) -> Project:
-    """Read one project without exposing persistence models."""
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
+) -> AccessibleProject:
+    """Read one project with the caller's role in it."""
+    role = access.require(ProjectScope.project, project_id, ProjectRole.viewer)
     try:
-        return service.get_project(project_id)
+        project = service.get_project(project_id)
     except ResourceNotFoundError as error:
         raise _not_found() from error
+    return AccessibleProject(**project.model_dump(), current_user_role=role)
 
 
 @router.post(
@@ -79,12 +107,13 @@ def import_snapshot(
         ),
     ],
     service: Annotated[ProjectService, Depends(get_project_service)],
-    _: Annotated[CurrentUser, Depends(require_operator)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
     source_format: Annotated[SourceFormat, Form()] = DEFAULT_SOURCE_FORMAT,
     packaging: Annotated[SourcePackaging, Form()] = DEFAULT_SOURCE_PACKAGING,
     profile: Annotated[ImportProfile, Form()] = DEFAULT_TEI_IMPORT_PROFILE,
 ) -> DatasetSnapshot:
     """Durably stage bounded sources and queue their snapshot import."""
+    access.require(ProjectScope.project, project_id, ProjectRole.operator)
     try:
         return service.import_snapshot(
             project_id=project_id,
@@ -129,9 +158,10 @@ def import_snapshot(
 def get_snapshot(
     snapshot_id: UUID,
     service: Annotated[ProjectService, Depends(get_project_service)],
-    _: Annotated[CurrentUser, Depends(require_viewer)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
 ) -> DatasetSnapshot:
     """Read one immutable dataset snapshot lifecycle resource."""
+    access.require(ProjectScope.snapshot, snapshot_id, ProjectRole.viewer)
     try:
         return service.get_snapshot(snapshot_id)
     except ResourceNotFoundError as error:
@@ -145,11 +175,12 @@ def get_snapshot(
 def list_people(
     snapshot_id: UUID,
     service: Annotated[ProjectService, Depends(get_project_service)],
-    _: Annotated[CurrentUser, Depends(require_viewer)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
     cursor: Annotated[str | None, Query(max_length=2048)] = None,
 ) -> CursorPage[PersonRecord]:
     """List snapshot people in stable TEI-ID order."""
+    access.require(ProjectScope.snapshot, snapshot_id, ProjectRole.viewer)
     try:
         return service.list_people(snapshot_id, limit=limit, cursor=cursor)
     except ResourceNotFoundError as error:

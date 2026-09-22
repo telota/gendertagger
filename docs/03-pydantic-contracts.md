@@ -31,7 +31,7 @@ read, command, and message models are additionally frozen.
 | `models/classification.py` | `CanonicalLabel`, `PredictionStatus`, `CertaintyTier`, `AgreementTier`, `LlmSelfReportedCertainty`, `PredictionResult` |
 | `models/lifecycle.py` | Status enums for snapshots, runs, method executions, aggregations, evaluations, exports, and task batches |
 | `models/person.py` | `PersonNameType`, `PersonNameForm`, `PersonEvent`, `PersonInput`, `ImportedPerson`, `PersonRecord` |
-| `models/project.py` | Project, dataset-snapshot, source-manifest, and snapshot-import contracts |
+| `models/project.py` | Project, project-membership, dataset-snapshot, source-manifest, and snapshot-import contracts |
 | `models/method.py` | `MethodConfidenceRange`, `MethodDescriptor`, `METHOD_NAME_PATTERN` |
 | `models/run.py` | `Progress`, run, method-execution, task-batch, prediction, and SSE-event contracts |
 | `models/aggregation.py` | Reference-aggregation decision, result, and execution contracts |
@@ -42,7 +42,7 @@ read, command, and message models are additionally frozen.
 | `models/artifact.py` | Artifact records plus compiled-lookup and model-manifest metadata |
 | `models/classify.py` | Synchronous on-demand classification request and response |
 | `models/api.py` | `ApiErrorDetail`, `ApiErrorEnvelope`, `CursorPage` |
-| `models/user.py` | `Role`, `CurrentUser`, `UserCreate`, `User` |
+| `models/user.py` | `GlobalRole`, `ProjectRole`, `CurrentUser`, `UserCreate`, `User` |
 | `models/auth.py` | Local-account `LoginRequest`, `ChangePasswordRequest`, `CurrentSession`, `LocalCredential`, `UserSession`, and username/password validation |
 | `models/common.py` | `UtcDatetime`, `canonical_json_sha256` |
 | `models/queues.py` | Operational queue-routing vocabulary |
@@ -594,24 +594,56 @@ Use summary response models for list views and detail response models for large/
 ### Current user
 
 ```python
-class Role(StrEnum):
+class GlobalRole(StrEnum):
+    operator = "operator"
+    admin = "admin"
+
+
+class ProjectRole(StrEnum):
     viewer = "viewer"
     reviewer = "reviewer"
     operator = "operator"
-    admin = "admin"
 ```
 
-Roles are persisted independently of the concrete authentication provider.
+Both vocabularies are hierarchical in declaration order, and `grants(required)` answers whether a role
+includes another's capabilities. Roles are persisted independently of the concrete authentication provider:
+global roles in `user_roles`, project roles in `project_memberships`
+([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)).
 
 ```python
 class CurrentUser(BaseModel):
     id: UUID
     display_name: str
-    roles: set[Role]
+    roles: set[GlobalRole]
 ```
 
 The exact identity provider is infrastructure: local-account credentials and sessions live in
-`models/auth.py` so `CurrentUser` stays provider-neutral. Phase 3 exposes global roles only; project-scoped permissions remain deferred until their semantics are defined. Services consume this explicit authenticated principal.
+`models/auth.py` so `CurrentUser` stays provider-neutral. `CurrentUser` carries only global roles; a
+caller's role in a project is resolved per request and returned on each project representation. Services
+consume this explicit authenticated principal.
+
+### Project access
+
+```python
+class AccessibleProject(Project):
+    current_user_role: ProjectRole
+
+
+class ProjectMemberUpdate(BaseModel):
+    role: ProjectRole
+
+
+class ProjectMember(BaseModel):
+    project_id: UUID
+    user_id: UUID
+    display_name: str
+    role: ProjectRole
+    created_at: UtcDatetime
+    updated_at: UtcDatetime
+```
+
+`AccessibleProject` is the public representation of a project: the persisted fields plus the caller's
+effective role. `ProjectMember` joins a membership to the member's display name for administration.
 
 ### Review concurrency
 ```python

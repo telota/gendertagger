@@ -6,9 +6,11 @@ from pydantic import SecretStr
 
 from gendertagger.api.app import create_app
 from gendertagger.api.authentication import require_authenticated_user
+from gendertagger.api.dependencies import get_project_access_service
 from gendertagger.api.settings import AppSettings
 from gendertagger.models.api import ApiErrorEnvelope
-from gendertagger.models.user import CurrentUser, Role
+from gendertagger.models.user import CurrentUser, ProjectRole
+from gendertagger.services.project_access_repository import ProjectScope
 from gendertagger.services.unit_of_work import UnitOfWork
 
 DATABASE_URL = "postgresql+psycopg://api:secret@localhost/gendertagger"
@@ -20,11 +22,23 @@ def _unused_unit_of_work_factory() -> UnitOfWork:
     raise AssertionError("the request must not open persistence")
 
 
+class _GrantingProjectAccess:
+    """Grant the caller operator in every project without persistence."""
+
+    def effective_role(
+        self, user: CurrentUser, scope: ProjectScope, resource_id: UUID
+    ) -> ProjectRole:
+        return ProjectRole.operator
+
+    def has_any_grant(self, user: CurrentUser) -> bool:
+        return True
+
+
 def _authenticated_user() -> CurrentUser:
     return CurrentUser(
         id=UUID("a2f03480-77a7-4f24-82cb-07604d5c2483"),
         display_name="Error contract viewer",
-        roles={Role.viewer},
+        roles=set(),
     )
 
 
@@ -60,6 +74,7 @@ def test_authentication_error_uses_envelope_and_server_request_id() -> None:
 def test_success_response_uses_fresh_server_request_id() -> None:
     application = _application()
     application.dependency_overrides[require_authenticated_user] = _authenticated_user
+    application.dependency_overrides[get_project_access_service] = _GrantingProjectAccess
     client = TestClient(application)
 
     response = client.get(

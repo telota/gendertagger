@@ -5,7 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
-from gendertagger.api.authorization import require_operator, require_viewer
+from gendertagger.api.authorization import ProjectAccessGuard, get_project_access_guard
 from gendertagger.api.dependencies import get_aggregation_service
 from gendertagger.api.errors import ApiRequestError
 from gendertagger.models.aggregation import (
@@ -14,13 +14,14 @@ from gendertagger.models.aggregation import (
     AggregationExecution,
 )
 from gendertagger.models.api import CursorPage
-from gendertagger.models.user import CurrentUser
+from gendertagger.models.user import ProjectRole
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.pagination import InvalidCursorError
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )
+from gendertagger.services.project_access_repository import ProjectScope
 
 router = APIRouter(tags=["aggregations"])
 
@@ -34,9 +35,10 @@ def create_aggregation(
     run_id: UUID,
     command: AggregationCreateRequest,
     service: Annotated[AggregationService, Depends(get_aggregation_service)],
-    _: Annotated[CurrentUser, Depends(require_operator)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
 ) -> AggregationExecution:
     """Queue a durable aggregation over exact completed method executions."""
+    access.require(ProjectScope.run, run_id, ProjectRole.operator)
     try:
         return service.create_aggregation(run_id=run_id, command=command)
     except ResourceNotFoundError as error:
@@ -53,9 +55,10 @@ def create_aggregation(
 def get_aggregation(
     aggregation_id: UUID,
     service: Annotated[AggregationService, Depends(get_aggregation_service)],
-    _: Annotated[CurrentUser, Depends(require_viewer)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
 ) -> AggregationExecution:
     """Read one current aggregation lifecycle resource."""
+    access.require(ProjectScope.aggregation, aggregation_id, ProjectRole.viewer)
     try:
         return service.get_aggregation(aggregation_id)
     except ResourceNotFoundError as error:
@@ -69,11 +72,12 @@ def get_aggregation(
 def list_aggregation_results(
     aggregation_id: UUID,
     service: Annotated[AggregationService, Depends(get_aggregation_service)],
-    _: Annotated[CurrentUser, Depends(require_viewer)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
     cursor: Annotated[str | None, Query(max_length=2048)] = None,
 ) -> CursorPage[AggregatedResult]:
     """List immutable aggregation results in stable person-ID order."""
+    access.require(ProjectScope.aggregation, aggregation_id, ProjectRole.viewer)
     try:
         return service.list_results(aggregation_id, limit=limit, cursor=cursor)
     except ResourceNotFoundError as error:
@@ -95,9 +99,10 @@ def get_aggregation_result(
     aggregation_id: UUID,
     result_id: UUID,
     service: Annotated[AggregationService, Depends(get_aggregation_service)],
-    _: Annotated[CurrentUser, Depends(require_viewer)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
 ) -> AggregatedResult:
     """Read one immutable result under its owning aggregation."""
+    access.require(ProjectScope.aggregation, aggregation_id, ProjectRole.viewer)
     try:
         return service.get_result(aggregation_id=aggregation_id, result_id=result_id)
     except ResourceNotFoundError as error:

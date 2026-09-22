@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from gendertagger.db.auth_repository import SqlAlchemyAuthRepository
 from gendertagger.db.user_repository import SqlAlchemyUserRepository
-from gendertagger.models.user import Role, UserCreate
+from gendertagger.models.user import UserCreate
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 
@@ -16,7 +16,7 @@ LOGIN_AT = datetime(2026, 9, 21, 9, tzinfo=UTC)
 
 def _auth_repository_with_session(db_session: Session) -> SqlAlchemyAuthRepository:
     user = SqlAlchemyUserRepository(db_session).add_user(
-        UserCreate(display_name="Synthetic reviewer", roles={Role.reviewer})
+        UserCreate(display_name="Synthetic reviewer")
     )
     auth = SqlAlchemyAuthRepository(db_session)
     auth.create_session(

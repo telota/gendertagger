@@ -13,7 +13,7 @@ from gendertagger.api.app import create_app
 from gendertagger.api.authentication import CSRF_COOKIE_NAME, CSRF_HEADER_NAME, SESSION_COOKIE_NAME
 from gendertagger.api.settings import AppSettings
 from gendertagger.models.auth import LocalCredential, UserSession
-from gendertagger.models.user import Role, User, UserCreate
+from gendertagger.models.user import GlobalRole, User, UserCreate
 from gendertagger.services.auth_repository import AuthRepository
 from gendertagger.services.password_hashing import Argon2PasswordHasher
 from gendertagger.services.unit_of_work import UnitOfWork
@@ -36,7 +36,7 @@ class _InMemoryStore:
             USER_ID: User(
                 id=USER_ID,
                 display_name="Reviewer One",
-                roles={Role.viewer},
+                roles={GlobalRole.operator},
                 is_active=True,
                 created_at=NOW,
                 updated_at=NOW,
@@ -189,7 +189,7 @@ def test_login_with_valid_credentials_issues_session_and_csrf_cookies() -> None:
     assert response.json() == {
         "id": str(USER_ID),
         "display_name": "Reviewer One",
-        "roles": [Role.viewer.value],
+        "roles": [GlobalRole.operator.value],
     }
     assert SESSION_COOKIE_NAME in client.cookies
     assert CSRF_COOKIE_NAME in client.cookies

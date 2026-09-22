@@ -14,7 +14,7 @@ from gendertagger.models.review import (
     ReviewState,
     ReviewWorkflowState,
 )
-from gendertagger.models.user import CurrentUser, Role, User, UserCreate
+from gendertagger.models.user import CurrentUser, GlobalRole, User, UserCreate
 from gendertagger.services.persistence_errors import ReviewConflictError
 
 USER_ID = UUID("a0000000-0000-0000-0000-000000000001")
@@ -28,8 +28,8 @@ CREATED_AT = datetime(2026, 8, 13, 10, 0, tzinfo=UTC)
 
 def test_provider_neutral_user_preserves_global_roles() -> None:
     command = UserCreate(
-        display_name="Reviewer",
-        roles={Role.viewer, Role.reviewer},
+        display_name="Administrator",
+        roles={GlobalRole.operator, GlobalRole.admin},
     )
     user = User(
         id=USER_ID,
@@ -38,22 +38,28 @@ def test_provider_neutral_user_preserves_global_roles() -> None:
         **command.model_dump(),
     )
 
-    assert user.roles == {Role.viewer, Role.reviewer}
+    assert user.roles == {GlobalRole.operator, GlobalRole.admin}
     assert user.is_active is True
 
 
 def test_current_user_exposes_only_public_principal_fields() -> None:
     principal = CurrentUser(
         id=USER_ID,
-        display_name="Reviewer",
-        roles={Role.viewer, Role.reviewer},
+        display_name="Administrator",
+        roles={GlobalRole.operator, GlobalRole.admin},
     )
 
     assert principal.model_dump() == {
         "id": USER_ID,
-        "display_name": "Reviewer",
-        "roles": {Role.viewer, Role.reviewer},
+        "display_name": "Administrator",
+        "roles": {GlobalRole.operator, GlobalRole.admin},
     }
+
+
+@pytest.mark.parametrize("project_only_role", ["viewer", "reviewer"])
+def test_global_roles_exclude_project_only_roles(project_only_role: str) -> None:
+    with pytest.raises(ValidationError, match="roles"):
+        UserCreate.model_validate({"display_name": "Former viewer", "roles": [project_only_role]})
 
 
 def test_user_rejects_blank_display_name() -> None:

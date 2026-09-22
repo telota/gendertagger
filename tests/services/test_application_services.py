@@ -36,6 +36,7 @@ from gendertagger.models.lifecycle import (
 )
 from gendertagger.models.person import PersonRecord
 from gendertagger.models.project import (
+    AccessibleProject,
     DatasetSnapshot,
     DatasetSnapshotCreate,
     Project,
@@ -59,7 +60,7 @@ from gendertagger.models.review import (
     ReviewWorkflowState,
 )
 from gendertagger.models.run import Progress, Run, RunCreate, RunCreateRequest
-from gendertagger.models.user import CurrentUser, Role, User, UserCreate
+from gendertagger.models.user import CurrentUser, GlobalRole, ProjectRole, User, UserCreate
 from gendertagger.services.aggregation_repository import AggregationRepository
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.annotations import AnnotationService
@@ -79,6 +80,7 @@ from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )
+from gendertagger.services.project_access_repository import ProjectAccessRepository
 from gendertagger.services.project_repository import ProjectRepository
 from gendertagger.services.projects import (
     InvalidSnapshotSourceError,
@@ -135,6 +137,7 @@ class StubUnitOfWork:
         reviews: object | None = None,
         users: object | None = None,
         auth: object | None = None,
+        access: object | None = None,
     ) -> None:
         self._projects = projects if projects is not None else Mock(spec=ProjectRepository)
         self._artifacts = artifacts if artifacts is not None else Mock(spec=ArtifactRepository)
@@ -146,6 +149,7 @@ class StubUnitOfWork:
         self._reviews = reviews if reviews is not None else Mock(spec=ReviewRepository)
         self._users = users if users is not None else Mock(spec=UserRepository)
         self._auth = auth if auth is not None else Mock(spec=AuthRepository)
+        self._access = access if access is not None else Mock(spec=ProjectAccessRepository)
         self.commit_count = 0
         self.rollback_count = 0
 
@@ -191,6 +195,10 @@ class StubUnitOfWork:
     @property
     def auth(self) -> AuthRepository:
         return cast(AuthRepository, self._auth)
+
+    @property
+    def access(self) -> ProjectAccessRepository:
+        return cast(ProjectAccessRepository, self._access)
 
     def commit(self) -> None:
         self.commit_count += 1
@@ -292,13 +300,20 @@ def test_project_service_validates_limits_and_project_resources(tmp_path: Path) 
     project_repository = Mock(spec=ProjectRepository)
     project_repository.add_project.return_value = _project()
     project_repository.get_project.side_effect = [_project(), None]
-    unit_of_work = StubUnitOfWork(projects=project_repository)
+    access_repository = Mock(spec=ProjectAccessRepository)
+    unit_of_work = StubUnitOfWork(projects=project_repository, access=access_repository)
     service = _project_service(unit_of_work=unit_of_work, artifact_root=tmp_path)
 
     created = service.create_project(
-        ProjectCreate(slug="service-project", display_name="Service project")
+        ProjectCreate(slug="service-project", display_name="Service project"),
+        creator_user_id=AUTH_USER_ID,
     )
-    assert created == _project()
+    assert created == AccessibleProject(
+        **_project().model_dump(), current_user_role=ProjectRole.operator
+    )
+    access_repository.set_member_role.assert_called_once_with(
+        PROJECT_ID, AUTH_USER_ID, ProjectRole.operator
+    )
     assert service.get_project(PROJECT_ID) == _project()
     with pytest.raises(ResourceNotFoundError, match=str(PROJECT_ID)):
         service.get_project(PROJECT_ID)
@@ -939,7 +954,7 @@ def _local_user(*, is_active: bool = True) -> User:
     return User(
         id=AUTH_USER_ID,
         display_name="Reviewer One",
-        roles={Role.reviewer},
+        roles={GlobalRole.operator},
         is_active=is_active,
         created_at=NOW,
         updated_at=NOW,
@@ -982,7 +997,7 @@ def test_authentication_service_login_issues_session_for_verified_credentials() 
     issued = service.login(username=AUTH_USERNAME, password="correct-horse-battery")
 
     assert issued.user == CurrentUser(
-        id=AUTH_USER_ID, display_name="Reviewer One", roles={Role.reviewer}
+        id=AUTH_USER_ID, display_name="Reviewer One", roles={GlobalRole.operator}
     )
     create_session_kwargs = auth_repository.create_session.call_args.kwargs
     assert create_session_kwargs["user_id"] == AUTH_USER_ID
@@ -1257,14 +1272,14 @@ def test_authentication_service_create_local_account_persists_user_and_credentia
 
     created = service.create_local_account(
         display_name="Reviewer One",
-        roles={Role.reviewer},
+        roles={GlobalRole.operator},
         username=AUTH_USERNAME,
         password="an-initial-passphrase",
     )
 
     assert created == _local_user()
     users_repository.add_user.assert_called_once_with(
-        UserCreate(display_name="Reviewer One", roles={Role.reviewer}, is_active=True)
+        UserCreate(display_name="Reviewer One", roles={GlobalRole.operator}, is_active=True)
     )
     auth_repository.add_credential.assert_called_once_with(
         user_id=AUTH_USER_ID,

@@ -4,17 +4,18 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
 
-from gendertagger.api.authorization import require_viewer
+from gendertagger.api.authorization import ProjectAccessGuard, get_project_access_guard
 from gendertagger.api.dependencies import get_review_item_service
 from gendertagger.api.errors import ApiRequestError
 from gendertagger.models.api import CursorPage
 from gendertagger.models.review import ReviewItem, ReviewItemQuery
-from gendertagger.models.user import CurrentUser
+from gendertagger.models.user import ProjectRole
 from gendertagger.services.pagination import InvalidCursorError
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )
+from gendertagger.services.project_access_repository import ProjectScope
 from gendertagger.services.review_items import ReviewItemService
 
 router = APIRouter(tags=["review"])
@@ -24,9 +25,10 @@ router = APIRouter(tags=["review"])
 def list_review_items(
     query: Annotated[ReviewItemQuery, Query()],
     service: Annotated[ReviewItemService, Depends(get_review_item_service)],
-    _: Annotated[CurrentUser, Depends(require_viewer)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
 ) -> CursorPage[ReviewItem]:
     """List one aggregation's candidates using explicit server-side filters."""
+    access.require(ProjectScope.aggregation, query.aggregation_id, ProjectRole.viewer)
     try:
         return service.list_review_items(query)
     except ResourceNotFoundError as error:

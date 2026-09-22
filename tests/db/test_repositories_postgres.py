@@ -77,7 +77,7 @@ from gendertagger.models.run import (
     RunCreate,
     TaskBatchCreate,
 )
-from gendertagger.models.user import Role, User, UserCreate
+from gendertagger.models.user import User, UserCreate
 from gendertagger.services.artifact_repository import AmbiguousArtifactError
 from gendertagger.services.persistence_errors import (
     ImmutableResourceError,
@@ -980,7 +980,7 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
     assert person is not None
 
     users = SqlAlchemyUserRepository(db_session)
-    reviewer = users.add_user(UserCreate(display_name="Synthetic reviewer", roles={Role.reviewer}))
+    reviewer = users.add_user(UserCreate(display_name="Synthetic reviewer"))
 
     runs = SqlAlchemyRunRepository(db_session)
     run_config = RunConfig(

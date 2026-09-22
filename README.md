@@ -33,6 +33,20 @@ change its password before any other endpoint accepts it: sign in with `POST /ap
 `POST /api/v1/me/password`. `gendertagger users reset-password --user-id <uuid>` forces a new password later
 and signs the account out everywhere.
 
+Access to data is per project ([ADR-0033](docs/decisions/ADR-0033-project-scoped-membership-roles.md)). An
+`admin` sees every project; a global `operator` may create projects and becomes operator of each one it
+creates. Everyone else needs no global role, only a project membership granted by an administrator:
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml run --rm api \
+  gendertagger users create --username reviewer --display-name "Reviewer"
+docker compose -f compose.yaml -f compose.dev.yaml run --rm api \
+  gendertagger projects add-member --project my-edition --username reviewer --role reviewer
+```
+
+Project roles are `viewer`, `reviewer`, and `operator`; `projects list-members` and `projects remove-member`
+complete the set.
+
 ### 3. Provision method data
 
 Several reference methods classify from a compiled, content-addressed data artifact rather than at request

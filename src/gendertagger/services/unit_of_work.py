@@ -10,6 +10,7 @@ from gendertagger.services.auth_repository import AuthRepository
 from gendertagger.services.dispatch_repository import DispatchRepository
 from gendertagger.services.evaluation_repository import EvaluationRepository
 from gendertagger.services.export_repository import ExportRepository
+from gendertagger.services.project_access_repository import ProjectAccessRepository
 from gendertagger.services.project_repository import ProjectRepository
 from gendertagger.services.review_repository import ReviewRepository
 from gendertagger.services.run_repository import RunRepository
@@ -65,6 +66,11 @@ class UnitOfWork(Protocol):
     @property
     def exports(self) -> ExportRepository:
         """Return export persistence bound to the current transaction."""
+        ...
+
+    @property
+    def access(self) -> ProjectAccessRepository:
+        """Return project ownership and membership persistence bound to the current transaction."""
         ...
 
     @property
