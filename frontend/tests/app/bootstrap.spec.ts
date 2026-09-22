@@ -1,4 +1,6 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
+import { createMemoryHistory } from 'vue-router'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createApplication } from '@/app/bootstrap'
 import { LOCALE_STORAGE_KEY } from '@/app/i18n'
@@ -9,11 +11,19 @@ function environment(overrides: { storage?: Storage; languages?: readonly string
     storage: window.localStorage,
     languages: ['de-DE'],
     root: document.documentElement,
+    history: createMemoryHistory(),
     ...overrides,
   }
 }
 
+beforeEach(() => {
+  // createApplication wires the real global-fetch client; every test here mounts the app without
+  // asserting on branding content, so the network is stubbed to fail fast rather than reach out.
+  vi.stubGlobal('fetch', () => Promise.reject(new TypeError('fetch failed')))
+})
+
 afterEach(() => {
+  vi.unstubAllGlobals()
   window.localStorage.clear()
   document.documentElement.lang = ''
   document.body.replaceChildren()
@@ -46,12 +56,22 @@ describe('createApplication', () => {
     expect(document.documentElement.lang).toBe('en')
   })
 
-  it('mounts the application into the page', () => {
+  it('mounts the application into the page with its router and footer', async () => {
     const container = document.createElement('div')
     document.body.append(container)
 
-    createApplication(environment({ languages: ['en'] })).mount(container)
+    const application = createApplication(environment({ languages: ['en'] }))
+    application.mount(container)
+    await application.config.globalProperties.$router.isReady()
+    await flushPromises()
 
     expect(container.querySelector('h1')?.textContent).toBe(en.app.title)
+    expect(container.querySelector('footer')).not.toBeNull()
+  })
+
+  it('defaults to browser history when none is given', () => {
+    const { storage, languages, root } = environment()
+
+    expect(() => createApplication({ storage, languages, root })).not.toThrow()
   })
 })

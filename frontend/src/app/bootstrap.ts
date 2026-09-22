@@ -1,4 +1,8 @@
 import { createApp, type App as VueApp } from 'vue'
+import type { RouterHistory } from 'vue-router'
+
+import { createApiClient } from '@/api'
+import { API_CLIENT_KEY } from '@/composables/useApiClient'
 
 import App from './App.vue'
 import {
@@ -7,6 +11,7 @@ import {
   LOCALE_STORAGE_KEY,
   resolveInitialLocale,
 } from './i18n'
+import { createAppRouter } from './router'
 
 function readStoredLocale(storage: Storage): string | null {
   try {
@@ -22,11 +27,15 @@ export function createApplication(environment: {
   storage: Storage
   languages: readonly string[]
   root: HTMLElement
+  /** Defaults to browser history; tests pass an in-memory history. */
+  history?: RouterHistory
 }): VueApp {
   const locale = resolveInitialLocale({
     stored: readStoredLocale(environment.storage),
     languages: environment.languages,
   })
   applyDocumentLanguage(locale, environment.root)
-  return createApp(App).use(createAppI18n(locale))
+  const application = createApp(App)
+  application.provide(API_CLIENT_KEY, createApiClient())
+  return application.use(createAppI18n(locale)).use(createAppRouter(environment.history))
 }

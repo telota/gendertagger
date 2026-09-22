@@ -68,6 +68,8 @@ export default tseslint.config(
       'vue/first-attribute-linebreak': 'off',
       'vue/html-indent': 'off',
       'vue/html-closing-bracket-newline': 'off',
+      // Prettier always self-closes void elements (<img ... />); the recommended rule disagrees.
+      'vue/html-self-closing': 'off',
 
       // No user-facing string literal in a component; the key style is dot-separated camelCase.
       '@intlify/vue-i18n/no-raw-text': 'error',

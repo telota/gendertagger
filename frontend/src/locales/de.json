@@ -2,5 +2,63 @@
   "app": {
     "title": "Gendertagger",
     "scaffoldNotice": "Die Anwendungsoberfläche ist im Aufbau."
+  },
+  "publication": {
+    "heading": "Publikationsangaben",
+    "editors": "Bearbeiter*innen",
+    "publisher": "Herausgeber",
+    "initiatives": "Entstanden im Rahmen von",
+    "published": "Veröffentlichung",
+    "publishedSince": "seit {year}",
+    "notConfigured": "Für diese Installation sind noch keine Publikationsangaben hinterlegt."
+  },
+  "footer": {
+    "publisher": "Herausgeber",
+    "initiatives": "Entstanden im Rahmen von",
+    "contact": "Kontakt und technische Hinweise",
+    "license": "Lizenz",
+    "sourceCodeLicense": "Quellcode unter der {license}-Lizenz",
+    "legalNavigation": "Rechtliche Angaben",
+    "legalNotice": "Impressum",
+    "privacyNotice": "Datenschutzhinweis"
+  },
+  "legal": {
+    "title": "Impressum",
+    "loading": "Angaben werden geladen …",
+    "loadError": "Die Angaben zu dieser Installation konnten nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "notConfigured": "Für diese Installation ist dieser Abschnitt noch nicht konfiguriert.",
+    "provider": {
+      "heading": "Anbieter und Herausgeber",
+      "address": "Anschrift",
+      "telephone": "Telefon",
+      "representative": "Vertreten durch",
+      "vatId": "Umsatzsteuer-Identifikationsnummer"
+    },
+    "responsibility": {
+      "heading": "Verantwortlichkeit und Kontakt",
+      "operator": "Verantwortlich für diese Installation: {operator}.",
+      "contact": "Fragen zu Inhalt und Technik richten Sie bitte an"
+    },
+    "copyright": {
+      "heading": "Urheberrecht und Lizenz",
+      "sourceCode": "Der Quellcode dieser Anwendung steht unter der {license}-Lizenz. © {year} {holder}.",
+      "licenseText": "Lizenztext",
+      "registerData": "Die in dieser Anwendung verarbeiteten Registerdaten stammen aus den jeweiligen Editionsprojekten und unterliegen deren Lizenzen."
+    },
+    "liability": {
+      "heading": "Haftung",
+      "content": "Für die Richtigkeit, Vollständigkeit und Aktualität der Informationen wird keine Gewähr übernommen.",
+      "machineAnnotations": "Die von der Anwendung erzeugten Geschlechtsangaben sind maschinelle Vorschläge. Sie bedürfen der redaktionellen Prüfung."
+    },
+    "privacy": {
+      "heading": "Datenschutz",
+      "link": "Datenschutzhinweis"
+    }
+  },
+  "notFound": {
+    "title": "Seite nicht gefunden",
+    "explanation": "Unter dieser Adresse gibt es keine Seite.",
+    "backToStart": "Zur Startseite"
   }
 }

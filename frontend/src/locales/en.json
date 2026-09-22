@@ -2,5 +2,63 @@
   "app": {
     "title": "Gendertagger",
     "scaffoldNotice": "The application shell is under construction."
+  },
+  "publication": {
+    "heading": "Publication details",
+    "editors": "Editors",
+    "publisher": "Publisher",
+    "initiatives": "Developed within",
+    "published": "Published",
+    "publishedSince": "since {year}",
+    "notConfigured": "This installation has not configured publication details yet."
+  },
+  "footer": {
+    "publisher": "Publisher",
+    "initiatives": "Developed within",
+    "contact": "Contact and technical enquiries",
+    "license": "Licence",
+    "sourceCodeLicense": "Source code under the {license} licence",
+    "legalNavigation": "Legal information",
+    "legalNotice": "Legal notice",
+    "privacyNotice": "Privacy notice"
+  },
+  "legal": {
+    "title": "Legal notice",
+    "loading": "Loading …",
+    "loadError": "This installation's legal notice could not be loaded.",
+    "retry": "Try again",
+    "notConfigured": "This installation has not configured this section yet.",
+    "provider": {
+      "heading": "Provider and publisher",
+      "address": "Address",
+      "telephone": "Telephone",
+      "representative": "Represented by",
+      "vatId": "VAT identification number"
+    },
+    "responsibility": {
+      "heading": "Responsibility and contact",
+      "operator": "Responsible for this installation: {operator}.",
+      "contact": "Please direct questions about content and technology to"
+    },
+    "copyright": {
+      "heading": "Copyright and licence",
+      "sourceCode": "The source code of this application is licensed under the {license} licence. © {year} {holder}.",
+      "licenseText": "Licence text",
+      "registerData": "The register data processed in this application comes from the respective edition projects and is subject to their licences."
+    },
+    "liability": {
+      "heading": "Liability",
+      "content": "No guarantee is given for the accuracy, completeness, or currency of the information.",
+      "machineAnnotations": "The gender annotations produced by the application are machine-generated suggestions. They require editorial review."
+    },
+    "privacy": {
+      "heading": "Privacy",
+      "link": "Privacy notice"
+    }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "explanation": "There is no page at this address.",
+    "backToStart": "Back to the start page"
   }
 }

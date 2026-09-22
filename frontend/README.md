@@ -66,10 +66,10 @@ provider from [ADR-0031](../docs/decisions/ADR-0031-local-database-authenticatio
 ```text
 src/
   api/          generated types, typed client, error and CSRF handling
-  app/          composition root, i18n
+  app/          composition root, router, i18n, footer
   components/   base primitives and domain components (empty until M2)
-  composables/  reusable stateful logic (empty until M2)
-  features/     one directory per screen (empty until M3)
+  composables/  reusable stateful logic: the injected API client, GET /api/v1/branding
+  features/     one directory per screen: home, legal notice, not found (screens follow from M3)
   locales/      message catalogues, one JSON file per locale
   stores/       Pinia stores for shared client state (empty until M2)
   styles/       design tokens and global styles
@@ -92,6 +92,7 @@ an SBOM. Versions were chosen for mutual compatibility, not recency: TypeScript 
 | Package | Licence | Why the platform is not enough |
 |---|---|---|
 | `vue` | MIT | The framework fixed by ADR-0006 |
+| `vue-router` | MIT | History-mode routing (decision D13), needed by the public legal notice route and, from M2, project navigation |
 | `vue-i18n` | MIT | Locale-aware plural, date, and number formatting (ADR-0030) |
 | `openapi-fetch` | MIT | A small typed `fetch` wrapper over the generated schema |
 | `vite`, `@vitejs/plugin-vue`, `vue-tsc`, `typescript` | MIT / Apache-2.0 | Build and type checking |
@@ -104,5 +105,15 @@ an SBOM. Versions were chosen for mutual compatibility, not recency: TypeScript 
 `axe-core` is the only dependency under a weak copyleft licence. It runs only in tests and is not part of the
 shipped bundle, but review it if the licence policy is strict.
 
-Not yet added, on purpose: `vue-router`, `pinia`, and a server-state cache arrive with the shell in M2, and the
-headless accessibility library for overlay primitives (decision D9) is chosen before M2 starts.
+Not yet added, on purpose: `pinia` and a shared server-state cache arrive with the shell in M2 — until then,
+`useBranding()` fetches independently per component rather than through a shared cache, documented in its own
+code comment. The headless accessibility library for overlay primitives (decision D9) is chosen before M2
+starts.
+
+## Branding
+
+The footer, the start page, and `/impressum` render `GET /api/v1/branding` ([ADR-0036](../docs/decisions/ADR-0036-institution-branding-configuration.md))
+through `src/composables/useBranding.ts`, never a hard-coded fact. The one exception is the software's own
+source-code licence in `src/app/publication.ts`, which is the same for every deployment. See
+[`docs/25-frontend-design-guidelines.md`](../docs/25-frontend-design-guidelines.md#publication-details-footer-and-legal-notice)
+for the guideline mapping and this deployment's configured values.

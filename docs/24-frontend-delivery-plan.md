@@ -215,12 +215,14 @@ contract change fails CI.
 - The publication footer on every page, the start-page publication details, and the public legal notice
   required by the operating institution's guideline for digital publications, as specified in
   [`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md#publication-details-footer-and-legal-notice).
-  They fetch `GET /api/v1/branding` rather than importing hard-coded facts, per
-  [ADR-0036](decisions/ADR-0036-institution-branding-configuration.md), and each field the operator has not
-  configured renders as an explicit "not configured" state. The legal notice route stays exempt from the
-  session guard, so it is reachable without signing in. A first implementation exists on the unmerged branch
-  `wip/publication-footer-legal-notice`; it hard-codes BBAW's facts and needs rebuilding against the endpoint
-  before it can land.
+  **Delivered.** `useBranding()` fetches `GET /api/v1/branding` (no branding fact is a frontend
+  constant except the source-code licence, which is the same for every deployment) and each field the
+  operator has not configured renders as an explicit "not configured" state rather than inventing one. The
+  legal notice route (`/impressum`) is exempt from the session guard and reachable without signing in, and
+  its loading/error states include a retry affordance since branding is that page's own content. A minimal
+  `vue-router` (history mode, decision D13) was pulled forward from the rest of M2 to route to it. The
+  earlier hard-coded draft on branch `wip/publication-footer-legal-notice` was discarded rather than
+  merged.
 - The backend prerequisite for the item above: `GET /api/v1/branding` and `GET /api/v1/branding/logo`
   ([ADR-0036](decisions/ADR-0036-institution-branding-configuration.md)). **Delivered**, unauthenticated and
   needing no grant, both registered in the route-coverage check in `tests/api/test_authorization.py`.
