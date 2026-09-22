@@ -3,14 +3,16 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from gendertagger.api.authorization import ProjectAccessGuard, get_project_access_guard
 from gendertagger.api.dependencies import get_evaluation_service
-from gendertagger.api.errors import ApiRequestError
+from gendertagger.api.errors import ApiRequestError, invalid_cursor_error
+from gendertagger.models.api import CursorPage
 from gendertagger.models.evaluation import EvaluationCreateRequest, EvaluationExecution
 from gendertagger.models.user import ProjectRole
 from gendertagger.services.evaluations import EvaluationService
+from gendertagger.services.pagination import InvalidCursorError
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
@@ -42,6 +44,24 @@ def create_evaluation(
             code="resource_conflict",
             message="The method execution selection is not evaluatable.",
         ) from error
+
+
+@router.get("/runs/{run_id}/evaluations", response_model=CursorPage[EvaluationExecution])
+def list_evaluations(
+    run_id: UUID,
+    service: Annotated[EvaluationService, Depends(get_evaluation_service)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    cursor: Annotated[str | None, Query(max_length=2048)] = None,
+) -> CursorPage[EvaluationExecution]:
+    """List a run's evaluations newest first, in every lifecycle state."""
+    access.require(ProjectScope.run, run_id, ProjectRole.viewer)
+    try:
+        return service.list_evaluations(run_id, limit=limit, cursor=cursor)
+    except ResourceNotFoundError as error:
+        raise _not_found() from error
+    except InvalidCursorError as error:
+        raise invalid_cursor_error() from error
 
 
 @router.get("/evaluations/{evaluation_id}", response_model=EvaluationExecution)

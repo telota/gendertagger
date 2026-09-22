@@ -27,8 +27,8 @@ Active work is Phase 8, the annotation and review client. Its backend prerequisi
 the review-items query API is stable and review-stream revision conflicts return `409`. The remaining
 Phase 8 items are frontend work: `frontend/` holds the scaffold and transport layer (milestone M1), the
 local account backend from [ADR-0031](docs/decisions/ADR-0031-local-database-authentication.md) gives it a
-real session to sign in to, and the application shell and every screen remain to be built. Three read
-endpoints the screens need are still missing; see
+real session to sign in to, and the application shell and every screen remain to be built. The read
+endpoints and collections the screens need are delivered; see
 [`docs/24-frontend-delivery-plan.md`](docs/24-frontend-delivery-plan.md). The second active track is
 operating the stack in production following [`docs/21-production-promotion.md`](docs/21-production-promotion.md).
 

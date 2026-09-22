@@ -39,14 +39,19 @@ below). The following table is the whole public API:
 | `PUT` | `/api/v1/projects/{project_id}/members/{user_id}` | `200` | global admin |
 | `DELETE` | `/api/v1/projects/{project_id}/members/{user_id}` | `204` | global admin |
 | `POST` | `/api/v1/projects/{project_id}/snapshots` | `202` | project operator of `project_id` |
+| `GET` | `/api/v1/projects/{project_id}/snapshots` | `200` | project viewer of `project_id` |
 | `GET` | `/api/v1/snapshots/{snapshot_id}` | `200` | project viewer of `snapshot_id` |
 | `GET` | `/api/v1/snapshots/{snapshot_id}/people` | `200` | project viewer of `snapshot_id` |
+| `GET` | `/api/v1/snapshots/{snapshot_id}/runs` | `200` | project viewer of `snapshot_id` |
 | `POST` | `/api/v1/runs` | `202` | project operator of body `dataset_snapshot_id` |
 | `GET` | `/api/v1/runs/{run_id}` | `200` | project viewer of `run_id` |
 | `GET` | `/api/v1/runs/{run_id}/executions` | `200` | project viewer of `run_id` |
 | `POST` | `/api/v1/runs/{run_id}/executions` | `202` | project operator of `run_id` |
 | `GET` | `/api/v1/runs/{run_id}/events` | `200` (SSE) | project viewer of `run_id` |
-| `POST` | `/api/v1/runs/{run_id}/aggregations` | `202` | project operator of `run_id` |
+| `POST` | `/api/v1/runs/{run_id}/aggregations` | `202`, or `200` when reused | project operator of `run_id` |
+| `GET` | `/api/v1/runs/{run_id}/aggregations` | `200` | project viewer of `run_id` |
+| `GET` | `/api/v1/runs/{run_id}/evaluations` | `200` | project viewer of `run_id` |
+| `GET` | `/api/v1/runs/{run_id}/exports` | `200` | project viewer of `run_id` |
 | `GET` | `/api/v1/aggregations/{aggregation_id}` | `200` | project viewer of `aggregation_id` |
 | `GET` | `/api/v1/aggregations/{aggregation_id}/results` | `200` | project viewer of `aggregation_id` |
 | `GET` | `/api/v1/aggregations/{aggregation_id}/results/{result_id}` | `200` | project viewer of `aggregation_id` |
@@ -215,6 +220,15 @@ completed MethodExecutions, then atomically creates a `queued` `AggregationExecu
 intent. It returns that resource with `202 Accepted`, never a Celery task ID, and does not compute results in
 the request.
 
+Repeating a command is safe ([ADR-0034](decisions/ADR-0034-reuse-matching-aggregation-on-creation.md)). An
+aggregation matches when it has the same run, strategy, configuration hash, and exact ordered
+`method_execution_ids`, and its status is `pending`, `queued`, `running`, or `completed`. When a match
+exists, the command returns it unchanged with `200 OK` and creates neither an aggregation nor dispatch
+intent. A `failed` or `cancelled` aggregation never matches, so the same request after a failure creates a
+fresh attempt. Selection order is part of the match, so a client that wants repeated requests to match sends
+the executions in a stable order, such as the order `GET /runs/{run_id}/executions` returns. Concurrent
+identical requests serialize on a lock of the run row, so they return one aggregation between them.
+
 Clients read lifecycle state through:
 
 ```text
@@ -281,11 +295,26 @@ scientific endpoint; see
 
 ## List endpoints
 
-Potentially large or changing collections use cursor pagination. Three collections are paginated:
-`/api/v1/snapshots/{snapshot_id}/people`, `/api/v1/aggregations/{aggregation_id}/results`, and
-`/api/v1/review-items`. The first two take `limit` and `cursor` only and traverse a stable server-side
-order; only `review-items` carries filters and a sort selector. `limit` is bounded to `1..200` and defaults
-to `100`, and `cursor` is bounded to 2,048 characters.
+Potentially large or changing collections use cursor pagination. `limit` is bounded to `1..200` and
+defaults to `100`, and `cursor` is bounded to 2,048 characters. Every paginated collection except
+`review-items` takes `limit` and `cursor` only and traverses one stable server-side order:
+
+| Collection | Order |
+|---|---|
+| `/api/v1/projects` | project slug |
+| `/api/v1/projects/{project_id}/snapshots` | newest first |
+| `/api/v1/snapshots/{snapshot_id}/people` | TEI `xml:id` |
+| `/api/v1/snapshots/{snapshot_id}/runs` | newest first |
+| `/api/v1/runs/{run_id}/aggregations` | newest first |
+| `/api/v1/runs/{run_id}/evaluations` | newest first |
+| `/api/v1/runs/{run_id}/exports` | newest first |
+| `/api/v1/aggregations/{aggregation_id}/results` | person record ID |
+
+Newest first means descending `created_at`, with the resource ID breaking ties between resources created in
+one transaction. These collections list every resource under their parent in any lifecycle state, so a
+client can find a pending import or a failed run again after a reload. They are the only way to discover the
+identifiers the resource paths need, since every other route addresses one resource by ID. Only
+`/api/v1/review-items` carries filters and a sort selector.
 
 Representative query:
 

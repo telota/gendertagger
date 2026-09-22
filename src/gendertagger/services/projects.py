@@ -35,7 +35,11 @@ from gendertagger.models.project import (
 from gendertagger.models.queues import CPU_QUEUE
 from gendertagger.models.user import ProjectRole
 from gendertagger.services.artifact_storage import ArtifactStorage
-from gendertagger.services.pagination import CursorCodec
+from gendertagger.services.pagination import (
+    CursorCodec,
+    decode_creation_position,
+    newest_first_page,
+)
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
@@ -136,6 +140,28 @@ class ProjectService:
             msg = f"dataset snapshot {snapshot_id} does not exist"
             raise ResourceNotFoundError(msg)
         return snapshot
+
+    def list_snapshots(
+        self,
+        project_id: UUID,
+        *,
+        limit: int,
+        cursor: str | None,
+    ) -> CursorPage[DatasetSnapshot]:
+        """Return one newest-first opaque-cursor page of a project's snapshots."""
+        if limit <= 0:
+            msg = "limit must be positive"
+            raise ValueError(msg)
+        self.get_project(project_id)
+        resource = f"project_snapshots:{project_id}"
+        after = decode_creation_position(self._cursor_codec, cursor, resource=resource)
+        with self._unit_of_work_factory() as unit_of_work:
+            snapshots = unit_of_work.projects.list_snapshots(
+                project_id,
+                limit=limit + 1,
+                after=after,
+            )
+        return newest_first_page(self._cursor_codec, snapshots, limit=limit, resource=resource)
 
     def list_people(
         self,

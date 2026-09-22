@@ -306,3 +306,64 @@ def test_run_events_reject_unknown_run(
     response = client.get(f"/api/v1/runs/{uuid4()}/events")
 
     assert response.status_code == 404
+
+
+def test_project_snapshots_and_snapshot_runs_list_newest_first(
+    postgres_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    client, unit_of_work_factory = _client(postgres_engine, tmp_path)
+    ready_snapshot_id = _ready_snapshot_id(client, unit_of_work_factory, tmp_path)
+    project_id = client.get(f"/api/v1/snapshots/{ready_snapshot_id}").json()["project_id"]
+    pending_snapshot = client.post(
+        f"/api/v1/projects/{project_id}/snapshots",
+        files={"source": ("register.xml", VALID_TEI, "application/xml")},
+    ).json()
+
+    snapshots = client.get(f"/api/v1/projects/{project_id}/snapshots")
+
+    assert snapshots.status_code == 200
+    assert [(snapshot["id"], snapshot["status"]) for snapshot in snapshots.json()["items"]] == [
+        (pending_snapshot["id"], "pending"),
+        (str(ready_snapshot_id), "ready"),
+    ]
+    assert snapshots.json()["has_more"] is False
+
+    idle_run = client.post(
+        "/api/v1/runs",
+        json={"dataset_snapshot_id": str(ready_snapshot_id), "config": {"methods": []}},
+    ).json()
+    scheduled_run_id = client.post(
+        "/api/v1/runs",
+        json={
+            "dataset_snapshot_id": str(ready_snapshot_id),
+            "config": {"methods": [{"name": "parenthetical_qualifier"}]},
+        },
+    ).json()["id"]
+    client.post(f"/api/v1/runs/{scheduled_run_id}/executions")
+
+    first_page = client.get(
+        f"/api/v1/snapshots/{ready_snapshot_id}/runs", params={"limit": 1}
+    ).json()
+    second_page = client.get(
+        f"/api/v1/snapshots/{ready_snapshot_id}/runs",
+        params={"limit": 1, "cursor": first_page["next_cursor"]},
+    ).json()
+
+    # A listed run carries the same progress its detail read computes one run at a time.
+    assert first_page["items"] == [client.get(f"/api/v1/runs/{scheduled_run_id}").json()]
+    assert first_page["items"][0]["progress"]["total"] == 1
+    assert second_page["items"] == [idle_run]
+    assert (first_page["has_more"], second_page["has_more"]) == (True, False)
+    assert client.get(f"/api/v1/snapshots/{pending_snapshot['id']}/runs").json() == {
+        "items": [],
+        "next_cursor": None,
+        "has_more": False,
+    }
+    assert client.get(f"/api/v1/snapshots/{uuid4()}/runs").status_code == 404
+    assert client.get(f"/api/v1/projects/{uuid4()}/snapshots").status_code == 404
+    invalid_cursor = client.get(
+        f"/api/v1/snapshots/{ready_snapshot_id}/runs",
+        params={"cursor": second_page["items"][0]["id"]},
+    )
+    assert invalid_cursor.status_code == 422

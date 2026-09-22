@@ -194,9 +194,8 @@ met: the review-items query API is stable and review-stream revision conflicts r
 Phase 8 items are frontend work. The scaffold and the generated transport client are in place
 (milestone M1), and the local account authentication backend
 ([ADR-0031](decisions/ADR-0031-local-database-authentication.md)) is the default provider. The
-application shell and every screen remain to be built, and three read endpoints they depend on (project
-list, per-person method results, annotation history) are still missing; see
-[`24-frontend-delivery-plan.md`](24-frontend-delivery-plan.md). The second active track is
+application shell and every screen remain to be built. The read endpoints and collections they depend on
+are delivered; see [`24-frontend-delivery-plan.md`](24-frontend-delivery-plan.md). The second active track is
 operating the stack in production under [`21-production-promotion.md`](21-production-promotion.md).
 
 The transformer classifiers (`hf_distilbert`, `hf_genderize`) and the experimental HIVOTO-XGBoost adapter

@@ -4,17 +4,19 @@ from collections.abc import Sequence
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import StreamingResponse
 
 from gendertagger.api.authorization import ProjectAccessGuard, get_project_access_guard
 from gendertagger.api.dependencies import get_run_scheduler, get_run_service
-from gendertagger.api.errors import ApiRequestError
+from gendertagger.api.errors import ApiRequestError, invalid_cursor_error
 from gendertagger.api.run_events import stream_run_events
+from gendertagger.models.api import CursorPage
 from gendertagger.models.run import MethodExecutionSummary, Run, RunCreateRequest
 from gendertagger.models.user import ProjectRole
 from gendertagger.services.execution import RunScheduler
 from gendertagger.services.method_registry import MethodRegistryError
+from gendertagger.services.pagination import InvalidCursorError
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
@@ -50,6 +52,24 @@ def create_run(
             code="resource_conflict",
             message="The dataset snapshot is not ready.",
         ) from error
+
+
+@router.get("/snapshots/{snapshot_id}/runs", response_model=CursorPage[Run])
+def list_runs(
+    snapshot_id: UUID,
+    service: Annotated[RunService, Depends(get_run_service)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    cursor: Annotated[str | None, Query(max_length=2048)] = None,
+) -> CursorPage[Run]:
+    """List a snapshot's runs newest first, in every lifecycle state."""
+    access.require(ProjectScope.snapshot, snapshot_id, ProjectRole.viewer)
+    try:
+        return service.list_runs(snapshot_id, limit=limit, cursor=cursor)
+    except ResourceNotFoundError as error:
+        raise _not_found() from error
+    except InvalidCursorError as error:
+        raise invalid_cursor_error() from error
 
 
 @router.get("/runs/{run_id}", response_model=Run)

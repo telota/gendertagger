@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query, status
 
 from gendertagger.api.authorization import ProjectAccessGuard, get_project_access_guard
 from gendertagger.api.dependencies import get_review_item_service
-from gendertagger.api.errors import ApiRequestError
+from gendertagger.api.errors import ApiRequestError, invalid_cursor_error
 from gendertagger.models.api import CursorPage
 from gendertagger.models.review import ReviewItem, ReviewItemQuery
 from gendertagger.models.user import ProjectRole
@@ -44,9 +44,4 @@ def list_review_items(
             message="The aggregation is not ready for review.",
         ) from error
     except InvalidCursorError as error:
-        raise ApiRequestError(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            code="validation_error",
-            message="The cursor is invalid.",
-            details={"reason": "invalid_cursor"},
-        ) from error
+        raise invalid_cursor_error() from error

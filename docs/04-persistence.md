@@ -168,7 +168,11 @@ and status-specific start/finish timestamps and failure details are enforced at 
 New MethodExecutions may be appended only while their Run is non-terminal, and new TaskBatches only while
 their MethodExecution is non-terminal. AggregationExecutions remain independently rerunnable and may be
 created for an existing terminal Run; their selected MethodExecutions must still be completed outputs from
-that Run.
+that Run. Creation locks the Run row with `FOR NO KEY UPDATE` before it looks for a matching live or
+completed aggregation, so concurrent identical requests serialize and return one aggregation between them
+([ADR-0034](decisions/ADR-0034-reuse-matching-aggregation-on-creation.md)). The lock admits the
+`FOR KEY SHARE` locks of foreign-key checks, so it does not block workers writing rows that reference the
+Run.
 
 Creation-time scientific provenance is immutable. Updates to those rows are limited to operational fields:
 

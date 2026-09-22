@@ -3,14 +3,16 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from gendertagger.api.authorization import ProjectAccessGuard, get_project_access_guard
 from gendertagger.api.dependencies import get_export_service
-from gendertagger.api.errors import ApiRequestError
+from gendertagger.api.errors import ApiRequestError, invalid_cursor_error
+from gendertagger.models.api import CursorPage
 from gendertagger.models.export import ExportCreateRequest, ExportExecution
 from gendertagger.models.user import ProjectRole
 from gendertagger.services.exports import ExportService
+from gendertagger.services.pagination import InvalidCursorError
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
@@ -42,6 +44,24 @@ def create_export(
             code="resource_conflict",
             message="The selected aggregation is not exportable.",
         ) from error
+
+
+@router.get("/runs/{run_id}/exports", response_model=CursorPage[ExportExecution])
+def list_exports(
+    run_id: UUID,
+    service: Annotated[ExportService, Depends(get_export_service)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    cursor: Annotated[str | None, Query(max_length=2048)] = None,
+) -> CursorPage[ExportExecution]:
+    """List a run's exports newest first, in every lifecycle state."""
+    access.require(ProjectScope.run, run_id, ProjectRole.viewer)
+    try:
+        return service.list_exports(run_id, limit=limit, cursor=cursor)
+    except ResourceNotFoundError as error:
+        raise _not_found() from error
+    except InvalidCursorError as error:
+        raise invalid_cursor_error() from error
 
 
 @router.get("/exports/{export_id}", response_model=ExportExecution)

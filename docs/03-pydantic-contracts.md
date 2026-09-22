@@ -467,7 +467,10 @@ class AggregationExecution(AggregationExecutionCreate):
 ```
 
 `method_execution_ids` rejects duplicates. `canonical_config_sha256()` hashes the versioned strategy
-together with its resolved configuration, so a rerun with identical inputs is recognizable.
+together with its resolved configuration, so a rerun with identical inputs is recognizable. Together with
+`run_id` and the exact ordered `method_execution_ids`, that hash is the identity under which a repeated
+creation request returns an existing live or completed aggregation instead of creating another
+([ADR-0034](decisions/ADR-0034-reuse-matching-aggregation-on-creation.md)).
 The lifecycle validator requires `finished_at` on terminal statuses, `started_at` once running or
 completed, and a failure diagnostic exactly when the status is `failed`.
 

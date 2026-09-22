@@ -21,7 +21,7 @@ from gendertagger.models.api import CursorPage
 from gendertagger.models.classification import AgreementTier, CanonicalLabel, CertaintyTier
 from gendertagger.models.lifecycle import AggregationExecutionStatus
 from gendertagger.models.user import CurrentUser, ProjectRole
-from gendertagger.services.aggregations import AggregationService
+from gendertagger.services.aggregations import AggregationCreation, AggregationService
 from gendertagger.services.pagination import InvalidCursorError
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
@@ -116,7 +116,10 @@ def test_aggregation_routes_serialize_persisted_resources() -> None:
     service = Mock(spec=AggregationService)
     aggregation = _aggregation()
     result = _result()
-    service.create_aggregation.return_value = aggregation
+    service.create_aggregation.return_value = AggregationCreation(
+        aggregation=aggregation,
+        created=True,
+    )
     service.get_aggregation.return_value = aggregation
     service.list_results.return_value = CursorPage(
         items=[result],
@@ -147,6 +150,63 @@ def test_aggregation_routes_serialize_persisted_resources() -> None:
         "has_more": False,
     }
     assert result_response.json() == result.model_dump(mode="json")
+
+
+def test_create_aggregation_returns_a_reused_aggregation_with_200() -> None:
+    service = Mock(spec=AggregationService)
+    aggregation = _aggregation()
+    service.create_aggregation.return_value = AggregationCreation(
+        aggregation=aggregation,
+        created=False,
+    )
+
+    with _client(service) as client:
+        reused = client.post(
+            f"/api/v1/runs/{RUN_ID}/aggregations",
+            json={"method_execution_ids": [str(METHOD_EXECUTION_ID)]},
+        )
+
+    assert reused.status_code == 200
+    assert reused.json() == aggregation.model_dump(mode="json")
+
+
+def test_aggregation_list_route_pages_a_runs_aggregations() -> None:
+    service = Mock(spec=AggregationService)
+    aggregation = _aggregation()
+    service.list_aggregations.return_value = CursorPage(
+        items=[aggregation],
+        next_cursor="next",
+        has_more=True,
+    )
+
+    with _client(service) as client:
+        listed = client.get(
+            f"/api/v1/runs/{RUN_ID}/aggregations",
+            params={"limit": 1, "cursor": "previous"},
+        )
+        service.list_aggregations.side_effect = ResourceNotFoundError("missing run")
+        missing = client.get(f"/api/v1/runs/{RUN_ID}/aggregations")
+        service.list_aggregations.side_effect = InvalidCursorError("unreadable cursor")
+        invalid_cursor = client.get(
+            f"/api/v1/runs/{RUN_ID}/aggregations",
+            params={"cursor": "unreadable"},
+        )
+
+    assert listed.status_code == 200
+    assert listed.json() == {
+        "items": [aggregation.model_dump(mode="json")],
+        "next_cursor": "next",
+        "has_more": True,
+    }
+    assert service.list_aggregations.call_args_list[0].args == (RUN_ID,)
+    assert service.list_aggregations.call_args_list[0].kwargs == {
+        "limit": 1,
+        "cursor": "previous",
+    }
+    assert missing.status_code == 404
+    assert missing.json()["error"]["code"] == "resource_not_found"
+    assert invalid_cursor.status_code == 422
+    assert invalid_cursor.json()["error"]["details"] == {"reason": "invalid_cursor"}
 
 
 def test_create_aggregation_maps_missing_and_nonaggregatable_selection() -> None:

@@ -45,6 +45,16 @@ class ApiRequestError(Exception):
         super().__init__(message)
 
 
+def invalid_cursor_error() -> ApiRequestError:
+    """Return the ``422 validation_error`` every paginated route raises for an unusable cursor."""
+    return ApiRequestError(
+        status_code=422,
+        code="validation_error",
+        message="The cursor is invalid.",
+        details={"reason": "invalid_cursor"},
+    )
+
+
 def install_error_handlers(application: FastAPI) -> None:
     """Install transport-wide handlers without exposing internal diagnostics."""
 

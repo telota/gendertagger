@@ -140,9 +140,18 @@ the phased plan that resumes application code.
   `prediction` where a method persisted none, and `GET /api/v1/annotations?snapshot_id=&tei_id=`, which
   returns a person's review state with the complete annotation chain, newest first and attributed by
   reviewer display name. They are the last of the three read endpoints blocking the review client.
+- Cursor-paginated, newest-first collections for navigating the resource tree:
+  `GET /api/v1/projects/{project_id}/snapshots`, `GET /api/v1/snapshots/{snapshot_id}/runs`, and
+  `GET /api/v1/runs/{run_id}/aggregations`, `/evaluations`, and `/exports`. Each lists its resources in every
+  lifecycle state, so a client can recover identifiers after a reload.
 
 ### Changed
 
+- `POST /api/v1/runs/{run_id}/aggregations` now returns an existing aggregation with the same run, strategy,
+  configuration hash, and ordered selection with `200 OK` when it is queued, running, or completed, instead
+  of queueing a duplicate. A failed or cancelled match still leads to a new attempt with `202`. Concurrent
+  identical requests serialize on the run row
+  ([ADR-0034](docs/decisions/ADR-0034-reuse-matching-aggregation-on-creation.md)).
 - Ruff now enforces blind-exception, boolean-trap, unused-argument, commented-out-code, magic-value, and
   McCabe complexity (15) rules. The ADR-0009 agreement thresholds are named once, the readiness probe reports
   only database errors as `Database unavailable`, and the review-item query, prediction batch write, XLSX

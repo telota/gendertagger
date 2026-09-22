@@ -1,5 +1,6 @@
 """SQLAlchemy repository for export executions."""
 
+from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID
 
@@ -9,6 +10,7 @@ from sqlalchemy.orm import Session
 from gendertagger.db.aggregations import AggregatedResultRow, AggregationExecutionRow
 from gendertagger.db.executions import RunRow
 from gendertagger.db.exports import ExportExecutionRow
+from gendertagger.db.keyset import newest_first_slice
 from gendertagger.db.projects import DatasetSnapshotRow, PersonRecordRow, SnapshotSourceMemberRow
 from gendertagger.db.reviews import AnnotationRow, ReviewStateRow
 from gendertagger.export.final_decision import resolve_final_decision
@@ -26,6 +28,7 @@ from gendertagger.models.export import (
 from gendertagger.models.lifecycle import AggregationExecutionStatus, ExportExecutionStatus
 from gendertagger.models.project import SourceFormat, SourcePackaging
 from gendertagger.models.review import Annotation
+from gendertagger.services.pagination import CreationPosition
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
@@ -91,6 +94,25 @@ class SqlAlchemyExportRepository:
         """Return an export contract by ID without exposing its row."""
         row = self._session.get(ExportExecutionRow, export_id)
         return None if row is None else self._export_from_row(row)
+
+    def list_exports(
+        self,
+        run_id: UUID,
+        *,
+        limit: int,
+        after: CreationPosition | None = None,
+    ) -> Sequence[ExportExecution]:
+        """Return a run's exports newest first, in every lifecycle state."""
+        rows = self._session.scalars(
+            newest_first_slice(
+                select(ExportExecutionRow).where(ExportExecutionRow.run_id == run_id),
+                created_at=ExportExecutionRow.created_at,
+                row_id=ExportExecutionRow.id,
+                limit=limit,
+                after=after,
+            )
+        )
+        return tuple(self._export_from_row(row) for row in rows)
 
     def mark_export_queued(self, export_id: UUID) -> ExportExecution:
         """Atomically transition a pending export to queued."""

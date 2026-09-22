@@ -14,6 +14,7 @@ from gendertagger.models.aggregation import (
     ResultMethodPrediction,
 )
 from gendertagger.models.lifecycle import AggregationExecutionStatus
+from gendertagger.services.pagination import CreationPosition
 
 
 class AggregationRepository(Protocol):
@@ -23,8 +24,31 @@ class AggregationRepository(Protocol):
         """Persist an aggregation over a locked run and exact completed selection."""
         ...
 
+    def find_reusable_aggregation(
+        self,
+        command: AggregationExecutionCreate,
+    ) -> AggregationExecution | None:
+        """Lock the run against concurrent creation and return the oldest matching aggregation.
+
+        A match has the command's run, strategy, configuration hash, and exact ordered
+        selection, and is not ``failed`` or ``cancelled`` (ADR-0034). The run lock lasts until
+        the transaction ends, so a creation that follows in the same transaction cannot race
+        an identical one.
+        """
+        ...
+
     def get_aggregation(self, aggregation_execution_id: UUID) -> AggregationExecution | None:
         """Return an aggregation execution by ID, or ``None`` when absent."""
+        ...
+
+    def list_aggregations(
+        self,
+        run_id: UUID,
+        *,
+        limit: int,
+        after: CreationPosition | None = None,
+    ) -> Sequence[AggregationExecution]:
+        """Return one newest-first ``(created_at, id)`` keyset slice of a run's aggregations."""
         ...
 
     def mark_aggregation_queued(

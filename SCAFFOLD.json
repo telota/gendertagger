@@ -62,7 +62,8 @@
     "docs/decisions/ADR-0030-bilingual-client-with-untranslated-canonical-vocabulary.md",
     "docs/decisions/ADR-0031-local-database-authentication.md",
     "docs/decisions/ADR-0032-sliding-session-lifetime.md",
-    "docs/decisions/ADR-0033-project-scoped-membership-roles.md"
+    "docs/decisions/ADR-0033-project-scoped-membership-roles.md",
+    "docs/decisions/ADR-0034-reuse-matching-aggregation-on-creation.md"
   ],
   "top_level_entrypoints": [
     "README.md",

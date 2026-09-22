@@ -62,7 +62,7 @@ from gendertagger.models.review import (
 from gendertagger.models.run import Progress, Run, RunCreate, RunCreateRequest
 from gendertagger.models.user import CurrentUser, GlobalRole, ProjectRole, User, UserCreate
 from gendertagger.services.aggregation_repository import AggregationRepository
-from gendertagger.services.aggregations import AggregationService
+from gendertagger.services.aggregations import AggregationCreation, AggregationService
 from gendertagger.services.annotations import AnnotationService
 from gendertagger.services.artifact_repository import ArtifactRepository
 from gendertagger.services.auth_repository import AuthRepository
@@ -618,6 +618,7 @@ def test_run_service_resolves_server_provenance_and_reads_resources() -> None:
             python_version="3.13.14",
             dependency_lock_sha256="d" * 64,
         ),
+        cursor_codec=CursorCodec(),
     )
 
     created = service.create_run(
@@ -675,6 +676,7 @@ def _aggregation_result(
 
 def test_aggregation_service_creates_and_scopes_resources() -> None:
     aggregation_repository = Mock(spec=AggregationRepository)
+    aggregation_repository.find_reusable_aggregation.return_value = None
     aggregation_repository.add_aggregation.side_effect = _aggregation
     aggregation_repository.mark_aggregation_queued.side_effect = lambda _aggregation_id: (
         _aggregation(
@@ -697,7 +699,9 @@ def test_aggregation_service_creates_and_scopes_resources() -> None:
     )
     command = AggregationCreateRequest(method_execution_ids=(EXECUTION_ID,))
 
-    created = service.create_aggregation(run_id=RUN_ID, command=command)
+    creation = service.create_aggregation(run_id=RUN_ID, command=command)
+    created = creation.aggregation
+    assert creation.created is True
     assert created.status is AggregationExecutionStatus.queued
     aggregation_repository.get_aggregation.side_effect = [created, None]
     assert service.get_aggregation(AGGREGATION_ID) == created
@@ -730,6 +734,34 @@ def test_aggregation_service_creates_and_scopes_resources() -> None:
     assert unit_of_work.commit_count == 1
 
 
+def test_aggregation_service_returns_a_matching_aggregation_without_queueing() -> None:
+    command = AggregationExecutionCreate(run_id=RUN_ID, method_execution_ids=(EXECUTION_ID,))
+    existing = _aggregation(command, status=AggregationExecutionStatus.completed)
+    aggregation_repository = Mock(spec=AggregationRepository)
+    aggregation_repository.find_reusable_aggregation.return_value = existing
+    dispatch_repository = Mock(spec=DispatchRepository)
+    unit_of_work = StubUnitOfWork(
+        aggregations=aggregation_repository,
+        dispatches=dispatch_repository,
+    )
+    service = AggregationService(
+        unit_of_work_factory=unit_of_work.factory,
+        cursor_codec=CursorCodec(),
+        clock=lambda: NOW,
+    )
+
+    creation = service.create_aggregation(
+        run_id=RUN_ID,
+        command=AggregationCreateRequest(method_execution_ids=(EXECUTION_ID,)),
+    )
+
+    assert creation == AggregationCreation(aggregation=existing, created=False)
+    aggregation_repository.find_reusable_aggregation.assert_called_once_with(command)
+    aggregation_repository.add_aggregation.assert_not_called()
+    dispatch_repository.ensure_dispatch.assert_not_called()
+    assert unit_of_work.commit_count == 0
+
+
 def test_aggregation_service_reads_predictions_only_for_a_result_it_owns() -> None:
     aggregation_repository = Mock(spec=AggregationRepository)
     aggregation_repository.get_result.return_value = _aggregation_result(0)
@@ -757,6 +789,7 @@ def test_aggregation_service_reads_predictions_only_for_a_result_it_owns() -> No
 
 def test_aggregation_service_does_not_queue_or_commit_without_durable_dispatch() -> None:
     aggregation_repository = Mock(spec=AggregationRepository)
+    aggregation_repository.find_reusable_aggregation.return_value = None
     aggregation_repository.add_aggregation.side_effect = _aggregation
     dispatch_repository = Mock(spec=DispatchRepository)
     dispatch_repository.ensure_dispatch.side_effect = RuntimeError("dispatch persistence failed")

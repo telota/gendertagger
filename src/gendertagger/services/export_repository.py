@@ -1,11 +1,13 @@
 """Application repository contract for export executions."""
 
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
 from gendertagger.models.export import ExportExecution, ExportExecutionCreate, ExportInputs
 from gendertagger.models.lifecycle import ExportExecutionStatus
+from gendertagger.services.pagination import CreationPosition
 
 
 class ExportRepository(Protocol):
@@ -17,6 +19,16 @@ class ExportRepository(Protocol):
 
     def get_export(self, export_id: UUID) -> ExportExecution | None:
         """Return an export execution by ID, or ``None`` when absent."""
+        ...
+
+    def list_exports(
+        self,
+        run_id: UUID,
+        *,
+        limit: int,
+        after: CreationPosition | None = None,
+    ) -> Sequence[ExportExecution]:
+        """Return one newest-first ``(created_at, id)`` keyset slice of a run's exports."""
         ...
 
     def mark_export_queued(self, export_id: UUID) -> ExportExecution:

@@ -1,6 +1,7 @@
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
+from time import monotonic, sleep
 from uuid import UUID, uuid4
 
 import pytest
@@ -58,7 +59,7 @@ from gendertagger.models.run import (
     RunCreate,
     TaskBatchCreate,
 )
-from gendertagger.services.aggregations import AggregationService
+from gendertagger.services.aggregations import AggregationCreation, AggregationService
 from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
@@ -660,6 +661,59 @@ def test_concurrent_workers_claim_an_aggregation_only_once(postgres_engine: Engi
 
     assert claims.count(True) == 1
     assert claims.count(False) == 1
+
+
+def test_concurrent_identical_aggregation_requests_share_one_aggregation(
+    postgres_engine: Engine,
+) -> None:
+    with Session(postgres_engine, autoflush=False, expire_on_commit=False) as session:
+        run_id, execution_ids, _person_id = _seed_reference_run(session)
+        session.commit()
+    session_factory = create_session_factory(postgres_engine)
+    service = AggregationService(
+        unit_of_work_factory=lambda: SqlAlchemyUnitOfWork(session_factory),
+        cursor_codec=CursorCodec(),
+        clock=lambda: NOW,
+    )
+    command = AggregationExecutionCreate(run_id=run_id, method_execution_ids=execution_ids)
+
+    with Session(postgres_engine, autoflush=False, expire_on_commit=False) as first_session:
+        repository = SqlAlchemyAggregationRepository(first_session)
+        assert repository.find_reusable_aggregation(command) is None
+        first = repository.add_aggregation(command)
+        repository.mark_aggregation_queued(first.id)
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            competing = pool.submit(
+                service.create_aggregation,
+                run_id=run_id,
+                command=AggregationCreateRequest(method_execution_ids=execution_ids),
+            )
+            observed_lock_wait = False
+            deadline = monotonic() + 5
+            try:
+                while monotonic() < deadline and not competing.done():
+                    with postgres_engine.connect() as observer:
+                        waiting_locks = observer.execute(
+                            text("SELECT count(*) FROM pg_locks WHERE NOT granted")
+                        ).scalar_one()
+                    if waiting_locks:
+                        observed_lock_wait = True
+                        break
+                    sleep(0.01)
+            finally:
+                first_session.commit()
+            second: AggregationCreation = competing.result(timeout=5)
+
+    assert observed_lock_wait
+    assert second.created is False
+    assert second.aggregation.id == first.id
+    with Session(postgres_engine) as session:
+        assert tuple(
+            session.scalars(
+                select(AggregationExecutionRow.id).where(AggregationExecutionRow.run_id == run_id)
+            )
+        ) == (first.id,)
 
 
 def test_aggregation_creation_rolls_back_when_dispatch_intent_cannot_persist(

@@ -21,6 +21,7 @@ from gendertagger.models.run import (
     TaskBatchCreate,
     TaskBatchPlan,
 )
+from gendertagger.services.pagination import CreationPosition
 
 
 class RunRepository(Protocol):
@@ -32,6 +33,16 @@ class RunRepository(Protocol):
 
     def get_run(self, run_id: UUID) -> Run | None:
         """Return a run by ID, or ``None`` when absent."""
+        ...
+
+    def list_runs(
+        self,
+        dataset_snapshot_id: UUID,
+        *,
+        limit: int,
+        after: CreationPosition | None = None,
+    ) -> Sequence[Run]:
+        """Return one newest-first ``(created_at, id)`` keyset slice of a snapshot's runs."""
         ...
 
     def add_method_execution(self, command: MethodExecutionCreate) -> MethodExecution:

@@ -230,13 +230,17 @@ def test_reference_aggregation_runs_through_relay_and_real_worker(
         create_session_factory(postgres_engine),
     )
     run_id, execution_ids = _seed_completed_reference_run(factory, postgres_engine)
-    aggregation = AggregationService(
-        unit_of_work_factory=factory,
-        cursor_codec=CursorCodec(),
-        clock=partial(datetime.now, UTC),
-    ).create_aggregation(
-        run_id=run_id,
-        command=AggregationCreateRequest(method_execution_ids=execution_ids),
+    aggregation = (
+        AggregationService(
+            unit_of_work_factory=factory,
+            cursor_codec=CursorCodec(),
+            clock=partial(datetime.now, UTC),
+        )
+        .create_aggregation(
+            run_id=run_id,
+            command=AggregationCreateRequest(method_execution_ids=execution_ids),
+        )
+        .aggregation
     )
     assert aggregation.status is AggregationExecutionStatus.queued
 

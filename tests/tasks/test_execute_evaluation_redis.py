@@ -41,6 +41,7 @@ from gendertagger.models.run import (
 )
 from gendertagger.services.dispatch import OutboxRelay
 from gendertagger.services.evaluations import EvaluationService
+from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
 from gendertagger.tasks import evaluation as evaluation_module
@@ -224,6 +225,7 @@ def test_gnd_benchmark_evaluation_runs_through_relay_and_real_worker(
     evaluation = EvaluationService(
         unit_of_work_factory=factory,
         artifact_storage=LocalArtifactStorage(tmp_path),
+        cursor_codec=CursorCodec(),
         clock=partial(datetime.now, UTC),
     ).create_evaluation(EvaluationCreateRequest(run_id=run_id, method_execution_ids=execution_ids))
     assert evaluation.status is EvaluationExecutionStatus.queued

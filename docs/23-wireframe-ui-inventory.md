@@ -267,7 +267,10 @@ and bar; and a run-history table with a retry link and a failure explanation.
 **Backend.** `POST /runs` takes `dataset_snapshot_id` and a full `RunConfig`; `POST /runs/{id}/executions`
 schedules it; `GET /runs/{id}` and `GET /runs/{id}/executions` return state and per-method
 `MethodExecutionSummary`; `GET /runs/{id}/events` streams six SSE event types
-([`api/run_events.py`](../src/gendertagger/api/run_events.py)).
+([`api/run_events.py`](../src/gendertagger/api/run_events.py)). `GET /snapshots/{id}/runs` lists a snapshot's
+runs newest first, and `GET /runs/{id}/aggregations` lists a run's aggregations the same way. Repeating the
+default aggregation request returns the existing live or completed aggregation with `200` rather than queueing
+another ([ADR-0034](decisions/ADR-0034-reuse-matching-aggregation-on-creation.md)).
 
 **Gaps.**
 
@@ -289,7 +292,8 @@ schedules it; `GET /runs/{id}` and `GET /runs/{id}/executions` return state and 
   `implementation_version`, `normalization_version`) are entirely absent.
 - **Gap (backend):** the history table offers "Erneut versuchen ↻". There is no retry endpoint. There is also
   no cancel endpoint, although `RunStatus.cancelled` exists.
-- **Gap (backend):** there is no run-list endpoint, so the history table cannot be served.
+- **Resolved (backend):** `GET /snapshots/{snapshot_id}/runs` lists a snapshot's runs newest first, in every
+  lifecycle state, so the history table has a source.
 - **Gap (frontend):** **the aggregation step is missing entirely.** After executions complete, a run needs
   `POST /runs/{run_id}/aggregations` with a strategy and the exact `method_execution_ids` before any review
   or export is possible. This is the largest structural omission in the wireframe.
@@ -450,7 +454,7 @@ trapped — the Vue port must add a focus trap and restore focus on close.
 
 ## Backend endpoint coverage
 
-All thirty-five delivered `/api/v1` endpoints, and how the wireframe treats each. Project-scoped roles are
+All forty delivered `/api/v1` endpoints, and how the wireframe treats each. Project-scoped roles are
 checked against the project that owns the addressed resource.
 
 | Endpoint | Role | Wireframe treatment |
@@ -467,8 +471,10 @@ checked against the project that owns the addressed resource.
 | `PUT /projects/{id}/members/{user_id}` | global admin | **absent** |
 | `DELETE /projects/{id}/members/{user_id}` | global admin | **absent** |
 | `POST /projects/{id}/snapshots` | operator | partial — TEI/single only |
+| `GET /projects/{id}/snapshots` | viewer | **absent — no snapshot history** |
 | `GET /snapshots/{id}` | viewer | absent — no lifecycle shown |
 | `GET /snapshots/{id}/people` | viewer | mocked list, unsupported filters |
+| `GET /snapshots/{id}/runs` | viewer | mocked run-history table |
 | `GET /methods` | any role or membership | hardcoded, wrong roster |
 | `POST /classify` | any role or membership | **absent — no screen** |
 | `POST /runs` | operator | mocked button |
@@ -477,6 +483,9 @@ checked against the project that owns the addressed resource.
 | `POST /runs/{id}/executions` | operator | mocked button |
 | `GET /runs/{id}/events` (SSE) | viewer | **absent — static UI** |
 | `POST /runs/{id}/aggregations` | operator | **absent — no screen** |
+| `GET /runs/{id}/aggregations` | viewer | **absent — no screen** |
+| `GET /runs/{id}/evaluations` | viewer | **absent** |
+| `GET /runs/{id}/exports` | viewer | **absent** |
 | `GET /aggregations/{id}` | viewer | **absent** |
 | `GET /aggregations/{id}/results` | viewer | **absent** |
 | `GET /aggregations/{id}/results/{result_id}` | viewer | **absent** |
@@ -513,7 +522,7 @@ Grouped by whether they need a backend decision before or after v1.
 | Per-person, per-method predictions | Redigieren, Manuell annotieren | **Delivered.** `GET /aggregations/{id}/results/{result_id}/predictions`. |
 | Annotation history read | Redigieren, Manuell annotieren | **Delivered.** `GET /annotations?snapshot_id=&tei_id=`. |
 | Run retry and cancel | Klassifikation | Add; `cancelled` status already modeled. |
-| Run list | Klassifikation | Add. |
+| Run list | Klassifikation | **Delivered.** `GET /snapshots/{snapshot_id}/runs`. |
 | Bulk annotation | Redigieren | Client-side loop for v1; batch endpoint later. |
 | Activity feed | Übersicht | Defer. |
 | Notifications | shell | Defer. |
@@ -665,7 +674,9 @@ Ordered by whether the Vue port is blocked without them.
 ### Near-term
 
 1. Per-project progress projection, so the project cards and Übersicht KPIs have a source.
-2. `GET /runs?dataset_snapshot_id=` for the run history table.
+2. A run list for the history table. **Delivered** as `GET /snapshots/{snapshot_id}/runs`, together with the
+   other collections the routes need to discover their identifiers: `GET /projects/{project_id}/snapshots`
+   and `GET /runs/{run_id}/aggregations`, `/evaluations`, and `/exports`.
 3. `POST /runs/{id}/cancel` and a retry path.
 4. A decision on the parse-summary statistics (already-set `@sex`, missing name elements, duplicate GND IDs).
 

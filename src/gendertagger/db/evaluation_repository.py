@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from gendertagger.db.aggregations import AggregatedResultRow, AggregationExecutionRow
 from gendertagger.db.evaluations import EvaluationExecutionRow, EvaluationMethodExecutionRow
 from gendertagger.db.executions import MethodExecutionRow, PredictionRow, RunRow
+from gendertagger.db.keyset import newest_first_slice
 from gendertagger.db.projects import DatasetSnapshotRow, PersonRecordRow
 from gendertagger.db.reviews import AnnotationRow, ReviewStateRow
 from gendertagger.models.aggregation import (
@@ -32,6 +33,7 @@ from gendertagger.models.lifecycle import (
     MethodExecutionStatus,
 )
 from gendertagger.models.review import ReviewAction
+from gendertagger.services.pagination import CreationPosition
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
@@ -138,6 +140,45 @@ class SqlAlchemyEvaluationRepository:
         if row is None:
             return None
         return self._evaluation_from_row(row, self._method_execution_ids(evaluation_execution_id))
+
+    def list_evaluations(
+        self,
+        run_id: UUID,
+        *,
+        limit: int,
+        after: CreationPosition | None = None,
+    ) -> Sequence[EvaluationExecution]:
+        """Return a run's evaluations newest first, in every lifecycle state."""
+        rows = tuple(
+            self._session.scalars(
+                newest_first_slice(
+                    select(EvaluationExecutionRow).where(EvaluationExecutionRow.run_id == run_id),
+                    created_at=EvaluationExecutionRow.created_at,
+                    row_id=EvaluationExecutionRow.id,
+                    limit=limit,
+                    after=after,
+                )
+            )
+        )
+        selections: defaultdict[UUID, list[UUID]] = defaultdict(list)
+        if rows:
+            for evaluation_execution_id, method_execution_id in self._session.execute(
+                select(
+                    EvaluationMethodExecutionRow.evaluation_execution_id,
+                    EvaluationMethodExecutionRow.method_execution_id,
+                )
+                .where(
+                    EvaluationMethodExecutionRow.evaluation_execution_id.in_(
+                        [row.id for row in rows]
+                    )
+                )
+                .order_by(
+                    EvaluationMethodExecutionRow.evaluation_execution_id,
+                    EvaluationMethodExecutionRow.position,
+                )
+            ):
+                selections[evaluation_execution_id].append(method_execution_id)
+        return tuple(self._evaluation_from_row(row, tuple(selections[row.id])) for row in rows)
 
     def mark_evaluation_queued(self, evaluation_execution_id: UUID) -> EvaluationExecution:
         """Atomically transition a pending evaluation to queued."""

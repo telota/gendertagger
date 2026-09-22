@@ -134,6 +134,7 @@ def create_app(
             dependency_lock_sha256=resolved_settings.dependency_lock_sha256,
             container_image_digest=resolved_settings.container_image_digest,
         ),
+        cursor_codec=cursor_codec,
     )
     aggregation_service = AggregationService(
         unit_of_work_factory=unit_of_work_factory,
@@ -143,11 +144,13 @@ def create_app(
     evaluation_service = EvaluationService(
         unit_of_work_factory=unit_of_work_factory,
         artifact_storage=artifact_storage,
+        cursor_codec=cursor_codec,
         clock=partial(datetime.now, UTC),
     )
     export_service = ExportService(
         unit_of_work_factory=unit_of_work_factory,
         artifact_storage=artifact_storage,
+        cursor_codec=cursor_codec,
         clock=partial(datetime.now, UTC),
     )
     annotation_service = AnnotationService(unit_of_work_factory)

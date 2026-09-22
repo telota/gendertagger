@@ -1,5 +1,6 @@
 """Application repository contract for evaluation executions."""
 
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Protocol
 from uuid import UUID
@@ -10,6 +11,7 @@ from gendertagger.models.evaluation import (
     EvaluationInputs,
 )
 from gendertagger.models.lifecycle import EvaluationExecutionStatus
+from gendertagger.services.pagination import CreationPosition
 
 
 class EvaluationRepository(Protocol):
@@ -21,6 +23,16 @@ class EvaluationRepository(Protocol):
 
     def get_evaluation(self, evaluation_execution_id: UUID) -> EvaluationExecution | None:
         """Return an evaluation execution by ID, or ``None`` when absent."""
+        ...
+
+    def list_evaluations(
+        self,
+        run_id: UUID,
+        *,
+        limit: int,
+        after: CreationPosition | None = None,
+    ) -> Sequence[EvaluationExecution]:
+        """Return one newest-first ``(created_at, id)`` keyset slice of a run's evaluations."""
         ...
 
     def mark_evaluation_queued(self, evaluation_execution_id: UUID) -> EvaluationExecution:

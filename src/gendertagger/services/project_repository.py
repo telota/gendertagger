@@ -14,6 +14,7 @@ from gendertagger.models.project import (
     SnapshotSourceMember,
     SnapshotSourceMemberCreate,
 )
+from gendertagger.services.pagination import CreationPosition
 
 
 class ProjectRepository(Protocol):
@@ -46,6 +47,16 @@ class ProjectRepository(Protocol):
 
     def get_snapshot(self, snapshot_id: UUID) -> DatasetSnapshot | None:
         """Return a snapshot by ID, or ``None`` when absent."""
+        ...
+
+    def list_snapshots(
+        self,
+        project_id: UUID,
+        *,
+        limit: int,
+        after: CreationPosition | None = None,
+    ) -> Sequence[DatasetSnapshot]:
+        """Return one newest-first ``(created_at, id)`` keyset slice of a project's snapshots."""
         ...
 
     def add_snapshot_source_members(

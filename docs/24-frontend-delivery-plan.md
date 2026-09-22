@@ -23,6 +23,7 @@ one is partly met.
 |---|---|---|
 | A real `AuthenticationBackend` | **Met.** `DatabaseAuthenticationBackend` is the default: admin-provisioned local accounts and server-side sessions ([ADR-0031](decisions/ADR-0031-local-database-authentication.md)). | — |
 | Three missing read endpoints | **Met.** `GET /projects` ([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)), `GET /aggregations/{id}/results/{result_id}/predictions`, and `GET /annotations?snapshot_id=&tei_id=` are delivered. | — |
+| Collections to navigate by | **Met.** `GET /projects/{id}/snapshots`, `GET /snapshots/{id}/runs`, and `GET /runs/{id}/aggregations`, `/evaluations`, and `/exports` list their resources newest first, so the routes can recover the identifiers they carry. | — |
 | Blocking semantic decisions | **Partly taken.** D1–D4 and D6 resolved; D5 deliberately open. See [Decisions](#decisions-taken). | Manuell annotieren (D5) |
 
 M1 is delivered and M2 is not blocked, since a real authentication backend is in place. No milestone waits on
@@ -450,9 +451,14 @@ and an exact subset of executions — remains available as an advanced action.
   Excluding a method and re-aggregating without re-running the LLM is exactly the workflow the UI should
   make cheap.
 - Multiple aggregations per run must therefore be listable and comparable, and the UI must always show
-  which aggregation the current review queue and export belong to.
+  which aggregation the current review queue and export belong to. `GET /runs/{id}/aggregations` lists
+  them newest first.
 - Auto-creation must be idempotent and must fail visibly, not silently, when the execution set is not
-  aggregatable — `POST /runs/{id}/aggregations` returns `409` in that case.
+  aggregatable — `POST /runs/{id}/aggregations` returns `409` in that case. The server makes it idempotent
+  ([ADR-0034](decisions/ADR-0034-reuse-matching-aggregation-on-creation.md)): repeating the request returns
+  the existing queued, running, or completed aggregation with `200` instead of `202`, and only a failed or
+  cancelled one leads to a fresh attempt. The client therefore sends the executions in a stable order, the
+  one `GET /runs/{id}/executions` returns, and may repeat the request after every reload.
 
 ### D6 — Project visibility and role scope
 

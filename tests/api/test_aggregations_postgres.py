@@ -370,3 +370,92 @@ def test_queued_aggregation_executes_and_results_round_trip_through_http(
         ),
     ]
     assert [response.status_code for response in hidden_responses] == [404] * 6
+
+
+def test_repeated_aggregation_requests_reuse_live_or_completed_matches_only(
+    postgres_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    unit_of_work_factory, session_factory = _unit_of_work_factory(postgres_engine)
+    user_id, run_id, execution_ids, _person_ids = _seed_completed_reference_executions(
+        unit_of_work_factory,
+        session_factory,
+    )
+    client = TestClient(
+        create_app(
+            settings=AppSettings(
+                database_url=SecretStr(DATABASE_URL),
+                code_git_commit=CODE_GIT_COMMIT,
+                dependency_lock_sha256=DEPENDENCY_LOCK_SHA256,
+                artifact_root=tmp_path,
+            ),
+            unit_of_work_factory=unit_of_work_factory,
+            authentication_backend=StaticAuthenticationBackend(user_id),
+        )
+    )
+    selection = [str(execution_id) for execution_id in execution_ids]
+
+    def create(method_execution_ids: list[str]) -> tuple[int, dict[str, object]]:
+        response = client.post(
+            f"/api/v1/runs/{run_id}/aggregations",
+            json={"method_execution_ids": method_execution_ids},
+        )
+        return response.status_code, response.json()
+
+    first_status, first = create(selection)
+    queued_status, queued_repeat = create(selection)
+    reordered_status, reordered = create(list(reversed(selection)))
+    first_id = UUID(str(first["id"]))
+    reordered_id = UUID(str(reordered["id"]))
+
+    assert (first_status, queued_status, reordered_status) == (202, 200, 202)
+    assert queued_repeat == first
+    assert reordered_id != first_id
+
+    AggregationExecutor(unit_of_work_factory=unit_of_work_factory, clock=lambda: NOW).execute(
+        AggregationTaskMessage(aggregation_execution_id=first_id),
+        attempt_count=1,
+    )
+    with unit_of_work_factory() as unit_of_work:
+        unit_of_work.aggregations.claim_aggregation(reordered_id, started_at=NOW)
+        unit_of_work.aggregations.mark_aggregation_finished(
+            reordered_id,
+            status=AggregationExecutionStatus.failed,
+            finished_at=NOW,
+            failure_class="FixtureFailure",
+            failure_diagnostic="The fixture failed this aggregation.",
+        )
+        unit_of_work.commit()
+    completed_status, completed_repeat = create(selection)
+    retry_status, retry = create(list(reversed(selection)))
+    retry_id = UUID(str(retry["id"]))
+
+    assert completed_status == 200
+    assert completed_repeat["id"] == str(first_id)
+    assert completed_repeat["status"] == AggregationExecutionStatus.completed.value
+    assert retry_status == 202
+    assert retry_id not in {first_id, reordered_id}
+    with unit_of_work_factory() as unit_of_work:
+        assert unit_of_work.dispatches.get_dispatch_for_aggregation(first_id) is not None
+        assert unit_of_work.dispatches.get_dispatch_for_aggregation(retry_id) is not None
+
+    first_page = client.get(f"/api/v1/runs/{run_id}/aggregations", params={"limit": 2}).json()
+    second_page = client.get(
+        f"/api/v1/runs/{run_id}/aggregations",
+        params={"limit": 2, "cursor": first_page["next_cursor"]},
+    ).json()
+
+    assert [item["id"] for item in first_page["items"] + second_page["items"]] == [
+        str(retry_id),
+        str(reordered_id),
+        str(first_id),
+    ]
+    assert [item["status"] for item in first_page["items"] + second_page["items"]] == [
+        AggregationExecutionStatus.queued.value,
+        AggregationExecutionStatus.failed.value,
+        AggregationExecutionStatus.completed.value,
+    ]
+    assert first_page["has_more"] is True
+    assert second_page["has_more"] is False
+    assert second_page["items"][0]["method_execution_ids"] == selection
+    assert client.get(f"/api/v1/runs/{uuid4()}/aggregations").status_code == 404

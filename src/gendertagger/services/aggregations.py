@@ -1,6 +1,7 @@
 """Application use cases for independently rerunnable aggregations."""
 
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from uuid import UUID
 
 from gendertagger.models.aggregation import (
@@ -15,11 +16,29 @@ from gendertagger.models.api import CursorPage
 from gendertagger.models.common import UtcDatetime
 from gendertagger.models.dispatch import AggregationDispatchCreate
 from gendertagger.models.queues import CPU_QUEUE
-from gendertagger.services.pagination import CursorCodec, InvalidCursorError
+from gendertagger.services.pagination import (
+    CursorCodec,
+    InvalidCursorError,
+    decode_creation_position,
+    newest_first_page,
+)
 from gendertagger.services.persistence_errors import ResourceNotFoundError
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 
 Clock = Callable[[], UtcDatetime]
+
+
+@dataclass(frozen=True, slots=True)
+class AggregationCreation:
+    """Outcome of one aggregation creation command.
+
+    Attributes:
+        aggregation: The newly queued aggregation, or the existing one the command matched.
+        created: Whether the command created ``aggregation`` rather than reusing it (ADR-0034).
+    """
+
+    aggregation: AggregationExecution
+    created: bool
 
 
 class AggregationService:
@@ -41,17 +60,24 @@ class AggregationService:
         *,
         run_id: UUID,
         command: AggregationCreateRequest,
-    ) -> AggregationExecution:
-        """Persist one aggregation and its durable dispatch intent atomically."""
+    ) -> AggregationCreation:
+        """Return a matching live or completed aggregation, or queue a new one atomically.
+
+        An existing aggregation matches when it has the same run, strategy, configuration, and
+        exact ordered selection (ADR-0034). Otherwise the new aggregation and its durable
+        dispatch intent commit together.
+        """
+        create = AggregationExecutionCreate(
+            run_id=run_id,
+            strategy=command.strategy,
+            resolved_config={},
+            method_execution_ids=command.method_execution_ids,
+        )
         with self._unit_of_work_factory() as unit_of_work:
-            aggregation = unit_of_work.aggregations.add_aggregation(
-                AggregationExecutionCreate(
-                    run_id=run_id,
-                    strategy=command.strategy,
-                    resolved_config={},
-                    method_execution_ids=command.method_execution_ids,
-                )
-            )
+            existing = unit_of_work.aggregations.find_reusable_aggregation(create)
+            if existing is not None:
+                return AggregationCreation(aggregation=existing, created=False)
+            aggregation = unit_of_work.aggregations.add_aggregation(create)
             unit_of_work.dispatches.ensure_dispatch(
                 AggregationDispatchCreate(
                     aggregation_execution_id=aggregation.id,
@@ -64,7 +90,31 @@ class AggregationService:
             )
             aggregation = unit_of_work.aggregations.mark_aggregation_queued(aggregation.id)
             unit_of_work.commit()
-        return aggregation
+        return AggregationCreation(aggregation=aggregation, created=True)
+
+    def list_aggregations(
+        self,
+        run_id: UUID,
+        *,
+        limit: int,
+        cursor: str | None,
+    ) -> CursorPage[AggregationExecution]:
+        """Return one newest-first opaque-cursor page of a run's aggregations."""
+        if limit <= 0:
+            msg = "limit must be positive"
+            raise ValueError(msg)
+        resource = f"run_aggregations:{run_id}"
+        after = decode_creation_position(self._cursor_codec, cursor, resource=resource)
+        with self._unit_of_work_factory() as unit_of_work:
+            if unit_of_work.runs.get_run(run_id) is None:
+                msg = f"run {run_id} does not exist"
+                raise ResourceNotFoundError(msg)
+            aggregations = unit_of_work.aggregations.list_aggregations(
+                run_id,
+                limit=limit + 1,
+                after=after,
+            )
+        return newest_first_page(self._cursor_codec, aggregations, limit=limit, resource=resource)
 
     def get_aggregation(self, aggregation_id: UUID) -> AggregationExecution:
         """Return one aggregation execution or raise a not-found failure."""

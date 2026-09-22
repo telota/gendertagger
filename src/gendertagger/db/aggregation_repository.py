@@ -16,6 +16,7 @@ from gendertagger.db.aggregations import (
     AggregationMethodExecutionRow,
 )
 from gendertagger.db.executions import MethodExecutionRow, PredictionRow, RunRow
+from gendertagger.db.keyset import newest_first_slice
 from gendertagger.db.projects import DatasetSnapshotRow, PersonRecordRow
 from gendertagger.domain.aggregation import (
     REFERENCE_IGNORED_METHODS,
@@ -32,6 +33,7 @@ from gendertagger.models.aggregation import (
 )
 from gendertagger.models.classification import CanonicalLabel, PredictionResult
 from gendertagger.models.lifecycle import AggregationExecutionStatus, MethodExecutionStatus
+from gendertagger.services.pagination import CreationPosition
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
@@ -45,6 +47,12 @@ _TERMINAL_AGGREGATION_STATUSES = {
     AggregationExecutionStatus.completed,
     AggregationExecutionStatus.failed,
 }
+_REUSABLE_AGGREGATION_STATUSES = (
+    AggregationExecutionStatus.pending,
+    AggregationExecutionStatus.queued,
+    AggregationExecutionStatus.running,
+    AggregationExecutionStatus.completed,
+)
 _REFERENCE_ALLOWED_METHODS = frozenset(REFERENCE_REQUIRED_METHODS + REFERENCE_IGNORED_METHODS)
 
 
@@ -114,6 +122,38 @@ class SqlAlchemyAggregationRepository:
         self._session.flush()
         return self._aggregation_from_row(row, command.method_execution_ids)
 
+    def find_reusable_aggregation(
+        self,
+        command: AggregationExecutionCreate,
+    ) -> AggregationExecution | None:
+        """Lock the run row, then return the oldest live or completed identical aggregation.
+
+        ``FOR NO KEY UPDATE`` serializes concurrent creators on the run while still admitting the
+        ``FOR KEY SHARE`` locks of foreign-key checks. Under ``READ COMMITTED`` the candidate
+        query runs after the lock is granted, so it sees an identical aggregation that a
+        concurrent request committed while this one waited (ADR-0034).
+        """
+        self._session.execute(
+            select(RunRow.id).where(RunRow.id == command.run_id).with_for_update(key_share=True)
+        )
+        candidates = tuple(
+            self._session.scalars(
+                select(AggregationExecutionRow)
+                .where(
+                    AggregationExecutionRow.run_id == command.run_id,
+                    AggregationExecutionRow.strategy == command.strategy.value,
+                    AggregationExecutionRow.config_sha256 == command.canonical_config_sha256(),
+                    AggregationExecutionRow.status.in_(_REUSABLE_AGGREGATION_STATUSES),
+                )
+                .order_by(AggregationExecutionRow.created_at, AggregationExecutionRow.id)
+            )
+        )
+        selections = self._method_execution_ids_by_aggregation([row.id for row in candidates])
+        for row in candidates:
+            if selections[row.id] == command.method_execution_ids:
+                return self._aggregation_from_row(row, selections[row.id])
+        return None
+
     def get_aggregation(self, aggregation_execution_id: UUID) -> AggregationExecution | None:
         """Return an aggregation contract with its exact ordered execution IDs."""
         row = self._session.get(AggregationExecutionRow, aggregation_execution_id)
@@ -130,6 +170,28 @@ class SqlAlchemyAggregationRepository:
             )
         )
         return self._aggregation_from_row(row, method_execution_ids)
+
+    def list_aggregations(
+        self,
+        run_id: UUID,
+        *,
+        limit: int,
+        after: CreationPosition | None = None,
+    ) -> Sequence[AggregationExecution]:
+        """Return a run's aggregations newest first, in every lifecycle state."""
+        rows = tuple(
+            self._session.scalars(
+                newest_first_slice(
+                    select(AggregationExecutionRow).where(AggregationExecutionRow.run_id == run_id),
+                    created_at=AggregationExecutionRow.created_at,
+                    row_id=AggregationExecutionRow.id,
+                    limit=limit,
+                    after=after,
+                )
+            )
+        )
+        selections = self._method_execution_ids_by_aggregation([row.id for row in rows])
+        return tuple(self._aggregation_from_row(row, selections[row.id]) for row in rows)
 
     def mark_aggregation_queued(
         self,
@@ -574,20 +636,41 @@ class SqlAlchemyAggregationRepository:
             created_at=row.created_at,
         )
 
+    def _method_execution_ids_by_aggregation(
+        self,
+        aggregation_execution_ids: Sequence[UUID],
+    ) -> dict[UUID, tuple[UUID, ...]]:
+        """Return each aggregation's ordered selection, read in one query."""
+        selections: defaultdict[UUID, list[UUID]] = defaultdict(list)
+        if aggregation_execution_ids:
+            for aggregation_execution_id, method_execution_id in self._session.execute(
+                select(
+                    AggregationMethodExecutionRow.aggregation_execution_id,
+                    AggregationMethodExecutionRow.method_execution_id,
+                )
+                .where(
+                    AggregationMethodExecutionRow.aggregation_execution_id.in_(
+                        aggregation_execution_ids
+                    )
+                )
+                .order_by(
+                    AggregationMethodExecutionRow.aggregation_execution_id,
+                    AggregationMethodExecutionRow.position,
+                )
+            ):
+                selections[aggregation_execution_id].append(method_execution_id)
+        return {
+            aggregation_execution_id: tuple(selections[aggregation_execution_id])
+            for aggregation_execution_id in aggregation_execution_ids
+        }
+
     def _method_execution_ids(
         self,
         aggregation_execution_id: UUID,
     ) -> tuple[UUID, ...]:
-        return tuple(
-            self._session.scalars(
-                select(AggregationMethodExecutionRow.method_execution_id)
-                .where(
-                    AggregationMethodExecutionRow.aggregation_execution_id
-                    == aggregation_execution_id
-                )
-                .order_by(AggregationMethodExecutionRow.position)
-            )
-        )
+        return self._method_execution_ids_by_aggregation([aggregation_execution_id])[
+            aggregation_execution_id
+        ]
 
     def _require_aggregation(
         self,

@@ -286,12 +286,30 @@ def test_queued_evaluation_executes_and_report_round_trips_through_http(
     missing_report_response = client.get(f"/api/v1/evaluations/{uuid4()}/report")
     assert missing_report_response.status_code == 404
 
+    rerun_body = client.post(
+        "/api/v1/evaluations",
+        json={
+            "run_id": str(run_id),
+            "method_execution_ids": [str(execution_id) for execution_id in execution_ids],
+        },
+    ).json()
+    listed = client.get(f"/api/v1/runs/{run_id}/evaluations").json()
+    assert [(item["id"], item["status"]) for item in listed["items"]] == [
+        (rerun_body["id"], EvaluationExecutionStatus.queued.value),
+        (str(evaluation_id), EvaluationExecutionStatus.completed.value),
+    ]
+    assert listed["items"][1]["method_execution_ids"] == [
+        str(execution_id) for execution_id in execution_ids
+    ]
+    assert client.get(f"/api/v1/runs/{uuid4()}/evaluations").status_code == 404
+
     application.state.authentication_backend = StaticAuthenticationBackend(
         _outsider_id(unit_of_work_factory)
     )
     hidden_responses = [
         client.get(f"/api/v1/evaluations/{evaluation_id}"),
         client.get(f"/api/v1/evaluations/{evaluation_id}/report"),
+        client.get(f"/api/v1/runs/{run_id}/evaluations"),
         client.post(
             "/api/v1/evaluations",
             json={
@@ -300,4 +318,4 @@ def test_queued_evaluation_executes_and_report_round_trips_through_http(
             },
         ),
     ]
-    assert [response.status_code for response in hidden_responses] == [404, 404, 404]
+    assert [response.status_code for response in hidden_responses] == [404, 404, 404, 404]

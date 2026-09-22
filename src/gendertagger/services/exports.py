@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from uuid import UUID
 
+from gendertagger.models.api import CursorPage
 from gendertagger.models.common import UtcDatetime
 from gendertagger.models.dispatch import ExportDispatchCreate
 from gendertagger.models.export import (
@@ -15,6 +16,11 @@ from gendertagger.models.export import (
 )
 from gendertagger.models.queues import CPU_QUEUE
 from gendertagger.services.artifact_storage import ArtifactStorage
+from gendertagger.services.pagination import (
+    CursorCodec,
+    decode_creation_position,
+    newest_first_page,
+)
 from gendertagger.services.persistence_errors import ResourceNotFoundError
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 
@@ -31,10 +37,12 @@ class ExportService:
         *,
         unit_of_work_factory: UnitOfWorkFactory,
         artifact_storage: ArtifactStorage,
+        cursor_codec: CursorCodec,
         clock: Clock,
     ) -> None:
         self._unit_of_work_factory = unit_of_work_factory
         self._artifact_storage = artifact_storage
+        self._cursor_codec = cursor_codec
         self._clock = clock
 
     def create_export(self, command: ExportCreateRequest) -> ExportExecution:
@@ -75,6 +83,30 @@ class ExportService:
             msg = f"export execution {export_id} does not exist"
             raise ResourceNotFoundError(msg)
         return export
+
+    def list_exports(
+        self,
+        run_id: UUID,
+        *,
+        limit: int,
+        cursor: str | None,
+    ) -> CursorPage[ExportExecution]:
+        """Return one newest-first opaque-cursor page of a run's exports."""
+        if limit <= 0:
+            msg = "limit must be positive"
+            raise ValueError(msg)
+        resource = f"run_exports:{run_id}"
+        after = decode_creation_position(self._cursor_codec, cursor, resource=resource)
+        with self._unit_of_work_factory() as unit_of_work:
+            if unit_of_work.runs.get_run(run_id) is None:
+                msg = f"run {run_id} does not exist"
+                raise ResourceNotFoundError(msg)
+            exports = unit_of_work.exports.list_exports(
+                run_id,
+                limit=limit + 1,
+                after=after,
+            )
+        return newest_first_page(self._cursor_codec, exports, limit=limit, resource=resource)
 
     def download_export(self, export_id: UUID) -> tuple[bytes, str]:
         """Return one completed export's primary bytes and media type.

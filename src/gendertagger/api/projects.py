@@ -13,7 +13,7 @@ from gendertagger.api.authorization import (
     require_project_creator,
 )
 from gendertagger.api.dependencies import get_project_access_service, get_project_service
-from gendertagger.api.errors import ApiRequestError
+from gendertagger.api.errors import ApiRequestError, invalid_cursor_error
 from gendertagger.models.api import CursorPage
 from gendertagger.models.person import PersonRecord
 from gendertagger.models.project import (
@@ -68,12 +68,7 @@ def list_projects(
     try:
         return service.list_projects(user, limit=limit, cursor=cursor)
     except InvalidCursorError as error:
-        raise ApiRequestError(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            code="validation_error",
-            message="The cursor is invalid.",
-            details={"reason": "invalid_cursor"},
-        ) from error
+        raise invalid_cursor_error() from error
 
 
 @router.get("/projects/{project_id}", response_model=AccessibleProject)
@@ -154,6 +149,27 @@ def import_snapshot(
         ) from error
 
 
+@router.get(
+    "/projects/{project_id}/snapshots",
+    response_model=CursorPage[DatasetSnapshot],
+)
+def list_snapshots(
+    project_id: UUID,
+    service: Annotated[ProjectService, Depends(get_project_service)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    cursor: Annotated[str | None, Query(max_length=2048)] = None,
+) -> CursorPage[DatasetSnapshot]:
+    """List a project's snapshots newest first, in every lifecycle state."""
+    access.require(ProjectScope.project, project_id, ProjectRole.viewer)
+    try:
+        return service.list_snapshots(project_id, limit=limit, cursor=cursor)
+    except ResourceNotFoundError as error:
+        raise _not_found() from error
+    except InvalidCursorError as error:
+        raise invalid_cursor_error() from error
+
+
 @router.get("/snapshots/{snapshot_id}", response_model=DatasetSnapshot)
 def get_snapshot(
     snapshot_id: UUID,
@@ -192,12 +208,7 @@ def list_people(
             message="The dataset snapshot is not ready.",
         ) from error
     except InvalidCursorError as error:
-        raise ApiRequestError(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            code="validation_error",
-            message="The cursor is invalid.",
-            details={"reason": "invalid_cursor"},
-        ) from error
+        raise invalid_cursor_error() from error
 
 
 def _not_found() -> ApiRequestError:

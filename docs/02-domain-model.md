@@ -226,6 +226,10 @@ pending -> queued -> running -> completed
 ```
 
 Each is independently rerunnable: re-running creates a new execution rather than mutating a terminal one.
+An AggregationExecution is the one exception to creating a new one every time: a request identical to a
+live or completed aggregation returns that aggregation, because it could only reproduce it. After a failure
+or cancellation, the identical request creates a new attempt
+([ADR-0034](decisions/ADR-0034-reuse-matching-aggregation-on-creation.md)).
 
 Retries do not create duplicate Predictions for the same execution/person/batch identity.
 Aggregation retries likewise do not create duplicate AggregatedResults. A complete input containing explicit

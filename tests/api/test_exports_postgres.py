@@ -314,12 +314,28 @@ def test_queued_export_executes_and_output_round_trips_through_http(
     missing_download_response = client.get(f"/api/v1/exports/{uuid4()}/download")
     assert missing_download_response.status_code == 404
 
+    rerun_body = client.post(
+        "/api/v1/exports",
+        json={
+            "run_id": str(run_id),
+            "aggregation_execution_id": str(aggregation_id),
+            "format": "csv",
+        },
+    ).json()
+    listed = client.get(f"/api/v1/runs/{run_id}/exports").json()
+    assert [(item["id"], item["format"], item["status"]) for item in listed["items"]] == [
+        (rerun_body["id"], "csv", ExportExecutionStatus.queued.value),
+        (str(export_id), "json", ExportExecutionStatus.completed.value),
+    ]
+    assert client.get(f"/api/v1/runs/{uuid4()}/exports").status_code == 404
+
     application.state.authentication_backend = StaticAuthenticationBackend(
         _outsider_id(unit_of_work_factory)
     )
     hidden_responses = [
         client.get(f"/api/v1/exports/{export_id}"),
         client.get(f"/api/v1/exports/{export_id}/download"),
+        client.get(f"/api/v1/runs/{run_id}/exports"),
         client.post(
             "/api/v1/exports",
             json={
@@ -329,4 +345,4 @@ def test_queued_export_executes_and_output_round_trips_through_http(
             },
         ),
     ]
-    assert [response.status_code for response in hidden_responses] == [404, 404, 404]
+    assert [response.status_code for response in hidden_responses] == [404, 404, 404, 404]

@@ -1,5 +1,6 @@
 """SQLAlchemy repository for runs, method executions, batches, and predictions."""
 
+from collections import defaultdict
 from collections.abc import Collection, Sequence
 from datetime import datetime
 from typing import cast
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from gendertagger.config.run import RunConfig
 from gendertagger.db.executions import MethodExecutionRow, PredictionRow, RunRow, TaskBatchRow
+from gendertagger.db.keyset import newest_first_slice
 from gendertagger.db.projects import DatasetSnapshotRow, PersonRecordRow
 from gendertagger.models.lifecycle import (
     DatasetSnapshotStatus,
@@ -30,6 +32,7 @@ from gendertagger.models.run import (
     TaskBatchCreate,
     TaskBatchPlan,
 )
+from gendertagger.services.pagination import CreationPosition
 from gendertagger.services.persistence_errors import (
     ImmutableResourceError,
     InvalidResourceStateError,
@@ -96,6 +99,38 @@ class SqlAlchemyRunRepository:
         """Return a run contract by ID without exposing its row."""
         row = self._session.get(RunRow, run_id)
         return None if row is None else self._run_from_row(row)
+
+    def list_runs(
+        self,
+        dataset_snapshot_id: UUID,
+        *,
+        limit: int,
+        after: CreationPosition | None = None,
+    ) -> Sequence[Run]:
+        """Return a snapshot's runs newest first, reading every run's progress in one query."""
+        rows = tuple(
+            self._session.scalars(
+                newest_first_slice(
+                    select(RunRow).where(RunRow.dataset_snapshot_id == dataset_snapshot_id),
+                    created_at=RunRow.created_at,
+                    row_id=RunRow.id,
+                    limit=limit,
+                    after=after,
+                )
+            )
+        )
+        executions_by_run: defaultdict[UUID, list[MethodExecutionRow]] = defaultdict(list)
+        if rows:
+            for execution in self._session.scalars(
+                select(MethodExecutionRow).where(
+                    MethodExecutionRow.run_id.in_([row.id for row in rows])
+                )
+            ):
+                executions_by_run[execution.run_id].append(execution)
+        return tuple(
+            self._run_from_row(row, progress=_progress_of(executions_by_run[row.id]))
+            for row in rows
+        )
 
     def add_method_execution(self, command: MethodExecutionCreate) -> MethodExecution:
         """Persist and flush one configured method execution without committing."""
@@ -757,19 +792,13 @@ class SqlAlchemyRunRepository:
         )
 
     def _run_progress(self, run_id: UUID) -> Progress:
-        executions = self._session.scalars(
-            select(MethodExecutionRow).where(MethodExecutionRow.run_id == run_id)
-        ).all()
-        if not executions:
-            return Progress(total=None, completed=0, failed=0, percentage=None)
-        totals = [execution.total_count for execution in executions]
-        present = [value for value in totals if value is not None]
-        total = sum(present) if len(present) == len(totals) else None
-        completed = sum(execution.completed_count for execution in executions)
-        failed = sum(execution.failed_count for execution in executions)
-        return Progress.of(total=total, completed=completed, failed=failed)
+        return _progress_of(
+            self._session.scalars(
+                select(MethodExecutionRow).where(MethodExecutionRow.run_id == run_id)
+            ).all()
+        )
 
-    def _run_from_row(self, row: RunRow) -> Run:
+    def _run_from_row(self, row: RunRow, *, progress: Progress | None = None) -> Run:
         return Run(
             id=row.id,
             dataset_snapshot_id=row.dataset_snapshot_id,
@@ -786,7 +815,7 @@ class SqlAlchemyRunRepository:
             finished_at=row.finished_at,
             failure_diagnostic=row.failure_diagnostic,
             created_at=row.created_at,
-            progress=self._run_progress(row.id),
+            progress=self._run_progress(row.id) if progress is None else progress,
         )
 
     @staticmethod
@@ -862,3 +891,15 @@ class SqlAlchemyRunRepository:
             metadata=row.prediction_metadata,
             created_at=row.created_at,
         )
+
+
+def _progress_of(executions: Sequence[MethodExecutionRow]) -> Progress:
+    """Sum one run's execution counters; the total is known only once every execution has one."""
+    if not executions:
+        return Progress(total=None, completed=0, failed=0, percentage=None)
+    totals = [execution.total_count for execution in executions]
+    present = [value for value in totals if value is not None]
+    total = sum(present) if len(present) == len(totals) else None
+    completed = sum(execution.completed_count for execution in executions)
+    failed = sum(execution.failed_count for execution in executions)
+    return Progress.of(total=total, completed=completed, failed=failed)

@@ -48,6 +48,7 @@ from gendertagger.models.run import (
 )
 from gendertagger.services.dispatch import OutboxRelay
 from gendertagger.services.exports import ExportService
+from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
 from gendertagger.tasks import export as export_module
@@ -254,6 +255,7 @@ def test_json_export_runs_through_relay_and_real_worker(
     export = ExportService(
         unit_of_work_factory=factory,
         artifact_storage=LocalArtifactStorage(tmp_path),
+        cursor_codec=CursorCodec(),
         clock=partial(datetime.now, UTC),
     ).create_export(
         ExportCreateRequest(

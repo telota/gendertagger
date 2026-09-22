@@ -11,6 +11,7 @@ from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from gendertagger.db.artifacts import ArtifactRow
+from gendertagger.db.keyset import newest_first_slice
 from gendertagger.db.projects import (
     DatasetSnapshotRow,
     PersonExternalIdRow,
@@ -40,6 +41,7 @@ from gendertagger.models.project import (
     TabularImportProfile,
     TeiImportProfile,
 )
+from gendertagger.services.pagination import CreationPosition
 from gendertagger.services.persistence_errors import (
     ImmutableResourceError,
     InvalidResourceStateError,
@@ -122,6 +124,25 @@ class SqlAlchemyProjectRepository:
         """Return a snapshot contract by ID without exposing its row."""
         row = self._session.get(DatasetSnapshotRow, snapshot_id)
         return None if row is None else self._snapshot_from_row(row)
+
+    def list_snapshots(
+        self,
+        project_id: UUID,
+        *,
+        limit: int,
+        after: CreationPosition | None = None,
+    ) -> Sequence[DatasetSnapshot]:
+        """Return a project's snapshots newest first, in every lifecycle state."""
+        rows = self._session.scalars(
+            newest_first_slice(
+                select(DatasetSnapshotRow).where(DatasetSnapshotRow.project_id == project_id),
+                created_at=DatasetSnapshotRow.created_at,
+                row_id=DatasetSnapshotRow.id,
+                limit=limit,
+                after=after,
+            )
+        )
+        return tuple(self._snapshot_from_row(row) for row in rows)
 
     def add_snapshot_source_members(
         self,

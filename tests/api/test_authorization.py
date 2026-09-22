@@ -181,7 +181,11 @@ PROJECT_SCOPED_ROUTES = (
         ProjectRole.operator,
         {"files": {"source": ("register.xml", b"<TEI/>", "application/tei+xml")}},
     ),
+    _ScopedRoute(
+        "GET", "/projects/{project_id}/snapshots", ProjectScope.project, ProjectRole.viewer
+    ),
     _ScopedRoute("GET", "/snapshots/{snapshot_id}", ProjectScope.snapshot, ProjectRole.viewer),
+    _ScopedRoute("GET", "/snapshots/{snapshot_id}/runs", ProjectScope.snapshot, ProjectRole.viewer),
     _ScopedRoute(
         "GET", "/snapshots/{snapshot_id}/people", ProjectScope.snapshot, ProjectRole.viewer
     ),
@@ -203,6 +207,9 @@ PROJECT_SCOPED_ROUTES = (
         ProjectRole.operator,
         {"json": {"method_execution_ids": [_OTHER]}},
     ),
+    _ScopedRoute("GET", "/runs/{run_id}/aggregations", ProjectScope.run, ProjectRole.viewer),
+    _ScopedRoute("GET", "/runs/{run_id}/evaluations", ProjectScope.run, ProjectRole.viewer),
+    _ScopedRoute("GET", "/runs/{run_id}/exports", ProjectScope.run, ProjectRole.viewer),
     _ScopedRoute(
         "GET", "/aggregations/{aggregation_id}", ProjectScope.aggregation, ProjectRole.viewer
     ),
