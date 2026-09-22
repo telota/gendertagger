@@ -120,7 +120,7 @@ than reconstructed at the end.
 |---|---|---|---|
 | M0 | Decisions and backend prerequisites | M | scope-exclusion confirmation; accessibility assignments |
 | M1 | Scaffold and transport | S | none — D3, D8, D11, D12 all resolved |
-| M2 | Application shell | M | M1; a working auth backend |
+| M2 | Application shell | M | M1; a working auth backend; `GET /api/v1/branding` ([ADR-0036](decisions/ADR-0036-institution-branding-configuration.md)) |
 | M3 | Projects and import | M | M2 |
 | M4 | Runs and aggregation | L | M3 |
 | M5 | Review workbench | L | M4 |
@@ -213,9 +213,17 @@ contract change fails CI.
   `CanonicalLabel`, `CertaintyTier`, and `AgreementTier` as canonical token plus translated gloss (D2, D3).
 - Overlay primitives on the chosen headless accessibility library (D9); everything else in-house.
 - The publication footer on every page, the start-page publication details, and the public legal notice
-  required by the BBAW guideline for digital publications, as specified in
+  required by the operating institution's guideline for digital publications, as specified in
   [`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md#publication-details-footer-and-legal-notice).
-  The legal notice route stays exempt from the session guard, so it is reachable without signing in.
+  They fetch `GET /api/v1/branding` rather than importing hard-coded facts, per
+  [ADR-0036](decisions/ADR-0036-institution-branding-configuration.md), and each field the operator has not
+  configured renders as an explicit "not configured" state. The legal notice route stays exempt from the
+  session guard, so it is reachable without signing in. A first implementation exists on the unmerged branch
+  `wip/publication-footer-legal-notice`; it hard-codes BBAW's facts and needs rebuilding against the endpoint
+  before it can land.
+- The backend prerequisite for the item above: `GET /api/v1/branding` and `GET /api/v1/branding/logo`
+  ([ADR-0036](decisions/ADR-0036-institution-branding-configuration.md)). Small and self-contained, so it can
+  be built independently of the rest of M2.
 
 **Exit criterion.** A viewer, reviewer, and operator each see a correctly scoped shell in both locales and
 both themes; an expired session and a server error both render correctly.
@@ -603,9 +611,11 @@ tasks gate M0; the other two gate what each names:
 - have the BBAW administration confirm the provider details and the wording of the legal notice, and the
   data protection officer decide whether the application needs a privacy statement of its own, given the
   session and CSRF cookies of [ADR-0031](decisions/ADR-0031-local-database-authentication.md). Both gate any
-  public deployment;
-- supply the publisher's logo files, and confirm the list of editors and the publication period shown on the
-  start page. These gate the M2 footer.
+  public deployment of this instance;
+- set this deployment's `GENDERTAGGER_BRANDING__*` settings once [ADR-0036](decisions/ADR-0036-institution-branding-configuration.md)
+  is implemented, and mount the publisher's logo file at the configured `branding.logo_path`. Confirm the
+  list of editors and the publication period shown on the start page. These gate the M2 footer showing
+  correct content, though the footer itself renders correctly without them, as an unconfigured state.
 
 ### Scope exclusions to confirm
 

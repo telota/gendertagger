@@ -400,52 +400,61 @@ pattern are all replaced rather than ported. See
 
 ## Publication details, footer, and legal notice
 
-The client is a digital publication of the BBAW and has to follow the academy's guideline for digital
+The client is a digital publication and has to follow the operating institution's guideline for digital
 scientific resources, which asks for bibliographic, administrative, and legal information in fixed places.
-The source is the guideline "Leitlinien Startseite und Footer", kept in the academy's internal team wiki. It
-is deliberately not linked here, because these documents ship with the package. Ask TELOTA for the current
-version, and compare it with this section whenever the guideline changes. The table restates its
-requirements in the project's own words and records the decisions the project team took on 2026-09-21.
+For this deployment that is the BBAW guideline "Leitlinien Startseite und Footer", kept in the academy's
+internal team wiki and deliberately not linked here, because these documents ship with the package. Ask
+TELOTA for the current version, and compare it with this section whenever the guideline changes.
 
-| Guideline item | Where | Decision |
+Every value below is deployment configuration, not frontend source code:
+[ADR-0036](decisions/ADR-0036-institution-branding-configuration.md) has the backend read it from
+operator-supplied settings and serve it over `GET /api/v1/branding`, so the same built image serves any
+institution. The table restates the guideline's requirements in the project's own words and records the
+values **this deployment** configures; another deployment sets its own.
+
+| Guideline item | Where | This deployment's configured value |
 |---|---|---|
 | Title, editors, publisher, and publication period, clearly visible | Start page | Editors: Frederike Neuber, Lou Klappenbach, Tim Westphal, taken from the published paper and still to be confirmed. Period: "since 2026", to be confirmed. |
 | Citation hint, DOI or URN | Start page | Omitted until the resource has an identifier and a stable public address |
-| Publisher, by logo or name, on every page | Footer | The BBAW as text, plus its logo once the team supplies the official file |
+| Publisher, by logo or name, on every page | Footer | The BBAW as text, plus its logo once the team supplies the official file to mount at `branding.logo_path` |
 | Funders | Footer | None: the application has no external funding. If that changes, the guideline's funder block is added. |
-| Institutional context | Start page and footer | Linked by name: "KI-Lab bei TELOTA" (`https://www.bbaw.de/bbaw-digital/ki`) and "Gender & Data" (`https://gender-data.bbaw.de/`), labelled "Entstanden im Rahmen von" and "Developed within". The names are proper names and stay untranslated. |
+| Institutional context | Start page and footer | Linked by name via `branding.initiatives`: "KI-Lab bei TELOTA" (`https://www.bbaw.de/bbaw-digital/ki`) and "Gender & Data" (`https://gender-data.bbaw.de/`), labelled "Entstanden im Rahmen von" and "Developed within". Initiative names are proper names and stay untranslated. |
 | Contact, and technical notes | Footer | One address, `telota@bbaw.de`, serves both |
-| Licence, with a link to its text | Footer | Source-code licence (MIT), which has no version |
-| Privacy notice of the BBAW | Footer link | `https://www.bbaw.de/datenschutz` |
+| Licence, with a link to its text | Footer | Source-code licence (MIT), which has no version. This is a fact about the software, not deployment configuration, and stays a frontend constant. |
+| Privacy notice of the operating institution | Footer link | `https://www.bbaw.de/datenschutz` |
 | Legal notice | Footer link to `/impressum` | Modelled on `https://www.bbaw.de/impressum/`; see below |
 
 **Legal notice.** It is a public route, reachable without a session, so it is exempt from the authentication
 requirement. Its sections follow the BBAW notice: provider and legal form, address, telephone, representative,
 and VAT identification number; responsibility and contact (TELOTA); copyright and licence; liability; privacy.
 It also states that the gender annotations the application produces are machine suggestions that need editorial
-review. The provider values are copied from the current BBAW page when the notice is built, and they are not
-recorded in this document. They and the wording need confirmation by the BBAW administration before any public
-deployment.
+review. The provider values come from `branding.legal_entity` (ADR-0036) and are not recorded in this
+document. A field the operator has not configured renders as an explicit "not configured" state, never as
+invented text. For this deployment, the BBAW values and their wording need confirmation by the BBAW
+administration before `branding.legal_entity` is set for a public deployment.
 
 **Contact address.** The guideline replaces the project address with the function address of the academy's
-administration after the project ends. The Gender & Data initiative runs from April 2026 to April 2028, so the
-contact address has to be reviewed before that date.
+administration after the project ends. The Gender & Data initiative runs from April 2026 to April 2028, so
+this deployment's `branding.contact_email` has to be reviewed before that date.
 
-**Licence scope.** The footer licence covers the application's source code. Register data imported into a
-project stays under the licences of its edition, and the legal notice says so. A licence for content or data
-needs its own entry chosen under the BBAW licensing guideline, with the version, a link to the licence text,
-and the licence icon.
+**Licence scope.** The footer licence covers the application's source code and is the same for every
+deployment, so it is not part of `branding` configuration. Register data imported into a project stays under
+the licences of its edition, and the legal notice says so. A licence for content or data needs its own entry
+chosen under the applicable licensing guideline, with the version, a link to the licence text, and the licence
+icon.
 
-**Publisher logo.** Logos are official brand assets and are supplied by the project team, not drawn or fetched
-by the build. The footer shows the logo as a decorative image beside the publisher's name when a file is
-present.
+**Publisher logo.** Logos are official brand assets. An operator mounts the file into the backend container
+and points `branding.logo_path` at it; the footer shows it as a decorative image beside the publisher's name
+only once `GET /api/v1/branding` reports a `logo_url`.
 
-**Privacy.** The footer links the general BBAW notice. The application sets a session cookie and a CSRF cookie
-at login ([ADR-0031](decisions/ADR-0031-local-database-authentication.md)), so whether it needs a privacy
-statement of its own is a question for the BBAW data protection officer.
+**Privacy.** The footer links the operating institution's general privacy notice. The application sets a
+session cookie and a CSRF cookie at login ([ADR-0031](decisions/ADR-0031-local-database-authentication.md)), so
+whether a given deployment needs a privacy statement of its own is a question for that institution's data
+protection officer.
 
-**Facts and wording are separate.** Names, addresses, identifiers, and URLs are typed data in one module, and
-the surrounding text is in the message catalogues and is translated. Each fact then has one source.
+**Facts and wording are separate.** Names, addresses, identifiers, and URLs are operator-configured data
+served by the backend (ADR-0036); the surrounding text is in the frontend's message catalogues and is
+translated. Each fact then has exactly one source, and none of it is a frontend constant.
 
 ## Internationalisation and content
 

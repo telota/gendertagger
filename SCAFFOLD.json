@@ -64,7 +64,8 @@
     "docs/decisions/ADR-0032-sliding-session-lifetime.md",
     "docs/decisions/ADR-0033-project-scoped-membership-roles.md",
     "docs/decisions/ADR-0034-reuse-matching-aggregation-on-creation.md",
-    "docs/decisions/ADR-0035-project-working-aggregation.md"
+    "docs/decisions/ADR-0035-project-working-aggregation.md",
+    "docs/decisions/ADR-0036-institution-branding-configuration.md"
   ],
   "top_level_entrypoints": [
     "README.md",
