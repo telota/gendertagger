@@ -5,28 +5,17 @@ from contextlib import AbstractContextManager
 from datetime import UTC, datetime
 from functools import partial
 from typing import cast
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 from sqlalchemy import Engine
 from tests.factories import tei_person_input
+from tests.seeding import seed_project, seed_ready_snapshot, seed_run
 
-from gendertagger.config.run import MethodRunConfig, RunConfig
+from gendertagger.config.run import MethodRunConfig
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
-from gendertagger.ingestion.registry import version_for_snapshot_import
-from gendertagger.models.artifact import ArtifactCreate
 from gendertagger.models.lifecycle import RunStatus, TaskBatchStatus
-from gendertagger.models.person import ImportedPerson
-from gendertagger.models.project import (
-    DatasetSnapshotCreate,
-    ProjectCreate,
-    SnapshotImportConfig,
-    SnapshotImportLimits,
-    SnapshotSourceMemberCreate,
-    TeiImportProfile,
-)
-from gendertagger.models.run import RunCreate
 from gendertagger.services.dispatch import OutboxRelay
 from gendertagger.services.execution import RunScheduler
 from gendertagger.services.method_registry import default_method_registry
@@ -42,74 +31,17 @@ _TERMINAL = {RunStatus.completed, RunStatus.completed_with_errors, RunStatus.fai
 
 def _seed_created_run(factory: UnitOfWorkFactory) -> UUID:
     with factory() as unit_of_work:
-        project = unit_of_work.projects.add_project(
-            ProjectCreate(slug=f"redis-{uuid4().hex}", display_name="Redis e2e project")
-        )
-        source = unit_of_work.artifacts.add_artifact(
-            ArtifactCreate(
-                logical_type="source_tei",
-                storage_uri="file:///synthetic/source.xml",
-                sha256="a" * 64,
-                byte_size=1,
-                media_type="application/xml",
-                project_id=project.id,
-            )
-        )
-        import_config = SnapshotImportConfig(
-            profile=TeiImportProfile.tei_p5_person_register,
-            limits=SnapshotImportLimits(),
-        )
-        snapshot = unit_of_work.projects.add_snapshot(
-            DatasetSnapshotCreate(
-                project_id=project.id,
-                source_artifact_id=source.id,
-                source_sha256=source.sha256,
-                parser_version=version_for_snapshot_import(import_config),
-                import_config=import_config.model_dump(mode="json"),
-            )
-        )
-        unit_of_work.projects.add_snapshot_source_members(
-            snapshot.id,
+        project = seed_project(unit_of_work, slug_prefix="redis")
+        snapshot = seed_ready_snapshot(
+            unit_of_work,
+            project.id,
             [
-                SnapshotSourceMemberCreate(
-                    artifact_id=source.id,
-                    ordinal=0,
-                    logical_name="source.xml",
-                    sha256=source.sha256,
-                    byte_size=source.byte_size,
-                    media_type=source.media_type,
-                )
+                tei_person_input(tei_id="p01", surname="Frölich (Frau des Heinrich)"),
+                tei_person_input(tei_id="p02", surname="Schleiermacher"),
             ],
+            ready_at=datetime.now(UTC),
         )
-        unit_of_work.projects.begin_snapshot_import(snapshot.id)
-        unit_of_work.projects.add_imported_person_records(
-            snapshot.id,
-            [
-                ImportedPerson(
-                    person=tei_person_input(tei_id="p01", surname="Frölich (Frau des Heinrich)"),
-                    source_member_name="source.xml",
-                    source_record_locator="1",
-                ),
-                ImportedPerson(
-                    person=tei_person_input(tei_id="p02", surname="Schleiermacher"),
-                    source_member_name="source.xml",
-                    source_record_locator="2",
-                ),
-            ],
-        )
-        unit_of_work.projects.complete_snapshot_import(snapshot.id, ready_at=datetime.now(UTC))
-        run = unit_of_work.runs.add_run(
-            RunCreate(
-                dataset_snapshot_id=snapshot.id,
-                resolved_config=RunConfig(
-                    methods=[MethodRunConfig(name="parenthetical_qualifier")]
-                ),
-                code_git_commit="abc123",
-                application_version="0.0.0",
-                python_version="3.11.0",
-                dependency_lock_sha256="b" * 64,
-            )
-        )
+        run = seed_run(unit_of_work, snapshot.id, [MethodRunConfig(name="parenthetical_qualifier")])
         unit_of_work.commit()
         return run.id
 
