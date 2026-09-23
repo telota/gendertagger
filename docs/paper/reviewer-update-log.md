@@ -211,3 +211,17 @@ subsequent text edits change pagination.
 the existing `Missing $ inserted` error for DOI `10.17175/WP_2026`. This unrelated bibliography
 issue was not changed. The temporary verification PDF did not replace the manuscript PDF in the
 working tree.
+
+## 2026-09-23: Reviewer I4 - TEI website footnote
+
+**Request:** Add a link to TEI in a footnote at its explanation in the Introduction.
+
+**Changes:** Added a footnote after the sentence explaining TEI in [article.tex](article.tex),
+linking to `https://tei-c.org/` and giving the access date as 23 September 2026.
+
+**Response to the reviewer:** We added a footnote linking to the official Text Encoding Initiative
+website at the introductory explanation of TEI, including an access date.
+
+**Status:** Addressed in the local working tree; the checklist item is marked complete.
+
+**Verification:** The [official TEI website](https://tei-c.org/) was checked before adding the link.

@@ -37,7 +37,7 @@ Source: [Reviewer C's annotated PDF](C-klappenbach,neuber,westphal_2026_genderta
 - [x] **I2 - Line 32:** Explain "authority files." Name GND where appropriate; consider the broader
   term "terminologies" and explain the scope.
 - [x] **I3 - Footnote 1:** Prevent the footnote from splitting across pages.
-- [ ] **I4 - Line 77:** Add a link to TEI in a footnote.
+- [x] **I4 - Line 77:** Add a link to TEI in a footnote.
 - [ ] **I5 - Line 79:** Explain what "authority data queries" means.
 - [ ] **I6 - Line 80:** Check whether "Transformer" should be lowercase.
 - [ ] **I7 - Line 83:** Explain why Schleiermacher digital was selected and what makes it suitable.
