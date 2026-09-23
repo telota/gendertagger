@@ -1,9 +1,11 @@
-import { useMutation } from '@tanstack/vue-query'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { computed, type Ref } from 'vue'
 
 import { unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
 import { usePolledQuery } from '@/composables/usePolledQuery'
+
+import { snapshotListKey } from './useSnapshots'
 
 export type DatasetSnapshot = components['schemas']['DatasetSnapshot']
 export type SourceFormat = components['schemas']['SourceFormat']
@@ -26,8 +28,12 @@ export interface SnapshotImportInput {
  */
 export function useImportSnapshot() {
   const client = useApiClient()
+  const queryClient = useQueryClient()
 
   return useMutation({
+    onSuccess: (_snapshot, input) => {
+      void queryClient.invalidateQueries({ queryKey: snapshotListKey(input.projectId) })
+    },
     mutationFn: (input: SnapshotImportInput) => {
       const formData = new FormData()
       formData.append('packaging', 'single')

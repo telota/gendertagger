@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
@@ -155,11 +155,27 @@ async function submit(): Promise<void> {
               </AppButton>
             </div>
             <template v-else-if="status.data.value">
-              <p v-if="status.data.value.status === 'ready'" class="import-status-ready">
-                {{
-                  t('projects.import.status.ready', { count: status.data.value.record_count ?? 0 })
-                }}
-              </p>
+              <div v-if="status.data.value.status === 'ready'" class="import-status-ready">
+                <p>
+                  {{
+                    t('projects.import.status.ready', {
+                      count: status.data.value.record_count ?? 0,
+                    })
+                  }}
+                </p>
+                <p class="import-status-provenance">
+                  <span class="import-status-provenance-label">{{
+                    t('projects.snapshots.checksum')
+                  }}</span>
+                  <code>{{ status.data.value.source_sha256 }}</code>
+                </p>
+                <RouterLink
+                  :to="{ name: 'projectOverview', params: { projectId } }"
+                  class="import-status-overview-link"
+                >
+                  {{ t('projects.import.status.toOverview') }}
+                </RouterLink>
+              </div>
               <p
                 v-else-if="status.data.value.status === 'failed'"
                 role="alert"
@@ -231,6 +247,24 @@ async function submit(): Promise<void> {
 }
 
 .import-status-ready {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
   color: var(--good);
+}
+
+.import-status-ready p {
+  margin: 0;
+}
+
+.import-status-provenance {
+  color: var(--text-secondary);
+  font-size: var(--font-size-small);
+  overflow-wrap: anywhere;
+}
+
+.import-status-overview-link {
+  color: var(--accent);
+  text-underline-offset: 0.2em;
 }
 </style>

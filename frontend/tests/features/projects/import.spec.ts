@@ -182,6 +182,10 @@ describe.each(['de', 'en'] as const)('ImportView in %s', (locale: AppLocale) => 
     await flushPromises()
 
     expect(wrapper.text()).toContain(messages.status.ready.replace('{count}', '42'))
+    expect(wrapper.get('.import-status-provenance').text()).toContain('a'.repeat(64))
+    expect(wrapper.get(`a[href="/projects/${PROJECT_ID}/overview"]`).text()).toBe(
+      messages.status.toOverview,
+    )
   })
 
   it('shows the failure diagnostic once the import fails', async () => {

@@ -172,7 +172,33 @@
         "pending": "The import is running …",
         "ready": "Import complete: {count} records.",
         "failedGeneric": "The import failed.",
-        "pollError": "The import status could not be loaded."
+        "pollError": "The import status could not be loaded.",
+        "toOverview": "Back to the project overview"
+      }
+    },
+    "snapshots": {
+      "title": "Imported snapshots",
+      "empty": "Nothing has been imported into this project yet.",
+      "loadError": "The snapshots could not be loaded.",
+      "status": {
+        "pending": "Waiting",
+        "importing": "Importing",
+        "ready": "Ready",
+        "failed": "Failed"
+      },
+      "recordCount": "Records",
+      "parserVersion": "Parser version",
+      "checksum": "SHA-256",
+      "showMembers": "Show source files",
+      "hideMembers": "Hide source files",
+      "membersLoadError": "The source files could not be loaded.",
+      "members": {
+        "label": "This snapshot's source files",
+        "name": "Name",
+        "mediaType": "Media type",
+        "size": "Size",
+        "checksum": "SHA-256",
+        "bytes": "{size} bytes"
       }
     }
   }

@@ -172,7 +172,33 @@
         "pending": "Der Import läuft …",
         "ready": "Import abgeschlossen: {count} Datensätze.",
         "failedGeneric": "Der Import ist fehlgeschlagen.",
-        "pollError": "Der Importstatus konnte nicht geladen werden."
+        "pollError": "Der Importstatus konnte nicht geladen werden.",
+        "toOverview": "Zur Projektübersicht"
+      }
+    },
+    "snapshots": {
+      "title": "Importierte Snapshots",
+      "empty": "Für dieses Projekt wurde noch nichts importiert.",
+      "loadError": "Die Snapshots konnten nicht geladen werden.",
+      "status": {
+        "pending": "Wartet",
+        "importing": "Wird importiert",
+        "ready": "Bereit",
+        "failed": "Fehlgeschlagen"
+      },
+      "recordCount": "Datensätze",
+      "parserVersion": "Parser-Version",
+      "checksum": "SHA-256",
+      "showMembers": "Quelldateien anzeigen",
+      "hideMembers": "Quelldateien ausblenden",
+      "membersLoadError": "Die Quelldateien konnten nicht geladen werden.",
+      "members": {
+        "label": "Quelldateien dieses Snapshots",
+        "name": "Name",
+        "mediaType": "Medientyp",
+        "size": "Größe",
+        "checksum": "SHA-256",
+        "bytes": "{size} Byte"
       }
     }
   }

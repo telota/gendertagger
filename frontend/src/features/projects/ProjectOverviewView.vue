@@ -6,6 +6,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import AppButton from '@/components/base/AppButton.vue'
 import { useSessionStore } from '@/stores/session'
 
+import SnapshotList from './SnapshotList.vue'
 import { useProject } from './useProjects'
 import { useRoleLabel } from './useRoleLabel'
 
@@ -84,6 +85,7 @@ const query = useProject(projectId)
         >
           {{ t('projects.overview.importAction') }}
         </RouterLink>
+        <SnapshotList :project-id="projectId" />
       </template>
     </template>
   </main>

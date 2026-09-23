@@ -293,12 +293,15 @@ scope — so that part of the criterion is necessarily verified once M3 exists, 
   `refetchInterval` that stops once a caller-supplied `isTerminal` predicate is met.
 - Upload limits shown before upload and on `413`. **Partly delivered**: a `413` maps to an inline message;
   `GET /snapshot-upload-limits` is not yet fetched to show the bound before upload.
-- Snapshot provenance: `source_sha256`, `parser_version`, per-member manifest entries. Not yet shown in the
-  UI (the `ready` state currently surfaces only `record_count`).
+- Snapshot provenance: `source_sha256`, `parser_version`, per-member manifest entries. **Delivered.** The
+  project overview lists the project's snapshots (`GET /projects/{id}/snapshots`, newest first, cursor-paginated,
+  every lifecycle state) with status, record count, parser version, and the full SHA-256; a disclosure per
+  snapshot fetches `GET /snapshots/{id}/source-members` on demand and shows each source file's name, media
+  type, size, and checksum. The import screen's `ready` state shows the checksum and links back to the list.
 
 **Exit criterion.** An operator imports a TEI ZIP and a CSV through the browser and sees both snapshots
-reach `ready` with their checksums. Not yet met: today's import is single-file only, and no screen reads
-back the checksum yet.
+reach `ready` with their checksums. Not yet met: today's import is single-file only, so the ZIP half of the
+check cannot be done from the browser yet; checksums are readable.
 
 ### M4 — Runs and aggregation
 
