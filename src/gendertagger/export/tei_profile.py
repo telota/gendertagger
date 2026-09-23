@@ -14,8 +14,6 @@ from lxml import etree
 
 from gendertagger.models.export import ExportPersonRecord
 
-TEI_EXPORT_PROFILE_VERSION = "tei_p5_gender_v1"
-
 _TEI_NAMESPACE = "http://www.tei-c.org/ns/1.0"
 _XML_ID = "{http://www.w3.org/XML/1998/namespace}id"
 _PERSON_TAG = f"{{{_TEI_NAMESPACE}}}person"

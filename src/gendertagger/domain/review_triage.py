@@ -11,8 +11,6 @@ from collections.abc import Mapping
 
 from gendertagger.models.classification import CertaintyTier
 
-REVIEW_TRIAGE_POLICY = "review_triage_v1"
-
 CERTAINTY_TIER_TRIAGE_RANKS: Mapping[CertaintyTier, int] = {
     CertaintyTier.contested: 0,
     CertaintyTier.low: 1,
