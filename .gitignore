@@ -1,155 +1,42 @@
-# Byte-compiled / optimized / DLL files
+# Repository-wide ignore rules. Each application ignores its own build and test output in its own file
+# (backend/.gitignore, frontend/.gitignore); the rules here apply everywhere in the repository.
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Dependency trees and virtual environments, wherever a tool creates them
+.venv/
+venv/
+node_modules/
 __pycache__/
 *.py[cod]
-*$py.class
 
-# C extensions
-*.so
-
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# PyInstaller
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-coverage-*.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-cover/
-
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-.pybuilder/
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pipenv
-Pipfile.lock
-
-# poetry
-poetry.lock
-
-# pdm
-.pdm.toml
-.pdm-python
-.pdm-build/
-
-# PEP 582
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
-.env
-.venv
-node_modules/
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject.db
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
+# Tool caches; they appear at the repository root too when a tool runs from there
 .mypy_cache/
-.dmypy.json
-dmypy.json
+.pytest_cache/
+.ruff_cache/
+.import_linter_cache/
+.hypothesis/
+.ipynb_checkpoints/
 
-# Pyre type checker
-.pyre/
+# Logs, including LaTeX build logs under docs/paper/
+*.log
 
-# pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
-cython_debug/
-
-# VS Code
+# Editor, operating-system, and coding-agent state
 .vscode/
-
-# macOS
+.idea/
 .DS_Store
+.trunk/
+.claude/
+.codex/
+.agents/
 
-# Data files (project-specific)
-
+# Research material, private data, and model weights, which never enter Git
 data/raw/
-
-# Private, licensed method source data bind-mounted for asset provisioning (see README quickstart)
 /private/
-
-# Model files
+__scrap/
 *.pkl
 *.joblib
 *.h5
@@ -157,9 +44,3 @@ data/raw/
 *.pth
 *.bin
 *.safetensors
-
-# Local scratch (drafts, reviews, notes — not part of the paper)
-__scrap/
-
-# Claude Code agent definitions and local config
-.claude/

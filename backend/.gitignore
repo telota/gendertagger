@@ -1,0 +1,19 @@
+# Build and test output of the Python project. Directory rules are anchored to backend/ so they cannot
+# hide a same-named source directory deeper in the tree; repository-wide rules live in ../.gitignore.
+
+# Package builds
+/dist/
+/build/
+*.egg-info/
+*.so
+
+# Coverage data and reports
+/.coverage
+/.coverage.*
+/coverage.xml
+/coverage-*.xml
+/htmlcov/
+
+# Celery beat state
+celerybeat-schedule
+celerybeat.pid
