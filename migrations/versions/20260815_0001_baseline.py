@@ -240,7 +240,8 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.CheckConstraint(
-            "role IN ('viewer', 'reviewer', 'operator', 'admin')",
+            # Global viewer and reviewer were retired by ADR-0033 (squashed 20260921_0004).
+            "role IN ('operator', 'admin')",
             name=op.f("ck_user_roles_role_allowed"),
         ),
         sa.ForeignKeyConstraint(
@@ -2883,9 +2884,144 @@ def upgrade() -> None:
         "evaluation_execution_id, export_id) = 1",
     )
 
+    # Squashed from 20260903_0002_local_database_authentication.py and
+    # 20260921_0003_sliding_session_lifetime.py (ADR-0031, ADR-0032)
+    op.create_table(
+        "user_credentials",
+        sa.Column("user_id", sa.UUID(), nullable=False),
+        sa.Column("username", sa.String(length=64), nullable=False),
+        sa.Column("password_hash", sa.Text(), nullable=False),
+        sa.Column("must_change_password", sa.Boolean(), server_default="true", nullable=False),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.CheckConstraint(
+            "btrim(username) <> ''", name=op.f("ck_user_credentials_username_nonblank")
+        ),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+            name=op.f("fk_user_credentials_user_id_users"),
+            ondelete="RESTRICT",
+        ),
+        sa.PrimaryKeyConstraint("user_id", name=op.f("pk_user_credentials")),
+        sa.UniqueConstraint("username", name=op.f("uq_user_credentials_username")),
+    )
+    op.create_table(
+        "user_sessions",
+        sa.Column("id", sa.String(length=64), nullable=False),
+        sa.Column("user_id", sa.UUID(), nullable=False),
+        sa.Column("csrf_secret", sa.String(length=64), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("keep_signed_in", sa.Boolean(), server_default="false", nullable=False),
+        sa.Column("absolute_expires_at", sa.DateTime(timezone=True), nullable=False),
+        sa.CheckConstraint(
+            "expires_at <= absolute_expires_at",
+            name=op.f("ck_user_sessions_expiry_within_lifetime"),
+        ),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+            name=op.f("fk_user_sessions_user_id_users"),
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_user_sessions")),
+    )
+    op.create_index(
+        "ix_user_sessions_user_id",
+        "user_sessions",
+        ["user_id"],
+        unique=False,
+    )
+
+    # Squashed from 20260921_0004_project_scoped_membership_roles.py (ADR-0033)
+    op.create_table(
+        "project_memberships",
+        sa.Column("project_id", sa.UUID(), nullable=False),
+        sa.Column("user_id", sa.UUID(), nullable=False),
+        sa.Column(
+            "role",
+            sa.Enum("viewer", "reviewer", "operator", name="project_role", native_enum=False),
+            nullable=False,
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.CheckConstraint(
+            "role IN ('viewer', 'reviewer', 'operator')",
+            name=op.f("ck_project_memberships_role_allowed"),
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_id"],
+            ["projects.id"],
+            name=op.f("fk_project_memberships_project_id_projects"),
+            ondelete="RESTRICT",
+        ),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+            name=op.f("fk_project_memberships_user_id_users"),
+            ondelete="RESTRICT",
+        ),
+        sa.PrimaryKeyConstraint("project_id", "user_id", name="pk_project_memberships"),
+    )
+    op.create_index(
+        "ix_project_memberships_user_id",
+        "project_memberships",
+        ["user_id"],
+        unique=False,
+    )
+
+    # Squashed from 20260922_0005_project_working_aggregation.py (ADR-0035)
+    op.add_column(
+        "projects",
+        sa.Column("working_aggregation_execution_id", sa.UUID(), nullable=True),
+    )
+    op.create_foreign_key(
+        op.f("fk_projects_working_aggregation_execution_id_aggregation_executions"),
+        "projects",
+        "aggregation_executions",
+        ["working_aggregation_execution_id"],
+        ["id"],
+        ondelete="RESTRICT",
+    )
+
 
 def downgrade() -> None:
     """Remove the initial database schema."""
+    # Squashed from 20260922_0005_project_working_aggregation.py
+    op.drop_constraint(
+        op.f("fk_projects_working_aggregation_execution_id_aggregation_executions"),
+        "projects",
+        type_="foreignkey",
+    )
+    op.drop_column("projects", "working_aggregation_execution_id")
+    # Squashed from 20260921_0004_project_scoped_membership_roles.py
+    op.drop_index("ix_project_memberships_user_id", table_name="project_memberships")
+    op.drop_table("project_memberships")
+    # Squashed from 20260903_0002 and 20260921_0003
+    op.drop_index("ix_user_sessions_user_id", table_name="user_sessions")
+    op.drop_table("user_sessions")
+    op.drop_table("user_credentials")
     # Squashed from 20260814_0013_export_dispatch_outbox.py
     op.drop_constraint(
         op.f("ck_batch_dispatches_exactly_one_target"),

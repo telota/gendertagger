@@ -159,6 +159,11 @@ the phased plan that resumes application code.
 
 ### Changed
 
+- The five Alembic revisions are squashed into the single baseline `20260815_0001`; a `pg_dump
+  --schema-only` of the squashed baseline is identical to the old chain. The data steps of `20260921_0003`
+  and `20260921_0004` and their migration tests are gone, since no deployed database needs them. A local
+  database migrated to `20260922_0005` moves over with `alembic stamp --purge 20260815_0001`. See the
+  migration policy in [`docs/04-persistence.md`](docs/04-persistence.md).
 - `review-items` filters on certainty tier, agreement tier, and review state now take several values, as
   repeated `certainty_tiers`, `agreement_tiers`, and `workflow_states` query parameters that match any listed
   value. They replace the single-valued `certainty_tier`, `agreement_tier`, and `workflow_state` parameters,

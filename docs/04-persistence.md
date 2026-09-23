@@ -12,6 +12,14 @@ The application refuses a non-PostgreSQL database because its integrity model de
 
 This document records persistence boundaries and invariants rather than duplicating the current schema.
 
+## Migration policy
+
+No database outside development runs these migrations yet, so the schema is a single baseline revision,
+`20260815_0001`, and pre-release schema changes edit that baseline instead of stacking revisions. Every such
+edit is verified by comparing `pg_dump --schema-only` output, and a local development database is re-created
+or moved onto the baseline with `alembic stamp --purge 20260815_0001` when its schema is unchanged. Once any
+deployment exists, the baseline is frozen and every change becomes an ordinary forward migration.
+
 ## Transactions and repositories
 
 Application services own units of work. One unit of work owns one SQLAlchemy session and transaction.

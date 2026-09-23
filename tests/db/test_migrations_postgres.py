@@ -1,12 +1,9 @@
 from collections.abc import Callable
-from datetime import UTC, datetime
-from uuid import uuid4
 
 import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.exc import IntegrityError
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 
@@ -121,84 +118,3 @@ def test_initial_migration_upgrades_downgrades_and_has_no_drift(
 
     command.upgrade(config, "head")
     command.check(config)
-
-
-def test_sliding_session_migration_caps_existing_sessions_at_their_original_expiry(
-    postgres_database_factory: Callable[[], str],
-) -> None:
-    database_url = postgres_database_factory()
-    config = alembic_config(database_url)
-    command.upgrade(config, "20260903_0002")
-    user_id = uuid4()
-    original_expires_at = datetime(2026, 9, 21, 17, tzinfo=UTC)
-    engine = create_engine(database_url)
-    try:
-        with engine.begin() as connection:
-            connection.execute(
-                text("INSERT INTO users (id, display_name) VALUES (:id, 'Synthetic reviewer')"),
-                {"id": user_id},
-            )
-            connection.execute(
-                text(
-                    """INSERT INTO user_sessions (id, user_id, csrf_secret, expires_at)
-                    VALUES (:id, :user_id, 'csrf-secret', :expires_at)"""
-                ),
-                {"id": "a" * 64, "user_id": user_id, "expires_at": original_expires_at},
-            )
-
-        command.upgrade(config, "head")
-
-        with engine.connect() as connection:
-            row = connection.execute(
-                text(
-                    """SELECT keep_signed_in, expires_at, absolute_expires_at
-                    FROM user_sessions WHERE id = :id"""
-                ),
-                {"id": "a" * 64},
-            ).one()
-    finally:
-        engine.dispose()
-
-    # A session issued under the fixed 8-hour lifetime must never be extended by sliding renewal.
-    assert row.keep_signed_in is False
-    assert row.expires_at == original_expires_at
-    assert row.absolute_expires_at == original_expires_at
-
-
-def test_membership_migration_keeps_only_operator_and_admin_global_roles(
-    postgres_database_factory: Callable[[], str],
-) -> None:
-    database_url = postgres_database_factory()
-    config = alembic_config(database_url)
-    command.upgrade(config, "20260921_0003")
-    user_ids = {role: uuid4() for role in ("viewer", "reviewer", "operator", "admin")}
-    engine = create_engine(database_url)
-    try:
-        with engine.begin() as connection:
-            for role, user_id in user_ids.items():
-                connection.execute(
-                    text("INSERT INTO users (id, display_name) VALUES (:id, :name)"),
-                    {"id": user_id, "name": f"Former {role}"},
-                )
-                connection.execute(
-                    text("INSERT INTO user_roles (user_id, role) VALUES (:id, :role)"),
-                    {"id": user_id, "role": role},
-                )
-
-        command.upgrade(config, "head")
-
-        with engine.connect() as connection:
-            remaining = set(connection.execute(text("SELECT role FROM user_roles")).scalars())
-            memberships = connection.execute(
-                text("SELECT count(*) FROM project_memberships")
-            ).scalar_one()
-        with pytest.raises(IntegrityError), engine.begin() as connection:
-            connection.execute(
-                text("INSERT INTO user_roles (user_id, role) VALUES (:id, 'viewer')"),
-                {"id": user_ids["viewer"]},
-            )
-    finally:
-        engine.dispose()
-
-    assert remaining == {"operator", "admin"}
-    assert memberships == 0
