@@ -286,7 +286,7 @@ scope — so that part of the criterion is necessarily verified once M3 exists, 
 - Import with the full `source_format` × `packaging` matrix; the backend derives the import profile.
   **Partly delivered.** `ImportView` uploads one file (`packaging: "single"`) to
   `POST /projects/{project_id}/snapshots`, gated to the project's own operators (`current_user_role`, not
-  the global roles D6 gives project creation). Folder, GitLab, and the loose/zip/tar.gz packagings remain.
+  the global roles D6 gives project creation). The loose (several TEI files), `zip`, and `tar_gz` packagings remain; the wireframe's GitLab source is a v1 scope exclusion (see below), not part of this matrix.
 - The asynchronous snapshot lifecycle: `202` → poll → ready or failed, with `failure_diagnostic` surfaced.
   **Delivered**, and, per docs/23's cross-cutting-concerns table, as the general composable that
   aggregations/evaluations/exports will reuse: `composables/usePolledQuery.ts` wraps `useQuery` with a
