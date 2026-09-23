@@ -409,3 +409,23 @@ Section~\ref{sec:tei-encoding}." The parenthetical examples and model citation a
 footnote and shortened the surrounding sentence accordingly.
 
 **Status:** Addressed in the local working tree; I16 is marked complete.
+
+## 2026-09-23: Reviewer I7 - Case-study selection
+
+**Request:** Explain why Schleiermacher digital was selected as the case study and what makes it
+particularly suitable.
+
+**Changes:** Added the approved selection rationale to the Introduction in
+[article.tex](article.tex), immediately before the existing contributions list. It connects the
+manageable corpus and its temporal and regional focus to planned work on other Academy editions,
+identifies the enrichment challenges that make it useful for assessing complementary methods,
+and explains the practical editorial need as the project approaches the end of its term. The
+edition citation is retained, and the contributions list is unchanged.
+
+**Response to the reviewer:** We made the selection rationale explicit: the corpus offers a
+manageable initial case with enrichment challenges relevant to other Academy editions, while
+collaboration with its editorial team supports a concrete enrichment task near the end of the
+project's term. We also explain its role in identifying requirements for subsequent adaptation
+of the workflow to other editions.
+
+**Status:** Addressed in the local working tree; I7 is marked complete.

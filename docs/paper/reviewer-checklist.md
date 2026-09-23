@@ -40,7 +40,7 @@ Source: [Reviewer C's annotated PDF](C-klappenbach,neuber,westphal_2026_genderta
 - [x] **I4 - Line 77:** Add a link to TEI in a footnote.
 - [x] **I5 - Line 79:** Explain what "authority data queries" means.
 - [x] **I6 - Line 80:** Check whether "Transformer" should be lowercase.
-- [ ] **I7 - Line 83:** Explain why Schleiermacher digital was selected and what makes it suitable.
+- [x] **I7 - Line 83:** Explain why Schleiermacher digital was selected and what makes it suitable.
 - [x] **I8 - Lines 91-97:** Consolidate into one paragraph.
 - [x] **I9 - Lines 101-128:** Replace "First... Second..." with descriptive LaTeX
   `\paragraph{...}` headings.
