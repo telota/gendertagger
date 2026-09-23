@@ -10,6 +10,7 @@ from gendertagger.api.authentication import require_authenticated_user
 from gendertagger.api.authorization import (
     ProjectAccessGuard,
     get_project_access_guard,
+    require_any_grant,
     require_project_creator,
 )
 from gendertagger.api.dependencies import get_project_access_service, get_project_service
@@ -24,6 +25,7 @@ from gendertagger.models.project import (
     ProjectCreate,
     ProjectWorkingAggregationUpdate,
     SnapshotImportRequest,
+    SnapshotUploadLimits,
     SourceFormat,
     SourcePackaging,
 )
@@ -111,6 +113,15 @@ def set_working_aggregation(
             message="The aggregation execution is not completed.",
         ) from error
     return AccessibleProject(**project.model_dump(), current_user_role=role)
+
+
+@router.get("/snapshot-upload-limits", response_model=SnapshotUploadLimits)
+def get_snapshot_upload_limits(
+    service: Annotated[ProjectService, Depends(get_project_service)],
+    _: Annotated[CurrentUser, Depends(require_any_grant)],
+) -> SnapshotUploadLimits:
+    """Return the deployment's snapshot upload and import bounds, so a client can check first."""
+    return service.upload_limits()
 
 
 @router.post(

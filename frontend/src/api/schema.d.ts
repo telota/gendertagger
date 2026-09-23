@@ -739,6 +739,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/snapshot-upload-limits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Snapshot Upload Limits
+         * @description Return the deployment's snapshot upload and import bounds, so a client can check first.
+         */
+        get: operations["get_snapshot_upload_limits_api_v1_snapshot_upload_limits_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/snapshots/{snapshot_id}": {
         parameters: {
             query?: never;
@@ -2259,6 +2279,56 @@ export interface components {
          * @enum {string}
          */
         RunStatus: "created" | "queued" | "running" | "completed" | "completed_with_errors" | "failed" | "cancelled";
+        /**
+         * SnapshotImportLimits
+         * @description Resolved immutable safety bounds applied by one snapshot import.
+         */
+        SnapshotImportLimits: {
+            /**
+             * Max Cell Bytes
+             * @default 1048576
+             */
+            max_cell_bytes: number;
+            /**
+             * Max Compression Ratio
+             * @default 100
+             */
+            max_compression_ratio: number;
+            /**
+             * Max Member Count
+             * @default 128
+             */
+            max_member_count: number;
+            /**
+             * Max Member Expanded Bytes
+             * @default 104857600
+             */
+            max_member_expanded_bytes: number;
+            /**
+             * Max Record Count
+             * @default 1000000
+             */
+            max_record_count: number;
+            /**
+             * Max Total Expanded Bytes
+             * @default 524288000
+             */
+            max_total_expanded_bytes: number;
+        };
+        /**
+         * SnapshotUploadLimits
+         * @description Deployment bounds a snapshot import request must fit, readable before uploading.
+         *
+         *     The upload bounds apply to the compressed request and return `413` when exceeded; the import
+         *     limits are the ones a newly accepted snapshot records in its `SnapshotImportConfig`.
+         */
+        SnapshotUploadLimits: {
+            import_limits: components["schemas"]["SnapshotImportLimits"];
+            /** Max Total Upload Bytes */
+            max_total_upload_bytes: number;
+            /** Max Upload Part Bytes */
+            max_upload_part_bytes: number;
+        };
         /**
          * SourceFormat
          * @description Semantic encoding of one snapshot source collection.
@@ -6150,6 +6220,98 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CursorPage_ExportExecution_"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_snapshot_upload_limits_api_v1_snapshot_upload_limits_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SnapshotUploadLimits"];
                 };
             };
             /** @description Invalid request */

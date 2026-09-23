@@ -195,6 +195,20 @@ class SnapshotImportLimits(BaseModel):
     max_cell_bytes: int = Field(default=1024 * 1024, gt=0)
 
 
+class SnapshotUploadLimits(BaseModel):
+    """Deployment bounds a snapshot import request must fit, readable before uploading.
+
+    The upload bounds apply to the compressed request and return `413` when exceeded; the import
+    limits are the ones a newly accepted snapshot records in its `SnapshotImportConfig`.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    max_upload_part_bytes: int = Field(gt=0)
+    max_total_upload_bytes: int = Field(gt=0)
+    import_limits: SnapshotImportLimits
+
+
 class SnapshotImportConfig(SnapshotImportRequest):
     """Persisted import choices plus the exact resolved safety limits."""
 

@@ -3555,6 +3555,76 @@
         "title": "RunStatus",
         "type": "string"
       },
+      "SnapshotImportLimits": {
+        "additionalProperties": false,
+        "description": "Resolved immutable safety bounds applied by one snapshot import.",
+        "properties": {
+          "max_cell_bytes": {
+            "default": 1048576,
+            "exclusiveMinimum": 0.0,
+            "title": "Max Cell Bytes",
+            "type": "integer"
+          },
+          "max_compression_ratio": {
+            "default": 100.0,
+            "exclusiveMinimum": 1.0,
+            "title": "Max Compression Ratio",
+            "type": "number"
+          },
+          "max_member_count": {
+            "default": 128,
+            "exclusiveMinimum": 0.0,
+            "title": "Max Member Count",
+            "type": "integer"
+          },
+          "max_member_expanded_bytes": {
+            "default": 104857600,
+            "exclusiveMinimum": 0.0,
+            "title": "Max Member Expanded Bytes",
+            "type": "integer"
+          },
+          "max_record_count": {
+            "default": 1000000,
+            "exclusiveMinimum": 0.0,
+            "title": "Max Record Count",
+            "type": "integer"
+          },
+          "max_total_expanded_bytes": {
+            "default": 524288000,
+            "exclusiveMinimum": 0.0,
+            "title": "Max Total Expanded Bytes",
+            "type": "integer"
+          }
+        },
+        "title": "SnapshotImportLimits",
+        "type": "object"
+      },
+      "SnapshotUploadLimits": {
+        "additionalProperties": false,
+        "description": "Deployment bounds a snapshot import request must fit, readable before uploading.\n\nThe upload bounds apply to the compressed request and return `413` when exceeded; the import\nlimits are the ones a newly accepted snapshot records in its `SnapshotImportConfig`.",
+        "properties": {
+          "import_limits": {
+            "$ref": "#/components/schemas/SnapshotImportLimits"
+          },
+          "max_total_upload_bytes": {
+            "exclusiveMinimum": 0.0,
+            "title": "Max Total Upload Bytes",
+            "type": "integer"
+          },
+          "max_upload_part_bytes": {
+            "exclusiveMinimum": 0.0,
+            "title": "Max Upload Part Bytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "max_upload_part_bytes",
+          "max_total_upload_bytes",
+          "import_limits"
+        ],
+        "title": "SnapshotUploadLimits",
+        "type": "object"
+      },
       "SourceFormat": {
         "description": "Semantic encoding of one snapshot source collection.",
         "enum": [
@@ -8646,6 +8716,108 @@
         "summary": "List Exports",
         "tags": [
           "exports"
+        ]
+      }
+    },
+    "/api/v1/snapshot-upload-limits": {
+      "get": {
+        "description": "Return the deployment's snapshot upload and import bounds, so a client can check first.",
+        "operationId": "get_snapshot_upload_limits_api_v1_snapshot_upload_limits_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotUploadLimits"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Snapshot Upload Limits",
+        "tags": [
+          "projects"
         ]
       }
     },

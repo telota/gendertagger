@@ -256,7 +256,8 @@ box with a static slider and a preview callout; and a "Klassifikation jetzt star
 - **Gap (backend):** the automation threshold does not exist. See semantic conflicts.
 - **Gap (frontend):** upload limits are server-enforced and typed (`SnapshotImportLimits`: 128 members,
   100 MB per member, 500 MB expanded, compression ratio 100, 1 000 000 records) and produce `413`; the
-  wireframe shows no limit guidance and no size error state.
+  wireframe shows no limit guidance and no size error state. `GET /snapshot-upload-limits` returns the
+  deployment's actual bounds before an upload.
 
 ### Klassifikation
 
@@ -458,7 +459,7 @@ trapped — the Vue port must add a focus trap and restore focus on close.
 
 ## Backend endpoint coverage
 
-All forty delivered `/api/v1` endpoints, and how the wireframe treats each. Project-scoped roles are
+All forty-five delivered `/api/v1` endpoints, and how the wireframe treats each. Project-scoped roles are
 checked against the project that owns the addressed resource.
 
 | Endpoint | Role | Wireframe treatment |
@@ -471,11 +472,13 @@ checked against the project that owns the addressed resource.
 | `POST /projects` | global operator | modal, missing `slug`/`description` |
 | `GET /projects` | authenticated; own projects only | mocked card grid and switcher |
 | `GET /projects/{id}` | viewer | mocked in topbar |
+| `PUT /projects/{id}/working-aggregation` | operator | **absent** |
 | `GET /projects/{id}/members` | global admin | **absent — no member screen** |
 | `PUT /projects/{id}/members/{user_id}` | global admin | **absent** |
 | `DELETE /projects/{id}/members/{user_id}` | global admin | **absent** |
 | `POST /projects/{id}/snapshots` | operator | partial — TEI/single only |
 | `GET /projects/{id}/snapshots` | viewer | **absent — no snapshot history** |
+| `GET /snapshot-upload-limits` | any role or membership | **absent — no limit guidance** |
 | `GET /snapshots/{id}` | viewer | absent — no lifecycle shown |
 | `GET /snapshots/{id}/people` | viewer | mocked list, unsupported filters |
 | `GET /snapshots/{id}/runs` | viewer | mocked run-history table |
@@ -491,6 +494,7 @@ checked against the project that owns the addressed resource.
 | `GET /runs/{id}/evaluations` | viewer | **absent** |
 | `GET /runs/{id}/exports` | viewer | **absent** |
 | `GET /aggregations/{id}` | viewer | **absent** |
+| `GET /aggregations/{id}/review-summary` | viewer | mocked KPI tiles and project-card progress |
 | `GET /aggregations/{id}/results` | viewer | **absent** |
 | `GET /aggregations/{id}/results/{result_id}` | viewer | **absent** |
 | `GET /aggregations/{id}/results/{result_id}/predictions` | viewer | mocked per-method cards |
@@ -503,6 +507,8 @@ checked against the project that owns the addressed resource.
 | `POST /exports` | operator | mocked menu item |
 | `GET /exports/{id}` | viewer | **absent** |
 | `GET /exports/{id}/download` | viewer | mocked menu item |
+| `GET /branding` | unauthenticated | **absent — static wireframe footer note only** |
+| `GET /branding/logo` | unauthenticated | **absent** |
 
 Authentication is fail-closed: every `/api/v1` route except `POST /auth/login` carries
 `require_csrf_protection`, and the default backend is the local account system from

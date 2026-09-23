@@ -5,11 +5,14 @@ from uuid import UUID
 
 import pytest
 from fastapi import UploadFile
+from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from starlette.datastructures import Headers
 
 from gendertagger.api.app import create_app
+from gendertagger.api.authentication import require_authenticated_user
 from gendertagger.api.authorization import ProjectAccessGuard
+from gendertagger.api.dependencies import get_project_access_service
 from gendertagger.api.errors import ApiRequestError
 from gendertagger.api.projects import import_snapshot
 from gendertagger.api.settings import AppSettings
@@ -88,6 +91,9 @@ class _GrantingProjectAccess:
         self, user: CurrentUser, scope: ProjectScope, resource_id: UUID
     ) -> ProjectRole:
         return ProjectRole.operator
+
+    def has_any_grant(self, user: CurrentUser) -> bool:
+        return True
 
 
 def _upload(filename: str, content: bytes, media_type: str) -> UploadFile:
@@ -268,3 +274,39 @@ def test_openapi_describes_repeated_sources_and_strict_options() -> None:
         "zip",
         "tar_gz",
     ]
+
+
+def test_upload_limits_report_the_configured_bounds_the_import_enforces() -> None:
+    application = create_app(
+        settings=AppSettings(
+            database_url=SecretStr(DATABASE_URL),
+            code_git_commit="a" * 40,
+            dependency_lock_sha256="b" * 64,
+            max_snapshot_upload_bytes=4096,
+            max_snapshot_source_files=7,
+            max_archive_member_bytes=1024,
+            max_archive_expanded_bytes=8192,
+            max_archive_compression_ratio=12.5,
+            max_import_record_count=300,
+            max_tabular_cell_bytes=256,
+        ),
+        unit_of_work_factory=_unused_unit_of_work_factory,
+    )
+    application.dependency_overrides[require_authenticated_user] = _operator
+    application.dependency_overrides[get_project_access_service] = _GrantingProjectAccess
+
+    response = TestClient(application).get("/api/v1/snapshot-upload-limits")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "max_upload_part_bytes": 1024,
+        "max_total_upload_bytes": 4096,
+        "import_limits": {
+            "max_member_count": 7,
+            "max_member_expanded_bytes": 1024,
+            "max_total_expanded_bytes": 8192,
+            "max_compression_ratio": 12.5,
+            "max_record_count": 300,
+            "max_cell_bytes": 256,
+        },
+    }

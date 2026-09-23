@@ -302,6 +302,7 @@ GLOBAL_ROUTES = {
     ("PUT", "/projects/{project_id}/members/{user_id}"),
     ("DELETE", "/projects/{project_id}/members/{user_id}"),
     ("GET", "/methods"),
+    ("GET", "/snapshot-upload-limits"),
     ("POST", "/classify"),
     ("GET", "/me"),
     ("POST", "/me/password"),
@@ -403,5 +404,13 @@ def test_method_catalog_requires_some_grant() -> None:
     client = _client(_FixedProjectAccess(any_grant=False))
 
     response = client.get("/api/v1/methods")
+
+    assert response.status_code == 403
+
+
+def test_snapshot_upload_limits_require_some_grant() -> None:
+    client = _client(_FixedProjectAccess(any_grant=False))
+
+    response = client.get("/api/v1/snapshot-upload-limits")
 
     assert response.status_code == 403

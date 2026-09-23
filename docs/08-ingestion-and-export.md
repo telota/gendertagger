@@ -145,6 +145,9 @@ compressed-upload bounds, and neither substitutes for the other: `GENDERTAGGER_M
 bounds each individual upload part (100 MiB by default) and `GENDERTAGGER_MAX_SNAPSHOT_UPLOAD_BYTES` bounds
 the staged collection as a whole (500 MiB by default, matching the reverse proxy's request-body ceiling in
 [12-deployment-and-operations.md](12-deployment-and-operations.md)). Exceeding either returns `413`.
+`GET /api/v1/snapshot-upload-limits` returns both upload bounds together with the import ceilings a new
+snapshot would record, so a client can check a selection before sending it; the server still enforces every
+bound on the request itself.
 
 ZIP and XLSX preflight reads bounded classic EOCD or ZIP64 directory metadata before constructing Python ZIP
 member objects. It enforces the persisted member-count limit and derives a reproducible central-directory

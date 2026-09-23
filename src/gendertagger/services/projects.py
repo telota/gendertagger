@@ -26,6 +26,7 @@ from gendertagger.models.project import (
     SnapshotImportRequest,
     SnapshotImportTaskMessage,
     SnapshotSourceMemberCreate,
+    SnapshotUploadLimits,
     SourceFormat,
     SourceManifestMember,
     SourceManifestV1,
@@ -114,6 +115,14 @@ class ProjectService:
             max_compression_ratio=100.0,
             max_record_count=1_000_000,
             max_cell_bytes=1024 * 1024,
+        )
+
+    def upload_limits(self) -> SnapshotUploadLimits:
+        """Return the upload and import bounds this service enforces on every snapshot import."""
+        return SnapshotUploadLimits(
+            max_upload_part_bytes=self._max_upload_bytes,
+            max_total_upload_bytes=self._max_total_upload_bytes,
+            import_limits=self._import_limits,
         )
 
     def create_project(self, command: ProjectCreate, *, creator_user_id: UUID) -> AccessibleProject:

@@ -152,6 +152,10 @@ the phased plan that resumes application code.
   aggregations for its dashboard and review queue to summarize, or clears the pointer, gated to project
   operators ([ADR-0035](docs/decisions/ADR-0035-project-working-aggregation.md)). `AccessibleProject` carries
   the nullable `working_aggregation_execution_id`.
+- `GET /api/v1/snapshot-upload-limits`, which returns the deployment's `SnapshotUploadLimits`: the per-part
+  and aggregate upload byte bounds that produce `413`, and the `SnapshotImportLimits` a newly accepted
+  snapshot records. The values come from the service that enforces them, so a client can check a selection
+  before uploading.
 
 ### Changed
 
