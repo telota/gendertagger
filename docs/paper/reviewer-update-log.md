@@ -74,3 +74,26 @@ future extensions.
 - The locked documentation-policy check passed.
 - The full manuscript PDF was not rebuilt for this edit; the existing build blocker is recorded in
   the software-citation entry above.
+
+## 2026-09-23: Reviewer C - Local authority snapshot maintenance
+
+**Request:** Explain that local authority snapshots need updating to incorporate later changes
+(annotated PDF, page 7).
+
+**Changes:** Added three sentences to the GND paragraph in [article.tex](article.tex). They explain
+that the local snapshot must be refreshed to include subsequent additions and corrections to the
+GND, and describe the current backend's retention of immutable source dumps and derived lookups,
+checksums, source and compiler provenance, and references from method executions to the exact lookup
+used.
+
+**Response to the reviewer:** We clarified the maintenance tradeoff of local authority snapshots:
+subsequent additions and corrections require refreshing the snapshot. We also explained how the
+current backend preserves traceability across updates by retaining source dumps and derived lookup
+snapshots with checksums and compilation provenance, and recording the exact lookup used by each
+method execution.
+
+**Status:** Addressed in the local working tree; the checklist item is marked complete.
+
+**Verification:** The description was checked against the implemented source/lookup registration
+and execution provenance, with supporting tests inspected. The wording identifies this as
+functionality of the current backend.

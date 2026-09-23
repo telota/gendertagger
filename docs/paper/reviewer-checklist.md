@@ -23,7 +23,7 @@ Source: [Reviewer C's annotated PDF](C-klappenbach,neuber,westphal_2026_genderta
 
 - [x] **Page 6:** Expand GND at its first occurrence, with a brief explanation or link.
   (Two annotations.)
-- [ ] **Page 7:** Explain the maintenance tradeoff of local authority snapshots: they need updating
+- [x] **Page 7:** Explain the maintenance tradeoff of local authority snapshots: they need updating
   to incorporate later changes.
 - [ ] **Page 7:** Clarify whether the parenthetical-qualifier rule is implemented within gendertagger
   or in separate code.
