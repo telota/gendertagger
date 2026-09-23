@@ -7,7 +7,10 @@ from fastapi import APIRouter, Depends, status
 from gendertagger.api.authorization import require_any_grant
 from gendertagger.api.dependencies import get_classification_service
 from gendertagger.api.errors import ApiRequestError
-from gendertagger.models.classify import ClassifyNamesRequest, ClassifyNamesResponse
+from gendertagger.models.synchronous_classification import (
+    ClassifyNamesRequest,
+    ClassifyNamesResponse,
+)
 from gendertagger.models.user import CurrentUser
 from gendertagger.services.classification import DirectClassificationService
 from gendertagger.services.method_registry import UnknownMethodError

@@ -27,13 +27,13 @@ from gendertagger.models.classification import (
     PredictionResult,
     PredictionStatus,
 )
-from gendertagger.models.classify import (
+from gendertagger.models.person import PersonInput
+from gendertagger.models.synchronous_classification import (
     AggregatedClassification,
     ClassifyNamesResponse,
     MethodClassification,
     NameClassificationResult,
 )
-from gendertagger.models.person import PersonInput
 from gendertagger.services.method_registry import MethodRegistry, UnknownMethodError
 from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 
@@ -71,8 +71,9 @@ class DirectClassificationService:
             method_configs: Optional explicit configuration dictionaries keyed by method name.
 
         Returns:
-            A :class:`~gendertagger.models.classify.ClassifyNamesResponse` mapping each input name
-            to its per-method classification results and aggregated ensemble verdict.
+            A :class:`~gendertagger.models.synchronous_classification.ClassifyNamesResponse`
+            mapping each input name to its per-method classification results and aggregated
+            ensemble verdict.
 
         Raises:
             UnknownMethodError: If an unknown method name is requested.

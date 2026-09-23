@@ -37,7 +37,7 @@ duplicate class bodies or field inventories.
 | `models/review.py` | Annotations, history, review state, and review queries |
 | `models/dispatch.py` | Durable typed dispatch-outbox contracts |
 | `models/artifact.py` | Artifact records, lookup metadata, model manifests |
-| `models/classify.py` | Synchronous on-demand classification |
+| `models/synchronous_classification.py` | Synchronous on-demand classification |
 | `models/api.py` | Error envelopes and cursor pages |
 | `models/user.py` | Global/project roles and provider-neutral user identity |
 | `models/auth.py` | Local credentials, sessions, login, and password changes |
