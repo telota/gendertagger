@@ -18,6 +18,9 @@ EXPECTED_APPLICATION_TABLES = {
     "artifacts",
     "batch_dispatches",
     "dataset_snapshots",
+    "evaluation_executions",
+    "evaluation_method_executions",
+    "export_executions",
     "method_executions",
     "person_external_ids",
     "person_records",
@@ -28,9 +31,12 @@ EXPECTED_APPLICATION_TABLES = {
     "runs",
     "snapshot_source_members",
     "task_batches",
+    "user_credentials",
     "user_roles",
+    "user_sessions",
     "users",
 }
+ALEMBIC_VERSION_TABLE = "alembic_version"
 EXPECTED_IMMUTABILITY_TRIGGERS = {
     "trg_aggregated_results_parent_completed",
     "trg_aggregated_results_validate_insert",
@@ -73,7 +79,10 @@ def test_initial_migration_upgrades_downgrades_and_has_no_drift(
     command.upgrade(config, "head")
     engine = create_engine(database_url)
     try:
-        assert set(inspect(engine).get_table_names()) >= EXPECTED_APPLICATION_TABLES
+        assert set(inspect(engine).get_table_names()) == {
+            *EXPECTED_APPLICATION_TABLES,
+            ALEMBIC_VERSION_TABLE,
+        }
         with engine.connect() as connection:
             trigger_names = set(
                 connection.execute(
@@ -97,7 +106,7 @@ def test_initial_migration_upgrades_downgrades_and_has_no_drift(
 
     engine = create_engine(database_url)
     try:
-        assert not EXPECTED_APPLICATION_TABLES.intersection(inspect(engine).get_table_names())
+        assert set(inspect(engine).get_table_names()) <= {ALEMBIC_VERSION_TABLE}
         with engine.connect() as connection:
             function_count = connection.execute(
                 text(
