@@ -225,3 +225,16 @@ website at the introductory explanation of TEI, including an access date.
 **Status:** Addressed in the local working tree; the checklist item is marked complete.
 
 **Verification:** The [official TEI website](https://tei-c.org/) was checked before adding the link.
+
+## 2026-09-23: Reviewer I5 - Authority lookup explanation
+
+**Request:** Explain what "authority data queries" means in the Introduction.
+
+**Changes:** Replaced the phrase in [article.tex](article.tex) with "retrieval of recorded gender
+information from a local GND snapshot using the register's GND identifiers."
+
+**Response to the reviewer:** We replaced the general phrase with an explicit description of the
+lookup, identifying the information retrieved, the local GND snapshot as its source, and the
+register's GND identifiers as the basis for matching records.
+
+**Status:** Addressed in the local working tree; the checklist item is marked complete.
