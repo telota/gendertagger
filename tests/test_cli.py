@@ -11,7 +11,8 @@ import pytest
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import Session
 
-from gendertagger.cli.main import _build_parser, _download_https, main
+from gendertagger.cli.assets import _download_https
+from gendertagger.cli.main import _build_parser, main
 from gendertagger.db.repositories.artifact_repository import SqlAlchemyArtifactRepository
 from gendertagger.db.repositories.auth_repository import SqlAlchemyAuthRepository
 from gendertagger.db.repositories.project_repository import SqlAlchemyProjectRepository
