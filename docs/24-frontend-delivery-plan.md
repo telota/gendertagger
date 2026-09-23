@@ -299,7 +299,10 @@ scope — so that part of the criterion is necessarily verified once M3 exists, 
   deliveries also the member count and expanded-size bound), tied to the file input with
   `aria-describedby`. A selection over either bound is refused with an alert and the submit stays disabled;
   the server still enforces the bounds, and a `413` still maps to an inline message. If the limits cannot be
-  loaded the form says so and does not block.
+  loaded the form says so and does not block. Found in the first real-backend run: a ZIP sent under the
+  default "single file" delivery is read as XML and only fails after the snapshot exists (`invalid TEI XML at
+  line 1, column 1`), so the form also compares the file name with the chosen delivery (`.zip`,
+  `.tar.gz`/`.tgz`) and refuses a mismatch before uploading. The server stays authoritative.
 - Snapshot provenance: `source_sha256`, `parser_version`, per-member manifest entries. **Delivered.** The
   project overview lists the project's snapshots (`GET /projects/{id}/snapshots`, newest first, cursor-paginated,
   every lifecycle state) with status, record count, parser version, and the full SHA-256; a disclosure per

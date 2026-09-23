@@ -165,6 +165,8 @@
       "errors": {
         "validation": "Bitte überprüfen Sie Ihre Eingaben.",
         "tooLarge": "Die Datei überschreitet die zulässige Größe für diese Installation.",
+        "looksLikeArchive": "Die Datei sieht wie ein Archiv aus. Wähle als Lieferart „ZIP-Archiv“ oder „TAR.GZ-Archiv“ statt einer einfachen TEI-Datei.",
+        "notAnArchive": "Die ausgewählte Datei passt nicht zum gewählten Archivtyp. Wähle eine passende Datei oder ändere die Lieferart.",
         "network": "Der Server ist nicht erreichbar.",
         "generic": "Der Import konnte nicht gestartet werden.",
         "partTooLarge": "Mindestens eine Datei überschreitet die zulässige Größe je Datei.",

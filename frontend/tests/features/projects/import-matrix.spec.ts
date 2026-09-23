@@ -196,6 +196,41 @@ describe.each(['de', 'en'] as const)('import formats and limits in %s', (locale:
     expect(wrapper.get('.import-submit').attributes('disabled')).toBeDefined()
   })
 
+  it('refuses a ZIP chosen as a single TEI file, naming the fix, before uploading', async () => {
+    const { wrapper, sent } = await mountImport()
+
+    selectFiles(wrapper, [testFile('zip', 'collection.zip')])
+    await flushPromises()
+
+    expect(wrapper.get('.import-error').text()).toBe(messages.errors.looksLikeArchive)
+    expect(wrapper.get('.import-submit').attributes('disabled')).toBeDefined()
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(sent).toHaveLength(0)
+  })
+
+  it('refuses a plain XML file chosen under an archive delivery', async () => {
+    const { wrapper } = await mountImport()
+
+    await choose(wrapper, '.import-packaging', messages.packaging.zip)
+    selectFiles(wrapper, [testFile('<a/>', 'a.xml')])
+    await flushPromises()
+
+    expect(wrapper.get('.import-error').text()).toBe(messages.errors.notAnArchive)
+    expect(wrapper.get('.import-submit').attributes('disabled')).toBeDefined()
+  })
+
+  it('accepts a tar.gz under the tar.gz delivery', async () => {
+    const { wrapper } = await mountImport()
+
+    await choose(wrapper, '.import-packaging', messages.packaging.tarGz)
+    selectFiles(wrapper, [testFile('x', 'collection.tar.gz')])
+    await flushPromises()
+
+    expect(wrapper.find('.import-error').exists()).toBe(false)
+    expect(wrapper.get('.import-submit').attributes('disabled')).toBeUndefined()
+  })
+
   it('refuses a file over the per-file bound before uploading', async () => {
     const { wrapper, sent } = await mountImport({ limits: { part: 4, total: 100 } })
 

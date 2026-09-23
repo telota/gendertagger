@@ -101,7 +101,22 @@ const sizeProblem = computed<'part' | 'total' | null>(() => {
   const total = files.value.reduce((sum, file) => sum + file.size, 0)
   return total > bounds.max_total_upload_bytes ? 'total' : null
 })
-const canSubmit = computed(() => files.value.length > 0 && sizeProblem.value === null)
+// The delivery choice decides how the server reads the bytes: a ZIP sent as "single file" is parsed
+// as XML and fails only after the snapshot exists. The file name is enough to catch that up front.
+const isZipName = (name: string): boolean => name.toLowerCase().endsWith('.zip')
+const isTarGzName = (name: string): boolean => /.(tar.gz|tgz)$/i.test(name)
+const packagingProblem = computed<'looksLikeArchive' | 'notAnArchive' | null>(() => {
+  if (!isTei.value || files.value.length === 0) return null
+  const names = files.value.map((file) => file.name)
+  if (packaging.value === 'single' || packaging.value === 'loose') {
+    return names.some((name) => isZipName(name) || isTarGzName(name)) ? 'looksLikeArchive' : null
+  }
+  const matches = packaging.value === 'zip' ? isZipName : isTarGzName
+  return names.every(matches) ? null : 'notAnArchive'
+})
+const canSubmit = computed(
+  () => files.value.length > 0 && sizeProblem.value === null && packagingProblem.value === null,
+)
 
 const importMutation = useImportSnapshot()
 const snapshotId = ref<string | null>(null)
@@ -215,6 +230,12 @@ async function submit(): Promise<void> {
             </p>
             <p v-else-if="sizeProblem === 'total'" role="alert" class="import-error">
               {{ t('projects.import.errors.totalTooLarge') }}
+            </p>
+            <p v-if="packagingProblem === 'looksLikeArchive'" role="alert" class="import-error">
+              {{ t('projects.import.errors.looksLikeArchive') }}
+            </p>
+            <p v-else-if="packagingProblem === 'notAnArchive'" role="alert" class="import-error">
+              {{ t('projects.import.errors.notAnArchive') }}
             </p>
             <p v-if="importMutation.isError.value" role="alert" class="import-error">
               {{ importErrorMessage(importMutation.error.value) }}

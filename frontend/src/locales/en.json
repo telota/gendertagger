@@ -165,6 +165,8 @@
       "errors": {
         "validation": "Please check your input.",
         "tooLarge": "The file exceeds this installation's allowed size.",
+        "looksLikeArchive": "The file looks like an archive. Choose the delivery \"ZIP archive\" or \"TAR.GZ archive\" instead of a plain TEI file.",
+        "notAnArchive": "The selected file does not match the chosen archive type. Pick a matching file or change the delivery.",
         "network": "The server could not be reached.",
         "generic": "The import could not be started.",
         "partTooLarge": "At least one file exceeds the allowed size per file.",
