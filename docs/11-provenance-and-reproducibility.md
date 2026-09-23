@@ -125,6 +125,16 @@ Every export persists a machine-readable `ExportManifest`
   `byte_size`, and `media_type`
 - `generated_at`
 
+## Configuration hashes
+
+Runs, method executions, aggregations, and evaluations store a `config_sha256` over their canonical resolved
+configuration: a compact fingerprint for comparing provenance, and for aggregations also the creation identity
+that [ADR-0034](decisions/ADR-0034-reuse-matching-aggregation-on-creation.md) matches on. Dataset snapshots
+and exports deliberately have none. A snapshot's import is already identified exactly by `source_sha256`,
+`parser_version`, and the persisted `import_config`; an export's configuration is four plain columns
+(`format`, `label_source_policy`, `tei_profile`, `human_resp_id`). Add a hash only when a feature consumes it,
+for example deduplicating identical export requests.
+
 ## Reproducibility level
 
 Aim for "recreate the scientific computation from captured inputs/configuration", not bit-for-bit equality across every GPU/library environment. Record enough runtime information to diagnose differences.
