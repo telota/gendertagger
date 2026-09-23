@@ -155,7 +155,7 @@ The \texttt{<gender>} element is encoded as a child of \texttt{<person>} rather 
 </person>
 \end{verbatim}
 
-The note reads \emph{Lehrerin in Gnadenfrei} [female teacher in Gnadenfrei]. Note that the empty \texttt{<forename/>} combined with \texttt{cert="low"} illustrates the pipeline operating under uncertainty: here, the occupational context (\emph{Lehrerin} [female teacher]) provides the basis for classification where the name record alone would not suffice. We return to this issue in Section~\ref{sec:classifiers}.
+In this example, \textit{gendertagger} adds only the \texttt{<gender>} element; all other markup, including the place reference, is taken unchanged from the \textit{schleiermacher digital} register. The key \texttt{S0000357} identifies the edition's register entry for Gnadenfrei, which links the place to the GeoNames gazetteer.\footnote{\url{https://schleiermacher-digital.de/S0000357} and \url{https://www.geonames.org/3089025}. Accessed 23 September 2026.} The note reads \emph{Lehrerin in Gnadenfrei} [female teacher in Gnadenfrei]. Note that the empty \texttt{<forename/>} combined with \texttt{cert="low"} illustrates the pipeline operating under uncertainty: here, the occupational context (\emph{Lehrerin} [female teacher]) provides the basis for classification where the name record alone would not suffice. We return to this issue in Section~\ref{sec:classifiers}.
 
 \paragraph{Attributes} The four attributes carry the editorial semantics of the annotation:
 

@@ -46,7 +46,7 @@ Source: [Reviewer C's annotated PDF](C-klappenbach,neuber,westphal_2026_genderta
   `\paragraph{...}` headings.
 - [x] **I10 - Line 111:** Translate `uneindeutig`.
 - [x] **I11 - Footnote 2:** Add an access date.
-- [ ] **I12 - Lines 167-169:** Address the suggestion to add certainty information and a gazetteer
+- [x] **I12 - Lines 167-169:** Address the suggestion to add certainty information and a gazetteer
   link to the Gnadenfrei example.
 - [ ] **I13 - Lines 186 onward:** Explain how `@cert` categories are derived, what they mean,
   possible alternative scales, and relevant DH practice.

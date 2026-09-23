@@ -458,3 +458,39 @@ and version ranges confirmed by the authors and to state their purposes for manu
 preparation and software development.
 
 **Status:** Addressed in the local working tree; I26 is marked complete.
+
+## 2026-09-23: Reviewer I12 - Place reference in the TEI example
+
+**Request:** Consider adding certainty information and a gazetteer link to the place reference
+`<placeName key="S0000357">Gnadenfrei</placeName>` in the TEI example (submitted manuscript
+lines 167-169).
+
+**Changes:** Added two sentences after the TEI example in [article.tex](article.tex). They state
+that gendertagger adds only the `<gender>` element and that all other markup, including the place
+reference, is taken unchanged from the schleiermacher digital register. The key `S0000357`
+identifies the edition's register entry for Gnadenfrei, which links the place to GeoNames. A new
+footnote gives the edition entry and the GeoNames record with access dates. The XML example is
+unchanged.
+
+**Response to the reviewer:** The note and its place reference are reproduced from the
+schleiermacher digital register; gendertagger adds only the `<gender>` element, and its `@cert`
+qualifies the gender annotation alone. We did not add `@cert` to the place reference: identifying
+places, and stating the certainty of that identification, remain editorial decisions of the
+edition, and changing the source markup would misrepresent the pipeline's output. The edition
+already links this place to a gazetteer: the key `S0000357` identifies its register entry for
+Gnadenfrei, which references GeoNames record 3089025 (Piława Górna, Poland). The revised text now
+states which markup gendertagger adds and gives both links in a footnote.
+
+**Status:** Addressed in the local working tree; I12 is marked complete.
+
+**Verification:**
+
+- The note and place reference in the example match entry `S0001126` in the local register
+  snapshot (`data/raw/schleiermacher/Register/Personen/A.xml`).
+- Source inspection of the TEI export profile (`backend/src/gendertagger/export/tei_profile.py`)
+  confirmed that it inserts only the `<gender>` element and leaves the other markup as in the
+  source.
+- Entry `S0000357` references GeoNames record 3089025 in the local place register
+  (`data/raw/schleiermacher/Register/Orte.xml`) and on the edition website. The GeoNames record
+  lists Gnadenfrei as a historical German name of Piława Górna. Both links were checked on
+  23 September 2026.
