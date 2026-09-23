@@ -113,3 +113,26 @@ within gendertagger.
 
 **Verification:** Confirmed the implementation in `ParentheticalQualifierMethod` and its integration
 in the backend method registry by source inspection.
+
+## 2026-09-23: Reviewer C - Resulting label terminology
+
+**Request:** Clarify "combined label" and consider "resulting label" or "post-voting label"
+(annotated PDF, page 10; two annotations).
+
+**Changes:**
+
+- Replaced all eight occurrences of "combined label" with "resulting label" in
+  [article.tex](article.tex).
+- Defined the term at first use as the automated output of aggregation, including any authority
+  override, before human review.
+- Renamed the corresponding row and two column headings to "Resulting label" and updated the
+  distribution table's caption to match.
+
+**Response to the reviewer:** We now use "resulting label" consistently and define it at first use
+as the automated output of aggregation, including any authority override, before human review.
+The corresponding table headings, row label, and caption have been updated. This terminology covers
+both voting and authority overrides while distinguishing the automated result from later human
+review decisions.
+
+**Status:** Addressed in the local working tree; the checklist item is marked complete. This is a
+terminology clarification in the manuscript; no code change is required.

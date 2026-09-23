@@ -27,7 +27,7 @@ Source: [Reviewer C's annotated PDF](C-klappenbach,neuber,westphal_2026_genderta
   to incorporate later changes.
 - [x] **Page 7:** Clarify whether the parenthetical-qualifier rule is implemented within gendertagger
   or in separate code.
-- [ ] **Page 10:** Clarify "combined label"; consider "resulting label" or "post-voting label."
+- [x] **Page 10:** Clarify "combined label"; consider "resulting label" or "post-voting label."
   (Two annotations.)
 
 ## Reviewer I: all 28 specific comments
