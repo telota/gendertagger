@@ -338,11 +338,15 @@ class DatasetSnapshot(DatasetSnapshotCreate):
     status: DatasetSnapshotStatus
     record_count: int | None = Field(default=None, ge=0)
     ready_at: UtcDatetime | None = None
+    failure_class: str | None = Field(default=None, max_length=255)
     failure_diagnostic: str | None = None
     created_at: UtcDatetime
 
     @model_validator(mode="after")
     def _validate_lifecycle_fields(self) -> Self:
+        if self.status is not DatasetSnapshotStatus.failed and self.failure_class is not None:
+            msg = "only a failed snapshot may have a failure class"
+            raise ValueError(msg)
         if self.status is DatasetSnapshotStatus.ready:
             if self.record_count is None or self.ready_at is None:
                 msg = "a ready snapshot requires record_count and ready_at"

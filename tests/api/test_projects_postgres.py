@@ -298,11 +298,13 @@ def test_invalid_tei_persists_failed_snapshot_without_source_disclosure(
     assert response.status_code == 202
     accepted = response.json()
     assert accepted["status"] == DatasetSnapshotStatus.pending.value
+    assert accepted["failure_class"] is None
     assert accepted["failure_diagnostic"] is None
 
     snapshot_id = UUID(accepted["id"])
     _execute_snapshot_import(unit_of_work_factory, tmp_path, snapshot_id)
     failed = client.get(f"/api/v1/snapshots/{snapshot_id}").json()
     assert failed["status"] == DatasetSnapshotStatus.failed.value
+    assert failed["failure_class"] == "TeiImportError"
     assert "DOCTYPE" in failed["failure_diagnostic"]
     assert "root:" not in failed["failure_diagnostic"]

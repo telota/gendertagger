@@ -1551,6 +1551,18 @@
             "title": "Created At",
             "type": "string"
           },
+          "failure_class": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Class"
+          },
           "failure_diagnostic": {
             "anyOf": [
               {
@@ -3425,6 +3437,18 @@
               }
             ],
             "title": "Dependency Lock Sha256"
+          },
+          "failure_class": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Class"
           },
           "failure_diagnostic": {
             "anyOf": [

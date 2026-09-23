@@ -151,6 +151,7 @@ class SqlAlchemyProjectRepository:
             import_config=command.import_config,
             record_count=None,
             ready_at=None,
+            failure_class=None,
             failure_diagnostic=None,
         )
         self._session.add(row)
@@ -717,6 +718,7 @@ class SqlAlchemyProjectRepository:
         self,
         snapshot_id: UUID,
         *,
+        failure_class: str | None = None,
         failure_diagnostic: str,
     ) -> DatasetSnapshot:
         """Lock and mark a pending or importing snapshot failed."""
@@ -731,6 +733,7 @@ class SqlAlchemyProjectRepository:
             msg = f"dataset snapshot {snapshot_id} is already failed"
             raise InvalidResourceStateError(msg)
         row.status = DatasetSnapshotStatus.failed
+        row.failure_class = failure_class
         row.failure_diagnostic = failure_diagnostic
         self._session.flush()
         return self._snapshot_from_row(row)
@@ -809,6 +812,7 @@ class SqlAlchemyProjectRepository:
             status=row.status,
             record_count=row.record_count,
             ready_at=row.ready_at,
+            failure_class=row.failure_class,
             failure_diagnostic=row.failure_diagnostic,
             created_at=row.created_at,
         )

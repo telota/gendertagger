@@ -21,6 +21,7 @@ from gendertagger.models.lifecycle import (
     TaskBatchStatus,
 )
 from gendertagger.models.run import (
+    METHOD_EXECUTION_FAILURE_CLASS,
     MethodExecution,
     MethodExecutionCreate,
     Prediction,
@@ -88,6 +89,7 @@ class SqlAlchemyRunRepository:
             dependency_lock_artifact_id=command.dependency_lock_artifact_id,
             started_at=None,
             finished_at=None,
+            failure_class=None,
             failure_diagnostic=None,
         )
         self._session.add(row)
@@ -299,6 +301,7 @@ class SqlAlchemyRunRepository:
         *,
         status: RunStatus,
         finished_at: datetime,
+        failure_class: str | None = None,
         failure_diagnostic: str | None = None,
     ) -> Run:
         """Transition a running run to a terminal outcome."""
@@ -312,6 +315,7 @@ class SqlAlchemyRunRepository:
             raise ValueError(msg)
         row.status = status
         row.finished_at = finished_at
+        row.failure_class = failure_class if status is RunStatus.failed else None
         row.failure_diagnostic = failure_diagnostic if status is RunStatus.failed else None
         self._session.flush()
         return self._run_from_row(row)
@@ -543,6 +547,7 @@ class SqlAlchemyRunRepository:
             item.status is MethodExecutionStatus.failed for item in executions
         ):
             row.status = RunStatus.failed
+            row.failure_class = METHOD_EXECUTION_FAILURE_CLASS
             row.failure_diagnostic = (
                 f"{len(failed_or_errored)} method execution(s) did not complete cleanly"
             )
@@ -770,6 +775,7 @@ class SqlAlchemyRunRepository:
             dependency_lock_artifact_id=row.dependency_lock_artifact_id,
             started_at=row.started_at,
             finished_at=row.finished_at,
+            failure_class=row.failure_class,
             failure_diagnostic=row.failure_diagnostic,
             created_at=row.created_at,
             progress=self._run_progress(row.id) if progress is None else progress,

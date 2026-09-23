@@ -13,6 +13,12 @@ from gendertagger.models.method import METHOD_NAME_PATTERN, MethodDescriptor
 from gendertagger.models.project import SHA256_PATTERN
 
 QUEUE_NAME_PATTERN = r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
+METHOD_EXECUTION_FAILURE_CLASS = "MethodExecutionFailure"
+"""``failure_class`` of a run failed because a method execution failed, rather than by an exception.
+
+Recorded when ``fail_run_on_optional_method_error`` is set and at least one execution failed; per-method
+exception classes stay on the method executions and their batches.
+"""
 
 
 class Progress(BaseModel):
@@ -72,6 +78,7 @@ class Run(RunCreate):
     config_sha256: str = Field(pattern=SHA256_PATTERN)
     started_at: UtcDatetime | None = None
     finished_at: UtcDatetime | None = None
+    failure_class: str | None = Field(default=None, max_length=255)
     failure_diagnostic: str | None = None
     created_at: UtcDatetime
     progress: Progress
@@ -84,6 +91,9 @@ class Run(RunCreate):
             RunStatus.failed,
             RunStatus.cancelled,
         }
+        if self.status is not RunStatus.failed and self.failure_class is not None:
+            msg = "only a failed run may have a failure class"
+            raise ValueError(msg)
         if self.status in terminal_statuses:
             if self.finished_at is None:
                 msg = "a terminal run requires finished_at"

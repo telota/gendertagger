@@ -173,6 +173,10 @@ the phased plan that resumes application code.
   (public contract: parameter name and operation IDs only; the URLs keep their shape), `ExportTaskMessage`, the
   export manifest, and the `artifacts` and `dispatch_outbox` columns. The outbox constraint becomes
   `export_execution_single_dispatch`.
+- Runs and dataset snapshots record `failure_class`, like every other execution resource: the exception class
+  for a failed snapshot import, and `MethodExecutionFailure` for a run failed by its method executions.
+  `Run` and `DatasetSnapshot` gain the nullable field (additive contract change); the database allows it only
+  on failed rows. Edited in the baseline, per the migration policy.
 - The `POST /classify` response documented `certainty_tier` and `agreement_tier` with tier values that do not
   exist (`medium`, `strong`, `moderate`, `low`). Both descriptions are now generated from `CertaintyTier` and
   `AgreementTier`, so they list the real values and cannot drift again. Description text only; field types

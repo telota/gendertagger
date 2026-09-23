@@ -293,6 +293,8 @@ def test_failed_snapshot_requires_diagnostic_without_success_metadata() -> None:
     )
 
     assert snapshot.failure_diagnostic == "invalid TEI"
+    with pytest.raises(ValidationError, match="only a failed snapshot may have a failure class"):
+        DatasetSnapshot.model_validate(snapshot_payload(failure_class="TeiImportError"))
 
 
 def test_person_record_preserves_snapshot_scoped_source_fields() -> None:

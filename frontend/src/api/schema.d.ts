@@ -1423,6 +1423,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Failure Class */
+            failure_class?: string | null;
             /** Failure Diagnostic */
             failure_diagnostic?: string | null;
             /**
@@ -2234,6 +2236,8 @@ export interface components {
             dependency_lock_artifact_id?: string | null;
             /** Dependency Lock Sha256 */
             dependency_lock_sha256?: string | null;
+            /** Failure Class */
+            failure_class?: string | null;
             /** Failure Diagnostic */
             failure_diagnostic?: string | null;
             /** Finished At */

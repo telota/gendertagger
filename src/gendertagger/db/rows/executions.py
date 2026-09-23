@@ -78,6 +78,7 @@ class RunRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
     )
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    failure_class: Mapped[str | None] = mapped_column(String(255))
     failure_diagnostic: Mapped[str | None] = mapped_column(Text)
 
 

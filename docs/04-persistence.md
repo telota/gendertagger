@@ -102,6 +102,13 @@ lifecycle columns plus the report or manifest artifact that marks completion. Ag
 method-execution membership is insert-only, may be added only while the execution is pending, and may
 reference only completed executions of the same run.
 
+Failed runs, dataset snapshots, method executions, task batches, and aggregation, evaluation, and export
+executions record `failure_class` next to the sanitized `failure_diagnostic`, and only failed rows may carry
+either. `failure_class` is the class name of the exception that ended the work, for example `TeiImportError`.
+A run that fails because a method execution failed, under `fail_run_on_optional_method_error`, involves no
+exception of its own and records `MethodExecutionFailure`; the underlying exception classes remain on the
+failed method executions and task batches.
+
 ## Transactional dispatch outbox
 
 Each outbox row belongs to exactly one durable work target: task batch, aggregation execution, dataset

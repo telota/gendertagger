@@ -128,6 +128,7 @@ def test_run_accepts_created_and_completed_lifecycle_shapes() -> None:
         ({"started_at": CREATED_AT}, "has not started must not have started_at"),
         ({"status": RunStatus.failed, "finished_at": CREATED_AT}, "requires a failure diagnostic"),
         ({"failure_diagnostic": "failure"}, "only a failed run may have a failure diagnostic"),
+        ({"failure_class": "RuntimeError"}, "only a failed run may have a failure class"),
     ],
 )
 def test_run_rejects_inconsistent_lifecycle_fields(

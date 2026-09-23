@@ -586,6 +586,7 @@ class SnapshotImportExecutor:
                 return self._existing_snapshot(unit_of_work, message.dataset_snapshot_id)
             failed = unit_of_work.projects.fail_snapshot_import(
                 snapshot.id,
+                failure_class=type(error).__name__,
                 failure_diagnostic=_public_failure_diagnostic(error),
             )
             unit_of_work.commit()

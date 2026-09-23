@@ -247,6 +247,7 @@ def _terminal_snapshot(
     *,
     status: DatasetSnapshotStatus,
     record_count: int | None = None,
+    failure_class: str | None = None,
     failure_diagnostic: str | None = None,
 ) -> DatasetSnapshot:
     values = snapshot.model_dump()
@@ -254,6 +255,7 @@ def _terminal_snapshot(
         status=status,
         record_count=record_count,
         ready_at=NOW if status is DatasetSnapshotStatus.ready else None,
+        failure_class=failure_class,
         failure_diagnostic=failure_diagnostic,
     )
     return DatasetSnapshot.model_validate(values)
@@ -289,11 +291,14 @@ def _harness(
             record_count=sum(len(batch) for batch in batches),
         )
 
-    def fail(snapshot_id: UUID, *, failure_diagnostic: str) -> DatasetSnapshot:
+    def fail(
+        snapshot_id: UUID, *, failure_class: str | None = None, failure_diagnostic: str
+    ) -> DatasetSnapshot:
         assert snapshot_id == SNAPSHOT_ID
         return _terminal_snapshot(
             snapshot,
             status=DatasetSnapshotStatus.failed,
+            failure_class=failure_class,
             failure_diagnostic=failure_diagnostic,
         )
 

@@ -186,6 +186,7 @@ def upgrade() -> None:
         ),
         sa.Column("record_count", sa.Integer(), nullable=True),
         sa.Column("ready_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("failure_class", sa.String(length=255), nullable=True),
         sa.Column("failure_diagnostic", sa.Text(), nullable=True),
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column(
@@ -201,6 +202,10 @@ def upgrade() -> None:
         sa.CheckConstraint(
             "status <> 'ready' OR (record_count IS NOT NULL AND ready_at IS NOT NULL)",
             name=op.f("ck_dataset_snapshots_ready_metadata_present"),
+        ),
+        sa.CheckConstraint(
+            "failure_class IS NULL OR status = 'failed'",
+            name=op.f("ck_dataset_snapshots_failure_class_requires_failed"),
         ),
         sa.CheckConstraint(
             "status IN ('pending', 'importing', 'ready', 'failed')",
@@ -322,6 +327,7 @@ def upgrade() -> None:
         sa.Column("dependency_lock_artifact_id", sa.UUID(), nullable=True),
         sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("finished_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("failure_class", sa.String(length=255), nullable=True),
         sa.Column("failure_diagnostic", sa.Text(), nullable=True),
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column(
@@ -2045,51 +2051,32 @@ def upgrade() -> None:
                     MESSAGE = format('%s status forbids started_at', TG_TABLE_NAME);
             END IF;
 
-            IF TG_TABLE_NAME = 'runs' THEN
-                IF NEW.status = 'failed'
-                    AND (
-                        NEW.failure_diagnostic IS NULL
-                        OR btrim(NEW.failure_diagnostic) = ''
-                    )
-                THEN
-                    RAISE EXCEPTION USING
-                        ERRCODE = '23514',
-                        CONSTRAINT = 'ck_runs_lifecycle_failure',
-                        MESSAGE = 'a failed run requires a failure diagnostic';
-                ELSIF NEW.status <> 'failed' AND NEW.failure_diagnostic IS NOT NULL THEN
-                    RAISE EXCEPTION USING
-                        ERRCODE = '23514',
-                        CONSTRAINT = 'ck_runs_lifecycle_failure',
-                        MESSAGE = 'only a failed run may have a failure diagnostic';
-                END IF;
-            ELSE
-                IF NEW.status = 'failed'
-                    AND (
-                        NEW.failure_diagnostic IS NULL
-                        OR btrim(NEW.failure_diagnostic) = ''
-                    )
-                THEN
-                    RAISE EXCEPTION USING
-                        ERRCODE = '23514',
-                        CONSTRAINT = format('ck_%s_lifecycle_failure', TG_TABLE_NAME),
-                        MESSAGE = format(
-                            'a failed %s row requires a failure diagnostic',
-                            TG_TABLE_NAME
-                        );
-                ELSIF NEW.status <> 'failed'
-                    AND (
-                        NEW.failure_class IS NOT NULL
-                        OR NEW.failure_diagnostic IS NOT NULL
-                    )
-                THEN
-                    RAISE EXCEPTION USING
-                        ERRCODE = '23514',
-                        CONSTRAINT = format('ck_%s_lifecycle_failure', TG_TABLE_NAME),
-                        MESSAGE = format(
-                            'only a failed %s row may have failure details',
-                            TG_TABLE_NAME
-                        );
-                END IF;
+            IF NEW.status = 'failed'
+                AND (
+                    NEW.failure_diagnostic IS NULL
+                    OR btrim(NEW.failure_diagnostic) = ''
+                )
+            THEN
+                RAISE EXCEPTION USING
+                    ERRCODE = '23514',
+                    CONSTRAINT = format('ck_%s_lifecycle_failure', TG_TABLE_NAME),
+                    MESSAGE = format(
+                        'a failed %s row requires a failure diagnostic',
+                        TG_TABLE_NAME
+                    );
+            ELSIF NEW.status <> 'failed'
+                AND (
+                    NEW.failure_class IS NOT NULL
+                    OR NEW.failure_diagnostic IS NOT NULL
+                )
+            THEN
+                RAISE EXCEPTION USING
+                    ERRCODE = '23514',
+                    CONSTRAINT = format('ck_%s_lifecycle_failure', TG_TABLE_NAME),
+                    MESSAGE = format(
+                        'only a failed %s row may have failure details',
+                        TG_TABLE_NAME
+                    );
             END IF;
             RETURN NEW;
         END;
@@ -2126,6 +2113,7 @@ def upgrade() -> None:
             'status',
             'started_at',
             'finished_at',
+            'failure_class',
             'failure_diagnostic'
         )"""
     )

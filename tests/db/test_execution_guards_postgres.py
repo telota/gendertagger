@@ -18,11 +18,14 @@ from tests.seeding import (
     only_method_answers,
     seed_completed_aggregation,
     seed_completed_run,
+    seed_pending_snapshot,
     seed_project,
     seed_ready_snapshot,
+    seed_run,
     session_repositories,
 )
 
+from gendertagger.config.run import MethodRunConfig
 from gendertagger.db.repositories.evaluation_repository import SqlAlchemyEvaluationRepository
 from gendertagger.db.repositories.export_repository import SqlAlchemyExportRepository
 from gendertagger.domain.aggregation import REFERENCE_REQUIRED_METHODS
@@ -238,4 +241,37 @@ def test_database_rejects_a_member_from_another_run(db_session: Session) -> None
         {"id": evaluation_id, "member": foreign_execution_id},
         sqlstate="23514",
         message="evaluation members must be completed executions from its run",
+    )
+
+
+def test_database_rejects_failure_class_on_a_run_that_did_not_fail(db_session: Session) -> None:
+    repositories = session_repositories(db_session)
+    project = seed_project(repositories, slug_prefix="execution-guards")
+    snapshot = seed_ready_snapshot(repositories, project.id, [tei_person_input(tei_id="p1")])
+    run = seed_run(repositories, snapshot.id, [MethodRunConfig(name="gnd")])
+    repositories.runs.mark_run_queued(run.id)
+    repositories.runs.mark_run_started(run.id, started_at=NOW)
+
+    _assert_rejected(
+        db_session,
+        "UPDATE runs SET failure_class = 'RuntimeError' WHERE id = :id",
+        {"id": run.id},
+        sqlstate="23514",
+        message="only a failed runs row may have failure details",
+    )
+
+
+def test_database_rejects_failure_class_on_a_snapshot_that_did_not_fail(
+    db_session: Session,
+) -> None:
+    repositories = session_repositories(db_session)
+    project = seed_project(repositories, slug_prefix="execution-guards")
+    snapshot = seed_pending_snapshot(repositories, project.id)
+
+    _assert_rejected(
+        db_session,
+        "UPDATE dataset_snapshots SET failure_class = 'TeiImportError' WHERE id = :id",
+        {"id": snapshot.id},
+        sqlstate="23514",
+        message="ck_dataset_snapshots_failure_class_requires_failed",
     )

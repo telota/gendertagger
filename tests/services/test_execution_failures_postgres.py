@@ -16,6 +16,7 @@ from gendertagger.models.classification import PredictionResult
 from gendertagger.models.lifecycle import MethodExecutionStatus, RunStatus, TaskBatchStatus
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.person import PersonInput
+from gendertagger.models.run import METHOD_EXECUTION_FAILURE_CLASS
 from gendertagger.services.execution import (
     BatchExecutor,
     RunScheduler,
@@ -264,4 +265,5 @@ def test_fail_run_flag_fails_the_run_on_method_failure(
         run = unit_of_work.runs.get_run(run_id)
     assert run is not None
     assert run.status is RunStatus.failed
+    assert run.failure_class == METHOD_EXECUTION_FAILURE_CLASS
     assert run.failure_diagnostic is not None

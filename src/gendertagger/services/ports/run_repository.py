@@ -82,6 +82,7 @@ class RunRepository(Protocol):
         *,
         status: RunStatus,
         finished_at: datetime,
+        failure_class: str | None = None,
         failure_diagnostic: str | None = None,
     ) -> Run:
         """Transition a running run to a terminal outcome."""

@@ -143,6 +143,7 @@ class ProjectRepository(Protocol):
         self,
         snapshot_id: UUID,
         *,
+        failure_class: str | None = None,
         failure_diagnostic: str,
     ) -> DatasetSnapshot:
         """Mark a pending or importing snapshot failed with a sanitized diagnostic."""

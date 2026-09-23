@@ -72,6 +72,10 @@ class DatasetSnapshotRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
             "status <> 'ready' OR (record_count IS NOT NULL AND ready_at IS NOT NULL)",
             name="ready_metadata_present",
         ),
+        CheckConstraint(
+            "failure_class IS NULL OR status = 'failed'",
+            name="failure_class_requires_failed",
+        ),
         Index("ix_dataset_snapshots_project_id_created_at", "project_id", "created_at"),
     )
 
@@ -101,6 +105,7 @@ class DatasetSnapshotRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
     )
     record_count: Mapped[int | None] = mapped_column(Integer)
     ready_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    failure_class: Mapped[str | None] = mapped_column(String(255))
     failure_diagnostic: Mapped[str | None] = mapped_column(Text)
 
 
