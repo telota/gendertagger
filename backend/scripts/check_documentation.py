@@ -12,6 +12,7 @@ from urllib.parse import unquote, urlsplit
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _REQUIRED_DOCUMENTS = (
     Path("README.md"),
+    Path("QUICKSTART.md"),
     Path("CONTRIBUTING.md"),
     Path("PLAN.md"),
     Path("SPEC.md"),

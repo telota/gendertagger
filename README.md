@@ -5,49 +5,16 @@ This repository is the implementation of the next generation of `gendertagger`.
 The target system is a reproducible, human-in-the-loop service for semi-automated gender annotation of TEI/XML person registers.
 The design preserves the published multi-method workflow while adding persistent storage, an API, task orchestration, annotation, evaluation, provenance, and deployable infrastructure.
 
-## Quickstart
+## Setup
 
-The stack runs on Docker Compose. Install Docker with the Compose plugin, then run these commands from the
-repository root.
+Follow [QUICKSTART.md](QUICKSTART.md) to install a local instance or a shared server with Docker
+Compose, initialize the database, and create the first administrator. For contributor tooling and
+checks, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-### 1. Build and start core services
+## Method data
 
-```bash
-docker compose -f compose.yaml -f compose.dev.yaml build
-docker compose -f compose.yaml -f compose.dev.yaml up -d db redis
-docker compose -f compose.yaml -f compose.dev.yaml --profile ops run --rm migrate
-```
-
-### 2. Create a login account
-
-Every `/api/v1` endpoint requires a session, and accounts are created only by an administrator from the CLI
-([ADR-0031](docs/decisions/ADR-0031-local-database-authentication.md)):
-
-```bash
-docker compose -f compose.yaml -f compose.dev.yaml run --rm api \
-  gendertagger users create --username admin --display-name "Admin" --role admin
-```
-
-Omit `--password` to have one generated; the command prints it once in its JSON output. A new account must
-change its password before any other endpoint accepts it: sign in with `POST /api/v1/auth/login`, then call
-`POST /api/v1/me/password`. `gendertagger users reset-password --user-id <uuid>` forces a new password later
-and signs the account out everywhere.
-
-Access to data is per project ([ADR-0033](docs/decisions/ADR-0033-project-scoped-membership-roles.md)). An
-`admin` sees every project; a global `operator` may create projects and becomes operator of each one it
-creates. Everyone else needs no global role, only a project membership granted by an administrator:
-
-```bash
-docker compose -f compose.yaml -f compose.dev.yaml run --rm api \
-  gendertagger users create --username reviewer --display-name "Reviewer"
-docker compose -f compose.yaml -f compose.dev.yaml run --rm api \
-  gendertagger projects add-member --project my-edition --username reviewer --role reviewer
-```
-
-Project roles are `viewer`, `reviewer`, and `operator`; `projects list-members` and `projects remove-member`
-complete the set.
-
-### 3. Provision method data
+After setup, keep `COMPOSE_FILE` set to the local or server mode chosen in the quickstart. The
+commands below use that mode and its shared database and artifact storage.
 
 Several reference methods classify from a compiled, content-addressed data artifact rather than at request
 time, so they need one-time provisioning before a run can use them:
@@ -60,7 +27,7 @@ time, so they need one-time provisioning before a run can use them:
 | `hf_distilbert`, `hf_genderize` | Locally materialized Hugging Face model directory | `assets prepare-hf-model` |
 | `hivoto_xgboost` (experimental) | Trained XGBoost bundle, reuses a registered `hivoto_lookup` | `assets prepare-hivoto-xgboost` |
 | `parenthetical_qualifier`, `gender_guesser`, `nomquamgender` | none | — |
-| `local_llm` | An OpenAI-compatible endpoint via `LLM_BASE_URL` (no compiled artifact) | — |
+| `local_llm` | An OpenAI-compatible endpoint and model in the method configuration (no compiled artifact) | — |
 
 Run the `assets` CLI inside a one-off container from the already-built `api` image so it shares the
 container's `GENDERTAGGER_DATABASE_URL` and its default `GENDERTAGGER_ARTIFACT_ROOT`
@@ -70,14 +37,14 @@ host directory holding your private, licensed source files read-only into the co
 
 ```bash
 # HIVOTO must first be downloaded manually after accepting its RADAR license.
-docker compose -f compose.yaml -f compose.dev.yaml run --rm \
+docker compose run --rm \
   -v "$(pwd)/private:/private:ro" api \
   gendertagger assets prepare-hivoto /private/HIVOTO.csv \
   --source-version 2026-02-09 \
   --license-identifier "REPLACE_WITH_ACCEPTED_LICENSE"
 
 # Register a checked-out Wiki-Gendersort NamesOut.txt.
-docker compose -f compose.yaml -f compose.dev.yaml run --rm \
+docker compose run --rm \
   -v "$(pwd)/private:/private:ro" api \
   gendertagger assets prepare-wiki /private/Wiki-Gendersort/NamesOut.txt \
   --source-version REPLACE_WITH_GIT_COMMIT \
@@ -85,7 +52,7 @@ docker compose -f compose.yaml -f compose.dev.yaml run --rm \
 
 # Compile the person and corporate-body MARC21-XML files from one dated DNB release.
 # Additional entity files from the same release may be passed in the same command.
-docker compose -f compose.yaml -f compose.dev.yaml run --rm \
+docker compose run --rm \
   -v "$(pwd)/private:/private:ro" api \
   gendertagger assets build-gnd \
   /private/authorities-gnd-person_dnbmarc_YYYYMMDD.mrc.xml.gz \
@@ -95,7 +62,7 @@ docker compose -f compose.yaml -f compose.dev.yaml run --rm \
 
 # Register a locally materialized Hugging Face model directory (downloaded separately, once,
 # outside this workflow; runtime classification never accesses the network).
-docker compose -f compose.yaml -f compose.dev.yaml run --rm \
+docker compose run --rm \
   -v "$(pwd)/private:/private:ro" api \
   gendertagger assets prepare-hf-model /private/models/padmajabfrl-gender-classification \
   --method-name hf_distilbert \
@@ -112,36 +79,19 @@ the container for its full argument list.
 
 Every preparation command prints one JSON object. Copy its `lookup_sha256` into the corresponding method's
 `config` in the JSON request body for `POST /api/v1/runs`. The canonical request example is published in the
-OpenAPI documentation at <http://localhost:8000/docs>. Original source bytes and the compiled derivative are
+OpenAPI documentation at <http://localhost:8000/docs> in local mode and in
+[`contracts/openapi-v1.json`](contracts/openapi-v1.json). Original source bytes and the compiled derivative are
 both retained as content-addressed artifacts. See
 [`ADR-0023`](docs/decisions/ADR-0023-content-addressed-sqlite-method-lookups.md) for provenance and
 licensing rules.
 
-### 4. Start the remaining services
+## Frontend development
 
-```bash
-docker compose -f compose.yaml -f compose.dev.yaml up -d api worker-cpu frontend gateway
-```
+For hot reload while working on the client, run `npm run dev` in `frontend/` on the host; it proxies
+`/api/v1` to `http://localhost:8000` in the local Compose mode. See
+[`frontend/README.md`](frontend/README.md).
 
-The services are available at:
-
-- API documentation: <http://localhost:8000/docs>
-- API health: <http://localhost:8000/health>
-- API readiness: <http://localhost:8000/ready>
-- Gateway: <http://localhost:8080>
-- Frontend (static build): <http://localhost:5173>
-
-For hot reload while working on the client, run `npm run dev` in `frontend/` on the host instead; it proxies
-`/api/v1` to `http://localhost:8000`. See [`frontend/README.md`](frontend/README.md).
-
-Inspect service status and logs with:
-
-```bash
-docker compose -f compose.yaml -f compose.dev.yaml ps
-docker compose -f compose.yaml -f compose.dev.yaml logs -f api worker-cpu
-```
-
-### 5. Seed representative frontend data
+### Seed representative frontend data
 
 After migrations, the development stack can be populated with two synthetic projects and the full set of
 browser-visible lifecycle and review states. The command creates `frontend-viewer`, `frontend-reviewer`,
@@ -163,15 +113,6 @@ docker compose -f compose.yaml -f compose.dev.yaml run --rm \
 Pass `--password` to replace the default `development-only` credential. The command emits a JSON manifest
 containing the account and resource identifiers that browser tests need. It is intentionally a repository
 development tool, not a production administration command.
-
-Stop the local services with:
-
-```bash
-docker compose -f compose.yaml -f compose.dev.yaml down
-```
-
-The default `down` command preserves PostgreSQL, Redis, and artifact volumes. Use `down -v` only when you
-intentionally want to remove local service data.
 
 ## Documentation
 

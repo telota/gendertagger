@@ -40,9 +40,12 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-gendertagger}
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      GENDERTAGGER_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-gendertagger}
+      GENDERTAGGER_ARTIFACT_ROOT: /app/data/artifacts
+      GENDERTAGGER_CODE_GIT_COMMIT: ${GENDERTAGGER_CODE_GIT_COMMIT:-}
+      GENDERTAGGER_DEPENDENCY_LOCK_SHA256: ${GENDERTAGGER_DEPENDENCY_LOCK_SHA256:-}
+      GENDERTAGGER_CELERY_BROKER_URL: redis://redis:6379/0
+      GENDERTAGGER_CELERY_RESULT_BACKEND: redis://redis:6379/1
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: json
     volumes:
@@ -86,9 +89,10 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-gendertagger}
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      GENDERTAGGER_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-gendertagger}
+      GENDERTAGGER_ARTIFACT_ROOT: /app/data/artifacts
+      GENDERTAGGER_CELERY_BROKER_URL: redis://redis:6379/0
+      GENDERTAGGER_CELERY_RESULT_BACKEND: redis://redis:6379/1
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: json
       LLM_BASE_URL: ${LLM_BASE_URL:-}
@@ -140,9 +144,10 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-gendertagger}
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      GENDERTAGGER_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-gendertagger}
+      GENDERTAGGER_ARTIFACT_ROOT: /app/data/artifacts
+      GENDERTAGGER_CELERY_BROKER_URL: redis://redis:6379/0
+      GENDERTAGGER_CELERY_RESULT_BACKEND: redis://redis:6379/1
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: json
     volumes:
@@ -168,9 +173,10 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-gendertagger}
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      GENDERTAGGER_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-gendertagger}
+      GENDERTAGGER_ARTIFACT_ROOT: /app/data/artifacts
+      GENDERTAGGER_CELERY_BROKER_URL: redis://redis:6379/0
+      GENDERTAGGER_CELERY_RESULT_BACKEND: redis://redis:6379/1
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: json
       LLM_BASE_URL: ${LLM_BASE_URL:-}
@@ -192,9 +198,10 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-gendertagger}
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      GENDERTAGGER_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-gendertagger}
+      GENDERTAGGER_ARTIFACT_ROOT: /app/data/artifacts
+      GENDERTAGGER_CELERY_BROKER_URL: redis://redis:6379/0
+      GENDERTAGGER_CELERY_RESULT_BACKEND: redis://redis:6379/1
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: json
     volumes:

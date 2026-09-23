@@ -74,6 +74,9 @@ services:
           memory: 4G
 
   gateway:
+    # A host reverse proxy terminates HTTPS and forwards to this private HTTP port.
+    ports: !override
+      - "127.0.0.1:8080:80"
     deploy:
       resources:
         limits:

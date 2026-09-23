@@ -23,7 +23,14 @@ def _write(path: Path, content: str) -> None:
 
 
 def _write_minimal_documentation(root: Path) -> None:
-    for name in ("README.md", "CONTRIBUTING.md", "PLAN.md", "SPEC.md", "AGENTS.md"):
+    for name in (
+        "README.md",
+        "QUICKSTART.md",
+        "CONTRIBUTING.md",
+        "PLAN.md",
+        "SPEC.md",
+        "AGENTS.md",
+    ):
         _write(root / name, f"# {Path(name).stem}\n")
     _write(root / "frontend/README.md", "# Frontend\n")
     _write(
