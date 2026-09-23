@@ -275,3 +275,29 @@ def test_database_rejects_failure_class_on_a_snapshot_that_did_not_fail(
         sqlstate="23514",
         message="ck_dataset_snapshots_failure_class_requires_failed",
     )
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "UPDATE dataset_snapshots SET failure_diagnostic = 'rewritten' WHERE id = :id",
+        "UPDATE dataset_snapshots SET status = 'pending' WHERE id = :id",
+        "DELETE FROM dataset_snapshots WHERE id = :id",
+    ],
+)
+def test_database_seals_a_failed_snapshot(db_session: Session, statement: str) -> None:
+    repositories = session_repositories(db_session)
+    project = seed_project(repositories, slug_prefix="execution-guards")
+    snapshot = seed_pending_snapshot(repositories, project.id)
+    assert repositories.projects.claim_snapshot_import(snapshot.id) is not None
+    repositories.projects.fail_snapshot_import(
+        snapshot.id, failure_class="TeiImportError", failure_diagnostic="synthetic failure"
+    )
+
+    _assert_rejected(
+        db_session,
+        statement,
+        {"id": snapshot.id},
+        sqlstate="55000",
+        message="failed dataset snapshots are immutable",
+    )

@@ -46,7 +46,9 @@ project's snapshots. The repository enforces the cross-resource ownership and li
 
 ## Immutable snapshots and import atomicity
 
-A ready DatasetSnapshot and its source/member/person projection are immutable. Structured name forms, events,
+A ready DatasetSnapshot and its source/member/person projection are immutable. A failed DatasetSnapshot is
+sealed as well, so its status and failure details cannot be rewritten; a new import creates a new snapshot.
+Structured name forms, events,
 flat search fields, authority identifiers, source-member names, and record locators are sealed together.
 Repositories validate that the parser version and projected fields agree with the persisted import profile.
 Every imported record must carry the structured name projection required by its supported profile.

@@ -1233,6 +1233,11 @@ def upgrade() -> None:
                     ERRCODE = '55000',
                     MESSAGE = 'ready dataset snapshots are immutable';
             END IF;
+            IF OLD.status = 'failed' THEN
+                RAISE EXCEPTION USING
+                    ERRCODE = '55000',
+                    MESSAGE = 'failed dataset snapshots are immutable';
+            END IF;
             IF TG_OP = 'DELETE' THEN
                 RETURN OLD;
             END IF;

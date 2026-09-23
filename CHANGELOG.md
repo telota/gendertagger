@@ -173,6 +173,8 @@ the phased plan that resumes application code.
   (public contract: parameter name and operation IDs only; the URLs keep their shape), `ExportTaskMessage`, the
   export manifest, and the `artifacts` and `dispatch_outbox` columns. The outbox constraint becomes
   `export_execution_single_dispatch`.
+- The database now seals failed dataset snapshots like ready ones: their status and failure details can no
+  longer be updated, and they cannot be deleted. Edited in the baseline, per the migration policy.
 - Runs and dataset snapshots record `failure_class`, like every other execution resource: the exception class
   for a failed snapshot import, and `MethodExecutionFailure` for a run failed by its method executions.
   `Run` and `DatasetSnapshot` gain the nullable field (additive contract change); the database allows it only
