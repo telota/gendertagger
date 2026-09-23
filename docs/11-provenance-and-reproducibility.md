@@ -114,6 +114,8 @@ Every export persists a machine-readable `ExportManifest`
 ([`models/export.py`](../src/gendertagger/models/export.py), assembled by
 [`export/manifest.py`](../src/gendertagger/export/manifest.py)) alongside its output artifacts:
 
+- `version`, the manifest format version (currently `1`); any change to the persisted fields requires a new
+  version, as for the source manifest
 - `export_execution_id`
 - `dataset_snapshot_id` and `source_snapshot_sha256`
 - `run_id` and `aggregation_execution_id`

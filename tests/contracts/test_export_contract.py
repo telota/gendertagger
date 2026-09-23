@@ -270,3 +270,30 @@ def test_manifest_accepts_one_output() -> None:
     )
 
     assert len(manifest.outputs) == 1
+
+
+def test_manifest_serializes_its_format_version() -> None:
+    manifest = ExportManifest(
+        export_execution_id=uuid4(),
+        dataset_snapshot_id=uuid4(),
+        source_snapshot_sha256="a" * 64,
+        run_id=uuid4(),
+        aggregation_execution_id=uuid4(),
+        format=ExportFormat.json,
+        label_source_policy=LabelSourcePolicy.machine_aggregation,
+        outputs=(
+            ExportManifestOutput(
+                logical_name="export.json",
+                sha256="b" * 64,
+                byte_size=10,
+                media_type="application/json",
+            ),
+        ),
+        generated_at=CREATED_AT,
+    )
+
+    serialized = manifest.model_dump(mode="json")
+    assert serialized["version"] == 1
+    assert next(iter(serialized)) == "version"
+    with pytest.raises(ValidationError, match="version"):
+        ExportManifest.model_validate({**serialized, "version": 2})

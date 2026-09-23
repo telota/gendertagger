@@ -1,7 +1,7 @@
 """Canonical contracts for versioned TEI/JSON/CSV result exports."""
 
 from enum import StrEnum
-from typing import Self
+from typing import Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -177,10 +177,15 @@ class ExportManifestOutput(BaseModel):
 
 
 class ExportManifest(BaseModel):
-    """Provenance record persisted alongside every export's output artifacts."""
+    """Provenance record persisted alongside every export's output artifacts.
+
+    ``version`` identifies the serialized manifest format; any change to the persisted fields
+    requires a new version so a reader can tell formats apart.
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
+    version: Literal[1] = 1
     export_execution_id: UUID
     dataset_snapshot_id: UUID
     source_snapshot_sha256: str = Field(pattern=SHA256_PATTERN)

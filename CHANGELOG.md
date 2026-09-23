@@ -173,6 +173,8 @@ the phased plan that resumes application code.
   (public contract: parameter name and operation IDs only; the URLs keep their shape), `ExportTaskMessage`, the
   export manifest, and the `artifacts` and `dispatch_outbox` columns. The outbox constraint becomes
   `export_execution_single_dispatch`.
+- The export manifest records its format as `version: 1`, like `SourceManifestV1`, so later changes to its
+  persisted fields are detectable.
 - `review-items` filters on certainty tier, agreement tier, and review state now take several values, as
   repeated `certainty_tiers`, `agreement_tiers`, and `workflow_states` query parameters that match any listed
   value. They replace the single-valued `certainty_tier`, `agreement_tier`, and `workflow_state` parameters,
