@@ -136,3 +136,17 @@ review decisions.
 
 **Status:** Addressed in the local working tree; the checklist item is marked complete. This is a
 terminology clarification in the manuscript; no code change is required.
+
+## 2026-09-23: Reviewer I1 - Abstract structure and corpus size
+
+**Request:** Consolidate the abstract paragraphs, explain what `N = 8,277` counts, and consider
+whether the number belongs in the abstract.
+
+**Changes:** Merged the three abstract paragraphs into one in [article.tex](article.tex). Replaced
+`N = 8,277` with "comprising 8,277 entries" in the case-study sentence.
+
+**Response to the reviewer:** We consolidated the abstract into a single paragraph and clarified
+that 8,277 is the number of entries in the case-study person register. We retained the count to
+indicate the scale of the study.
+
+**Status:** Addressed in the local working tree; the checklist item is marked complete.

@@ -32,7 +32,7 @@ Source: [Reviewer C's annotated PDF](C-klappenbach,neuber,westphal_2026_genderta
 
 ## Reviewer I: all 28 specific comments
 
-- [ ] **I1 - Abstract:** Consolidate the paragraphs; explain what `N = 8,277` counts and consider
+- [x] **I1 - Abstract:** Consolidate the paragraphs; explain what `N = 8,277` counts and consider
   whether it belongs in the abstract.
 - [ ] **I2 - Line 32:** Explain "authority files." Name GND where appropriate; consider the broader
   term "terminologies" and explain the scope.
