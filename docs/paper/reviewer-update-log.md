@@ -429,3 +429,15 @@ project's term. We also explain its role in identifying requirements for subsequ
 of the workflow to other editions.
 
 **Status:** Addressed in the local working tree; I7 is marked complete.
+
+## 2026-09-23: Reviewer I25 - Explicit section reference
+
+**Request:** Clarify "§4" in the Conclusion.
+
+**Changes:** Replaced `§~\ref{sec:limitations}` with `Section~\ref{sec:limitations}` in
+[article.tex](article.tex), retaining the automatic numbering and link to Limitations and
+Reproducibility.
+
+**Response to the reviewer:** We replaced the section symbol with the explicit word "Section."
+
+**Status:** Addressed in the local working tree; I25 is marked complete.

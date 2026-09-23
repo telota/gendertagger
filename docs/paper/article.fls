@@ -511,14 +511,9 @@ INPUT ./easst.pdf
 INPUT ./easst.pdf
 INPUT ./easst.pdf
 INPUT ./easst.pdf
-INPUT /usr/share/texmf-dist/tex/latex/psnfss/ts1ptm.fd
-INPUT /usr/share/texmf-dist/tex/latex/psnfss/ts1ptm.fd
-INPUT /usr/share/texmf-dist/tex/latex/psnfss/ts1ptm.fd
-INPUT /usr/share/texmf-dist/fonts/tfm/adobe/times/ptmr8c.tfm
 INPUT ./easst.pdf
 INPUT ./easst.pdf
 INPUT ./easst.pdf
-INPUT /usr/share/texmf-dist/fonts/vf/adobe/times/ptmr8c.vf
 INPUT ./article.bbl
 INPUT ./article.bbl
 INPUT article.bbl
