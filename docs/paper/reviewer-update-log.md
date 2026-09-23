@@ -344,3 +344,30 @@ inspected visually; the translations remain readable without clipping or overlap
 **Build note for the authors:** The temporary rendering now has 23 pages. The build still reports
 the existing `Missing $ inserted` error for DOI `10.17175/WP_2026`. The manuscript PDF and build
 outputs in the working tree were not replaced.
+
+## 2026-09-23: Reviewer I11, I15, I24, and I27 - Access dates and software citations
+
+**Request:** Add access dates to the specified footnotes and consider bibliography entries for
+software visibility. Footnote numbers below refer to the submitted manuscript.
+
+**Changes:** Updated [article.tex](article.tex):
+
+- I11: Added "Accessed 23 September 2026" to the person-register link (original footnote 2).
+- I15: Added the same access date to the Hugging Face homepage and `Dannel/gender-name` dataset
+  links (original footnotes 5 and 6).
+- I24: Replaced both repository footnotes in Reproducibility and the Conclusion (original
+  footnotes 9 and 10) with citations to the existing `gendertagger_software_2026` bibliography entry.
+- I27: Added the same access date to the Gender & Data, KI Lab, and edition-editor links (original
+  footnotes 11-13). Original footnote 14 had already been replaced by the software citation in
+  Data Availability; its bibliography entry includes the access date.
+
+**Response to the reviewer:** We added access dates to the specified web links and replaced the
+repeated software repository footnotes with formal bibliography citations. The software reference
+includes its access date, providing consistent attribution and visibility across the manuscript.
+
+**Status:** I11, I15, I24, and I27 are addressed in the local working tree and marked complete.
+The other undated links in original footnotes 1, 3, and 7 are outside this batch.
+
+**Verification:** The linked resources were checked on 23 September 2026. The existing software
+bibliography entry renders "Accessed 23 September 2026" through its `note` field; no bibliography
+change was needed.

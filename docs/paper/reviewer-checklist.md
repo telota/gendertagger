@@ -45,14 +45,14 @@ Source: [Reviewer C's annotated PDF](C-klappenbach,neuber,westphal_2026_genderta
 - [x] **I9 - Lines 101-128:** Replace "First... Second..." with descriptive LaTeX
   `\paragraph{...}` headings.
 - [x] **I10 - Line 111:** Translate `uneindeutig`.
-- [ ] **I11 - Footnote 2:** Add an access date.
+- [x] **I11 - Footnote 2:** Add an access date.
 - [ ] **I12 - Lines 167-169:** Address the suggestion to add certainty information and a gazetteer
   link to the Gnadenfrei example.
 - [ ] **I13 - Lines 186 onward:** Explain how `@cert` categories are derived, what they mean,
   possible alternative scales, and relevant DH practice.
 - [x] **I14 - Lines 238-241:** Justify using GND alone and discuss alternatives such as Wikidata,
   VIAF, and Getty ULAN.
-- [ ] **I15 - Footnotes 5 and 6:** Add access dates.
+- [x] **I15 - Footnotes 5 and 6:** Add access dates.
 - [ ] **I16 - Line 306:** Move the inline link into a footnote.
 - [x] **I17 - Line 347:** Translate *Tochter des ...*.
 - [x] **I18 - Line 400:** Translate *Frau des ...* and *Schwester von ...*.
@@ -64,12 +64,12 @@ Source: [Reviewer C's annotated PDF](C-klappenbach,neuber,westphal_2026_genderta
   *wohnhaft in der Friedrichsgracht 50*.
 - [ ] **I23 - Lines 532 onward:** Add a discussion connecting the case study and limitations,
   particularly the RSE implications and the possible role of NFDI/TS4NFDI.
-- [ ] **I24 - Footnotes 9 and 10:** Add access dates or convert them into bibliography entries
+- [x] **I24 - Footnotes 9 and 10:** Add access dates or convert them into bibliography entries
   for software visibility.
 - [ ] **I25 - Line 551:** Clarify "§4," for example by writing "Section 4."
 - [ ] **I26 - Line 588:** Identify the model names and purposes for both writing assistance and
   code generation.
-- [ ] **I27 - Footnotes 11-14:** Add access dates.
+- [x] **I27 - Footnotes 11-14:** Add access dates.
 - [ ] **I28 - Bibliography:** Use either a DOI or a URL for each reference, avoiding duplicate links.
 - [x] **Final translation check:** Check all German examples and tables for English translations,
   including phrases beyond the explicitly listed locations.
