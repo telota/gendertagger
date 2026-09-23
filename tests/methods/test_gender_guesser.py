@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from gendertagger.methods.gender_guesser import (
+from gendertagger.methods.adapters.gender_guesser import (
     GenderGuesserConfig,
     GenderGuesserMethod,
 )

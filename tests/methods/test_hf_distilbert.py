@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from gendertagger.methods.hf_distilbert import (
+from gendertagger.methods.adapters.hf_distilbert import (
     HF_DISTILBERT_MODEL_FILE_LOGICAL_TYPE,
     HF_DISTILBERT_MODEL_MANIFEST_LOGICAL_TYPE,
     HfDistilbertConfig,

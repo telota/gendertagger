@@ -3,10 +3,10 @@ from typing import Any
 
 import pytest
 
+from gendertagger.methods.adapters.gender_guesser import GenderGuesserMethod
+from gendertagger.methods.adapters.nomquamgender import NomquamgenderMethod
+from gendertagger.methods.adapters.parenthetical_qualifier import ParentheticalQualifierMethod
 from gendertagger.methods.base import MethodConfig, MethodDependencyError
-from gendertagger.methods.gender_guesser import GenderGuesserMethod
-from gendertagger.methods.nomquamgender import NomquamgenderMethod
-from gendertagger.methods.parenthetical_qualifier import ParentheticalQualifierMethod
 from gendertagger.models.aggregation import AggregationOutcome, OverrideSource
 from gendertagger.models.classification import (
     AgreementTier,

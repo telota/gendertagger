@@ -6,12 +6,12 @@ from typing import Any
 
 import pytest
 
-from gendertagger.methods.name_tokens import NO_NAME_LABEL
-from gendertagger.methods.nomquamgender import (
+from gendertagger.methods.adapters.nomquamgender import (
     NomquamgenderConfig,
     NomquamgenderMethod,
     classify,
 )
+from gendertagger.methods.name_tokens import NO_NAME_LABEL
 from gendertagger.models.classification import (
     CanonicalLabel,
     PredictionResult,

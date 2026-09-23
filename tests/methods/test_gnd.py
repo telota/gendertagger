@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from gendertagger.methods.gnd import GndConfig, GndLookupRecord, GndMethod, SqliteGndLookup
+from gendertagger.methods.adapters.gnd import GndConfig, GndLookupRecord, GndMethod, SqliteGndLookup
 from gendertagger.methods.gnd_snapshot import (
     GND_LOOKUP_LOGICAL_TYPE,
     GndEntityType,

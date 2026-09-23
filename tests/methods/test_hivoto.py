@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from gendertagger.methods.hivoto import (
+from gendertagger.methods.adapters.hivoto import (
     HivotoConfig,
     HivotoMethod,
     SqliteHivotoLookup,

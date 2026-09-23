@@ -6,13 +6,13 @@ from pathlib import Path
 import pytest
 from unidecode import unidecode
 
-from gendertagger.methods.base import MethodDependencyError
-from gendertagger.methods.wiki_gendersort import (
+from gendertagger.methods.adapters.wiki_gendersort import (
     WikiGendersortConfig,
     WikiGendersortMethod,
     WikiGendersortTable,
     compile_wiki_gendersort_lookup,
 )
+from gendertagger.methods.base import MethodDependencyError
 from gendertagger.models.classification import (
     CanonicalLabel,
     PredictionResult,
@@ -174,7 +174,7 @@ def test_missing_dependency_is_a_permanent_failure() -> None:
 
 
 def test_clean_name_ports_the_reference_candidate_generation() -> None:
-    from gendertagger.methods.wiki_gendersort import _clean_name
+    from gendertagger.methods.adapters.wiki_gendersort import _clean_name
 
     transliterate = unidecode
     assert _clean_name("Anna", transliterate) == ["Anna"]

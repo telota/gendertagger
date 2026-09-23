@@ -7,7 +7,7 @@ import httpx2
 import pytest
 from pydantic import ValidationError
 
-from gendertagger.methods.local_llm import (
+from gendertagger.methods.adapters.local_llm import (
     LlmClient,
     LocalLlmConfig,
     LocalLlmMethod,

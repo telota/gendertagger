@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from gendertagger.methods.hivoto_xgboost import (
+from gendertagger.methods.adapters.hivoto_xgboost import (
     HIVOTO_XGBOOST_MODEL_FILE_LOGICAL_TYPE,
     HIVOTO_XGBOOST_MODEL_MANIFEST_LOGICAL_TYPE,
     HivotoXgboostConfig,

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from gendertagger.methods.hf_genderize import (
+from gendertagger.methods.adapters.hf_genderize import (
     HF_GENDERIZE_MODEL_FILE_LOGICAL_TYPE,
     HF_GENDERIZE_MODEL_MANIFEST_LOGICAL_TYPE,
     HfGenderizeConfig,

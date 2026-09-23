@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from gendertagger.methods.parenthetical_qualifier import (
+from gendertagger.methods.adapters.parenthetical_qualifier import (
     ParentheticalQualifierConfig,
     ParentheticalQualifierMethod,
 )

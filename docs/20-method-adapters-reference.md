@@ -59,7 +59,7 @@ The pipeline contains ten components across five methodological families. Nine c
 
 ### 1. Parenthetical Qualifier (`parenthetical_qualifier`)
 
-- **Module**: [`gendertagger.methods.parenthetical_qualifier`](../src/gendertagger/methods/parenthetical_qualifier.py)
+- **Module**: [`gendertagger.methods.adapters.parenthetical_qualifier`](../src/gendertagger/methods/adapters/parenthetical_qualifier.py)
 - **ADR**: [ADR-0010](decisions/ADR-0010-parenthetical-qualifier-adapter.md), [ADR-0014](decisions/ADR-0014-restore-parenthetical-institution-normalization.md)
 - **Role**: Authority override rule (highest priority in ensemble).
 - **Dependencies**: Built-in standard library (regular expressions).
@@ -70,7 +70,7 @@ The pipeline contains ten components across five methodological families. Nine c
 
 ### 2. GND Local Snapshot (`gnd`)
 
-- **Module**: [`gendertagger.methods.gnd`](../src/gendertagger/methods/gnd.py), which defines the
+- **Module**: [`gendertagger.methods.adapters.gnd`](../src/gendertagger/methods/adapters/gnd.py), which defines the
   runtime `GndMethod` adapter registered under the method name `gnd`. The separate offline compiler
   [`gendertagger.methods.gnd_snapshot`](../src/gendertagger/methods/gnd_snapshot.py) turns DNB
   MARC21-XML full dumps into the immutable SQLite lookup this adapter reads; it is not itself a
@@ -85,7 +85,7 @@ The pipeline contains ten components across five methodological families. Nine c
 
 ### 3. gender-guesser (`gender_guesser`)
 
-- **Module**: [`gendertagger.methods.gender_guesser`](../src/gendertagger/methods/gender_guesser.py)
+- **Module**: [`gendertagger.methods.adapters.gender_guesser`](../src/gendertagger/methods/adapters/gender_guesser.py)
 - **ADR**: [ADR-0012](decisions/ADR-0012-name-based-classifier-adapter-pattern.md), [ADR-0029](decisions/ADR-0029-unconditional-method-dependencies.md)
 - **Role**: Pooled voter in reference ensemble.
 - **Dependencies**: Standard dependency (`gender-guesser`).
@@ -96,7 +96,7 @@ The pipeline contains ten components across five methodological families. Nine c
 
 ### 4. Wiki-Gendersort (`wiki_gendersort`)
 
-- **Module**: [`gendertagger.methods.wiki_gendersort`](../src/gendertagger/methods/wiki_gendersort.py)
+- **Module**: [`gendertagger.methods.adapters.wiki_gendersort`](../src/gendertagger/methods/adapters/wiki_gendersort.py)
 - **ADR**: [ADR-0013](decisions/ADR-0013-wiki-gendersort-adapter.md), [ADR-0029](decisions/ADR-0029-unconditional-method-dependencies.md)
 - **Role**: Pooled voter in reference ensemble.
 - **Dependencies**: Built-in `sqlite3` and standard dependency `unidecode`.
@@ -107,7 +107,7 @@ The pipeline contains ten components across five methodological families. Nine c
 
 ### 5. HIVOTO (`hivoto`)
 
-- **Module**: [`gendertagger.methods.hivoto`](../src/gendertagger/methods/hivoto.py)
+- **Module**: [`gendertagger.methods.adapters.hivoto`](../src/gendertagger/methods/adapters/hivoto.py)
 - **ADR**: [ADR-0018](decisions/ADR-0018-hivoto-adapter.md)
 - **Role**: Pooled voter in reference ensemble.
 - **Dependencies**: Built-in `sqlite3`.
@@ -118,7 +118,7 @@ The pipeline contains ten components across five methodological families. Nine c
 
 ### 6. nomquamgender (`nomquamgender`)
 
-- **Module**: [`gendertagger.methods.nomquamgender`](../src/gendertagger/methods/nomquamgender.py)
+- **Module**: [`gendertagger.methods.adapters.nomquamgender`](../src/gendertagger/methods/adapters/nomquamgender.py)
 - **ADR**: [ADR-0019](decisions/ADR-0019-nomquamgender-adapter.md), [ADR-0029](decisions/ADR-0029-unconditional-method-dependencies.md)
 - **Role**: Pooled voter in reference ensemble.
 - **Dependencies**: Standard dependency (`nomquamgender`).
@@ -129,7 +129,7 @@ The pipeline contains ten components across five methodological families. Nine c
 
 ### 7. Hugging Face DistilBERT (`hf_distilbert`)
 
-- **Module**: [`gendertagger.methods.hf_distilbert`](../src/gendertagger/methods/hf_distilbert.py)
+- **Module**: [`gendertagger.methods.adapters.hf_distilbert`](../src/gendertagger/methods/adapters/hf_distilbert.py)
 - **ADR**: [ADR-0024](decisions/ADR-0024-hf-transformer-model-manifest-adapters.md), [ADR-0029](decisions/ADR-0029-unconditional-method-dependencies.md)
 - **Role**: Pooled voter in reference ensemble.
 - **Dependencies**: Standard dependencies (`transformers`, `torch`).
@@ -140,7 +140,7 @@ The pipeline contains ten components across five methodological families. Nine c
 
 ### 8. Hugging Face BERT genderize (`hf_genderize`)
 
-- **Module**: [`gendertagger.methods.hf_genderize`](../src/gendertagger/methods/hf_genderize.py)
+- **Module**: [`gendertagger.methods.adapters.hf_genderize`](../src/gendertagger/methods/adapters/hf_genderize.py)
 - **ADR**: [ADR-0024](decisions/ADR-0024-hf-transformer-model-manifest-adapters.md), [ADR-0029](decisions/ADR-0029-unconditional-method-dependencies.md)
 - **Role**: Pooled voter in reference ensemble.
 - **Dependencies**: Standard dependencies (`transformers`, `torch`).
@@ -151,7 +151,7 @@ The pipeline contains ten components across five methodological families. Nine c
 
 ### 9. Local LLM (`local_llm`)
 
-- **Module**: [`gendertagger.methods.local_llm`](../src/gendertagger/methods/local_llm.py)
+- **Module**: [`gendertagger.methods.adapters.local_llm`](../src/gendertagger/methods/adapters/local_llm.py)
 - **ADR**: [ADR-0026](decisions/ADR-0026-local-llm-adapter.md), [ADR-0029](decisions/ADR-0029-unconditional-method-dependencies.md)
 - **Role**: Pooled voter in reference ensemble.
 - **Dependencies**: Standard dependency (`httpx2`).
@@ -162,7 +162,7 @@ The pipeline contains ten components across five methodological families. Nine c
 
 ### 10. HIVOTO-XGBoost (`hivoto_xgboost`) [Experimental]
 
-- **Module**: [`gendertagger.methods.hivoto_xgboost`](../src/gendertagger/methods/hivoto_xgboost.py)
+- **Module**: [`gendertagger.methods.adapters.hivoto_xgboost`](../src/gendertagger/methods/adapters/hivoto_xgboost.py)
 - **ADR**: [ADR-0025](decisions/ADR-0025-hivoto-xgboost-adapter.md), [ADR-0029](decisions/ADR-0029-unconditional-method-dependencies.md)
 - **Role**: Experimental component (held out from `reference_v1` voting ensemble).
 - **Dependencies**: Standard dependencies (`scikit-learn`, `xgboost`).
@@ -175,14 +175,14 @@ The pipeline contains ten components across five methodological families. Nine c
 
 | Method Component | Module Path | Governing ADR |
 |---|---|---|
-| Parenthetical Qualifier | [`gendertagger.methods.parenthetical_qualifier`](../src/gendertagger/methods/parenthetical_qualifier.py) | [ADR-0010](decisions/ADR-0010-parenthetical-qualifier-adapter.md), [ADR-0014](decisions/ADR-0014-restore-parenthetical-institution-normalization.md) |
-| GND Local Snapshot | [`gendertagger.methods.gnd`](../src/gendertagger/methods/gnd.py) | [ADR-0023](decisions/ADR-0023-content-addressed-sqlite-method-lookups.md) |
+| Parenthetical Qualifier | [`gendertagger.methods.adapters.parenthetical_qualifier`](../src/gendertagger/methods/adapters/parenthetical_qualifier.py) | [ADR-0010](decisions/ADR-0010-parenthetical-qualifier-adapter.md), [ADR-0014](decisions/ADR-0014-restore-parenthetical-institution-normalization.md) |
+| GND Local Snapshot | [`gendertagger.methods.adapters.gnd`](../src/gendertagger/methods/adapters/gnd.py) | [ADR-0023](decisions/ADR-0023-content-addressed-sqlite-method-lookups.md) |
 | GND lookup compiler (offline, not a method) | [`gendertagger.methods.gnd_snapshot`](../src/gendertagger/methods/gnd_snapshot.py) | [ADR-0023](decisions/ADR-0023-content-addressed-sqlite-method-lookups.md) |
-| gender-guesser | [`gendertagger.methods.gender_guesser`](../src/gendertagger/methods/gender_guesser.py) | [ADR-0012](decisions/ADR-0012-name-based-classifier-adapter-pattern.md) |
-| Wiki-Gendersort | [`gendertagger.methods.wiki_gendersort`](../src/gendertagger/methods/wiki_gendersort.py) | [ADR-0013](decisions/ADR-0013-wiki-gendersort-adapter.md) |
-| HIVOTO | [`gendertagger.methods.hivoto`](../src/gendertagger/methods/hivoto.py) | [ADR-0018](decisions/ADR-0018-hivoto-adapter.md) |
-| nomquamgender | [`gendertagger.methods.nomquamgender`](../src/gendertagger/methods/nomquamgender.py) | [ADR-0019](decisions/ADR-0019-nomquamgender-adapter.md) |
-| Hugging Face DistilBERT | [`gendertagger.methods.hf_distilbert`](../src/gendertagger/methods/hf_distilbert.py) | [ADR-0024](decisions/ADR-0024-hf-transformer-model-manifest-adapters.md) |
-| Hugging Face BERT genderize | [`gendertagger.methods.hf_genderize`](../src/gendertagger/methods/hf_genderize.py) | [ADR-0024](decisions/ADR-0024-hf-transformer-model-manifest-adapters.md) |
-| Local LLM | [`gendertagger.methods.local_llm`](../src/gendertagger/methods/local_llm.py) | [ADR-0026](decisions/ADR-0026-local-llm-adapter.md) |
-| HIVOTO-XGBoost | [`gendertagger.methods.hivoto_xgboost`](../src/gendertagger/methods/hivoto_xgboost.py) | [ADR-0025](decisions/ADR-0025-hivoto-xgboost-adapter.md) |
+| gender-guesser | [`gendertagger.methods.adapters.gender_guesser`](../src/gendertagger/methods/adapters/gender_guesser.py) | [ADR-0012](decisions/ADR-0012-name-based-classifier-adapter-pattern.md) |
+| Wiki-Gendersort | [`gendertagger.methods.adapters.wiki_gendersort`](../src/gendertagger/methods/adapters/wiki_gendersort.py) | [ADR-0013](decisions/ADR-0013-wiki-gendersort-adapter.md) |
+| HIVOTO | [`gendertagger.methods.adapters.hivoto`](../src/gendertagger/methods/adapters/hivoto.py) | [ADR-0018](decisions/ADR-0018-hivoto-adapter.md) |
+| nomquamgender | [`gendertagger.methods.adapters.nomquamgender`](../src/gendertagger/methods/adapters/nomquamgender.py) | [ADR-0019](decisions/ADR-0019-nomquamgender-adapter.md) |
+| Hugging Face DistilBERT | [`gendertagger.methods.adapters.hf_distilbert`](../src/gendertagger/methods/adapters/hf_distilbert.py) | [ADR-0024](decisions/ADR-0024-hf-transformer-model-manifest-adapters.md) |
+| Hugging Face BERT genderize | [`gendertagger.methods.adapters.hf_genderize`](../src/gendertagger/methods/adapters/hf_genderize.py) | [ADR-0024](decisions/ADR-0024-hf-transformer-model-manifest-adapters.md) |
+| Local LLM | [`gendertagger.methods.adapters.local_llm`](../src/gendertagger/methods/adapters/local_llm.py) | [ADR-0026](decisions/ADR-0026-local-llm-adapter.md) |
+| HIVOTO-XGBoost | [`gendertagger.methods.adapters.hivoto_xgboost`](../src/gendertagger/methods/adapters/hivoto_xgboost.py) | [ADR-0025](decisions/ADR-0025-hivoto-xgboost-adapter.md) |

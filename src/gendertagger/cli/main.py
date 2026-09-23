@@ -27,31 +27,25 @@ from sqlalchemy.exc import ArgumentError
 
 from gendertagger.db.session import create_database_engine, create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
-from gendertagger.methods.gnd_snapshot import (
-    GND_LOOKUP_COMPILER_VERSION,
-    GND_LOOKUP_LOGICAL_TYPE,
-    GND_LOOKUP_SCHEMA_VERSION,
-    compile_gnd_marcxml_lookup,
-)
-from gendertagger.methods.hf_distilbert import (
+from gendertagger.methods.adapters.hf_distilbert import (
     HF_DISTILBERT_MODEL_COMPILER_VERSION,
     HF_DISTILBERT_MODEL_FILE_LOGICAL_TYPE,
     HF_DISTILBERT_MODEL_MANIFEST_LOGICAL_TYPE,
     HF_DISTILBERT_MODEL_SCHEMA_VERSION,
 )
-from gendertagger.methods.hf_genderize import (
+from gendertagger.methods.adapters.hf_genderize import (
     HF_GENDERIZE_MODEL_COMPILER_VERSION,
     HF_GENDERIZE_MODEL_FILE_LOGICAL_TYPE,
     HF_GENDERIZE_MODEL_MANIFEST_LOGICAL_TYPE,
     HF_GENDERIZE_MODEL_SCHEMA_VERSION,
 )
-from gendertagger.methods.hivoto import (
+from gendertagger.methods.adapters.hivoto import (
     HIVOTO_LOOKUP_COMPILER_VERSION,
     HIVOTO_LOOKUP_LOGICAL_TYPE,
     HIVOTO_LOOKUP_SCHEMA_VERSION,
     compile_hivoto_lookup,
 )
-from gendertagger.methods.hivoto_xgboost import (
+from gendertagger.methods.adapters.hivoto_xgboost import (
     HIVOTO_XGBOOST_MODEL_COMPILER_VERSION,
     HIVOTO_XGBOOST_MODEL_FILE_LOGICAL_TYPE,
     HIVOTO_XGBOOST_MODEL_MANIFEST_LOGICAL_TYPE,
@@ -62,11 +56,17 @@ from gendertagger.methods.hivoto_xgboost import (
     VECTORIZER_CONFIG_MEMBER_RELATIVE_PATH,
     VOCABULARY_MEMBER_RELATIVE_PATH,
 )
-from gendertagger.methods.wiki_gendersort import (
+from gendertagger.methods.adapters.wiki_gendersort import (
     WIKI_GENDERSORT_LOOKUP_COMPILER_VERSION,
     WIKI_GENDERSORT_LOOKUP_LOGICAL_TYPE,
     WIKI_GENDERSORT_LOOKUP_SCHEMA_VERSION,
     compile_wiki_gendersort_lookup,
+)
+from gendertagger.methods.gnd_snapshot import (
+    GND_LOOKUP_COMPILER_VERSION,
+    GND_LOOKUP_LOGICAL_TYPE,
+    GND_LOOKUP_SCHEMA_VERSION,
+    compile_gnd_marcxml_lookup,
 )
 from gendertagger.models.artifact import (
     MODEL_MANIFEST_MEDIA_TYPE,

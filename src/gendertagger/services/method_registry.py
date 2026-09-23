@@ -9,37 +9,37 @@ from typing import Any
 from pydantic import ValidationError
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
-from gendertagger.methods.base import GenderMethod, LookupMethodConfig, MethodConfig
-from gendertagger.methods.gender_guesser import GenderGuesserMethod
-from gendertagger.methods.gnd import GndMethod
-from gendertagger.methods.gnd_snapshot import GND_LOOKUP_LOGICAL_TYPE
-from gendertagger.methods.hf_distilbert import (
+from gendertagger.methods.adapters.gender_guesser import GenderGuesserMethod
+from gendertagger.methods.adapters.gnd import GndMethod
+from gendertagger.methods.adapters.hf_distilbert import (
     HF_DISTILBERT_MODEL_MANIFEST_LOGICAL_TYPE,
     HfDistilbertMethod,
 )
-from gendertagger.methods.hf_genderize import (
+from gendertagger.methods.adapters.hf_genderize import (
     HF_GENDERIZE_MODEL_MANIFEST_LOGICAL_TYPE,
     HfGenderizeMethod,
 )
-from gendertagger.methods.hivoto import HIVOTO_LOOKUP_LOGICAL_TYPE, HivotoMethod
-from gendertagger.methods.hivoto_xgboost import (
+from gendertagger.methods.adapters.hivoto import HIVOTO_LOOKUP_LOGICAL_TYPE, HivotoMethod
+from gendertagger.methods.adapters.hivoto_xgboost import (
     HIVOTO_XGBOOST_MODEL_MANIFEST_LOGICAL_TYPE,
     HivotoXgboostMethod,
 )
-from gendertagger.methods.local_llm import LocalLlmMethod
+from gendertagger.methods.adapters.local_llm import LocalLlmMethod
+from gendertagger.methods.adapters.nomquamgender import NomquamgenderMethod
+from gendertagger.methods.adapters.parenthetical_qualifier import ParentheticalQualifierMethod
+from gendertagger.methods.adapters.wiki_gendersort import (
+    WIKI_GENDERSORT_LOOKUP_LOGICAL_TYPE,
+    WikiGendersortMethod,
+)
+from gendertagger.methods.base import GenderMethod, LookupMethodConfig, MethodConfig
+from gendertagger.methods.gnd_snapshot import GND_LOOKUP_LOGICAL_TYPE
 from gendertagger.methods.model_manifest import (
     ModelDirectoryResolver,
     UnavailableModelDirectoryResolver,
 )
-from gendertagger.methods.nomquamgender import NomquamgenderMethod
-from gendertagger.methods.parenthetical_qualifier import ParentheticalQualifierMethod
 from gendertagger.methods.sqlite_lookup import (
     LookupAssetResolver,
     UnavailableLookupAssetResolver,
-)
-from gendertagger.methods.wiki_gendersort import (
-    WIKI_GENDERSORT_LOOKUP_LOGICAL_TYPE,
-    WikiGendersortMethod,
 )
 from gendertagger.models.artifact import ARTIFACT_TYPE_PATTERN
 from gendertagger.models.method import MethodDescriptor

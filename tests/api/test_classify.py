@@ -13,10 +13,10 @@ from gendertagger.api.dependencies import (
     get_project_access_service,
 )
 from gendertagger.api.settings import AppSettings
+from gendertagger.methods.adapters.gender_guesser import GenderGuesserMethod
+from gendertagger.methods.adapters.nomquamgender import NomquamgenderMethod
+from gendertagger.methods.adapters.parenthetical_qualifier import ParentheticalQualifierMethod
 from gendertagger.methods.base import MethodConfig, MethodDependencyError
-from gendertagger.methods.gender_guesser import GenderGuesserMethod
-from gendertagger.methods.nomquamgender import NomquamgenderMethod
-from gendertagger.methods.parenthetical_qualifier import ParentheticalQualifierMethod
 from gendertagger.models.classification import PredictionResult
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.person import PersonInput

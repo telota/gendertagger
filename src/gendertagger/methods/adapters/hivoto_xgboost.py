@@ -18,8 +18,8 @@ from pathlib import Path
 from statistics import fmean
 from typing import Final, Protocol, cast
 
+from gendertagger.methods.adapters.hivoto import HivotoLookup, SqliteHivotoLookup
 from gendertagger.methods.base import LookupMethodConfig
-from gendertagger.methods.hivoto import HivotoLookup, SqliteHivotoLookup
 from gendertagger.methods.model_manifest import (
     ModelDirectoryResolver,
     UnavailableModelDirectoryResolver,
