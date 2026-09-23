@@ -120,7 +120,7 @@ Person registers of digital scholarly editions can impose a variety of constrain
 
 \paragraph{Heterogeneous Register Entries} Register entries are heterogeneous in what amount of information they offer: a minority carries identifiers that resolve to structured authority records, while the majority provide only a name string and ideally vital dates or a short biographical note; moreover, some entries refer not to individuals at all but to families, corporate bodies, or married couples. Some identify entities only by initials.
 
-\paragraph{Classifier Coverage and Output Normalization} While researching a suitable name-based approach we found that no single classifier covers this spectrum: authority lookup, heuristic name dictionaries, statistical name models, transformer-based classifiers, and locally-hosted large language models each use different data points in their analysis and can differ on principled grounds, \eg{} different training corpora or different operationalization of gender. The methods also differ in their raw outputs and can include binary male/female, \texttt{mostly\-\_male}, \texttt{andy}, \texttt{conflict}, \texttt{uneindeutig}, \texttt{organisation} or a silent answer by an authority record. For a meaningful comparison an explicit normalization onto a shared label set was performed. This normalization is also a methodological limitation, as collapsing method-specific outputs is a reduction and discarding information that the original classifiers expressed.
+\paragraph{Classifier Coverage and Output Normalization} While researching a suitable name-based approach we found that no single classifier covers this spectrum: authority lookup, heuristic name dictionaries, statistical name models, transformer-based classifiers, and locally-hosted large language models each use different data points in their analysis and can differ on principled grounds, \eg{} different training corpora or different operationalization of gender. The methods also differ in their raw outputs and can include binary male/female, \texttt{mostly\-\_male}, \texttt{andy}, \texttt{conflict}, \texttt{uneindeutig} [ambiguous], \texttt{organisation} or a silent answer by an authority record. For a meaningful comparison an explicit normalization onto a shared label set was performed. This normalization is also a methodological limitation, as collapsing method-specific outputs is a reduction and discarding information that the original classifiers expressed.
 
 \paragraph{Limits of Manual Review} A manual review of all automatically generated classifications was not possible due to time constraints. Therefore the system has to include a method to track and flag contested records for human quality assurance. In this process methods are checked against one another through inter-method agreement, where the disagreement becomes a primary signal that is used to spot questionable results.
 
@@ -153,7 +153,7 @@ The \texttt{<gender>} element is encoded as a child of \texttt{<person>} rather 
 </person>
 \end{verbatim}
 
-Note that the empty \texttt{<forename/>} combined with \texttt{cert="low"} illustrates the pipeline operating under uncertainty: here, the occupational context (\emph{Lehrerin}) provides the basis for classification where the name record alone would not suffice. We return to this issue in Section~\ref{sec:classifiers}.
+The note reads \emph{Lehrerin in Gnadenfrei} [female teacher in Gnadenfrei]. Note that the empty \texttt{<forename/>} combined with \texttt{cert="low"} illustrates the pipeline operating under uncertainty: here, the occupational context (\emph{Lehrerin} [female teacher]) provides the basis for classification where the name record alone would not suffice. We return to this issue in Section~\ref{sec:classifiers}.
 
 \paragraph{Attributes} The four attributes carry the editorial semantics of the annotation:
 
@@ -186,7 +186,7 @@ The enrichment pipeline combines five methodological families of automated gende
 The trade-off is that the local snapshot must be refreshed to incorporate subsequent additions and corrections to the GND. The current backend retains source dumps and derived lookup snapshots as immutable artifacts, recording their checksums and the source data and compiler version used to produce each lookup. Each method execution references the exact lookup snapshot used, preserving traceability across updates.
 The choice of GND was driven by the predominantly German-language source material and the existing editorial authority links, which primarily use GND identifiers. The Virtual International Authority File (VIAF) was excluded because of ongoing discussion about reliability and service governance following its January 2025 redesign (see, for example, Bargioni~\cite{bargioni_viaf_2025}). Future extensions could include usage of records in Wikidata and Getty's Union List of Artist Names (ULAN).
 
-\paragraph{Parenthetical-qualifier rule} This heuristic is implemented within \textit{gendertagger} and scans the surname, forename, and biographical note for German kinship markers (\eg{} \textit{Frau des \dots}, \textit{Schwester von \dots}, \textit{Sohn der \dots}) and structural disambiguators enclosed in parentheses and assigns \texttt{female} or \texttt{male} accordingly; if no marker is found, the rule abstains. Unlike the name-based classifiers, it does not rely on a name dictionary but on textual context, making it complementary to methods that require a usable forename. The rule is edition-specific: it was designed for naming conventions found in the register data, where women are frequently identified through their relationship to a male principal rather than by name. Since the rule targets information added by the human editors, together with the GND-Lookup, it acts as an authority override in the aggregation step.
+\paragraph{Parenthetical-qualifier rule} This heuristic is implemented within \textit{gendertagger} and scans the surname, forename, and biographical note for German kinship markers (\eg{} \textit{Frau des \dots} [wife of \dots], \textit{Schwester von \dots} [sister of \dots], \textit{Sohn der \dots} [son of \dots]) and structural disambiguators enclosed in parentheses and assigns \texttt{female} or \texttt{male} accordingly; if no marker is found, the rule abstains. Unlike the name-based classifiers, it does not rely on a name dictionary but on textual context, making it complementary to methods that require a usable forename. The rule is edition-specific: it was designed for naming conventions found in the register data, where women are frequently identified through their relationship to a male principal rather than by name. Since the rule targets information added by the human editors, together with the GND-Lookup, it acts as an authority override in the aggregation step.
 
 \subsubsection{Dictionary-Based Name Lookups}
 
@@ -227,7 +227,7 @@ The methods are run in parallel and their per-method labels are combined in thre
 
 \subsubsection{Voting} For each entry the aggregator applies a fixed priority chain: parenthetical-qualifier rule, then GND lookup, then the majority vote across the seven pooled methods. The parenthetical-qualifier rule scans the surname, forename, and biographical note for German kinship markers and structural disambiguators in parentheses; when it fires, its label is taken as the resulting label and the entry is promoted to \texttt{cert=high}. Otherwise, a non-\texttt{unknown} GND lookup result is taken as the resulting label and the entry is likewise promoted to \texttt{cert=high}. When neither authority signal fires, the resulting label is the plain (unweighted) majority of the substantive votes across the seven pooled methods that did not abstain, with one tie-breaking rule: when \texttt{unknown} ties with \texttt{male}, \texttt{female}, or \texttt{institution}, the substantive label wins, since \texttt{unknown} encodes ``no information'' rather than positive evidence against the substantive option. The agreement score recorded for the entry is the share of votes carried by the winning label among the methods that did vote; for entries decided by an authority override it is recorded as the share of the remaining methods that agree with the override label.
 
-This priority ordering reflects a pragmatic ranking of evidence types: the parenthetical-qualifier rule encodes information explicitly inserted by the human editors (\eg{} \emph{Tochter des \dots}), and the GND lookup retrieves a curated authority assignment. Both are therefore treated as higher-priority signals than purely name-based statistical classifiers. The trade-off is that errors in high-priority signals may propagate into the resulting label unless they are caught by a higher-priority rule, strong disagreement among the remaining methods, or subsequent editorial review.
+This priority ordering reflects a pragmatic ranking of evidence types: the parenthetical-qualifier rule encodes information explicitly inserted by the human editors (\eg{} \emph{Tochter des \dots} [daughter of \dots]), and the GND lookup retrieves a curated authority assignment. Both are therefore treated as higher-priority signals than purely name-based statistical classifiers. The trade-off is that errors in high-priority signals may propagate into the resulting label unless they are caught by a higher-priority rule, strong disagreement among the remaining methods, or subsequent editorial review.
 
 \subsubsection{Certainty assignment} From the agreement score and the number of voting methods, each entry is assigned a categorical pipeline certainty tier: \texttt{high} when at least two methods voted and at least three quarters of them agreed (or whenever an authority signal fired in agreement with the vote); \texttt{low} when at least two voted and a majority of half or more agreed; \texttt{contested} when at least two voted but agreement fell below half; \texttt{single} when only one method had useful output and that lone method was the LLM with self-reported \texttt{high} confidence; \texttt{uncertain} when the lone method was the LLM with \texttt{low} or \texttt{uncertain} self-reported confidence; and \texttt{no\_data} when no method could vote. These pipeline tiers are recorded internally; how they are projected onto the TEI \texttt{@cert} attribute (which uses the standard TEI values \texttt{high}, \texttt{low}, \texttt{unknown}) is described in Section~\ref{sec:tei-encoding}.
 
@@ -244,7 +244,7 @@ The development of \textit{gendertagger} was conducted in collaboration with the
 
 \subsection{The Person Register} The edition's person register contains $8{,}277$ entries at the time of writing. Only $2{,}253$ of those entries ($27.2\%$) carry a GND identifier resolvable to a gendered authority record; the remaining $6{,}024$ entries ($72.8\%$) require alternative classification approaches. This distribution is representative of the practical limits of authority-file-based enrichment for a register of this size and historical scope: even a relatively well-curated GND attachment leaves nearly three quarters of the entries without an authoritative gender signal, motivating the multi-method approach used in this study.
 
-\subsection{Coverage per Method} Coverage on the \textit{schleiermacher digital} register varies systematically with each method's input requirements (Table~\ref{tab:coverage}). The local LLM, which receives the full register entry including biographical note, is the only method that produces a label for every entry. The five name-based classifiers (\textit{gender-guesser}, the two transformers, \textit{HIVOTO}, and \textit{nomquamgender}) each cover the same $6{,}134$ entries ($74.1\%$): the gap to full coverage is exactly the set of entries with no usable forename. Wiki-Gendersort covers a slightly smaller subset ($73.4\%$). The parenthetical-qualifier rule reaches $33.5\%$ of entries. In these limited cases, the register provides additional biographical information, such as \eg{}~\textit{Frau des \dots} or \textit{Schwester von \dots}.
+\subsection{Coverage per Method} Coverage on the \textit{schleiermacher digital} register varies systematically with each method's input requirements (Table~\ref{tab:coverage}). The local LLM, which receives the full register entry including biographical note, is the only method that produces a label for every entry. The five name-based classifiers (\textit{gender-guesser}, the two transformers, \textit{HIVOTO}, and \textit{nomquamgender}) each cover the same $6{,}134$ entries ($74.1\%$): the gap to full coverage is exactly the set of entries with no usable forename. Wiki-Gendersort covers a slightly smaller subset ($73.4\%$). The parenthetical-qualifier rule reaches $33.5\%$ of entries. In these limited cases, the register provides additional biographical information, such as \eg{}~\textit{Frau des \dots} [wife of \dots] or \textit{Schwester von \dots} [sister of \dots].
 
 \begin{table}[h]
   \centering
@@ -300,7 +300,7 @@ While coverage tells us how often each method commits to \emph{some} label; the 
 \end{table}
 
 \subsection{Per-method Accuracy against GND} Using the $2{,}253$ entries with a gendered GND authority record as a benchmark set allows a direct comparison of per-method classification quality (Table~\ref{tab:gnd-benchmark}). Effective accuracy, correct labels divided by the full benchmark size (abstentions count against the method), ranges from $86.5\%$ (the two transformer classifiers, which abstain on $\sim$$12\%$ of the benchmark) to $99.7\%$ (the local LLM, which abstains on only $3$ entries). An imbalance shows between male and female recall. The two transformer classifiers achieve $88$--$89\%$ on male names but only $60$--$71\%$ on female names, the largest per-class gaps in the cohort; gender-guesser, Wiki-Gendersort, HIVOTO, and nomquamgender close the gap considerably ($84$--$91\%$ female recall against $88$--$90\%$ male); only the LLM is balanced across classes ($99.7\%$ male, $100\%$ female on the GND benchmark). The benchmark itself is small and male-dominated ($2{,}048$ male vs.\ $205$ female), so the results should be interpreted with appropriate caution. A further asymmetry concerns the LLM specifically: unlike the name-only classifiers, it receives the full \texttt{note} field, which frequently contains biographical prose. A keyword probe finds
-overt gender signals in $29\%$ of benchmark entries, but with a strong gendered bias. $94\%$ of female entries carry a class-matching signal (\emph{Tochter}, \emph{Frau des~\dots}, occupational feminines), against only $21\%$ of male entries. So the LLM's perfect female recall could have its foundation largely in context reading, while its male recall rests predominantly on the name string.
+overt gender signals in $29\%$ of benchmark entries, but with a strong gendered bias. $94\%$ of female entries carry a class-matching signal (\emph{Tochter} [daughter], \emph{Frau des~\dots} [wife of \dots], occupational feminines), against only $21\%$ of male entries. So the LLM's perfect female recall could have its foundation largely in context reading, while its male recall rests predominantly on the name string.
 
 \begin{table}[h]
   \centering
@@ -381,7 +381,7 @@ These agreement tiers map onto the TEI \texttt{@cert} values written into the fi
 
 Manual inspection of the most-contested records shows that disagreement clusters around four recurring profiles: relational naming conventions where the entry's forename field contains the name of a related person rather than the individual themselves; title-only entries without a usable forename; initials-only entries where dictionary methods have nothing to match against; and institutional names mis-parsed as personal names (Table~\ref{tab:disagreement-examples}).
 
-Many of these disagreements stem from the way information is recorded in the register itself. Some entities are only listed by their relation to another entity, with the relation encoded in parentheses, \eg{~\emph{(Frau des \textbf{Heinrich})}, \emph{(Mutter der \textbf{Antonie})}, \emph{(Mann der \textbf{Marianne})}}, as the entry's own forename. This caused the strictly forename-based methods to mislabel the entries and was addressed using the parenthetical-qualifier rule during aggregation.
+Many of these disagreements stem from the way information is recorded in the register itself. Some entities are only listed by their relation to another entity, with the relation encoded in parentheses, \eg{~\emph{(Frau des \textbf{Heinrich})} [wife of Heinrich], \emph{(Mutter der \textbf{Antonie})} [mother of Antonie], \emph{(Mann der \textbf{Marianne})} [husband of Marianne]}, as the entry's own forename. This caused the strictly forename-based methods to mislabel the entries and was addressed using the parenthetical-qualifier rule during aggregation.
 
 \begin{table}[h]
   \centering
@@ -392,26 +392,26 @@ Many of these disagreements stem from the way information is recorded in the reg
     xml:id & Entry / note & Vote pattern & Resulting label \\
     \midrule
     \texttt{S0001932} &
-      \textit{Frölich, (Frau des Heinrich)} \newline
-      ``Frau des Heinrich Frölich" &
-      6 of 7 name-based methods read ``Heinrich" as a forename and return \texttt{male} (\textsc{hfgc}, \textsc{hfg}, \textsc{hv}, \textsc{nqg}, \textsc{wgs}); the parenthetical-qualifier rule fires on ``Frau des" $\rightarrow$ \texttt{female}; LLM $\rightarrow$ \texttt{female} from the note. &
+      \textit{Frölich, (Frau des Heinrich)} [wife of Heinrich] \newline
+      ``Frau des Heinrich Frölich" [wife of Heinrich Frölich] &
+      6 of 7 name-based methods read ``Heinrich" as a forename and return \texttt{male} (\textsc{hfgc}, \textsc{hfg}, \textsc{hv}, \textsc{nqg}, \textsc{wgs}); the parenthetical-qualifier rule fires on ``Frau des" [wife of] $\rightarrow$ \texttt{female}; LLM $\rightarrow$ \texttt{female} from the note. &
       \texttt{female} (cert \texttt{high}; LLM\,+\,rule outvote name-based cluster) \\
     \addlinespace
     \texttt{S0001502} &
-      \textit{Canitz, Baronin von} \newline
+      \textit{Canitz, Baronin von} [Baroness von Canitz] \newline
       (no biographical note) &
-      Title-only entry without forename; the name-based methods scatter ($\textsc{hfgc},\textsc{hfg}\rightarrow$ \texttt{male}; $\textsc{nqg}\rightarrow$ \texttt{female}; \textsc{gg}, \textsc{hv}, \textsc{wgs} ambiguous); LLM $\rightarrow$ \texttt{female} via German title morphology (\emph{Baronin}). &
+      Title-only entry without forename; the name-based methods scatter ($\textsc{hfgc},\textsc{hfg}\rightarrow$ \texttt{male}; $\textsc{nqg}\rightarrow$ \texttt{female}; \textsc{gg}, \textsc{hv}, \textsc{wgs} ambiguous); LLM $\rightarrow$ \texttt{female} via German title morphology (\emph{Baronin} [baroness]). &
       \texttt{female} (cert \texttt{single}; LLM-only resolution) \\
     \addlinespace
     \texttt{S0001317} &
       \textit{Bing, A.\,H.} \newline
-      ``Arzt in Berlin" &
-      Six of eight methods abstain or return ambiguous because ``A.\,H." is unparseable as a forename; only \textsc{hfgc}, \textsc{hfg}, and the LLM commit, all to \texttt{male}, the LLM via the masculine ``Arzt". &
+      ``Arzt in Berlin" [physician in Berlin] &
+      Six of eight methods abstain or return ambiguous because ``A.\,H." is unparseable as a forename; only \textsc{hfgc}, \textsc{hfg}, and the LLM commit, all to \texttt{male}, the LLM via the masculine ``Arzt" [physician]. &
       \texttt{male} (cert \texttt{high}; thin but unanimous) \\
     \addlinespace
     \texttt{S9437075} &
-      \textit{Fournier, L. und Compagnie} \newline
-      ``wohnhaft in der Friedrichsgracht 50" &
+      \textit{Fournier, L. und Compagnie} [Fournier, L. and Company] \newline
+      ``wohnhaft in der Friedrichsgracht 50" [residing at Friedrichsgracht 50] &
       Trading firm; name-based methods read ``L."~as a forename and split (\textsc{hfgc} $\rightarrow$ \texttt{female}; \textsc{hfg} $\rightarrow$ \texttt{male}; rest ambiguous); only the LLM flags the entry as an institution. &
       \texttt{institution} (cert \texttt{single}; LLM-only resolution) \\
     \bottomrule
@@ -420,7 +420,7 @@ Many of these disagreements stem from the way information is recorded in the reg
   \label{tab:disagreement-examples}
 \end{table}
 
-\subsubsection{Errors in Authority Data}\label{subsec:errors} In a very small number of cases the input data seemingly contained errors (Table~\ref{tab:contested-examples}). These issues surfaced only at the aggregation step and helped validate the multi-method approach. In the first case, \texttt{S9145415}, the register entry describes Auguste Ernestine Aemilie Klein, daughter of Ernst Ferdinand Klein, but its GND ID points to an unrelated record (GND~1165816261, ``Klein, Auguste'', variant ``Klein, August'', a Berlin painter born 1777). The dictionary methods, the parenthetical-qualifier rule (firing on \emph{Tochter des Ernst Ferdinand Klein}), and the LLM all return \texttt{female}; because the parenthetical-qualifier rule sits above GND in the aggregation chain, the resulting label becomes \texttt{female} at \texttt{cert=high} and the mis-pointing GND label is silently corrected. The other two cases are errors in the editorial biographical notes that mislead the LLM. In \texttt{S3729958}, the note ``Portrait- und Genremalerin in Berlin" should read \emph{Genremaler}; the feminine suffix \emph{-in} cues the LLM to \texttt{female}. In \texttt{S0003113}, a missing space concatenates \emph{Prediger in Halle} into \emph{PredigerinHalle} and produces the same misreading. In both cases the name-based methods resist, the majority outvotes the LLM, and the resulting label remains \texttt{male}.
+\subsubsection{Errors in Authority Data}\label{subsec:errors} In a very small number of cases the input data seemingly contained errors (Table~\ref{tab:contested-examples}). These issues surfaced only at the aggregation step and helped validate the multi-method approach. In the first case, \texttt{S9145415}, the register entry describes Auguste Ernestine Aemilie Klein, daughter of Ernst Ferdinand Klein, but its GND ID points to an unrelated record (GND~1165816261, ``Klein, Auguste'', variant ``Klein, August'', a Berlin painter born 1777). The dictionary methods, the parenthetical-qualifier rule (firing on \emph{Tochter des Ernst Ferdinand Klein} [daughter of Ernst Ferdinand Klein]), and the LLM all return \texttt{female}; because the parenthetical-qualifier rule sits above GND in the aggregation chain, the resulting label becomes \texttt{female} at \texttt{cert=high} and the mis-pointing GND label is silently corrected. The other two cases are errors in the editorial biographical notes that mislead the LLM. In \texttt{S3729958}, the note ``Portrait- und Genremalerin in Berlin" [portrait and genre painter in Berlin (feminine form)] should read \emph{Genremaler} [genre painter (masculine form)]; the feminine suffix \emph{-in} cues the LLM to \texttt{female}. In \texttt{S0003113}, a missing space concatenates \emph{Prediger in Halle} [preacher in Halle] into \emph{PredigerinHalle}, creating the apparent word \emph{Predigerin} [female preacher] and producing the same misreading. In both cases the name-based methods resist, the majority outvotes the LLM, and the resulting label remains \texttt{male}.
 
 \begin{table}[h]
   \centering
@@ -430,19 +430,19 @@ Many of these disagreements stem from the way information is recorded in the reg
     \texttt{xml:id} & Name & GND & LLM & Resulting label & Verdict \\
     \midrule
     \texttt{S9145415} &
-    Klein, Auguste Ernestine Aemilie (``Tochter des Ernst Ferdinand Klein") &
+    Klein, Auguste Ernestine Aemilie (``Tochter des Ernst Ferdinand Klein") [daughter of Ernst Ferdinand Klein] &
     \texttt{male} & \texttt{female} & \texttt{female} &
     Register \texttt{ref} links to an unrelated GND record (a male painter named Klein, Auguste/August)\\
     \addlinespace
     \texttt{S3729958} &
-    Magnus, Leopold (``Portrait- und Genremalerin in Berlin") &
+    Magnus, Leopold (``Portrait- und Genremalerin in Berlin" [portrait and genre painter in Berlin (feminine form)]) &
     \texttt{male} & \texttt{female} & \texttt{male} &
-    Note erroneously feminizes \emph{Maler} as \emph{Malerin} \\
+    Note erroneously feminizes \emph{Maler} [painter (masculine form)] as \emph{Malerin} [painter (feminine form)] \\
     \addlinespace
     \texttt{S0003113} &
-    O'Bern, Marcus Phillip Ludwig de (``französisch-reformierterPredigerinHalle") &
+    O'Bern, Marcus Phillip Ludwig de (``französisch-reformierterPredigerinHalle" [intended reading: French Reformed preacher in Halle]) &
     \texttt{male} & \texttt{female} & \texttt{male} &
-    LLM was misled by an error from concatenation: \emph{Prediger in} as \emph{Predigerin} \\
+    LLM was misled by an error from concatenation: \emph{Prediger in} [preacher in] as \emph{Predigerin} [female preacher] \\
     \bottomrule
   \end{tabular}
   \caption{Three cases of errors in data sources deemed authoritative.}

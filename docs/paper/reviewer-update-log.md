@@ -278,3 +278,69 @@ remaining paragraph text is unchanged.
 that identify each of the five design constraints.
 
 **Status:** Addressed in the local working tree; the checklist item is marked complete.
+
+## 2026-09-23: Reviewer I10 and I17-I22 - English translations
+
+**Request:** Translate the German output label and examples identified in the running text and
+Table 6.
+
+**Changes:** Added English glosses in square brackets in [article.tex](article.tex), retaining the
+original German label and source phrases:
+
+- Translated `uneindeutig` as "ambiguous."
+- Translated the daughter, wife, sister, mother, and husband expressions, including the named
+  examples and their repeated occurrences in the methods description and tables.
+- Translated the adjacent `Sohn der ...` example as "son of ..." for consistency.
+- Added "Baroness von Canitz," "physician in Berlin," and "residing at Friedrichsgracht 50" to
+  Table 6, together with glosses for its standalone `Baronin`, `Arzt`, and `Frau des` expressions.
+
+**Response to the reviewer:** We added English translations alongside the German label and
+examples at all identified locations, including repeated examples in the tables. The German
+originals remain visible because their wording and grammatical forms are relevant to the methods.
+
+**Status:** I10 and I17-I22 are addressed in the local working tree and marked complete. The
+separate final translation check was completed subsequently, as recorded below.
+
+**Verification:** Documentation and whitespace checks passed. A source comparison confirmed that
+all 22 glosses preserve the German originals and introduce no other manuscript changes. The seven
+affected pages of a temporary PDF were inspected visually, including Tables 6 and 7; the added
+glosses remain readable without clipping or overlap.
+
+**Build note for the authors:** The temporary rendering was generated, but the complete build
+still reports the existing `Missing $ inserted` error for DOI `10.17175/WP_2026`. The manuscript
+PDF and build outputs in the working tree were not replaced.
+
+## 2026-09-23: Final translation check - Remaining German examples
+
+**Request:** Check all German examples and tables for English translations, including phrases
+beyond the explicitly identified reviewer locations.
+
+**Changes:** Reviewed the running text, TEI example, all seven tables, and both figures in
+[article.tex](article.tex). Added English glosses for the remaining examples:
+
+- Translated `Lehrerin in Gnadenfrei` and `Lehrerin` in the explanation following the TEI snippet,
+  preserving the XML example.
+- Glossed `Fournier, L. und Compagnie` in Table 6.
+- Translated the painter descriptions in the error discussion and Table 7, explicitly identifying
+  masculine and feminine forms where the distinction explains the classification error.
+- Translated `Prediger in Halle`, `Prediger in`, and `Predigerin`, and explained how the missing word
+  boundary creates the apparent feminine occupational noun.
+- Added the intended English reading of `französisch-reformierterPredigerinHalle` in Table 7,
+  preserving the malformed German string as evidence of the source error.
+
+**Response to the reviewer:** We checked the remaining German examples throughout the manuscript
+and added English translations alongside the originals. For examples involving grammatical gender
+or missing spaces, the translations make the relevant linguistic distinction explicit. The TEI
+example is translated in its accompanying explanation.
+
+**Status:** Addressed in the local working tree; the final translation checklist item is marked
+complete.
+
+**Verification:** Documentation and whitespace checks passed. A source comparison confirmed that
+the changes match the approved translation batch and preserve the German originals and verbatim
+XML. The affected pages of a temporary PDF, including the TEI explanation and Tables 6 and 7, were
+inspected visually; the translations remain readable without clipping or overlap.
+
+**Build note for the authors:** The temporary rendering now has 23 pages. The build still reports
+the existing `Missing $ inserted` error for DOI `10.17175/WP_2026`. The manuscript PDF and build
+outputs in the working tree were not replaced.

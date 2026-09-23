@@ -44,7 +44,7 @@ Source: [Reviewer C's annotated PDF](C-klappenbach,neuber,westphal_2026_genderta
 - [x] **I8 - Lines 91-97:** Consolidate into one paragraph.
 - [x] **I9 - Lines 101-128:** Replace "First... Second..." with descriptive LaTeX
   `\paragraph{...}` headings.
-- [ ] **I10 - Line 111:** Translate `uneindeutig`.
+- [x] **I10 - Line 111:** Translate `uneindeutig`.
 - [ ] **I11 - Footnote 2:** Add an access date.
 - [ ] **I12 - Lines 167-169:** Address the suggestion to add certainty information and a gazetteer
   link to the Gnadenfrei example.
@@ -54,13 +54,13 @@ Source: [Reviewer C's annotated PDF](C-klappenbach,neuber,westphal_2026_genderta
   VIAF, and Getty ULAN.
 - [ ] **I15 - Footnotes 5 and 6:** Add access dates.
 - [ ] **I16 - Line 306:** Move the inline link into a footnote.
-- [ ] **I17 - Line 347:** Translate *Tochter des ...*.
-- [ ] **I18 - Line 400:** Translate *Frau des ...* and *Schwester von ...*.
-- [ ] **I19 - Line 427:** Translate *Tochter* and *Frau des ...*.
-- [ ] **I20 - Line 467:** Translate *(Frau des Heinrich)*, *(Mutter der Antonie)*, and
+- [x] **I17 - Line 347:** Translate *Tochter des ...*.
+- [x] **I18 - Line 400:** Translate *Frau des ...* and *Schwester von ...*.
+- [x] **I19 - Line 427:** Translate *Tochter* and *Frau des ...*.
+- [x] **I20 - Line 467:** Translate *(Frau des Heinrich)*, *(Mutter der Antonie)*, and
   *(Mann der Marianne)*.
-- [ ] **I21 - Line 476:** Translate *(Tochter des Ernst Ferdinand Klein)*.
-- [ ] **I22 - Table 6:** Translate *Frau des*, *Baronin von*, *Arzt in Berlin*, and
+- [x] **I21 - Line 476:** Translate *(Tochter des Ernst Ferdinand Klein)*.
+- [x] **I22 - Table 6:** Translate *Frau des*, *Baronin von*, *Arzt in Berlin*, and
   *wohnhaft in der Friedrichsgracht 50*.
 - [ ] **I23 - Lines 532 onward:** Add a discussion connecting the case study and limitations,
   particularly the RSE implications and the possible role of NFDI/TS4NFDI.
@@ -71,7 +71,7 @@ Source: [Reviewer C's annotated PDF](C-klappenbach,neuber,westphal_2026_genderta
   code generation.
 - [ ] **I27 - Footnotes 11-14:** Add access dates.
 - [ ] **I28 - Bibliography:** Use either a DOI or a URL for each reference, avoiding duplicate links.
-- [ ] **Final translation check:** Check all German examples and tables for English translations,
+- [x] **Final translation check:** Check all German examples and tables for English translations,
   including phrases beyond the explicitly listed locations.
 
 ## Reviewer K: overlaps with Reviewer C
