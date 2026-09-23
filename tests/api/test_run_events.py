@@ -10,7 +10,7 @@ from pydantic import SecretStr
 from gendertagger.api.app import create_app
 from gendertagger.api.authentication import require_authenticated_user
 from gendertagger.api.dependencies import get_project_access_service, get_run_service
-from gendertagger.api.run_events import (
+from gendertagger.api.routes.run_events import (
     METHOD_EXECUTION_PROGRESS,
     METHOD_EXECUTION_STATE_CHANGED,
     RUN_COMPLETED,

@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 from gendertagger.api.authorization import ProjectAccessGuard, get_project_access_guard
 from gendertagger.api.dependencies import get_run_scheduler, get_run_service
 from gendertagger.api.errors import ApiRequestError, invalid_cursor_error
-from gendertagger.api.run_events import stream_run_events
+from gendertagger.api.routes.run_events import stream_run_events
 from gendertagger.models.api import CursorPage
 from gendertagger.models.run import MethodExecutionSummary, Run, RunCreateRequest
 from gendertagger.models.user import ProjectRole

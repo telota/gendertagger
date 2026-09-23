@@ -19,20 +19,20 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 
-from gendertagger.api.aggregations import router as aggregations_router
-from gendertagger.api.annotations import router as annotations_router
 from gendertagger.api.authentication import require_csrf_protection, require_password_current
-from gendertagger.api.authentication import router as authentication_router
-from gendertagger.api.authentication import unauthenticated_router as login_router
-from gendertagger.api.branding import router as branding_router
-from gendertagger.api.classify import router as classify_router
-from gendertagger.api.evaluations import router as evaluations_router
-from gendertagger.api.exports import router as exports_router
-from gendertagger.api.methods import router as methods_router
-from gendertagger.api.project_members import router as project_members_router
-from gendertagger.api.projects import router as projects_router
-from gendertagger.api.review_items import router as review_items_router
-from gendertagger.api.runs import router as runs_router
+from gendertagger.api.routes.aggregations import router as aggregations_router
+from gendertagger.api.routes.annotations import router as annotations_router
+from gendertagger.api.routes.authentication import router as authentication_router
+from gendertagger.api.routes.authentication import unauthenticated_router as login_router
+from gendertagger.api.routes.branding import router as branding_router
+from gendertagger.api.routes.classify import router as classify_router
+from gendertagger.api.routes.evaluations import router as evaluations_router
+from gendertagger.api.routes.exports import router as exports_router
+from gendertagger.api.routes.methods import router as methods_router
+from gendertagger.api.routes.project_members import router as project_members_router
+from gendertagger.api.routes.projects import router as projects_router
+from gendertagger.api.routes.review_items import router as review_items_router
+from gendertagger.api.routes.runs import router as runs_router
 from gendertagger.models.api import ApiErrorEnvelope
 
 _ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {

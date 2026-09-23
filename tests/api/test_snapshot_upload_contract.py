@@ -14,7 +14,7 @@ from gendertagger.api.authentication import require_authenticated_user
 from gendertagger.api.authorization import ProjectAccessGuard
 from gendertagger.api.dependencies import get_project_access_service
 from gendertagger.api.errors import ApiRequestError
-from gendertagger.api.projects import import_snapshot
+from gendertagger.api.routes.projects import import_snapshot
 from gendertagger.api.settings import AppSettings
 from gendertagger.models.lifecycle import DatasetSnapshotStatus
 from gendertagger.models.project import (

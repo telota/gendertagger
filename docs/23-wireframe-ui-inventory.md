@@ -235,7 +235,7 @@ box with a static slider and a preview callout; and a "Klassifikation jetzt star
 
 **Backend.** `POST /projects/{project_id}/snapshots` is multipart, accepts repeated `source` parts, and takes
 `source_format` and `packaging` form fields
-([`api/projects.py`](../src/gendertagger/api/projects.py)). It returns `202 Accepted` with a pending
+([`api/routes/projects.py`](../src/gendertagger/api/routes/projects.py)). It returns `202 Accepted` with a pending
 `DatasetSnapshot`; the client then polls `GET /snapshots/{id}` for `status`, `record_count`, and
 `failure_diagnostic`.
 
@@ -271,7 +271,7 @@ and bar; and a run-history table with a retry link and a failure explanation.
 **Backend.** `POST /runs` takes `dataset_snapshot_id` and a full `RunConfig`; `POST /runs/{id}/executions`
 schedules it; `GET /runs/{id}` and `GET /runs/{id}/executions` return state and per-method
 `MethodExecutionSummary`; `GET /runs/{id}/events` streams six SSE event types
-([`api/run_events.py`](../src/gendertagger/api/run_events.py)). `GET /snapshots/{id}/runs` lists a snapshot's
+([`api/routes/run_events.py`](../src/gendertagger/api/routes/run_events.py)). `GET /snapshots/{id}/runs` lists a snapshot's
 runs newest first, and `GET /runs/{id}/aggregations` lists a run's aggregations the same way. Repeating the
 default aggregation request returns the existing live or completed aggregation with `200` rather than queueing
 another ([ADR-0034](decisions/ADR-0034-reuse-matching-aggregation-on-creation.md)).
