@@ -9,42 +9,25 @@ from pydantic import SecretStr
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from tests.factories import tei_person_input
+from tests.seeding import seed_completed_run, seed_member, seed_project, seed_ready_snapshot
 
 from gendertagger.api.app import create_app
 from gendertagger.api.authentication import AuthenticationBackend
 from gendertagger.api.settings import AppSettings
-from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.domain.aggregation import REFERENCE_REQUIRED_METHODS
-from gendertagger.ingestion.registry import version_for_snapshot_import
 from gendertagger.models.aggregation import (
     AggregationCreateRequest,
     AggregationTaskMessage,
 )
-from gendertagger.models.artifact import ArtifactCreate
 from gendertagger.models.classification import (
     CanonicalLabel,
     PredictionResult,
     PredictionStatus,
 )
-from gendertagger.models.lifecycle import AggregationExecutionStatus, TaskBatchStatus
-from gendertagger.models.method import MethodDescriptor
-from gendertagger.models.person import ImportedPerson
-from gendertagger.models.project import (
-    DatasetSnapshotCreate,
-    ProjectCreate,
-    SnapshotImportConfig,
-    SnapshotImportLimits,
-    SnapshotSourceMemberCreate,
-    TeiImportProfile,
-)
-from gendertagger.models.run import (
-    MethodExecutionCreate,
-    PredictionWrite,
-    RunCreate,
-    TaskBatchCreate,
-)
+from gendertagger.models.lifecycle import AggregationExecutionStatus
+from gendertagger.models.person import PersonRecord
 from gendertagger.models.user import ProjectRole, UserCreate
 from gendertagger.services.aggregation_execution import AggregationExecutor
 from gendertagger.services.aggregations import AggregationService
@@ -86,162 +69,35 @@ def _seed_completed_reference_executions(
     _session_factory: sessionmaker[Session],
 ) -> tuple[UUID, UUID, tuple[UUID, ...], tuple[UUID, UUID]]:
     with unit_of_work_factory() as unit_of_work:
-        user = unit_of_work.users.add_user(
-            UserCreate(display_name="Aggregation operator", roles=set())
-        )
-        project = unit_of_work.projects.add_project(
-            ProjectCreate(
-                slug=f"aggregation-{uuid4().hex}",
-                display_name="Aggregation fixture",
-            )
-        )
-        unit_of_work.access.set_member_role(project.id, user.id, ProjectRole.operator)
-        artifact = unit_of_work.artifacts.add_artifact(
-            ArtifactCreate(
-                logical_type="source_tei",
-                storage_uri=f"local-sha256:{'a' * 64}",
-                sha256="a" * 64,
-                byte_size=1,
-                media_type="application/tei+xml",
-                project_id=project.id,
-            )
-        )
-        import_config = SnapshotImportConfig(
-            profile=TeiImportProfile.tei_p5_person_register,
-            limits=SnapshotImportLimits(),
-        )
-        snapshot = unit_of_work.projects.add_snapshot(
-            DatasetSnapshotCreate(
-                project_id=project.id,
-                source_artifact_id=artifact.id,
-                source_sha256=artifact.sha256,
-                parser_version=version_for_snapshot_import(import_config),
-                import_config=import_config.model_dump(mode="json"),
-            )
-        )
-        unit_of_work.projects.add_snapshot_source_members(
-            snapshot.id,
+        project = seed_project(unit_of_work, slug_prefix="aggregation")
+        user = seed_member(unit_of_work, project.id, display_name="Aggregation operator")
+        snapshot = seed_ready_snapshot(
+            unit_of_work,
+            project.id,
             [
-                SnapshotSourceMemberCreate(
-                    artifact_id=artifact.id,
-                    ordinal=0,
-                    logical_name="source.xml",
-                    sha256=artifact.sha256,
-                    byte_size=artifact.byte_size,
-                    media_type=artifact.media_type,
-                )
+                tei_person_input(tei_id="p1", surname="Example"),
+                tei_person_input(tei_id="p2", surname="Second"),
             ],
         )
-        unit_of_work.projects.begin_snapshot_import(snapshot.id)
-        unit_of_work.projects.add_imported_person_records(
-            snapshot.id,
-            [
-                ImportedPerson(
-                    person=tei_person_input(tei_id="p1", surname="Example"),
-                    source_member_name="source.xml",
-                    source_record_locator="1",
-                ),
-                ImportedPerson(
-                    person=tei_person_input(tei_id="p2", surname="Second"),
-                    source_member_name="source.xml",
-                    source_record_locator="2",
-                ),
-            ],
+        completed = seed_completed_run(
+            unit_of_work, snapshot, REFERENCE_REQUIRED_METHODS, _llm_decides
         )
-        unit_of_work.projects.complete_snapshot_import(snapshot.id, ready_at=NOW)
-        run = unit_of_work.runs.add_run(
-            RunCreate(
-                dataset_snapshot_id=snapshot.id,
-                resolved_config=RunConfig(
-                    methods=[
-                        MethodRunConfig(name=method_name)
-                        for method_name in REFERENCE_REQUIRED_METHODS
-                    ]
-                ),
-                code_git_commit=CODE_GIT_COMMIT,
-                application_version="0.0.0",
-                python_version="3.13.14",
-                dependency_lock_sha256=DEPENDENCY_LOCK_SHA256,
-            )
-        )
-        unit_of_work.runs.mark_run_queued(run.id)
-        unit_of_work.runs.mark_run_started(run.id, started_at=NOW)
-        first_person = unit_of_work.projects.get_person_record_by_tei_id(snapshot.id, "p1")
-        second_person = unit_of_work.projects.get_person_record_by_tei_id(snapshot.id, "p2")
-        assert first_person is not None
-        assert second_person is not None
-        execution_ids: list[UUID] = []
-        for method_name in REFERENCE_REQUIRED_METHODS:
-            execution = unit_of_work.runs.add_method_execution(
-                MethodExecutionCreate(
-                    run_id=run.id,
-                    descriptor=MethodDescriptor(
-                        name=method_name,
-                        implementation_version=f"{method_name}_v1",
-                        normalization_version=f"{method_name}_v1",
-                    ),
-                    queue_name="cpu",
-                    total_count=2,
-                )
-            )
-            execution_ids.append(execution.id)
-            batch = unit_of_work.runs.add_task_batch(
-                TaskBatchCreate(
-                    method_execution_id=execution.id,
-                    batch_index=0,
-                    queue_name="cpu",
-                    record_offset=0,
-                    record_count=2,
-                )
-            )
-            unit_of_work.runs.mark_execution_queued(execution.id)
-            unit_of_work.runs.mark_execution_started(execution.id, started_at=NOW)
-            claimed_batch = unit_of_work.runs.claim_batch(
-                batch.id,
-                method_execution_id=execution.id,
-                worker_task_id=f"fixture-{method_name}",
-                started_at=NOW,
-                attempt_count=1,
-            )
-            assert claimed_batch is not None
-            results: list[PredictionWrite] = []
-            for index, person in enumerate((first_person, second_person), start=1):
-                if method_name == "local_llm":
-                    result = PredictionResult(
-                        label=(
-                            CanonicalLabel.female
-                            if person.id == first_person.id
-                            else CanonicalLabel.male
-                        ),
-                        status=PredictionStatus.success,
-                        raw_label="female" if person.id == first_person.id else "male",
-                        metadata={"self_reported_certainty": "high"},
-                    )
-                else:
-                    result = PredictionResult(
-                        label=None,
-                        status=PredictionStatus.abstain,
-                    )
-                results.append(
-                    PredictionWrite(
-                        person_record_id=person.id,
-                        task_batch_id=batch.id,
-                        input_fingerprint=str(index) * 64,
-                        result=result,
-                    )
-                )
-            unit_of_work.runs.add_predictions(execution.id, results)
-            unit_of_work.runs.mark_batch_finished(
-                batch.id,
-                status=TaskBatchStatus.completed,
-                finished_at=NOW,
-                success_count=2 if method_name == "local_llm" else 0,
-                abstain_count=0 if method_name == "local_llm" else 2,
-            )
-            unit_of_work.runs.finalize_execution_if_complete(execution.id, finished_at=NOW)
-        unit_of_work.runs.finalize_run_if_complete(run.id, finished_at=NOW)
         unit_of_work.commit()
-    return user.id, run.id, tuple(execution_ids), (first_person.id, second_person.id)
+    people = completed.people
+    return user.id, completed.run.id, completed.execution_ids, (people["p1"].id, people["p2"].id)
+
+
+def _llm_decides(method_name: str, person: PersonRecord) -> PredictionResult:
+    """Only the LLM answers: female for p1, male for p2; every other method abstains."""
+    if method_name != "local_llm":
+        return PredictionResult(label=None, status=PredictionStatus.abstain)
+    label = CanonicalLabel.female if person.tei_id == "p1" else CanonicalLabel.male
+    return PredictionResult(
+        label=label,
+        status=PredictionStatus.success,
+        raw_label=label.value,
+        metadata={"self_reported_certainty": "high"},
+    )
 
 
 def _outsider_id(unit_of_work_factory: UnitOfWorkFactory) -> UUID:
