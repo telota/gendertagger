@@ -280,13 +280,26 @@ scope — so that part of the criterion is necessarily verified once M3 exists, 
   outstanding from M2 and folded in here since M3 is what first needs cross-screen navigation. Not yet
   built: the project switcher (nothing to switch between screens yet) and the nested
   `/projects/:projectId/...` routes, added as their own screens land.
+- `ProjectOverviewView` (`/projects/:projectId/overview`). **Delivered**, deliberately minimal: name, slug,
+  role, description, and a link to import — the wireframe's KPI dashboard is not attempted here, since it
+  reads `GET /aggregations/{id}/review-summary`, which needs a run and an aggregation that cannot exist
+  before M4.
 - Import with the full `source_format` × `packaging` matrix; the backend derives the import profile.
+  **Partly delivered.** `ImportView` uploads one file (`packaging: "single"`) to
+  `POST /projects/{project_id}/snapshots`, gated to the project's own operators (`current_user_role`, not
+  the global roles D6 gives project creation). Folder, GitLab, and the loose/zip/tar.gz packagings remain.
 - The asynchronous snapshot lifecycle: `202` → poll → ready or failed, with `failure_diagnostic` surfaced.
-- Upload limits shown before upload and on `413`.
-- Snapshot provenance: `source_sha256`, `parser_version`, per-member manifest entries.
+  **Delivered**, and, per docs/23's cross-cutting-concerns table, as the general composable that
+  aggregations/evaluations/exports will reuse: `composables/usePolledQuery.ts` wraps `useQuery` with a
+  `refetchInterval` that stops once a caller-supplied `isTerminal` predicate is met.
+- Upload limits shown before upload and on `413`. **Partly delivered**: a `413` maps to an inline message;
+  `GET /snapshot-upload-limits` is not yet fetched to show the bound before upload.
+- Snapshot provenance: `source_sha256`, `parser_version`, per-member manifest entries. Not yet shown in the
+  UI (the `ready` state currently surfaces only `record_count`).
 
 **Exit criterion.** An operator imports a TEI ZIP and a CSV through the browser and sees both snapshots
-reach `ready` with their checksums.
+reach `ready` with their checksums. Not yet met: today's import is single-file only, and no screen reads
+back the checksum yet.
 
 ### M4 — Runs and aggregation
 

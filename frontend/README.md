@@ -132,10 +132,29 @@ as one rather than as a misleading "please sign in".
 
 ## Projects (M3)
 
-`/projects` (`src/features/projects/ProjectListView.vue`) is the first screen built on `GET /projects` and
-the shell's first use of the shared query cache, through `src/features/projects/useProjects.ts`. Project
-creation (`POST /projects`) is offered to global operators and admins only (decision D6); every other role
-sees the list without it. The nested `/projects/:projectId/...` routes from
+`/projects` (`ProjectListView.vue`) is the first screen built on `GET /projects` and the shell's first use
+of the shared query cache, through `useProjects.ts`. Project creation (`POST /projects`) is offered to
+global operators and admins only (decision D6); every other role sees the list without it.
+
+`/projects/:projectId/overview` (`ProjectOverviewView.vue`) shows a project's own facts (name, slug, role,
+description) and links to import. It deliberately does not attempt the wireframe's KPI dashboard yet — that
+reads `GET /aggregations/{id}/review-summary`, which needs a run and an aggregation neither of which can
+exist before M4.
+
+`/projects/:projectId/import` (`ImportView.vue`, `useSnapshotImport.ts`) uploads one file to
+`POST /projects/{project_id}/snapshots` and polls `GET /snapshots/{snapshot_id}` via the new
+`composables/usePolledQuery.ts` — the generic `202` → poll → terminal-state composable
+docs/23-wireframe-ui-inventory.md calls for, built now since it already names four consumers (snapshots,
+aggregations, evaluations, exports). Import is a project-scoped operator action (checked against
+`current_user_role`, not the global roles D6 gives project creation). Only single-file upload is wired up;
+the full `source_format` × `packaging` matrix (folder, GitLab, loose/zip/tar.gz) is a later slice.
+
+Test-environment note: constructing a `File` for a `FormData` body in a test must use `node:buffer`'s
+`File`, not jsdom's — Vitest's Node-`fetch` compatibility layer can't read a jsdom `File` inside a
+`FormData`, a jsdom/Vitest/undici interop gap that does not exist in a real browser. See
+`tests/features/projects/import.spec.ts`'s `testFile()` helper.
+
+Other nested `/projects/:projectId/...` routes from
 [`docs/23-wireframe-ui-inventory.md`](../docs/23-wireframe-ui-inventory.md) are added as their own screens
 land, not stubbed ahead of them.
 

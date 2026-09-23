@@ -1,5 +1,5 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
-import type { Ref } from 'vue'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { computed, type Ref } from 'vue'
 
 import { unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
@@ -32,6 +32,21 @@ export function useProjectList(enabled: Ref<boolean>) {
     getNextPageParam: (lastPage) =>
       lastPage.has_more ? (lastPage.next_cursor ?? null) : undefined,
     enabled,
+  })
+}
+
+/** `GET /projects/{project_id}` — one project, for its own detail screen. */
+export function useProject(projectId: Ref<string>) {
+  const client = useApiClient()
+
+  return useQuery({
+    queryKey: computed(() => ['projects', projectId.value] as const),
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/v1/projects/{project_id}', {
+          params: { path: { project_id: projectId.value } },
+        }),
+      ),
   })
 }
 

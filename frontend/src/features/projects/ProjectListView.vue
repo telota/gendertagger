@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
@@ -9,6 +9,7 @@ import AppTextField from '@/components/base/AppTextField.vue'
 import { useSessionStore } from '@/stores/session'
 
 import { useCreateProject, useProjectList } from './useProjects'
+import { useRoleLabel } from './useRoleLabel'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -40,18 +41,7 @@ const canCreateProject = computed(
 const query = useProjectList(isSignedIn)
 const projects = computed(() => query.data.value?.pages.flatMap((page) => page.items) ?? [])
 
-function roleLabel(role: string): string {
-  switch (role) {
-    case 'viewer':
-      return t('projects.role.viewer')
-    case 'reviewer':
-      return t('projects.role.reviewer')
-    case 'operator':
-      return t('projects.role.operator')
-    default:
-      return role
-  }
-}
+const roleLabel = useRoleLabel()
 
 function loadMore(): void {
   void query.fetchNextPage()
@@ -183,7 +173,14 @@ async function submitCreateForm(): Promise<void> {
         <p v-if="projects.length === 0" class="project-list-empty">{{ t('projects.empty') }}</p>
         <ul v-else class="project-list-items">
           <li v-for="project in projects" :key="project.id" class="project-card">
-            <h2 class="project-card-title">{{ project.display_name }}</h2>
+            <h2 class="project-card-title">
+              <RouterLink
+                :to="{ name: 'projectOverview', params: { projectId: project.id } }"
+                class="project-card-link"
+              >
+                {{ project.display_name }}
+              </RouterLink>
+            </h2>
             <p v-if="project.description" class="project-card-description">
               {{ project.description }}
             </p>
@@ -269,6 +266,15 @@ async function submitCreateForm(): Promise<void> {
   margin: 0 0 var(--space-1);
   font-size: var(--font-size-title);
   font-weight: var(--weight-semibold);
+}
+
+.project-card-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.project-card-link:hover {
+  text-decoration: underline;
 }
 
 .project-card-description {

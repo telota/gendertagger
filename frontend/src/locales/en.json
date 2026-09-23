@@ -147,6 +147,33 @@
         "network": "The server could not be reached.",
         "generic": "The project could not be created."
       }
+    },
+    "overview": {
+      "loadError": "The project could not be loaded.",
+      "slug": "Slug",
+      "role": "Your role",
+      "noDescription": "This project has no description yet.",
+      "importAction": "Import data"
+    },
+    "import": {
+      "title": "Import: {project}",
+      "forbidden": "Import is reserved to this project's operators.",
+      "format": "Source format",
+      "file": "File",
+      "submit": "Upload",
+      "submitting": "Uploading …",
+      "errors": {
+        "validation": "Please check your input.",
+        "tooLarge": "The file exceeds this installation's allowed size.",
+        "network": "The server could not be reached.",
+        "generic": "The import could not be started."
+      },
+      "status": {
+        "pending": "The import is running …",
+        "ready": "Import complete: {count} records.",
+        "failedGeneric": "The import failed.",
+        "pollError": "The import status could not be loaded."
+      }
     }
   }
 }

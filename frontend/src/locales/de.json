@@ -147,6 +147,33 @@
         "network": "Der Server ist nicht erreichbar.",
         "generic": "Das Projekt konnte nicht angelegt werden."
       }
+    },
+    "overview": {
+      "loadError": "Das Projekt konnte nicht geladen werden.",
+      "slug": "Kurzname (Slug)",
+      "role": "Ihre Rolle",
+      "noDescription": "Für dieses Projekt ist noch keine Beschreibung hinterlegt.",
+      "importAction": "Daten importieren"
+    },
+    "import": {
+      "title": "Import: {project}",
+      "forbidden": "Der Import ist nur Verantwortlichen dieses Projekts vorbehalten.",
+      "format": "Quellformat",
+      "file": "Datei",
+      "submit": "Hochladen",
+      "submitting": "Wird hochgeladen …",
+      "errors": {
+        "validation": "Bitte überprüfen Sie Ihre Eingaben.",
+        "tooLarge": "Die Datei überschreitet die zulässige Größe für diese Installation.",
+        "network": "Der Server ist nicht erreichbar.",
+        "generic": "Der Import konnte nicht gestartet werden."
+      },
+      "status": {
+        "pending": "Der Import läuft …",
+        "ready": "Import abgeschlossen: {count} Datensätze.",
+        "failedGeneric": "Der Import ist fehlgeschlagen.",
+        "pollError": "Der Importstatus konnte nicht geladen werden."
+      }
     }
   }
 }
