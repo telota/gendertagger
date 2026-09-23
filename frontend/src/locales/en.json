@@ -64,7 +64,9 @@
   "header": {
     "signedInAs": "Signed in as {name}",
     "signOut": "Sign out",
-    "signIn": "Sign in"
+    "signIn": "Sign in",
+    "serverError": "The server could not be reached.",
+    "retry": "Try again"
   },
   "locale": {
     "label": "Language"
@@ -98,6 +100,8 @@
   "changePassword": {
     "title": "Change password",
     "loading": "Loading …",
+    "loadError": "The session status could not be loaded.",
+    "retry": "Try again",
     "notice": "You must set a new password before you can continue.",
     "current": "Current password",
     "new": "New password",

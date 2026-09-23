@@ -7,7 +7,7 @@ import type { ApiClient } from '@/api'
 import { API_CLIENT_KEY } from '@/composables/useApiClient'
 import { useSessionStore } from '@/stores/session'
 
-import { apiClientWithRoutes } from '../helpers/api'
+import { apiClientWithNetworkError, apiClientWithRoutes } from '../helpers/api'
 
 const USER = { id: 'a0000000-0000-0000-0000-000000000001', display_name: 'Reviewer One', roles: [] }
 
@@ -65,6 +65,47 @@ describe('useSessionStore.initialize', () => {
     expect(store.status).toBe('ready')
     expect(store.isSignedIn).toBe(false)
     expect(store.user).toBeNull()
+  })
+
+  it('reports a server error as a distinct status, not the ordinary signed-out state', async () => {
+    const store = mountSession(
+      apiClientWithRoutes({
+        '/api/v1/me': {
+          body: { error: { code: 'internal_error', message: 'Something went wrong.' } },
+          init: { status: 500 },
+        },
+      }),
+    )
+
+    await store.initialize()
+
+    expect(store.status).toBe('error')
+    expect(store.user).toBeNull()
+  })
+
+  it('reports a network failure as the same distinct error status', async () => {
+    const store = mountSession(apiClientWithNetworkError())
+
+    await store.initialize()
+
+    expect(store.status).toBe('error')
+  })
+
+  it('reports an error, without discarding the user, if the session flags fail to load', async () => {
+    const store = mountSession(
+      apiClientWithRoutes({
+        '/api/v1/me': { body: USER },
+        '/api/v1/auth/session': {
+          body: { error: { code: 'internal_error', message: 'Something went wrong.' } },
+          init: { status: 500 },
+        },
+      }),
+    )
+
+    await store.initialize()
+
+    expect(store.status).toBe('error')
+    expect(store.user).toEqual(USER)
   })
 })
 

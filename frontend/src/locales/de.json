@@ -64,7 +64,9 @@
   "header": {
     "signedInAs": "Angemeldet als {name}",
     "signOut": "Abmelden",
-    "signIn": "Anmelden"
+    "signIn": "Anmelden",
+    "serverError": "Der Server ist nicht erreichbar.",
+    "retry": "Erneut versuchen"
   },
   "locale": {
     "label": "Sprache"
@@ -98,6 +100,8 @@
   "changePassword": {
     "title": "Passwort ändern",
     "loading": "Wird geladen …",
+    "loadError": "Der Sitzungsstatus konnte nicht geladen werden.",
+    "retry": "Erneut versuchen",
     "notice": "Bevor Sie fortfahren können, müssen Sie ein neues Passwort vergeben.",
     "current": "Aktuelles Passwort",
     "new": "Neues Passwort",

@@ -24,6 +24,10 @@ async function signOut(): Promise<void> {
   await session.logout()
   await router.push({ name: 'home' })
 }
+
+function retry(): void {
+  void session.initialize()
+}
 </script>
 
 <template>
@@ -56,6 +60,15 @@ async function signOut(): Promise<void> {
         <RouterLink v-else :to="{ name: 'login' }" class="app-header-signin">{{
           t('header.signIn')
         }}</RouterLink>
+      </div>
+      <div
+        v-else-if="session.status === 'error'"
+        class="app-header-session app-header-session-error"
+      >
+        <span role="alert" class="app-header-error">{{ t('header.serverError') }}</span>
+        <button type="button" class="app-header-retry" @click="retry">
+          {{ t('header.retry') }}
+        </button>
       </div>
     </div>
   </header>
@@ -109,6 +122,20 @@ async function signOut(): Promise<void> {
   border: none;
   background: none;
   font: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
+.app-header-error {
+  color: var(--critical);
+}
+
+.app-header-retry {
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--accent);
+  text-underline-offset: 0.2em;
   padding: 0;
   cursor: pointer;
 }

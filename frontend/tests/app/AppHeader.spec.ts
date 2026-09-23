@@ -1,12 +1,20 @@
 import { flushPromises } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { createApiClient } from '@/api'
 import type { AppLocale } from '@/app/i18n'
 import de from '@/locales/de.json'
 import en from '@/locales/en.json'
 
 import { apiClientWithRoutes, type RouteResponse } from '../helpers/api'
 import { mountApplicationAt } from '../helpers/render'
+
+function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
+  return new Response(JSON.stringify(body), {
+    headers: { 'content-type': 'application/json' },
+    ...init,
+  })
+}
 
 const catalogues = { de, en } as const
 
@@ -106,5 +114,56 @@ describe.each(['de', 'en'] as const)('AppHeader in %s', (locale: AppLocale) => {
     await flushPromises()
 
     expect(document.documentElement.dataset.theme).toBe('dark')
+  })
+
+  it('shows a server-error state, distinct from signed-out, when the session cannot be checked', async () => {
+    const wrapper = await mountApplicationAt(
+      '/',
+      locale,
+      apiClientWithRoutes({
+        '/api/v1/branding': { body: {} },
+        '/api/v1/me': {
+          body: { error: { code: 'internal_error', message: 'Something went wrong.' } },
+          init: { status: 500 },
+        },
+      }),
+    )
+    await flushPromises()
+
+    expect(wrapper.get('header').text()).toContain(messages.serverError)
+    expect(wrapper.find('header a[href="/login"]').exists()).toBe(false)
+  })
+
+  it('retries after a server error and recovers into the ordinary signed-out state', async () => {
+    let meAttempts = 0
+    const client = createApiClient({
+      fetch: (request) => {
+        const { pathname } = new URL(request.url)
+        if (pathname === '/api/v1/branding') return Promise.resolve(jsonResponse({}))
+        if (pathname === '/api/v1/me') {
+          meAttempts += 1
+          return Promise.resolve(
+            meAttempts === 1
+              ? jsonResponse(
+                  { error: { code: 'internal_error', message: 'Something went wrong.' } },
+                  { status: 500 },
+                )
+              : jsonResponse(
+                  { error: { code: 'authentication_required', message: 'Gone.' } },
+                  { status: 401 },
+                ),
+          )
+        }
+        return Promise.resolve(jsonResponse({}, { status: 404 }))
+      },
+    })
+    const wrapper = await mountApplicationAt('/', locale, client)
+    await flushPromises()
+    expect(wrapper.get('header').text()).toContain(messages.serverError)
+
+    await wrapper.get('header .app-header-retry').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('header a[href="/login"]').text()).toBe(messages.signIn)
   })
 })

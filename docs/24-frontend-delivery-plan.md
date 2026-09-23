@@ -206,7 +206,10 @@ contract change fails CI.
   gate and its own view, and logout — verified against a real Chrome instance over the DevTools Protocol,
   including that the backend's `Secure`-flagged cookies are in fact accepted and sent back over plain
   `http://localhost` (Chrome's documented allowance for that origin) and that the session survives a full
-  page reload. Role-aware hiding/disabling and `current_user_role`-scoped controls remain open: there is no
+  page reload. `initialize()` also distinguishes an ordinary `401` (not signed in) from any other failure —
+  a `5xx`, a network error, an unparseable response — as its own `error` status, so a genuine server problem
+  at boot renders as one rather than as a misleading "please sign in" (see the M2 exit criterion below).
+  Role-aware hiding/disabling and `current_user_role`-scoped controls remain open: there is no
   project-scoped screen yet for them to apply to.
 - Recovery from a `401` at any moment: keep the unsent decision, offer an inline sign-in, and retry the
   request rather than redirecting away and losing the user's place (D1). **Delivered.** The API client takes
@@ -253,7 +256,14 @@ contract change fails CI.
   needing no grant, both registered in the route-coverage check in `backend/tests/api/test_authorization.py`.
 
 **Exit criterion.** A viewer, reviewer, and operator each see a correctly scoped shell in both locales and
-both themes; an expired session and a server error both render correctly.
+both themes; an expired session and a server error both render correctly. **Met**, for what M2 itself
+builds: `useSessionStore`'s boot check (`GET /me`) now distinguishes an ordinary `401` (not signed in — the
+existing shell renders normally) from anything else — a `5xx`, a network failure, an unparseable response —
+which is a genuine failure and gets its own `error` status. `AppHeader` shows it as a visible message with a
+retry, instead of a misleading "sign in" prompt when the real problem is the server; `/change-password`
+shows the analogous load-error-and-retry state instead of "Loading …" forever. Viewer/reviewer/operator
+role-scoping itself has nothing to show yet — there is no project-scoped screen in the shell for a role to
+scope — so that part of the criterion is necessarily verified once M3 exists, not before it.
 
 ### M3 — Projects and import
 

@@ -62,6 +62,54 @@ describe.each(['de', 'en'] as const)('change-password page in %s', (locale: AppL
     })
   })
 
+  it('shows a load error and a retry, not an endless loading state, on a server error', async () => {
+    const wrapper = await mountApplicationAt(
+      '/change-password',
+      locale,
+      apiClientWithRoutes({
+        '/api/v1/branding': { body: {} },
+        '/api/v1/me': {
+          body: { error: { code: 'internal_error', message: 'Something went wrong.' } },
+          init: { status: 500 },
+        },
+      }),
+    )
+    await flushPromises()
+
+    expect(wrapper.get('main').text()).toContain(messages.loadError)
+    expect(wrapper.find('form').exists()).toBe(false)
+  })
+
+  it('retries the session check when asked to', async () => {
+    let attempts = 0
+    const wrapper = await mountApplicationAt(
+      '/change-password',
+      locale,
+      apiClientWithRoutes({
+        '/api/v1/branding': { body: {} },
+        '/api/v1/me': {
+          get body() {
+            attempts += 1
+            return attempts === 1
+              ? { error: { code: 'internal_error', message: 'Something went wrong.' } }
+              : USER
+          },
+          get init() {
+            return { status: attempts === 1 ? 500 : 200 }
+          },
+        },
+        '/api/v1/auth/session': { body: { must_change_password: true, keep_signed_in: false } },
+      }),
+    )
+    await flushPromises()
+    expect(wrapper.get('main').text()).toContain(messages.loadError)
+
+    await wrapper.get('main button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('main h1').text()).toBe(messages.title)
+  })
+
   it('rejects mismatched passwords without calling the server', async () => {
     const wrapper = await mountApplicationAt(
       '/change-password',

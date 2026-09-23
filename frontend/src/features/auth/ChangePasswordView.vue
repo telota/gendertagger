@@ -34,6 +34,10 @@ watch(
   { immediate: true },
 )
 
+function retry(): void {
+  void session.initialize()
+}
+
 function messageFor(error: unknown): string {
   if (error instanceof ApiError) {
     switch (error.code) {
@@ -72,7 +76,13 @@ async function submit(): Promise<void> {
 <template>
   <main class="change-password">
     <h1 class="change-password-title">{{ t('changePassword.title') }}</h1>
-    <p v-if="session.status !== 'ready'" role="status">{{ t('changePassword.loading') }}</p>
+    <p v-if="session.status === 'idle' || session.status === 'loading'" role="status">
+      {{ t('changePassword.loading') }}
+    </p>
+    <div v-else-if="session.status === 'error'" class="change-password-load-error">
+      <p role="alert">{{ t('changePassword.loadError') }}</p>
+      <AppButton type="button" @click="retry">{{ t('changePassword.retry') }}</AppButton>
+    </div>
     <template v-else-if="session.isSignedIn">
       <p class="change-password-notice">{{ t('changePassword.notice') }}</p>
       <form class="change-password-form" novalidate @submit.prevent="submit">
@@ -131,6 +141,18 @@ async function submit(): Promise<void> {
 .change-password-notice {
   margin: 0 0 var(--space-6);
   color: var(--text-secondary);
+}
+
+.change-password-load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.change-password-load-error p {
+  margin: 0;
+  color: var(--critical);
 }
 
 .change-password-form {

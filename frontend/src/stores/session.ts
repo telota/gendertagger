@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-import { unwrap, type components } from '@/api'
+import { ApiError, unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
 
 export type CurrentUser = components['schemas']['CurrentUser']
@@ -29,8 +29,13 @@ export const useSessionStore = defineStore('session', () => {
 
   const user = ref<CurrentUser | null>(null)
   const mustChangePassword = ref(false)
-  /** `idle` before the first `initialize()`, `loading` while it runs, `ready` once resolved either way. */
-  const status = ref<'idle' | 'loading' | 'ready'>('idle')
+  /**
+   * `idle` before the first `initialize()`, `loading` while it runs, `ready` once it resolves
+   * either signed in or ordinarily signed out, `error` if the server itself could not be reached
+   * or failed — a distinct state, since treating that as "signed out" would tell a viewer to sign
+   * in when the real problem is the server (M2 exit criterion: a server error renders correctly).
+   */
+  const status = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
 
   const isSignedIn = computed(() => user.value !== null)
 
@@ -40,12 +45,16 @@ export const useSessionStore = defineStore('session', () => {
     try {
       user.value = await unwrap(client.GET('/api/v1/me'))
       await refreshSessionFlags()
-    } catch {
-      // No valid session is the ordinary signed-out state, not a failure to surface.
-      user.value = null
-      mustChangePassword.value = false
-    } finally {
       status.value = 'ready'
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        // No valid session is the ordinary signed-out state, not a failure to surface.
+        user.value = null
+        mustChangePassword.value = false
+        status.value = 'ready'
+      } else {
+        status.value = 'error'
+      }
     }
   }
 
