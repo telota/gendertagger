@@ -4,9 +4,10 @@ from pathlib import Path
 
 import pytest
 
-_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+_BACKEND_ROOT = Path(__file__).resolve().parents[2]
+_REPOSITORY_ROOT = _BACKEND_ROOT.parent
 OPENAPI_SNAPSHOT = _REPOSITORY_ROOT / "contracts" / "openapi-v1.json"
-SNAPSHOT_SCRIPT = _REPOSITORY_ROOT / "scripts" / "update_openapi_snapshot.py"
+SNAPSHOT_SCRIPT = _BACKEND_ROOT / "scripts" / "update_openapi_snapshot.py"
 
 
 def _run_snapshot_script(*arguments: str) -> subprocess.CompletedProcess[str]:
@@ -43,7 +44,7 @@ def test_snapshot_check_rejects_a_missing_or_stale_snapshot_and_names_both_fixes
 
     assert result.returncode == 1
     assert "scripts/update_openapi_snapshot.py" in result.stdout
-    assert "npm --prefix frontend run api:generate" in result.stdout
+    assert "npm --prefix ../frontend run api:generate" in result.stdout
 
 
 def test_snapshot_update_writes_the_committed_rendering(tmp_path: Path) -> None:

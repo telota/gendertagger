@@ -45,8 +45,8 @@ the phased plan that resumes application code.
   and the semantic distinction between `unknown`, `abstain`, and `error`.
 - Repository policy gates: `scripts/check_documentation.py`, `scripts/check_contract_naming.py`,
   `scripts/check_package_initializers.py`, and `scripts/check_distribution.py`.
-- Test scaffold under [`tests/`](tests/) with a packaging smoke test and policy-script regression tests.
-- A validated example run configuration at [`config/example.yaml`](config/example.yaml), plus deployment,
+- Test scaffold under [`tests/`](backend/tests/) with a packaging smoke test and policy-script regression tests.
+- A validated example run configuration at [`config/example.yaml`](backend/config/example.yaml), plus deployment,
   frontend, and persistence placeholders in [`frontend/README.md`](frontend/README.md), `migrations/`, and
   `deploy/`.
 - Reproducible dependency management via `uv.lock`, hatchling builds, and PEP 735 dependency groups.
@@ -159,6 +159,11 @@ the phased plan that resumes application code.
 
 ### Changed
 
+- The Python project moved into [`backend/`](backend/), a sibling of `frontend/`: `src/`, `tests/`,
+  `migrations/`, `scripts/`, `config/`, `pyproject.toml`, `uv.lock`, `alembic.ini`, and the Pyright tooling.
+  Backend commands now run from `backend/`; the backend image builds from `backend/` as its context; CI,
+  pre-commit, compose, and the documentation follow. The compose-level `backup.sh`, `restore.sh`, and
+  `test_migration.sh` moved to `deploy/scripts/`. The source distribution now contains only backend files.
 - The OpenAPI snapshot moved from `tests/fixtures/openapi-v1.json` to [`contracts/`](contracts/), a neutral
   folder for artifacts both apps depend on, so the frontend no longer reads a backend test fixture.
 - The five Alembic revisions are squashed into the single baseline `20260815_0001`; a `pg_dump

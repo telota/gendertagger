@@ -11,8 +11,8 @@ differ.
 
 ## Exact schema sources
 
-The model source under [`src/gendertagger/models/`](../src/gendertagger/models/) and
-[`src/gendertagger/config/run.py`](../src/gendertagger/config/run.py) defines exact fields, constraints, and
+The model source under [`src/gendertagger/models/`](../backend/src/gendertagger/models/) and
+[`src/gendertagger/config/run.py`](../backend/src/gendertagger/config/run.py) defines exact fields, constraints, and
 defaults. Public API schemas are generated from those models into the committed
 [`OpenAPI snapshot`](../contracts/openapi-v1.json); the frontend transport is generated from that
 snapshot.

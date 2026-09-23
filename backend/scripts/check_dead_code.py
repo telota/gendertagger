@@ -11,7 +11,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-_REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+_BACKEND_ROOT = Path(__file__).resolve().parents[1]
 _SOURCE_ROOT = Path("src/gendertagger")
 
 _FRAMEWORK_DECORATORS = {
@@ -238,7 +238,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--root",
         type=Path,
-        default=_REPOSITORY_ROOT,
+        default=_BACKEND_ROOT,
         help="Repository root path to check",
     )
     parser.add_argument(

@@ -31,7 +31,7 @@ because outstanding cursors describe the traversal it defines.
 
 ## Annotation model
 
-`AnnotationCreate` in [`models/review.py`](../src/gendertagger/models/review.py) is the
+`AnnotationCreate` in [`models/review.py`](../backend/src/gendertagger/models/review.py) is the
 optimistically concurrent command that appends one human decision. It carries `snapshot_id`,
 `tei_id`, `action`, an optional `label`, an optional `comment`, an optional `aggregated_result_id`
 identifying the machine result under review, and `expected_revision`.

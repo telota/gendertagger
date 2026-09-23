@@ -5,7 +5,7 @@ Authentication is required because the system supports imports, compute jobs, an
 ## Role model
 
 Authorization is scoped to projects ([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)).
-[`models/user.py`](../src/gendertagger/models/user.py) defines two hierarchical role vocabularies.
+[`models/user.py`](../backend/src/gendertagger/models/user.py) defines two hierarchical role vocabularies.
 
 `ProjectRole` is held per project, through a membership in `project_memberships`, one role per user and
 project:
@@ -24,7 +24,7 @@ project:
 A caller's effective role in a project is `operator` for a global `admin`, otherwise its membership role,
 otherwise none.
 
-[`api/authorization.py`](../src/gendertagger/api/authorization.py) enforces this in application
+[`api/authorization.py`](../backend/src/gendertagger/api/authorization.py) enforces this in application
 dependencies rather than only hiding controls in the frontend. Each project-scoped route asks a
 `ProjectAccessGuard` for the caller's role in the project that owns the route's root identifier; every
 snapshot, run, aggregation, evaluation, and export has exactly one owning project. A resource that does not
@@ -84,7 +84,7 @@ Do not log secrets or unnecessarily duplicate sensitive source content.
 ## Browser session
 
 Authentication is provider-neutral. `AuthenticationBackend` in
-[`api/authentication.py`](../src/gendertagger/api/authentication.py) is a protocol with two
+[`api/authentication.py`](../backend/src/gendertagger/api/authentication.py) is a protocol with two
 operations, `authenticate` and `validate_csrf`. The application resolves one backend from process
 state: `create_app` installs `DatabaseAuthenticationBackend` unless the caller supplies another, and
 `RejectAllAuthenticationBackend` remains available as a backend that fails closed. Every backend
@@ -105,7 +105,7 @@ Argon2id hash of about 64 MiB, so the limit guards the API's memory as well as p
 address, not per account, and a stack reached without the gateway is not throttled; a per-username backoff
 is recorded in [`22-future-development.md`](22-future-development.md).
 
-`/api/v1` is assembled from three routers in [`api/router.py`](../src/gendertagger/api/router.py):
+`/api/v1` is assembled from three routers in [`api/router.py`](../backend/src/gendertagger/api/router.py):
 
 - Every route not listed below carries `require_csrf_protection` and `require_password_current`.
   Every request is therefore authenticated, and every unsafe method — anything outside `GET`, `HEAD`,

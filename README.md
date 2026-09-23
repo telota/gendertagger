@@ -111,7 +111,7 @@ already-registered `hivoto_lookup` artifact; run `gendertagger assets prepare-hi
 the container for its full argument list.
 
 Every preparation command prints one JSON object. Copy its `lookup_sha256` into the method's `config` in
-[`config/example.yaml`](config/example.yaml). Original source bytes and the compiled derivative are both
+[`config/example.yaml`](backend/config/example.yaml). Original source bytes and the compiled derivative are both
 retained as content-addressed artifacts. See
 [`ADR-0023`](docs/decisions/ADR-0023-content-addressed-sqlite-method-lookups.md) for provenance and
 licensing rules.
@@ -150,12 +150,12 @@ certainty tier; annotation history and a reproducible stale-revision conflict; a
 JSON-export artifacts.
 
 The safety flag is mandatory. The marker project makes an exact repeat a read-only no-op. Mounting the
-repository read-only supplies the development script and shared production-path seed helpers without adding
+backend project read-only supplies the development script and shared production-path seed helpers without adding
 them to the runtime image:
 
 ```bash
 docker compose -f compose.yaml -f compose.dev.yaml run --rm \
-  -v "$(pwd):/workspace:ro" -w /workspace api \
+  -v "$(pwd)/backend:/workspace:ro" -w /workspace api \
   python -m scripts.seed_frontend_development --confirm-development-database
 ```
 

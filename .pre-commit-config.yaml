@@ -4,91 +4,93 @@ default_install_hook_types:
   - pre-push
 default_stages: [pre-commit]
 
+# Backend hooks run in the backend/ project: `--directory backend` switches into it, while the Ruff
+# hooks use `--project backend` because pre-commit passes them file names relative to the repository root.
 repos:
   - repo: local
     hooks:
       - id: ruff-format
         name: Ruff format
-        entry: uv run --locked ruff format
+        entry: uv run --locked --project backend ruff format
         language: system
-        files: ".*\\.(?:py|pyi|ipynb)$"
+        files: "^backend/.*\\.(?:py|pyi|ipynb)$"
         require_serial: true
       - id: ruff-check
         name: Ruff lint
-        entry: uv run --locked ruff check
+        entry: uv run --locked --project backend ruff check
         language: system
-        files: ".*\\.(?:py|pyi|ipynb)$"
+        files: "^backend/.*\\.(?:py|pyi|ipynb)$"
         require_serial: true
       - id: lockfile
         name: Lockfile consistency
-        entry: uv lock --check
+        entry: uv lock --check --directory backend
         language: system
-        files: "^(?:pyproject\\.toml|uv\\.lock)$"
+        files: "^backend/(?:pyproject\\.toml|uv\\.lock)$"
         pass_filenames: false
       - id: documentation-policy
         name: Documentation policy
-        entry: uv run --locked python scripts/check_documentation.py
+        entry: uv run --locked --directory backend python scripts/check_documentation.py
         language: system
         files: >-
           (?x)^(?:
-            [^/]+\.md|docs/.*\.md|frontend/README\.md|SCAFFOLD\.json|
-            scripts/check_documentation\.py|tests/tooling/test_policy_scripts\.py
+            [^/]+\.md|docs/.*\.md|(?:frontend|backend|contracts)/README\.md|
+            backend/scripts/check_documentation\.py|backend/tests/tooling/test_policy_scripts\.py
           )$
         pass_filenames: false
       - id: contract-naming-policy
         name: Contract naming policy
-        entry: uv run --locked python scripts/check_contract_naming.py
+        entry: uv run --locked --directory backend python scripts/check_contract_naming.py
         language: system
         files: >-
-          (?x)^(?:
+          (?x)^backend/(?:
             src/gendertagger/(?:models|config)/.*\.py|
             scripts/check_contract_naming\.py|tests/tooling/test_policy_scripts\.py|pyproject\.toml
           )$
         pass_filenames: false
       - id: package-initializer-policy
         name: Package initializer policy
-        entry: uv run --locked python scripts/check_package_initializers.py
+        entry: uv run --locked --directory backend python scripts/check_package_initializers.py
         language: system
         files: >-
-          (?x)^(?:
+          (?x)^backend/(?:
             src/gendertagger/.*\.py|scripts/check_package_initializers\.py|
             tests/tooling/test_policy_scripts\.py|pyproject\.toml
           )$
         pass_filenames: false
       - id: dead-code-policy
         name: Dead code policy
-        entry: uv run --locked python scripts/check_dead_code.py
+        entry: uv run --locked --directory backend python scripts/check_dead_code.py
         language: system
         files: >-
-          (?x)^(?:
+          (?x)^backend/(?:
             src/gendertagger/.*\.py|scripts/check_dead_code\.py|
             tests/tooling/test_policy_scripts\.py|pyproject\.toml
           )$
         pass_filenames: false
       - id: mypy
         name: Strict mypy
-        entry: uv run --locked mypy
+        entry: uv run --locked --directory backend mypy
         language: system
         stages: [pre-push]
         always_run: true
         pass_filenames: false
       - id: pyright
         name: Pyright analysis
-        entry: npm run typecheck:pyright
+        entry: npm --prefix backend run typecheck:pyright
         language: system
         stages: [pre-push]
         always_run: true
         pass_filenames: false
       - id: import-linter
         name: Import boundaries
-        entry: uv run --locked lint-imports
+        entry: uv run --locked --directory backend lint-imports
         language: system
         stages: [pre-push]
         always_run: true
         pass_filenames: false
       - id: asyncio-runner
         name: Asyncio runner capabilities
-        entry: uv run --locked python scripts/check_asyncio_runner.py
+        entry: uv run --locked --directory backend python scripts/check_asyncio_runner.py
         language: system
         stages: [pre-push]
         always_run: true
@@ -96,7 +98,7 @@ repos:
       - id: fast-tests
         name: Fast tests
         entry: >-
-          uv run --locked pytest
+          uv run --locked --directory backend pytest
           -m "not integration and not postgres and not redis and not e2e and not slow and not gpu and not external"
           --hypothesis-profile=ci --cov --cov-report=term-missing --cov-report=xml
           --cov-fail-under=70

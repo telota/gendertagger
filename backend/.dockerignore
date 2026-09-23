@@ -1,4 +1,3 @@
-.git/
 .venv/
 __pycache__/
 *.pyc
@@ -7,16 +6,13 @@ __pycache__/
 .ruff_cache/
 .uv-cache/
 .coverage
+.coverage.*
 coverage.xml
 coverage-*.xml
 node_modules/
 dist/
 build/
 .env
-data/
-logs/
 .dockerignore
-docs/
-notebooks/
 tests/
 scripts/

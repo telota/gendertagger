@@ -1,10 +1,10 @@
 # Methods, normalization, aggregation, and certainty
 
 This document is **normative for the reference pipeline**. `reference_v1` is the only member of
-`AggregationStrategy` in [`gendertagger.config.run`](../src/gendertagger/config/run.py), and the
+`AggregationStrategy` in [`gendertagger.config.run`](../backend/src/gendertagger/config/run.py), and the
 behavior described here is what
-[`gendertagger.domain.aggregation`](../src/gendertagger/domain/aggregation.py) and
-[`gendertagger.domain.aggregation_assessment`](../src/gendertagger/domain/aggregation_assessment.py)
+[`gendertagger.domain.aggregation`](../backend/src/gendertagger/domain/aggregation.py) and
+[`gendertagger.domain.aggregation_assessment`](../backend/src/gendertagger/domain/aggregation_assessment.py)
 execute. Candidate alternative strategies are collected in
 [`22-future-development.md`](22-future-development.md).
 
@@ -40,7 +40,7 @@ Nine enter the published aggregation. HIVOTO-XGBoost is held out as an experimen
 
 ## Inputs
 
-`PersonInput` in [`gendertagger.models.person`](../src/gendertagger/models/person.py) carries, where
+`PersonInput` in [`gendertagger.models.person`](../backend/src/gendertagger/models/person.py) carries, where
 available:
 
 - `tei_id` (the source `xml:id`)
@@ -224,7 +224,7 @@ An authority override records the share of comparison methods agreeing with it. 
 is 1.0 and its tier is `single_rater`, not `unanimous`. A no-data result has a null score and `no_answer`.
 
 Pairwise Cohen's kappa is an evaluation metric, implemented in
-[`gendertagger.evaluation.kappa`](../src/gendertagger/evaluation/kappa.py) over records where both
+[`gendertagger.evaluation.kappa`](../backend/src/gendertagger/evaluation/kappa.py) over records where both
 methods provide successful answers; it is not part of the per-record aggregation result.
 
 ## Pipeline certainty tiers

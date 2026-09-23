@@ -4,8 +4,8 @@ This document outlines the Standard Operating Procedure (SOP) for promoting a te
 
 ## Prerequisites
 1. **Immutable Artifacts**: Ensure the target commit has been built by GitLab CI and the Docker images (`backend`, `frontend`) are pushed to the container registry with explicit tags (e.g., `v1.2.3`).
-2. **Database Backup**: A fresh backup of the PostgreSQL database and the artifacts volume must be taken immediately before deployment. Use the `scripts/backup.sh` script.
-3. **Migration Rehearsal**: The migration must have been successfully rehearsed against a staging environment or using the `scripts/test_migration.sh` script. That script drives an isolated `gendertagger-migration-test` Compose project from `compose.yaml` plus `compose.test.yaml`, booting the previous release's database (`PREVIOUS_RELEASE_TAG`) before applying the current release's migrations (`CURRENT_RELEASE_TAG`).
+2. **Database Backup**: A fresh backup of the PostgreSQL database and the artifacts volume must be taken immediately before deployment. Use the `deploy/scripts/backup.sh` script.
+3. **Migration Rehearsal**: The migration must have been successfully rehearsed against a staging environment or using the `deploy/scripts/test_migration.sh` script. That script drives an isolated `gendertagger-migration-test` Compose project from `compose.yaml` plus `compose.test.yaml`, booting the previous release's database (`PREVIOUS_RELEASE_TAG`) before applying the current release's migrations (`CURRENT_RELEASE_TAG`).
 
 ## Promotion Steps
 
@@ -52,5 +52,5 @@ Wait a few moments for the startup sequence to complete, then test the external 
 If the health checks fail or critical errors are identified:
 1. Revert the `.env` file to the previous `TAG`.
 2. Stop the current deployment: `docker compose -f compose.yaml -f compose.prod.yaml down`.
-3. Restore the pre-deployment database backup using `scripts/restore.sh`.
+3. Restore the pre-deployment database backup using `deploy/scripts/restore.sh`.
 4. Bring up the previous release: `docker compose -f compose.yaml -f compose.prod.yaml up -d`.

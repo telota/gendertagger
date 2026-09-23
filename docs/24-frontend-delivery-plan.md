@@ -47,7 +47,7 @@ Deployment and CI already anticipate the client. Reusing it correctly is cheaper
 **Delivered by M1.**
 
 - [`deploy/docker/frontend.Dockerfile`](../deploy/docker/frontend.Dockerfile) now runs `npm ci` and
-  `npm run build` from `frontend/package.json` and its lockfile, separate from the root `package.json`,
+  `npm run build` from `frontend/package.json` and its lockfile, separate from `backend/package.json`,
   which exists only for Pyright. Node is pinned by version and digest and agrees with `engines`.
 - The production stage serves the build with a history-mode fallback
   ([`frontend/nginx/default.conf`](../frontend/nginx/default.conf)), decision D13.
@@ -241,7 +241,7 @@ contract change fails CI.
   merged.
 - The backend prerequisite for the item above: `GET /api/v1/branding` and `GET /api/v1/branding/logo`
   ([ADR-0036](decisions/ADR-0036-institution-branding-configuration.md)). **Delivered**, unauthenticated and
-  needing no grant, both registered in the route-coverage check in `tests/api/test_authorization.py`.
+  needing no grant, both registered in the route-coverage check in `backend/tests/api/test_authorization.py`.
 
 **Exit criterion.** A viewer, reviewer, and operator each see a correctly scoped shell in both locales and
 both themes; an expired session and a server error both render correctly.

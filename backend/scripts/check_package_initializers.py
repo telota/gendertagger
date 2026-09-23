@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-_REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+_BACKEND_ROOT = Path(__file__).resolve().parents[1]
 _PACKAGE_ROOTS = (Path("src/gendertagger"),)
 
 
@@ -121,7 +121,7 @@ def check_tree(root: Path) -> list[Diagnostic]:
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the package-initializer policy check."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", type=Path, default=_REPOSITORY_ROOT)
+    parser.add_argument("--root", type=Path, default=_BACKEND_ROOT)
     args = parser.parse_args(argv)
 
     diagnostics = check_tree(args.root)

@@ -16,7 +16,7 @@ client: [`24-frontend-delivery-plan.md`](../24-frontend-delivery-plan.md) record
 provider as D1, the last blocking decision, and its own recommendation was to implement a local account
 backend now and treat institutional OIDC/SSO as a later, contained backend swap rather than wait on it.
 
-`UserRow` ([`db/reviews.py`](../../src/gendertagger/db/rows/users.py)) already models a provider-neutral user
+`UserRow` ([`db/reviews.py`](../../backend/src/gendertagger/db/rows/users.py)) already models a provider-neutral user
 with global roles ([`13-auth-and-security.md`](../13-auth-and-security.md)) but carries no credential or
 session concept, deliberately — those are provider-specific.
 

@@ -47,7 +47,8 @@ established contract-first architecture when extending later phases.
 - pytest
 - Vue 3 + TypeScript + Vite
 
-Direct dependency constraints live in `pyproject.toml`, and `uv.lock` records the resolved environment. Keep
+Direct dependency constraints live in `backend/pyproject.toml`, and `backend/uv.lock` records the resolved
+environment. Keep
 both current when dependencies change and record the exact resolved environment in run provenance.
 
 ## Engineering quality gates

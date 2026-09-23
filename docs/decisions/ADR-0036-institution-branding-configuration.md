@@ -25,7 +25,7 @@ tag cannot rebuild it with their own institutional facts baked in, so those fact
 JavaScript.
 
 The backend already solves exactly this problem for every other piece of deployment-specific configuration:
-`AppSettings` ([`api/settings.py`](../../src/gendertagger/api/settings.py)) reads validated
+`AppSettings` ([`api/settings.py`](../../backend/src/gendertagger/api/settings.py)) reads validated
 `GENDERTAGGER_*` environment variables at process start, so an operator configures a deployment by setting
 variables, not by rebuilding an image. Rule 2 of [`AGENTS.md`](../../AGENTS.md) also makes FastAPI the
 canonical public interface; a second, frontend-only configuration channel (for example, an nginx

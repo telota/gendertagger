@@ -6,8 +6,8 @@ PostgreSQL is the durable source of truth for application state, scientific resu
 provenance metadata. Redis is a broker and operational coordination service, never durable scientific
 storage.
 
-SQLAlchemy 2.x mappings live under [`src/gendertagger/db/`](../src/gendertagger/db/), and Alembic migrations
-under [`migrations/`](../migrations/) define the exact tables, columns, constraints, indexes, and triggers.
+SQLAlchemy 2.x mappings live under [`src/gendertagger/db/`](../backend/src/gendertagger/db/), and Alembic migrations
+under [`migrations/`](../backend/migrations/) define the exact tables, columns, constraints, indexes, and triggers.
 The application refuses a non-PostgreSQL database because its integrity model depends on PostgreSQL behavior.
 
 This document records persistence boundaries and invariants rather than duplicating the current schema.

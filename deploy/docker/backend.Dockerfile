@@ -1,3 +1,5 @@
+# The build context is the `backend/` directory (compose.dev.yaml and the CI image job both use it),
+# so every COPY below is relative to the Python project root.
 FROM python:3.12-slim-bookworm AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /uvx /bin/
 

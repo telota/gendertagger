@@ -144,7 +144,7 @@ Maintain two explicit oracles:
 Differences between them require an explicit expectation and, when scientific semantics change, a design
 update and ADR. Tests never regenerate expected output as part of their normal execution.
 
-Phase 1 freezes these oracles under `tests/fixtures/scientific/`:
+Phase 1 freezes these oracles under `backend/tests/fixtures/scientific/`:
 
 - `legacy_characterization.json` contains ten approved observed cases, source artifact hashes, raw method
   labels, LLM self-certainty, and legacy aggregate outputs;
@@ -163,7 +163,7 @@ clean migration to head and the absence of unexpected model-versus-migration dri
 
 ## Property tests
 
-Hypothesis is a locked development dependency and `tests/conftest.py` registers its execution profiles, but
+Hypothesis is a locked development dependency and `backend/tests/conftest.py` registers its execution profiles, but
 no `@given` property tests exist yet. The invariants that would most repay property coverage — batch and
 delivery idempotency, aggregation immutability, and abstention semantics — are recorded in
 [`22-future-development.md`](22-future-development.md). They are currently covered by
@@ -188,7 +188,7 @@ Backend contract tests cover:
 - `/api/v1/me` authorization behavior;
 - production CORS defaults and explicit development origin behavior.
 
-The OpenAPI contract test runs `scripts/update_openapi_snapshot.py --check`, so the snapshot has a single
+The OpenAPI contract test runs `backend/scripts/update_openapi_snapshot.py --check`, so the snapshot has a single
 rendering and a failure names the command that fixes it. The frontend's TypeScript transport types are
 generated from the committed snapshot, and the `frontend_quality` CI job fails when they drift from it
 (`npm run api:check`).

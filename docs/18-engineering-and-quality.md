@@ -10,7 +10,7 @@ does not precede a deployable, tested vertical slice.
 
 - Hatchling builds the Python distribution.
 - uv resolves and installs dependencies. Commit `uv.lock`; CI uses only locked installs.
-- npm installs the official Pyright CLI from the committed root `package-lock.json`; Node.js is a development
+- npm installs the official Pyright CLI from the committed `backend/package-lock.json`; Node.js is a development
   runtime and does not enter the Python package metadata.
 - The Vue client has its own `frontend/package.json` and `frontend/package-lock.json`. Its `.npmrc` sets
   `engine-strict=true`, so `npm ci` in `frontend/` needs the Node version in its `engines` field.
@@ -29,7 +29,7 @@ feedback mechanism.
 
 - Ruff owns formatting, import sorting, and linting. Do not hand-format around it.
 - Ruff enforces Python naming, built-in shadowing, and Google-style public docstrings. Repository-specific
-  Pydantic/config field vocabulary is checked by `scripts/check_contract_naming.py`.
+  Pydantic/config field vocabulary is checked by `backend/scripts/check_contract_naming.py`.
 - Ruff also rejects blind `except Exception` handlers, boolean positional parameters, unused arguments,
   commented-out code, unnamed numeric literals in comparisons, and functions above McCabe complexity 15.
   Name thresholds that carry scientific meaning once, next to the ADR that defines them. A handler that turns
@@ -37,10 +37,10 @@ feedback mechanism.
   Lower the complexity limit toward 10 as code is refactored rather than raising it.
 - Regular production packages use explicit, docstring-only initializers. The package-initializer policy rejects
   re-exports, assignments, runtime setup, and accidental namespace packages.
-- Strict mypy applies to `src/`, `tests/`, and `scripts/`. Public contracts, service boundaries,
+- Strict mypy applies to the backend's `src/`, `tests/`, and `scripts/`. Public contracts, service boundaries,
   repositories, and adapters must be fully typed. Confine `Any` to inspected raw external payloads.
-- Pyright runs as a complementary required analysis over `src/`, `tests/`, and `scripts`, using the checked-in
-  configuration that Pylance also understands. Pylance itself remains an editor integration rather than a
+- Pyright runs as a complementary required analysis over the same backend `src/`, `tests/`, and `scripts/`,
+  using the checked-in configuration that Pylance also understands. Pylance itself remains an editor integration rather than a
   headless CI dependency. The CI environment provides all classification method dependencies so all imports
   are resolved rather than hidden by missing-import suppressions.
 - Suppressions must name the exact rule/error code and explain why the exception is safe.
@@ -158,10 +158,10 @@ and prevent direct pushes. Add `CODEOWNERS` entries once the actual GitLab user/
 The repository cannot encode those GitLab permissions by itself; they are part of project setup and should be
 verified before accepting implementation merge requests.
 
-`scripts/check_documentation.py` scans only maintained documentation roots, so ignored migration material and
+`backend/scripts/check_documentation.py` scans only maintained documentation roots, so ignored migration material and
 tool caches are never traversed. It validates local links offline; external-link availability is intentionally
-not a merge-request gate. `scripts/check_contract_naming.py` is restricted to annotated canonical/config model
+not a merge-request gate. `backend/scripts/check_contract_naming.py` is restricted to annotated canonical/config model
 fields, leaving ordinary local naming to Ruff and review.
-`scripts/check_package_initializers.py` keeps imports and behavior in defining modules rather than hiding them
-behind package import side effects. `scripts/check_dead_code.py` prevents orphan symbols and dead code from
-accumulating in `src/gendertagger`.
+`backend/scripts/check_package_initializers.py` keeps imports and behavior in defining modules rather than hiding them
+behind package import side effects. `backend/scripts/check_dead_code.py` prevents orphan symbols and dead code from
+accumulating in `backend/src/gendertagger`.

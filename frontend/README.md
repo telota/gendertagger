@@ -49,8 +49,9 @@ Run from the repository root with `npm --prefix frontend run <script>`, or from 
 [`contracts/openapi-v1.json`](../contracts/openapi-v1.json). The backend contract test already fails
 when the live FastAPI schema differs from that snapshot, so a contract change follows one path:
 
-1. update the snapshot in the backend change with `uv run --locked python scripts/update_openapi_snapshot.py`;
-2. run `npm --prefix frontend run api:generate`;
+1. update the snapshot in the backend change with `uv run --locked python scripts/update_openapi_snapshot.py`,
+   run from `backend/`;
+2. run `npm --prefix frontend run api:generate` from the repository root;
 3. commit the regenerated `schema.d.ts` with it.
 
 `api:check` runs in CI and fails when step 2 was skipped. `src/api/` is the only place that issues HTTP: the

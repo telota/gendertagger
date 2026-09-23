@@ -111,8 +111,8 @@ reference projected into TEI output.
 ## Export manifest
 
 Every export persists a machine-readable `ExportManifest`
-([`models/export.py`](../src/gendertagger/models/export.py), assembled by
-[`export/manifest.py`](../src/gendertagger/export/manifest.py)) alongside its output artifacts:
+([`models/export.py`](../backend/src/gendertagger/models/export.py), assembled by
+[`export/manifest.py`](../backend/src/gendertagger/export/manifest.py)) alongside its output artifacts:
 
 - `version`, the manifest format version (currently `1`); any change to the persisted fields requires a new
   version, as for the source manifest

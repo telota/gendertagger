@@ -183,7 +183,7 @@ pill, person counts, progress bar, percentage, and relative last-edited time; pl
 card opening the creation modal.
 
 **Backend.** `POST /projects` creates a project from `slug` (pattern `^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$`),
-`display_name`, and optional `description` ([`models/project.py`](../src/gendertagger/models/project.py)).
+`display_name`, and optional `description` ([`models/project.py`](../backend/src/gendertagger/models/project.py)).
 `GET /projects` serves the grid and the topbar switcher: a cursor-paginated list, in slug order, of the
 projects where the caller has a role, each carrying `current_user_role`. Team membership is per project, as
 the wireframe intends ([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)).
@@ -212,7 +212,7 @@ tier, agreement tier, current review state, final label, and review action, so "
 (`high`), both "Zur Prüfung" queues, "Manuell annotiert" (`reviewed`), and the "wo kamen die fertigen
 Einträge her" breakdown (verified vs. corrected, via `review_action`) all read from one request, and
 `last_annotated_at` covers "bearbeitet vor 2 Min." `EnsembleMetrics` in
-[`models/evaluation.py`](../src/gendertagger/models/evaluation.py) remains the source for
+[`models/evaluation.py`](../backend/src/gendertagger/models/evaluation.py) remains the source for
 `canonical_label_distribution` inside a completed evaluation report, where the case-study statistics live.
 
 **Gaps.**
@@ -235,7 +235,7 @@ box with a static slider and a preview callout; and a "Klassifikation jetzt star
 
 **Backend.** `POST /projects/{project_id}/snapshots` is multipart, accepts repeated `source` parts, and takes
 `source_format` and `packaging` form fields
-([`api/routes/projects.py`](../src/gendertagger/api/routes/projects.py)). It returns `202 Accepted` with a pending
+([`api/routes/projects.py`](../backend/src/gendertagger/api/routes/projects.py)). It returns `202 Accepted` with a pending
 `DatasetSnapshot`; the client then polls `GET /snapshots/{id}` for `status`, `record_count`, and
 `failure_diagnostic`.
 
@@ -271,7 +271,7 @@ and bar; and a run-history table with a retry link and a failure explanation.
 **Backend.** `POST /runs` takes `dataset_snapshot_id` and a full `RunConfig`; `POST /runs/{id}/executions`
 schedules it; `GET /runs/{id}` and `GET /runs/{id}/executions` return state and per-method
 `MethodExecutionSummary`; `GET /runs/{id}/events` streams six SSE event types
-([`api/routes/run_events.py`](../src/gendertagger/api/routes/run_events.py)). `GET /snapshots/{id}/runs` lists a snapshot's
+([`api/routes/run_events.py`](../backend/src/gendertagger/api/routes/run_events.py)). `GET /snapshots/{id}/runs` lists a snapshot's
 runs newest first, and `GET /runs/{id}/aggregations` lists a run's aggregations the same way. Repeating the
 default aggregation request returns the existing live or completed aggregation with `200` rather than queueing
 another ([ADR-0034](decisions/ADR-0034-reuse-matching-aggregation-on-creation.md)).
@@ -281,7 +281,7 @@ another ([ADR-0034](decisions/ADR-0034-reuse-matching-aggregation-on-creation.md
 - **Gap (frontend):** SSE is delivered and unused. The wireframe is fully static; live progress is the single
   highest-value addition on this screen.
 - **Gap (frontend):** the method roster is wrong. Ten adapters are registered in
-  [`services/method_registry.py`](../src/gendertagger/services/method_registry.py) —
+  [`services/method_registry.py`](../backend/src/gendertagger/services/method_registry.py) —
   `parenthetical_qualifier`, `gnd`, `gender_guesser`, `wiki_gendersort`, `hivoto`, `nomquamgender`,
   `hf_distilbert`, `hf_genderize`, `hivoto_xgboost`, `local_llm` — and all are returned by `GET /methods`.
   The wireframe shows nine chips under different names, omits `wiki_gendersort` and
@@ -312,7 +312,7 @@ detail column (name, reason line, TEI snippet, per-method result cards with labe
 bars, and a four-button action bar with keyboard hints 1–4).
 
 **Backend.** `GET /review-items` takes a `ReviewItemQuery` and returns a `CursorPage[ReviewItem]`
-([`models/review.py`](../src/gendertagger/models/review.py)). `POST /annotations` appends one decision.
+([`models/review.py`](../backend/src/gendertagger/models/review.py)). `POST /annotations` appends one decision.
 
 **Gaps.**
 
@@ -410,7 +410,7 @@ a pairwise `KappaCell` matrix, and optional `EnsembleMetrics`.
   alongside `accuracy`; `abstain_count` and `error_count` per method; benchmark size and class composition;
   and the full `EnsembleMetrics` tier distributions.
 - **Gap (backend):** "Fleiss' κ (Team)" is computed nowhere.
-  [`evaluation/kappa.py`](../src/gendertagger/evaluation/kappa.py) computes pairwise **Cohen's** κ between
+  [`evaluation/kappa.py`](../backend/src/gendertagger/evaluation/kappa.py) computes pairwise **Cohen's** κ between
   *methods*, not inter-annotator agreement between people.
 - **Gap (backend):** "Ø Konfidenz" per method contradicts rule 10 in [`AGENTS.md`](../AGENTS.md) —
   `method_confidence` is method-specific and must not be presented as comparable across methods.
@@ -430,7 +430,7 @@ toggle, interval); gamification (visibility toggle, collapsed-by-default toggle)
 
 - **Gap (backend):** **none of the eight settings is persistable.** There is no settings resource, no project
   configuration endpoint, no user-preference endpoint.
-  [`api/settings.py`](../src/gendertagger/api/settings.py) is deployment configuration read from the
+  [`api/settings.py`](../backend/src/gendertagger/api/settings.py) is deployment configuration read from the
   environment, not user-editable state.
 - This screen is the clearest candidate to defer entirely from v1 or to reduce to read-only deployment facts.
 
@@ -514,7 +514,7 @@ Authentication is fail-closed: every `/api/v1` route except `POST /auth/login` c
 `require_csrf_protection`, and the default backend is the local account system from
 [ADR-0031](decisions/ADR-0031-local-database-authentication.md). Project roles are hierarchical — `viewer` <
 `reviewer` < `operator` — and held per project; the global roles are `operator`, which may create projects,
-and `admin` ([`api/authorization.py`](../src/gendertagger/api/authorization.py),
+and `admin` ([`api/authorization.py`](../backend/src/gendertagger/api/authorization.py),
 [ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)). The wireframe has
 no login, no session handling, and no role-conditional affordances; per
 [`17-frontend-integration.md`](17-frontend-integration.md) the UI hides or disables controls for convenience

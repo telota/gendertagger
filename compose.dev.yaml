@@ -11,11 +11,11 @@ services:
 
   api:
     build:
-      context: .
-      dockerfile: deploy/docker/backend.Dockerfile
+      context: ./backend
+      dockerfile: ../deploy/docker/backend.Dockerfile
     command: ["uvicorn", "gendertagger.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     volumes:
-      - ./src:/app/src
+      - ./backend/src:/app/src
     ports:
       - "127.0.0.1:8000:8000"
     environment:
@@ -26,48 +26,48 @@ services:
 
   worker-cpu:
     build:
-      context: .
-      dockerfile: deploy/docker/backend.Dockerfile
+      context: ./backend
+      dockerfile: ../deploy/docker/backend.Dockerfile
     volumes:
-      - ./src:/app/src
+      - ./backend/src:/app/src
     environment:
       LOG_FORMAT: text
       GENDERTAGGER_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-gendertagger}
 
   worker-gpu:
     build:
-      context: .
-      dockerfile: deploy/docker/backend.Dockerfile
+      context: ./backend
+      dockerfile: ../deploy/docker/backend.Dockerfile
     volumes:
-      - ./src:/app/src
+      - ./backend/src:/app/src
     environment:
       LOG_FORMAT: text
 
   worker-llm:
     build:
-      context: .
-      dockerfile: deploy/docker/backend.Dockerfile
+      context: ./backend
+      dockerfile: ../deploy/docker/backend.Dockerfile
     volumes:
-      - ./src:/app/src
+      - ./backend/src:/app/src
     environment:
       LOG_FORMAT: text
       LLM_BASE_URL: ${LLM_BASE_URL:-}
 
   worker-external:
     build:
-      context: .
-      dockerfile: deploy/docker/backend.Dockerfile
+      context: ./backend
+      dockerfile: ../deploy/docker/backend.Dockerfile
     volumes:
-      - ./src:/app/src
+      - ./backend/src:/app/src
     environment:
       LOG_FORMAT: text
 
   migrate:
     build:
-      context: .
-      dockerfile: deploy/docker/backend.Dockerfile
+      context: ./backend
+      dockerfile: ../deploy/docker/backend.Dockerfile
     volumes:
-      - ./src:/app/src
+      - ./backend/src:/app/src
     environment:
       LOG_FORMAT: text
 

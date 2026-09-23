@@ -44,14 +44,10 @@ packages = ["src/gendertagger"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-  "/AGENTS.md",
-  "/CHANGELOG.md",
-  "/CONTRIBUTING.md",
   "/LICENSE",
   "/README.md",
+  "/alembic.ini",
   "/config/example.yaml",
-  "/docs",
-  "/frontend/README.md",
   "/migrations",
   "/package-lock.json",
   "/package.json",

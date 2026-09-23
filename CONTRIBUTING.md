@@ -6,15 +6,20 @@ to implement.
 
 ## Development setup
 
-Install [uv](https://docs.astral.sh/uv/) at the version required by `pyproject.toml` and Node.js 18 or
-newer, then run:
+The repository holds two applications: the Python backend in `backend/` and the Vue client in `frontend/`.
+The OpenAPI snapshot both depend on lives in `contracts/`. Backend commands run from `backend/`, the Python
+project root; frontend commands run from the repository root with `npm --prefix frontend`.
+
+Install [uv](https://docs.astral.sh/uv/) at the version required by `backend/pyproject.toml` and Node.js 18
+or newer, then run:
 
 ```bash
+cd backend
 uv sync --locked
-npm ci --ignore-scripts --no-audit --no-fund
+npm ci --ignore-scripts --no-audit --no-fund   # the pinned Pyright CLI
 ```
 
-After the Git repository has been initialized, install the local hooks:
+After the Git repository has been initialized, install the local hooks (still from `backend/`):
 
 ```bash
 uv run --locked pre-commit install --install-hooks
@@ -26,9 +31,10 @@ CI remains authoritative.
 
 ## Required checks
 
-Run the same checks CI runs before opening a merge request:
+Run the same checks CI runs before opening a merge request. The backend checks run from `backend/`:
 
 ```bash
+cd backend
 uv lock --check
 uv run --locked python scripts/check_documentation.py
 uv run --locked python scripts/check_contract_naming.py
@@ -73,7 +79,7 @@ uv run --locked python scripts/check_distribution.py dist/*
 ```
 
 The Vue client has its own lockfile and requires the Node version in `frontend/package.json` `engines`. Its CI
-jobs run:
+jobs run, from the repository root:
 
 ```bash
 npm --prefix frontend ci
@@ -87,11 +93,12 @@ npm --prefix frontend test
 npm --prefix frontend run build
 ```
 
-A backend contract change is two commands, and both outputs are committed with the change:
+A backend contract change is two commands, both run from `backend/`, and both outputs are committed with
+the change:
 
 ```bash
 uv run --locked python scripts/update_openapi_snapshot.py   # contracts/openapi-v1.json
-npm --prefix frontend run api:generate                      # frontend/src/api/schema.d.ts
+npm --prefix ../frontend run api:generate                   # frontend/src/api/schema.d.ts
 ```
 
 Review the snapshot diff as a public contract change. The backend contract test fails when the first step
@@ -108,7 +115,8 @@ The 70% fast-suite threshold is a quick non-regression signal. It does not repla
 combined report also requires 100% branch coverage for normalization, reference aggregation, certainty
 assessment, and TEI projection. Every partial suite remains independently blocking on test failures.
 
-Use `uv run --locked pre-commit run --all-files` to exercise all pre-commit-stage hooks manually.
+From `backend/`, use `uv run --locked pre-commit run --all-files` to exercise all pre-commit-stage hooks
+manually.
 Use `uv run --locked pre-commit run --all-files --hook-stage pre-push` to exercise the mypy/Pyright,
 import-boundary, runner-capability, and fast-test hooks without pushing.
 
@@ -151,7 +159,7 @@ Any difference between them must be intentional and documented.
 
 Only synthetic or explicitly cleared, licensed fixtures may enter Git. Never commit source editorial
 data, databases, model weights, secrets, runtime artifacts, or anything under `__scrap/`. Raw source
-fixtures whose byte hash is tested belong under `tests/fixtures/raw/`; expected scientific outputs
+fixtures whose byte hash is tested belong under `backend/tests/fixtures/raw/`; expected scientific outputs
 must not be regenerated during an ordinary test run.
 
 See `docs/18-engineering-and-quality.md` for the full engineering policy and

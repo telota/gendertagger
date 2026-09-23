@@ -125,9 +125,10 @@ the same merge request.
 
 ## Automated validation
 
-Run the policy gates directly with:
+Run the policy gates directly from `backend/` with:
 
 ```bash
+cd backend
 uv run --locked ruff check .
 uv run --locked python scripts/check_contract_naming.py
 uv run --locked python scripts/check_package_initializers.py
