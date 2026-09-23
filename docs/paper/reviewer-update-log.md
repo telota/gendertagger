@@ -441,3 +441,20 @@ Reproducibility.
 **Response to the reviewer:** We replaced the section symbol with the explicit word "Section."
 
 **Status:** Addressed in the local working tree; I25 is marked complete.
+
+## 2026-09-23: Reviewer I26 - AI-use disclosure
+
+**Request:** Identify the models used and their purposes for both writing assistance and code
+generation.
+
+**Changes:** Replaced the generic AI-use declaration in [article.tex](article.tex) with the
+approved wording. It names Anthropic's Claude Opus models (versions 4.5-5) and Sonnet variants,
+OpenAI's GPT models (versions 5.1-5.5), and Google's Gemini Pro and Flash models, including
+Gemini 3.5 Flash. It specifies spelling, grammar, and phrasing suggestions during manuscript
+preparation and code generation within agentic coding workflows during software development.
+
+**Response to the reviewer:** We expanded the AI-use declaration to identify the model families
+and version ranges confirmed by the authors and to state their purposes for manuscript
+preparation and software development.
+
+**Status:** Addressed in the local working tree; I26 is marked complete.

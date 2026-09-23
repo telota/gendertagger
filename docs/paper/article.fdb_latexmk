@@ -1,14 +1,14 @@
 # Fdb version 4
-["bibtex article"] 1790198362.20032 "article.aux" "article.bbl" "article" 1790198631.52257 0
+["bibtex article"] 1790199477.7331 "article.aux" "article.bbl" "article" 1790199478.39379 0
   "./eceasst.bst" 1790188604.83197 26107 18417fe77bfecbb5140f1d47333ae01a ""
   "./gendertagger.bib" 1790197817.13756 36689 04ab4b60fda0f11280df45fe9ff133ea ""
-  "article.aux" 1790198631.44991 14916 200bc4c0d98e1327f770e1434c51da68 "pdflatex"
+  "article.aux" 1790199478.32209 14916 4bd66eac7f7748210878545524a641ca "pdflatex"
   (generated)
   "article.bbl"
   "article.blg"
   (rewritten before read)
-["pdflatex"] 1790198630.84917 "/home/westphal/Projekte/BBAW/gendertagger/repo/gendertagger/docs/paper/article.tex" "article.pdf" "article" 1790198631.52271 0
-  "/home/westphal/Projekte/BBAW/gendertagger/repo/gendertagger/docs/paper/article.tex" 1790198630.61041 70531 4ffe0e90bee9f05964f8100359a85bc8 ""
+["pdflatex"] 1790199477.74842 "/home/westphal/Projekte/BBAW/gendertagger/repo/gendertagger/docs/paper/article.tex" "article.pdf" "article" 1790199478.39393 0
+  "/home/westphal/Projekte/BBAW/gendertagger/repo/gendertagger/docs/paper/article.tex" 1790199476.74458 70759 0c0b6b5f36ef679c03126c4a253f14d9 ""
   "/usr/share/texmf-dist/fonts/enc/dvips/base/8r.enc" 1775415801 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrb7t.tfm" 1775415801 960 4ab65358b8406f30ef5496c8c096d22b ""
   "/usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrb8r.tfm" 1775415801 1292 3059476c50a24578715759f22652f3d0 ""
@@ -199,10 +199,10 @@
   "/usr/share/texmf-dist/web2c/texmf.cnf" 1775415801 43569 fd570f2fa160877d211e859f687312ba ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1780595439 325445 e037c2d0d08ad8cbac81cfa7969967b5 ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1780595438 2809891 6fb0a3c3b8c632bc1effcbe43d160913 ""
-  "article.aux" 1790198631.44991 14916 200bc4c0d98e1327f770e1434c51da68 "pdflatex"
-  "article.bbl" 1790198362.20723 5061 092630075a9ae4bfae4ea7562ec34c1f "bibtex article"
-  "article.out" 1790198631.45215 5301 e12446d15e2ac7f295e4f6bde432a6a5 "pdflatex"
-  "article.tex" 1790198630.61041 70531 4ffe0e90bee9f05964f8100359a85bc8 ""
+  "article.aux" 1790199478.32209 14916 4bd66eac7f7748210878545524a641ca "pdflatex"
+  "article.bbl" 1790199477.74544 5061 092630075a9ae4bfae4ea7562ec34c1f "bibtex article"
+  "article.out" 1790199478.32446 5301 e12446d15e2ac7f295e4f6bde432a6a5 "pdflatex"
+  "article.tex" 1790199476.74458 70759 0c0b6b5f36ef679c03126c4a253f14d9 ""
   "easst.pdf" 1790188604.83191 18460 c04bf8a8a8bdafee992ff1a84ca7f602 ""
   "eceasst.cls" 1790188604.83197 9356 15a9c86faf8a508cb177465e1e3902bf ""
   "figures/gender_coverage_pies.png" 1790188604.83283 186134 80922b38d58fd2ff664015dc98f73bfe ""

@@ -67,7 +67,7 @@ Source: [Reviewer C's annotated PDF](C-klappenbach,neuber,westphal_2026_genderta
 - [x] **I24 - Footnotes 9 and 10:** Add access dates or convert them into bibliography entries
   for software visibility.
 - [x] **I25 - Line 551:** Clarify "§4," for example by writing "Section 4."
-- [ ] **I26 - Line 588:** Identify the model names and purposes for both writing assistance and
+- [x] **I26 - Line 588:** Identify the model names and purposes for both writing assistance and
   code generation.
 - [x] **I27 - Footnotes 11-14:** Add access dates.
 - [x] **I28 - Bibliography:** Use either a DOI or a URL for each reference, avoiding duplicate links.
