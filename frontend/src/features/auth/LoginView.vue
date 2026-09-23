@@ -1,40 +1,26 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
-import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
 import AppTextField from '@/components/base/AppTextField.vue'
 import { useSessionStore } from '@/stores/session'
+
+import { useLoginForm } from './useLoginForm'
 
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
-
-const username = ref('')
-const password = ref('')
-const keepSignedIn = ref(false)
-const isSubmitting = ref(false)
-const errorMessage = ref<string | null>(null)
-const submitLabel = computed(() => (isSubmitting.value ? t('login.submitting') : t('login.submit')))
-
-function messageFor(error: unknown): string {
-  if (error instanceof ApiError) {
-    switch (error.code) {
-      case 'invalid_credentials':
-        return t('login.errors.invalidCredentials')
-      case 'rate_limited':
-        return t('login.errors.rateLimited')
-      case 'validation_error':
-        return t('login.errors.validation')
-      case 'network_error':
-        return t('login.errors.network')
-    }
-  }
-  return t('login.errors.generic')
-}
+const {
+  username,
+  password,
+  keepSignedIn,
+  isSubmitting,
+  errorMessage,
+  submitLabel,
+  submit: attemptLogin,
+} = useLoginForm()
 
 function redirectTarget(): string {
   const redirect = route.query.redirect
@@ -42,19 +28,9 @@ function redirectTarget(): string {
 }
 
 async function submit(): Promise<void> {
-  errorMessage.value = null
-  isSubmitting.value = true
-  try {
-    await session.login({
-      username: username.value,
-      password: password.value,
-      keepSignedIn: keepSignedIn.value,
-    })
+  const succeeded = await attemptLogin()
+  if (succeeded) {
     await router.push(session.mustChangePassword ? { name: 'changePassword' } : redirectTarget())
-  } catch (error) {
-    errorMessage.value = messageFor(error)
-  } finally {
-    isSubmitting.value = false
   }
 }
 </script>

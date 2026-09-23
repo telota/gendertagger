@@ -96,6 +96,102 @@ describe('createApiClient', () => {
   })
 })
 
+describe('createApiClient onUnauthorized', () => {
+  function setupWithRecovery(
+    respond: (request: Request, callNumber: number) => Response | Promise<Response>,
+    onUnauthorized: (request: Request) => Promise<void>,
+  ) {
+    const requests: Request[] = []
+    let callNumber = 0
+    let token = 'token-before'
+    const fetch = vi.fn((request: Request) => {
+      callNumber += 1
+      requests.push(request.clone())
+      return Promise.resolve(respond(request, callNumber))
+    })
+    const client = createApiClient({ fetch, onUnauthorized, csrfToken: () => token })
+    return { client, requests, rotateCsrfToken: (value: string) => (token = value) }
+  }
+
+  it('does not call onUnauthorized for a successful response', async () => {
+    const onUnauthorized = vi.fn(() => Promise.resolve())
+    const { client } = setupWithRecovery(() => jsonResponse({}), onUnauthorized)
+
+    await client.GET('/api/v1/me')
+
+    expect(onUnauthorized).not.toHaveBeenCalled()
+  })
+
+  it('retries the request once the caller recovers the session, with a fresh CSRF token', async () => {
+    const onUnauthorized = vi.fn(() => Promise.resolve())
+    const { client, requests, rotateCsrfToken } = setupWithRecovery((_request, callNumber) => {
+      if (callNumber === 1) {
+        rotateCsrfToken('token-after')
+        return jsonResponse(
+          { error: { code: 'authentication_required', message: 'Session gone.' } },
+          { status: 401 },
+        )
+      }
+      return jsonResponse({ ok: true }, { status: 201 })
+    }, onUnauthorized)
+
+    const result = await client.POST('/api/v1/me/password', {
+      body: { current_password: 'old', new_password: 'new-password-1' },
+    })
+
+    expect(onUnauthorized).toHaveBeenCalledTimes(1)
+    expect(requests).toHaveLength(2)
+    expect(requests[0]?.headers.get(CSRF_HEADER_NAME)).toBe('token-before')
+    expect(requests[1]?.headers.get(CSRF_HEADER_NAME)).toBe('token-after')
+    expect(result.data).toEqual({ ok: true })
+  })
+
+  it('propagates the 401 when the caller declines recovery', async () => {
+    const onUnauthorized = vi.fn(() => Promise.reject(new Error('declined')))
+    const { client, requests } = setupWithRecovery(
+      () =>
+        jsonResponse(
+          { error: { code: 'authentication_required', message: 'Session gone.' } },
+          { status: 401 },
+        ),
+      onUnauthorized,
+    )
+
+    const failure = await unwrap(client.GET('/api/v1/me')).catch((error: unknown) => error)
+
+    expect(onUnauthorized).toHaveBeenCalledTimes(1)
+    expect(requests).toHaveLength(1)
+    expect(failure).toMatchObject({ status: 401, code: 'authentication_required' })
+  })
+
+  it('never sends the request body of a large retry candidate twice over the network', async () => {
+    // Regression guard for the clone-up-front design: the original request's body must still be
+    // readable by the real fetch even though a clone of it was already taken for a possible retry.
+    const onUnauthorized = vi.fn(() => Promise.reject(new Error('declined')))
+    const requests: Request[] = []
+    const fetch = vi.fn((request: Request) => {
+      requests.push(request)
+      return request
+        .text()
+        .then(() =>
+          jsonResponse(
+            { error: { code: 'authentication_required', message: 'Session gone.' } },
+            { status: 401 },
+          ),
+        )
+    })
+    const client = createApiClient({ fetch, onUnauthorized, csrfToken: () => 'token' })
+
+    await unwrap(
+      client.POST('/api/v1/me/password', {
+        body: { current_password: 'old', new_password: 'new-password-1' },
+      }),
+    ).catch((error: unknown) => error)
+
+    expect(onUnauthorized).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('unwrap', () => {
   it('returns the data of a successful call', async () => {
     const { client } = setup(() =>

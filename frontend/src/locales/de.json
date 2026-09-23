@@ -75,6 +75,11 @@
     "light": "Hell",
     "dark": "Dunkel"
   },
+  "sessionRecovery": {
+    "title": "Ihre Sitzung ist abgelaufen",
+    "description": "Bitte melden Sie sich erneut an, um fortzufahren.",
+    "cancel": "Abbrechen"
+  },
   "login": {
     "title": "Anmelden",
     "username": "Benutzername",

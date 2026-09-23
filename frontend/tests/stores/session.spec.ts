@@ -118,6 +118,25 @@ describe('useSessionStore.logout', () => {
   })
 })
 
+describe('useSessionStore.forgetSession', () => {
+  it('clears the local session state without any request', async () => {
+    const store = mountSession(
+      apiClientWithRoutes({
+        '/api/v1/me': { body: USER },
+        '/api/v1/auth/session': { body: { must_change_password: true, keep_signed_in: false } },
+      }),
+    )
+    await store.initialize()
+    expect(store.isSignedIn).toBe(true)
+
+    store.forgetSession()
+
+    expect(store.isSignedIn).toBe(false)
+    expect(store.user).toBeNull()
+    expect(store.mustChangePassword).toBe(false)
+  })
+})
+
 describe('useSessionStore.changePassword', () => {
   it('clears the forced-change flag on success', async () => {
     const store = mountSession(

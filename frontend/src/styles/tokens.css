@@ -33,6 +33,7 @@
 
   /* Elevation: reserved for menus and modals, the only layers that genuinely float (docs/25) */
   --shadow-menu: 0 4px 12px rgba(11, 11, 11, 0.16);
+  --backdrop: rgba(11, 11, 11, 0.4);
 
   /* Canonical labels: solid (fills, borders, chart marks), text, tint */
   --male: #2a78d6;
@@ -70,6 +71,7 @@
 
   /* Weaker than the light theme's, per docs/25: elevation reads through surface lightness here. */
   --shadow-menu: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --backdrop: rgba(0, 0, 0, 0.6);
 
   --male: #5a9ee8;
   --male-text: #8fbdf0;

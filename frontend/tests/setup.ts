@@ -26,3 +26,24 @@ class StubMediaQueryList extends EventTarget implements MediaQueryList {
 if (!window.matchMedia) {
   window.matchMedia = (query: string): MediaQueryList => new StubMediaQueryList(query)
 }
+
+// jsdom also has no layout engine, so it doesn't implement `ResizeObserver` either — needed by
+// Headless UI's `Dialog` (used by `SessionRecoveryDialog`) to track its panel. Nothing under test
+// reads real sizes, so a no-op observer is enough to let it mount without crashing.
+class StubResizeObserver implements ResizeObserver {
+  observe(): void {
+    // No layout to observe in jsdom.
+  }
+
+  unobserve(): void {
+    // Nothing was ever observed.
+  }
+
+  disconnect(): void {
+    // Nothing to disconnect.
+  }
+}
+
+if (!window.ResizeObserver) {
+  window.ResizeObserver = StubResizeObserver
+}

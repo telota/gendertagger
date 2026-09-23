@@ -176,7 +176,9 @@ and CSRF attachment.
   never by matching on message strings.
 - `409` with `annotation_conflict` triggers the designed reconciliation flow, not a generic error.
 - `413` maps onto the import limits presentation.
-- `401` clears the session and routes to login, preserving the intended destination.
+- `401` first offers an inline sign-in prompt and retries the request in place (decision D1;
+  `src/app/sessionGuard.ts`); only once that is declined does it clear the session and route to login,
+  preserving the intended destination.
 - Never surface a raw exception, stack trace, or backend internal to the user. The request ID may be shown
   for support purposes.
 - Do not log person data, source content, or raw method output to the browser console, mirroring the backend

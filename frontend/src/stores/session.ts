@@ -68,12 +68,17 @@ export const useSessionStore = defineStore('session', () => {
     await refreshSessionFlags()
   }
 
+  /** Clear the local session state only, without a server round trip. */
+  function forgetSession(): void {
+    user.value = null
+    mustChangePassword.value = false
+  }
+
   async function logout(): Promise<void> {
     try {
       await unwrap(client.POST('/api/v1/auth/logout'))
     } finally {
-      user.value = null
-      mustChangePassword.value = false
+      forgetSession()
     }
   }
 
@@ -98,6 +103,7 @@ export const useSessionStore = defineStore('session', () => {
     initialize,
     login,
     logout,
+    forgetSession,
     changePassword,
   }
 })

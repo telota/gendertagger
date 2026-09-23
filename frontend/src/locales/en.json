@@ -75,6 +75,11 @@
     "light": "Light",
     "dark": "Dark"
   },
+  "sessionRecovery": {
+    "title": "Your session has expired",
+    "description": "Please sign in again to continue.",
+    "cancel": "Cancel"
+  },
   "login": {
     "title": "Sign in",
     "username": "Username",

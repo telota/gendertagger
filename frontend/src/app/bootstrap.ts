@@ -13,6 +13,7 @@ import {
   resolveInitialLocale,
 } from './i18n'
 import { createAppRouter } from './router'
+import { createUnauthorizedHandler } from './sessionGuard'
 
 function readStoredLocale(storage: Storage): string | null {
   try {
@@ -36,10 +37,13 @@ export function createApplication(environment: {
     languages: environment.languages,
   })
   applyDocumentLanguage(locale, environment.root)
+  const router = createAppRouter(environment.history)
   const application = createApp(App)
-  application.provide(API_CLIENT_KEY, createApiClient())
-  return application
-    .use(createPinia())
-    .use(createAppI18n(locale))
-    .use(createAppRouter(environment.history))
+  // `createUnauthorizedHandler` only reads the session store once a 401 actually happens, well after
+  // Pinia is installed below, so the ordering here is safe despite the store not existing yet.
+  application.provide(
+    API_CLIENT_KEY,
+    createApiClient({ onUnauthorized: createUnauthorizedHandler(router) }),
+  )
+  return application.use(createPinia()).use(createAppI18n(locale)).use(router)
 }

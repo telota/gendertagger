@@ -2,6 +2,7 @@
 import { onMounted } from 'vue'
 import { RouterView } from 'vue-router'
 
+import SessionRecoveryDialog from '@/features/auth/SessionRecoveryDialog.vue'
 import { useSessionStore } from '@/stores/session'
 
 import AppFooter from './AppFooter.vue'
@@ -19,6 +20,7 @@ onMounted(() => {
     <AppHeader />
     <RouterView />
     <AppFooter />
+    <SessionRecoveryDialog />
   </div>
 </template>
 

@@ -209,25 +209,34 @@ contract change fails CI.
   page reload. Role-aware hiding/disabling and `current_user_role`-scoped controls remain open: there is no
   project-scoped screen yet for them to apply to.
 - Recovery from a `401` at any moment: keep the unsent decision, offer an inline sign-in, and retry the
-  request rather than redirecting away and losing the user's place (D1). **Not yet delivered** — this needs
-  a global interceptor, not built yet. What exists today is narrower: the login form handles its own
-  failures (`401 invalid_credentials`, `422 validation_error`, the gateway's `429 rate_limited`, and a
-  network failure) inline, so the global `401` recovery will need to ignore `POST /auth/login`; and
-  `/change-password` redirects a signed-out visitor to `/login` once `useSessionStore`'s one `loading` ->
-  `ready` transition has resolved, rather than deciding from the still-`loading` initial state.
+  request rather than redirecting away and losing the user's place (D1). **Delivered.** The API client takes
+  an `onUnauthorized(request)` hook (`src/api/client.ts`); on a `401` it clones the request up front (so a
+  body can still be retried after it has been sent once), awaits the hook, and — if the hook resolves —
+  retries with a freshly read CSRF token, since the session that produced the stale one is gone. The shell's
+  hook (`src/app/sessionGuard.ts`) opens a single inline prompt (`SessionRecoveryDialog`, the first Dialog
+  built on D9) shared by every request that 401s around the same moment; signing in again there retries the
+  original request without navigating away, and declining falls back to exactly `docs/26`'s rule — the
+  session is cleared locally and the client routes to `/login`, preserving the page as `?redirect=`. It
+  ignores `POST /auth/login`/`POST /auth/logout` (each already handles its own failures) and any `401` from
+  before the session is known to be signed in (the ordinary anonymous state at boot), so a view's own guard
+  still handles those. The username/password/submission logic itself was pulled out of `LoginView` into
+  `useLoginForm`, shared by the full-page form and the recovery prompt.
 - The eight cross-cutting concerns listed in that document: error envelope, `409` recovery, `413` limits,
-  async `202`-poll composable, SSE composable, cursor pagination, roles, CSRF.
+  async `202`-poll composable, SSE composable, cursor pagination, roles, CSRF. The error envelope, CSRF, and
+  now the `401` case above are delivered; the rest wait for a real consumer (an upload, a run, a list) rather
+  than being built speculatively.
 - Design tokens, typography scale, and the primitive components — with real `<button>`/`<a>` elements,
   focus management, and a focus trap for modals. The wireframe's `role="button"` keyboard shim is not
-  carried over.
+  carried over. **Partly delivered**: `AppButton`, `AppTextField`, `AppListbox`, and now a Dialog
+  (`SessionRecoveryDialog`) with a real focus trap exist; no other modal has needed one yet.
 - Locale switch and theme switch (system, light, dark), and the shared vocabulary components that render
   `CanonicalLabel`, `CertaintyTier`, and `AgreementTier` as canonical token plus translated gloss (D2, D3).
   **Partly delivered.** The locale and theme switches are live in `AppHeader` on every screen
   (`useLocale`, `useTheme`, both built on `AppListbox`); the vocabulary components remain open until a
   screen exists that renders canonical labels or tiers.
 - Overlay primitives on the chosen headless accessibility library (D9); everything else in-house.
-  **Partly delivered.** `AppListbox` (the header's own switchers) is the only one built so far; a
-  Dialog/modal with its focus trap and a Menu remain open until something needs them.
+  **Partly delivered.** `AppListbox` (the header's switchers) and `Dialog` (`SessionRecoveryDialog`, see
+  the `401` recovery item below) are built; a Menu remains open until something needs one.
 - The publication footer on every page, the start-page publication details, and the public legal notice
   required by the operating institution's guideline for digital publications, as specified in
   [`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md#publication-details-footer-and-legal-notice).
