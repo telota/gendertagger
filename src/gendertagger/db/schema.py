@@ -21,13 +21,8 @@ from gendertagger.db.rows.projects import (
     ProjectRow,
     SnapshotSourceMemberRow,
 )
-from gendertagger.db.rows.reviews import (
-    AnnotationRow,
-    ProjectMembershipRow,
-    ReviewStateRow,
-    UserRoleRow,
-    UserRow,
-)
+from gendertagger.db.rows.reviews import AnnotationRow, ReviewStateRow
+from gendertagger.db.rows.users import ProjectMembershipRow, UserRoleRow, UserRow
 
 ORM_ROW_TYPES: tuple[type[Base], ...] = (
     ProjectRow,

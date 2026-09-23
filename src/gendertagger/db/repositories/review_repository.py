@@ -14,7 +14,8 @@ from gendertagger.db.rows.aggregations import (
 )
 from gendertagger.db.rows.executions import MethodExecutionRow, PredictionRow
 from gendertagger.db.rows.projects import PersonExternalIdRow, PersonRecordRow
-from gendertagger.db.rows.reviews import AnnotationRow, ReviewStateRow, UserRow
+from gendertagger.db.rows.reviews import AnnotationRow, ReviewStateRow
+from gendertagger.db.rows.users import UserRow
 from gendertagger.domain.review_triage import (
     AUTHORITY_CONFLICT_TRIAGE_RANK,
     CERTAINTY_TIER_TRIAGE_RANKS,

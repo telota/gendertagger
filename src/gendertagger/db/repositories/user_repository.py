@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from gendertagger.db.rows.reviews import UserRoleRow, UserRow
+from gendertagger.db.rows.users import UserRoleRow, UserRow
 from gendertagger.models.user import GlobalRole, User, UserCreate
 
 
