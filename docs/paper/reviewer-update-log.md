@@ -97,3 +97,19 @@ method execution.
 **Verification:** The description was checked against the implemented source/lookup registration
 and execution provenance, with supporting tests inspected. The wording identifies this as
 functionality of the current backend.
+
+## 2026-09-23: Reviewer C - Parenthetical-qualifier implementation
+
+**Request:** Clarify whether the parenthetical-qualifier rule is implemented within gendertagger
+or in separate code (annotated PDF, page 7).
+
+**Changes:** Changed the opening of the parenthetical-qualifier paragraph in [article.tex](article.tex)
+to state explicitly that the heuristic is implemented within gendertagger.
+
+**Response to the reviewer:** We clarified that the parenthetical-qualifier heuristic is implemented
+within gendertagger.
+
+**Status:** Addressed in the local working tree; the checklist item is marked complete.
+
+**Verification:** Confirmed the implementation in `ParentheticalQualifierMethod` and its integration
+in the backend method registry by source inspection.
