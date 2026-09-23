@@ -5,6 +5,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, Query, status
+from fastapi.openapi.models import Example
 from fastapi.responses import StreamingResponse
 
 from gendertagger.api.authorization import ProjectAccessGuard, get_project_access_guard
@@ -27,13 +28,13 @@ from gendertagger.services.runs import RunService
 router = APIRouter(tags=["runs"])
 
 _RUN_CREATE_OPENAPI_EXAMPLES = {
-    "configured_run": {
-        "summary": "Create a reproducible classification run",
-        "description": (
+    "configured_run": Example(
+        summary="Create a reproducible classification run",
+        description=(
             "Replace the snapshot ID and artifact digest with registered resources. The server "
             "validates method-specific settings and persists the resolved configuration."
         ),
-        "value": {
+        value={
             "dataset_snapshot_id": "20000000-0000-0000-0000-000000000001",
             "config": {
                 "methods": [
@@ -49,7 +50,7 @@ _RUN_CREATE_OPENAPI_EXAMPLES = {
                 "execution": {"fail_run_on_optional_method_error": False},
             },
         },
-    }
+    )
 }
 
 

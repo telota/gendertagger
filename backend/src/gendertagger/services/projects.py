@@ -1,6 +1,6 @@
 """Application use cases for projects and durable snapshot-import acceptance."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
@@ -25,6 +25,7 @@ from gendertagger.models.project import (
     SnapshotImportLimits,
     SnapshotImportRequest,
     SnapshotImportTaskMessage,
+    SnapshotSourceMember,
     SnapshotSourceMemberCreate,
     SnapshotUploadLimits,
     SourceFormat,
@@ -169,6 +170,15 @@ class ProjectService:
             msg = f"dataset snapshot {snapshot_id} does not exist"
             raise ResourceNotFoundError(msg)
         return snapshot
+
+    def list_snapshot_source_members(
+        self,
+        snapshot_id: UUID,
+    ) -> Sequence[SnapshotSourceMember]:
+        """Return one snapshot's source members in canonical ordinal order."""
+        self.get_snapshot(snapshot_id)
+        with self._unit_of_work_factory() as unit_of_work:
+            return unit_of_work.projects.list_snapshot_source_members(snapshot_id)
 
     def list_snapshots(
         self,

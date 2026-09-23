@@ -73,6 +73,10 @@ Snapshot acceptance, supported import combinations, and artifact guarantees are 
 [`08-ingestion-and-export.md`](08-ingestion-and-export.md). Queue and retry behavior is defined in
 [`06-task-queue.md`](06-task-queue.md).
 
+`GET /snapshots/{snapshot_id}/source-members` exposes the immutable ordered source manifest as
+`SnapshotSourceMember` records. It provides logical filenames, SHA-256 digests, byte sizes, media types, and
+ordinals for provenance views without serving source bytes or storage locations.
+
 The bounded synchronous `/classify` operation is the deliberate exception to queued scientific execution. It
 persists no Prediction; see
 [ADR-0028](decisions/ADR-0028-synchronous-on-demand-classification-api.md).

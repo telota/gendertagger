@@ -5,7 +5,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import Self, cast
 from unittest.mock import Mock
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -44,6 +44,7 @@ from gendertagger.models.project import (
     SnapshotImportConfig,
     SnapshotImportRequest,
     SnapshotImportTaskMessage,
+    SnapshotSourceMember,
     SourceFormat,
     SourceManifestV1,
     SourcePackaging,
@@ -387,6 +388,46 @@ def test_project_service_reads_snapshots_and_paginates_ready_people(tmp_path: Pa
     project_repository.get_snapshot.return_value = None
     with pytest.raises(ResourceNotFoundError, match=str(SNAPSHOT_ID)):
         service.get_snapshot(SNAPSHOT_ID)
+
+
+def test_project_service_lists_snapshot_source_members(tmp_path: Path) -> None:
+    project_repository = Mock(spec=ProjectRepository)
+    snapshot = _snapshot(DatasetSnapshotStatus.ready)
+    members = (
+        SnapshotSourceMember(
+            id=uuid4(),
+            dataset_snapshot_id=SNAPSHOT_ID,
+            artifact_id=uuid4(),
+            logical_name="a.xml",
+            sha256="a" * 64,
+            byte_size=10,
+            media_type="application/xml",
+            ordinal=0,
+            created_at=NOW,
+        ),
+        SnapshotSourceMember(
+            id=uuid4(),
+            dataset_snapshot_id=SNAPSHOT_ID,
+            artifact_id=uuid4(),
+            logical_name="b.xml",
+            sha256="b" * 64,
+            byte_size=20,
+            media_type="application/xml",
+            ordinal=1,
+            created_at=NOW,
+        ),
+    )
+    project_repository.get_snapshot.return_value = snapshot
+    project_repository.list_snapshot_source_members.return_value = members
+    unit_of_work = StubUnitOfWork(projects=project_repository)
+    service = _project_service(unit_of_work=unit_of_work, artifact_root=tmp_path)
+
+    assert service.list_snapshot_source_members(SNAPSHOT_ID) == members
+    project_repository.list_snapshot_source_members.assert_called_once_with(SNAPSHOT_ID)
+
+    project_repository.get_snapshot.return_value = None
+    with pytest.raises(ResourceNotFoundError, match=str(SNAPSHOT_ID)):
+        service.list_snapshot_source_members(SNAPSHOT_ID)
 
 
 def test_project_service_stages_upload_and_atomically_queues_snapshot(tmp_path: Path) -> None:

@@ -246,8 +246,9 @@ box with a static slider and a preview callout; and a "Klassifikation jetzt star
   file and folder only. Archive upload is unreachable.
 - **Gap (frontend):** the asynchronous snapshot lifecycle (pending → ready/failed) is not represented; the
   wireframe shows a finished parse immediately.
-- **Gap (frontend):** `source_sha256`, `parser_version`, and per-member checksums from `SourceManifestV1` are
-  not surfaced, although they are the provenance anchor for everything downstream.
+- **Gap (frontend):** `source_sha256`, `parser_version`, and the ordered source-member metadata available
+  from `GET /snapshots/{snapshot_id}/source-members` are not surfaced, although they are the provenance
+  anchor for everything downstream. The backend provenance contract is delivered.
 - **Gap (backend):** the parse summary invents statistics the API does not return — "Bereits mit @sex: 142",
   "Ohne Namenselement: 14", "Dubletten (gleiche GND-ID): 3". `DatasetSnapshot` exposes only `record_count`.
   Either extend the import result contract or drop these tiles.

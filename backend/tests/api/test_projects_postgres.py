@@ -173,6 +173,17 @@ def test_project_and_ready_snapshot_round_trip_through_http(
     assert client.get(f"/api/v1/snapshots/{snapshot_id}").json() == snapshot_body
     assert snapshot_body["created_at"].endswith("Z")
 
+    source_members_response = client.get(f"/api/v1/snapshots/{snapshot_id}/source-members")
+    assert source_members_response.status_code == 200
+    source_members = source_members_response.json()
+    assert len(source_members) == 1
+    assert source_members[0]["logical_name"] == "register.xml"
+    assert source_members[0]["sha256"] == hashlib.sha256(VALID_TEI).hexdigest()
+    assert source_members[0]["byte_size"] == len(VALID_TEI)
+    assert source_members[0]["media_type"] == "application/xml"
+    assert source_members[0]["ordinal"] == 0
+    assert "storage_uri" not in source_members[0]
+
     pending_people_response = client.get(f"/api/v1/snapshots/{snapshot_id}/people")
     assert pending_people_response.status_code == 409
 

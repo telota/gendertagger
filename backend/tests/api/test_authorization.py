@@ -192,6 +192,12 @@ PROJECT_SCOPED_ROUTES = (
         "GET", "/projects/{project_id}/snapshots", ProjectScope.project, ProjectRole.viewer
     ),
     _ScopedRoute("GET", "/snapshots/{snapshot_id}", ProjectScope.snapshot, ProjectRole.viewer),
+    _ScopedRoute(
+        "GET",
+        "/snapshots/{snapshot_id}/source-members",
+        ProjectScope.snapshot,
+        ProjectRole.viewer,
+    ),
     _ScopedRoute("GET", "/snapshots/{snapshot_id}/runs", ProjectScope.snapshot, ProjectRole.viewer),
     _ScopedRoute(
         "GET", "/snapshots/{snapshot_id}/people", ProjectScope.snapshot, ProjectRole.viewer

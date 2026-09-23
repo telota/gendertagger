@@ -1,5 +1,6 @@
 """Project and dataset-snapshot HTTP resources."""
 
+from collections.abc import Sequence
 from typing import Annotated
 from uuid import UUID
 
@@ -25,6 +26,7 @@ from gendertagger.models.project import (
     ProjectCreate,
     ProjectWorkingAggregationUpdate,
     SnapshotImportRequest,
+    SnapshotSourceMember,
     SnapshotUploadLimits,
     SourceFormat,
     SourcePackaging,
@@ -216,6 +218,23 @@ def get_snapshot(
     access.require(ProjectScope.snapshot, snapshot_id, ProjectRole.viewer)
     try:
         return service.get_snapshot(snapshot_id)
+    except ResourceNotFoundError as error:
+        raise _not_found() from error
+
+
+@router.get(
+    "/snapshots/{snapshot_id}/source-members",
+    response_model=list[SnapshotSourceMember],
+)
+def list_snapshot_source_members(
+    snapshot_id: UUID,
+    service: Annotated[ProjectService, Depends(get_project_service)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
+) -> Sequence[SnapshotSourceMember]:
+    """List the snapshot's source provenance in canonical ordinal order."""
+    access.require(ProjectScope.snapshot, snapshot_id, ProjectRole.viewer)
+    try:
+        return service.list_snapshot_source_members(snapshot_id)
     except ResourceNotFoundError as error:
         raise _not_found() from error
 

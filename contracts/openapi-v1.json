@@ -3623,6 +3623,72 @@
         "title": "SnapshotImportLimits",
         "type": "object"
       },
+      "SnapshotSourceMember": {
+        "additionalProperties": false,
+        "description": "Canonical read model for one persisted snapshot source member.",
+        "properties": {
+          "artifact_id": {
+            "format": "uuid",
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "byte_size": {
+            "minimum": 0.0,
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "dataset_snapshot_id": {
+            "format": "uuid",
+            "title": "Dataset Snapshot Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "logical_name": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Logical Name",
+            "type": "string"
+          },
+          "media_type": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Media Type",
+            "type": "string"
+          },
+          "ordinal": {
+            "minimum": 0.0,
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "logical_name",
+          "sha256",
+          "byte_size",
+          "media_type",
+          "artifact_id",
+          "ordinal",
+          "id",
+          "dataset_snapshot_id",
+          "created_at"
+        ],
+        "title": "SnapshotSourceMember",
+        "type": "object"
+      },
       "SnapshotUploadLimits": {
         "additionalProperties": false,
         "description": "Deployment bounds a snapshot import request must fit, readable before uploading.\n\nThe upload bounds apply to the compressed request and return `413` when exceeded; the import\nlimits are the ones a newly accepted snapshot records in its `SnapshotImportConfig`.",
@@ -9278,6 +9344,124 @@
         "summary": "List Runs",
         "tags": [
           "runs"
+        ]
+      }
+    },
+    "/api/v1/snapshots/{snapshot_id}/source-members": {
+      "get": {
+        "description": "List the snapshot's source provenance in canonical ordinal order.",
+        "operationId": "list_snapshot_source_members_api_v1_snapshots__snapshot_id__source_members_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Snapshot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SnapshotSourceMember"
+                  },
+                  "title": "Response List Snapshot Source Members Api V1 Snapshots  Snapshot Id  Source Members Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List Snapshot Source Members",
+        "tags": [
+          "projects"
         ]
       }
     }
