@@ -10,7 +10,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from gendertagger.db.rows.aggregations import AggregationExecutionRow
-from gendertagger.db.rows.dispatches import BatchDispatchRow
+from gendertagger.db.rows.dispatches import DispatchOutboxRow
 from gendertagger.db.rows.evaluations import EvaluationExecutionRow
 from gendertagger.db.rows.executions import MethodExecutionRow, RunRow, TaskBatchRow
 from gendertagger.db.rows.exports import ExportExecutionRow
@@ -22,9 +22,9 @@ from gendertagger.models.dispatch import (
     AggregationDispatchCreate,
     BatchDispatch,
     BatchDispatchCreate,
-    BatchDispatchStatus,
     Dispatch,
     DispatchCreate,
+    DispatchStatus,
     DispatchTarget,
     EvaluationDispatch,
     EvaluationDispatchCreate,
@@ -123,7 +123,7 @@ class SqlAlchemyDispatchRepository:
             msg = "dispatch payload method_execution_id must own its task batch"
             raise InvalidResourceStateError(msg)
 
-        dispatch_table = cast(Table, BatchDispatchRow.__table__)
+        dispatch_table = cast(Table, DispatchOutboxRow.__table__)
         statement = (
             insert(dispatch_table)
             .values(
@@ -135,7 +135,7 @@ class SqlAlchemyDispatchRepository:
                 export_id=None,
                 queue_name=command.queue_name,
                 payload=command.payload.model_dump(mode="json"),
-                status=BatchDispatchStatus.pending,
+                status=DispatchStatus.pending,
                 attempt_count=0,
                 available_at=command.available_at,
                 lease_owner=None,
@@ -148,7 +148,7 @@ class SqlAlchemyDispatchRepository:
         self._session.execute(statement)
         self._session.flush()
         row = self._session.scalar(
-            select(BatchDispatchRow).where(BatchDispatchRow.task_batch_id == batch.id)
+            select(DispatchOutboxRow).where(DispatchOutboxRow.task_batch_id == batch.id)
         )
         if row is None:  # pragma: no cover - guarded by insert/select in one transaction.
             msg = f"dispatch for task batch {batch.id} could not be persisted"
@@ -181,7 +181,7 @@ class SqlAlchemyDispatchRepository:
             msg = f"aggregation dispatches must use the {CPU_QUEUE} queue"
             raise InvalidResourceStateError(msg)
 
-        dispatch_table = cast(Table, BatchDispatchRow.__table__)
+        dispatch_table = cast(Table, DispatchOutboxRow.__table__)
         statement = (
             insert(dispatch_table)
             .values(
@@ -193,7 +193,7 @@ class SqlAlchemyDispatchRepository:
                 export_id=None,
                 queue_name=command.queue_name,
                 payload=command.payload.model_dump(mode="json"),
-                status=BatchDispatchStatus.pending,
+                status=DispatchStatus.pending,
                 attempt_count=0,
                 available_at=command.available_at,
                 lease_owner=None,
@@ -206,8 +206,8 @@ class SqlAlchemyDispatchRepository:
         self._session.execute(statement)
         self._session.flush()
         row = self._session.scalar(
-            select(BatchDispatchRow).where(
-                BatchDispatchRow.aggregation_execution_id == aggregation.id
+            select(DispatchOutboxRow).where(
+                DispatchOutboxRow.aggregation_execution_id == aggregation.id
             )
         )
         if row is None:  # pragma: no cover - guarded by insert/select in one transaction.
@@ -238,7 +238,7 @@ class SqlAlchemyDispatchRepository:
             msg = f"snapshot import dispatches must use the {CPU_QUEUE} queue"
             raise InvalidResourceStateError(msg)
 
-        dispatch_table = cast(Table, BatchDispatchRow.__table__)
+        dispatch_table = cast(Table, DispatchOutboxRow.__table__)
         statement = (
             insert(dispatch_table)
             .values(
@@ -250,7 +250,7 @@ class SqlAlchemyDispatchRepository:
                 export_id=None,
                 queue_name=command.queue_name,
                 payload=command.payload.model_dump(mode="json"),
-                status=BatchDispatchStatus.pending,
+                status=DispatchStatus.pending,
                 attempt_count=0,
                 available_at=command.available_at,
                 lease_owner=None,
@@ -263,7 +263,7 @@ class SqlAlchemyDispatchRepository:
         self._session.execute(statement)
         self._session.flush()
         row = self._session.scalar(
-            select(BatchDispatchRow).where(BatchDispatchRow.dataset_snapshot_id == snapshot.id)
+            select(DispatchOutboxRow).where(DispatchOutboxRow.dataset_snapshot_id == snapshot.id)
         )
         if row is None:  # pragma: no cover - guarded by insert/select in one transaction.
             msg = f"dispatch for dataset snapshot {snapshot.id} could not be persisted"
@@ -295,7 +295,7 @@ class SqlAlchemyDispatchRepository:
             msg = f"evaluation dispatches must use the {CPU_QUEUE} queue"
             raise InvalidResourceStateError(msg)
 
-        dispatch_table = cast(Table, BatchDispatchRow.__table__)
+        dispatch_table = cast(Table, DispatchOutboxRow.__table__)
         statement = (
             insert(dispatch_table)
             .values(
@@ -307,7 +307,7 @@ class SqlAlchemyDispatchRepository:
                 export_id=None,
                 queue_name=command.queue_name,
                 payload=command.payload.model_dump(mode="json"),
-                status=BatchDispatchStatus.pending,
+                status=DispatchStatus.pending,
                 attempt_count=0,
                 available_at=command.available_at,
                 lease_owner=None,
@@ -320,8 +320,8 @@ class SqlAlchemyDispatchRepository:
         self._session.execute(statement)
         self._session.flush()
         row = self._session.scalar(
-            select(BatchDispatchRow).where(
-                BatchDispatchRow.evaluation_execution_id == evaluation.id
+            select(DispatchOutboxRow).where(
+                DispatchOutboxRow.evaluation_execution_id == evaluation.id
             )
         )
         if row is None:  # pragma: no cover - guarded by insert/select in one transaction.
@@ -349,7 +349,7 @@ class SqlAlchemyDispatchRepository:
             msg = f"export dispatches must use the {CPU_QUEUE} queue"
             raise InvalidResourceStateError(msg)
 
-        dispatch_table = cast(Table, BatchDispatchRow.__table__)
+        dispatch_table = cast(Table, DispatchOutboxRow.__table__)
         statement = (
             insert(dispatch_table)
             .values(
@@ -361,7 +361,7 @@ class SqlAlchemyDispatchRepository:
                 export_id=command.export_id,
                 queue_name=command.queue_name,
                 payload=command.payload.model_dump(mode="json"),
-                status=BatchDispatchStatus.pending,
+                status=DispatchStatus.pending,
                 attempt_count=0,
                 available_at=command.available_at,
                 lease_owner=None,
@@ -374,7 +374,7 @@ class SqlAlchemyDispatchRepository:
         self._session.execute(statement)
         self._session.flush()
         row = self._session.scalar(
-            select(BatchDispatchRow).where(BatchDispatchRow.export_id == export.id)
+            select(DispatchOutboxRow).where(DispatchOutboxRow.export_id == export.id)
         )
         if row is None:  # pragma: no cover - guarded by insert/select in one transaction.
             msg = f"dispatch for export {export.id} could not be persisted"
@@ -388,13 +388,13 @@ class SqlAlchemyDispatchRepository:
 
     def get_dispatch(self, dispatch_id: UUID) -> Dispatch | None:
         """Return a dispatch contract by ID without exposing its row."""
-        row = self._session.get(BatchDispatchRow, dispatch_id)
+        row = self._session.get(DispatchOutboxRow, dispatch_id)
         return None if row is None else self._dispatch_from_row(row)
 
     def get_dispatch_for_batch(self, task_batch_id: UUID) -> BatchDispatch | None:
         """Return the unique dispatch contract for one task batch."""
         row = self._session.scalar(
-            select(BatchDispatchRow).where(BatchDispatchRow.task_batch_id == task_batch_id)
+            select(DispatchOutboxRow).where(DispatchOutboxRow.task_batch_id == task_batch_id)
         )
         if row is None:
             return None
@@ -410,8 +410,8 @@ class SqlAlchemyDispatchRepository:
     ) -> AggregationDispatch | None:
         """Return the unique dispatch contract for one aggregation execution."""
         row = self._session.scalar(
-            select(BatchDispatchRow).where(
-                BatchDispatchRow.aggregation_execution_id == aggregation_execution_id
+            select(DispatchOutboxRow).where(
+                DispatchOutboxRow.aggregation_execution_id == aggregation_execution_id
             )
         )
         if row is None:
@@ -428,8 +428,8 @@ class SqlAlchemyDispatchRepository:
     def get_dispatch_for_snapshot(self, dataset_snapshot_id: UUID) -> SnapshotDispatch | None:
         """Return the unique dispatch contract for one dataset-snapshot import."""
         row = self._session.scalar(
-            select(BatchDispatchRow).where(
-                BatchDispatchRow.dataset_snapshot_id == dataset_snapshot_id
+            select(DispatchOutboxRow).where(
+                DispatchOutboxRow.dataset_snapshot_id == dataset_snapshot_id
             )
         )
         if row is None:
@@ -446,8 +446,8 @@ class SqlAlchemyDispatchRepository:
     ) -> EvaluationDispatch | None:
         """Return the unique dispatch contract for one evaluation execution."""
         row = self._session.scalar(
-            select(BatchDispatchRow).where(
-                BatchDispatchRow.evaluation_execution_id == evaluation_execution_id
+            select(DispatchOutboxRow).where(
+                DispatchOutboxRow.evaluation_execution_id == evaluation_execution_id
             )
         )
         if row is None:
@@ -464,7 +464,7 @@ class SqlAlchemyDispatchRepository:
     def get_dispatch_for_export(self, export_id: UUID) -> ExportDispatch | None:
         """Return the unique dispatch contract for one export execution."""
         row = self._session.scalar(
-            select(BatchDispatchRow).where(BatchDispatchRow.export_id == export_id)
+            select(DispatchOutboxRow).where(DispatchOutboxRow.export_id == export_id)
         )
         if row is None:
             return None
@@ -493,17 +493,17 @@ class SqlAlchemyDispatchRepository:
 
         rows = tuple(
             self._session.scalars(
-                select(BatchDispatchRow)
+                select(DispatchOutboxRow)
                 .where(
-                    BatchDispatchRow.status == BatchDispatchStatus.pending,
-                    BatchDispatchRow.available_at <= claim_time,
+                    DispatchOutboxRow.status == DispatchStatus.pending,
+                    DispatchOutboxRow.available_at <= claim_time,
                     or_(
-                        BatchDispatchRow.lease_until.is_(None),
-                        BatchDispatchRow.lease_until <= claim_time,
+                        DispatchOutboxRow.lease_until.is_(None),
+                        DispatchOutboxRow.lease_until <= claim_time,
                     ),
                 )
-                .order_by(BatchDispatchRow.available_at, BatchDispatchRow.id)
-                .with_for_update(skip_locked=True, of=BatchDispatchRow)
+                .order_by(DispatchOutboxRow.available_at, DispatchOutboxRow.id)
+                .with_for_update(skip_locked=True, of=DispatchOutboxRow)
                 .limit(limit)
             )
         )
@@ -525,7 +525,7 @@ class SqlAlchemyDispatchRepository:
         owner = self._validate_lease_owner(lease_owner)
         publication_time = normalize_utc_datetime(published_at)
         row = self._require_claimed(dispatch_id, owner)
-        row.status = BatchDispatchStatus.published
+        row.status = DispatchStatus.published
         row.published_at = publication_time
         row.lease_owner = None
         row.lease_until = None
@@ -568,11 +568,11 @@ class SqlAlchemyDispatchRepository:
             .join(MethodExecutionRow, MethodExecutionRow.id == TaskBatchRow.method_execution_id)
             .join(RunRow, RunRow.id == MethodExecutionRow.run_id)
             .outerjoin(
-                BatchDispatchRow,
-                BatchDispatchRow.task_batch_id == TaskBatchRow.id,
+                DispatchOutboxRow,
+                DispatchOutboxRow.task_batch_id == TaskBatchRow.id,
             )
             .where(
-                BatchDispatchRow.id.is_(None),
+                DispatchOutboxRow.id.is_(None),
                 TaskBatchRow.status.in_(_DISPATCHABLE_BATCH_STATUSES),
                 MethodExecutionRow.status.in_(_DISPATCHABLE_EXECUTION_STATUSES),
                 RunRow.status.in_(_ACTIVE_RUN_STATUSES),
@@ -585,11 +585,11 @@ class SqlAlchemyDispatchRepository:
                 AggregationExecutionRow.created_at.label("created_at"),
             )
             .outerjoin(
-                BatchDispatchRow,
-                BatchDispatchRow.aggregation_execution_id == AggregationExecutionRow.id,
+                DispatchOutboxRow,
+                DispatchOutboxRow.aggregation_execution_id == AggregationExecutionRow.id,
             )
             .where(
-                BatchDispatchRow.id.is_(None),
+                DispatchOutboxRow.id.is_(None),
                 AggregationExecutionRow.status.in_(_DISPATCHABLE_AGGREGATION_STATUSES),
             )
         )
@@ -600,11 +600,11 @@ class SqlAlchemyDispatchRepository:
                 DatasetSnapshotRow.created_at.label("created_at"),
             )
             .outerjoin(
-                BatchDispatchRow,
-                BatchDispatchRow.dataset_snapshot_id == DatasetSnapshotRow.id,
+                DispatchOutboxRow,
+                DispatchOutboxRow.dataset_snapshot_id == DatasetSnapshotRow.id,
             )
             .where(
-                BatchDispatchRow.id.is_(None),
+                DispatchOutboxRow.id.is_(None),
                 DatasetSnapshotRow.status.in_(_DISPATCHABLE_SNAPSHOT_STATUSES),
             )
         )
@@ -615,11 +615,11 @@ class SqlAlchemyDispatchRepository:
                 EvaluationExecutionRow.created_at.label("created_at"),
             )
             .outerjoin(
-                BatchDispatchRow,
-                BatchDispatchRow.evaluation_execution_id == EvaluationExecutionRow.id,
+                DispatchOutboxRow,
+                DispatchOutboxRow.evaluation_execution_id == EvaluationExecutionRow.id,
             )
             .where(
-                BatchDispatchRow.id.is_(None),
+                DispatchOutboxRow.id.is_(None),
                 EvaluationExecutionRow.status.in_(_DISPATCHABLE_EVALUATION_STATUSES),
             )
         )
@@ -630,11 +630,11 @@ class SqlAlchemyDispatchRepository:
                 ExportExecutionRow.created_at.label("created_at"),
             )
             .outerjoin(
-                BatchDispatchRow,
-                BatchDispatchRow.export_id == ExportExecutionRow.id,
+                DispatchOutboxRow,
+                DispatchOutboxRow.export_id == ExportExecutionRow.id,
             )
             .where(
-                BatchDispatchRow.id.is_(None),
+                DispatchOutboxRow.id.is_(None),
                 ExportExecutionRow.status.in_(_DISPATCHABLE_EXPORT_STATUSES),
             )
         )
@@ -744,17 +744,17 @@ class SqlAlchemyDispatchRepository:
 
         batch_candidates = (
             select(
-                BatchDispatchRow.id.label("dispatch_id"),
+                DispatchOutboxRow.id.label("dispatch_id"),
                 literal(DispatchTarget.task_batch.value).label("target"),
                 TaskBatchRow.id.label("target_id"),
-                BatchDispatchRow.published_at.label("published_at"),
+                DispatchOutboxRow.published_at.label("published_at"),
             )
-            .join(TaskBatchRow, TaskBatchRow.id == BatchDispatchRow.task_batch_id)
+            .join(TaskBatchRow, TaskBatchRow.id == DispatchOutboxRow.task_batch_id)
             .join(MethodExecutionRow, MethodExecutionRow.id == TaskBatchRow.method_execution_id)
             .join(RunRow, RunRow.id == MethodExecutionRow.run_id)
             .where(
-                BatchDispatchRow.status == BatchDispatchStatus.published,
-                BatchDispatchRow.published_at <= stale_before,
+                DispatchOutboxRow.status == DispatchStatus.published,
+                DispatchOutboxRow.published_at <= stale_before,
                 TaskBatchRow.status.in_(_DISPATCHABLE_BATCH_STATUSES),
                 MethodExecutionRow.status.in_(_DISPATCHABLE_EXECUTION_STATUSES),
                 RunRow.status.in_(_ACTIVE_RUN_STATUSES),
@@ -762,69 +762,69 @@ class SqlAlchemyDispatchRepository:
         )
         aggregation_candidates = (
             select(
-                BatchDispatchRow.id.label("dispatch_id"),
+                DispatchOutboxRow.id.label("dispatch_id"),
                 literal(DispatchTarget.aggregation_execution.value).label("target"),
                 AggregationExecutionRow.id.label("target_id"),
-                BatchDispatchRow.published_at.label("published_at"),
+                DispatchOutboxRow.published_at.label("published_at"),
             )
             .join(
                 AggregationExecutionRow,
-                AggregationExecutionRow.id == BatchDispatchRow.aggregation_execution_id,
+                AggregationExecutionRow.id == DispatchOutboxRow.aggregation_execution_id,
             )
             .where(
-                BatchDispatchRow.status == BatchDispatchStatus.published,
-                BatchDispatchRow.published_at <= stale_before,
+                DispatchOutboxRow.status == DispatchStatus.published,
+                DispatchOutboxRow.published_at <= stale_before,
                 AggregationExecutionRow.status.in_(_DISPATCHABLE_AGGREGATION_STATUSES),
             )
         )
         snapshot_candidates = (
             select(
-                BatchDispatchRow.id.label("dispatch_id"),
+                DispatchOutboxRow.id.label("dispatch_id"),
                 literal(DispatchTarget.dataset_snapshot.value).label("target"),
                 DatasetSnapshotRow.id.label("target_id"),
-                BatchDispatchRow.published_at.label("published_at"),
+                DispatchOutboxRow.published_at.label("published_at"),
             )
             .join(
                 DatasetSnapshotRow,
-                DatasetSnapshotRow.id == BatchDispatchRow.dataset_snapshot_id,
+                DatasetSnapshotRow.id == DispatchOutboxRow.dataset_snapshot_id,
             )
             .where(
-                BatchDispatchRow.status == BatchDispatchStatus.published,
-                BatchDispatchRow.published_at <= stale_before,
+                DispatchOutboxRow.status == DispatchStatus.published,
+                DispatchOutboxRow.published_at <= stale_before,
                 DatasetSnapshotRow.status.in_(_DISPATCHABLE_SNAPSHOT_STATUSES),
             )
         )
         evaluation_candidates = (
             select(
-                BatchDispatchRow.id.label("dispatch_id"),
+                DispatchOutboxRow.id.label("dispatch_id"),
                 literal(DispatchTarget.evaluation_execution.value).label("target"),
                 EvaluationExecutionRow.id.label("target_id"),
-                BatchDispatchRow.published_at.label("published_at"),
+                DispatchOutboxRow.published_at.label("published_at"),
             )
             .join(
                 EvaluationExecutionRow,
-                EvaluationExecutionRow.id == BatchDispatchRow.evaluation_execution_id,
+                EvaluationExecutionRow.id == DispatchOutboxRow.evaluation_execution_id,
             )
             .where(
-                BatchDispatchRow.status == BatchDispatchStatus.published,
-                BatchDispatchRow.published_at <= stale_before,
+                DispatchOutboxRow.status == DispatchStatus.published,
+                DispatchOutboxRow.published_at <= stale_before,
                 EvaluationExecutionRow.status.in_(_DISPATCHABLE_EVALUATION_STATUSES),
             )
         )
         export_candidates = (
             select(
-                BatchDispatchRow.id.label("dispatch_id"),
+                DispatchOutboxRow.id.label("dispatch_id"),
                 literal(DispatchTarget.export.value).label("target"),
                 ExportExecutionRow.id.label("target_id"),
-                BatchDispatchRow.published_at.label("published_at"),
+                DispatchOutboxRow.published_at.label("published_at"),
             )
             .join(
                 ExportExecutionRow,
-                ExportExecutionRow.id == BatchDispatchRow.export_id,
+                ExportExecutionRow.id == DispatchOutboxRow.export_id,
             )
             .where(
-                BatchDispatchRow.status == BatchDispatchStatus.published,
-                BatchDispatchRow.published_at <= stale_before,
+                DispatchOutboxRow.status == DispatchStatus.published,
+                DispatchOutboxRow.published_at <= stale_before,
                 ExportExecutionRow.status.in_(_DISPATCHABLE_EXPORT_STATUSES),
             )
         )
@@ -865,17 +865,17 @@ class SqlAlchemyDispatchRepository:
                 if self._lock_dispatchable_export(target_id) is None:
                     continue
             row = self._session.scalar(
-                select(BatchDispatchRow)
+                select(DispatchOutboxRow)
                 .where(
-                    BatchDispatchRow.id == dispatch_id,
-                    BatchDispatchRow.status == BatchDispatchStatus.published,
-                    BatchDispatchRow.published_at <= stale_before,
+                    DispatchOutboxRow.id == dispatch_id,
+                    DispatchOutboxRow.status == DispatchStatus.published,
+                    DispatchOutboxRow.published_at <= stale_before,
                 )
-                .with_for_update(skip_locked=True, of=BatchDispatchRow)
+                .with_for_update(skip_locked=True, of=DispatchOutboxRow)
             )
             if row is None:
                 continue
-            row.status = BatchDispatchStatus.pending
+            row.status = DispatchStatus.pending
             row.available_at = rearm_time
             row.published_at = None
             row.lease_owner = None
@@ -956,9 +956,9 @@ class SqlAlchemyDispatchRepository:
             .with_for_update(skip_locked=True, of=ExportExecutionRow)
         )
 
-    def _require_claimed(self, dispatch_id: UUID, lease_owner: str) -> BatchDispatchRow:
+    def _require_claimed(self, dispatch_id: UUID, lease_owner: str) -> DispatchOutboxRow:
         row = self._session.get(
-            BatchDispatchRow,
+            DispatchOutboxRow,
             dispatch_id,
             populate_existing=True,
             with_for_update=True,
@@ -966,14 +966,14 @@ class SqlAlchemyDispatchRepository:
         if row is None:
             msg = f"dispatch {dispatch_id} does not exist"
             raise ResourceNotFoundError(msg)
-        if row.status is not BatchDispatchStatus.pending or row.lease_owner != lease_owner:
+        if row.status is not DispatchStatus.pending or row.lease_owner != lease_owner:
             msg = f"dispatch {dispatch_id} is not leased by {lease_owner}"
             raise InvalidResourceStateError(msg)
         return row
 
     @staticmethod
     def _require_matching_intent(
-        row: BatchDispatchRow,
+        row: DispatchOutboxRow,
         command: DispatchCreate,
     ) -> None:
         persisted = SqlAlchemyDispatchRepository._dispatch_from_row(row)
@@ -1003,7 +1003,7 @@ class SqlAlchemyDispatchRepository:
             raise ValueError(msg)
 
     @staticmethod
-    def _dispatch_from_row(row: BatchDispatchRow) -> Dispatch:
+    def _dispatch_from_row(row: DispatchOutboxRow) -> Dispatch:
         if (
             row.task_batch_id is not None
             and row.aggregation_execution_id is None

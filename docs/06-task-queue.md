@@ -46,7 +46,7 @@ Five Celery tasks are registered, one per `DispatchTarget` value in `gendertagge
 `CeleryMessagePublisher` (`tasks/dispatch.py`) is the closed mapping from a validated envelope to
 its task name, queue, and broker task ID. The broker task ID is always the target's own identifier,
 and a payload whose identifier disagrees with the dispatch is rejected before publication.
-`BatchDispatchStatus` has exactly two values, `pending` and `published`.
+`DispatchStatus` has exactly two values, `pending` and `published`.
 
 ## Batch model
 

@@ -59,7 +59,7 @@ artifact storage, and persistence errors) live in `gendertagger.services.ports`;
 
 ### Async execution
 Application services persist typed work and dispatch intent in PostgreSQL. Every dispatch intent is one row in
-the single `batch_dispatches` outbox table, which references exactly one of five targets — `task_batch`,
+the single `dispatch_outbox` outbox table, which references exactly one of five targets — `task_batch`,
 `aggregation_execution`, `dataset_snapshot`, `evaluation_execution`, and `export` — enforced by the
 `exactly_one_target` check constraint. The dispatch coordinator (`gendertagger.tasks.relay`) leases pending
 rows, publishes them to Redis, and marks them published. Celery workers execute dataset-snapshot imports,

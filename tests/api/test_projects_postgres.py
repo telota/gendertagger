@@ -15,7 +15,7 @@ from gendertagger.api.settings import AppSettings
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.ingestion.tei import TeiPersonParser
-from gendertagger.models.dispatch import BatchDispatchStatus
+from gendertagger.models.dispatch import DispatchStatus
 from gendertagger.models.lifecycle import DatasetSnapshotStatus
 from gendertagger.models.project import (
     SnapshotImportTaskMessage,
@@ -180,7 +180,7 @@ def test_project_and_ready_snapshot_round_trip_through_http(
         dispatch = unit_of_work.dispatches.get_dispatch_for_snapshot(snapshot_id)
         artifact = unit_of_work.artifacts.get_artifact(source_artifact_id)
     assert dispatch is not None
-    assert dispatch.status is BatchDispatchStatus.pending
+    assert dispatch.status is DispatchStatus.pending
     assert dispatch.queue_name == CPU_QUEUE
     assert dispatch.payload == SnapshotImportTaskMessage(dataset_snapshot_id=snapshot_id)
     assert artifact is not None

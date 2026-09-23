@@ -25,7 +25,7 @@ from gendertagger.db.rows.aggregations import (
     AggregationExecutionRow,
     AggregationMethodExecutionRow,
 )
-from gendertagger.db.rows.dispatches import BatchDispatchRow
+from gendertagger.db.rows.dispatches import DispatchOutboxRow
 from gendertagger.db.rows.executions import MethodExecutionRow, RunRow
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
@@ -624,8 +624,8 @@ def test_aggregation_creation_rolls_back_when_dispatch_intent_cannot_persist(
         assert (
             tuple(
                 session.scalars(
-                    select(BatchDispatchRow.id).where(
-                        BatchDispatchRow.aggregation_execution_id.is_not(None)
+                    select(DispatchOutboxRow.id).where(
+                        DispatchOutboxRow.aggregation_execution_id.is_not(None)
                     )
                 )
             )

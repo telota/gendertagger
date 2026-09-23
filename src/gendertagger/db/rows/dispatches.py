@@ -26,15 +26,15 @@ from gendertagger.db.base import (
     enum_check,
     stored_enum,
 )
-from gendertagger.models.dispatch import BatchDispatchStatus
+from gendertagger.models.dispatch import DispatchStatus
 
 
-class BatchDispatchRow(UuidPrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, Base):
+class DispatchOutboxRow(UuidPrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, Base):
     """Mutable outbox delivery state for one unique application-work target."""
 
-    __tablename__ = "batch_dispatches"
+    __tablename__ = "dispatch_outbox"
     __table_args__ = (
-        enum_check("status", BatchDispatchStatus, name="status_allowed"),
+        enum_check("status", DispatchStatus, name="status_allowed"),
         UniqueConstraint("task_batch_id", name="task_batch_single_dispatch"),
         UniqueConstraint(
             "aggregation_execution_id",
@@ -76,8 +76,8 @@ class BatchDispatchRow(UuidPrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, Base
             "(status = 'published' AND published_at IS NOT NULL)",
             name="publication_consistent",
         ),
-        Index("ix_batch_dispatches_status_available_at", "status", "available_at"),
-        Index("ix_batch_dispatches_status_published_at", "status", "published_at"),
+        Index("ix_dispatch_outbox_status_available_at", "status", "available_at"),
+        Index("ix_dispatch_outbox_status_published_at", "status", "published_at"),
     )
 
     task_batch_id: Mapped[UUID | None] = mapped_column(
@@ -102,11 +102,11 @@ class BatchDispatchRow(UuidPrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, Base
     )
     queue_name: Mapped[str] = mapped_column(String(100), nullable=False)
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
-    status: Mapped[BatchDispatchStatus] = mapped_column(
-        stored_enum(BatchDispatchStatus, name="batch_dispatch_status"),
+    status: Mapped[DispatchStatus] = mapped_column(
+        stored_enum(DispatchStatus, name="dispatch_status"),
         nullable=False,
-        default=BatchDispatchStatus.pending,
-        server_default=BatchDispatchStatus.pending.value,
+        default=DispatchStatus.pending,
+        server_default=DispatchStatus.pending.value,
     )
     attempt_count: Mapped[int] = mapped_column(
         Integer,

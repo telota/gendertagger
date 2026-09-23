@@ -164,6 +164,10 @@ the phased plan that resumes application code.
   and `20260921_0004` and their migration tests are gone, since no deployed database needs them. A local
   database migrated to `20260922_0005` moves over with `alembic stamp --purge 20260815_0001`. See the
   migration policy in [`docs/04-persistence.md`](docs/04-persistence.md).
+- The dispatch outbox table is renamed from `batch_dispatches` to `dispatch_outbox`, since it carries all
+  five dispatch kinds; its constraints, indexes, and stored status enum follow, and `BatchDispatchStatus` and
+  `BatchDispatchRow` become `DispatchStatus` and `DispatchOutboxRow`. Edited in the baseline, per the migration
+  policy.
 - `review-items` filters on certainty tier, agreement tier, and review state now take several values, as
   repeated `certainty_tiers`, `agreement_tiers`, and `workflow_states` query parameters that match any listed
   value. They replace the single-valued `certainty_tier`, `agreement_tier`, and `workflow_state` parameters,

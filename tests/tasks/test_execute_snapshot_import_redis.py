@@ -15,7 +15,7 @@ from sqlalchemy import Engine
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.ingestion.tei import TeiPersonParser
-from gendertagger.models.dispatch import BatchDispatchStatus
+from gendertagger.models.dispatch import DispatchStatus
 from gendertagger.models.lifecycle import DatasetSnapshotStatus
 from gendertagger.models.project import ProjectCreate, SnapshotImportRequest
 from gendertagger.models.user import UserCreate
@@ -135,7 +135,7 @@ def test_snapshot_import_runs_through_relay_and_real_worker(
         assert people[0].forenames == ["Anna"]
         assert people[0].gnd_id == "123456789"
         assert dispatch is not None
-        assert dispatch.status is BatchDispatchStatus.published
+        assert dispatch.status is DispatchStatus.published
     finally:
         app.close()
         snapshot_import_module._snapshot_import_executor.cache_clear()

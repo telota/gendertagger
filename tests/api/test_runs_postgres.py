@@ -11,12 +11,12 @@ from sqlalchemy import Engine, select
 from gendertagger.api.app import create_app
 from gendertagger.api.authentication import AuthenticationBackend
 from gendertagger.api.settings import AppSettings
-from gendertagger.db.rows.dispatches import BatchDispatchRow
+from gendertagger.db.rows.dispatches import DispatchOutboxRow
 from gendertagger.db.rows.executions import MethodExecutionRow, TaskBatchRow
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.ingestion.tei import TeiPersonParser
-from gendertagger.models.dispatch import BatchDispatchStatus
+from gendertagger.models.dispatch import DispatchStatus
 from gendertagger.models.lifecycle import RunStatus
 from gendertagger.models.project import SnapshotImportTaskMessage
 from gendertagger.models.user import GlobalRole, UserCreate
@@ -191,8 +191,8 @@ def test_run_executions_are_scheduled_with_durable_dispatch_intent(
     assert "task_id" not in body
     with create_session_factory(postgres_engine)() as session:
         dispatch = session.scalar(
-            select(BatchDispatchRow)
-            .join(TaskBatchRow, BatchDispatchRow.task_batch_id == TaskBatchRow.id)
+            select(DispatchOutboxRow)
+            .join(TaskBatchRow, DispatchOutboxRow.task_batch_id == TaskBatchRow.id)
             .join(
                 MethodExecutionRow,
                 TaskBatchRow.method_execution_id == MethodExecutionRow.id,
@@ -200,7 +200,7 @@ def test_run_executions_are_scheduled_with_durable_dispatch_intent(
             .where(MethodExecutionRow.run_id == UUID(run_id))
         )
     assert dispatch is not None
-    assert dispatch.status is BatchDispatchStatus.pending
+    assert dispatch.status is DispatchStatus.pending
     assert dispatch.queue_name == "cpu"
     assert dispatch.payload["task_batch_id"] == str(dispatch.task_batch_id)
 

@@ -9,7 +9,7 @@ EXPECTED_TABLES = {
     "aggregation_method_executions",
     "annotations",
     "artifacts",
-    "batch_dispatches",
+    "dispatch_outbox",
     "dataset_snapshots",
     "evaluation_executions",
     "evaluation_method_executions",
@@ -46,7 +46,7 @@ def test_schema_compiles_as_postgresql_ddl() -> None:
 
 
 def test_dispatch_schema_has_exactly_one_unique_foreign_key_owner() -> None:
-    table = metadata.tables["batch_dispatches"]
+    table = metadata.tables["dispatch_outbox"]
 
     assert table.c.task_batch_id.nullable
     assert table.c.aggregation_execution_id.nullable
@@ -59,12 +59,12 @@ def test_dispatch_schema_has_exactly_one_unique_foreign_key_owner() -> None:
         "dataset_snapshot_single_dispatch",
         "evaluation_execution_single_dispatch",
         "export_single_dispatch",
-        "ck_batch_dispatches_exactly_one_target",
-        "fk_batch_dispatches_task_batch_id_task_batches",
-        "fk_batch_dispatches_aggregation_execution_id_aggregation_executions",
-        "fk_batch_dispatches_dataset_snapshot_id_dataset_snapshots",
-        "fk_batch_dispatches_evaluation_execution_id_evaluation_executions",
-        "fk_batch_dispatches_export_id_export_executions",
+        "ck_dispatch_outbox_exactly_one_target",
+        "fk_dispatch_outbox_task_batch_id_task_batches",
+        "fk_dispatch_outbox_aggregation_execution_id_aggregation_executions",
+        "fk_dispatch_outbox_dataset_snapshot_id_dataset_snapshots",
+        "fk_dispatch_outbox_evaluation_execution_id_evaluation_executions",
+        "fk_dispatch_outbox_export_id_export_executions",
     }
     assert {foreign_key.target_fullname for foreign_key in table.foreign_keys} >= {
         "task_batches.id",

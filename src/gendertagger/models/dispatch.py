@@ -24,7 +24,7 @@ class DispatchTarget(StrEnum):
     export = "export"
 
 
-class BatchDispatchStatus(StrEnum):
+class DispatchStatus(StrEnum):
     """Delivery lifecycle for one durable task outbox entry."""
 
     pending = "pending"
@@ -155,7 +155,7 @@ class BatchDispatch(BatchDispatchCreate):
     """Canonical read model for one durable task-batch dispatch attempt."""
 
     id: UUID
-    status: BatchDispatchStatus
+    status: DispatchStatus
     attempt_count: int = Field(ge=0)
     lease_owner: str | None = Field(default=None, max_length=255)
     lease_until: UtcDatetime | None = None
@@ -177,7 +177,7 @@ class BatchDispatch(BatchDispatchCreate):
         if (self.lease_owner is None) != (self.lease_until is None):
             msg = "dispatch lease_owner and lease_until must be present together"
             raise ValueError(msg)
-        if self.status is BatchDispatchStatus.pending:
+        if self.status is DispatchStatus.pending:
             if self.published_at is not None:
                 msg = "a pending dispatch must not have published_at"
                 raise ValueError(msg)
@@ -194,7 +194,7 @@ class AggregationDispatch(AggregationDispatchCreate):
     """Canonical read model for one durable aggregation dispatch attempt."""
 
     id: UUID
-    status: BatchDispatchStatus
+    status: DispatchStatus
     attempt_count: int = Field(ge=0)
     lease_owner: str | None = Field(default=None, max_length=255)
     lease_until: UtcDatetime | None = None
@@ -216,7 +216,7 @@ class AggregationDispatch(AggregationDispatchCreate):
         if (self.lease_owner is None) != (self.lease_until is None):
             msg = "dispatch lease_owner and lease_until must be present together"
             raise ValueError(msg)
-        if self.status is BatchDispatchStatus.pending:
+        if self.status is DispatchStatus.pending:
             if self.published_at is not None:
                 msg = "a pending dispatch must not have published_at"
                 raise ValueError(msg)
@@ -233,7 +233,7 @@ class SnapshotDispatch(SnapshotDispatchCreate):
     """Canonical read model for one durable snapshot-import dispatch attempt."""
 
     id: UUID
-    status: BatchDispatchStatus
+    status: DispatchStatus
     attempt_count: int = Field(ge=0)
     lease_owner: str | None = Field(default=None, max_length=255)
     lease_until: UtcDatetime | None = None
@@ -255,7 +255,7 @@ class SnapshotDispatch(SnapshotDispatchCreate):
         if (self.lease_owner is None) != (self.lease_until is None):
             msg = "dispatch lease_owner and lease_until must be present together"
             raise ValueError(msg)
-        if self.status is BatchDispatchStatus.pending:
+        if self.status is DispatchStatus.pending:
             if self.published_at is not None:
                 msg = "a pending dispatch must not have published_at"
                 raise ValueError(msg)
@@ -272,7 +272,7 @@ class EvaluationDispatch(EvaluationDispatchCreate):
     """Canonical read model for one durable evaluation dispatch attempt."""
 
     id: UUID
-    status: BatchDispatchStatus
+    status: DispatchStatus
     attempt_count: int = Field(ge=0)
     lease_owner: str | None = Field(default=None, max_length=255)
     lease_until: UtcDatetime | None = None
@@ -294,7 +294,7 @@ class EvaluationDispatch(EvaluationDispatchCreate):
         if (self.lease_owner is None) != (self.lease_until is None):
             msg = "dispatch lease_owner and lease_until must be present together"
             raise ValueError(msg)
-        if self.status is BatchDispatchStatus.pending:
+        if self.status is DispatchStatus.pending:
             if self.published_at is not None:
                 msg = "a pending dispatch must not have published_at"
                 raise ValueError(msg)
@@ -311,7 +311,7 @@ class ExportDispatch(ExportDispatchCreate):
     """Canonical read model for one durable export dispatch attempt."""
 
     id: UUID
-    status: BatchDispatchStatus
+    status: DispatchStatus
     attempt_count: int = Field(ge=0)
     lease_owner: str | None = Field(default=None, max_length=255)
     lease_until: UtcDatetime | None = None
@@ -333,7 +333,7 @@ class ExportDispatch(ExportDispatchCreate):
         if (self.lease_owner is None) != (self.lease_until is None):
             msg = "dispatch lease_owner and lease_until must be present together"
             raise ValueError(msg)
-        if self.status is BatchDispatchStatus.pending:
+        if self.status is DispatchStatus.pending:
             if self.published_at is not None:
                 msg = "a pending dispatch must not have published_at"
                 raise ValueError(msg)

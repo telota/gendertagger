@@ -42,7 +42,7 @@ Check the health status of the deployed containers.
 ```bash
 docker compose -f compose.yaml -f compose.prod.yaml ps
 ```
-Ensure every service with a healthcheck reports `Up (healthy)`. `dispatch-coordinator` defines no healthcheck and reports plain `Up`; confirm it separately by checking that its log shows relay and reconciliation cycles and that `batch_dispatches` rows are not accumulating in `pending`. Without it, queued work is persisted but never published to the broker.
+Ensure every service with a healthcheck reports `Up (healthy)`. `dispatch-coordinator` defines no healthcheck and reports plain `Up`; confirm it separately by checking that its log shows relay and reconciliation cycles and that `dispatch_outbox` rows are not accumulating in `pending`. Without it, queued work is persisted but never published to the broker.
 
 Wait a few moments for the startup sequence to complete, then test the external endpoints. `/health` and `/ready` are served at the root, not under `/api/v1` (for example `https://your-domain.com/health`).
 

@@ -23,8 +23,8 @@ from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.models.dispatch import (
     BatchDispatch,
     BatchDispatchCreate,
-    BatchDispatchStatus,
     DispatchMessage,
+    DispatchStatus,
 )
 from gendertagger.models.lifecycle import MethodExecutionStatus, RunStatus, TaskBatchStatus
 from gendertagger.models.run import Run, TaskBatch, TaskBatchMessage
@@ -315,7 +315,7 @@ def test_broker_failure_keeps_dispatch_recoverable_for_a_later_relay_cycle(
 
     assert failed_cycle.failed == 1
     assert pending is not None
-    assert pending.status is BatchDispatchStatus.pending
+    assert pending.status is DispatchStatus.pending
     assert pending.attempt_count == 1
     assert pending.last_error == "ConnectionError: simulated broker outage"
     assert run_after_failure is not None
@@ -328,7 +328,7 @@ def test_broker_failure_keeps_dispatch_recoverable_for_a_later_relay_cycle(
     assert recovered_cycle.published == 1
     assert publisher.call_count == 2
     assert published is not None
-    assert published.status is BatchDispatchStatus.published
+    assert published.status is DispatchStatus.published
     assert published.attempt_count == 2
 
 

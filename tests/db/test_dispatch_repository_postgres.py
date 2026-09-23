@@ -15,7 +15,7 @@ from gendertagger.db.repositories.dispatch_repository import SqlAlchemyDispatchR
 from gendertagger.db.repositories.project_repository import SqlAlchemyProjectRepository
 from gendertagger.db.repositories.run_repository import SqlAlchemyRunRepository
 from gendertagger.db.rows.aggregations import AggregationExecutionRow, AggregationMethodExecutionRow
-from gendertagger.db.rows.dispatches import BatchDispatchRow
+from gendertagger.db.rows.dispatches import DispatchOutboxRow
 from gendertagger.db.rows.executions import TaskBatchRow
 from gendertagger.db.rows.projects import DatasetSnapshotRow
 from gendertagger.ingestion.registry import version_for_snapshot_import
@@ -24,7 +24,7 @@ from gendertagger.models.artifact import ArtifactCreate
 from gendertagger.models.dispatch import (
     AggregationDispatchCreate,
     BatchDispatchCreate,
-    BatchDispatchStatus,
+    DispatchStatus,
     SnapshotDispatchCreate,
 )
 from gendertagger.models.lifecycle import AggregationExecutionStatus
@@ -301,7 +301,7 @@ def test_ensure_dispatch_is_idempotent_per_task_batch(db_session: Session) -> No
 
     assert first.id == second.id
     assert first.payload == command.payload
-    assert first.status is BatchDispatchStatus.pending
+    assert first.status is DispatchStatus.pending
     assert repository.get_dispatch(first.id) == first
     assert repository.get_dispatch_for_batch(batch.id) == first
 
@@ -346,7 +346,7 @@ def test_ensure_dispatch_is_exact_and_idempotent_per_snapshot(
 
     assert first.id == second.id
     assert first.payload == command.payload
-    assert first.status is BatchDispatchStatus.pending
+    assert first.status is DispatchStatus.pending
     assert repository.get_dispatch(first.id) == first
     assert repository.get_dispatch_for_snapshot(snapshot.id) == first
 
@@ -392,7 +392,7 @@ def test_dispatch_schema_rejects_zero_or_multiple_owners(
 
     with pytest.raises(DBAPIError) as error, db_session.begin_nested():
         db_session.execute(
-            insert(BatchDispatchRow).values(
+            insert(DispatchOutboxRow).values(
                 id=uuid4(),
                 task_batch_id=batch.id if has_batch else None,
                 aggregation_execution_id=aggregation.id if has_aggregation else None,
@@ -406,7 +406,7 @@ def test_dispatch_schema_rejects_zero_or_multiple_owners(
     assert getattr(error.value.orig, "sqlstate", None) == "23514"
     assert (
         getattr(getattr(error.value.orig, "diag", None), "constraint_name", None)
-        == "ck_batch_dispatches_exactly_one_target"
+        == "ck_dispatch_outbox_exactly_one_target"
     )
 
 
@@ -485,7 +485,7 @@ def test_claim_and_publish_enforce_lease_ownership(db_session: Session) -> None:
         lease_owner="relay-1",
         published_at=now,
     )
-    assert published.status is BatchDispatchStatus.published
+    assert published.status is DispatchStatus.published
     assert published.published_at == now
     assert published.lease_owner is None
     assert (
@@ -599,7 +599,7 @@ def test_reconciler_repairs_missing_and_rearms_stale_dispatches(
     )
     rearmed = repository.get_dispatch(dispatch.id)
     assert rearmed is not None
-    assert rearmed.status is BatchDispatchStatus.pending
+    assert rearmed.status is DispatchStatus.pending
     assert rearmed.available_at == rearm_time
     assert rearmed.published_at is None
     assert rearmed.attempt_count == 1
@@ -644,7 +644,7 @@ def test_reconciler_repairs_and_rearms_aggregation_dispatches(
     )
     rearmed = repository.get_dispatch_for_aggregation(aggregation.id)
     assert rearmed is not None
-    assert rearmed.status is BatchDispatchStatus.pending
+    assert rearmed.status is DispatchStatus.pending
     assert rearmed.available_at == rearm_time
     assert rearmed.published_at is None
 
@@ -684,7 +684,7 @@ def test_reconciler_repairs_and_rearms_pending_snapshot_dispatches(
     )
     rearmed = repository.get_dispatch_for_snapshot(snapshot.id)
     assert rearmed is not None
-    assert rearmed.status is BatchDispatchStatus.pending
+    assert rearmed.status is DispatchStatus.pending
     assert rearmed.available_at == rearm_time
     assert rearmed.published_at is None
 

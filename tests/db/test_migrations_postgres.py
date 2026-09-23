@@ -13,7 +13,7 @@ EXPECTED_APPLICATION_TABLES = {
     "aggregation_method_executions",
     "annotations",
     "artifacts",
-    "batch_dispatches",
+    "dispatch_outbox",
     "dataset_snapshots",
     "evaluation_executions",
     "evaluation_method_executions",

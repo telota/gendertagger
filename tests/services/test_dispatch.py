@@ -10,8 +10,8 @@ from gendertagger.models.aggregation import AggregationTaskMessage
 from gendertagger.models.dispatch import (
     AggregationDispatch,
     BatchDispatch,
-    BatchDispatchStatus,
     DispatchMessage,
+    DispatchStatus,
 )
 from gendertagger.models.run import TaskBatchMessage
 from gendertagger.services.dispatch import (
@@ -111,7 +111,7 @@ def _dispatch(
         task_batch_id=batch_id,
         queue_name="cpu",
         payload=message,
-        status=BatchDispatchStatus.pending,
+        status=DispatchStatus.pending,
         attempt_count=attempt_count,
         available_at=NOW,
         lease_owner="relay-1",
@@ -127,7 +127,7 @@ def _aggregation_dispatch() -> AggregationDispatch:
         aggregation_execution_id=AGGREGATION_ID,
         queue_name="cpu",
         payload=AggregationTaskMessage(aggregation_execution_id=AGGREGATION_ID),
-        status=BatchDispatchStatus.pending,
+        status=DispatchStatus.pending,
         attempt_count=1,
         available_at=NOW,
         lease_owner="relay-1",

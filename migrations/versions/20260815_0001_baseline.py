@@ -1370,7 +1370,7 @@ def upgrade() -> None:
     op.create_check_constraint("record_count_positive", "task_batches", "record_count > 0")
     # Squashed from 20260814_0003_batch_dispatch_outbox.py
     op.create_table(
-        "batch_dispatches",
+        "dispatch_outbox",
         sa.Column("task_batch_id", sa.UUID(), nullable=False),
         sa.Column("queue_name", sa.String(length=100), nullable=False),
         sa.Column(
@@ -1383,7 +1383,7 @@ def upgrade() -> None:
             sa.Enum(
                 "pending",
                 "published",
-                name="batch_dispatch_status",
+                name="dispatch_status",
                 native_enum=False,
             ),
             server_default="pending",
@@ -1410,59 +1410,59 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint(
             "attempt_count >= 0",
-            name=op.f("ck_batch_dispatches_attempt_count_nonnegative"),
+            name=op.f("ck_dispatch_outbox_attempt_count_nonnegative"),
         ),
         sa.CheckConstraint(
             "(lease_owner IS NULL AND lease_until IS NULL) OR "
             "(status = 'pending' AND lease_owner IS NOT NULL AND lease_until IS NOT NULL)",
-            name=op.f("ck_batch_dispatches_lease_consistent"),
+            name=op.f("ck_dispatch_outbox_lease_consistent"),
         ),
         sa.CheckConstraint(
             "lease_owner IS NULL OR btrim(lease_owner) <> ''",
-            name=op.f("ck_batch_dispatches_lease_owner_nonblank"),
+            name=op.f("ck_dispatch_outbox_lease_owner_nonblank"),
         ),
         sa.CheckConstraint(
             "(status = 'pending' AND published_at IS NULL) OR "
             "(status = 'published' AND published_at IS NOT NULL)",
-            name=op.f("ck_batch_dispatches_publication_consistent"),
+            name=op.f("ck_dispatch_outbox_publication_consistent"),
         ),
         sa.CheckConstraint(
             "queue_name ~ '^[a-z][a-z0-9]*(_[a-z0-9]+)*$'",
-            name=op.f("ck_batch_dispatches_queue_name_format"),
+            name=op.f("ck_dispatch_outbox_queue_name_format"),
         ),
         sa.CheckConstraint(
             "status IN ('pending', 'published')",
-            name=op.f("ck_batch_dispatches_status_allowed"),
+            name=op.f("ck_dispatch_outbox_status_allowed"),
         ),
         sa.ForeignKeyConstraint(
             ["task_batch_id"],
             ["task_batches.id"],
-            name=op.f("fk_batch_dispatches_task_batch_id_task_batches"),
+            name=op.f("fk_dispatch_outbox_task_batch_id_task_batches"),
             ondelete="RESTRICT",
         ),
-        sa.PrimaryKeyConstraint("id", name=op.f("pk_batch_dispatches")),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_dispatch_outbox")),
         sa.UniqueConstraint("task_batch_id", name="task_batch_single_dispatch"),
     )
     op.create_index(
-        "ix_batch_dispatches_status_available_at",
-        "batch_dispatches",
+        "ix_dispatch_outbox_status_available_at",
+        "dispatch_outbox",
         ["status", "available_at"],
         unique=False,
     )
     op.create_index(
-        "ix_batch_dispatches_status_published_at",
-        "batch_dispatches",
+        "ix_dispatch_outbox_status_published_at",
+        "dispatch_outbox",
         ["status", "published_at"],
         unique=False,
     )
     # Squashed from 20260814_0004_aggregation_dispatch_outbox.py
     op.add_column(
-        "batch_dispatches",
+        "dispatch_outbox",
         sa.Column("aggregation_execution_id", sa.UUID(), nullable=True),
     )
     op.create_foreign_key(
-        op.f("fk_batch_dispatches_aggregation_execution_id_aggregation_executions"),
-        "batch_dispatches",
+        op.f("fk_dispatch_outbox_aggregation_execution_id_aggregation_executions"),
+        "dispatch_outbox",
         "aggregation_executions",
         ["aggregation_execution_id"],
         ["id"],
@@ -1470,18 +1470,18 @@ def upgrade() -> None:
     )
     op.create_unique_constraint(
         "aggregation_execution_single_dispatch",
-        "batch_dispatches",
+        "dispatch_outbox",
         ["aggregation_execution_id"],
     )
     op.alter_column(
-        "batch_dispatches",
+        "dispatch_outbox",
         "task_batch_id",
         existing_type=sa.UUID(),
         nullable=True,
     )
     op.create_check_constraint(
-        op.f("ck_batch_dispatches_exactly_one_target"),
-        "batch_dispatches",
+        op.f("ck_dispatch_outbox_exactly_one_target"),
+        "dispatch_outbox",
         "(task_batch_id IS NOT NULL) <> (aggregation_execution_id IS NOT NULL)",
     )
     # Squashed from 20260814_0005_structured_person_name_forms.py
@@ -1500,12 +1500,12 @@ def upgrade() -> None:
     )
     # Squashed from 20260814_0006_snapshot_import_dispatch_outbox.py
     op.add_column(
-        "batch_dispatches",
+        "dispatch_outbox",
         sa.Column("dataset_snapshot_id", sa.UUID(), nullable=True),
     )
     op.create_foreign_key(
-        op.f("fk_batch_dispatches_dataset_snapshot_id_dataset_snapshots"),
-        "batch_dispatches",
+        op.f("fk_dispatch_outbox_dataset_snapshot_id_dataset_snapshots"),
+        "dispatch_outbox",
         "dataset_snapshots",
         ["dataset_snapshot_id"],
         ["id"],
@@ -1513,17 +1513,17 @@ def upgrade() -> None:
     )
     op.create_unique_constraint(
         "dataset_snapshot_single_dispatch",
-        "batch_dispatches",
+        "dispatch_outbox",
         ["dataset_snapshot_id"],
     )
     op.drop_constraint(
-        op.f("ck_batch_dispatches_exactly_one_target"),
-        "batch_dispatches",
+        op.f("ck_dispatch_outbox_exactly_one_target"),
+        "dispatch_outbox",
         type_="check",
     )
     op.create_check_constraint(
-        op.f("ck_batch_dispatches_exactly_one_target"),
-        "batch_dispatches",
+        op.f("ck_dispatch_outbox_exactly_one_target"),
+        "dispatch_outbox",
         "num_nonnulls(task_batch_id, aggregation_execution_id, dataset_snapshot_id) = 1",
     )
     # Squashed from 20260814_0007_source_manifests_and_person_events.py
@@ -2694,12 +2694,12 @@ def upgrade() -> None:
     )
     # Squashed from 20260814_0011_evaluation_dispatch_outbox.py
     op.add_column(
-        "batch_dispatches",
+        "dispatch_outbox",
         sa.Column("evaluation_execution_id", sa.UUID(), nullable=True),
     )
     op.create_foreign_key(
-        op.f("fk_batch_dispatches_evaluation_execution_id_evaluation_executions"),
-        "batch_dispatches",
+        op.f("fk_dispatch_outbox_evaluation_execution_id_evaluation_executions"),
+        "dispatch_outbox",
         "evaluation_executions",
         ["evaluation_execution_id"],
         ["id"],
@@ -2707,17 +2707,17 @@ def upgrade() -> None:
     )
     op.create_unique_constraint(
         "evaluation_execution_single_dispatch",
-        "batch_dispatches",
+        "dispatch_outbox",
         ["evaluation_execution_id"],
     )
     op.drop_constraint(
-        op.f("ck_batch_dispatches_exactly_one_target"),
-        "batch_dispatches",
+        op.f("ck_dispatch_outbox_exactly_one_target"),
+        "dispatch_outbox",
         type_="check",
     )
     op.create_check_constraint(
-        op.f("ck_batch_dispatches_exactly_one_target"),
-        "batch_dispatches",
+        op.f("ck_dispatch_outbox_exactly_one_target"),
+        "dispatch_outbox",
         "num_nonnulls(task_batch_id, aggregation_execution_id, dataset_snapshot_id, "
         "evaluation_execution_id) = 1",
     )
@@ -2856,12 +2856,12 @@ def upgrade() -> None:
     )
     # Squashed from 20260814_0013_export_dispatch_outbox.py
     op.add_column(
-        "batch_dispatches",
+        "dispatch_outbox",
         sa.Column("export_id", sa.UUID(), nullable=True),
     )
     op.create_foreign_key(
-        op.f("fk_batch_dispatches_export_id_export_executions"),
-        "batch_dispatches",
+        op.f("fk_dispatch_outbox_export_id_export_executions"),
+        "dispatch_outbox",
         "export_executions",
         ["export_id"],
         ["id"],
@@ -2869,17 +2869,17 @@ def upgrade() -> None:
     )
     op.create_unique_constraint(
         "export_single_dispatch",
-        "batch_dispatches",
+        "dispatch_outbox",
         ["export_id"],
     )
     op.drop_constraint(
-        op.f("ck_batch_dispatches_exactly_one_target"),
-        "batch_dispatches",
+        op.f("ck_dispatch_outbox_exactly_one_target"),
+        "dispatch_outbox",
         type_="check",
     )
     op.create_check_constraint(
-        op.f("ck_batch_dispatches_exactly_one_target"),
-        "batch_dispatches",
+        op.f("ck_dispatch_outbox_exactly_one_target"),
+        "dispatch_outbox",
         "num_nonnulls(task_batch_id, aggregation_execution_id, dataset_snapshot_id, "
         "evaluation_execution_id, export_id) = 1",
     )
@@ -3024,25 +3024,25 @@ def downgrade() -> None:
     op.drop_table("user_credentials")
     # Squashed from 20260814_0013_export_dispatch_outbox.py
     op.drop_constraint(
-        op.f("ck_batch_dispatches_exactly_one_target"),
-        "batch_dispatches",
+        op.f("ck_dispatch_outbox_exactly_one_target"),
+        "dispatch_outbox",
         type_="check",
     )
-    op.execute(sa.text("DELETE FROM batch_dispatches WHERE export_id IS NOT NULL"))
+    op.execute(sa.text("DELETE FROM dispatch_outbox WHERE export_id IS NOT NULL"))
     op.drop_constraint(
         "export_single_dispatch",
-        "batch_dispatches",
+        "dispatch_outbox",
         type_="unique",
     )
     op.drop_constraint(
-        op.f("fk_batch_dispatches_export_id_export_executions"),
-        "batch_dispatches",
+        op.f("fk_dispatch_outbox_export_id_export_executions"),
+        "dispatch_outbox",
         type_="foreignkey",
     )
-    op.drop_column("batch_dispatches", "export_id")
+    op.drop_column("dispatch_outbox", "export_id")
     op.create_check_constraint(
-        op.f("ck_batch_dispatches_exactly_one_target"),
-        "batch_dispatches",
+        op.f("ck_dispatch_outbox_exactly_one_target"),
+        "dispatch_outbox",
         "num_nonnulls(task_batch_id, aggregation_execution_id, dataset_snapshot_id, "
         "evaluation_execution_id) = 1",
     )
@@ -3062,25 +3062,25 @@ def downgrade() -> None:
     op.drop_table("export_executions")
     # Squashed from 20260814_0011_evaluation_dispatch_outbox.py
     op.drop_constraint(
-        op.f("ck_batch_dispatches_exactly_one_target"),
-        "batch_dispatches",
+        op.f("ck_dispatch_outbox_exactly_one_target"),
+        "dispatch_outbox",
         type_="check",
     )
-    op.execute(sa.text("DELETE FROM batch_dispatches WHERE evaluation_execution_id IS NOT NULL"))
+    op.execute(sa.text("DELETE FROM dispatch_outbox WHERE evaluation_execution_id IS NOT NULL"))
     op.drop_constraint(
         "evaluation_execution_single_dispatch",
-        "batch_dispatches",
+        "dispatch_outbox",
         type_="unique",
     )
     op.drop_constraint(
-        op.f("fk_batch_dispatches_evaluation_execution_id_evaluation_executions"),
-        "batch_dispatches",
+        op.f("fk_dispatch_outbox_evaluation_execution_id_evaluation_executions"),
+        "dispatch_outbox",
         type_="foreignkey",
     )
-    op.drop_column("batch_dispatches", "evaluation_execution_id")
+    op.drop_column("dispatch_outbox", "evaluation_execution_id")
     op.create_check_constraint(
-        op.f("ck_batch_dispatches_exactly_one_target"),
-        "batch_dispatches",
+        op.f("ck_dispatch_outbox_exactly_one_target"),
+        "dispatch_outbox",
         "num_nonnulls(task_batch_id, aggregation_execution_id, dataset_snapshot_id) = 1",
     )
     # Squashed from 20260814_0010_evaluation_executions.py
@@ -3164,25 +3164,25 @@ def downgrade() -> None:
     op.drop_column("person_records", "events")
     # Squashed from 20260814_0006_snapshot_import_dispatch_outbox.py
     op.drop_constraint(
-        op.f("ck_batch_dispatches_exactly_one_target"),
-        "batch_dispatches",
+        op.f("ck_dispatch_outbox_exactly_one_target"),
+        "dispatch_outbox",
         type_="check",
     )
-    op.execute(sa.text("DELETE FROM batch_dispatches WHERE dataset_snapshot_id IS NOT NULL"))
+    op.execute(sa.text("DELETE FROM dispatch_outbox WHERE dataset_snapshot_id IS NOT NULL"))
     op.drop_constraint(
         "dataset_snapshot_single_dispatch",
-        "batch_dispatches",
+        "dispatch_outbox",
         type_="unique",
     )
     op.drop_constraint(
-        op.f("fk_batch_dispatches_dataset_snapshot_id_dataset_snapshots"),
-        "batch_dispatches",
+        op.f("fk_dispatch_outbox_dataset_snapshot_id_dataset_snapshots"),
+        "dispatch_outbox",
         type_="foreignkey",
     )
-    op.drop_column("batch_dispatches", "dataset_snapshot_id")
+    op.drop_column("dispatch_outbox", "dataset_snapshot_id")
     op.create_check_constraint(
-        op.f("ck_batch_dispatches_exactly_one_target"),
-        "batch_dispatches",
+        op.f("ck_dispatch_outbox_exactly_one_target"),
+        "dispatch_outbox",
         "(task_batch_id IS NOT NULL) <> (aggregation_execution_id IS NOT NULL)",
     )
     # Squashed from 20260814_0005_structured_person_name_forms.py
@@ -3194,32 +3194,32 @@ def downgrade() -> None:
     op.drop_column("person_records", "name_forms")
     # Squashed from 20260814_0004_aggregation_dispatch_outbox.py
     op.drop_constraint(
-        op.f("ck_batch_dispatches_exactly_one_target"),
-        "batch_dispatches",
+        op.f("ck_dispatch_outbox_exactly_one_target"),
+        "dispatch_outbox",
         type_="check",
     )
-    op.execute(sa.text("DELETE FROM batch_dispatches WHERE aggregation_execution_id IS NOT NULL"))
+    op.execute(sa.text("DELETE FROM dispatch_outbox WHERE aggregation_execution_id IS NOT NULL"))
     op.alter_column(
-        "batch_dispatches",
+        "dispatch_outbox",
         "task_batch_id",
         existing_type=sa.UUID(),
         nullable=False,
     )
     op.drop_constraint(
         "aggregation_execution_single_dispatch",
-        "batch_dispatches",
+        "dispatch_outbox",
         type_="unique",
     )
     op.drop_constraint(
-        op.f("fk_batch_dispatches_aggregation_execution_id_aggregation_executions"),
-        "batch_dispatches",
+        op.f("fk_dispatch_outbox_aggregation_execution_id_aggregation_executions"),
+        "dispatch_outbox",
         type_="foreignkey",
     )
-    op.drop_column("batch_dispatches", "aggregation_execution_id")
+    op.drop_column("dispatch_outbox", "aggregation_execution_id")
     # Squashed from 20260814_0003_batch_dispatch_outbox.py
-    op.drop_index("ix_batch_dispatches_status_published_at", table_name="batch_dispatches")
-    op.drop_index("ix_batch_dispatches_status_available_at", table_name="batch_dispatches")
-    op.drop_table("batch_dispatches")
+    op.drop_index("ix_dispatch_outbox_status_published_at", table_name="dispatch_outbox")
+    op.drop_index("ix_dispatch_outbox_status_available_at", table_name="dispatch_outbox")
+    op.drop_table("dispatch_outbox")
     # Squashed from 20260813_0002_task_batch_record_slice.py
     op.drop_constraint(op.f("ck_task_batches_record_count_positive"), "task_batches", type_="check")
     op.drop_constraint(
