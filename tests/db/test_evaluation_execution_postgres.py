@@ -6,44 +6,24 @@ import pytest
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 from tests.factories import tei_person_input
+from tests.seeding import (
+    only_method_answers,
+    seed_completed_aggregation,
+    seed_completed_run,
+    seed_project,
+    seed_ready_snapshot,
+    session_repositories,
+)
 
-from gendertagger.config.run import MethodRunConfig, RunConfig
-from gendertagger.db.aggregation_repository import SqlAlchemyAggregationRepository
 from gendertagger.db.artifact_repository import SqlAlchemyArtifactRepository
 from gendertagger.db.evaluation_repository import SqlAlchemyEvaluationRepository
-from gendertagger.db.project_repository import SqlAlchemyProjectRepository
-from gendertagger.db.run_repository import SqlAlchemyRunRepository
-from gendertagger.domain.aggregation_assessment import assess_reference_predictions
-from gendertagger.ingestion.registry import version_for_snapshot_import
-from gendertagger.models.aggregation import AggregationExecutionCreate, AggregationResultWrite
 from gendertagger.models.artifact import ArtifactCreate
 from gendertagger.models.classification import (
     CanonicalLabel,
-    PredictionResult,
     PredictionStatus,
 )
 from gendertagger.models.evaluation import EvaluationDefinition, EvaluationExecutionCreate
-from gendertagger.models.lifecycle import (
-    AggregationExecutionStatus,
-    EvaluationExecutionStatus,
-    TaskBatchStatus,
-)
-from gendertagger.models.method import MethodDescriptor
-from gendertagger.models.person import ImportedPerson
-from gendertagger.models.project import (
-    DatasetSnapshotCreate,
-    ProjectCreate,
-    SnapshotImportConfig,
-    SnapshotImportLimits,
-    SnapshotSourceMemberCreate,
-    TeiImportProfile,
-)
-from gendertagger.models.run import (
-    MethodExecutionCreate,
-    PredictionWrite,
-    RunCreate,
-    TaskBatchCreate,
-)
+from gendertagger.models.lifecycle import EvaluationExecutionStatus
 from gendertagger.services.persistence_errors import InvalidResourceStateError
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
@@ -57,141 +37,18 @@ def _seed_reference_run(
     *,
     extra_methods: tuple[str, ...] = (),
 ) -> tuple[UUID, tuple[UUID, ...], UUID]:
-    projects = SqlAlchemyProjectRepository(session)
-    project = projects.add_project(
-        ProjectCreate(
-            slug=f"evaluation-core-{uuid4().hex}",
-            display_name="Evaluation core fixture",
-        )
+    repositories = session_repositories(session)
+    project = seed_project(repositories, slug_prefix="evaluation-core")
+    snapshot = seed_ready_snapshot(
+        repositories, project.id, [tei_person_input(tei_id="p1", surname="Example")]
     )
-    artifacts = SqlAlchemyArtifactRepository(session)
-    source = artifacts.add_artifact(
-        ArtifactCreate(
-            logical_type="source_tei",
-            storage_uri=f"local-sha256:{uuid4().hex}",
-            sha256=uuid4().hex * 2,
-            byte_size=1,
-            media_type="application/tei+xml",
-            project_id=project.id,
-        )
+    completed = seed_completed_run(
+        repositories,
+        snapshot,
+        (*DEFAULT_DEFINITION.required_methods, *extra_methods),
+        only_method_answers("gnd", CanonicalLabel.male),
     )
-    import_config = SnapshotImportConfig(
-        profile=TeiImportProfile.tei_p5_person_register,
-        limits=SnapshotImportLimits(),
-    )
-    snapshot = projects.add_snapshot(
-        DatasetSnapshotCreate(
-            project_id=project.id,
-            source_artifact_id=source.id,
-            source_sha256=source.sha256,
-            parser_version=version_for_snapshot_import(import_config),
-            import_config=import_config.model_dump(mode="json"),
-        )
-    )
-    projects.add_snapshot_source_members(
-        snapshot.id,
-        [
-            SnapshotSourceMemberCreate(
-                artifact_id=source.id,
-                ordinal=0,
-                logical_name="source.xml",
-                sha256=source.sha256,
-                byte_size=source.byte_size,
-                media_type=source.media_type,
-            )
-        ],
-    )
-    projects.begin_snapshot_import(snapshot.id)
-    projects.add_imported_person_records(
-        snapshot.id,
-        [
-            ImportedPerson(
-                person=tei_person_input(tei_id="p1", surname="Example"),
-                source_member_name="source.xml",
-                source_record_locator="1",
-            )
-        ],
-    )
-    projects.complete_snapshot_import(snapshot.id, ready_at=NOW)
-    person = projects.get_person_record_by_tei_id(snapshot.id, "p1")
-    assert person is not None
-
-    all_methods = (*DEFAULT_DEFINITION.required_methods, *extra_methods)
-    runs = SqlAlchemyRunRepository(session)
-    run = runs.add_run(
-        RunCreate(
-            dataset_snapshot_id=snapshot.id,
-            resolved_config=RunConfig(
-                methods=[MethodRunConfig(name=method_name) for method_name in all_methods]
-            ),
-            code_git_commit="c" * 40,
-            application_version="0.0.0",
-            python_version="3.13.14",
-            dependency_lock_sha256="d" * 64,
-        )
-    )
-    runs.mark_run_queued(run.id)
-    runs.mark_run_started(run.id, started_at=NOW)
-    execution_ids: list[UUID] = []
-    for method_name in all_methods:
-        execution = runs.add_method_execution(
-            MethodExecutionCreate(
-                run_id=run.id,
-                descriptor=MethodDescriptor(
-                    name=method_name,
-                    implementation_version="test_v1",
-                    normalization_version="test_v1",
-                ),
-                queue_name="cpu",
-                total_count=1,
-            )
-        )
-        execution_ids.append(execution.id)
-        batch = runs.add_task_batch(
-            TaskBatchCreate(
-                method_execution_id=execution.id,
-                batch_index=0,
-                queue_name="cpu",
-                record_offset=0,
-                record_count=1,
-            )
-        )
-        runs.mark_execution_queued(execution.id)
-        runs.mark_execution_started(execution.id, started_at=NOW)
-        claimed = runs.claim_batch(
-            batch.id,
-            method_execution_id=execution.id,
-            worker_task_id=f"fixture-{method_name}",
-            started_at=NOW,
-            attempt_count=1,
-        )
-        assert claimed is not None
-        result = PredictionResult(
-            label=CanonicalLabel.male if method_name == "gnd" else None,
-            status=(PredictionStatus.success if method_name == "gnd" else PredictionStatus.abstain),
-        )
-        runs.add_predictions(
-            execution.id,
-            [
-                PredictionWrite(
-                    person_record_id=person.id,
-                    task_batch_id=batch.id,
-                    input_fingerprint="e" * 64,
-                    result=result,
-                )
-            ],
-        )
-        runs.mark_batch_finished(
-            batch.id,
-            status=TaskBatchStatus.completed,
-            finished_at=NOW,
-            success_count=int(result.status is PredictionStatus.success),
-            abstain_count=int(result.status is PredictionStatus.abstain),
-            error_count=0,
-        )
-        runs.finalize_execution_if_complete(execution.id, finished_at=NOW)
-    runs.finalize_run_if_complete(run.id, finished_at=NOW)
-    return run.id, tuple(execution_ids), person.id
+    return completed.run.id, completed.execution_ids, completed.people["p1"].id
 
 
 def _seed_reference_run_with_completed_aggregation(
@@ -204,31 +61,10 @@ def _seed_reference_run_with_completed_aggregation(
     )
     evaluation_execution_ids = all_execution_ids[: len(DEFAULT_DEFINITION.required_methods)]
 
-    aggregations = SqlAlchemyAggregationRepository(session)
-    aggregation = aggregations.add_aggregation(
-        AggregationExecutionCreate(
-            run_id=run_id,
-            method_execution_ids=all_execution_ids,
-        )
+    aggregation = seed_completed_aggregation(
+        session_repositories(session), run_id, all_execution_ids
     )
-    aggregations.mark_aggregation_queued(aggregation.id)
-    aggregations.claim_aggregation(aggregation.id, started_at=NOW)
-    (person_predictions,) = aggregations.load_prediction_matrix(aggregation.id)
-    aggregations.add_results(
-        aggregation.id,
-        [
-            AggregationResultWrite(
-                person_record_id=person_predictions.person_record_id,
-                result=assess_reference_predictions(person_predictions.predictions),
-            )
-        ],
-    )
-    completed_aggregation = aggregations.mark_aggregation_finished(
-        aggregation.id,
-        status=AggregationExecutionStatus.completed,
-        finished_at=NOW,
-    )
-    return run_id, evaluation_execution_ids, person_id, completed_aggregation.id
+    return run_id, evaluation_execution_ids, person_id, aggregation.id
 
 
 def _create(run_id: UUID, method_execution_ids: tuple[UUID, ...]) -> EvaluationExecutionCreate:

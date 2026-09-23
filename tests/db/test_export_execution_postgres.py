@@ -6,6 +6,16 @@ import pytest
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 from tests.factories import tei_person_input
+from tests.seeding import (
+    always_abstain,
+    only_method_answers,
+    seed_artifact,
+    seed_completed_aggregation,
+    seed_completed_run,
+    seed_project,
+    seed_ready_snapshot,
+    session_repositories,
+)
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.db.aggregation_repository import SqlAlchemyAggregationRepository
@@ -16,28 +26,18 @@ from gendertagger.db.review_repository import SqlAlchemyReviewRepository
 from gendertagger.db.run_repository import SqlAlchemyRunRepository
 from gendertagger.db.user_repository import SqlAlchemyUserRepository
 from gendertagger.domain.aggregation import REFERENCE_REQUIRED_METHODS
-from gendertagger.domain.aggregation_assessment import assess_reference_predictions
 from gendertagger.ingestion.registry import version_for_snapshot_import
-from gendertagger.models.aggregation import AggregationExecutionCreate, AggregationResultWrite
+from gendertagger.models.aggregation import AggregationExecutionCreate
 from gendertagger.models.artifact import ArtifactCreate
-from gendertagger.models.classification import (
-    CanonicalLabel,
-    PredictionResult,
-    PredictionStatus,
-)
+from gendertagger.models.classification import CanonicalLabel
 from gendertagger.models.export import (
     ExportExecutionCreate,
     ExportFormat,
     LabelSourcePolicy,
     TeiExportProfile,
 )
-from gendertagger.models.lifecycle import (
-    AggregationExecutionStatus,
-    ExportExecutionStatus,
-    TaskBatchStatus,
-)
+from gendertagger.models.lifecycle import ExportExecutionStatus
 from gendertagger.models.method import MethodDescriptor
-from gendertagger.models.person import ImportedPerson
 from gendertagger.models.project import (
     DatasetSnapshotCreate,
     ProjectCreate,
@@ -52,9 +52,7 @@ from gendertagger.models.project import (
 from gendertagger.models.review import AnnotationCreate, ReviewAction
 from gendertagger.models.run import (
     MethodExecutionCreate,
-    PredictionWrite,
     RunCreate,
-    TaskBatchCreate,
 )
 from gendertagger.models.user import UserCreate
 from gendertagger.services.persistence_errors import InvalidResourceStateError
@@ -76,167 +74,21 @@ def _seed_reference_run_with_completed_aggregation(
     session: Session,
 ) -> tuple[UUID, UUID, UUID]:
     """Seed one snapshot person with a completed reference aggregation."""
-    projects = SqlAlchemyProjectRepository(session)
-    project = projects.add_project(
-        ProjectCreate(
-            slug=f"export-core-{uuid4().hex}",
-            display_name="Export core fixture",
-        )
+    repositories = session_repositories(session)
+    project = seed_project(repositories, slug_prefix="export-core")
+    snapshot = seed_ready_snapshot(
+        repositories, project.id, [tei_person_input(tei_id="p1", surname="Example")]
     )
-    artifacts = SqlAlchemyArtifactRepository(session)
-    source = artifacts.add_artifact(
-        ArtifactCreate(
-            logical_type="source_tei",
-            storage_uri=f"local-sha256:{uuid4().hex}",
-            sha256=uuid4().hex * 2,
-            byte_size=1,
-            media_type="application/tei+xml",
-            project_id=project.id,
-        )
+    completed = seed_completed_run(
+        repositories,
+        snapshot,
+        REFERENCE_REQUIRED_METHODS,
+        only_method_answers("gnd", CanonicalLabel.male),
     )
-    import_config = SnapshotImportConfig(
-        profile=TeiImportProfile.tei_p5_person_register,
-        limits=SnapshotImportLimits(),
+    aggregation = seed_completed_aggregation(
+        repositories, completed.run.id, completed.execution_ids
     )
-    snapshot = projects.add_snapshot(
-        DatasetSnapshotCreate(
-            project_id=project.id,
-            source_artifact_id=source.id,
-            source_sha256=source.sha256,
-            parser_version=version_for_snapshot_import(import_config),
-            import_config=import_config.model_dump(mode="json"),
-        )
-    )
-    projects.add_snapshot_source_members(
-        snapshot.id,
-        [
-            SnapshotSourceMemberCreate(
-                artifact_id=source.id,
-                ordinal=0,
-                logical_name="source.xml",
-                sha256=source.sha256,
-                byte_size=source.byte_size,
-                media_type=source.media_type,
-            )
-        ],
-    )
-    projects.begin_snapshot_import(snapshot.id)
-    projects.add_imported_person_records(
-        snapshot.id,
-        [
-            ImportedPerson(
-                person=tei_person_input(tei_id="p1", surname="Example"),
-                source_member_name="source.xml",
-                source_record_locator="1",
-            )
-        ],
-    )
-    projects.complete_snapshot_import(snapshot.id, ready_at=NOW)
-    person = projects.get_person_record_by_tei_id(snapshot.id, "p1")
-    assert person is not None
-
-    runs = SqlAlchemyRunRepository(session)
-    run = runs.add_run(
-        RunCreate(
-            dataset_snapshot_id=snapshot.id,
-            resolved_config=RunConfig(
-                methods=[
-                    MethodRunConfig(name=method_name) for method_name in REFERENCE_REQUIRED_METHODS
-                ]
-            ),
-            code_git_commit="c" * 40,
-            application_version="0.0.0",
-            python_version="3.13.14",
-            dependency_lock_sha256="d" * 64,
-        )
-    )
-    runs.mark_run_queued(run.id)
-    runs.mark_run_started(run.id, started_at=NOW)
-    execution_ids: list[UUID] = []
-    for method_name in REFERENCE_REQUIRED_METHODS:
-        execution = runs.add_method_execution(
-            MethodExecutionCreate(
-                run_id=run.id,
-                descriptor=MethodDescriptor(
-                    name=method_name,
-                    implementation_version="test_v1",
-                    normalization_version="test_v1",
-                ),
-                queue_name="cpu",
-                total_count=1,
-            )
-        )
-        execution_ids.append(execution.id)
-        batch = runs.add_task_batch(
-            TaskBatchCreate(
-                method_execution_id=execution.id,
-                batch_index=0,
-                queue_name="cpu",
-                record_offset=0,
-                record_count=1,
-            )
-        )
-        runs.mark_execution_queued(execution.id)
-        runs.mark_execution_started(execution.id, started_at=NOW)
-        claimed = runs.claim_batch(
-            batch.id,
-            method_execution_id=execution.id,
-            worker_task_id=f"fixture-{method_name}",
-            started_at=NOW,
-            attempt_count=1,
-        )
-        assert claimed is not None
-        result = PredictionResult(
-            label=CanonicalLabel.male if method_name == "gnd" else None,
-            status=(PredictionStatus.success if method_name == "gnd" else PredictionStatus.abstain),
-        )
-        runs.add_predictions(
-            execution.id,
-            [
-                PredictionWrite(
-                    person_record_id=person.id,
-                    task_batch_id=batch.id,
-                    input_fingerprint="e" * 64,
-                    result=result,
-                )
-            ],
-        )
-        runs.mark_batch_finished(
-            batch.id,
-            status=TaskBatchStatus.completed,
-            finished_at=NOW,
-            success_count=int(result.status is PredictionStatus.success),
-            abstain_count=int(result.status is PredictionStatus.abstain),
-            error_count=0,
-        )
-        runs.finalize_execution_if_complete(execution.id, finished_at=NOW)
-    runs.finalize_run_if_complete(run.id, finished_at=NOW)
-
-    aggregations = SqlAlchemyAggregationRepository(session)
-    aggregation = aggregations.add_aggregation(
-        AggregationExecutionCreate(
-            run_id=run.id,
-            method_execution_ids=tuple(execution_ids),
-        )
-    )
-    aggregations.mark_aggregation_queued(aggregation.id)
-    aggregations.claim_aggregation(aggregation.id, started_at=NOW)
-    (person_predictions,) = aggregations.load_prediction_matrix(aggregation.id)
-    aggregations.add_results(
-        aggregation.id,
-        [
-            AggregationResultWrite(
-                person_record_id=person_predictions.person_record_id,
-                result=assess_reference_predictions(person_predictions.predictions),
-            )
-        ],
-    )
-    completed_aggregation = aggregations.mark_aggregation_finished(
-        aggregation.id,
-        status=AggregationExecutionStatus.completed,
-        finished_at=NOW,
-    )
-    return run.id, completed_aggregation.id, person.id
+    return completed.run.id, aggregation.id, completed.people["p1"].id
 
 
 def _create(run_id: UUID, aggregation_execution_id: UUID) -> ExportExecutionCreate:
@@ -472,101 +324,30 @@ def _seed_zero_person_run_with_completed_aggregation(
     import_config: SnapshotImportConfig,
 ) -> tuple[UUID, UUID]:
     """Seed a zero-person modern-import snapshot with a completed aggregation."""
-    projects = SqlAlchemyProjectRepository(session)
-    project = projects.add_project(
-        ProjectCreate(
-            slug=f"export-zero-person-{uuid4().hex}",
-            display_name="Export zero-person fixture",
-        )
+    repositories = session_repositories(session)
+    project = seed_project(repositories, slug_prefix="export-zero-person")
+    source = seed_artifact(
+        repositories,
+        project.id,
+        logical_type=_expected_primary_logical_type(import_config),
+        media_type="application/octet-stream",
     )
-    artifacts = SqlAlchemyArtifactRepository(session)
-    source = artifacts.add_artifact(
-        ArtifactCreate(
-            logical_type=_expected_primary_logical_type(import_config),
-            storage_uri=f"local-sha256:{uuid4().hex}",
-            sha256=uuid4().hex * 2,
-            byte_size=1,
-            media_type="application/octet-stream",
-            project_id=project.id,
-        )
+    snapshot = seed_ready_snapshot(
+        repositories,
+        project.id,
+        [],
+        source=source,
+        import_config=import_config,
+        member_name="primary",
     )
-    snapshot = projects.add_snapshot(
-        DatasetSnapshotCreate(
-            project_id=project.id,
-            source_artifact_id=source.id,
-            source_sha256=source.sha256,
-            parser_version=version_for_snapshot_import(import_config),
-            import_config=import_config.model_dump(mode="json"),
-        )
+    assert snapshot.record_count == 0
+    completed = seed_completed_run(
+        repositories, snapshot, REFERENCE_REQUIRED_METHODS, always_abstain
     )
-    projects.add_snapshot_source_members(
-        snapshot.id,
-        [
-            SnapshotSourceMemberCreate(
-                artifact_id=source.id,
-                ordinal=0,
-                logical_name="primary",
-                sha256=source.sha256,
-                byte_size=source.byte_size,
-                media_type=source.media_type,
-            )
-        ],
+    aggregation = seed_completed_aggregation(
+        repositories, completed.run.id, completed.execution_ids
     )
-    projects.begin_snapshot_import(snapshot.id)
-    ready = projects.complete_snapshot_import(snapshot.id, ready_at=NOW)
-    assert ready.record_count == 0
-
-    runs = SqlAlchemyRunRepository(session)
-    run = runs.add_run(
-        RunCreate(
-            dataset_snapshot_id=snapshot.id,
-            resolved_config=RunConfig(
-                methods=[
-                    MethodRunConfig(name=method_name) for method_name in REFERENCE_REQUIRED_METHODS
-                ]
-            ),
-            code_git_commit="c" * 40,
-            application_version="0.0.0",
-            python_version="3.13.14",
-            dependency_lock_sha256="d" * 64,
-        )
-    )
-    runs.mark_run_queued(run.id)
-    runs.mark_run_started(run.id, started_at=NOW)
-    execution_ids: list[UUID] = []
-    for method_name in REFERENCE_REQUIRED_METHODS:
-        execution = runs.add_method_execution(
-            MethodExecutionCreate(
-                run_id=run.id,
-                descriptor=MethodDescriptor(
-                    name=method_name,
-                    implementation_version="test_v1",
-                    normalization_version="test_v1",
-                ),
-                queue_name="cpu",
-                total_count=0,
-            )
-        )
-        execution_ids.append(execution.id)
-        runs.mark_execution_queued(execution.id)
-        runs.mark_execution_started(execution.id, started_at=NOW)
-        runs.finalize_execution_if_complete(execution.id, finished_at=NOW)
-    runs.finalize_run_if_complete(run.id, finished_at=NOW)
-
-    aggregations = SqlAlchemyAggregationRepository(session)
-    aggregation = aggregations.add_aggregation(
-        AggregationExecutionCreate(run_id=run.id, method_execution_ids=tuple(execution_ids))
-    )
-    aggregations.mark_aggregation_queued(aggregation.id)
-    aggregations.claim_aggregation(aggregation.id, started_at=NOW)
-    assert aggregations.load_prediction_matrix(aggregation.id) == ()
-    aggregations.add_results(aggregation.id, [])
-    completed = aggregations.mark_aggregation_finished(
-        aggregation.id,
-        status=AggregationExecutionStatus.completed,
-        finished_at=NOW,
-    )
-    return run.id, completed.id
+    return completed.run.id, aggregation.id
 
 
 def test_load_export_inputs_rejects_tei_format_for_a_non_tei_snapshot(

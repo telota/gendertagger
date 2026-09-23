@@ -6,21 +6,20 @@ from functools import partial
 from queue import Queue
 from threading import Barrier
 from time import monotonic, sleep
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 from sqlalchemy import Connection, Engine, func, select, text
 from sqlalchemy.orm import Session
 from tests.factories import tei_person_input
+from tests.seeding import seed_artifact, seed_project, seed_ready_snapshot, seed_run
 
-from gendertagger.config.run import MethodRunConfig, RunConfig
+from gendertagger.config.run import MethodRunConfig
 from gendertagger.db.dispatch_repository import SqlAlchemyDispatchRepository
 from gendertagger.db.executions import PredictionRow
 from gendertagger.db.run_repository import SqlAlchemyRunRepository
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
-from gendertagger.ingestion.registry import version_for_snapshot_import
-from gendertagger.models.artifact import ArtifactCreate
 from gendertagger.models.dispatch import (
     BatchDispatch,
     BatchDispatchCreate,
@@ -28,16 +27,7 @@ from gendertagger.models.dispatch import (
     DispatchMessage,
 )
 from gendertagger.models.lifecycle import MethodExecutionStatus, RunStatus, TaskBatchStatus
-from gendertagger.models.person import ImportedPerson
-from gendertagger.models.project import (
-    DatasetSnapshotCreate,
-    ProjectCreate,
-    SnapshotImportConfig,
-    SnapshotImportLimits,
-    SnapshotSourceMemberCreate,
-    TeiImportProfile,
-)
-from gendertagger.models.run import Run, RunCreate, TaskBatch, TaskBatchMessage
+from gendertagger.models.run import Run, TaskBatch, TaskBatchMessage
 from gendertagger.services.dispatch import OutboxRelay
 from gendertagger.services.execution import BatchExecutor, RunScheduler
 from gendertagger.services.method_registry import default_method_registry
@@ -77,70 +67,9 @@ class _FailOncePublisher:
 
 def _seed_created_run(factory: UnitOfWorkFactory) -> UUID:
     with factory() as unit_of_work:
-        project = unit_of_work.projects.add_project(
-            ProjectCreate(slug=f"exec-{uuid4().hex}", display_name="Execution project")
-        )
-        source = unit_of_work.artifacts.add_artifact(
-            ArtifactCreate(
-                logical_type="source_tei",
-                storage_uri="file:///synthetic/source.xml",
-                sha256="a" * 64,
-                byte_size=1,
-                media_type="application/xml",
-                project_id=project.id,
-            )
-        )
-        import_config = SnapshotImportConfig(
-            profile=TeiImportProfile.tei_p5_person_register,
-            limits=SnapshotImportLimits(),
-        )
-        snapshot = unit_of_work.projects.add_snapshot(
-            DatasetSnapshotCreate(
-                project_id=project.id,
-                source_artifact_id=source.id,
-                source_sha256=source.sha256,
-                parser_version=version_for_snapshot_import(import_config),
-                import_config=import_config.model_dump(mode="json"),
-            )
-        )
-        unit_of_work.projects.add_snapshot_source_members(
-            snapshot.id,
-            [
-                SnapshotSourceMemberCreate(
-                    artifact_id=source.id,
-                    ordinal=0,
-                    logical_name="source.xml",
-                    sha256=source.sha256,
-                    byte_size=source.byte_size,
-                    media_type=source.media_type,
-                )
-            ],
-        )
-        unit_of_work.projects.begin_snapshot_import(snapshot.id)
-        unit_of_work.projects.add_imported_person_records(
-            snapshot.id,
-            [
-                ImportedPerson(
-                    person=person,
-                    source_member_name="source.xml",
-                    source_record_locator=str(idx),
-                )
-                for idx, person in enumerate(PEOPLE, start=1)
-            ],
-        )
-        unit_of_work.projects.complete_snapshot_import(snapshot.id, ready_at=NOW)
-        run = unit_of_work.runs.add_run(
-            RunCreate(
-                dataset_snapshot_id=snapshot.id,
-                resolved_config=RunConfig(
-                    methods=[MethodRunConfig(name="parenthetical_qualifier")]
-                ),
-                code_git_commit="abc123",
-                application_version="0.0.0",
-                python_version="3.11.0",
-                dependency_lock_sha256="b" * 64,
-            )
-        )
+        project = seed_project(unit_of_work, slug_prefix="exec")
+        snapshot = seed_ready_snapshot(unit_of_work, project.id, PEOPLE)
+        run = seed_run(unit_of_work, snapshot.id, [MethodRunConfig(name="parenthetical_qualifier")])
         unit_of_work.commit()
         return run.id
 
@@ -151,88 +80,26 @@ def _seed_gnd_lookup_run(
     register_lookup: bool = True,
 ) -> tuple[UUID, UUID | None]:
     with factory() as unit_of_work:
-        project = unit_of_work.projects.add_project(
-            ProjectCreate(slug=f"gnd-exec-{uuid4().hex}", display_name="GND execution")
-        )
-        source = unit_of_work.artifacts.add_artifact(
-            ArtifactCreate(
-                logical_type="source_tei",
-                storage_uri="file:///synthetic/gnd-source.xml",
-                sha256="d" * 64,
-                byte_size=1,
-                media_type="application/xml",
-                project_id=project.id,
-            )
-        )
+        project = seed_project(unit_of_work, slug_prefix="gnd-exec")
         lookup_sha256 = "c" * 64
         lookup = (
-            unit_of_work.artifacts.add_artifact(
-                ArtifactCreate(
-                    logical_type="gnd_lookup_snapshot",
-                    storage_uri=f"local-sha256:{lookup_sha256}",
-                    sha256=lookup_sha256,
-                    byte_size=1,
-                    media_type="application/vnd.sqlite3",
-                    project_id=project.id,
-                )
+            seed_artifact(
+                unit_of_work,
+                project.id,
+                logical_type="gnd_lookup_snapshot",
+                sha256=lookup_sha256,
+                media_type="application/vnd.sqlite3",
             )
             if register_lookup
             else None
         )
-        import_config = SnapshotImportConfig(
-            profile=TeiImportProfile.tei_p5_person_register,
-            limits=SnapshotImportLimits(),
+        snapshot = seed_ready_snapshot(
+            unit_of_work, project.id, [tei_person_input(tei_id="p-gnd", gnd_id="123")]
         )
-        snapshot = unit_of_work.projects.add_snapshot(
-            DatasetSnapshotCreate(
-                project_id=project.id,
-                source_artifact_id=source.id,
-                source_sha256=source.sha256,
-                parser_version=version_for_snapshot_import(import_config),
-                import_config=import_config.model_dump(mode="json"),
-            )
-        )
-        unit_of_work.projects.add_snapshot_source_members(
+        run = seed_run(
+            unit_of_work,
             snapshot.id,
-            [
-                SnapshotSourceMemberCreate(
-                    artifact_id=source.id,
-                    ordinal=0,
-                    logical_name="source.xml",
-                    sha256=source.sha256,
-                    byte_size=source.byte_size,
-                    media_type=source.media_type,
-                )
-            ],
-        )
-        unit_of_work.projects.begin_snapshot_import(snapshot.id)
-        unit_of_work.projects.add_imported_person_records(
-            snapshot.id,
-            [
-                ImportedPerson(
-                    person=tei_person_input(tei_id="p-gnd", gnd_id="123"),
-                    source_member_name="source.xml",
-                    source_record_locator="1",
-                )
-            ],
-        )
-        unit_of_work.projects.complete_snapshot_import(snapshot.id, ready_at=NOW)
-        run = unit_of_work.runs.add_run(
-            RunCreate(
-                dataset_snapshot_id=snapshot.id,
-                resolved_config=RunConfig(
-                    methods=[
-                        MethodRunConfig(
-                            name="gnd",
-                            config={"lookup_sha256": lookup_sha256},
-                        )
-                    ]
-                ),
-                code_git_commit="abc123",
-                application_version="0.0.0",
-                python_version="3.11.0",
-                dependency_lock_sha256="b" * 64,
-            )
+            [MethodRunConfig(name="gnd", config={"lookup_sha256": lookup_sha256})],
         )
         unit_of_work.commit()
         return run.id, None if lookup is None else lookup.id

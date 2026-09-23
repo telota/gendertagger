@@ -36,7 +36,7 @@ from gendertagger.models.aggregation import (
     AggregationResultWrite,
 )
 from gendertagger.models.artifact import Artifact, ArtifactCreate
-from gendertagger.models.classification import PredictionResult, PredictionStatus
+from gendertagger.models.classification import CanonicalLabel, PredictionResult, PredictionStatus
 from gendertagger.models.lifecycle import AggregationExecutionStatus, TaskBatchStatus
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.person import ImportedPerson, PersonInput, PersonRecord
@@ -174,12 +174,18 @@ def seed_pending_snapshot(
     project_id: UUID,
     *,
     source: Artifact | None = None,
-    profile: TeiImportProfile = TeiImportProfile.tei_p5_person_register,
+    import_config: SnapshotImportConfig | None = None,
     member_name: str = "source.xml",
 ) -> DatasetSnapshot:
-    """Accept a single-member TEI snapshot the way ``ProjectService.import_snapshot`` does."""
+    """Accept a single-member snapshot the way ``ProjectService.import_snapshot`` does.
+
+    The import configuration defaults to the standard TEI profile with default limits.
+    """
     artifact = source or seed_artifact(repositories, project_id)
-    import_config = SnapshotImportConfig(profile=profile, limits=SnapshotImportLimits())
+    import_config = import_config or SnapshotImportConfig(
+        profile=TeiImportProfile.tei_p5_person_register,
+        limits=SnapshotImportLimits(),
+    )
     snapshot = repositories.projects.add_snapshot(
         DatasetSnapshotCreate(
             project_id=project_id,
@@ -210,24 +216,33 @@ def seed_ready_snapshot(
     project_id: UUID,
     people: Sequence[PersonInput],
     *,
+    source: Artifact | None = None,
+    import_config: SnapshotImportConfig | None = None,
     member_name: str = "source.xml",
     ready_at: datetime = SEED_TIME,
 ) -> DatasetSnapshot:
     """Accept and import a snapshot the way ``SnapshotImportExecutor`` does."""
-    snapshot = seed_pending_snapshot(repositories, project_id, member_name=member_name)
+    snapshot = seed_pending_snapshot(
+        repositories,
+        project_id,
+        source=source,
+        import_config=import_config,
+        member_name=member_name,
+    )
     claimed = repositories.projects.claim_snapshot_import(snapshot.id)
     assert claimed is not None
-    repositories.projects.add_imported_person_records(
-        snapshot.id,
-        [
-            ImportedPerson(
-                person=person,
-                source_member_name=member_name,
-                source_record_locator=str(position),
-            )
-            for position, person in enumerate(people, start=1)
-        ],
-    )
+    if people:
+        repositories.projects.add_imported_person_records(
+            snapshot.id,
+            [
+                ImportedPerson(
+                    person=person,
+                    source_member_name=member_name,
+                    source_record_locator=str(position),
+                )
+                for position, person in enumerate(people, start=1)
+            ],
+        )
     return repositories.projects.complete_snapshot_import(snapshot.id, ready_at=ready_at)
 
 
@@ -366,6 +381,24 @@ def seed_completed_aggregation(
         status=AggregationExecutionStatus.completed,
         finished_at=at,
     )
+
+
+def always_abstain(method_name: str, person: PersonRecord) -> PredictionResult:
+    """Return an abstention from every method for every person."""
+    del method_name, person
+    return PredictionResult(label=None, status=PredictionStatus.abstain)
+
+
+def only_method_answers(answering_method: str, label: CanonicalLabel) -> PredictionFactory:
+    """Return predictions where one method assigns ``label`` to everyone and the rest abstain."""
+
+    def predict(method_name: str, person: PersonRecord) -> PredictionResult:
+        del person
+        if method_name != answering_method:
+            return PredictionResult(label=None, status=PredictionStatus.abstain)
+        return PredictionResult(label=label, status=PredictionStatus.success, raw_label=label.value)
+
+    return predict
 
 
 def _assessed_result(

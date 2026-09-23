@@ -12,6 +12,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import Connection, Engine, func, select, text
+from tests.seeding import seed_artifact, seed_pending_snapshot, seed_project
 
 from gendertagger.db.artifacts import ArtifactRow
 from gendertagger.db.dispatch_repository import SqlAlchemyDispatchRepository
@@ -19,24 +20,17 @@ from gendertagger.db.project_repository import SqlAlchemyProjectRepository
 from gendertagger.db.projects import DatasetSnapshotRow
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
-from gendertagger.ingestion.registry import version_for_snapshot_import
 from gendertagger.ingestion.tei import TeiPersonParser
-from gendertagger.models.artifact import ArtifactCreate
 from gendertagger.models.dispatch import SnapshotDispatch, SnapshotDispatchCreate
 from gendertagger.models.lifecycle import DatasetSnapshotStatus
 from gendertagger.models.person import ImportedPerson
 from gendertagger.models.project import (
     DatasetSnapshot,
-    DatasetSnapshotCreate,
     ProjectCreate,
-    SnapshotImportConfig,
-    SnapshotImportLimits,
     SnapshotImportRequest,
     SnapshotImportTaskMessage,
-    SnapshotSourceMemberCreate,
     SourceFormat,
     SourcePackaging,
-    TeiImportProfile,
 )
 from gendertagger.models.user import UserCreate
 from gendertagger.services.pagination import CursorCodec
@@ -70,49 +64,19 @@ def _seed_snapshot(
     unit_of_work_factory: UnitOfWorkFactory,
     storage: LocalArtifactStorage,
     source: bytes,
-    *,
-    profile: TeiImportProfile = TeiImportProfile.tei_p5_person_register,
 ) -> UUID:
     stored = storage.store(BytesIO(source), max_byte_size=len(source))
     with unit_of_work_factory() as unit_of_work:
-        project = unit_of_work.projects.add_project(
-            ProjectCreate(
-                slug=f"snapshot-worker-{uuid4().hex}",
-                display_name="Snapshot worker fixture",
-            )
+        project = seed_project(unit_of_work, slug_prefix="snapshot-worker")
+        artifact = seed_artifact(
+            unit_of_work,
+            project.id,
+            sha256=stored.sha256,
+            byte_size=stored.byte_size,
+            storage_uri=stored.storage_uri,
         )
-        artifact = unit_of_work.artifacts.add_artifact(
-            ArtifactCreate(
-                logical_type="source_tei",
-                storage_uri=stored.storage_uri,
-                sha256=stored.sha256,
-                byte_size=stored.byte_size,
-                media_type="application/tei+xml",
-                project_id=project.id,
-            )
-        )
-        import_config = SnapshotImportConfig(profile=profile, limits=SnapshotImportLimits())
-        snapshot = unit_of_work.projects.add_snapshot(
-            DatasetSnapshotCreate(
-                project_id=project.id,
-                source_artifact_id=artifact.id,
-                source_sha256=artifact.sha256,
-                parser_version=version_for_snapshot_import(import_config),
-                import_config=import_config.model_dump(mode="json"),
-            )
-        )
-        unit_of_work.projects.add_snapshot_source_members(
-            snapshot.id,
-            [
-                SnapshotSourceMemberCreate(
-                    artifact_id=artifact.id,
-                    ordinal=0,
-                    logical_name="register.xml",
-                    sha256=artifact.sha256,
-                    byte_size=artifact.byte_size,
-                    media_type=artifact.media_type,
-                )
-            ],
+        snapshot = seed_pending_snapshot(
+            unit_of_work, project.id, source=artifact, member_name="register.xml"
         )
         unit_of_work.commit()
     return snapshot.id

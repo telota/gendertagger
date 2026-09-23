@@ -9,15 +9,20 @@ from pydantic import SecretStr
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from tests.factories import tei_person_input
+from tests.seeding import (
+    seed_completed_aggregation,
+    seed_completed_run,
+    seed_member,
+    seed_project,
+    seed_ready_snapshot,
+)
 
 from gendertagger.api.app import create_app
 from gendertagger.api.authentication import AuthenticationBackend
 from gendertagger.api.settings import AppSettings
-from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.domain.aggregation import REFERENCE_REQUIRED_METHODS
-from gendertagger.ingestion.registry import version_for_snapshot_import
 from gendertagger.models.aggregation import (
     AggregationExecutionCreate,
     AggregationOutcome,
@@ -26,7 +31,6 @@ from gendertagger.models.aggregation import (
     ReferenceAggregationResult,
     VoteCounts,
 )
-from gendertagger.models.artifact import ArtifactCreate
 from gendertagger.models.classification import (
     AgreementTier,
     CanonicalLabel,
@@ -34,33 +38,13 @@ from gendertagger.models.classification import (
     PredictionResult,
     PredictionStatus,
 )
-from gendertagger.models.lifecycle import (
-    AggregationExecutionStatus,
-    TaskBatchStatus,
-)
-from gendertagger.models.method import MethodDescriptor
-from gendertagger.models.person import ImportedPerson
-from gendertagger.models.project import (
-    DatasetSnapshotCreate,
-    ProjectCreate,
-    SnapshotImportConfig,
-    SnapshotImportLimits,
-    SnapshotSourceMemberCreate,
-    TeiImportProfile,
-)
+from gendertagger.models.person import PersonRecord
 from gendertagger.models.review import (
     AnnotationCreate,
     ReviewAction,
     ReviewItemSort,
     ReviewWorkflowState,
 )
-from gendertagger.models.run import (
-    MethodExecutionCreate,
-    PredictionWrite,
-    RunCreate,
-    TaskBatchCreate,
-)
-from gendertagger.models.user import ProjectRole, UserCreate
 from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
@@ -98,214 +82,34 @@ def _seed_review_items(
     _session_factory: sessionmaker[Session],
 ) -> tuple[UUID, UUID]:
     with unit_of_work_factory() as unit_of_work:
-        reviewer = unit_of_work.users.add_user(
-            UserCreate(display_name="Review query operator", roles=set())
-        )
-        project = unit_of_work.projects.add_project(
-            ProjectCreate(
-                slug=f"review-query-{uuid4().hex}",
-                display_name="Review query fixture",
-            )
-        )
-        unit_of_work.access.set_member_role(project.id, reviewer.id, ProjectRole.operator)
-        artifact = unit_of_work.artifacts.add_artifact(
-            ArtifactCreate(
-                logical_type="source_tei",
-                storage_uri=f"local-sha256:{'a' * 64}",
-                sha256="a" * 64,
-                byte_size=1,
-                media_type="application/tei+xml",
-                project_id=project.id,
-            )
-        )
-        import_config = SnapshotImportConfig(
-            profile=TeiImportProfile.tei_p5_person_register,
-            limits=SnapshotImportLimits(),
-        )
-        snapshot = unit_of_work.projects.add_snapshot(
-            DatasetSnapshotCreate(
-                project_id=project.id,
-                source_artifact_id=artifact.id,
-                source_sha256=artifact.sha256,
-                parser_version=version_for_snapshot_import(import_config),
-                import_config=import_config.model_dump(mode="json"),
-            )
-        )
-        unit_of_work.projects.add_snapshot_source_members(
-            snapshot.id,
+        project = seed_project(unit_of_work, slug_prefix="review-query")
+        reviewer = seed_member(unit_of_work, project.id, display_name="Review query operator")
+        snapshot = seed_ready_snapshot(
+            unit_of_work,
+            project.id,
             [
-                SnapshotSourceMemberCreate(
-                    artifact_id=artifact.id,
-                    ordinal=0,
-                    logical_name="source.xml",
-                    sha256=artifact.sha256,
-                    byte_size=artifact.byte_size,
-                    media_type=artifact.media_type,
-                )
+                tei_person_input(
+                    tei_id="p3", surname="Third", external_ids={"wikidata": "QSearch"}
+                ),
+                tei_person_input(tei_id="p1", surname="First"),
+                tei_person_input(tei_id="p2", surname="Second"),
+                tei_person_input(tei_id="p4", surname="Fourth"),
             ],
         )
-        unit_of_work.projects.begin_snapshot_import(snapshot.id)
-        unit_of_work.projects.add_imported_person_records(
-            snapshot.id,
-            [
-                ImportedPerson(
-                    person=tei_person_input(
-                        tei_id="p3", surname="Third", external_ids={"wikidata": "QSearch"}
-                    ),
-                    source_member_name="source.xml",
-                    source_record_locator="3",
-                ),
-                ImportedPerson(
-                    person=tei_person_input(tei_id="p1", surname="First"),
-                    source_member_name="source.xml",
-                    source_record_locator="1",
-                ),
-                ImportedPerson(
-                    person=tei_person_input(tei_id="p2", surname="Second"),
-                    source_member_name="source.xml",
-                    source_record_locator="2",
-                ),
-                ImportedPerson(
-                    person=tei_person_input(tei_id="p4", surname="Fourth"),
-                    source_member_name="source.xml",
-                    source_record_locator="4",
-                ),
-            ],
+        completed = seed_completed_run(
+            unit_of_work, snapshot, REFERENCE_REQUIRED_METHODS, _gender_guesser_varies
         )
-        unit_of_work.projects.complete_snapshot_import(snapshot.id, ready_at=NOW)
-        people = {
-            tei_id: unit_of_work.projects.get_person_record_by_tei_id(snapshot.id, tei_id)
-            for tei_id in ("p1", "p2", "p3", "p4")
-        }
-        assert all(person is not None for person in people.values())
-        run = unit_of_work.runs.add_run(
-            RunCreate(
-                dataset_snapshot_id=snapshot.id,
-                resolved_config=RunConfig(
-                    methods=[
-                        MethodRunConfig(name=method_name)
-                        for method_name in REFERENCE_REQUIRED_METHODS
-                    ]
-                ),
-                code_git_commit=CODE_GIT_COMMIT,
-                application_version="0.0.0",
-                python_version="3.13.14",
-                dependency_lock_sha256=DEPENDENCY_LOCK_SHA256,
-            )
-        )
-        unit_of_work.runs.mark_run_queued(run.id)
-        unit_of_work.runs.mark_run_started(run.id, started_at=NOW)
-        person_one = people["p1"]
-        person_two = people["p2"]
-        person_three = people["p3"]
-        person_four = people["p4"]
-        assert person_one is not None
-        assert person_two is not None
-        assert person_three is not None
-        assert person_four is not None
-        people_in_order = (person_one, person_two, person_three, person_four)
-        execution_ids: list[UUID] = []
-        for method_name in REFERENCE_REQUIRED_METHODS:
-            execution = unit_of_work.runs.add_method_execution(
-                MethodExecutionCreate(
-                    run_id=run.id,
-                    descriptor=MethodDescriptor(
-                        name=method_name,
-                        implementation_version=f"{method_name}_v1",
-                        normalization_version=f"{method_name}_v1",
-                    ),
-                    queue_name="cpu",
-                    total_count=4,
-                )
-            )
-            execution_ids.append(execution.id)
-            batch = unit_of_work.runs.add_task_batch(
-                TaskBatchCreate(
-                    method_execution_id=execution.id,
-                    batch_index=0,
-                    queue_name="cpu",
-                    record_offset=0,
-                    record_count=4,
-                )
-            )
-            unit_of_work.runs.mark_execution_queued(execution.id)
-            unit_of_work.runs.mark_execution_started(execution.id, started_at=NOW)
-            claimed_batch = unit_of_work.runs.claim_batch(
-                batch.id,
-                method_execution_id=execution.id,
-                worker_task_id=f"fixture-{method_name}",
-                started_at=NOW,
-                attempt_count=1,
-            )
-            assert claimed_batch is not None
-            results: tuple[PredictionResult, ...]
-            if method_name == "gender_guesser":
-                results = (
-                    PredictionResult(
-                        label=None,
-                        status=PredictionStatus.error,
-                        raw_label="error",
-                        raw_output={"diagnostic": "synthetic"},
-                    ),
-                    PredictionResult(
-                        status=PredictionStatus.success,
-                        label=CanonicalLabel.male,
-                        raw_label="male",
-                    ),
-                    PredictionResult(
-                        status=PredictionStatus.success,
-                        label=CanonicalLabel.female,
-                        raw_label="female",
-                    ),
-                    PredictionResult(label=None, status=PredictionStatus.abstain),
-                )
-            else:
-                results = tuple(
-                    PredictionResult(label=None, status=PredictionStatus.abstain)
-                    for _person in people_in_order
-                )
-            unit_of_work.runs.add_predictions(
-                execution.id,
-                [
-                    PredictionWrite(
-                        person_record_id=person.id,
-                        task_batch_id=batch.id,
-                        input_fingerprint=str(index) * 64,
-                        result=result,
-                    )
-                    for index, (person, result) in enumerate(
-                        zip(people_in_order, results, strict=True),
-                        start=1,
-                    )
-                ],
-            )
-            unit_of_work.runs.mark_batch_finished(
-                batch.id,
-                status=TaskBatchStatus.completed,
-                finished_at=NOW,
-                success_count=2 if method_name == "gender_guesser" else 0,
-                abstain_count=1 if method_name == "gender_guesser" else 4,
-                error_count=1 if method_name == "gender_guesser" else 0,
-            )
-            unit_of_work.runs.finalize_execution_if_complete(execution.id, finished_at=NOW)
-        unit_of_work.runs.finalize_run_if_complete(run.id, finished_at=NOW)
         unit_of_work.commit()
+    person_one, person_two, person_three, person_four = (
+        completed.people[tei_id] for tei_id in ("p1", "p2", "p3", "p4")
+    )
 
     with unit_of_work_factory() as unit_of_work:
-        aggregation = unit_of_work.aggregations.add_aggregation(
-            AggregationExecutionCreate(
-                run_id=run.id,
-                method_execution_ids=tuple(execution_ids),
-            )
-        )
-        claimed = unit_of_work.aggregations.claim_aggregation(
-            aggregation.id,
-            started_at=NOW,
-        )
-        assert claimed is not None
-        unit_of_work.aggregations.add_results(
-            aggregation.id,
-            [
+        aggregation = seed_completed_aggregation(
+            unit_of_work,
+            completed.run.id,
+            completed.execution_ids,
+            results=[
                 AggregationResultWrite(
                     person_record_id=person_one.id,
                     result=ReferenceAggregationResult(
@@ -357,11 +161,6 @@ def _seed_review_items(
                 ),
             ],
         )
-        unit_of_work.aggregations.mark_aggregation_finished(
-            aggregation.id,
-            status=AggregationExecutionStatus.completed,
-            finished_at=NOW,
-        )
         persisted_results = unit_of_work.aggregations.list_results(aggregation.id, limit=10)
         results_by_person = {result.person_record_id: result for result in persisted_results}
         unit_of_work.reviews.add_annotation(
@@ -387,6 +186,22 @@ def _seed_review_items(
         )
         unit_of_work.commit()
     return reviewer.id, aggregation.id
+
+
+def _gender_guesser_varies(method_name: str, person: PersonRecord) -> PredictionResult:
+    """gender_guesser errs on p1, says male for p2 and female for p3; everything else abstains."""
+    if method_name == "gender_guesser" and person.tei_id == "p1":
+        return PredictionResult(
+            label=None,
+            status=PredictionStatus.error,
+            raw_label="error",
+            raw_output={"diagnostic": "synthetic"},
+        )
+    labels = {"p2": CanonicalLabel.male, "p3": CanonicalLabel.female}
+    if method_name == "gender_guesser" and person.tei_id in labels:
+        label = labels[person.tei_id]
+        return PredictionResult(label=label, status=PredictionStatus.success, raw_label=label.value)
+    return PredictionResult(label=None, status=PredictionStatus.abstain)
 
 
 def _client(postgres_engine: Engine, artifact_root: Path) -> tuple[TestClient, UUID]:
