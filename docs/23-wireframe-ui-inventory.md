@@ -365,10 +365,10 @@ order. `PersonRecord` carries `tei_id`, `surname`, `forenames`, `birth`, `death`
 
 **Gaps.**
 
-- **Gap (frontend):** `list_people` supports only `limit` and `cursor` — no `q`, no filters. The wireframe's
-  status and classification filters and its search box have no server support on this endpoint. Either drive
-  this screen from `review-items` with `sort=tei_id` (which does support filters and `q`) or extend
-  `list_people`. **The former is preferable** and should be the default reading of this screen.
+- **Resolved (frontend architecture):** “Manuell annotieren” uses `GET /review-items` with the route's
+  aggregation ID and `sort=tei_id`, reusing its server-side `q`, status, label, certainty, and agreement
+  filters. `list_people` remains an unfiltered raw-register collection; it does not duplicate those query
+  semantics.
 - **Gap (frontend):** `name_forms`, `alt_names`, `events`, and `external_ids` are rich source-preserving
   fields the detail panel does not use.
 - **Resolved (backend):** `GET /snapshots/{snapshot_id}/people/{tei_id}` supports detail reloads and stable

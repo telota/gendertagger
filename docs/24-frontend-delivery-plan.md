@@ -16,15 +16,14 @@ is deliberately not asserted here.
 
 ## Where the work actually starts
 
-Phase 8's backend prerequisites are met. Of the three practical preconditions for the client, two are met and
-one is partly met.
+Phase 8's backend prerequisites and blocking semantic decisions are met.
 
 | Precondition | State | Blocks |
 |---|---|---|
 | A real `AuthenticationBackend` | **Met.** `DatabaseAuthenticationBackend` is the default: admin-provisioned local accounts and server-side sessions ([ADR-0031](decisions/ADR-0031-local-database-authentication.md)). | — |
 | Three missing read endpoints | **Met.** `GET /projects` ([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)), `GET /aggregations/{id}/results/{result_id}/predictions`, and `GET /annotations?snapshot_id=&tei_id=` are delivered. | — |
 | Collections to navigate by | **Met.** `GET /projects/{id}/snapshots`, `GET /snapshots/{id}/runs`, and `GET /runs/{id}/aggregations`, `/evaluations`, and `/exports` list their resources newest first, so the routes can recover the identifiers they carry. | — |
-| Blocking semantic decisions | **Partly taken.** D1–D4 and D6 resolved; D5 deliberately open. See [Decisions](#decisions-taken). | Manuell annotieren (D5) |
+| Blocking semantic decisions | **Met.** D1–D6 are resolved. See [Decisions](#decisions-taken). | — |
 
 M1 is delivered and M2 is not blocked, since a real authentication backend is in place. No milestone waits on
 a missing read endpoint any more.
@@ -124,7 +123,7 @@ than reconstructed at the end.
 | M3 | Projects and import | M | M2 |
 | M4 | Runs and aggregation | L | M3 |
 | M5 | Review workbench | L | M4 |
-| M6 | Person browser and audit view | M | M5; **D5 (open)** |
+| M6 | Person browser and audit view | M | M5; D5 resolved |
 | M7 | Evaluation and statistics | M | M4 |
 | M8 | Export | S | M4 |
 | M9 | Optional paths and production build | M | M5 |
@@ -143,7 +142,7 @@ delivered. The written confirmation of the scope exclusions and the two accessib
 
 **Work.**
 
-- D1, D2, D3, D4, and D6 are resolved. D3 is recorded as
+- D1–D6 are resolved. D3 is recorded as
   [ADR-0030](decisions/ADR-0030-bilingual-client-with-untranslated-canonical-vocabulary.md) and D6 as
   [ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md).
 - Implement D1 per [ADR-0031](decisions/ADR-0031-local-database-authentication.md): admin-provisioned local
@@ -529,6 +528,30 @@ and an exact subset of executions — remains available as an advanced action.
   cancelled one leads to a fresh attempt. The client therefore sends the executions in a stable order, the
   one `GET /runs/{id}/executions` returns, and may repeat the request after every reload.
 
+### D5 — `review-items` is the person-browser data source
+
+**Resolved.** “Manuell annotieren” uses `GET /review-items` with the route's aggregation ID and
+`sort=tei_id`. It reuses the same workbench and server-side `q`, review-state, label, certainty-tier, and
+agreement-tier filters as “Redigieren”; only the default sort and entry context differ.
+
+Browsing therefore requires a completed aggregation. That is intentional: a completed aggregation has one
+result for every person in its immutable snapshot and supplies the final decision, current review state, and
+review revision the annotation workbench needs. The aggregation already appears in the route, so the client
+does not infer one from global state.
+
+`GET /snapshots/{snapshot_id}/people` remains the stable raw-register collection, not a parallel search and
+filter API. `GET /snapshots/{snapshot_id}/people/{tei_id}` supports direct detail reloads and source-rich
+provenance views after a person has been selected. No duplicate query semantics are added to the snapshot
+people collection.
+
+**Consequences.**
+
+- M6 is a second configuration of the M5 cursor/query composable, keyed by the complete filter tuple with
+  `sort=tei_id`; it does not need another backend collection.
+- Search and filter behavior cannot drift between “Redigieren” and “Manuell annotieren.”
+- Deep links retain the run and aggregation context required for predictions, final decisions, annotations,
+  and conflict recovery.
+
 ### D6 — Project visibility and role scope
 
 **Resolved and implemented: project-scoped membership roles.** Recorded as
@@ -648,27 +671,7 @@ setting is reachable **before the first timed round begins**, and the choice per
 must not degrade the annotation path: the same records, the same actions, the same writes. This satisfies
 WCAG 2.2.1 through its "turn off" provision.
 
-## Decisions still open
-
-One decision remains, D5, deliberately deferred, plus four administrative assignments. D1 and D6 are
-resolved — see [ADR-0031](decisions/ADR-0031-local-database-authentication.md) and
-[ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md). What follows is what each costs and when
-it must be answered.
-
-### D5 — Data source for "Manuell annotieren"
-
-`GET /snapshots/{id}/people` has no filters and no free-text search; `GET /review-items` has both but
-requires a completed aggregation.
-
-**Blocks M6 only.** The cost of deferring is low: M5 builds the shared workbench against `review-items`
-regardless, so M6 is a second binding of an existing component. Decide before M6 starts.
-
-**What changes with the answer.** Choosing `review-items` means browsing the register requires a completed
-aggregation, and the screen inherits the full filter set for free. Choosing `snapshots/people` keeps
-browsing independent of any run but requires new server-side filter and search support on that endpoint —
-a backend change that would need to be scheduled.
-
-### Outstanding assignments
+## Outstanding assignments
 
 Not decisions, but named tasks that can only be discharged outside the repository. The two accessibility
 tasks gate M0; the other two gate what each names:

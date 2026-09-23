@@ -180,7 +180,7 @@ def test_project_and_ready_snapshot_round_trip_through_http(
     assert source_members[0]["logical_name"] == "register.xml"
     assert source_members[0]["sha256"] == hashlib.sha256(VALID_TEI).hexdigest()
     assert source_members[0]["byte_size"] == len(VALID_TEI)
-    assert source_members[0]["media_type"] == "application/xml"
+    assert source_members[0]["media_type"] == "application/tei+xml"
     assert source_members[0]["ordinal"] == 0
     assert "storage_uri" not in source_members[0]
 
