@@ -149,7 +149,7 @@ aggregations, evaluations, exports). Import is a project-scoped operator action 
 `current_user_role`, not the global roles D6 gives project creation). The form covers the whole
 `source_format` × `packaging` matrix the backend accepts (TEI as single, loose, zip, or tar.gz; CSV, XLSX,
 and JSON as single only) and shows `GET /snapshot-upload-limits` before upload. It also refuses an archive file chosen under a
-non-archive delivery (or the reverse) before uploading. The wireframe's GitLab source is a v1 scope exclusion.
+non-archive delivery (or the reverse) before uploading. For the tabular formats it names the required columns, and for CSV it checks the header row before uploading. The wireframe's GitLab source is a v1 scope exclusion.
 
 Test-environment note: constructing a `File` for a `FormData` body in a test must use `node:buffer`'s
 `File`, not jsdom's — Vitest's Node-`fetch` compatibility layer can't read a jsdom `File` inside a

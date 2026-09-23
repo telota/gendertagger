@@ -9,6 +9,7 @@ import de from '@/locales/de.json'
 import en from '@/locales/en.json'
 
 import { mountApplicationAt } from '../../helpers/render'
+import { waitFor } from '../../helpers/wait'
 
 const MIB = 1024 * 1024
 
@@ -229,6 +230,61 @@ describe.each(['de', 'en'] as const)('import formats and limits in %s', (locale:
 
     expect(wrapper.find('.import-error').exists()).toBe(false)
     expect(wrapper.get('.import-submit').attributes('disabled')).toBeUndefined()
+  })
+
+  it('names the required columns for the tabular formats only', async () => {
+    const { wrapper } = await mountImport()
+    expect(wrapper.find('.import-profile').exists()).toBe(false)
+
+    await choose(wrapper, '.import-format', 'CSV')
+
+    const hint = wrapper.get('.import-profile')
+    expect(hint.text()).toContain(messages.profile.intro)
+    expect(hint.findAll('code').map((code) => code.text())).toEqual([
+      'xml:id',
+      'persName',
+      'birth',
+      'death',
+      'event',
+      'note',
+      'idno',
+    ])
+    expect(wrapper.get('#import-file').attributes('aria-describedby')).toBe(
+      'import-limits import-profile',
+    )
+  })
+
+  it('refuses a CSV whose header is not the profile, naming both sides, before uploading', async () => {
+    const { wrapper, sent } = await mountImport()
+    await choose(wrapper, '.import-format', 'CSV')
+
+    selectFiles(wrapper, [testFile('xml_id,gnd_uri,surname,forename\nS1,,Aaron,\n', 'persons.csv')])
+    await waitFor(() => expect(wrapper.find('.import-error').exists()).toBe(true))
+
+    const message = wrapper.get('.import-error').text()
+    expect(message).toContain('xml:id, persName, birth, death, event, note, idno')
+    expect(message).toContain('xml_id, gnd_uri, surname, forename')
+    expect(wrapper.get('.import-submit').attributes('disabled')).toBeDefined()
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(sent).toHaveLength(0)
+  })
+
+  it('accepts a CSV with the profile header, even after a byte-order mark', async () => {
+    const { wrapper, sent } = await mountImport()
+    await choose(wrapper, '.import-format', 'CSV')
+
+    selectFiles(wrapper, [
+      testFile('﻿xml:id,persName,birth,death,event,note,idno\r\nS1,[],,,[],,[]\r\n', 'p.csv'),
+    ])
+    await flushPromises()
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    await flushPromises()
+
+    expect(wrapper.find('.import-error').exists()).toBe(false)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(sent).toHaveLength(1)
   })
 
   it('refuses a file over the per-file bound before uploading', async () => {

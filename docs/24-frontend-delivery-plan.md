@@ -303,6 +303,12 @@ scope — so that part of the criterion is necessarily verified once M3 exists, 
   default "single file" delivery is read as XML and only fails after the snapshot exists (`invalid TEI XML at
   line 1, column 1`), so the form also compares the file name with the chosen delivery (`.zip`,
   `.tar.gz`/`.tgz`) and refuses a mismatch before uploading. The server stays authoritative.
+  The same run showed that CSV, XLSX and JSON share one fixed profile (`docs/08-ingestion-and-export.md`) that
+  the form never named, and that the backend's `unknown columns` diagnostic does not list the expected ones.
+  For the tabular formats the form therefore states the seven required columns (and that `persName`, `event`,
+  `idno` are JSON arrays), and for CSV it reads the first line of the chosen file and refuses a header that is
+  not exactly that list, naming expected and found columns. XLSX and JSON cannot be checked without parsing
+  them, so they are left to the server; its diagnostic is shown on the snapshot list and the import screen.
 - Snapshot provenance: `source_sha256`, `parser_version`, per-member manifest entries. **Delivered.** The
   project overview lists the project's snapshots (`GET /projects/{id}/snapshots`, newest first, cursor-paginated,
   every lifecycle state) with status, record count, parser version, and the full SHA-256; a disclosure per

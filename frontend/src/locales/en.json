@@ -170,7 +170,8 @@
         "network": "The server could not be reached.",
         "generic": "The import could not be started.",
         "partTooLarge": "At least one file exceeds the allowed size per file.",
-        "totalTooLarge": "Together the files exceed the allowed total size."
+        "totalTooLarge": "Together the files exceed the allowed total size.",
+        "headerMismatch": "The first row of this file does not have the required columns. Expected: {expected}. Found: {found}."
       },
       "status": {
         "pending": "The import is running …",
@@ -190,6 +191,10 @@
         "upload": "Up to {part} MiB per file and {total} MiB in total are allowed.",
         "archive": "For several files or archives: at most {members} files, up to {expanded} MiB in total once unpacked.",
         "unavailable": "The upload limits could not be loaded; the server still checks them on upload."
+      },
+      "profile": {
+        "intro": "CSV, XLSX and JSON must follow one fixed person-register profile. The first row holds exactly these columns, in this order:",
+        "arrays": "persName, event and idno are JSON arrays; see the ingestion documentation for the exact structure."
       }
     },
     "snapshots": {

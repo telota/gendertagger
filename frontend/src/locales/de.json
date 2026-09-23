@@ -170,7 +170,8 @@
         "network": "Der Server ist nicht erreichbar.",
         "generic": "Der Import konnte nicht gestartet werden.",
         "partTooLarge": "Mindestens eine Datei überschreitet die zulässige Größe je Datei.",
-        "totalTooLarge": "Die Dateien überschreiten zusammen die zulässige Gesamtgröße."
+        "totalTooLarge": "Die Dateien überschreiten zusammen die zulässige Gesamtgröße.",
+        "headerMismatch": "Die erste Zeile dieser Datei hat nicht die erforderlichen Spalten. Erwartet: {expected}. Gefunden: {found}."
       },
       "status": {
         "pending": "Der Import läuft …",
@@ -190,6 +191,10 @@
         "upload": "Erlaubt sind bis zu {part} MiB je Datei und {total} MiB insgesamt.",
         "archive": "Bei mehreren Dateien oder Archiven: höchstens {members} Dateien, zusammen entpackt bis zu {expanded} MiB.",
         "unavailable": "Die Upload-Grenzen konnten nicht geladen werden; der Server prüft sie beim Hochladen trotzdem."
+      },
+      "profile": {
+        "intro": "CSV, XLSX und JSON müssen einem festen Personenregister-Profil folgen. Die erste Zeile enthält genau diese Spalten in dieser Reihenfolge:",
+        "arrays": "persName, event und idno sind JSON-Arrays; die genaue Struktur steht in der Ingestion-Dokumentation."
       }
     },
     "snapshots": {

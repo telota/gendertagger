@@ -8,6 +8,11 @@ import AppButton from '@/components/base/AppButton.vue'
 import AppListbox from '@/components/base/AppListbox.vue'
 import { useSessionStore } from '@/stores/session'
 
+import {
+  isPersonRegisterHeader,
+  PERSON_REGISTER_COLUMNS,
+  readCsvHeader,
+} from './personRegisterProfile'
 import { useProject } from './useProjects'
 import {
   useImportSnapshot,
@@ -114,8 +119,39 @@ const packagingProblem = computed<'looksLikeArchive' | 'notAnArchive' | null>(()
   const matches = packaging.value === 'zip' ? isZipName : isTarGzName
   return names.every(matches) ? null : 'notAnArchive'
 })
+// CSV is the one tabular format that is plain text, so its header can be checked here. The check is
+// asynchronous (a Blob read); a stale answer for an earlier selection is discarded.
+const csvHeader = ref<string[] | null>(null)
+watch(
+  [files, sourceFormat],
+  async ([selected, format]) => {
+    csvHeader.value = null
+    const [file] = selected
+    if (format !== 'csv' || !file) return
+    let header: string[]
+    try {
+      header = await readCsvHeader(file)
+    } catch {
+      return // unreadable here: leave the verdict to the server
+    }
+    if (files.value[0] === file) csvHeader.value = header
+  },
+  { flush: 'post' },
+)
+const headerProblem = computed(
+  () => csvHeader.value !== null && !isPersonRegisterHeader(csvHeader.value),
+)
+const foundColumns = computed(() => {
+  const columns = csvHeader.value ?? []
+  return columns.length > 8 ? `${columns.slice(0, 8).join(', ')}, …` : columns.join(', ')
+})
+const usesProfile = computed(() => sourceFormat.value !== 'tei')
 const canSubmit = computed(
-  () => files.value.length > 0 && sizeProblem.value === null && packagingProblem.value === null,
+  () =>
+    files.value.length > 0 &&
+    sizeProblem.value === null &&
+    packagingProblem.value === null &&
+    !headerProblem.value,
 )
 
 const importMutation = useImportSnapshot()
@@ -198,9 +234,16 @@ async function submit(): Promise<void> {
                 type="file"
                 required
                 :multiple="packaging === 'loose'"
-                aria-describedby="import-limits"
+                :aria-describedby="usesProfile ? 'import-limits import-profile' : 'import-limits'"
                 @change="onFileChange"
               />
+            </div>
+            <div v-if="usesProfile" id="import-profile" class="import-profile">
+              <p>{{ t('projects.import.profile.intro') }}</p>
+              <p class="import-profile-columns">
+                <code v-for="column in PERSON_REGISTER_COLUMNS" :key="column">{{ column }}</code>
+              </p>
+              <p>{{ t('projects.import.profile.arrays') }}</p>
             </div>
             <div id="import-limits" class="import-limits">
               <template v-if="limits.data.value">
@@ -236,6 +279,14 @@ async function submit(): Promise<void> {
             </p>
             <p v-else-if="packagingProblem === 'notAnArchive'" role="alert" class="import-error">
               {{ t('projects.import.errors.notAnArchive') }}
+            </p>
+            <p v-if="headerProblem" role="alert" class="import-error">
+              {{
+                t('projects.import.errors.headerMismatch', {
+                  expected: PERSON_REGISTER_COLUMNS.join(', '),
+                  found: foundColumns,
+                })
+              }}
             </p>
             <p v-if="importMutation.isError.value" role="alert" class="import-error">
               {{ importErrorMessage(importMutation.error.value) }}
@@ -345,6 +396,17 @@ async function submit(): Promise<void> {
 }
 
 .import-format,
+.import-profile {
+  color: var(--text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.import-profile-columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 .import-packaging {
   width: 14rem;
 }
