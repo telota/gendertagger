@@ -238,3 +238,16 @@ lookup, identifying the information retrieved, the local GND snapshot as its sou
 register's GND identifiers as the basis for matching records.
 
 **Status:** Addressed in the local working tree; the checklist item is marked complete.
+
+## 2026-09-23: Reviewer I6 - Transformer capitalization
+
+**Request:** Check whether "Transformer" should be lowercase in running text.
+
+**Changes:** Changed four occurrences of "Transformer-based" to "transformer-based" in
+[article.tex](article.tex): the abstract, Introduction, methods overview, and Conclusion. Retained
+"Transformer-Based Name Classifiers" as a heading, consistent with the paper's heading style.
+
+**Response to the reviewer:** We standardized "transformer-based" to lowercase throughout the
+running text, while retaining capitalization in the section heading.
+
+**Status:** Addressed in the local working tree; the checklist item is marked complete.
