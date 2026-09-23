@@ -24,7 +24,7 @@ duplicate class bodies or field inventories.
 
 | Module | Contract family |
 |---|---|
-| `config/run.py` | Run, method, aggregation, and execution configuration; YAML loading |
+| `config/run.py` | Run, method, aggregation, and execution configuration |
 | `models/classification.py` | Labels, prediction status, certainty/agreement, prediction results |
 | `models/lifecycle.py` | Persisted lifecycle status vocabularies |
 | `models/person.py` | Person input, source-rich names/events, imported and persisted people |
@@ -55,8 +55,7 @@ rules. Services must not reconstruct those invariants from dictionaries or rely 
 their first validation boundary.
 
 Canonical JSON uses sorted object keys, compact separators, unescaped Unicode, and finite JSON values. Hashes
-are lowercase SHA-256 digests of those UTF-8 bytes. List order remains significant; object-key order and YAML
-comments do not.
+are lowercase SHA-256 digests of those UTF-8 bytes. List order remains significant; object-key order does not.
 
 ## Classification and prediction
 
@@ -132,13 +131,13 @@ different states. Lifecycle validators require consistent timestamps and failure
 
 ## Run configuration
 
-YAML is an input syntax; the resolved Pydantic RunConfig is authoritative. YAML loading uses safe standard
-tags and rejects duplicate mapping keys. Method identifiers are unique even when disabled, and nested values
-must be finite JSON.
+Clients submit `RunConfig` as JSON in `POST /api/v1/runs`; the endpoint's OpenAPI operation contains the
+canonical request example. Method identifiers are unique even when disabled, and nested values must be finite
+JSON.
 
 Before creating a Run, the server-side registry validates every method, applies adapter defaults, and produces
 the fully resolved configuration. That object and its canonical hash are persisted. Workers load it from
-PostgreSQL and never reinterpret the original YAML.
+PostgreSQL and never reinterpret client input.
 
 ## Task messages and dispatch
 

@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Body, Depends, Query, status
 from fastapi.responses import StreamingResponse
 
 from gendertagger.api.authorization import ProjectAccessGuard, get_project_access_guard
@@ -26,10 +26,39 @@ from gendertagger.services.runs import RunService
 
 router = APIRouter(tags=["runs"])
 
+_RUN_CREATE_OPENAPI_EXAMPLES = {
+    "configured_run": {
+        "summary": "Create a reproducible classification run",
+        "description": (
+            "Replace the snapshot ID and artifact digest with registered resources. The server "
+            "validates method-specific settings and persists the resolved configuration."
+        ),
+        "value": {
+            "dataset_snapshot_id": "20000000-0000-0000-0000-000000000001",
+            "config": {
+                "methods": [
+                    {"name": "parenthetical_qualifier", "enabled": True, "config": {}},
+                    {
+                        "name": "gnd",
+                        "enabled": True,
+                        "config": {"lookup_sha256": "a" * 64},
+                    },
+                    {"name": "gender_guesser", "enabled": True, "config": {}},
+                ],
+                "aggregation": {"strategy": "reference_v1"},
+                "execution": {"fail_run_on_optional_method_error": False},
+            },
+        },
+    }
+}
+
 
 @router.post("/runs", response_model=Run, status_code=status.HTTP_202_ACCEPTED)
 def create_run(
-    command: RunCreateRequest,
+    command: Annotated[
+        RunCreateRequest,
+        Body(openapi_examples=_RUN_CREATE_OPENAPI_EXAMPLES),
+    ],
     service: Annotated[RunService, Depends(get_run_service)],
     access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
 ) -> Run:

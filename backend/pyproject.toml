@@ -17,7 +17,6 @@ dependencies = [
   "pydantic>=2.13.4,<3",
   "pydantic-settings>=2.11,<3",
   "python-multipart>=0.0.20,<1",
-  "pyyaml>=6.0.3,<7",
   "redis>=5,<7",
   "scikit-learn>=1.9,<2",
   "sqlalchemy>=2.0,<3",
@@ -47,7 +46,6 @@ include = [
   "/LICENSE",
   "/README.md",
   "/alembic.ini",
-  "/config/example.yaml",
   "/migrations",
   "/package-lock.json",
   "/package.json",
@@ -72,7 +70,6 @@ lint = [
   "lxml-stubs==0.5.1",
   "mypy==2.3.0",
   "ruff==0.16.2",
-  "types-pyyaml==6.0.12.20260518",
 ]
 test = [
   "coverage[toml]==7.15.4",

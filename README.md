@@ -110,9 +110,10 @@ follows the same pattern as `prepare-hf-model` but additionally requires `--hivo
 already-registered `hivoto_lookup` artifact; run `gendertagger assets prepare-hivoto-xgboost --help` inside
 the container for its full argument list.
 
-Every preparation command prints one JSON object. Copy its `lookup_sha256` into the method's `config` in
-[`config/example.yaml`](backend/config/example.yaml). Original source bytes and the compiled derivative are both
-retained as content-addressed artifacts. See
+Every preparation command prints one JSON object. Copy its `lookup_sha256` into the corresponding method's
+`config` in the JSON request body for `POST /api/v1/runs`. The canonical request example is published in the
+OpenAPI documentation at <http://localhost:8000/docs>. Original source bytes and the compiled derivative are
+both retained as content-addressed artifacts. See
 [`ADR-0023`](docs/decisions/ADR-0023-content-addressed-sqlite-method-lookups.md) for provenance and
 licensing rules.
 

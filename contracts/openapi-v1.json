@@ -7621,6 +7621,42 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "configured_run": {
+                  "description": "Replace the snapshot ID and artifact digest with registered resources. The server validates method-specific settings and persists the resolved configuration.",
+                  "summary": "Create a reproducible classification run",
+                  "value": {
+                    "config": {
+                      "aggregation": {
+                        "strategy": "reference_v1"
+                      },
+                      "execution": {
+                        "fail_run_on_optional_method_error": false
+                      },
+                      "methods": [
+                        {
+                          "config": {},
+                          "enabled": true,
+                          "name": "parenthetical_qualifier"
+                        },
+                        {
+                          "config": {
+                            "lookup_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                          },
+                          "enabled": true,
+                          "name": "gnd"
+                        },
+                        {
+                          "config": {},
+                          "enabled": true,
+                          "name": "gender_guesser"
+                        }
+                      ]
+                    },
+                    "dataset_snapshot_id": "20000000-0000-0000-0000-000000000001"
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/RunCreateRequest"
               }

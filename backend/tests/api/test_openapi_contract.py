@@ -1,8 +1,11 @@
+import json
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
+
+from gendertagger.models.run import RunCreateRequest
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _REPOSITORY_ROOT = _BACKEND_ROOT.parent
@@ -29,6 +32,23 @@ def test_openapi_matches_committed_public_contract() -> None:
 @pytest.mark.parametrize("field", ["storage_uri", "task_id", "queue_name", "worker_metadata"])
 def test_committed_public_contract_exposes_no_infrastructure_detail(field: str) -> None:
     assert field not in OPENAPI_SNAPSHOT.read_text(encoding="utf-8")
+
+
+def test_create_run_exposes_the_canonical_json_request_example() -> None:
+    document = json.loads(OPENAPI_SNAPSHOT.read_text(encoding="utf-8"))
+
+    example = document["paths"]["/api/v1/runs"]["post"]["requestBody"]["content"][
+        "application/json"
+    ]["examples"]["configured_run"]["value"]
+
+    RunCreateRequest.model_validate(example)
+    assert example["config"]["aggregation"] == {"strategy": "reference_v1"}
+    assert example["config"]["execution"] == {"fail_run_on_optional_method_error": False}
+    assert [method["name"] for method in example["config"]["methods"]] == [
+        "parenthetical_qualifier",
+        "gnd",
+        "gender_guesser",
+    ]
 
 
 @pytest.mark.parametrize("committed", [None, "{}\n"])

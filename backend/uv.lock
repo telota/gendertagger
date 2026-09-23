@@ -681,7 +681,6 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-multipart" },
-    { name = "pyyaml" },
     { name = "redis" },
     { name = "scikit-learn" },
     { name = "sqlalchemy" },
@@ -705,14 +704,12 @@ dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
-    { name = "types-pyyaml" },
 ]
 lint = [
     { name = "import-linter" },
     { name = "lxml-stubs" },
     { name = "mypy" },
     { name = "ruff" },
-    { name = "types-pyyaml" },
 ]
 test = [
     { name = "coverage", extra = ["toml"] },
@@ -736,7 +733,6 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.13.4,<3" },
     { name = "pydantic-settings", specifier = ">=2.11,<3" },
     { name = "python-multipart", specifier = ">=0.0.20,<1" },
-    { name = "pyyaml", specifier = ">=6.0.3,<7" },
     { name = "redis", specifier = ">=5,<7" },
     { name = "scikit-learn", specifier = ">=1.9,<2" },
     { name = "sqlalchemy", specifier = ">=2.0,<3" },
@@ -759,14 +755,12 @@ dev = [
     { name = "pytest", specifier = "==9.1.1" },
     { name = "pytest-cov", specifier = "==7.1.0" },
     { name = "ruff", specifier = "==0.16.2" },
-    { name = "types-pyyaml", specifier = "==6.0.12.20260518" },
 ]
 lint = [
     { name = "import-linter", specifier = "==2.13" },
     { name = "lxml-stubs", specifier = "==0.5.1" },
     { name = "mypy", specifier = "==2.3.0" },
     { name = "ruff", specifier = "==0.16.2" },
-    { name = "types-pyyaml", specifier = "==6.0.12.20260518" },
 ]
 test = [
     { name = "coverage", extras = ["toml"], specifier = "==7.15.4" },
@@ -3203,15 +3197,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ae/40/4a3db7990d1f62a53182aa96eaef57aeb2886a27f90a195bc66713565d31/typer-0.27.1.tar.gz", hash = "sha256:a79bef8469a79c45498e7b814ecf8d603cc7644e9acbd9e19cac0334240b18df", size = 203994, upload-time = "2026-08-03T14:41:03.438Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/43/89/9518bc0c3929bee36b3a4a8e3daddd6e03f92f9961c66d4983b837160543/typer-0.27.1-py3-none-any.whl", hash = "sha256:53150287edd11baeb4e4722c8e394fcdf8181c0ae89485cba8d25c778d5edd56", size = 122874, upload-time = "2026-08-03T14:41:04.391Z" },
-]
-
-[[package]]
-name = "types-pyyaml"
-version = "6.0.12.20260518"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b8/83/4a1afc3fbfcf5b8d46fc390cd95ed6b0dc9010a265f4e9f46314efffa37a/types_pyyaml-6.0.12.20260518.tar.gz", hash = "sha256:d917f83fb38462550338c1297faedd860b3ec83912b96b1e3d73255f7473e466", size = 17850, upload-time = "2026-05-18T06:01:58.675Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/06/a2/c01db32be2ae7d6a1689972f3c492b149ee4e164b12fdfd9f64b50888215/types_pyyaml-6.0.12.20260518-py3-none-any.whl", hash = "sha256:d2150f75a231c9fe9c7463bd29487d93e60bac90400287351384bc2284eba7cd", size = 20312, upload-time = "2026-05-18T06:01:57.368Z" },
 ]
 
 [[package]]

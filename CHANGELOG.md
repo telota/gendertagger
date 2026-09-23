@@ -46,9 +46,8 @@ the phased plan that resumes application code.
 - Repository policy gates: `scripts/check_documentation.py`, `scripts/check_contract_naming.py`,
   `scripts/check_package_initializers.py`, and `scripts/check_distribution.py`.
 - Test scaffold under [`tests/`](backend/tests/) with a packaging smoke test and policy-script regression tests.
-- A validated example run configuration at [`config/example.yaml`](backend/config/example.yaml), plus deployment,
-  frontend, and persistence placeholders in [`frontend/README.md`](frontend/README.md), `migrations/`, and
-  `deploy/`.
+- A validated run-creation JSON example in the committed OpenAPI contract, plus deployment, frontend, and
+  persistence placeholders in [`frontend/README.md`](frontend/README.md), `migrations/`, and `deploy/`.
 - Reproducible dependency management via `uv.lock`, hatchling builds, and PEP 735 dependency groups.
 - Authenticated FastAPI `/api/v1` resources for projects, immutable TEI snapshot imports, runs, the method
   registry, aggregations/results, append-only annotations, and server-filtered review lists; public contracts

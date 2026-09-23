@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import math
-from pathlib import Path
 
 import pytest
-import yaml
 from pydantic import ValidationError
 
 from gendertagger.config.run import (
@@ -13,40 +11,9 @@ from gendertagger.config.run import (
     ExecutionConfig,
     MethodRunConfig,
     RunConfig,
-    load_run_config,
-    parse_run_config_yaml,
 )
 
 pytestmark = pytest.mark.contract
-
-_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-
-
-def test_example_run_config_loads_as_resolved_contract() -> None:
-    config = load_run_config(_REPOSITORY_ROOT / "config/example.yaml")
-
-    assert [method.name for method in config.methods] == [
-        "parenthetical_qualifier",
-        "gnd",
-        "gender_guesser",
-        "wiki_gendersort",
-        "hivoto",
-        "nomquamgender",
-        "hf_distilbert",
-        "hf_genderize",
-        "local_llm",
-        "hivoto_xgboost",
-    ]
-    assert config.methods[1].config == {"lookup_sha256": "a" * 64}
-    assert config.methods[3].config == {"lookup_sha256": "b" * 64}
-    assert config.methods[4].config == {"lookup_sha256": "c" * 64}
-    assert config.methods[5].config == {"threshold": 0.1}
-    assert config.methods[6].config == {"lookup_sha256": "d" * 64}
-    assert config.methods[7].config == {"lookup_sha256": "e" * 64}
-    assert config.methods[-1].config == {"lookup_sha256": "f" * 64}
-    assert config.methods[-1].enabled is False
-    assert config.aggregation.strategy is AggregationStrategy.reference_v1
-    assert config.execution.fail_run_on_optional_method_error is False
 
 
 def test_run_config_defaults_are_resolved_and_mutable_values_are_isolated() -> None:
@@ -155,34 +122,6 @@ def test_run_config_canonical_json_and_sha256_match_golden_values() -> None:
     )
 
 
-def test_equivalent_yaml_resolves_to_identical_canonical_json_and_hash() -> None:
-    compact = """
-methods:
-  - name: nomquamgender
-    config: {model: "nqg-de", threshold: 0.50}
-"""
-    explicit = """
-# Representation changes must not change resolved provenance.
-execution:
-  fail_run_on_optional_method_error: false
-aggregation:
-  strategy: reference_v1
-methods:
-  - config:
-      threshold: 0.5
-      model: "nqg-de"
-    enabled: true
-    name: nomquamgender
-"""
-
-    first = parse_run_config_yaml(compact)
-    second = parse_run_config_yaml(explicit)
-
-    assert first == second
-    assert first.to_canonical_json() == second.to_canonical_json()
-    assert first.canonical_sha256() == second.canonical_sha256()
-
-
 def test_semantic_and_method_order_changes_produce_distinct_hashes() -> None:
     baseline = RunConfig(
         methods=[MethodRunConfig(name="gnd"), MethodRunConfig(name="gender_guesser")]
@@ -224,58 +163,6 @@ def test_canonical_json_round_trip_preserves_configuration_and_hash() -> None:
 
     assert restored == config
     assert restored.canonical_sha256() == config.canonical_sha256()
-
-
-@pytest.mark.parametrize("source", ["", "true\n", "- gnd\n- gender_guesser\n"])
-def test_yaml_loader_rejects_non_mapping_roots(source: str) -> None:
-    with pytest.raises(ValidationError):
-        parse_run_config_yaml(source)
-
-
-@pytest.mark.parametrize(
-    "source",
-    [
-        "methods: [\n",
-        "methods: []\n---\nmethods: []\n",
-        "!!python/object/apply:builtins.str [unsafe]\n",
-        "methods: !include methods.yaml\n",
-    ],
-)
-def test_yaml_loader_rejects_malformed_multiple_or_unsafe_documents(source: str) -> None:
-    with pytest.raises(yaml.YAMLError):
-        parse_run_config_yaml(source)
-
-
-@pytest.mark.parametrize(
-    "source",
-    [
-        "methods: []\nmethods: []\n",
-        "methods:\n  - name: gnd\n    config:\n      snapshot: one\n      snapshot: two\n",
-    ],
-)
-def test_yaml_loader_rejects_duplicate_mapping_keys(source: str) -> None:
-    with pytest.raises(yaml.constructor.ConstructorError):
-        parse_run_config_yaml(source)
-
-
-def test_yaml_loader_rejects_unhashable_mapping_keys() -> None:
-    source = "methods: []\n? [duplicate, key]\n: value\n"
-
-    with pytest.raises(yaml.constructor.ConstructorError):
-        parse_run_config_yaml(source)
-
-
-@pytest.mark.parametrize(
-    "source",
-    [
-        "methods:\n  - name: gnd\n    config: {snapshot: 2026-03-01}\n",
-        "methods:\n  - name: gnd\n    config: {1: snapshot}\n",
-        "methods:\n  - name: local_llm\n    config: {temperature: .nan}\n",
-    ],
-)
-def test_yaml_loader_rejects_values_that_are_not_json_compatible(source: str) -> None:
-    with pytest.raises(ValidationError):
-        parse_run_config_yaml(source)
 
 
 def test_run_config_json_schema_exposes_closed_public_shapes() -> None:
