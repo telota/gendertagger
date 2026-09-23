@@ -150,3 +150,41 @@ that 8,277 is the number of entries in the case-study person register. We retain
 indicate the scale of the study.
 
 **Status:** Addressed in the local working tree; the checklist item is marked complete.
+
+## 2026-09-23: Reviewer I2 - Authority files, GND scope, and gender metadata
+
+**Request:** Explain "authority files," name GND where appropriate, consider the broader term
+"terminologies," and clarify the scope.
+
+**Changes:**
+
+- Defined authority files as resources providing identifiers and descriptive records for persons
+  and other entities in the opening Introduction paragraph of [article.tex](article.tex).
+- Named and expanded GND in the study-scope sentence and shortened its later mention in the
+  Workflow Description.
+- Replaced the claim about missing person records with an explanation that gender information is
+  optional in GND person records, so identifying a person does not necessarily provide gender data.
+- Added the official GND field documentation to [gendertagger.bib](gendertagger.bib) as
+  `sta_gnd_gender_2026` and cited it for the optional field.
+- Retained the separate statement about male-centered and binary assumptions in GND subject
+  terminology, supported by Aleksander (2025).
+
+**Response to the reviewer:** We defined authority files and identified GND as the authority source
+used in this study. We retained the more specific term "authority files" because the method
+retrieves records about identified entities; "terminologies" would describe a broader range of
+resources. The methods section explains the choice of GND and discusses VIAF, Wikidata, and Getty
+ULAN. We also clarified that existing GND person records may lack gender information, citing the
+official documentation of the optional field. The Aleksander citation now supports the distinct
+statement about gender bias in subject terminology.
+
+**Status:** Addressed in the local working tree; the checklist item is marked complete.
+
+**Verification:**
+
+- The optional-field claim and documentation metadata were checked against the official
+  [GND field documentation](https://sta.dnb.de/wiki/Property:P300).
+- The terminology-bias statement matches the scope of
+  [Aleksander's published abstract](https://www.bibliothekskongress.at/abstracts/#240).
+- BibTeX processed the documentation reference successfully with `eceasst.bst`; its generated
+  entry contains the institution, version, update status, access date, and field-documentation URL.
+- The locked documentation-policy check passed.

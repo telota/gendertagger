@@ -364,6 +364,9 @@ INPUT /usr/share/texmf-dist/fonts/vf/adobe/times/ptmb7t.vf
 INPUT /usr/share/texmf-dist/fonts/tfm/adobe/times/ptmb8r.tfm
 INPUT /usr/share/texmf-dist/fonts/vf/adobe/times/ptmri7t.vf
 INPUT /usr/share/texmf-dist/fonts/tfm/adobe/times/ptmri8r.tfm
+INPUT ./easst.pdf
+INPUT ./easst.pdf
+INPUT ./easst.pdf
 INPUT /usr/share/texmf-dist/fonts/vf/adobe/times/ptmr7t.vf
 INPUT /usr/share/texmf-dist/fonts/vf/adobe/times/zptmcm7t.vf
 INPUT /usr/share/texmf-dist/fonts/tfm/adobe/symbol/psyr.tfm
@@ -372,9 +375,6 @@ INPUT /usr/share/texmf-dist/fonts/tfm/public/cm/cmr10.tfm
 INPUT /usr/share/texmf-dist/fonts/vf/adobe/times/ptmr7t.vf
 INPUT /usr/share/texmf-dist/fonts/vf/adobe/times/ptmri7t.vf
 INPUT /usr/share/texmf-dist/fonts/tfm/adobe/times/ptmri8r.tfm
-INPUT ./easst.pdf
-INPUT ./easst.pdf
-INPUT ./easst.pdf
 INPUT /usr/share/texmf-dist/tex/latex/psnfss/ot1pcr.fd
 INPUT /usr/share/texmf-dist/tex/latex/psnfss/ot1pcr.fd
 INPUT /usr/share/texmf-dist/tex/latex/psnfss/ot1pcr.fd
@@ -382,11 +382,11 @@ INPUT /usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrr7t.tfm
 INPUT ./easst.pdf
 INPUT ./easst.pdf
 INPUT ./easst.pdf
+INPUT ./easst.pdf
+INPUT ./easst.pdf
+INPUT ./easst.pdf
 INPUT /usr/share/texmf-dist/fonts/vf/adobe/courier/pcrr7t.vf
 INPUT /usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrr8r.tfm
-INPUT ./easst.pdf
-INPUT ./easst.pdf
-INPUT ./easst.pdf
 INPUT /usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrb7t.tfm
 INPUT ./easst.pdf
 INPUT ./easst.pdf
@@ -422,6 +422,9 @@ INPUT /usr/share/texmf-dist/fonts/tfm/public/rsfs/rsfs10.tfm
 INPUT ./easst.pdf
 INPUT ./easst.pdf
 INPUT ./easst.pdf
+INPUT ./easst.pdf
+INPUT ./easst.pdf
+INPUT ./easst.pdf
 INPUT /usr/share/texmf-dist/fonts/tfm/adobe/times/ptmr7t.tfm
 INPUT /usr/share/texmf-dist/fonts/tfm/adobe/times/zptmcm7t.tfm
 INPUT /usr/share/texmf-dist/fonts/tfm/adobe/times/zptmcm7t.tfm
@@ -442,9 +445,6 @@ INPUT /usr/share/texmf-dist/fonts/tfm/public/amsfonts/symbols/msbm10.tfm
 INPUT ./easst.pdf
 INPUT ./easst.pdf
 INPUT ./easst.pdf
-INPUT ./easst.pdf
-INPUT ./easst.pdf
-INPUT ./easst.pdf
 INPUT /usr/share/texmf-dist/fonts/vf/adobe/times/ptmr7t.vf
 INPUT /usr/share/texmf-dist/fonts/tfm/adobe/times/ptmr8r.tfm
 INPUT /usr/share/texmf-dist/fonts/vf/adobe/times/zptmcm7t.vf
@@ -452,6 +452,9 @@ INPUT /usr/share/texmf-dist/fonts/tfm/adobe/symbol/psyr.tfm
 INPUT /usr/share/texmf-dist/fonts/vf/adobe/times/zptmcm7m.vf
 INPUT /usr/share/texmf-dist/fonts/tfm/adobe/times/psyro.tfm
 INPUT /usr/share/texmf-dist/fonts/tfm/adobe/times/ptmri8r.tfm
+INPUT ./easst.pdf
+INPUT ./easst.pdf
+INPUT ./easst.pdf
 INPUT /usr/share/texmf-dist/fonts/vf/adobe/times/zptmcm7m.vf
 INPUT /usr/share/texmf-dist/fonts/tfm/adobe/times/psyro.tfm
 INPUT /usr/share/texmf-dist/fonts/tfm/public/cm/cmmi10.tfm
@@ -468,11 +471,6 @@ INPUT ./easst.pdf
 INPUT ./easst.pdf
 INPUT /usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrr7t.tfm
 INPUT /usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrr7t.tfm
-INPUT ./easst.pdf
-INPUT ./easst.pdf
-INPUT ./easst.pdf
-INPUT /usr/share/texmf-dist/fonts/vf/adobe/courier/pcrr7t.vf
-INPUT /usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrr8r.tfm
 INPUT /usr/share/texmf-dist/fonts/tfm/adobe/times/ptmbi7t.tfm
 INPUT /usr/share/texmf-dist/fonts/tfm/adobe/times/ptmrc7t.tfm
 INPUT /usr/share/texmf-dist/fonts/tfm/adobe/times/ptmrc7t.tfm
@@ -488,6 +486,8 @@ INPUT /usr/share/texmf-dist/fonts/tfm/adobe/times/ptmbi8r.tfm
 INPUT /usr/share/texmf-dist/fonts/vf/adobe/times/zptmcm7m.vf
 INPUT /usr/share/texmf-dist/fonts/tfm/adobe/times/psyro.tfm
 INPUT /usr/share/texmf-dist/fonts/tfm/public/cm/cmmi10.tfm
+INPUT /usr/share/texmf-dist/fonts/vf/adobe/courier/pcrr7t.vf
+INPUT /usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrr8r.tfm
 INPUT ./easst.pdf
 INPUT ./easst.pdf
 INPUT ./easst.pdf

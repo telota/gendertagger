@@ -34,7 +34,7 @@ Source: [Reviewer C's annotated PDF](C-klappenbach,neuber,westphal_2026_genderta
 
 - [x] **I1 - Abstract:** Consolidate the paragraphs; explain what `N = 8,277` counts and consider
   whether it belongs in the abstract.
-- [ ] **I2 - Line 32:** Explain "authority files." Name GND where appropriate; consider the broader
+- [x] **I2 - Line 32:** Explain "authority files." Name GND where appropriate; consider the broader
   term "terminologies" and explain the scope.
 - [ ] **I3 - Footnote 1:** Prevent the footnote from splitting across pages.
 - [ ] **I4 - Line 77:** Add a link to TEI in a footnote.
