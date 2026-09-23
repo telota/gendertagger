@@ -1,12 +1,24 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 
+import AppListbox from '@/components/base/AppListbox.vue'
+import { useLocale } from '@/composables/useLocale'
+import { useTheme, type ThemePreference } from '@/composables/useTheme'
 import { useSessionStore } from '@/stores/session'
 
 const { t } = useI18n()
 const router = useRouter()
 const session = useSessionStore()
+const locale = useLocale()
+const theme = useTheme()
+
+const themeOptions = computed<{ value: ThemePreference; label: string }[]>(() => [
+  { value: 'system', label: t('theme.system') },
+  { value: 'light', label: t('theme.light') },
+  { value: 'dark', label: t('theme.dark') },
+])
 
 async function signOut(): Promise<void> {
   await session.logout()
@@ -17,18 +29,34 @@ async function signOut(): Promise<void> {
 <template>
   <header class="app-header">
     <RouterLink :to="{ name: 'home' }" class="app-header-brand">{{ t('app.title') }}</RouterLink>
-    <div v-if="session.status === 'ready'" class="app-header-session">
-      <template v-if="session.isSignedIn">
-        <span class="app-header-user">{{
-          t('header.signedInAs', { name: session.user?.display_name })
-        }}</span>
-        <button type="button" class="app-header-signout" @click="signOut">
-          {{ t('header.signOut') }}
-        </button>
-      </template>
-      <RouterLink v-else :to="{ name: 'login' }" class="app-header-signin">{{
-        t('header.signIn')
-      }}</RouterLink>
+    <div class="app-header-controls">
+      <AppListbox
+        class="app-header-switcher app-header-switcher--locale"
+        :label="t('locale.label')"
+        :options="locale.options"
+        :model-value="locale.current.value"
+        @update:model-value="locale.setLocale"
+      />
+      <AppListbox
+        class="app-header-switcher app-header-switcher--theme"
+        :label="t('theme.label')"
+        :options="themeOptions"
+        :model-value="theme.preference.value"
+        @update:model-value="theme.setPreference"
+      />
+      <div v-if="session.status === 'ready'" class="app-header-session">
+        <template v-if="session.isSignedIn">
+          <span class="app-header-user">{{
+            t('header.signedInAs', { name: session.user?.display_name })
+          }}</span>
+          <button type="button" class="app-header-signout" @click="signOut">
+            {{ t('header.signOut') }}
+          </button>
+        </template>
+        <RouterLink v-else :to="{ name: 'login' }" class="app-header-signin">{{
+          t('header.signIn')
+        }}</RouterLink>
+      </div>
     </div>
   </header>
 </template>
@@ -48,6 +76,16 @@ async function signOut(): Promise<void> {
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
   text-decoration: none;
+}
+
+.app-header-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.app-header-switcher {
+  width: 8rem;
 }
 
 .app-header-session {

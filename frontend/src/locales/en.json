@@ -66,6 +66,15 @@
     "signOut": "Sign out",
     "signIn": "Sign in"
   },
+  "locale": {
+    "label": "Language"
+  },
+  "theme": {
+    "label": "Theme",
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark"
+  },
   "login": {
     "title": "Sign in",
     "username": "Username",

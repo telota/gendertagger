@@ -66,6 +66,15 @@
     "signOut": "Abmelden",
     "signIn": "Anmelden"
   },
+  "locale": {
+    "label": "Sprache"
+  },
+  "theme": {
+    "label": "Erscheinungsbild",
+    "system": "System",
+    "light": "Hell",
+    "dark": "Dunkel"
+  },
   "login": {
     "title": "Anmelden",
     "username": "Benutzername",

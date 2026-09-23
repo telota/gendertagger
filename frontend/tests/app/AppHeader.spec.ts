@@ -21,6 +21,8 @@ const NOT_SIGNED_IN: Record<string, RouteResponse> = {
 
 afterEach(() => {
   document.body.replaceChildren()
+  localStorage.clear()
+  delete document.documentElement.dataset.theme
 })
 
 describe.each(['de', 'en'] as const)('AppHeader in %s', (locale: AppLocale) => {
@@ -55,7 +57,7 @@ describe.each(['de', 'en'] as const)('AppHeader in %s', (locale: AppLocale) => {
     expect(wrapper.get('header').text()).toContain(
       messages.signedInAs.replace('{name}', 'Reviewer One'),
     )
-    expect(wrapper.get('header button').text()).toBe(messages.signOut)
+    expect(wrapper.get('header .app-header-signout').text()).toBe(messages.signOut)
   })
 
   it('signs out and returns to a signed-out header', async () => {
@@ -71,9 +73,38 @@ describe.each(['de', 'en'] as const)('AppHeader in %s', (locale: AppLocale) => {
     )
     await flushPromises()
 
-    await wrapper.get('header button').trigger('click')
+    await wrapper.get('header .app-header-signout').trigger('click')
     await flushPromises()
 
     expect(wrapper.get('header a[href="/login"]').text()).toBe(messages.signIn)
+  })
+
+  it('switches the interface language when a different option is picked', async () => {
+    const wrapper = await mountApplicationAt('/', locale, apiClientWithRoutes(NOT_SIGNED_IN))
+    await flushPromises()
+    const other: AppLocale = locale === 'de' ? 'en' : 'de'
+    const otherLabel = other === 'de' ? 'Deutsch' : 'English'
+
+    const localeSwitcher = wrapper.get('.app-header-switcher--locale')
+    await localeSwitcher.get('button').trigger('click')
+    const option = localeSwitcher.findAll('li').find((item) => item.text() === otherLabel)
+    await option?.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('header a[href="/login"]').text()).toBe(catalogues[other].header.signIn)
+  })
+
+  it('switches the document theme when a different option is picked', async () => {
+    const wrapper = await mountApplicationAt('/', locale, apiClientWithRoutes(NOT_SIGNED_IN))
+    await flushPromises()
+    const darkLabel = catalogues[locale].theme.dark
+
+    const themeSwitcher = wrapper.get('.app-header-switcher--theme')
+    await themeSwitcher.get('button').trigger('click')
+    const option = themeSwitcher.findAll('li').find((item) => item.text() === darkLabel)
+    await option?.trigger('click')
+    await flushPromises()
+
+    expect(document.documentElement.dataset.theme).toBe('dark')
   })
 })
