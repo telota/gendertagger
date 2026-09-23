@@ -13,8 +13,6 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Protocol, cast
 
-from gendertagger.methods.base import MethodDependencyError
-
 
 class HfTransformerBackend(Protocol):
     """Batch argmax classification over one loaded sequence-classification model."""
@@ -31,15 +29,9 @@ class _TransformersBackend:
     """Deterministic batch inference over a locally materialized model directory."""
 
     def __init__(self, directory: Path) -> None:
-        try:
-            import torch  # pyright: ignore[reportMissingImports]
-            from transformers import (  # pyright: ignore[reportMissingImports]
-                AutoModelForSequenceClassification,
-                AutoTokenizer,
-            )
-        except ImportError as error:  # pragma: no cover
-            msg = "hf transformer methods require the transformers and torch packages"
-            raise MethodDependencyError(msg) from error
+        import torch
+        from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
         self._torch = torch
         self._tokenizer = AutoTokenizer.from_pretrained(directory, local_files_only=True)
         self._model = AutoModelForSequenceClassification.from_pretrained(
@@ -64,9 +56,5 @@ class _TransformersBackend:
 
 
 def default_backend_factory(directory: Path) -> HfTransformerBackend:
-    """Load a locally materialized model directory as a batch classification backend.
-
-    Raises:
-        MethodDependencyError: If the ``transformers`` and ``torch`` packages are not available.
-    """
+    """Load a locally materialized model directory as a batch classification backend."""
     return cast(HfTransformerBackend, _TransformersBackend(directory))

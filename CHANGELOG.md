@@ -258,6 +258,12 @@ the phased plan that resumes application code.
 - `docs/QUICK_START.md` and `docs/UI_GUIDE.md`, superseded by the design documents.
 - `requirements.txt` and `requirements-dev.txt`, replaced by `pyproject.toml` dependency groups and
   `uv.lock`.
+- Missing-package guards left over from optional extras, which
+  [ADR-0029](docs/decisions/ADR-0029-unconditional-method-dependencies.md) made core dependencies: the
+  `except ImportError` blocks in six method adapters and the XLSX reader, `TabularDependencyError`, and the
+  tests' `pytest.importorskip` calls. `MethodDependencyError` now covers only missing or invalid provisioned
+  assets. Removing `importorskip` exposed an import-time `DeprecationWarning` from `nomquamgender`, now
+  filtered narrowly in the pytest configuration.
 
 Removed pipeline code and result artifacts remain available in version control history at commit
 `36522b8`; restoring the legacy scientific fixture is a prerequisite of the implementation plan.

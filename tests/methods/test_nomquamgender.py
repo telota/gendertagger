@@ -6,7 +6,6 @@ from typing import Any
 
 import pytest
 
-from gendertagger.methods.base import MethodDependencyError
 from gendertagger.methods.name_tokens import NO_NAME_LABEL
 from gendertagger.methods.nomquamgender import (
     NomquamgenderConfig,
@@ -166,22 +165,10 @@ def test_annotator_is_built_once() -> None:
     assert built == 1
 
 
-def test_missing_dependency_is_a_permanent_failure() -> None:
-    def factory() -> _FakeAnnotator:
-        msg = "nomquamgender requires the nomquamgender package"
-        raise MethodDependencyError(msg)
-
-    method = NomquamgenderMethod(annotator_factory=factory)
-    with pytest.raises(MethodDependencyError):
-        method.predict_batch([_person("Karl")], _CONFIG)
-
-
 # --- Real backend: nomquamgender model ----------------------------------------
 
 
 def test_real_backend_classifies_common_names() -> None:
-    pytest.importorskip("nomquamgender")
-
     method = NomquamgenderMethod()
     (male,) = method.predict_batch([_person("Karl")], _CONFIG)
     assert male.label is CanonicalLabel.male

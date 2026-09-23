@@ -15,7 +15,6 @@ from gendertagger.ingestion.tabular import (
     TABULAR_PERSON_PARSER_VERSION,
     TEI_EQUIVALENT_HEADERS,
     TEI_EQUIVALENT_PERSON_REGISTER_PROFILE,
-    TabularDependencyError,
     TabularImportError,
     TabularImportPolicy,
     TabularSourceReadError,
@@ -23,6 +22,9 @@ from gendertagger.ingestion.tabular import (
     version_for_profile,
 )
 from gendertagger.models.person import PersonEvent, PersonInput, PersonNameForm, PersonNameType
+
+# openpyxl ships no type information; the workbook fixtures only use its dynamic API.
+openpyxl: Any = importlib.import_module("openpyxl")
 
 
 def _source_record() -> dict[str, object]:
@@ -122,7 +124,6 @@ def _xlsx_source(
     *,
     mutate: Callable[[object, object], None] | None = None,
 ) -> bytes:
-    openpyxl = pytest.importorskip("openpyxl")
     workbook = openpyxl.Workbook()
     worksheet = workbook.active
     worksheet.title = "persons"
@@ -521,7 +522,6 @@ def test_xlsx_rejects_oversized_dimension_before_loading_openpyxl(
 def test_xlsx_streams_workbook_and_accepts_a_bounded_sheet_without_dimension(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    openpyxl = pytest.importorskip("openpyxl")
     original = _xlsx_source([_source_record()])
     worksheet = _xlsx_member(original, "xl/worksheets/sheet1.xml")
     without_dimension = re.sub(
@@ -565,21 +565,4 @@ def test_xlsx_preflights_hostile_declared_entry_count_before_zipfile(
     monkeypatch.setattr(zipfile, "ZipFile", fail_if_opened)
 
     with pytest.raises(TabularImportError, match="archive-member limit"):
-        list(TeiEquivalentPersonRegisterParser().iter_xlsx(io.BytesIO(source)))
-
-
-def test_xlsx_reports_missing_dependency_after_container_validation(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    source = _xlsx_source([_source_record()])
-    real_import_module = importlib.import_module
-
-    def fail_openpyxl(name: str, package: str | None = None) -> object:
-        if name == "openpyxl":
-            raise ImportError("simulated missing dependency")
-        return real_import_module(name, package)
-
-    monkeypatch.setattr(importlib, "import_module", fail_openpyxl)
-
-    with pytest.raises(TabularDependencyError, match="requires the openpyxl dependency"):
         list(TeiEquivalentPersonRegisterParser().iter_xlsx(io.BytesIO(source)))

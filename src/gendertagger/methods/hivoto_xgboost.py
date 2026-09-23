@@ -18,7 +18,7 @@ from pathlib import Path
 from statistics import fmean
 from typing import Final, Protocol, cast
 
-from gendertagger.methods.base import LookupMethodConfig, MethodDependencyError
+from gendertagger.methods.base import LookupMethodConfig
 from gendertagger.methods.hivoto import HivotoLookup, SqliteHivotoLookup
 from gendertagger.methods.model_manifest import (
     ModelDirectoryResolver,
@@ -83,15 +83,9 @@ class _SklearnXgboostModel:
     """
 
     def __init__(self, directory: Path) -> None:
-        try:
-            import numpy as np
-            from sklearn.feature_extraction.text import (  # pyright: ignore[reportMissingImports]
-                TfidfVectorizer,
-            )
-            from xgboost import XGBClassifier  # pyright: ignore[reportMissingImports]
-        except ImportError as error:  # pragma: no cover
-            msg = "hivoto_xgboost requires the xgboost package"
-            raise MethodDependencyError(msg) from error
+        import numpy as np
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from xgboost import XGBClassifier
 
         config = json.loads(
             (directory / VECTORIZER_CONFIG_MEMBER_RELATIVE_PATH).read_text(encoding="utf-8")
@@ -123,11 +117,7 @@ class _SklearnXgboostModel:
 
 
 def default_model_factory(directory: Path) -> TokenProbabilityModel:
-    """Load a locally materialized HIVOTO-XGBoost bundle as an inference backend.
-
-    Raises:
-        MethodDependencyError: If the ``xgboost`` package is not available.
-    """
+    """Load a locally materialized HIVOTO-XGBoost bundle as an inference backend."""
     return cast(TokenProbabilityModel, _SklearnXgboostModel(directory))
 
 

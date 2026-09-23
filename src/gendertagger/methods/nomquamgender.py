@@ -15,7 +15,7 @@ from typing import Any, Final, Protocol, cast
 
 from pydantic import Field
 
-from gendertagger.methods.base import MethodConfig, MethodDependencyError
+from gendertagger.methods.base import MethodConfig
 from gendertagger.methods.name_tokens import consensus_label, usable_forename_tokens
 from gendertagger.methods.normalization import NOMQUAMGENDER_NORMALIZATION, normalize_raw_label
 from gendertagger.models.classification import PredictionResult
@@ -56,11 +56,8 @@ AnnotatorFactory = Callable[[], NomquamAnnotator]
 
 
 def _default_annotator_factory() -> NomquamAnnotator:
-    try:
-        import nomquamgender
-    except ImportError as error:  # pragma: no cover
-        msg = "nomquamgender requires the nomquamgender package"
-        raise MethodDependencyError(msg) from error
+    import nomquamgender
+
     # The dependency's annotation exposes a DataFrame-or-list union even though
     # ``as_df=False`` (the default used here) returns the list rows this adapter
     # consumes. Keep that incomplete third-party typing at this boundary.
@@ -106,11 +103,7 @@ class NomquamgenderMethod:
         people: Sequence[PersonInput],
         config: NomquamgenderConfig,
     ) -> list[PredictionResult]:
-        """Classify each person from its forename tokens in input order.
-
-        Raises:
-            MethodDependencyError: If the ``nomquam`` extra is not installed.
-        """
+        """Classify each person from its forename tokens in input order."""
         annotator = self._get_annotator()
         return [self._predict_one(annotator, person, config.threshold) for person in people]
 

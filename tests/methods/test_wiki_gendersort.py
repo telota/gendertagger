@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
+from unidecode import unidecode
 
 from gendertagger.methods.base import MethodDependencyError
 from gendertagger.methods.wiki_gendersort import (
@@ -161,7 +162,7 @@ def test_assigner_is_materialized_and_built_once_per_digest() -> None:
 
 def test_missing_dependency_is_a_permanent_failure() -> None:
     def factory(_path: Path) -> _FakeAssigner:
-        msg = "wiki_gendersort requires the unidecode package"
+        msg = "wiki_gendersort lookup asset is unreadable"
         raise MethodDependencyError(msg)
 
     method = WikiGendersortMethod(
@@ -173,10 +174,9 @@ def test_missing_dependency_is_a_permanent_failure() -> None:
 
 
 def test_clean_name_ports_the_reference_candidate_generation() -> None:
-    unidecode_module = pytest.importorskip("unidecode")
     from gendertagger.methods.wiki_gendersort import _clean_name
 
-    transliterate = unidecode_module.unidecode
+    transliterate = unidecode
     assert _clean_name("Anna", transliterate) == ["Anna"]
     assert _clean_name("J.", transliterate) == []
     assert _clean_name("Jean-Paul", transliterate) == ["Jean-paul", "Jean", "Paul"]
@@ -184,7 +184,6 @@ def test_clean_name_ports_the_reference_candidate_generation() -> None:
 
 
 def test_compiled_table_assign_preserves_candidate_behavior(tmp_path: Path) -> None:
-    pytest.importorskip("unidecode")
     source = tmp_path / "NamesOut.txt"
     source.write_text("Karl\tM\nMaria\tF\nKim\tUNI\n", encoding="utf-8")
     lookup_path = tmp_path / "wiki.sqlite3"
@@ -205,7 +204,6 @@ def test_compiled_table_assign_preserves_candidate_behavior(tmp_path: Path) -> N
 
 
 def test_adapter_end_to_end_over_a_compiled_lookup(tmp_path: Path) -> None:
-    pytest.importorskip("unidecode")
     source = tmp_path / "NamesOut.txt"
     source.write_text("Karl\tM\nMaria\tF\n", encoding="utf-8")
     lookup_path = tmp_path / "wiki.sqlite3"

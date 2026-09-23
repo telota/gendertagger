@@ -66,6 +66,9 @@ TEI_PROFILE = TeiImportProfile.tei_p5_person_register
 TABULAR_PROFILE = TabularImportProfile.tei_equivalent_person_register_v1
 TABULAR_PARSER_VERSION = tabular_version_for_profile(TABULAR_PROFILE)
 
+# openpyxl ships no type information; the workbook fixture only uses its dynamic API.
+openpyxl: Any = importlib.import_module("openpyxl")
+
 
 class _ShortReadBytesIO(io.BytesIO):
     def read(self, size: int | None = -1) -> bytes:
@@ -452,7 +455,6 @@ def _csv_bytes(record: dict[str, object]) -> bytes:
 
 
 def _xlsx_bytes(record: dict[str, object]) -> bytes:
-    openpyxl: Any = pytest.importorskip("openpyxl")
     workbook = openpyxl.Workbook()
     worksheet = workbook.active
     worksheet.title = "persons"
@@ -862,44 +864,3 @@ def test_persisted_cell_limit_is_enforced_as_utf8_bytes(tmp_path: Path) -> None:
     assert result.status is DatasetSnapshotStatus.failed
     diagnostic = harness.projects.fail_snapshot_import.call_args.kwargs["failure_diagnostic"]
     assert "column 'note': exceeds the byte limit" in diagnostic
-
-
-def test_missing_xlsx_dependency_is_retryable_infrastructure_failure(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    payload = _xlsx_bytes(_tabular_record())
-    storage = LocalArtifactStorage(tmp_path)
-    primary = _store_artifact(
-        storage,
-        payload,
-        artifact_id=_artifact_id(1),
-        logical_type="source_xlsx",
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
-    member = _source_member(primary, logical_name="register.xlsx", ordinal=0)
-    config = _config(
-        source_format=SourceFormat.xlsx,
-        packaging=SourcePackaging.single,
-        profile=TABULAR_PROFILE,
-    )
-    snapshot = _snapshot(primary, config=config, parser_version=TABULAR_PARSER_VERSION)
-    harness = _harness(snapshot, members=(member,), artifacts_by_id={primary.id: primary})
-    real_import_module = importlib.import_module
-
-    def fail_openpyxl(name: str, package: str | None = None) -> object:
-        if name == "openpyxl":
-            raise ImportError("simulated missing dependency")
-        return real_import_module(name, package)
-
-    monkeypatch.setattr(importlib, "import_module", fail_openpyxl)
-
-    with pytest.raises(TransientSnapshotImportError):
-        _executor(harness, storage).execute(
-            SnapshotImportTaskMessage(dataset_snapshot_id=SNAPSHOT_ID),
-            attempt_count=1,
-            max_attempts=2,
-        )
-
-    harness.projects.fail_snapshot_import.assert_not_called()
-    assert [unit.commit_count for unit in harness.factory.units] == [0]

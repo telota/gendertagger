@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import Final, Protocol
 
-from gendertagger.methods.base import MethodConfig, MethodDependencyError
+from gendertagger.methods.base import MethodConfig
 from gendertagger.methods.name_tokens import consensus_label, usable_forename_tokens
 from gendertagger.methods.normalization import GENDER_GUESSER_NORMALIZATION, normalize_raw_label
 from gendertagger.models.classification import PredictionResult
@@ -51,11 +51,8 @@ DetectorFactory = Callable[[], GenderGuesserDetector]
 
 
 def _default_detector_factory() -> GenderGuesserDetector:
-    try:
-        from gender_guesser.detector import Detector
-    except ImportError as error:  # pragma: no cover
-        msg = "gender_guesser requires the gender-guesser package"
-        raise MethodDependencyError(msg) from error
+    from gender_guesser.detector import Detector
+
     # Case-insensitive lookup reproduces the reference pipeline's detector setup.
     detector: GenderGuesserDetector = Detector(case_sensitive=False)
     return detector
@@ -80,11 +77,7 @@ class GenderGuesserMethod:
         people: Sequence[PersonInput],
         config: GenderGuesserConfig,
     ) -> list[PredictionResult]:
-        """Classify each person from its forename tokens in input order.
-
-        Raises:
-            MethodDependencyError: If the ``guesser`` extra is not installed.
-        """
+        """Classify each person from its forename tokens in input order."""
         del config  # The dictionary lookup takes no resolved configuration.
         detector = self._get_detector()
         return [self._predict_one(detector, person) for person in people]

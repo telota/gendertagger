@@ -217,7 +217,11 @@ addopts = [
   "--strict-markers",
   "--import-mode=importlib",
 ]
-filterwarnings = ["error"]
+filterwarnings = [
+  "error",
+  # nomquamgender reads its bundled model with the legacy importlib.resources API on import.
+  "ignore:open_text is deprecated:DeprecationWarning:nomquamgender",
+]
 markers = [
   "unit: fast tests isolated from infrastructure",
   "contract: serialized-schema and boundary contract tests",

@@ -12,7 +12,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Final, Protocol
 
-from gendertagger.methods.base import LookupMethodConfig, MethodDependencyError
+from gendertagger.methods.base import LookupMethodConfig
 from gendertagger.methods.name_tokens import consensus_label, usable_forename_tokens
 from gendertagger.methods.normalization import WIKI_GENDERSORT_NORMALIZATION, normalize_raw_label
 from gendertagger.methods.sqlite_lookup import (
@@ -75,11 +75,8 @@ Transliterate = Callable[[str], str]
 
 
 def _load_transliterate() -> Transliterate:
-    try:
-        from unidecode import unidecode
-    except ImportError as error:  # pragma: no cover
-        msg = "wiki_gendersort requires the unidecode package"
-        raise MethodDependencyError(msg) from error
+    from unidecode import unidecode
+
     transliterate: Transliterate = unidecode
     return transliterate
 

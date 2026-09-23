@@ -77,10 +77,6 @@ class TabularSourceReadError(TabularImportError):
     """Raised when infrastructure prevents reading a tabular source."""
 
 
-class TabularDependencyError(TabularSourceReadError):
-    """Raised when an optional format dependency is not installed."""
-
-
 @dataclass(frozen=True, slots=True)
 class TabularImportPolicy:
     """Independent resource ceilings for one untrusted tabular source."""
@@ -885,11 +881,9 @@ class TeiEquivalentPersonRegisterParser:
 
     @staticmethod
     def _load_xlsx(payload: bytes) -> _Workbook:
-        try:
-            openpyxl = importlib.import_module("openpyxl")
-        except ImportError as error:
-            msg = "XLSX import requires the openpyxl dependency"
-            raise TabularDependencyError(msg) from error
+        # Loaded lazily through importlib so that tests can prove that container
+        # validation rejects hostile workbooks before openpyxl is imported.
+        openpyxl = importlib.import_module("openpyxl")
         load_workbook = cast(Callable[..., object], openpyxl.load_workbook)
         try:
             workbook = load_workbook(

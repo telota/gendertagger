@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pytest
 
-from gendertagger.methods.base import MethodDependencyError
 from gendertagger.methods.gender_guesser import (
     GenderGuesserConfig,
     GenderGuesserMethod,
@@ -123,13 +122,3 @@ def test_detector_is_built_once_and_reused_across_batches() -> None:
     method.predict_batch([_person("Karl")], _CONFIG)
     method.predict_batch([_person("Karl")], _CONFIG)
     assert built == 1
-
-
-def test_missing_dependency_is_a_permanent_failure() -> None:
-    def factory() -> _FakeDetector:
-        msg = "gender_guesser requires the gender-guesser package"
-        raise MethodDependencyError(msg)
-
-    method = GenderGuesserMethod(detector_factory=factory)
-    with pytest.raises(MethodDependencyError):
-        method.predict_batch([_person("Karl")], _CONFIG)

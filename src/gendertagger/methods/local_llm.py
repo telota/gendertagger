@@ -10,7 +10,6 @@ from pydantic import BaseModel, Field, ValidationError
 from gendertagger.methods.base import (
     GenderMethod,
     MethodConfig,
-    MethodDependencyError,
     validate_prediction_batch,
 )
 from gendertagger.methods.normalization import LOCAL_LLM_NORMALIZATION, normalize_raw_label
@@ -174,16 +173,8 @@ class LocalLlmMethod(GenderMethod[LocalLlmConfig]):
         people: Sequence[PersonInput],
         config: LocalLlmConfig,
     ) -> list[PredictionResult]:
-        """Classify a batch of people sequentially using the configured LLM API.
-
-        Raises:
-            MethodDependencyError: If the ``httpx2`` package is not available.
-        """
-        try:
-            import httpx2  # pyright: ignore[reportMissingImports]
-        except ImportError as error:
-            msg = "local_llm requires the httpx2 package"
-            raise MethodDependencyError(msg) from error
+        """Classify a batch of people sequentially using the configured LLM API."""
+        import httpx2
 
         llm = LlmClient(
             model=config.model,

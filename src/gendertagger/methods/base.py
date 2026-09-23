@@ -56,9 +56,9 @@ class MethodContractError(ValueError):
 
 
 class MethodDependencyError(RuntimeError):
-    """Raised when an adapter's optional runtime dependency or asset is absent.
+    """Raised when an adapter's provisioned runtime asset is absent or invalid.
 
-    A missing extra, model, or authority snapshot is an environment or
+    A missing lookup database, model, or authority snapshot is an environment or
     configuration fault that retrying cannot resolve, so orchestration treats it
     as a permanent batch failure rather than a transient infrastructure error.
     """
