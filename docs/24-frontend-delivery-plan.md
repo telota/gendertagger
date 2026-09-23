@@ -311,8 +311,11 @@ scope — so that part of the criterion is necessarily verified once M3 exists, 
 
 **Exit criterion.** An operator imports a TEI ZIP and a CSV through the browser and sees both snapshots
 reach `ready` with their checksums. **Met** in the frontend: both formats can be imported and their
-checksums read back on the project overview. It has been verified against the mocked contract, not against
-a real backend and worker.
+checksums read back on the project overview. It was verified against the mocked contract and then, on
+2026-09-23, in the browser against the real API and worker (Docker Compose development stack): a two-file TEI ZIP
+and a CSV of 8,277 persons both reached `ready`. That run found one frontend gap (an archive sent under the
+default single-file delivery, see the upload-limits item) and showed that the repository's sample
+`data/input/schleiermacher_persons.csv` is not in the CSV profile of `docs/08-ingestion-and-export.md`.
 
 ### M4 — Runs and aggregation
 
