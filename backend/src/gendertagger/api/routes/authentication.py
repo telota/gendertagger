@@ -1,7 +1,7 @@
 """Session, login, logout, and own-password HTTP resources for local accounts.
 
-See [ADR-0031](../../../../docs/decisions/ADR-0031-local-database-authentication.md) for the cookie
-contract and [ADR-0032](../../../../docs/decisions/ADR-0032-sliding-session-lifetime.md) for session
+See [ADR-0031](../../../../../docs/decisions/ADR-0031-local-database-authentication.md) for the cookie
+contract and [ADR-0032](../../../../../docs/decisions/ADR-0032-sliding-session-lifetime.md) for session
 lifetimes and persistent sign-in. Request authentication itself lives in
 ``gendertagger.api.authentication``.
 """

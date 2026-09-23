@@ -1,8 +1,8 @@
 """Provider-neutral request authentication and CSRF enforcement, plus the local-account provider.
 
-See [ADR-0031](../../../docs/decisions/ADR-0031-local-database-authentication.md) for the cookie
+See [ADR-0031](../../../../docs/decisions/ADR-0031-local-database-authentication.md) for the cookie
 contract, session model, and the ``must_change_password`` gate that ``require_password_current``
-enforces, and [ADR-0032](../../../docs/decisions/ADR-0032-sliding-session-lifetime.md) for session
+enforces, and [ADR-0032](../../../../docs/decisions/ADR-0032-sliding-session-lifetime.md) for session
 lifetimes and persistent sign-in. The session, login, and password endpoints live in
 ``gendertagger.api.routes.authentication``.
 """

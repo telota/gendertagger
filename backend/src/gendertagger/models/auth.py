@@ -1,6 +1,6 @@
 """Local-account authentication transport and domain contracts.
 
-See [ADR-0031](../../../docs/decisions/ADR-0031-local-database-authentication.md). `CurrentUser` in
+See [ADR-0031](../../../../docs/decisions/ADR-0031-local-database-authentication.md). `CurrentUser` in
 `gendertagger.models.user` stays provider-neutral; everything here is specific to the local,
 database-backed account provider.
 """
