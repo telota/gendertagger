@@ -188,3 +188,26 @@ statement about gender bias in subject terminology.
 - BibTeX processed the documentation reference successfully with `eceasst.bst`; its generated
   entry contains the institution, version, update status, access date, and field-documentation URL.
 - The locked documentation-policy check passed.
+
+## 2026-09-23: Reviewer I3 - Footnote pagination
+
+**Request:** Prevent footnote 1 from splitting across pages.
+
+**Changes:** Added `\interfootnotelinepenalty=10000` to the preamble of
+[article.tex](article.tex), preventing footnotes from splitting across pages. Footnote wording is
+unchanged.
+
+**Response to the reviewer:** We adjusted the LaTeX footnote setting to prevent splitting across
+pages and verified that footnote 1, including its complete URL, appears on a single page in the
+revised rendering.
+
+**Status:** Addressed in the local working tree; the checklist item is marked complete.
+
+**Verification:** A fresh temporary rendering was inspected visually on pages 1 and 2. The marker
+and complete text of footnote 1 appear on page 2. The setting also protects against splitting as
+subsequent text edits change pagination.
+
+**Build note for the authors:** The rendering was generated, but the complete build still reports
+the existing `Missing $ inserted` error for DOI `10.17175/WP_2026`. This unrelated bibliography
+issue was not changed. The temporary verification PDF did not replace the manuscript PDF in the
+working tree.
