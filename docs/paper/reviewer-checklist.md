@@ -70,7 +70,7 @@ Source: [Reviewer C's annotated PDF](C-klappenbach,neuber,westphal_2026_genderta
 - [ ] **I26 - Line 588:** Identify the model names and purposes for both writing assistance and
   code generation.
 - [x] **I27 - Footnotes 11-14:** Add access dates.
-- [ ] **I28 - Bibliography:** Use either a DOI or a URL for each reference, avoiding duplicate links.
+- [x] **I28 - Bibliography:** Use either a DOI or a URL for each reference, avoiding duplicate links.
 - [x] **Final translation check:** Check all German examples and tables for English translations,
   including phrases beyond the explicitly listed locations.
 

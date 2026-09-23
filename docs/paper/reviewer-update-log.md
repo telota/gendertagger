@@ -371,3 +371,28 @@ The other undated links in original footnotes 1, 3, and 7 are outside this batch
 **Verification:** The linked resources were checked on 23 September 2026. The existing software
 bibliography entry renders "Accessed 23 September 2026" through its `note` field; no bibliography
 change was needed.
+
+## 2026-09-23: Reviewer I28 - DOI and URL duplication
+
+**Request:** Use either a DOI or a URL in each reference, avoiding duplicate links.
+
+**Changes:** Removed the redundant `url` field from eight cited entries in
+[gendertagger.bib](gendertagger.bib), retaining their DOIs: Bérubé's preprint, Beshero-Bondar,
+Van Buskirk, Karimi, Lang, Liebing, padmajabfrl, and Santamaría. Escaped the underscore in Lang's
+DOI as `10.17175/WP\_2026` so the existing LaTeX template can typeset it correctly. References
+with only a URL retain it; other bibliography metadata is unchanged.
+
+**Response to the reviewer:** We removed the duplicate web links from all eight affected
+references, retaining their DOIs. URL-only references retain their web links.
+
+**Status:** Addressed in the local working tree; I28 is marked complete.
+
+**Verification:** A full temporary build completed successfully: all three LaTeX passes and the
+BibTeX pass returned exit code 0. None of the 22 rendered references contains both a DOI and a
+URL, and all eight changed entries retain their DOI. The bibliography pages were inspected
+visually. Lang's PDF hyperlink resolves to `http://dx.doi.org/10.17175/WP_2026`, with the underscore
+preserved and no backslash in the target. Documentation and whitespace checks passed.
+
+**Build note for the authors:** This resolves the DOI-related build error recorded in earlier
+entries. The temporary PDF has 22 pages. The manuscript PDF and build outputs in the working tree
+were not replaced.

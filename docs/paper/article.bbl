@@ -25,7 +25,6 @@ I.~V. Buskirk, A.~Clauset, D.~B. Larremore.
 An {Open}-{Source} {Cultural} {Consensus} {Approach} to {Name}-{Based} {Gender} {Classification}.
 \emph{Proceedings of the International AAAI Conference on Web and Social Media} 17:866--877, June 2023.
 \\\doi{10.1609/icwsm.v17i1.22195}
-\\\url{https://ojs.aaai.org/index.php/ICWSM/article/view/22195}
 
 \bibitem[BGSL20]{berube_wiki-gendersort_2020-1}
 N.~Bérubé, G.~Ghiasi, M.~H. Sainte-Marie, V.~Larivière.
@@ -33,7 +32,6 @@ Wiki-gendersort: {Automatic} {Gender} {Detection} {Using} {First} {Names} in {Wi
 Mar. 2020.
 Published: SocArXiv preprint.
 \\\doi{10.31235/osf.io/ezw7p}
-\\\url{https://osf.io/preprints/socarxiv/ezw7p}
 
 \bibitem[BM15]{blevins_jane_2015}
 C.~Blevins, L.~Mullen.
@@ -45,7 +43,6 @@ E.~E. Beshero-Bondar, R.~Viglianti, H.~Bermúdez-Sabel, J.~Jenstad.
 Revising sex and gender in the {TEI} {Guidelines}.
 \emph{Journal of the Text Encoding Initiative} Issue 17, Apr. 2024.
 \\\doi{10.4000/13utq}
-\\\url{https://journals.openedition.org/jtei/5705}
 
 \bibitem[Bé20]{berube_wiki-gendersort_2020}
 N.~Bérubé.
@@ -77,22 +74,19 @@ F.~Karimi, C.~Wagner, F.~Lemmerich, M.~Jadidi, M.~Strohmaier.
 Inferring {Gender} from {Names} on the {Web}: {A} {Comparative} {Evaluation} of {Gender} {Detection} {Methods}.
 2016.
 \\\doi{10.48550/ARXIV.1603.04322}
-\\\url{https://arxiv.org/abs/1603.04322}
 
 \bibitem[Lie26]{liebing_historisches_2026}
 K.~Liebing.
 Historisches {Vornamentool} - hivoto: {Datensatz} für die {Normierung} und {Geschlechtszuweisung} anhand von historischen, deutschsprachigen {Vornamen} und abgekürzten {Vornamen} (1670-1950).
 2026.
 \\\doi{10.22000/PWBUPF0JC2ZJ4K7X}
-\\\url{https://radar4memory.radar-service.eu/radar/en/dataset/pwbupf0jc2zj4k7x}
 
 \bibitem[LS26]{lang_beyond_2026}
 S.~Lang, E.~Suárez~Cronauer.
 Beyond {Data} {Feminism}. {Towards} {Ethical} {Data} {Work} in the ({Digital}) {Humanities}.
 \emph{Zeitschrift für digitale Geisteswissenschaften}, 2026.
 Version Number: 1.0.
-\\\doi{10.17175/WP_2026}
-\\\url{https://zfdg.de/wp_2026}
+\\\doi{10.17175/WP\_2026}
 
 \bibitem[{Ope}25]{openai_gpt-oss-120b_2025}
 {OpenAI}.
@@ -105,7 +99,6 @@ gpt-oss-120b \& gpt-oss-20b {Model} {Card}.
 Gender-{Classification} ({Revision} 92fe315).
 2025.
 \\\doi{10.57967/hf/4569}
-\\\url{https://huggingface.co/padmajabfrl/Gender-Classification}
 
 \bibitem[Pé16]{perez_gender-guesser_2016}
 I.~S. Pérez.
@@ -125,13 +118,19 @@ L.~Santamaría, H.~Mihaljević.
 Comparison and benchmark of name-to-gender inference services.
 \emph{PeerJ Computer Science} 4:e156, July 2018.
 \\\doi{10.7717/peerj-cs.156}
-\\\url{https://peerj.com/articles/cs-156}
 
 \bibitem[SMD12]{arndt_schleiermacher_2012}
 schleiermacher digital — {Briefwechsel}, {Tageskalender}, {Vorlesungen} von {Friedrich} {Schleiermacher}.
 2012.
 Published: Berlin-Brandenburgische Akademie der Wissenschaften.
 \\\url{https://schleiermacher-digital.de}
+
+\bibitem[{Sta}26]{sta_gnd_gender_2026}
+{Standardisierungsausschuss}.
+Geschlecht: {GND}-Datenfeld.
+Deutsche Nationalbibliothek, 2026.
+STA-Dokumentationsplattform. Version 2023/1. Stand: Juni 2026. Accessed 23 September 2026.
+\\\url{https://sta.dnb.de/wiki/Property:P300}
 
 \bibitem[{TEI}25]{tei_consortium_tei_2025}
 {TEI Consortium}.

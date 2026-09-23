@@ -1,0 +1,50 @@
+This is BibTeX, Version 0.99e (TeX Live 2026/Arch Linux)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: article.aux
+The style file: eceasst.bst
+Database file #1: gendertagger.bib
+Warning--empty journal in article aleksander_gendern_2025
+Warning--empty journal in article karimi_inferring_2016
+Warning--empty booktitle in incollection sahle_digitale_2013
+You've used 22 entries,
+            2580 wiz_defined-function locations,
+            686 strings with 8890 characters,
+and the built_in function-call counts, 5976 in all, are:
+= -- 416
+> -- 311
+< -- 12
++ -- 104
+- -- 103
+* -- 451
+:= -- 848
+add.period$ -- 74
+call.type$ -- 22
+change.case$ -- 106
+chr.to.int$ -- 22
+cite$ -- 25
+duplicate$ -- 254
+empty$ -- 511
+format.name$ -- 135
+if$ -- 1105
+int.to.chr$ -- 1
+int.to.str$ -- 0
+missing$ -- 11
+newline$ -- 141
+num.names$ -- 63
+pop$ -- 88
+preamble$ -- 1
+purify$ -- 150
+quote$ -- 0
+skip$ -- 267
+stack$ -- 0
+substring$ -- 191
+swap$ -- 54
+text.length$ -- 12
+text.prefix$ -- 38
+top$ -- 0
+type$ -- 172
+warning$ -- 3
+while$ -- 54
+width$ -- 25
+write$ -- 206
+(There were 3 warnings)
