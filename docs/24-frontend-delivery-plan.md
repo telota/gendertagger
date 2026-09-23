@@ -175,7 +175,7 @@ image build and the GitLab jobs are written but have not been run yet.
 - Generate `schema.d.ts` from the FastAPI OpenAPI document; wrap it in a typed fetch client with
   `credentials: 'include'` and CSRF header attachment.
 - Add a CI job that regenerates the client and fails on drift. The source is the committed snapshot
-  `tests/fixtures/openapi-v1.json`, which the backend contract test already keeps equal to the live schema,
+  `contracts/openapi-v1.json`, which the backend contract test already keeps equal to the live schema,
   so a contract change is caught even when nobody touches the frontend.
 - Enable the real build stages in the Dockerfile and wire the dev target.
 - Set up i18n for German and English per D3: message catalogues, locale-aware dates and numbers, and a lint

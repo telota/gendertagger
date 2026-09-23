@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-OPENAPI_SNAPSHOT = _REPOSITORY_ROOT / "tests" / "fixtures" / "openapi-v1.json"
+OPENAPI_SNAPSHOT = _REPOSITORY_ROOT / "contracts" / "openapi-v1.json"
 SNAPSHOT_SCRIPT = _REPOSITORY_ROOT / "scripts" / "update_openapi_snapshot.py"
 
 
@@ -35,7 +35,7 @@ def test_snapshot_check_rejects_a_missing_or_stale_snapshot_and_names_both_fixes
     tmp_path: Path, committed: str | None
 ) -> None:
     if committed is not None:
-        snapshot = tmp_path / "tests" / "fixtures" / "openapi-v1.json"
+        snapshot = tmp_path / "contracts" / "openapi-v1.json"
         snapshot.parent.mkdir(parents=True)
         snapshot.write_text(committed, encoding="utf-8")
 
@@ -50,5 +50,5 @@ def test_snapshot_update_writes_the_committed_rendering(tmp_path: Path) -> None:
     result = _run_snapshot_script("--root", str(tmp_path))
 
     assert result.returncode == 0, result.stdout + result.stderr
-    written = tmp_path / "tests" / "fixtures" / "openapi-v1.json"
+    written = tmp_path / "contracts" / "openapi-v1.json"
     assert written.read_text(encoding="utf-8") == OPENAPI_SNAPSHOT.read_text(encoding="utf-8")

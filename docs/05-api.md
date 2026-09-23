@@ -13,7 +13,7 @@ request and response models and never SQLAlchemy instances.
 
 Generated OpenAPI is the authoritative endpoint, parameter, payload, response, and status-code inventory. It
 is available from the running service at `/openapi.json` and through `/docs`. The committed snapshot at
-[`tests/fixtures/openapi-v1.json`](../tests/fixtures/openapi-v1.json) detects unintended contract changes and
+[`contracts/openapi-v1.json`](../contracts/openapi-v1.json) detects unintended contract changes and
 drives the generated TypeScript transport types.
 
 This document records behavioral rules that are not usefully conveyed by an endpoint catalogue. Contract

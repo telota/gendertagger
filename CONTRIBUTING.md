@@ -90,7 +90,7 @@ npm --prefix frontend run build
 A backend contract change is two commands, and both outputs are committed with the change:
 
 ```bash
-uv run --locked python scripts/update_openapi_snapshot.py   # tests/fixtures/openapi-v1.json
+uv run --locked python scripts/update_openapi_snapshot.py   # contracts/openapi-v1.json
 npm --prefix frontend run api:generate                      # frontend/src/api/schema.d.ts
 ```
 

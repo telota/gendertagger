@@ -111,7 +111,7 @@ frontend_quality:
     - npm run format:check
     - npm run typecheck
     - npm run i18n:check
-    # Regenerates the transport types from tests/fixtures/openapi-v1.json and fails on drift. The
+    # Regenerates the transport types from contracts/openapi-v1.json and fails on drift. The
     # backend contract test fails when that snapshot differs from the live API, so a contract change
     # is caught here even when nobody touched the frontend.
     - npm run api:check

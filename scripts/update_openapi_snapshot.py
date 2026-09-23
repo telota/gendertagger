@@ -1,6 +1,6 @@
 """Render the live /api/v1 OpenAPI document into the committed contract snapshot.
 
-`tests/fixtures/openapi-v1.json` pins the public contract. The contract test runs this script with
+`contracts/openapi-v1.json` pins the public contract. The contract test runs this script with
 `--check`, and the frontend generates its transport types from the snapshot, so a contract change is
 two commands: this script, then `npm --prefix frontend run api:generate`.
 """
@@ -19,7 +19,7 @@ from gendertagger.api.settings import AppSettings
 from gendertagger.services.ports.unit_of_work import UnitOfWork
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-SNAPSHOT_PATH = Path("tests/fixtures/openapi-v1.json")
+SNAPSHOT_PATH = Path("contracts/openapi-v1.json")
 UPDATE_COMMAND = "uv run --locked python scripts/update_openapi_snapshot.py"
 FRONTEND_COMMAND = "npm --prefix frontend run api:generate"
 

@@ -159,6 +159,8 @@ the phased plan that resumes application code.
 
 ### Changed
 
+- The OpenAPI snapshot moved from `tests/fixtures/openapi-v1.json` to [`contracts/`](contracts/), a neutral
+  folder for artifacts both apps depend on, so the frontend no longer reads a backend test fixture.
 - The five Alembic revisions are squashed into the single baseline `20260815_0001`; a `pg_dump
   --schema-only` of the squashed baseline is identical to the old chain. The data steps of `20260921_0003`
   and `20260921_0004` and their migration tests are gone, since no deployed database needs them. A local
