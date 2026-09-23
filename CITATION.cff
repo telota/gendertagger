@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+type: software
+title: gendertagger
+authors:
+  - family-names: Klappenbach
+    given-names: Lou
+    orcid: "https://orcid.org/0000-0001-6587-3353"
+  - family-names: Neuber
+    given-names: Frederike
+    orcid: "https://orcid.org/0000-0001-8279-9298"
+  - family-names: Westphal
+    given-names: Tim
+    orcid: "https://orcid.org/0009-0000-8580-4558"
+repository-code: "https://github.com/telota/gendertagger"
+license: MIT

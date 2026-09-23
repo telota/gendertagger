@@ -1,7 +1,8 @@
 # Paper revision checklist
 
-All items are unchecked. Line numbers refer to the submitted manuscript. This checklist records the
-reviewers' requests separately from issues found during our own audit.
+Line numbers refer to the submitted manuscript. This checklist records the reviewers' requests
+separately from issues found during our own audit. Completed changes are documented in the
+[reviewer update log](reviewer-update-log.md).
 
 ## Editorial requirements
 
@@ -13,7 +14,7 @@ reviewers' requests separately from issues found during our own audit.
 - [ ] Fix the application startup failure: `ModuleNotFoundError: No module named 'gender_project'`.
 - [ ] Make README and QUICKSTART instructions reproducible, including the missing input path
   `data/raw/schleiermacher/Register/Personen`.
-- [ ] Add `CITATION.cff` and cite the software repository in the bibliography.
+- [x] Add `CITATION.cff` and cite the software repository in the bibliography.
 
 ## Reviewer C: annotated PDF
 
