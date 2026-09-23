@@ -140,6 +140,29 @@ docker compose -f compose.yaml -f compose.dev.yaml ps
 docker compose -f compose.yaml -f compose.dev.yaml logs -f api worker-cpu
 ```
 
+### 5. Seed representative frontend data
+
+After migrations, the development stack can be populated with two synthetic projects and the full set of
+browser-visible lifecycle and review states. The command creates `frontend-viewer`, `frontend-reviewer`,
+and `frontend-operator`, all with the printed development-only password. It also creates ready and failed
+snapshots; running, completed, and failed runs; completed and failed method executions; every agreement and
+certainty tier; annotation history and a reproducible stale-revision conflict; and completed evaluation and
+JSON-export artifacts.
+
+The safety flag is mandatory. The marker project makes an exact repeat a read-only no-op. Mounting the
+repository read-only supplies the development script and shared production-path seed helpers without adding
+them to the runtime image:
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml run --rm \
+  -v "$(pwd):/workspace:ro" -w /workspace api \
+  python -m scripts.seed_frontend_development --confirm-development-database
+```
+
+Pass `--password` to replace the default `development-only` credential. The command emits a JSON manifest
+containing the account and resource identifiers that browser tests need. It is intentionally a repository
+development tool, not a production administration command.
+
 Stop the local services with:
 
 ```bash
