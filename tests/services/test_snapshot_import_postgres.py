@@ -14,10 +14,10 @@ import pytest
 from sqlalchemy import Connection, Engine, func, select, text
 from tests.seeding import seed_artifact, seed_pending_snapshot, seed_project
 
-from gendertagger.db.artifacts import ArtifactRow
-from gendertagger.db.dispatch_repository import SqlAlchemyDispatchRepository
-from gendertagger.db.project_repository import SqlAlchemyProjectRepository
-from gendertagger.db.projects import DatasetSnapshotRow
+from gendertagger.db.repositories.dispatch_repository import SqlAlchemyDispatchRepository
+from gendertagger.db.repositories.project_repository import SqlAlchemyProjectRepository
+from gendertagger.db.rows.artifacts import ArtifactRow
+from gendertagger.db.rows.projects import DatasetSnapshotRow
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.ingestion.tei import TeiPersonParser

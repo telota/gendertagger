@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from gendertagger.db.artifacts import ArtifactRow
+from gendertagger.db.rows.artifacts import ArtifactRow
 from gendertagger.models.artifact import Artifact, ArtifactCreate
 from gendertagger.services.ports.artifact_repository import AmbiguousArtifactError
 

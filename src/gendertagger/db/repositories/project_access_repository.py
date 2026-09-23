@@ -6,12 +6,12 @@ from uuid import UUID
 from sqlalchemy import Select, delete, exists, select
 from sqlalchemy.orm import Session
 
-from gendertagger.db.aggregations import AggregationExecutionRow
-from gendertagger.db.evaluations import EvaluationExecutionRow
-from gendertagger.db.executions import RunRow
-from gendertagger.db.exports import ExportExecutionRow
-from gendertagger.db.projects import DatasetSnapshotRow, ProjectRow
-from gendertagger.db.reviews import ProjectMembershipRow, UserRow
+from gendertagger.db.rows.aggregations import AggregationExecutionRow
+from gendertagger.db.rows.evaluations import EvaluationExecutionRow
+from gendertagger.db.rows.executions import RunRow
+from gendertagger.db.rows.exports import ExportExecutionRow
+from gendertagger.db.rows.projects import DatasetSnapshotRow, ProjectRow
+from gendertagger.db.rows.reviews import ProjectMembershipRow, UserRow
 from gendertagger.models.project import AccessibleProject, ProjectMember
 from gendertagger.models.user import ProjectRole
 from gendertagger.services.ports.persistence_errors import ResourceNotFoundError

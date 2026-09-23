@@ -11,9 +11,9 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from gendertagger.config.run import RunConfig
-from gendertagger.db.executions import MethodExecutionRow, PredictionRow, RunRow, TaskBatchRow
 from gendertagger.db.keyset import newest_first_slice
-from gendertagger.db.projects import DatasetSnapshotRow, PersonRecordRow
+from gendertagger.db.rows.executions import MethodExecutionRow, PredictionRow, RunRow, TaskBatchRow
+from gendertagger.db.rows.projects import DatasetSnapshotRow, PersonRecordRow
 from gendertagger.models.lifecycle import (
     DatasetSnapshotStatus,
     MethodExecutionStatus,

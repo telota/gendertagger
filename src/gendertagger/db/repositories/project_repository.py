@@ -10,11 +10,11 @@ from pydantic import ValidationError
 from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.orm import Session
 
-from gendertagger.db.aggregations import AggregationExecutionRow
-from gendertagger.db.artifacts import ArtifactRow
-from gendertagger.db.executions import RunRow
 from gendertagger.db.keyset import newest_first_slice
-from gendertagger.db.projects import (
+from gendertagger.db.rows.aggregations import AggregationExecutionRow
+from gendertagger.db.rows.artifacts import ArtifactRow
+from gendertagger.db.rows.executions import RunRow
+from gendertagger.db.rows.projects import (
     DatasetSnapshotRow,
     PersonExternalIdRow,
     PersonRecordRow,

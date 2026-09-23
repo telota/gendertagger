@@ -9,22 +9,22 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
-from gendertagger.db.aggregation_repository import SqlAlchemyAggregationRepository
-from gendertagger.db.aggregations import AggregatedResultRow
-from gendertagger.db.artifact_repository import SqlAlchemyArtifactRepository
-from gendertagger.db.artifacts import ArtifactRow
-from gendertagger.db.executions import MethodExecutionRow, PredictionRow
-from gendertagger.db.project_repository import SqlAlchemyProjectRepository
-from gendertagger.db.projects import (
+from gendertagger.db.repositories.aggregation_repository import SqlAlchemyAggregationRepository
+from gendertagger.db.repositories.artifact_repository import SqlAlchemyArtifactRepository
+from gendertagger.db.repositories.project_repository import SqlAlchemyProjectRepository
+from gendertagger.db.repositories.review_repository import SqlAlchemyReviewRepository
+from gendertagger.db.repositories.run_repository import SqlAlchemyRunRepository
+from gendertagger.db.repositories.user_repository import SqlAlchemyUserRepository
+from gendertagger.db.rows.aggregations import AggregatedResultRow
+from gendertagger.db.rows.artifacts import ArtifactRow
+from gendertagger.db.rows.executions import MethodExecutionRow, PredictionRow
+from gendertagger.db.rows.projects import (
     DatasetSnapshotRow,
     PersonExternalIdRow,
     PersonRecordRow,
     SnapshotSourceMemberRow,
 )
-from gendertagger.db.review_repository import SqlAlchemyReviewRepository
-from gendertagger.db.reviews import AnnotationRow
-from gendertagger.db.run_repository import SqlAlchemyRunRepository
-from gendertagger.db.user_repository import SqlAlchemyUserRepository
+from gendertagger.db.rows.reviews import AnnotationRow
 from gendertagger.domain.aggregation import REFERENCE_REQUIRED_METHODS
 from gendertagger.ingestion.registry import version_for_snapshot_import
 from gendertagger.models.aggregation import (

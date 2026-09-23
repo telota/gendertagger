@@ -17,16 +17,16 @@ from tests.seeding import (
 )
 
 from gendertagger.config.run import RunConfig
-from gendertagger.db.aggregation_repository import SqlAlchemyAggregationRepository
-from gendertagger.db.aggregations import (
+from gendertagger.db.repositories.aggregation_repository import SqlAlchemyAggregationRepository
+from gendertagger.db.repositories.dispatch_repository import SqlAlchemyDispatchRepository
+from gendertagger.db.repositories.run_repository import SqlAlchemyRunRepository
+from gendertagger.db.rows.aggregations import (
     AggregatedResultRow,
     AggregationExecutionRow,
     AggregationMethodExecutionRow,
 )
-from gendertagger.db.dispatch_repository import SqlAlchemyDispatchRepository
-from gendertagger.db.dispatches import BatchDispatchRow
-from gendertagger.db.executions import MethodExecutionRow, RunRow
-from gendertagger.db.run_repository import SqlAlchemyRunRepository
+from gendertagger.db.rows.dispatches import BatchDispatchRow
+from gendertagger.db.rows.executions import MethodExecutionRow, RunRow
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.domain.aggregation import REFERENCE_REQUIRED_METHODS

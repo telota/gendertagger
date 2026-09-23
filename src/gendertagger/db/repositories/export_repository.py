@@ -7,12 +7,16 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from gendertagger.db.aggregations import AggregatedResultRow, AggregationExecutionRow
-from gendertagger.db.executions import RunRow
-from gendertagger.db.exports import ExportExecutionRow
 from gendertagger.db.keyset import newest_first_slice
-from gendertagger.db.projects import DatasetSnapshotRow, PersonRecordRow, SnapshotSourceMemberRow
-from gendertagger.db.reviews import AnnotationRow, ReviewStateRow
+from gendertagger.db.rows.aggregations import AggregatedResultRow, AggregationExecutionRow
+from gendertagger.db.rows.executions import RunRow
+from gendertagger.db.rows.exports import ExportExecutionRow
+from gendertagger.db.rows.projects import (
+    DatasetSnapshotRow,
+    PersonRecordRow,
+    SnapshotSourceMemberRow,
+)
+from gendertagger.db.rows.reviews import AnnotationRow, ReviewStateRow
 from gendertagger.export.final_decision import resolve_final_decision
 from gendertagger.models.aggregation import AggregatedResult, VoteCounts
 from gendertagger.models.classification import CanonicalLabel

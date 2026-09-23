@@ -8,12 +8,12 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from gendertagger.db.aggregations import AggregatedResultRow, AggregationExecutionRow
-from gendertagger.db.evaluations import EvaluationExecutionRow, EvaluationMethodExecutionRow
-from gendertagger.db.executions import MethodExecutionRow, PredictionRow, RunRow
 from gendertagger.db.keyset import newest_first_slice
-from gendertagger.db.projects import DatasetSnapshotRow, PersonRecordRow
-from gendertagger.db.reviews import AnnotationRow, ReviewStateRow
+from gendertagger.db.rows.aggregations import AggregatedResultRow, AggregationExecutionRow
+from gendertagger.db.rows.evaluations import EvaluationExecutionRow, EvaluationMethodExecutionRow
+from gendertagger.db.rows.executions import MethodExecutionRow, PredictionRow, RunRow
+from gendertagger.db.rows.projects import DatasetSnapshotRow, PersonRecordRow
+from gendertagger.db.rows.reviews import AnnotationRow, ReviewStateRow
 from gendertagger.models.aggregation import (
     AggregatedResult,
     AggregationPersonPredictions,

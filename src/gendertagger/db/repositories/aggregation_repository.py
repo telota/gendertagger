@@ -10,14 +10,14 @@ from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from gendertagger.config.run import AggregationStrategy
-from gendertagger.db.aggregations import (
+from gendertagger.db.keyset import newest_first_slice
+from gendertagger.db.rows.aggregations import (
     AggregatedResultRow,
     AggregationExecutionRow,
     AggregationMethodExecutionRow,
 )
-from gendertagger.db.executions import MethodExecutionRow, PredictionRow, RunRow
-from gendertagger.db.keyset import newest_first_slice
-from gendertagger.db.projects import DatasetSnapshotRow, PersonRecordRow
+from gendertagger.db.rows.executions import MethodExecutionRow, PredictionRow, RunRow
+from gendertagger.db.rows.projects import DatasetSnapshotRow, PersonRecordRow
 from gendertagger.domain.aggregation import (
     REFERENCE_IGNORED_METHODS,
     REFERENCE_REQUIRED_METHODS,

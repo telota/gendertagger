@@ -15,8 +15,8 @@ from tests.seeding import (
     session_repositories,
 )
 
-from gendertagger.db.artifact_repository import SqlAlchemyArtifactRepository
-from gendertagger.db.evaluation_repository import SqlAlchemyEvaluationRepository
+from gendertagger.db.repositories.artifact_repository import SqlAlchemyArtifactRepository
+from gendertagger.db.repositories.evaluation_repository import SqlAlchemyEvaluationRepository
 from gendertagger.models.artifact import ArtifactCreate
 from gendertagger.models.classification import (
     CanonicalLabel,

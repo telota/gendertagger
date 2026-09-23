@@ -4,8 +4,8 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from gendertagger.db.auth_repository import SqlAlchemyAuthRepository
-from gendertagger.db.user_repository import SqlAlchemyUserRepository
+from gendertagger.db.repositories.auth_repository import SqlAlchemyAuthRepository
+from gendertagger.db.repositories.user_repository import SqlAlchemyUserRepository
 from gendertagger.models.user import UserCreate
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]

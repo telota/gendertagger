@@ -5,8 +5,8 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.dialects import postgresql
 
-from gendertagger.db.executions import RunRow
 from gendertagger.db.keyset import newest_first_slice
+from gendertagger.db.rows.executions import RunRow
 from gendertagger.services.pagination import CreationPosition
 
 pytestmark = pytest.mark.unit

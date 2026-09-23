@@ -15,9 +15,9 @@ from tests.factories import tei_person_input
 from tests.seeding import seed_artifact, seed_project, seed_ready_snapshot, seed_run
 
 from gendertagger.config.run import MethodRunConfig
-from gendertagger.db.dispatch_repository import SqlAlchemyDispatchRepository
-from gendertagger.db.executions import PredictionRow
-from gendertagger.db.run_repository import SqlAlchemyRunRepository
+from gendertagger.db.repositories.dispatch_repository import SqlAlchemyDispatchRepository
+from gendertagger.db.repositories.run_repository import SqlAlchemyRunRepository
+from gendertagger.db.rows.executions import PredictionRow
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.models.dispatch import (

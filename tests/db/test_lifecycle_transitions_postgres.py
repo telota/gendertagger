@@ -11,11 +11,11 @@ from sqlalchemy.orm import Session
 from tests.factories import tei_person_input
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
-from gendertagger.db.aggregations import AggregationExecutionRow
-from gendertagger.db.artifact_repository import SqlAlchemyArtifactRepository
-from gendertagger.db.executions import MethodExecutionRow, PredictionRow, RunRow, TaskBatchRow
-from gendertagger.db.project_repository import SqlAlchemyProjectRepository
-from gendertagger.db.run_repository import SqlAlchemyRunRepository
+from gendertagger.db.repositories.artifact_repository import SqlAlchemyArtifactRepository
+from gendertagger.db.repositories.project_repository import SqlAlchemyProjectRepository
+from gendertagger.db.repositories.run_repository import SqlAlchemyRunRepository
+from gendertagger.db.rows.aggregations import AggregationExecutionRow
+from gendertagger.db.rows.executions import MethodExecutionRow, PredictionRow, RunRow, TaskBatchRow
 from gendertagger.ingestion.registry import version_for_snapshot_import
 from gendertagger.models.artifact import ArtifactCreate
 from gendertagger.models.classification import CanonicalLabel, PredictionResult, PredictionStatus

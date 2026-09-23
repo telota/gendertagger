@@ -5,18 +5,18 @@ from typing import Self
 
 from sqlalchemy.orm import Session
 
-from gendertagger.db.aggregation_repository import SqlAlchemyAggregationRepository
-from gendertagger.db.artifact_repository import SqlAlchemyArtifactRepository
-from gendertagger.db.auth_repository import SqlAlchemyAuthRepository
-from gendertagger.db.dispatch_repository import SqlAlchemyDispatchRepository
-from gendertagger.db.evaluation_repository import SqlAlchemyEvaluationRepository
-from gendertagger.db.export_repository import SqlAlchemyExportRepository
-from gendertagger.db.project_access_repository import SqlAlchemyProjectAccessRepository
-from gendertagger.db.project_repository import SqlAlchemyProjectRepository
-from gendertagger.db.review_repository import SqlAlchemyReviewRepository
-from gendertagger.db.run_repository import SqlAlchemyRunRepository
+from gendertagger.db.repositories.aggregation_repository import SqlAlchemyAggregationRepository
+from gendertagger.db.repositories.artifact_repository import SqlAlchemyArtifactRepository
+from gendertagger.db.repositories.auth_repository import SqlAlchemyAuthRepository
+from gendertagger.db.repositories.dispatch_repository import SqlAlchemyDispatchRepository
+from gendertagger.db.repositories.evaluation_repository import SqlAlchemyEvaluationRepository
+from gendertagger.db.repositories.export_repository import SqlAlchemyExportRepository
+from gendertagger.db.repositories.project_access_repository import SqlAlchemyProjectAccessRepository
+from gendertagger.db.repositories.project_repository import SqlAlchemyProjectRepository
+from gendertagger.db.repositories.review_repository import SqlAlchemyReviewRepository
+from gendertagger.db.repositories.run_repository import SqlAlchemyRunRepository
+from gendertagger.db.repositories.user_repository import SqlAlchemyUserRepository
 from gendertagger.db.session import SessionFactory
-from gendertagger.db.user_repository import SqlAlchemyUserRepository
 from gendertagger.services.ports.unit_of_work import UnitOfWork
 
 

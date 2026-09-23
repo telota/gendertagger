@@ -10,7 +10,7 @@ from tests.factories import tei_person_input
 from tests.seeding import seed_project, seed_ready_snapshot, seed_run
 
 from gendertagger.config.run import ExecutionConfig, MethodRunConfig, RunConfig
-from gendertagger.db.executions import PredictionRow
+from gendertagger.db.rows.executions import PredictionRow
 from gendertagger.methods.base import MethodConfig, MethodContractError
 from gendertagger.models.classification import PredictionResult
 from gendertagger.models.lifecycle import MethodExecutionStatus, RunStatus, TaskBatchStatus

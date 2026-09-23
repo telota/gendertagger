@@ -8,13 +8,13 @@ from uuid import UUID
 from sqlalchemy import ColumnElement, and_, case, exists, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
-from gendertagger.db.aggregations import (
+from gendertagger.db.rows.aggregations import (
     AggregatedResultRow,
     AggregationMethodExecutionRow,
 )
-from gendertagger.db.executions import MethodExecutionRow, PredictionRow
-from gendertagger.db.projects import PersonExternalIdRow, PersonRecordRow
-from gendertagger.db.reviews import AnnotationRow, ReviewStateRow, UserRow
+from gendertagger.db.rows.executions import MethodExecutionRow, PredictionRow
+from gendertagger.db.rows.projects import PersonExternalIdRow, PersonRecordRow
+from gendertagger.db.rows.reviews import AnnotationRow, ReviewStateRow, UserRow
 from gendertagger.domain.review_triage import (
     AUTHORITY_CONFLICT_TRIAGE_RANK,
     CERTAINTY_TIER_TRIAGE_RANKS,

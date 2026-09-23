@@ -12,10 +12,10 @@ from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import Session
 
 from gendertagger.cli.main import _build_parser, _download_https, main
-from gendertagger.db.artifact_repository import SqlAlchemyArtifactRepository
-from gendertagger.db.auth_repository import SqlAlchemyAuthRepository
-from gendertagger.db.project_repository import SqlAlchemyProjectRepository
-from gendertagger.db.user_repository import SqlAlchemyUserRepository
+from gendertagger.db.repositories.artifact_repository import SqlAlchemyArtifactRepository
+from gendertagger.db.repositories.auth_repository import SqlAlchemyAuthRepository
+from gendertagger.db.repositories.project_repository import SqlAlchemyProjectRepository
+from gendertagger.db.repositories.user_repository import SqlAlchemyUserRepository
 from gendertagger.models.artifact import LookupArtifactMetadata
 from gendertagger.models.project import ProjectCreate
 from gendertagger.models.user import GlobalRole

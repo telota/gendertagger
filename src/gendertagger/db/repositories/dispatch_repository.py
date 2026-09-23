@@ -9,12 +9,12 @@ from sqlalchemy import Table, literal, or_, select, union_all
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from gendertagger.db.aggregations import AggregationExecutionRow
-from gendertagger.db.dispatches import BatchDispatchRow
-from gendertagger.db.evaluations import EvaluationExecutionRow
-from gendertagger.db.executions import MethodExecutionRow, RunRow, TaskBatchRow
-from gendertagger.db.exports import ExportExecutionRow
-from gendertagger.db.projects import DatasetSnapshotRow
+from gendertagger.db.rows.aggregations import AggregationExecutionRow
+from gendertagger.db.rows.dispatches import BatchDispatchRow
+from gendertagger.db.rows.evaluations import EvaluationExecutionRow
+from gendertagger.db.rows.executions import MethodExecutionRow, RunRow, TaskBatchRow
+from gendertagger.db.rows.exports import ExportExecutionRow
+from gendertagger.db.rows.projects import DatasetSnapshotRow
 from gendertagger.models.aggregation import AggregationTaskMessage
 from gendertagger.models.common import normalize_utc_datetime
 from gendertagger.models.dispatch import (

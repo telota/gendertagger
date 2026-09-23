@@ -2,26 +2,26 @@
 
 from sqlalchemy import MetaData
 
-from gendertagger.db.aggregations import (
+from gendertagger.db.base import Base
+from gendertagger.db.rows.aggregations import (
     AggregatedResultRow,
     AggregationExecutionRow,
     AggregationMethodExecutionRow,
 )
-from gendertagger.db.artifacts import ArtifactRow
-from gendertagger.db.auth import UserCredentialRow, UserSessionRow
-from gendertagger.db.base import Base
-from gendertagger.db.dispatches import BatchDispatchRow
-from gendertagger.db.evaluations import EvaluationExecutionRow, EvaluationMethodExecutionRow
-from gendertagger.db.executions import MethodExecutionRow, PredictionRow, RunRow, TaskBatchRow
-from gendertagger.db.exports import ExportExecutionRow
-from gendertagger.db.projects import (
+from gendertagger.db.rows.artifacts import ArtifactRow
+from gendertagger.db.rows.auth import UserCredentialRow, UserSessionRow
+from gendertagger.db.rows.dispatches import BatchDispatchRow
+from gendertagger.db.rows.evaluations import EvaluationExecutionRow, EvaluationMethodExecutionRow
+from gendertagger.db.rows.executions import MethodExecutionRow, PredictionRow, RunRow, TaskBatchRow
+from gendertagger.db.rows.exports import ExportExecutionRow
+from gendertagger.db.rows.projects import (
     DatasetSnapshotRow,
     PersonExternalIdRow,
     PersonRecordRow,
     ProjectRow,
     SnapshotSourceMemberRow,
 )
-from gendertagger.db.reviews import (
+from gendertagger.db.rows.reviews import (
     AnnotationRow,
     ProjectMembershipRow,
     ReviewStateRow,

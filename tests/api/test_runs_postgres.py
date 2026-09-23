@@ -11,8 +11,8 @@ from sqlalchemy import Engine, select
 from gendertagger.api.app import create_app
 from gendertagger.api.authentication import AuthenticationBackend
 from gendertagger.api.settings import AppSettings
-from gendertagger.db.dispatches import BatchDispatchRow
-from gendertagger.db.executions import MethodExecutionRow, TaskBatchRow
+from gendertagger.db.rows.dispatches import BatchDispatchRow
+from gendertagger.db.rows.executions import MethodExecutionRow, TaskBatchRow
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.ingestion.tei import TeiPersonParser

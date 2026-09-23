@@ -3,7 +3,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.orm import Session
 
-from gendertagger.db.project_repository import SqlAlchemyProjectRepository
+from gendertagger.db.repositories.project_repository import SqlAlchemyProjectRepository
 from gendertagger.models.project import ProjectCreate
 from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
 
