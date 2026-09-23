@@ -13,11 +13,11 @@ from gendertagger.services.evaluations import EvaluationService
 from gendertagger.services.execution import RunScheduler
 from gendertagger.services.exports import ExportService
 from gendertagger.services.method_registry import MethodRegistry
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.services.project_access import ProjectAccessService
 from gendertagger.services.projects import ProjectService
 from gendertagger.services.review_items import ReviewItemService
 from gendertagger.services.runs import RunService
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
 
 
 def get_unit_of_work_factory(request: Request) -> UnitOfWorkFactory:

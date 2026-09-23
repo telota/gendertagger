@@ -11,7 +11,7 @@ from gendertagger.api.dependencies import get_project_access_service
 from gendertagger.api.errors import ApiRequestError
 from gendertagger.models.project import ProjectMember, ProjectMemberUpdate
 from gendertagger.models.user import CurrentUser
-from gendertagger.services.persistence_errors import ResourceNotFoundError
+from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
 from gendertagger.services.project_access import ProjectAccessService
 
 router = APIRouter(tags=["project members"])

@@ -20,7 +20,7 @@ from gendertagger.models.artifact import LookupArtifactMetadata
 from gendertagger.models.project import ProjectCreate
 from gendertagger.models.user import GlobalRole
 from gendertagger.services.password_hashing import Argon2PasswordHasher
-from gendertagger.services.persistence_errors import ResourceNotFoundError
+from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
 from gendertagger.storage.local import LocalArtifactStorage
 
 

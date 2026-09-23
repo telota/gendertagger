@@ -15,7 +15,7 @@ from uuid import UUID
 from gendertagger.models.common import UtcDatetime
 from gendertagger.models.user import CurrentUser, GlobalRole, User, UserCreate
 from gendertagger.services.password_hashing import PasswordHasherProtocol
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 
 Clock = Callable[[], UtcDatetime]
 

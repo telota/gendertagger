@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from gendertagger.db.project_repository import SqlAlchemyProjectRepository
 from gendertagger.models.project import ProjectCreate
-from gendertagger.services.persistence_errors import ResourceNotFoundError
+from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 

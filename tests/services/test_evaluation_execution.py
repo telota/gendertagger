@@ -21,13 +21,13 @@ from gendertagger.models.evaluation import (
     EvaluationTaskMessage,
 )
 from gendertagger.models.lifecycle import EvaluationExecutionStatus
-from gendertagger.services.artifact_storage import ArtifactStorage, StoredArtifact
 from gendertagger.services.evaluation_execution import (
     EvaluationExecutor,
     TransientEvaluationError,
 )
-from gendertagger.services.evaluation_repository import EvaluationRepository
-from gendertagger.services.unit_of_work import UnitOfWork
+from gendertagger.services.ports.artifact_storage import ArtifactStorage, StoredArtifact
+from gendertagger.services.ports.evaluation_repository import EvaluationRepository
+from gendertagger.services.ports.unit_of_work import UnitOfWork
 
 pytestmark = pytest.mark.unit
 

@@ -34,7 +34,7 @@ from gendertagger.models.aggregation import (
 from gendertagger.models.classification import CanonicalLabel, PredictionResult
 from gendertagger.models.lifecycle import AggregationExecutionStatus, MethodExecutionStatus
 from gendertagger.services.pagination import CreationPosition
-from gendertagger.services.persistence_errors import (
+from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )

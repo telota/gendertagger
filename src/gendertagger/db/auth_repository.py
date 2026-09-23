@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from gendertagger.db.auth import UserCredentialRow, UserSessionRow
 from gendertagger.models.auth import LocalCredential, UserSession
-from gendertagger.services.persistence_errors import ResourceNotFoundError
+from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
 
 
 class SqlAlchemyAuthRepository:

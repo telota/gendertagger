@@ -38,11 +38,11 @@ from gendertagger.services.method_registry import default_method_registry
 from gendertagger.services.model_assets import RegisteredModelDirectoryResolver
 from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.password_hashing import Argon2PasswordHasher
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.services.project_access import ProjectAccessService
 from gendertagger.services.projects import ProjectService
 from gendertagger.services.review_items import ReviewItemService
 from gendertagger.services.runs import RunProvenance, RunService
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
 from gendertagger.utils.logging import configure_logging
 

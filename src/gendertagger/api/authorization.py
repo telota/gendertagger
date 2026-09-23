@@ -15,8 +15,8 @@ from gendertagger.api.authentication import require_authenticated_user
 from gendertagger.api.dependencies import get_project_access_service
 from gendertagger.api.errors import ApiRequestError
 from gendertagger.models.user import CurrentUser, GlobalRole, ProjectRole
+from gendertagger.services.ports.project_access_repository import ProjectScope
 from gendertagger.services.project_access import ProjectAccessService
-from gendertagger.services.project_access_repository import ProjectScope
 
 
 def has_global_role(user: CurrentUser, required_role: GlobalRole) -> bool:

@@ -19,7 +19,7 @@ from gendertagger.models.review import (
     ReviewWorkflowState,
 )
 from gendertagger.models.user import CurrentUser, GlobalRole, User, UserCreate
-from gendertagger.services.persistence_errors import ReviewConflictError
+from gendertagger.services.ports.persistence_errors import ReviewConflictError
 
 USER_ID = UUID("a0000000-0000-0000-0000-000000000001")
 SNAPSHOT_ID = UUID("20000000-0000-0000-0000-000000000001")

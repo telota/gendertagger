@@ -28,7 +28,7 @@ from gendertagger.models.evaluation import EvaluationDefinition, EvaluationTaskM
 from gendertagger.models.lifecycle import EvaluationExecutionStatus
 from gendertagger.models.user import UserCreate
 from gendertagger.services.evaluation_execution import EvaluationExecutor
-from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]

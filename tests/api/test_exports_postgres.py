@@ -30,7 +30,7 @@ from gendertagger.models.export import ExportTaskMessage
 from gendertagger.models.lifecycle import ExportExecutionStatus
 from gendertagger.models.user import UserCreate
 from gendertagger.services.export_execution import ExportExecutor
-from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]

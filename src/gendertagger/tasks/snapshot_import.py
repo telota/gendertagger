@@ -16,12 +16,12 @@ from gendertagger.db.session import create_database_engine, create_session_facto
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.models.project import SnapshotImportTaskMessage
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.services.snapshot_import import (
     DEFAULT_MAX_SNAPSHOT_IMPORT_ATTEMPTS,
     SnapshotImportExecutor,
     TransientSnapshotImportError,
 )
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
 from gendertagger.tasks.execution import WorkerSettings
 

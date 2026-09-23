@@ -31,7 +31,7 @@ from gendertagger.services.execution import (
 from gendertagger.services.lookup_assets import RegisteredLookupAssetResolver
 from gendertagger.services.method_registry import default_method_registry
 from gendertagger.services.model_assets import RegisteredModelDirectoryResolver
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
 
 EXECUTE_BATCH_TASK_NAME = "gendertagger.tasks.execute_batch"

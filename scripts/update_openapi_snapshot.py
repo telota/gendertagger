@@ -16,7 +16,7 @@ from pydantic import SecretStr
 
 from gendertagger.api.app import create_app
 from gendertagger.api.settings import AppSettings
-from gendertagger.services.unit_of_work import UnitOfWork
+from gendertagger.services.ports.unit_of_work import UnitOfWork
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT_PATH = Path("tests/fixtures/openapi-v1.json")

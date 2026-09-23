@@ -22,7 +22,7 @@ from gendertagger.services.aggregation_execution import (
     AggregationExecutor,
     TransientAggregationError,
 )
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.tasks.execution import WorkerSettings
 
 EXECUTE_AGGREGATION_TASK_NAME = "gendertagger.tasks.execute_aggregation"

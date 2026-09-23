@@ -17,7 +17,7 @@ from gendertagger.db.review_repository import SqlAlchemyReviewRepository
 from gendertagger.db.run_repository import SqlAlchemyRunRepository
 from gendertagger.db.session import SessionFactory
 from gendertagger.db.user_repository import SqlAlchemyUserRepository
-from gendertagger.services.unit_of_work import UnitOfWork
+from gendertagger.services.ports.unit_of_work import UnitOfWork
 
 
 class UnitOfWorkNotActiveError(RuntimeError):

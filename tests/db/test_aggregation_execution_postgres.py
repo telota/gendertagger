@@ -49,11 +49,11 @@ from gendertagger.models.person import PersonRecord
 from gendertagger.models.run import RunCreate
 from gendertagger.services.aggregations import AggregationCreation, AggregationService
 from gendertagger.services.pagination import CursorCodec
-from gendertagger.services.persistence_errors import (
+from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )
-from gendertagger.services.unit_of_work import UnitOfWork
+from gendertagger.services.ports.unit_of_work import UnitOfWork
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 

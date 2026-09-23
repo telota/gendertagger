@@ -42,12 +42,12 @@ from gendertagger.models.project import (
     SourceManifestV1,
     SourcePackaging,
 )
-from gendertagger.services.artifact_storage import ArtifactStorage
-from gendertagger.services.persistence_errors import (
+from gendertagger.services.ports.artifact_storage import ArtifactStorage
+from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )
-from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 Clock = Callable[[], datetime]
 

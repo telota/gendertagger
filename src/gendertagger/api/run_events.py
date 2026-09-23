@@ -11,7 +11,7 @@ from starlette.concurrency import run_in_threadpool
 
 from gendertagger.models.lifecycle import MethodExecutionStatus, RunStatus
 from gendertagger.models.run import MethodExecutionStateEvent, Progress, RunStateEvent
-from gendertagger.services.persistence_errors import ResourceNotFoundError
+from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
 from gendertagger.services.runs import RunService
 
 RUN_STATE_CHANGED = "run.state_changed"

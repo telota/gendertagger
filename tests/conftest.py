@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from gendertagger.db.base import Base
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 
 settings.register_profile(
     "ci",

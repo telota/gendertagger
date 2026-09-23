@@ -22,9 +22,9 @@ from gendertagger.services.dispatch import (
     RelayCycleResult,
     exponential_retry_delay,
 )
-from gendertagger.services.dispatch_repository import DispatchRepository
-from gendertagger.services.persistence_errors import InvalidResourceStateError
-from gendertagger.services.unit_of_work import UnitOfWork
+from gendertagger.services.ports.dispatch_repository import DispatchRepository
+from gendertagger.services.ports.persistence_errors import InvalidResourceStateError
+from gendertagger.services.ports.unit_of_work import UnitOfWork
 
 pytestmark = pytest.mark.unit
 

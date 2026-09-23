@@ -55,7 +55,7 @@ from gendertagger.models.run import (
     RunCreate,
 )
 from gendertagger.models.user import UserCreate
-from gendertagger.services.persistence_errors import InvalidResourceStateError
+from gendertagger.services.ports.persistence_errors import InvalidResourceStateError
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 

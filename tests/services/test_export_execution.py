@@ -22,14 +22,14 @@ from gendertagger.models.export import (
 )
 from gendertagger.models.lifecycle import ExportExecutionStatus
 from gendertagger.models.project import SourceFormat, SourcePackaging
-from gendertagger.services.artifact_storage import ArtifactStorage, StoredArtifact
 from gendertagger.services.export_execution import (
     ExportExecutor,
     TransientExportError,
 )
-from gendertagger.services.export_repository import ExportRepository
-from gendertagger.services.persistence_errors import InvalidResourceStateError
-from gendertagger.services.unit_of_work import UnitOfWork
+from gendertagger.services.ports.artifact_storage import ArtifactStorage, StoredArtifact
+from gendertagger.services.ports.export_repository import ExportRepository
+from gendertagger.services.ports.persistence_errors import InvalidResourceStateError
+from gendertagger.services.ports.unit_of_work import UnitOfWork
 
 pytestmark = pytest.mark.unit
 

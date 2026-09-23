@@ -35,7 +35,7 @@ from gendertagger.models.classify import (
 )
 from gendertagger.models.person import PersonInput
 from gendertagger.services.method_registry import MethodRegistry, UnknownMethodError
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 
 DEFAULT_CACHE_MAX_SIZE = 50_000
 

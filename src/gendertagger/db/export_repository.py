@@ -29,7 +29,7 @@ from gendertagger.models.lifecycle import AggregationExecutionStatus, ExportExec
 from gendertagger.models.project import SourceFormat, SourcePackaging
 from gendertagger.models.review import Annotation
 from gendertagger.services.pagination import CreationPosition
-from gendertagger.services.persistence_errors import (
+from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )

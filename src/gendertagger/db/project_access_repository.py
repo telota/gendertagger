@@ -14,8 +14,8 @@ from gendertagger.db.projects import DatasetSnapshotRow, ProjectRow
 from gendertagger.db.reviews import ProjectMembershipRow, UserRow
 from gendertagger.models.project import AccessibleProject, ProjectMember
 from gendertagger.models.user import ProjectRole
-from gendertagger.services.persistence_errors import ResourceNotFoundError
-from gendertagger.services.project_access_repository import ProjectScope
+from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
+from gendertagger.services.ports.project_access_repository import ProjectScope
 
 
 def _owning_project_statement(scope: ProjectScope, resource_id: UUID) -> Select[tuple[UUID]]:

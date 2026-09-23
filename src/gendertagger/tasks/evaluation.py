@@ -22,7 +22,7 @@ from gendertagger.services.evaluation_execution import (
     EvaluationExecutor,
     TransientEvaluationError,
 )
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
 from gendertagger.tasks.execution import WorkerSettings
 

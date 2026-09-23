@@ -8,7 +8,7 @@ from pydantic import SecretStr
 from gendertagger.api.app import create_app
 from gendertagger.api.settings import AppSettings, BrandingSettings
 from gendertagger.models.branding import BrandingInitiative, BrandingLegalEntity
-from gendertagger.services.unit_of_work import UnitOfWork
+from gendertagger.services.ports.unit_of_work import UnitOfWork
 
 DATABASE_URL = "postgresql+psycopg://api:secret@localhost/gendertagger"
 CODE_GIT_COMMIT = "a" * 40

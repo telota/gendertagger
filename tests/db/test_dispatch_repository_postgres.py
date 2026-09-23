@@ -49,7 +49,7 @@ from gendertagger.models.run import (
     TaskBatchMessage,
     TaskBatchPlan,
 )
-from gendertagger.services.persistence_errors import (
+from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )

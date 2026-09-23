@@ -45,7 +45,7 @@ from gendertagger.models.review import (
     ReviewItemSort,
     ReviewWorkflowState,
 )
-from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 

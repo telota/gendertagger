@@ -24,8 +24,8 @@ from gendertagger.services.aggregation_execution import (
     AggregationExecutor,
     TransientAggregationError,
 )
-from gendertagger.services.aggregation_repository import AggregationRepository
-from gendertagger.services.unit_of_work import UnitOfWork
+from gendertagger.services.ports.aggregation_repository import AggregationRepository
+from gendertagger.services.ports.unit_of_work import UnitOfWork
 
 pytestmark = pytest.mark.unit
 

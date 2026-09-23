@@ -14,13 +14,13 @@ from gendertagger.models.classification import AgreementTier, CertaintyTier
 from gendertagger.models.review import ReviewSummary, ReviewSummaryGroup, ReviewWorkflowState
 from gendertagger.models.user import CurrentUser, ProjectRole
 from gendertagger.services.pagination import InvalidCursorError
-from gendertagger.services.persistence_errors import (
+from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )
-from gendertagger.services.project_access_repository import ProjectScope
+from gendertagger.services.ports.project_access_repository import ProjectScope
+from gendertagger.services.ports.unit_of_work import UnitOfWork
 from gendertagger.services.review_items import ReviewItemService
-from gendertagger.services.unit_of_work import UnitOfWork
 
 pytestmark = pytest.mark.unit
 

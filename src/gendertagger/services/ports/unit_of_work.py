@@ -4,17 +4,17 @@ from collections.abc import Callable
 from types import TracebackType
 from typing import Protocol, Self, TypeAlias
 
-from gendertagger.services.aggregation_repository import AggregationRepository
-from gendertagger.services.artifact_repository import ArtifactRepository
-from gendertagger.services.auth_repository import AuthRepository
-from gendertagger.services.dispatch_repository import DispatchRepository
-from gendertagger.services.evaluation_repository import EvaluationRepository
-from gendertagger.services.export_repository import ExportRepository
-from gendertagger.services.project_access_repository import ProjectAccessRepository
-from gendertagger.services.project_repository import ProjectRepository
-from gendertagger.services.review_repository import ReviewRepository
-from gendertagger.services.run_repository import RunRepository
-from gendertagger.services.user_repository import UserRepository
+from gendertagger.services.ports.aggregation_repository import AggregationRepository
+from gendertagger.services.ports.artifact_repository import ArtifactRepository
+from gendertagger.services.ports.auth_repository import AuthRepository
+from gendertagger.services.ports.dispatch_repository import DispatchRepository
+from gendertagger.services.ports.evaluation_repository import EvaluationRepository
+from gendertagger.services.ports.export_repository import ExportRepository
+from gendertagger.services.ports.project_access_repository import ProjectAccessRepository
+from gendertagger.services.ports.project_repository import ProjectRepository
+from gendertagger.services.ports.review_repository import ReviewRepository
+from gendertagger.services.ports.run_repository import RunRepository
+from gendertagger.services.ports.user_repository import UserRepository
 
 
 class UnitOfWork(Protocol):

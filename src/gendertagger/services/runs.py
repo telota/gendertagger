@@ -11,8 +11,8 @@ from gendertagger.services.pagination import (
     decode_creation_position,
     newest_first_page,
 )
-from gendertagger.services.persistence_errors import ResourceNotFoundError
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 
 
 @dataclass(frozen=True, slots=True)

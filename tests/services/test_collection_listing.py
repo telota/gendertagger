@@ -13,20 +13,20 @@ import pytest
 
 from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.models.api import CursorPage
-from gendertagger.services.aggregation_repository import AggregationRepository
 from gendertagger.services.aggregations import AggregationService
-from gendertagger.services.evaluation_repository import EvaluationRepository
 from gendertagger.services.evaluations import EvaluationService
-from gendertagger.services.export_repository import ExportRepository
 from gendertagger.services.exports import ExportService
 from gendertagger.services.method_registry import MethodRegistry
 from gendertagger.services.pagination import CreationPosition, CursorCodec
-from gendertagger.services.persistence_errors import ResourceNotFoundError
-from gendertagger.services.project_repository import ProjectRepository
+from gendertagger.services.ports.aggregation_repository import AggregationRepository
+from gendertagger.services.ports.evaluation_repository import EvaluationRepository
+from gendertagger.services.ports.export_repository import ExportRepository
+from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
+from gendertagger.services.ports.project_repository import ProjectRepository
+from gendertagger.services.ports.run_repository import RunRepository
+from gendertagger.services.ports.unit_of_work import UnitOfWork
 from gendertagger.services.projects import ProjectService
-from gendertagger.services.run_repository import RunRepository
 from gendertagger.services.runs import RunProvenance, RunService
-from gendertagger.services.unit_of_work import UnitOfWork
 from gendertagger.storage.local import LocalArtifactStorage
 
 pytestmark = pytest.mark.unit

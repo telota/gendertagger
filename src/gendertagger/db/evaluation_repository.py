@@ -34,7 +34,7 @@ from gendertagger.models.lifecycle import (
 )
 from gendertagger.models.review import ReviewAction
 from gendertagger.services.pagination import CreationPosition
-from gendertagger.services.persistence_errors import (
+from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )

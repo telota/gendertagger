@@ -11,12 +11,12 @@ from gendertagger.models.common import canonical_json_sha256
 from gendertagger.models.lifecycle import AggregationExecutionStatus
 from gendertagger.models.review import ReviewItem, ReviewItemQuery, ReviewItemSort, ReviewSummary
 from gendertagger.services.pagination import CursorCodec, InvalidCursorError
-from gendertagger.services.persistence_errors import (
+from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )
-from gendertagger.services.review_repository import ReviewItemCursor
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.review_repository import ReviewItemCursor
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 
 
 class ReviewItemService:

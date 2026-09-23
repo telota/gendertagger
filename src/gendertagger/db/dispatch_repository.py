@@ -47,7 +47,7 @@ from gendertagger.models.lifecycle import (
 from gendertagger.models.project import SnapshotImportTaskMessage
 from gendertagger.models.queues import CPU_QUEUE
 from gendertagger.models.run import TaskBatchMessage
-from gendertagger.services.persistence_errors import (
+from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )

@@ -87,8 +87,8 @@ from gendertagger.services.lookup_assets import (
 )
 from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.password_hashing import Argon2PasswordHasher
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.services.project_access import ProjectAccessService
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
 
 _HIVOTO_SOURCE_TYPE: Final = "hivoto_source"

@@ -32,7 +32,7 @@ from gendertagger.models.user import ProjectRole, UserCreate
 from gendertagger.services.aggregation_execution import AggregationExecutor
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.pagination import CursorCodec
-from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 

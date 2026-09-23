@@ -22,7 +22,7 @@ from gendertagger.services.authentication import (
     InvalidCredentialsError,
     InvalidCurrentPasswordError,
 )
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 
 SESSION_COOKIE_NAME = "session"
 CSRF_COOKIE_NAME = "csrf_token"

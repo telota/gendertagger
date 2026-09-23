@@ -10,8 +10,8 @@ from gendertagger.api.dependencies import get_project_access_service
 from gendertagger.api.settings import AppSettings
 from gendertagger.models.api import ApiErrorEnvelope
 from gendertagger.models.user import CurrentUser, ProjectRole
-from gendertagger.services.project_access_repository import ProjectScope
-from gendertagger.services.unit_of_work import UnitOfWork
+from gendertagger.services.ports.project_access_repository import ProjectScope
+from gendertagger.services.ports.unit_of_work import UnitOfWork
 
 DATABASE_URL = "postgresql+psycopg://api:secret@localhost/gendertagger"
 CODE_GIT_COMMIT = "a" * 40

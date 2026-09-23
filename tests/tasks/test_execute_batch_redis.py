@@ -19,7 +19,7 @@ from gendertagger.models.lifecycle import RunStatus, TaskBatchStatus
 from gendertagger.services.dispatch import OutboxRelay
 from gendertagger.services.execution import RunScheduler
 from gendertagger.services.method_registry import default_method_registry
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.tasks import execution as execution_module
 from gendertagger.tasks.celery_app import create_celery_app
 from gendertagger.tasks.dispatch import CeleryMessagePublisher

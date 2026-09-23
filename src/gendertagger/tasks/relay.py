@@ -27,7 +27,7 @@ from gendertagger.services.dispatch import (
     OutboxRelay,
     jittered_exponential_retry_delay,
 )
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.tasks.celery_app import CelerySettings, create_celery_app
 from gendertagger.tasks.dispatch import CeleryMessagePublisher
 

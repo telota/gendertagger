@@ -78,8 +78,8 @@ from gendertagger.models.run import (
     TaskBatchPlan,
 )
 from gendertagger.models.user import User, UserCreate
-from gendertagger.services.artifact_repository import AmbiguousArtifactError
-from gendertagger.services.persistence_errors import (
+from gendertagger.services.ports.artifact_repository import AmbiguousArtifactError
+from gendertagger.services.ports.persistence_errors import (
     ImmutableResourceError,
     InvalidResourceStateError,
     ResourceNotFoundError,

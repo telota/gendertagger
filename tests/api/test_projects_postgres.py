@@ -25,8 +25,8 @@ from gendertagger.models.project import (
 )
 from gendertagger.models.queues import CPU_QUEUE
 from gendertagger.models.user import GlobalRole, UserCreate
+from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
 from gendertagger.services.snapshot_import import SnapshotImportExecutor
-from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]

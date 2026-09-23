@@ -24,15 +24,15 @@ from gendertagger.models.project import (
     SourcePackaging,
 )
 from gendertagger.models.user import CurrentUser, ProjectRole
+from gendertagger.services.ports.project_access_repository import ProjectScope
+from gendertagger.services.ports.unit_of_work import UnitOfWork
 from gendertagger.services.project_access import ProjectAccessService
-from gendertagger.services.project_access_repository import ProjectScope
 from gendertagger.services.projects import (
     InvalidSnapshotSourceError,
     ProjectService,
     SnapshotUpload,
     SnapshotUploadTooLargeError,
 )
-from gendertagger.services.unit_of_work import UnitOfWork
 
 pytestmark = pytest.mark.unit
 

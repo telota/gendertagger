@@ -44,7 +44,7 @@ from gendertagger.models.project import (
     TeiImportProfile,
 )
 from gendertagger.services.pagination import CreationPosition
-from gendertagger.services.persistence_errors import (
+from gendertagger.services.ports.persistence_errors import (
     ImmutableResourceError,
     InvalidResourceStateError,
     ResourceNotFoundError,

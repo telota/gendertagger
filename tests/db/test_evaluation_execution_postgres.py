@@ -24,7 +24,7 @@ from gendertagger.models.classification import (
 )
 from gendertagger.models.evaluation import EvaluationDefinition, EvaluationExecutionCreate
 from gendertagger.models.lifecycle import EvaluationExecutionStatus
-from gendertagger.services.persistence_errors import InvalidResourceStateError
+from gendertagger.services.ports.persistence_errors import InvalidResourceStateError
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 

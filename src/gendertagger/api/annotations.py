@@ -11,12 +11,12 @@ from gendertagger.api.errors import ApiRequestError
 from gendertagger.models.review import Annotation, AnnotationCreate, AnnotationHistory
 from gendertagger.models.user import ProjectRole
 from gendertagger.services.annotations import AnnotationService
-from gendertagger.services.persistence_errors import (
+from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
     ReviewConflictError,
 )
-from gendertagger.services.project_access_repository import ProjectScope
+from gendertagger.services.ports.project_access_repository import ProjectScope
 
 router = APIRouter(tags=["annotations"])
 

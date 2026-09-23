@@ -14,10 +14,10 @@ from gendertagger.api.authentication import CSRF_COOKIE_NAME, CSRF_HEADER_NAME, 
 from gendertagger.api.settings import AppSettings
 from gendertagger.models.auth import LocalCredential, UserSession
 from gendertagger.models.user import GlobalRole, User, UserCreate
-from gendertagger.services.auth_repository import AuthRepository
 from gendertagger.services.password_hashing import Argon2PasswordHasher
-from gendertagger.services.unit_of_work import UnitOfWork
-from gendertagger.services.user_repository import UserRepository
+from gendertagger.services.ports.auth_repository import AuthRepository
+from gendertagger.services.ports.unit_of_work import UnitOfWork
+from gendertagger.services.ports.user_repository import UserRepository
 
 DATABASE_URL = "postgresql+psycopg://api:secret@localhost/gendertagger"
 CODE_GIT_COMMIT = "a" * 40

@@ -28,7 +28,7 @@ from gendertagger.models.lifecycle import ExportExecutionStatus
 from gendertagger.services.dispatch import OutboxRelay
 from gendertagger.services.exports import ExportService
 from gendertagger.services.pagination import CursorCodec
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
 from gendertagger.tasks import export as export_module
 from gendertagger.tasks.celery_app import create_celery_app

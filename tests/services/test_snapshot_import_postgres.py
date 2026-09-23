@@ -34,9 +34,9 @@ from gendertagger.models.project import (
 )
 from gendertagger.models.user import UserCreate
 from gendertagger.services.pagination import CursorCodec
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.services.projects import ProjectService, SnapshotUpload
 from gendertagger.services.snapshot_import import SnapshotImportExecutor
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]

@@ -10,8 +10,8 @@ from uuid import UUID
 
 from gendertagger.models.common import UtcDatetime
 from gendertagger.models.dispatch import DispatchMessage
-from gendertagger.services.persistence_errors import InvalidResourceStateError
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.persistence_errors import InvalidResourceStateError
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 
 Clock = Callable[[], UtcDatetime]
 RetryDelay = Callable[[int], timedelta]

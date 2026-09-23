@@ -31,12 +31,12 @@ from gendertagger.models.project import (
 )
 from gendertagger.models.user import CurrentUser, ProjectRole
 from gendertagger.services.pagination import InvalidCursorError
-from gendertagger.services.persistence_errors import (
+from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )
+from gendertagger.services.ports.project_access_repository import ProjectScope
 from gendertagger.services.project_access import ProjectAccessService
-from gendertagger.services.project_access_repository import ProjectScope
 from gendertagger.services.projects import (
     InvalidSnapshotSourceError,
     ProjectService,

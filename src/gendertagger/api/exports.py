@@ -13,11 +13,11 @@ from gendertagger.models.export import ExportCreateRequest, ExportExecution
 from gendertagger.models.user import ProjectRole
 from gendertagger.services.exports import ExportService
 from gendertagger.services.pagination import InvalidCursorError
-from gendertagger.services.persistence_errors import (
+from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )
-from gendertagger.services.project_access_repository import ProjectScope
+from gendertagger.services.ports.project_access_repository import ProjectScope
 
 router = APIRouter(tags=["exports"])
 

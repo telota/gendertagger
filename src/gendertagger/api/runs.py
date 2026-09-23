@@ -17,11 +17,11 @@ from gendertagger.models.user import ProjectRole
 from gendertagger.services.execution import RunScheduler
 from gendertagger.services.method_registry import MethodRegistryError
 from gendertagger.services.pagination import InvalidCursorError
-from gendertagger.services.persistence_errors import (
+from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )
-from gendertagger.services.project_access_repository import ProjectScope
+from gendertagger.services.ports.project_access_repository import ProjectScope
 from gendertagger.services.runs import RunService
 
 router = APIRouter(tags=["runs"])

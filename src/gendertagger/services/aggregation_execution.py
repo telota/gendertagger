@@ -23,11 +23,11 @@ from gendertagger.models.aggregation import (
 )
 from gendertagger.models.classification import PredictionStatus
 from gendertagger.models.lifecycle import AggregationExecutionStatus
-from gendertagger.services.persistence_errors import (
+from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )
-from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 Clock = Callable[[], datetime]
 

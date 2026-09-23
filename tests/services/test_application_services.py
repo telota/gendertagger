@@ -62,27 +62,35 @@ from gendertagger.models.review import (
 )
 from gendertagger.models.run import Progress, Run, RunCreate, RunCreateRequest
 from gendertagger.models.user import CurrentUser, GlobalRole, ProjectRole, User, UserCreate
-from gendertagger.services.aggregation_repository import AggregationRepository
 from gendertagger.services.aggregations import AggregationCreation, AggregationService
 from gendertagger.services.annotations import AnnotationService
-from gendertagger.services.artifact_repository import ArtifactRepository
-from gendertagger.services.auth_repository import AuthRepository
 from gendertagger.services.authentication import (
     AuthenticationService,
     InvalidCredentialsError,
     InvalidCurrentPasswordError,
     SessionLifetimePolicy,
 )
-from gendertagger.services.dispatch_repository import DispatchRepository
 from gendertagger.services.method_registry import MethodRegistry
 from gendertagger.services.pagination import CursorCodec, InvalidCursorError
 from gendertagger.services.password_hashing import PasswordHasherProtocol
-from gendertagger.services.persistence_errors import (
+from gendertagger.services.ports.aggregation_repository import AggregationRepository
+from gendertagger.services.ports.artifact_repository import ArtifactRepository
+from gendertagger.services.ports.auth_repository import AuthRepository
+from gendertagger.services.ports.dispatch_repository import DispatchRepository
+from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )
-from gendertagger.services.project_access_repository import ProjectAccessRepository
-from gendertagger.services.project_repository import ProjectRepository
+from gendertagger.services.ports.project_access_repository import ProjectAccessRepository
+from gendertagger.services.ports.project_repository import ProjectRepository
+from gendertagger.services.ports.review_repository import (
+    ReviewItemCursor,
+    ReviewRepository,
+    ReviewSummaryData,
+)
+from gendertagger.services.ports.run_repository import RunRepository
+from gendertagger.services.ports.unit_of_work import UnitOfWork
+from gendertagger.services.ports.user_repository import UserRepository
 from gendertagger.services.projects import (
     InvalidSnapshotSourceError,
     ProjectService,
@@ -90,15 +98,7 @@ from gendertagger.services.projects import (
     SnapshotUploadTooLargeError,
 )
 from gendertagger.services.review_items import ReviewItemService
-from gendertagger.services.review_repository import (
-    ReviewItemCursor,
-    ReviewRepository,
-    ReviewSummaryData,
-)
-from gendertagger.services.run_repository import RunRepository
 from gendertagger.services.runs import RunProvenance, RunService
-from gendertagger.services.unit_of_work import UnitOfWork
-from gendertagger.services.user_repository import UserRepository
 from gendertagger.storage.local import LocalArtifactStorage
 
 NOW = datetime(2026, 8, 13, 10, 0, tzinfo=UTC)

@@ -52,7 +52,10 @@ Use-case orchestration: import snapshot, create run, schedule executions, aggreg
 Normalization, classifier adapters, aggregation, certainty assignment, agreement calculations, TEI mapping.
 
 ### Persistence
-SQLAlchemy repositories and PostgreSQL. Persistence concerns must not leak into domain contracts.
+SQLAlchemy repositories and PostgreSQL. Persistence concerns must not leak into domain contracts. The
+interfaces that application services require from persistence and storage (repositories, the unit of work,
+artifact storage, and persistence errors) live in `gendertagger.services.ports`; `gendertagger.db` and
+`gendertagger.storage` implement them.
 
 ### Async execution
 Application services persist typed work and dispatch intent in PostgreSQL. Every dispatch intent is one row in

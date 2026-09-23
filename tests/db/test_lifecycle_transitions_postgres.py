@@ -42,7 +42,7 @@ from gendertagger.models.run import (
     RunCreate,
     TaskBatch,
 )
-from gendertagger.services.persistence_errors import InvalidResourceStateError
+from gendertagger.services.ports.persistence_errors import InvalidResourceStateError
 from gendertagger.services.task_batches import plan_task_batches
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]

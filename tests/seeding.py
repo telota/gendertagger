@@ -52,12 +52,12 @@ from gendertagger.models.project import (
 )
 from gendertagger.models.run import MethodExecutionCreate, PredictionWrite, Run, RunCreate
 from gendertagger.models.user import ProjectRole, User, UserCreate
-from gendertagger.services.aggregation_repository import AggregationRepository
-from gendertagger.services.artifact_repository import ArtifactRepository
-from gendertagger.services.project_repository import ProjectRepository
-from gendertagger.services.run_repository import RunRepository
+from gendertagger.services.ports.aggregation_repository import AggregationRepository
+from gendertagger.services.ports.artifact_repository import ArtifactRepository
+from gendertagger.services.ports.project_repository import ProjectRepository
+from gendertagger.services.ports.run_repository import RunRepository
+from gendertagger.services.ports.unit_of_work import UnitOfWork
 from gendertagger.services.task_batches import plan_task_batches
-from gendertagger.services.unit_of_work import UnitOfWork
 
 SEED_TIME = datetime(2026, 8, 14, 18, 0, tzinfo=UTC)
 SEED_CODE_GIT_COMMIT = "c" * 40

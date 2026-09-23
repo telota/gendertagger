@@ -26,14 +26,14 @@ from gendertagger.models.run import (
     TaskBatch,
     TaskBatchMessage,
 )
-from gendertagger.services.artifact_repository import AmbiguousArtifactError
 from gendertagger.services.method_registry import MethodRegistry
-from gendertagger.services.persistence_errors import (
+from gendertagger.services.ports.artifact_repository import AmbiguousArtifactError
+from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )
+from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
 from gendertagger.services.task_batches import plan_task_batches
-from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 Clock = Callable[[], datetime]
 

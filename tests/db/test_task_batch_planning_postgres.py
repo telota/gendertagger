@@ -24,7 +24,7 @@ from gendertagger.models.project import (
     TeiImportProfile,
 )
 from gendertagger.models.run import MethodExecution, MethodExecutionCreate, RunCreate
-from gendertagger.services.persistence_errors import ResourceNotFoundError
+from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
 from gendertagger.services.task_batches import plan_task_batches
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]

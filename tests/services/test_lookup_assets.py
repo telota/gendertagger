@@ -9,7 +9,7 @@ from gendertagger.services.lookup_assets import (
     LookupAssetRegistrationService,
     RegisteredLookupAssetResolver,
 )
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
 
 pytestmark = pytest.mark.postgres

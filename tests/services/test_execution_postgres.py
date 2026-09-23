@@ -31,8 +31,8 @@ from gendertagger.models.run import Run, TaskBatch, TaskBatchMessage
 from gendertagger.services.dispatch import OutboxRelay
 from gendertagger.services.execution import BatchExecutor, RunScheduler
 from gendertagger.services.method_registry import default_method_registry
-from gendertagger.services.persistence_errors import InvalidResourceStateError
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.persistence_errors import InvalidResourceStateError
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres, pytest.mark.e2e]
 

@@ -15,14 +15,14 @@ from gendertagger.models.export import (
     TeiExportProfile,
 )
 from gendertagger.models.queues import CPU_QUEUE
-from gendertagger.services.artifact_storage import ArtifactStorage
 from gendertagger.services.pagination import (
     CursorCodec,
     decode_creation_position,
     newest_first_page,
 )
-from gendertagger.services.persistence_errors import ResourceNotFoundError
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.artifact_storage import ArtifactStorage
+from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 
 Clock = Callable[[], UtcDatetime]
 

@@ -3,8 +3,8 @@
 from uuid import UUID
 
 from gendertagger.models.review import Annotation, AnnotationCreate, AnnotationHistory
-from gendertagger.services.persistence_errors import ResourceNotFoundError
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 
 
 class AnnotationService:

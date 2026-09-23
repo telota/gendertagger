@@ -21,8 +21,8 @@ from gendertagger.models.project import ProjectCreate, SnapshotImportRequest
 from gendertagger.models.user import UserCreate
 from gendertagger.services.dispatch import OutboxRelay
 from gendertagger.services.pagination import CursorCodec
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.services.projects import ProjectService
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
 from gendertagger.tasks import snapshot_import as snapshot_import_module
 from gendertagger.tasks.celery_app import create_celery_app

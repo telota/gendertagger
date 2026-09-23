@@ -39,13 +39,13 @@ from gendertagger.models.project import (
     TabularImportProfile,
     TeiImportProfile,
 )
-from gendertagger.services.artifact_repository import ArtifactRepository
-from gendertagger.services.project_repository import ProjectRepository
+from gendertagger.services.ports.artifact_repository import ArtifactRepository
+from gendertagger.services.ports.project_repository import ProjectRepository
+from gendertagger.services.ports.unit_of_work import UnitOfWork
 from gendertagger.services.snapshot_import import (
     SnapshotImportExecutor,
     TransientSnapshotImportError,
 )
-from gendertagger.services.unit_of_work import UnitOfWork
 from gendertagger.storage.local import LocalArtifactStorage
 
 pytestmark = pytest.mark.unit

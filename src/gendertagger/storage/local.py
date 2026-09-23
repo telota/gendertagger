@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import BinaryIO, Protocol, cast
 
 from gendertagger.models.project import SHA256_PATTERN
-from gendertagger.services.artifact_storage import ArtifactStorage, StoredArtifact
+from gendertagger.services.ports.artifact_storage import ArtifactStorage, StoredArtifact
 
 _STORAGE_URI_PREFIX = "local-sha256:"
 _COPY_BUFFER_BYTE_SIZE = 1024 * 1024

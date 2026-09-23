@@ -9,9 +9,9 @@ from pydantic import JsonValue
 
 from gendertagger.methods.base import MethodDependencyError
 from gendertagger.models.artifact import Artifact, ArtifactCreate
-from gendertagger.services.artifact_repository import AmbiguousArtifactError
-from gendertagger.services.artifact_storage import ArtifactStorage
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.artifact_repository import AmbiguousArtifactError
+from gendertagger.services.ports.artifact_storage import ArtifactStorage
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 
 
 class LookupAssetRegistrationService:

@@ -26,7 +26,7 @@ from gendertagger.models.lifecycle import AggregationExecutionStatus
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.dispatch import OutboxRelay
 from gendertagger.services.pagination import CursorCodec
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.tasks import aggregation as aggregation_module
 from gendertagger.tasks.celery_app import create_celery_app
 from gendertagger.tasks.dispatch import CeleryMessagePublisher

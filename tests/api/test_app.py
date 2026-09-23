@@ -8,7 +8,7 @@ from pydantic import SecretStr, ValidationError
 from gendertagger.api.app import create_app
 from gendertagger.api.dependencies import get_unit_of_work_factory
 from gendertagger.api.settings import AppSettings, load_settings
-from gendertagger.services.unit_of_work import UnitOfWork, UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 DATABASE_URL = "postgresql+psycopg://api:secret@localhost/gendertagger"
 CODE_GIT_COMMIT = "a" * 40

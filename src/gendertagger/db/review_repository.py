@@ -36,12 +36,12 @@ from gendertagger.models.review import (
     ReviewSummaryGroup,
     ReviewWorkflowState,
 )
-from gendertagger.services.persistence_errors import (
+from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
     ReviewConflictError,
 )
-from gendertagger.services.review_repository import ReviewItemCursor, ReviewSummaryData
+from gendertagger.services.ports.review_repository import ReviewItemCursor, ReviewSummaryData
 
 _ReviewGroupKey = tuple[
     CertaintyTier,

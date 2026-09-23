@@ -8,9 +8,9 @@ from gendertagger.models.api import CursorPage
 from gendertagger.models.project import AccessibleProject, ProjectMember
 from gendertagger.models.user import CurrentUser, GlobalRole, ProjectRole
 from gendertagger.services.pagination import CursorCodec
-from gendertagger.services.persistence_errors import ResourceNotFoundError
-from gendertagger.services.project_access_repository import ProjectScope
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
+from gendertagger.services.ports.project_access_repository import ProjectScope
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 
 logger = logging.getLogger(__name__)
 

@@ -16,8 +16,8 @@ from gendertagger.api.authentication import (
 from gendertagger.api.router import create_api_router
 from gendertagger.api.settings import AppSettings
 from gendertagger.models.user import CurrentUser, GlobalRole, User
-from gendertagger.services.unit_of_work import UnitOfWork
-from gendertagger.services.user_repository import UserRepository
+from gendertagger.services.ports.unit_of_work import UnitOfWork
+from gendertagger.services.ports.user_repository import UserRepository
 
 DATABASE_URL = "postgresql+psycopg://api:secret@localhost/gendertagger"
 CODE_GIT_COMMIT = "a" * 40

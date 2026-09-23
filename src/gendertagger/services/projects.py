@@ -36,17 +36,17 @@ from gendertagger.models.project import (
 )
 from gendertagger.models.queues import CPU_QUEUE
 from gendertagger.models.user import ProjectRole
-from gendertagger.services.artifact_storage import ArtifactStorage
 from gendertagger.services.pagination import (
     CursorCodec,
     decode_creation_position,
     newest_first_page,
 )
-from gendertagger.services.persistence_errors import (
+from gendertagger.services.ports.artifact_storage import ArtifactStorage
+from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )
-from gendertagger.services.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 
 _MANIFEST_MEDIA_TYPE = "application/vnd.gendertagger.source-manifest+json"
 
