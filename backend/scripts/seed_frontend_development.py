@@ -13,6 +13,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from functools import partial
 from typing import Any
+from uuid import UUID
 
 from tests.factories import tei_person_input
 from tests.seeding import (
@@ -294,7 +295,9 @@ def _seed_database(unit_of_work_factory: UnitOfWorkFactory, password: str) -> di
         )
 
         completed = seed_completed_run(unit_of_work, ready_snapshot, _METHODS, _prediction)
-        execution_by_name = dict(zip(_METHODS, completed.execution_ids, strict=True))
+        execution_by_name: dict[str, UUID] = dict(
+            zip(_METHODS, completed.execution_ids, strict=True)
+        )
         aggregation = seed_completed_aggregation(
             unit_of_work,
             completed.run.id,
