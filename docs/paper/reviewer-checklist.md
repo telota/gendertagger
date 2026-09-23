@@ -42,7 +42,7 @@ Source: [Reviewer C's annotated PDF](C-klappenbach,neuber,westphal_2026_genderta
 - [x] **I6 - Line 80:** Check whether "Transformer" should be lowercase.
 - [ ] **I7 - Line 83:** Explain why Schleiermacher digital was selected and what makes it suitable.
 - [x] **I8 - Lines 91-97:** Consolidate into one paragraph.
-- [ ] **I9 - Lines 101-128:** Replace "First... Second..." with descriptive LaTeX
+- [x] **I9 - Lines 101-128:** Replace "First... Second..." with descriptive LaTeX
   `\paragraph{...}` headings.
 - [ ] **I10 - Line 111:** Translate `uneindeutig`.
 - [ ] **I11 - Footnote 2:** Add an access date.

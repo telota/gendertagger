@@ -263,3 +263,18 @@ running text, while retaining capitalization in the section heading.
 into one paragraph.
 
 **Status:** Addressed in the local working tree; the checklist item is marked complete.
+
+## 2026-09-23: Reviewer I9 - Descriptive constraint headings
+
+**Request:** Replace "First... Second..." with descriptive LaTeX paragraph headings.
+
+**Changes:** Replaced the five ordinal openings in [article.tex](article.tex) with
+`\paragraph{...}` headings: "Heterogeneous Register Entries," "Classifier Coverage and Output
+Normalization," "Limits of Manual Review," "Provenance and Interpretive Responsibility," and
+"Organizations in the Person Register." Capitalized the following word in each paragraph; the
+remaining paragraph text is unchanged.
+
+**Response to the reviewer:** We replaced the ordinal openings with descriptive paragraph headings
+that identify each of the five design constraints.
+
+**Status:** Addressed in the local working tree; the checklist item is marked complete.
