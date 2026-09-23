@@ -861,9 +861,9 @@ export interface components {
              * @description Agreement score rounded to three decimal places.
              */
             agreement_score?: number | null;
-            /** @description Agreement tier: 'unanimous', 'strong', 'moderate', 'low', 'single_rater', 'no_consensus', 'no_answer'. */
+            /** @description Agreement tier: 'unanimous', 'strong_majority', 'weak_majority', 'no_consensus', 'single_rater', 'no_answer'. */
             agreement_tier?: components["schemas"]["AgreementTier"] | null;
-            /** @description Certainty tier rating ('high', 'medium', 'low') derived from agreement and rater certainty. */
+            /** @description Certainty tier ('high', 'low', 'contested', 'single', 'uncertain', 'no_data') derived from agreement and rater certainty. */
             certainty_tier?: components["schemas"]["CertaintyTier"] | null;
             /** @description Consensus canonical label or null when no consensus is reached. */
             label?: components["schemas"]["CanonicalLabel"] | null;

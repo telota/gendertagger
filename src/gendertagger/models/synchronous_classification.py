@@ -1,6 +1,7 @@
 """Canonical contracts for synchronous on-demand name classification."""
 
 import re
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator, model_validator
@@ -15,6 +16,11 @@ from gendertagger.models.classification import (
 from gendertagger.models.method import METHOD_NAME_PATTERN
 
 MAX_CLASSIFY_BATCH_SIZE = 1000
+
+
+def _quoted_values(enum_class: type[StrEnum]) -> str:
+    """Render an enum's values for a field description, so the text cannot drift from the enum."""
+    return ", ".join(f"'{member.value}'" for member in enum_class)
 
 
 class ClassifyNamesRequest(BaseModel):
@@ -114,11 +120,14 @@ class AggregatedClassification(BaseModel):
     )
     certainty_tier: CertaintyTier | None = Field(
         default=None,
-        description="Certainty tier rating ('high', 'medium', 'low') derived from agreement and rater certainty.",
+        description=(
+            f"Certainty tier ({_quoted_values(CertaintyTier)}) derived from agreement and rater "
+            "certainty."
+        ),
     )
     agreement_tier: AgreementTier | None = Field(
         default=None,
-        description="Agreement tier: 'unanimous', 'strong', 'moderate', 'low', 'single_rater', 'no_consensus', 'no_answer'.",
+        description=f"Agreement tier: {_quoted_values(AgreementTier)}.",
     )
     agreement_score: float | None = Field(
         default=None,

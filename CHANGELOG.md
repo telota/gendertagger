@@ -173,6 +173,10 @@ the phased plan that resumes application code.
   (public contract: parameter name and operation IDs only; the URLs keep their shape), `ExportTaskMessage`, the
   export manifest, and the `artifacts` and `dispatch_outbox` columns. The outbox constraint becomes
   `export_execution_single_dispatch`.
+- The `POST /classify` response documented `certainty_tier` and `agreement_tier` with tier values that do not
+  exist (`medium`, `strong`, `moderate`, `low`). Both descriptions are now generated from `CertaintyTier` and
+  `AgreementTier`, so they list the real values and cannot drift again. Description text only; field types
+  were already correct.
 - Evaluation and export executions now have the same database guards as aggregation executions: legal
   lifecycle transitions only, no deletes, immutable creation-time provenance, sealed terminal rows, and
   insert-only evaluation membership limited to completed executions of the same run. Edited in the baseline,
