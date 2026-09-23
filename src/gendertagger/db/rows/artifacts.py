@@ -63,7 +63,7 @@ class ArtifactRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
         POSTGRESQL_UUID(as_uuid=True),
         ForeignKey("evaluation_executions.id", ondelete="RESTRICT", use_alter=True),
     )
-    export_id: Mapped[UUID | None] = mapped_column(
+    export_execution_id: Mapped[UUID | None] = mapped_column(
         POSTGRESQL_UUID(as_uuid=True),
         ForeignKey("export_executions.id", ondelete="RESTRICT", use_alter=True),
     )

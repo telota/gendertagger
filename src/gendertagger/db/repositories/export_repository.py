@@ -94,9 +94,9 @@ class SqlAlchemyExportRepository:
         self._session.flush()
         return self._export_from_row(row)
 
-    def get_export(self, export_id: UUID) -> ExportExecution | None:
+    def get_export(self, export_execution_id: UUID) -> ExportExecution | None:
         """Return an export contract by ID without exposing its row."""
-        row = self._session.get(ExportExecutionRow, export_id)
+        row = self._session.get(ExportExecutionRow, export_execution_id)
         return None if row is None else self._export_from_row(row)
 
     def list_exports(
@@ -118,12 +118,12 @@ class SqlAlchemyExportRepository:
         )
         return tuple(self._export_from_row(row) for row in rows)
 
-    def mark_export_queued(self, export_id: UUID) -> ExportExecution:
+    def mark_export_queued(self, export_execution_id: UUID) -> ExportExecution:
         """Atomically transition a pending export to queued."""
         statement = (
             select(ExportExecutionRow)
             .where(
-                ExportExecutionRow.id == export_id,
+                ExportExecutionRow.id == export_execution_id,
                 ExportExecutionRow.status == ExportExecutionStatus.pending,
             )
             .with_for_update()
@@ -134,9 +134,9 @@ class SqlAlchemyExportRepository:
             self._session.flush()
             return self._export_from_row(row)
 
-        existing = self._require_export(export_id)
+        existing = self._require_export(export_execution_id)
         self._require_source(
-            export_id,
+            export_execution_id,
             existing.status,
             {ExportExecutionStatus.pending},
             ExportExecutionStatus.queued.value,
@@ -145,7 +145,7 @@ class SqlAlchemyExportRepository:
 
     def claim_export(
         self,
-        export_id: UUID,
+        export_execution_id: UUID,
         *,
         started_at: datetime,
     ) -> ExportExecution | None:
@@ -153,7 +153,7 @@ class SqlAlchemyExportRepository:
         statement = (
             select(ExportExecutionRow)
             .where(
-                ExportExecutionRow.id == export_id,
+                ExportExecutionRow.id == export_execution_id,
                 ExportExecutionRow.status.in_(
                     (ExportExecutionStatus.pending, ExportExecutionStatus.queued)
                 ),
@@ -168,18 +168,18 @@ class SqlAlchemyExportRepository:
             return self._export_from_row(row)
 
         existing = self._session.scalar(
-            select(ExportExecutionRow).where(ExportExecutionRow.id == export_id)
+            select(ExportExecutionRow).where(ExportExecutionRow.id == export_execution_id)
         )
         if existing is None:
-            msg = f"export execution {export_id} does not exist"
+            msg = f"export execution {export_execution_id} does not exist"
             raise ResourceNotFoundError(msg)
         return None
 
-    def load_export_inputs(self, export_id: UUID) -> ExportInputs:
+    def load_export_inputs(self, export_execution_id: UUID) -> ExportInputs:
         """Load every snapshot person's FinalDecision projection and source members."""
-        export = self._require_export(export_id)
+        export = self._require_export(export_execution_id)
         self._require_source(
-            export_id,
+            export_execution_id,
             export.status,
             {ExportExecutionStatus.running},
             "load export inputs",
@@ -281,7 +281,7 @@ class SqlAlchemyExportRepository:
 
     def mark_export_finished(
         self,
-        export_id: UUID,
+        export_execution_id: UUID,
         *,
         status: ExportExecutionStatus,
         finished_at: datetime,
@@ -293,9 +293,9 @@ class SqlAlchemyExportRepository:
         if status not in _TERMINAL_EXPORT_STATUSES:
             msg = f"{status} is not a supported terminal export status"
             raise ValueError(msg)
-        row = self._require_export(export_id)
+        row = self._require_export(export_execution_id)
         self._require_source(
-            export_id,
+            export_execution_id,
             row.status,
             {ExportExecutionStatus.running},
             status.value,
@@ -339,10 +339,10 @@ class SqlAlchemyExportRepository:
             created_at=row.created_at,
         )
 
-    def _require_export(self, export_id: UUID) -> ExportExecutionRow:
-        row = self._session.get(ExportExecutionRow, export_id)
+    def _require_export(self, export_execution_id: UUID) -> ExportExecutionRow:
+        row = self._session.get(ExportExecutionRow, export_execution_id)
         if row is None:
-            msg = f"export execution {export_id} does not exist"
+            msg = f"export execution {export_execution_id} does not exist"
             raise ResourceNotFoundError(msg)
         return row
 
@@ -357,13 +357,13 @@ class SqlAlchemyExportRepository:
 
     @staticmethod
     def _require_source(
-        export_id: UUID,
+        export_execution_id: UUID,
         current_status: ExportExecutionStatus,
         allowed_statuses: set[ExportExecutionStatus],
         action: str,
     ) -> None:
         if current_status not in allowed_statuses:
-            msg = f"export execution {export_id} cannot {action} from status {current_status.value}"
+            msg = f"export execution {export_execution_id} cannot {action} from status {current_status.value}"
             raise InvalidResourceStateError(msg)
 
     @staticmethod

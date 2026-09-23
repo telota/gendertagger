@@ -124,14 +124,14 @@ class ExportExecutor:
             return self._execute_once(message)
         except Exception as error:
             if attempt_count < max_attempts:
-                msg = f"export {message.export_id} failed on attempt {attempt_count}"
+                msg = f"export {message.export_execution_id} failed on attempt {attempt_count}"
                 raise TransientExportError(msg) from error
             return self._fail_after_rollback(message, error)
 
     def _execute_once(self, message: ExportTaskMessage) -> ExportExecution:
         with self._unit_of_work_factory() as unit_of_work:
             export = unit_of_work.exports.claim_export(
-                message.export_id,
+                message.export_execution_id,
                 started_at=self._clock(),
             )
             if export is None:
@@ -164,7 +164,7 @@ class ExportExecutor:
     ) -> ExportExecution:
         with self._unit_of_work_factory() as unit_of_work:
             export = unit_of_work.exports.claim_export(
-                message.export_id,
+                message.export_execution_id,
                 started_at=self._clock(),
             )
             if export is None:
@@ -202,7 +202,7 @@ class ExportExecutor:
             ]
 
         manifest = build_export_manifest(
-            export_id=export.id,
+            export_execution_id=export.id,
             dataset_snapshot_id=inputs.dataset_snapshot_id,
             source_snapshot_sha256=inputs.source_snapshot_sha256,
             run_id=export.run_id,
@@ -289,7 +289,7 @@ class ExportExecutor:
                 byte_size=stored.byte_size,
                 media_type=media_type,
                 run_id=export.run_id,
-                export_id=export.id,
+                export_execution_id=export.id,
             )
         )
         return artifact, logical_name
@@ -297,11 +297,11 @@ class ExportExecutor:
     def _mark_failed(
         self,
         unit_of_work: UnitOfWork,
-        export_id: UUID,
+        export_execution_id: UUID,
         error: BaseException,
     ) -> ExportExecution:
         return unit_of_work.exports.mark_export_finished(
-            export_id,
+            export_execution_id,
             status=ExportExecutionStatus.failed,
             finished_at=self._clock(),
             failure_class=type(error).__name__,
@@ -313,8 +313,8 @@ class ExportExecutor:
         unit_of_work: UnitOfWork,
         message: ExportTaskMessage,
     ) -> ExportExecution:
-        export = unit_of_work.exports.get_export(message.export_id)
+        export = unit_of_work.exports.get_export(message.export_execution_id)
         if export is None:
-            msg = f"export execution {message.export_id} does not exist"
+            msg = f"export execution {message.export_execution_id} does not exist"
             raise ResourceNotFoundError(msg)
         return export

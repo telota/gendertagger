@@ -14,7 +14,7 @@ NOW = datetime(2026, 8, 15, 12, 0, tzinfo=UTC)
 
 
 def test_manifest_captures_every_required_provenance_field() -> None:
-    export_id = uuid4()
+    export_execution_id = uuid4()
     dataset_snapshot_id = uuid4()
     run_id = uuid4()
     aggregation_execution_id = uuid4()
@@ -26,7 +26,7 @@ def test_manifest_captures_every_required_provenance_field() -> None:
     )
 
     manifest = build_export_manifest(
-        export_id=export_id,
+        export_execution_id=export_execution_id,
         dataset_snapshot_id=dataset_snapshot_id,
         source_snapshot_sha256="b" * 64,
         run_id=run_id,
@@ -38,7 +38,7 @@ def test_manifest_captures_every_required_provenance_field() -> None:
         generated_at=NOW,
     )
 
-    assert manifest.export_id == export_id
+    assert manifest.export_execution_id == export_execution_id
     assert manifest.dataset_snapshot_id == dataset_snapshot_id
     assert manifest.source_snapshot_sha256 == "b" * 64
     assert manifest.run_id == run_id

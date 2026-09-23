@@ -190,7 +190,7 @@ def test_executor_persists_a_manifest_artifact_and_completes() -> None:
     executor, factory = _executor(repository, cast(ArtifactStorage, storage), artifacts)
 
     result = executor.execute(
-        ExportTaskMessage(export_id=EXPORT_ID),
+        ExportTaskMessage(export_execution_id=EXPORT_ID),
         attempt_count=1,
     )
 
@@ -213,7 +213,7 @@ def test_executor_fails_terminally_when_export_inputs_are_invalid() -> None:
     executor, factory = _executor(repository, cast(ArtifactStorage, storage), artifacts)
 
     result = executor.execute(
-        ExportTaskMessage(export_id=EXPORT_ID),
+        ExportTaskMessage(export_execution_id=EXPORT_ID),
         attempt_count=1,
     )
 
@@ -235,7 +235,7 @@ def test_executor_duplicate_delivery_returns_terminal_resource_without_reexecuti
     executor, factory = _executor(repository, cast(ArtifactStorage, storage), artifacts)
 
     result = executor.execute(
-        ExportTaskMessage(export_id=EXPORT_ID),
+        ExportTaskMessage(export_execution_id=EXPORT_ID),
         attempt_count=2,
     )
 
@@ -259,7 +259,7 @@ def test_executor_retries_unclassified_errors_then_redacts_final_diagnostic() ->
     artifacts = Mock()
     storage = _StubArtifactStorage()
     executor, factory = _executor(repository, cast(ArtifactStorage, storage), artifacts)
-    message = ExportTaskMessage(export_id=EXPORT_ID)
+    message = ExportTaskMessage(export_execution_id=EXPORT_ID)
 
     with pytest.raises(TransientExportError):
         executor.execute(message, attempt_count=1, max_attempts=2)
@@ -344,7 +344,7 @@ def test_executor_builds_tei_output_by_reading_and_injecting_each_source_member(
     executor, factory = _executor(repository, cast(ArtifactStorage, storage), artifacts)
 
     result = executor.execute(
-        ExportTaskMessage(export_id=EXPORT_ID),
+        ExportTaskMessage(export_execution_id=EXPORT_ID),
         attempt_count=1,
     )
 
@@ -409,7 +409,7 @@ def test_executor_fails_terminally_when_a_labeled_person_is_missing_from_its_sou
     executor, factory = _executor(repository, cast(ArtifactStorage, storage), artifacts)
 
     result = executor.execute(
-        ExportTaskMessage(export_id=EXPORT_ID),
+        ExportTaskMessage(export_execution_id=EXPORT_ID),
         attempt_count=1,
     )
 

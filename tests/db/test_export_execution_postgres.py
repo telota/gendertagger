@@ -231,7 +231,7 @@ def test_repository_claims_and_completes_with_a_manifest_artifact(db_session: Se
             byte_size=2,
             media_type="application/json",
             run_id=run_id,
-            export_id=export.id,
+            export_execution_id=export.id,
         )
     )
     completed = repository.mark_export_finished(

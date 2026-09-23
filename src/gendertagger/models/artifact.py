@@ -79,7 +79,7 @@ class ArtifactCreate(BaseModel):
     method_execution_id: UUID | None = None
     aggregation_execution_id: UUID | None = None
     evaluation_execution_id: UUID | None = None
-    export_id: UUID | None = None
+    export_execution_id: UUID | None = None
     metadata: dict[str, JsonValue] = Field(default_factory=dict)
 
     @field_validator("storage_uri", "media_type")

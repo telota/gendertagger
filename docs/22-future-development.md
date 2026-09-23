@@ -147,7 +147,7 @@ Prediction that reuses a cached value, and the cache must never substitute for P
 
 ### Addressable multi-output exports
 
-`GET /exports/{export_id}/download` returns output bytes directly when an export produced exactly one
+`GET /exports/{export_execution_id}/download` returns output bytes directly when an export produced exactly one
 output, and returns the manifest when it produced several, as a loose TEI collection does. Individual
 member outputs are not separately addressable.
 

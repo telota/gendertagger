@@ -30,6 +30,6 @@ class ArtifactRepository(Protocol):
         """Return the most recently registered artifact for one logical type, or ``None``."""
         ...
 
-    def list_artifacts_by_export(self, export_id: UUID) -> Sequence[Artifact]:
+    def list_artifacts_by_export(self, export_execution_id: UUID) -> Sequence[Artifact]:
         """Return every artifact produced by one export, in creation order."""
         ...

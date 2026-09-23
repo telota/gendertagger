@@ -55,12 +55,12 @@ class CeleryMessagePublisher:
                 "evaluation_execution_id": str(message.evaluation_execution_id),
             }
         elif isinstance(message, ExportTaskMessage):
-            if task_id != message.export_id:
+            if task_id != message.export_execution_id:
                 msg = "broker task_id must match the export message"
                 raise ValueError(msg)
             task_name = EXECUTE_EXPORT_TASK_NAME
             kwargs = {
-                "export_id": str(message.export_id),
+                "export_execution_id": str(message.export_execution_id),
             }
         else:
             if task_id != message.aggregation_execution_id:

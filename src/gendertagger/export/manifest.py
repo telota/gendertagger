@@ -17,7 +17,7 @@ from gendertagger.models.export import (
 
 def build_export_manifest(
     *,
-    export_id: UUID,
+    export_execution_id: UUID,
     dataset_snapshot_id: UUID,
     source_snapshot_sha256: str,
     run_id: UUID,
@@ -30,7 +30,7 @@ def build_export_manifest(
 ) -> ExportManifest:
     """Assemble the immutable provenance record for one completed export."""
     return ExportManifest(
-        export_id=export_id,
+        export_execution_id=export_execution_id,
         dataset_snapshot_id=dataset_snapshot_id,
         source_snapshot_sha256=source_snapshot_sha256,
         run_id=run_id,

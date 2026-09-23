@@ -235,7 +235,7 @@ def test_person_record_rejects_inconsistent_label_evidence(
 def test_manifest_requires_at_least_one_output() -> None:
     with pytest.raises(ValidationError):
         ExportManifest(
-            export_id=uuid4(),
+            export_execution_id=uuid4(),
             dataset_snapshot_id=uuid4(),
             source_snapshot_sha256="a" * 64,
             run_id=uuid4(),
@@ -250,7 +250,7 @@ def test_manifest_requires_at_least_one_output() -> None:
 
 def test_manifest_accepts_one_output() -> None:
     manifest = ExportManifest(
-        export_id=uuid4(),
+        export_execution_id=uuid4(),
         dataset_snapshot_id=uuid4(),
         source_snapshot_sha256="a" * 64,
         run_id=uuid4(),

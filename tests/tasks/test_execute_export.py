@@ -18,7 +18,7 @@ EXPORT_ID = UUID("10000000-0000-0000-0000-000000000001")
 
 
 class _ExportTask(Protocol):
-    def run(self, *, export_id: str) -> None: ...
+    def run(self, *, export_execution_id: str) -> None: ...
 
 
 def _task_proxy() -> _ExportTask:
@@ -33,11 +33,11 @@ def test_task_rebuilds_identifier_envelope_and_calls_executor(
     monkeypatch.setattr(export_task, "_export_executor", lambda: executor)
 
     _task_proxy().run(
-        export_id=str(EXPORT_ID),
+        export_execution_id=str(EXPORT_ID),
     )
 
     executor.execute.assert_called_once_with(
-        ExportTaskMessage(export_id=EXPORT_ID),
+        ExportTaskMessage(export_execution_id=EXPORT_ID),
         attempt_count=1,
         max_attempts=DEFAULT_MAX_EXPORT_ATTEMPTS,
     )
@@ -55,7 +55,7 @@ def test_task_retries_only_transient_export_failures(
 
     with pytest.raises(Retry):
         _task_proxy().run(
-            export_id=str(EXPORT_ID),
+            export_execution_id=str(EXPORT_ID),
         )
 
     retry_kwargs = retry.call_args.kwargs

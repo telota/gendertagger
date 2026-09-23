@@ -132,7 +132,7 @@ class SqlAlchemyDispatchRepository:
                 aggregation_execution_id=None,
                 dataset_snapshot_id=None,
                 evaluation_execution_id=None,
-                export_id=None,
+                export_execution_id=None,
                 queue_name=command.queue_name,
                 payload=command.payload.model_dump(mode="json"),
                 status=DispatchStatus.pending,
@@ -190,7 +190,7 @@ class SqlAlchemyDispatchRepository:
                 aggregation_execution_id=command.aggregation_execution_id,
                 dataset_snapshot_id=None,
                 evaluation_execution_id=None,
-                export_id=None,
+                export_execution_id=None,
                 queue_name=command.queue_name,
                 payload=command.payload.model_dump(mode="json"),
                 status=DispatchStatus.pending,
@@ -247,7 +247,7 @@ class SqlAlchemyDispatchRepository:
                 aggregation_execution_id=None,
                 dataset_snapshot_id=command.dataset_snapshot_id,
                 evaluation_execution_id=None,
-                export_id=None,
+                export_execution_id=None,
                 queue_name=command.queue_name,
                 payload=command.payload.model_dump(mode="json"),
                 status=DispatchStatus.pending,
@@ -304,7 +304,7 @@ class SqlAlchemyDispatchRepository:
                 aggregation_execution_id=None,
                 dataset_snapshot_id=None,
                 evaluation_execution_id=command.evaluation_execution_id,
-                export_id=None,
+                export_execution_id=None,
                 queue_name=command.queue_name,
                 payload=command.payload.model_dump(mode="json"),
                 status=DispatchStatus.pending,
@@ -338,9 +338,9 @@ class SqlAlchemyDispatchRepository:
         self,
         command: ExportDispatchCreate,
     ) -> ExportDispatch:
-        export = self._session.get(ExportExecutionRow, command.export_id)
+        export = self._session.get(ExportExecutionRow, command.export_execution_id)
         if export is None:
-            msg = f"export execution {command.export_id} does not exist"
+            msg = f"export execution {command.export_execution_id} does not exist"
             raise ResourceNotFoundError(msg)
         if export.status not in _DISPATCHABLE_EXPORT_STATUSES:
             msg = f"export execution {export.id} is not dispatchable from {export.status}"
@@ -358,7 +358,7 @@ class SqlAlchemyDispatchRepository:
                 aggregation_execution_id=None,
                 dataset_snapshot_id=None,
                 evaluation_execution_id=None,
-                export_id=command.export_id,
+                export_execution_id=command.export_execution_id,
                 queue_name=command.queue_name,
                 payload=command.payload.model_dump(mode="json"),
                 status=DispatchStatus.pending,
@@ -369,12 +369,12 @@ class SqlAlchemyDispatchRepository:
                 published_at=None,
                 last_error=None,
             )
-            .on_conflict_do_nothing(constraint="export_single_dispatch")
+            .on_conflict_do_nothing(constraint="export_execution_single_dispatch")
         )
         self._session.execute(statement)
         self._session.flush()
         row = self._session.scalar(
-            select(DispatchOutboxRow).where(DispatchOutboxRow.export_id == export.id)
+            select(DispatchOutboxRow).where(DispatchOutboxRow.export_execution_id == export.id)
         )
         if row is None:  # pragma: no cover - guarded by insert/select in one transaction.
             msg = f"dispatch for export {export.id} could not be persisted"
@@ -461,16 +461,18 @@ class SqlAlchemyDispatchRepository:
             raise RuntimeError(msg)
         return dispatch
 
-    def get_dispatch_for_export(self, export_id: UUID) -> ExportDispatch | None:
+    def get_dispatch_for_export(self, export_execution_id: UUID) -> ExportDispatch | None:
         """Return the unique dispatch contract for one export execution."""
         row = self._session.scalar(
-            select(DispatchOutboxRow).where(DispatchOutboxRow.export_id == export_id)
+            select(DispatchOutboxRow).where(
+                DispatchOutboxRow.export_execution_id == export_execution_id
+            )
         )
         if row is None:
             return None
         dispatch = self._dispatch_from_row(row)
         if not isinstance(dispatch, ExportDispatch):  # pragma: no cover - query invariant.
-            msg = f"dispatch for export {export_id} has the wrong target type"
+            msg = f"dispatch for export {export_execution_id} has the wrong target type"
             raise RuntimeError(msg)
         return dispatch
 
@@ -631,7 +633,7 @@ class SqlAlchemyDispatchRepository:
             )
             .outerjoin(
                 DispatchOutboxRow,
-                DispatchOutboxRow.export_id == ExportExecutionRow.id,
+                DispatchOutboxRow.export_execution_id == ExportExecutionRow.id,
             )
             .where(
                 DispatchOutboxRow.id.is_(None),
@@ -718,9 +720,9 @@ class SqlAlchemyDispatchRepository:
                     continue
                 self.ensure_dispatch(
                     ExportDispatchCreate(
-                        export_id=export.id,
+                        export_execution_id=export.id,
                         queue_name=CPU_QUEUE,
-                        payload=ExportTaskMessage(export_id=export.id),
+                        payload=ExportTaskMessage(export_execution_id=export.id),
                         available_at=available_at,
                     )
                 )
@@ -820,7 +822,7 @@ class SqlAlchemyDispatchRepository:
             )
             .join(
                 ExportExecutionRow,
-                ExportExecutionRow.id == DispatchOutboxRow.export_id,
+                ExportExecutionRow.id == DispatchOutboxRow.export_execution_id,
             )
             .where(
                 DispatchOutboxRow.status == DispatchStatus.published,
@@ -944,13 +946,13 @@ class SqlAlchemyDispatchRepository:
 
     def _lock_dispatchable_export(
         self,
-        export_id: UUID,
+        export_execution_id: UUID,
     ) -> ExportExecutionRow | None:
         """Lock one pending export without waiting on an active worker."""
         return self._session.scalar(
             select(ExportExecutionRow)
             .where(
-                ExportExecutionRow.id == export_id,
+                ExportExecutionRow.id == export_execution_id,
                 ExportExecutionRow.status.in_(_DISPATCHABLE_EXPORT_STATUSES),
             )
             .with_for_update(skip_locked=True, of=ExportExecutionRow)
@@ -1009,7 +1011,7 @@ class SqlAlchemyDispatchRepository:
             and row.aggregation_execution_id is None
             and row.dataset_snapshot_id is None
             and row.evaluation_execution_id is None
-            and row.export_id is None
+            and row.export_execution_id is None
         ):
             return BatchDispatch(
                 id=row.id,
@@ -1031,7 +1033,7 @@ class SqlAlchemyDispatchRepository:
             and row.task_batch_id is None
             and row.dataset_snapshot_id is None
             and row.evaluation_execution_id is None
-            and row.export_id is None
+            and row.export_execution_id is None
         ):
             return AggregationDispatch(
                 id=row.id,
@@ -1053,7 +1055,7 @@ class SqlAlchemyDispatchRepository:
             and row.task_batch_id is None
             and row.aggregation_execution_id is None
             and row.evaluation_execution_id is None
-            and row.export_id is None
+            and row.export_execution_id is None
         ):
             return SnapshotDispatch(
                 id=row.id,
@@ -1075,7 +1077,7 @@ class SqlAlchemyDispatchRepository:
             and row.task_batch_id is None
             and row.aggregation_execution_id is None
             and row.dataset_snapshot_id is None
-            and row.export_id is None
+            and row.export_execution_id is None
         ):
             return EvaluationDispatch(
                 id=row.id,
@@ -1093,7 +1095,7 @@ class SqlAlchemyDispatchRepository:
                 updated_at=row.updated_at,
             )
         if (
-            row.export_id is not None
+            row.export_execution_id is not None
             and row.task_batch_id is None
             and row.aggregation_execution_id is None
             and row.dataset_snapshot_id is None
@@ -1101,7 +1103,7 @@ class SqlAlchemyDispatchRepository:
         ):
             return ExportDispatch(
                 id=row.id,
-                export_id=row.export_id,
+                export_execution_id=row.export_execution_id,
                 queue_name=row.queue_name,
                 payload=ExportTaskMessage.model_validate(row.payload),
                 status=row.status,

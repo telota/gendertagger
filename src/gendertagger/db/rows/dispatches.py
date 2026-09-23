@@ -49,12 +49,12 @@ class DispatchOutboxRow(UuidPrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, Bas
             name="evaluation_execution_single_dispatch",
         ),
         UniqueConstraint(
-            "export_id",
-            name="export_single_dispatch",
+            "export_execution_id",
+            name="export_execution_single_dispatch",
         ),
         CheckConstraint(
             "num_nonnulls(task_batch_id, aggregation_execution_id, dataset_snapshot_id, "
-            "evaluation_execution_id, export_id) = 1",
+            "evaluation_execution_id, export_execution_id) = 1",
             name="exactly_one_target",
         ),
         CheckConstraint(
@@ -96,7 +96,7 @@ class DispatchOutboxRow(UuidPrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, Bas
         POSTGRESQL_UUID(as_uuid=True),
         ForeignKey("evaluation_executions.id", ondelete="RESTRICT"),
     )
-    export_id: Mapped[UUID | None] = mapped_column(
+    export_execution_id: Mapped[UUID | None] = mapped_column(
         POSTGRESQL_UUID(as_uuid=True),
         ForeignKey("export_executions.id", ondelete="RESTRICT"),
     )

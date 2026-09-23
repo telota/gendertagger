@@ -61,9 +61,9 @@ def _export_executor() -> ExportExecutor:
     name=EXECUTE_EXPORT_TASK_NAME,
     max_retries=DEFAULT_MAX_EXPORT_ATTEMPTS - 1,
 )
-def execute_export(self: Any, *, export_id: str) -> None:
+def execute_export(self: Any, *, export_execution_id: str) -> None:
     """Execute one persisted export and retry transient failures."""
-    message = ExportTaskMessage(export_id=export_id)  # type: ignore[arg-type]
+    message = ExportTaskMessage(export_execution_id=export_execution_id)  # type: ignore[arg-type]
     try:
         _export_executor().execute(
             message,

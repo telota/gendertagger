@@ -65,9 +65,9 @@ class ExportService:
             )
             unit_of_work.dispatches.ensure_dispatch(
                 ExportDispatchCreate(
-                    export_id=export.id,
+                    export_execution_id=export.id,
                     queue_name=CPU_QUEUE,
-                    payload=ExportTaskMessage(export_id=export.id),
+                    payload=ExportTaskMessage(export_execution_id=export.id),
                     available_at=self._clock(),
                 )
             )
@@ -75,12 +75,12 @@ class ExportService:
             unit_of_work.commit()
         return export
 
-    def get_export(self, export_id: UUID) -> ExportExecution:
+    def get_export(self, export_execution_id: UUID) -> ExportExecution:
         """Return one export execution or raise a not-found failure."""
         with self._unit_of_work_factory() as unit_of_work:
-            export = unit_of_work.exports.get_export(export_id)
+            export = unit_of_work.exports.get_export(export_execution_id)
         if export is None:
-            msg = f"export execution {export_id} does not exist"
+            msg = f"export execution {export_execution_id} does not exist"
             raise ResourceNotFoundError(msg)
         return export
 
@@ -108,7 +108,7 @@ class ExportService:
             )
         return newest_first_page(self._cursor_codec, exports, limit=limit, resource=resource)
 
-    def download_export(self, export_id: UUID) -> tuple[bytes, str]:
+    def download_export(self, export_execution_id: UUID) -> tuple[bytes, str]:
         """Return one completed export's primary bytes and media type.
 
         A single-output export (``json``, ``csv``, or ``tei`` over a
@@ -117,14 +117,14 @@ class ExportService:
         instead -- fetching every individual member output is not yet
         exposed as a separate resource.
         """
-        export = self.get_export(export_id)
+        export = self.get_export(export_execution_id)
         if export.manifest_artifact_id is None:
-            msg = f"export execution {export_id} has no output artifacts"
+            msg = f"export execution {export_execution_id} has no output artifacts"
             raise ResourceNotFoundError(msg)
         with self._unit_of_work_factory() as unit_of_work:
             outputs = [
                 artifact
-                for artifact in unit_of_work.artifacts.list_artifacts_by_export(export_id)
+                for artifact in unit_of_work.artifacts.list_artifacts_by_export(export_execution_id)
                 if artifact.id != export.manifest_artifact_id
             ]
             manifest = unit_of_work.artifacts.get_artifact(export.manifest_artifact_id)

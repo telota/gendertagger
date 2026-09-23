@@ -133,22 +133,22 @@ class ExportDispatchCreate(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     target: Literal[DispatchTarget.export] = DispatchTarget.export
-    export_id: UUID
+    export_execution_id: UUID
     queue_name: str = Field(pattern=QUEUE_NAME_PATTERN, max_length=100)
     payload: ExportTaskMessage
     available_at: UtcDatetime
 
     @model_validator(mode="after")
     def _validate_payload_identity(self) -> Self:
-        if self.payload.export_id != self.export_id:
-            msg = "dispatch payload export_id must match its durable dispatch"
+        if self.payload.export_execution_id != self.export_execution_id:
+            msg = "dispatch payload export_execution_id must match its durable dispatch"
             raise ValueError(msg)
         return self
 
     @property
     def target_id(self) -> UUID:
         """Return the stable work and broker-task identifier."""
-        return self.export_id
+        return self.export_execution_id
 
 
 class BatchDispatch(BatchDispatchCreate):

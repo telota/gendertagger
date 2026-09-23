@@ -286,7 +286,7 @@ identifiers, the source snapshot SHA-256, the format, the label-source policy, t
 checksummed descriptor per output. Only a completed export has a manifest artifact, and every completed export
 has one.
 
-`GET /exports/{export_id}/download` returns the export's own output bytes and media type when the export
+`GET /exports/{export_execution_id}/download` returns the export's own output bytes and media type when the export
 produced exactly one output, which covers every `json` and `csv` export and a `tei` export over a one-member
 source. When an export produced several outputs, as a loose TEI collection does, the endpoint returns the
 manifest instead, and the individual member outputs are not separately addressable; see

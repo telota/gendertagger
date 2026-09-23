@@ -170,7 +170,7 @@ PATH_VALUES = {
     "aggregation_id": _ID,
     "result_id": _OTHER,
     "evaluation_id": _ID,
-    "export_id": _ID,
+    "export_execution_id": _ID,
 }
 PROJECT_SCOPED_ROUTES = (
     _ScopedRoute("GET", "/projects/{project_id}", ProjectScope.project, ProjectRole.viewer),
@@ -292,8 +292,10 @@ PROJECT_SCOPED_ROUTES = (
         ProjectRole.operator,
         {"json": {"run_id": _ID, "aggregation_execution_id": _OTHER, "format": "json"}},
     ),
-    _ScopedRoute("GET", "/exports/{export_id}", ProjectScope.export, ProjectRole.viewer),
-    _ScopedRoute("GET", "/exports/{export_id}/download", ProjectScope.export, ProjectRole.viewer),
+    _ScopedRoute("GET", "/exports/{export_execution_id}", ProjectScope.export, ProjectRole.viewer),
+    _ScopedRoute(
+        "GET", "/exports/{export_execution_id}/download", ProjectScope.export, ProjectRole.viewer
+    ),
 )
 GLOBAL_ROUTES = {
     ("POST", "/projects"),

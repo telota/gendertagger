@@ -336,7 +336,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/exports/{export_id}": {
+    "/api/v1/exports/{export_execution_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -347,7 +347,7 @@ export interface paths {
          * Get Export
          * @description Read one current export lifecycle resource.
          */
-        get: operations["get_export_api_v1_exports__export_id__get"];
+        get: operations["get_export_api_v1_exports__export_execution_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -356,7 +356,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/exports/{export_id}/download": {
+    "/api/v1/exports/{export_execution_id}/download": {
         parameters: {
             query?: never;
             header?: never;
@@ -367,7 +367,7 @@ export interface paths {
          * Download Export
          * @description Return a completed export's primary output bytes by artifact reference.
          */
-        get: operations["download_export_api_v1_exports__export_id__download_get"];
+        get: operations["download_export_api_v1_exports__export_execution_id__download_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3986,12 +3986,12 @@ export interface operations {
             };
         };
     };
-    get_export_api_v1_exports__export_id__get: {
+    get_export_api_v1_exports__export_execution_id__get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                export_id: string;
+                export_execution_id: string;
             };
             cookie?: never;
         };
@@ -4080,12 +4080,12 @@ export interface operations {
             };
         };
     };
-    download_export_api_v1_exports__export_id__download_get: {
+    download_export_api_v1_exports__export_execution_id__download_get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                export_id: string;
+                export_execution_id: string;
             };
             cookie?: never;
         };

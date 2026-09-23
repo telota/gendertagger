@@ -41,7 +41,7 @@ Five Celery tasks are registered, one per `DispatchTarget` value in `gendertagge
 | `aggregation_execution` | `gendertagger.tasks.execute_aggregation` | `tasks/aggregation.py` | `aggregation_execution_id` |
 | `dataset_snapshot` | `gendertagger.tasks.execute_snapshot_import` | `tasks/snapshot_import.py` | `dataset_snapshot_id` |
 | `evaluation_execution` | `gendertagger.tasks.execute_evaluation` | `tasks/evaluation.py` | `evaluation_execution_id` |
-| `export` | `gendertagger.tasks.execute_export` | `tasks/export.py` | `export_id` |
+| `export` | `gendertagger.tasks.execute_export` | `tasks/export.py` | `export_execution_id` |
 
 `CeleryMessagePublisher` (`tasks/dispatch.py`) is the closed mapping from a validated envelope to
 its task name, queue, and broker task ID. The broker task ID is always the target's own identifier,

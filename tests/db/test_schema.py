@@ -52,19 +52,19 @@ def test_dispatch_schema_has_exactly_one_unique_foreign_key_owner() -> None:
     assert table.c.aggregation_execution_id.nullable
     assert table.c.dataset_snapshot_id.nullable
     assert table.c.evaluation_execution_id.nullable
-    assert table.c.export_id.nullable
+    assert table.c.export_execution_id.nullable
     assert {constraint.name for constraint in table.constraints} >= {
         "task_batch_single_dispatch",
         "aggregation_execution_single_dispatch",
         "dataset_snapshot_single_dispatch",
         "evaluation_execution_single_dispatch",
-        "export_single_dispatch",
+        "export_execution_single_dispatch",
         "ck_dispatch_outbox_exactly_one_target",
         "fk_dispatch_outbox_task_batch_id_task_batches",
         "fk_dispatch_outbox_aggregation_execution_id_aggregation_executions",
         "fk_dispatch_outbox_dataset_snapshot_id_dataset_snapshots",
         "fk_dispatch_outbox_evaluation_execution_id_evaluation_executions",
-        "fk_dispatch_outbox_export_id_export_executions",
+        "fk_dispatch_outbox_export_execution_id_export_executions",
     }
     assert {foreign_key.target_fullname for foreign_key in table.foreign_keys} >= {
         "task_batches.id",

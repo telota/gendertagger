@@ -72,7 +72,7 @@ class DispatchRepository(Protocol):
         """Return the unique dispatch for an evaluation, or ``None`` when absent."""
         ...
 
-    def get_dispatch_for_export(self, export_id: UUID) -> ExportDispatch | None:
+    def get_dispatch_for_export(self, export_execution_id: UUID) -> ExportDispatch | None:
         """Return the unique dispatch for an export, or ``None`` when absent."""
         ...
 

@@ -17,7 +17,7 @@ class ExportRepository(Protocol):
         """Persist an export over one locked run and its completed aggregation."""
         ...
 
-    def get_export(self, export_id: UUID) -> ExportExecution | None:
+    def get_export(self, export_execution_id: UUID) -> ExportExecution | None:
         """Return an export execution by ID, or ``None`` when absent."""
         ...
 
@@ -31,13 +31,13 @@ class ExportRepository(Protocol):
         """Return one newest-first ``(created_at, id)`` keyset slice of a run's exports."""
         ...
 
-    def mark_export_queued(self, export_id: UUID) -> ExportExecution:
+    def mark_export_queued(self, export_execution_id: UUID) -> ExportExecution:
         """Atomically transition a pending export with durable intent to queued."""
         ...
 
     def claim_export(
         self,
-        export_id: UUID,
+        export_execution_id: UUID,
         *,
         started_at: datetime,
     ) -> ExportExecution | None:
@@ -48,13 +48,13 @@ class ExportRepository(Protocol):
         """
         ...
 
-    def load_export_inputs(self, export_id: UUID) -> ExportInputs:
+    def load_export_inputs(self, export_execution_id: UUID) -> ExportInputs:
         """Load every snapshot person's FinalDecision projection and source members."""
         ...
 
     def mark_export_finished(
         self,
-        export_id: UUID,
+        export_execution_id: UUID,
         *,
         status: ExportExecutionStatus,
         finished_at: datetime,

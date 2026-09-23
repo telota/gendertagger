@@ -2836,13 +2836,13 @@ def upgrade() -> None:
     )
     op.add_column(
         "artifacts",
-        sa.Column("export_id", sa.UUID(), nullable=True),
+        sa.Column("export_execution_id", sa.UUID(), nullable=True),
     )
     op.create_foreign_key(
-        op.f("fk_artifacts_export_id_export_executions"),
+        op.f("fk_artifacts_export_execution_id_export_executions"),
         "artifacts",
         "export_executions",
-        ["export_id"],
+        ["export_execution_id"],
         ["id"],
         ondelete="RESTRICT",
     )
@@ -2857,20 +2857,20 @@ def upgrade() -> None:
     # Squashed from 20260814_0013_export_dispatch_outbox.py
     op.add_column(
         "dispatch_outbox",
-        sa.Column("export_id", sa.UUID(), nullable=True),
+        sa.Column("export_execution_id", sa.UUID(), nullable=True),
     )
     op.create_foreign_key(
-        op.f("fk_dispatch_outbox_export_id_export_executions"),
+        op.f("fk_dispatch_outbox_export_execution_id_export_executions"),
         "dispatch_outbox",
         "export_executions",
-        ["export_id"],
+        ["export_execution_id"],
         ["id"],
         ondelete="RESTRICT",
     )
     op.create_unique_constraint(
-        "export_single_dispatch",
+        "export_execution_single_dispatch",
         "dispatch_outbox",
-        ["export_id"],
+        ["export_execution_id"],
     )
     op.drop_constraint(
         op.f("ck_dispatch_outbox_exactly_one_target"),
@@ -2881,7 +2881,7 @@ def upgrade() -> None:
         op.f("ck_dispatch_outbox_exactly_one_target"),
         "dispatch_outbox",
         "num_nonnulls(task_batch_id, aggregation_execution_id, dataset_snapshot_id, "
-        "evaluation_execution_id, export_id) = 1",
+        "evaluation_execution_id, export_execution_id) = 1",
     )
 
     # Squashed from 20260903_0002_local_database_authentication.py and
@@ -3028,18 +3028,18 @@ def downgrade() -> None:
         "dispatch_outbox",
         type_="check",
     )
-    op.execute(sa.text("DELETE FROM dispatch_outbox WHERE export_id IS NOT NULL"))
+    op.execute(sa.text("DELETE FROM dispatch_outbox WHERE export_execution_id IS NOT NULL"))
     op.drop_constraint(
-        "export_single_dispatch",
+        "export_execution_single_dispatch",
         "dispatch_outbox",
         type_="unique",
     )
     op.drop_constraint(
-        op.f("fk_dispatch_outbox_export_id_export_executions"),
+        op.f("fk_dispatch_outbox_export_execution_id_export_executions"),
         "dispatch_outbox",
         type_="foreignkey",
     )
-    op.drop_column("dispatch_outbox", "export_id")
+    op.drop_column("dispatch_outbox", "export_execution_id")
     op.create_check_constraint(
         op.f("ck_dispatch_outbox_exactly_one_target"),
         "dispatch_outbox",
@@ -3053,11 +3053,11 @@ def downgrade() -> None:
         type_="foreignkey",
     )
     op.drop_constraint(
-        op.f("fk_artifacts_export_id_export_executions"),
+        op.f("fk_artifacts_export_execution_id_export_executions"),
         "artifacts",
         type_="foreignkey",
     )
-    op.drop_column("artifacts", "export_id")
+    op.drop_column("artifacts", "export_execution_id")
     op.drop_index("ix_export_executions_run_id_status", table_name="export_executions")
     op.drop_table("export_executions")
     # Squashed from 20260814_0011_evaluation_dispatch_outbox.py

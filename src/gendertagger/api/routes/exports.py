@@ -64,30 +64,30 @@ def list_exports(
         raise invalid_cursor_error() from error
 
 
-@router.get("/exports/{export_id}", response_model=ExportExecution)
+@router.get("/exports/{export_execution_id}", response_model=ExportExecution)
 def get_export(
-    export_id: UUID,
+    export_execution_id: UUID,
     service: Annotated[ExportService, Depends(get_export_service)],
     access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
 ) -> ExportExecution:
     """Read one current export lifecycle resource."""
-    access.require(ProjectScope.export, export_id, ProjectRole.viewer)
+    access.require(ProjectScope.export, export_execution_id, ProjectRole.viewer)
     try:
-        return service.get_export(export_id)
+        return service.get_export(export_execution_id)
     except ResourceNotFoundError as error:
         raise _not_found() from error
 
 
-@router.get("/exports/{export_id}/download")
+@router.get("/exports/{export_execution_id}/download")
 def download_export(
-    export_id: UUID,
+    export_execution_id: UUID,
     service: Annotated[ExportService, Depends(get_export_service)],
     access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
 ) -> Response:
     """Return a completed export's primary output bytes by artifact reference."""
-    access.require(ProjectScope.export, export_id, ProjectRole.viewer)
+    access.require(ProjectScope.export, export_execution_id, ProjectRole.viewer)
     try:
-        content, media_type = service.download_export(export_id)
+        content, media_type = service.download_export(export_execution_id)
     except ResourceNotFoundError as error:
         raise _not_found() from error
     return Response(content=content, media_type=media_type)

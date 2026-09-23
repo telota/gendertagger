@@ -60,7 +60,7 @@ class ExportTaskMessage(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    export_id: UUID
+    export_execution_id: UUID
 
 
 class ExportExecutionCreate(BaseModel):
@@ -181,7 +181,7 @@ class ExportManifest(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    export_id: UUID
+    export_execution_id: UUID
     dataset_snapshot_id: UUID
     source_snapshot_sha256: str = Field(pattern=SHA256_PATTERN)
     run_id: UUID

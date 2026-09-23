@@ -124,8 +124,8 @@ def test_queued_export_executes_and_output_round_trips_through_http(
     assert export_body["status"] == ExportExecutionStatus.queued.value
     assert export_body["run_id"] == str(run_id)
     assert export_body["format"] == "json"
-    export_id = UUID(export_body["id"])
-    assert client.get(f"/api/v1/exports/{export_id}").json() == export_body
+    export_execution_id = UUID(export_body["id"])
+    assert client.get(f"/api/v1/exports/{export_execution_id}").json() == export_body
 
     completed = ExportExecutor(
         unit_of_work_factory=unit_of_work_factory,
@@ -133,13 +133,13 @@ def test_queued_export_executes_and_output_round_trips_through_http(
         max_output_bytes=1_000_000,
         clock=lambda: NOW,
     ).execute(
-        ExportTaskMessage(export_id=export_id),
+        ExportTaskMessage(export_execution_id=export_execution_id),
         attempt_count=1,
     )
     assert completed.status is ExportExecutionStatus.completed
     assert completed.manifest_artifact_id is not None
 
-    download_response = client.get(f"/api/v1/exports/{export_id}/download")
+    download_response = client.get(f"/api/v1/exports/{export_execution_id}/download")
     assert download_response.status_code == 200
     assert download_response.headers["content-type"].startswith("application/json")
     records = json.loads(download_response.content)
@@ -160,7 +160,7 @@ def test_queued_export_executes_and_output_round_trips_through_http(
     listed = client.get(f"/api/v1/runs/{run_id}/exports").json()
     assert [(item["id"], item["format"], item["status"]) for item in listed["items"]] == [
         (rerun_body["id"], "csv", ExportExecutionStatus.queued.value),
-        (str(export_id), "json", ExportExecutionStatus.completed.value),
+        (str(export_execution_id), "json", ExportExecutionStatus.completed.value),
     ]
     assert client.get(f"/api/v1/runs/{uuid4()}/exports").status_code == 404
 
@@ -168,8 +168,8 @@ def test_queued_export_executes_and_output_round_trips_through_http(
         _outsider_id(unit_of_work_factory)
     )
     hidden_responses = [
-        client.get(f"/api/v1/exports/{export_id}"),
-        client.get(f"/api/v1/exports/{export_id}/download"),
+        client.get(f"/api/v1/exports/{export_execution_id}"),
+        client.get(f"/api/v1/exports/{export_execution_id}/download"),
         client.get(f"/api/v1/runs/{run_id}/exports"),
         client.post(
             "/api/v1/exports",

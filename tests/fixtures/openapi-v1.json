@@ -5625,18 +5625,18 @@
         ]
       }
     },
-    "/api/v1/exports/{export_id}": {
+    "/api/v1/exports/{export_execution_id}": {
       "get": {
         "description": "Read one current export lifecycle resource.",
-        "operationId": "get_export_api_v1_exports__export_id__get",
+        "operationId": "get_export_api_v1_exports__export_execution_id__get",
         "parameters": [
           {
             "in": "path",
-            "name": "export_id",
+            "name": "export_execution_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Export Id",
+              "title": "Export Execution Id",
               "type": "string"
             }
           }
@@ -5739,18 +5739,18 @@
         ]
       }
     },
-    "/api/v1/exports/{export_id}/download": {
+    "/api/v1/exports/{export_execution_id}/download": {
       "get": {
         "description": "Return a completed export's primary output bytes by artifact reference.",
-        "operationId": "download_export_api_v1_exports__export_id__download_get",
+        "operationId": "download_export_api_v1_exports__export_execution_id__download_get",
         "parameters": [
           {
             "in": "path",
-            "name": "export_id",
+            "name": "export_execution_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Export Id",
+              "title": "Export Execution Id",
               "type": "string"
             }
           }
