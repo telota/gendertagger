@@ -33,3 +33,44 @@ cites that bibliography entry.
 **Build note for the authors:** The full manuscript build stops at the existing DOI
 `10.17175/WP_2026` with `Missing $ inserted`. The unchanged manuscript has the same error.
 This separate bibliography-formatting issue was not altered as part of the software-citation item.
+
+## 2026-09-23: Reviewer C and Reviewer I14 - GND and authority-source selection
+
+**Requests:** Expand GND at its first occurrence (Reviewer C, page 6) and explain the choice of GND
+and alternatives including Wikidata, VIAF, and Getty ULAN (Reviewer I14).
+
+**Changes:**
+
+- Expanded GND at its first occurrence in the Workflow Description in [article.tex](article.tex)
+  and shortened the repeated expansion in the GND paragraph.
+- Specified German-speaking digital scholarship in the GND paragraph's opening sentence.
+- Added the domain and data rationale: predominantly German-language sources and existing editorial
+  authority links that primarily use GND identifiers.
+- Explained the exclusion of VIAF with reference to the interface reliability and governance concerns
+  documented by Bargioni following the January 2025 redesign.
+- Added direct lookup in Wikidata and Getty's Union List of Artist Names (ULAN) as possible future
+  extensions.
+- Added the `bargioni_viaf_2025` reference to [gendertagger.bib](gendertagger.bib) and cited it in the
+  new rationale.
+
+**Response to Reviewer C:** We expanded GND as the German Integrated Authority File
+(*Gemeinsame Normdatei*) at its first occurrence in the Workflow Description, where its role in
+identifying persons and retrieving authority records is described.
+
+**Response to Reviewer I14:** We clarified that the choice of GND reflects the predominantly
+German-language source material and the existing editorial GND links. We explained why VIAF was
+excluded, citing Bargioni (2025) on interface reliability and governance concerns following its
+January 2025 redesign. We also identified direct lookup in Wikidata and Getty ULAN as possible
+future extensions.
+
+**Status:** Addressed in the local working tree; both checklist items are marked complete.
+
+**Verification:**
+
+- Bibliographic metadata and the scope of the VIAF critique were checked against
+  [Bargioni's journal article](https://doi.org/10.5860/ital.v44i4.17384).
+- BibTeX processed the new reference successfully using the manuscript's `eceasst.bst` and generated
+  the citation label `[Bar25]` with the correct DOI.
+- The locked documentation-policy check passed.
+- The full manuscript PDF was not rebuilt for this edit; the existing build blocker is recorded in
+  the software-citation entry above.

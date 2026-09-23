@@ -21,7 +21,7 @@ separately from issues found during our own audit. Completed changes are documen
 The six annotations raise four distinct issues; two comments repeat or clarify earlier annotations.
 Source: [Reviewer C's annotated PDF](C-klappenbach,neuber,westphal_2026_gendertagger-comment.pdf).
 
-- [ ] **Page 6:** Expand GND at its first occurrence, with a brief explanation or link.
+- [x] **Page 6:** Expand GND at its first occurrence, with a brief explanation or link.
   (Two annotations.)
 - [ ] **Page 7:** Explain the maintenance tradeoff of local authority snapshots: they need updating
   to incorporate later changes.
@@ -50,7 +50,7 @@ Source: [Reviewer C's annotated PDF](C-klappenbach,neuber,westphal_2026_genderta
   link to the Gnadenfrei example.
 - [ ] **I13 - Lines 186 onward:** Explain how `@cert` categories are derived, what they mean,
   possible alternative scales, and relevant DH practice.
-- [ ] **I14 - Lines 238-241:** Justify using GND alone and discuss alternatives such as Wikidata,
+- [x] **I14 - Lines 238-241:** Justify using GND alone and discuss alternatives such as Wikidata,
   VIAF, and Getty ULAN.
 - [ ] **I15 - Footnotes 5 and 6:** Add access dates.
 - [ ] **I16 - Line 306:** Move the inline link into a footnote.

@@ -1,0 +1,142 @@
+\newcommand{\etalchar}[1]{$^{#1}$}
+\begin{thebibliography}{KWL{\etalchar{+}}16}
+
+\bibitem[Ale25]{aleksander_gendern_2025}
+K.~Aleksander.
+Gender(n) in der {Gemeinsamen} {Normdatei}.
+2025.
+\\\url{https://opus4.kobv.de/opus4-bib-info/frontdoor/index/index/docId/19419}
+
+\bibitem[Ali25]{ali_genderize_2025}
+I.~Ali.
+Genderize: {Gender} {Classification} by {Name}.
+Jan. 2025.
+Published: Hugging Face model repository.
+\\\url{https://huggingface.co/imranali291/genderize}
+
+\bibitem[Bar25]{bargioni_viaf_2025}
+S.~Bargioni.
+{VIAF} Governance Concerns about the Refurbished {VIAF} Web and {API} Interfaces.
+\emph{Information Technology and Libraries} 44(4), 2025.
+\\\doi{10.5860/ital.v44i4.17384}
+
+\bibitem[BCL23]{buskirk_open-source_2023}
+I.~V. Buskirk, A.~Clauset, D.~B. Larremore.
+An {Open}-{Source} {Cultural} {Consensus} {Approach} to {Name}-{Based} {Gender} {Classification}.
+\emph{Proceedings of the International AAAI Conference on Web and Social Media} 17:866--877, June 2023.
+\\\doi{10.1609/icwsm.v17i1.22195}
+\\\url{https://ojs.aaai.org/index.php/ICWSM/article/view/22195}
+
+\bibitem[BGSL20]{berube_wiki-gendersort_2020-1}
+N.~Bérubé, G.~Ghiasi, M.~H. Sainte-Marie, V.~Larivière.
+Wiki-gendersort: {Automatic} {Gender} {Detection} {Using} {First} {Names} in {Wikipedia}.
+Mar. 2020.
+Published: SocArXiv preprint.
+\\\doi{10.31235/osf.io/ezw7p}
+\\\url{https://osf.io/preprints/socarxiv/ezw7p}
+
+\bibitem[BM15]{blevins_jane_2015}
+C.~Blevins, L.~Mullen.
+Jane, {John} … {Leslie}? {A} {Historical} {Method} for {Algorithmic} {Gender} {Prediction}.
+\emph{Digital Humanities Quarterly} 009(3), Dec. 2015.
+
+\bibitem[BVBJ24]{beshero-bondar_revising_2024}
+E.~E. Beshero-Bondar, R.~Viglianti, H.~Bermúdez-Sabel, J.~Jenstad.
+Revising sex and gender in the {TEI} {Guidelines}.
+\emph{Journal of the Text Encoding Initiative} Issue 17, Apr. 2024.
+\\\doi{10.4000/13utq}
+\\\url{https://journals.openedition.org/jtei/5705}
+
+\bibitem[Bé20]{berube_wiki-gendersort_2020}
+N.~Bérubé.
+Wiki-{Gendersort}: {Code} and database for automatic gender detection using first names in {Wikipedia}.
+2020.
+Published: GitHub repository.
+\\\url{https://github.com/nicolasberube/Wiki-Gendersort}
+
+\bibitem[CP20]{criado-perez_invisible_2020}
+C.~Criado-Perez.
+\emph{Invisible women: exposing data bias in a world designed for men}.
+Vintage, London, 2020.
+
+\bibitem[DK20]{dignazio_4_2020}
+C.~D'Ignazio, L.~Klein.
+4. “{What} {Gets} {Counted} {Counts}”.
+\emph{Data Feminism}, Mar. 2020.
+\\\url{https://data-feminism.mitpress.mit.edu/pub/h1w0nbqp/release/3}
+
+\bibitem[KNW26]{gendertagger_software_2026}
+L.~Klappenbach, F.~Neuber, T.~Westphal.
+{gendertagger}.
+Source code repository, 2026.
+Accessed 23 September 2026.
+\\\url{https://github.com/telota/gendertagger}
+
+\bibitem[KWL{\etalchar{+}}16]{karimi_inferring_2016}
+F.~Karimi, C.~Wagner, F.~Lemmerich, M.~Jadidi, M.~Strohmaier.
+Inferring {Gender} from {Names} on the {Web}: {A} {Comparative} {Evaluation} of {Gender} {Detection} {Methods}.
+2016.
+\\\doi{10.48550/ARXIV.1603.04322}
+\\\url{https://arxiv.org/abs/1603.04322}
+
+\bibitem[Lie26]{liebing_historisches_2026}
+K.~Liebing.
+Historisches {Vornamentool} - hivoto: {Datensatz} für die {Normierung} und {Geschlechtszuweisung} anhand von historischen, deutschsprachigen {Vornamen} und abgekürzten {Vornamen} (1670-1950).
+2026.
+\\\doi{10.22000/PWBUPF0JC2ZJ4K7X}
+\\\url{https://radar4memory.radar-service.eu/radar/en/dataset/pwbupf0jc2zj4k7x}
+
+\bibitem[LS26]{lang_beyond_2026}
+S.~Lang, E.~Suárez~Cronauer.
+Beyond {Data} {Feminism}. {Towards} {Ethical} {Data} {Work} in the ({Digital}) {Humanities}.
+\emph{Zeitschrift für digitale Geisteswissenschaften}, 2026.
+Version Number: 1.0.
+\\\doi{10.17175/WP_2026}
+\\\url{https://zfdg.de/wp_2026}
+
+\bibitem[{Ope}25]{openai_gpt-oss-120b_2025}
+{OpenAI}.
+gpt-oss-120b \& gpt-oss-20b {Model} {Card}.
+2025.
+\\\url{https://arxiv.org/abs/2508.10925}
+
+\bibitem[{pad}25]{padmajabfrl_gender-classification_2025}
+{padmajabfrl}.
+Gender-{Classification} ({Revision} 92fe315).
+2025.
+\\\doi{10.57967/hf/4569}
+\\\url{https://huggingface.co/padmajabfrl/Gender-Classification}
+
+\bibitem[Pé16]{perez_gender-guesser_2016}
+I.~S. Pérez.
+gender-guesser: {Get} the gender from first name.
+Dec. 2016.
+Published: Python package, version 0.4.0.
+\\\url{https://github.com/lead-ratings/gender-guesser}
+
+\bibitem[Sah13]{sahle_digitale_2013}
+P.~Sahle.
+Digitale {Editionsformen}. {Teil} 1: {Das} typografische {Erbe}.
+Schriften des {Instituts} für {Dokumentologie} und {Editorik}~Band 7.
+BoD, Norderstedt, 2013.
+
+\bibitem[SM18]{santamaria_comparison_2018}
+L.~Santamaría, H.~Mihaljević.
+Comparison and benchmark of name-to-gender inference services.
+\emph{PeerJ Computer Science} 4:e156, July 2018.
+\\\doi{10.7717/peerj-cs.156}
+\\\url{https://peerj.com/articles/cs-156}
+
+\bibitem[SMD12]{arndt_schleiermacher_2012}
+schleiermacher digital — {Briefwechsel}, {Tageskalender}, {Vorlesungen} von {Friedrich} {Schleiermacher}.
+2012.
+Published: Berlin-Brandenburgische Akademie der Wissenschaften.
+\\\url{https://schleiermacher-digital.de}
+
+\bibitem[{TEI}25]{tei_consortium_tei_2025}
+{TEI Consortium}.
+{TEI} element gender (gender).
+2025.
+\\\url{https://www.tei-c.org/release/doc/tei-p5-doc/de/html/ref-gender.html}
+
+\end{thebibliography}
