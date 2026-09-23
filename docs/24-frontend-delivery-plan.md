@@ -222,7 +222,12 @@ contract change fails CI.
   carried over.
 - Locale switch and theme switch (system, light, dark), and the shared vocabulary components that render
   `CanonicalLabel`, `CertaintyTier`, and `AgreementTier` as canonical token plus translated gloss (D2, D3).
+  **Partly delivered.** The locale and theme switches are live in `AppHeader` on every screen
+  (`useLocale`, `useTheme`, both built on `AppListbox`); the vocabulary components remain open until a
+  screen exists that renders canonical labels or tiers.
 - Overlay primitives on the chosen headless accessibility library (D9); everything else in-house.
+  **Partly delivered.** `AppListbox` (the header's own switchers) is the only one built so far; a
+  Dialog/modal with its focus trap and a Menu remain open until something needs them.
 - The publication footer on every page, the start-page publication details, and the public legal notice
   required by the operating institution's guideline for digital publications, as specified in
   [`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md#publication-details-footer-and-legal-notice).
