@@ -2,13 +2,13 @@
 ["bibtex article"] 0 "article.aux" "article.bbl" "article" 0 -1
   "./eceasst.bst" 1790188604.83197 26107 18417fe77bfecbb5140f1d47333ae01a ""
   "./gendertagger.bib" 1790194050.20897 37127 ed933c46922239df8e327d6bc3929e0c ""
-  "article.aux" 1790195205.70313 14194 e083b43c0a47f18afc49c7be8d87cb2d "pdflatex"
+  "article.aux" 1790195471.46433 14194 e083b43c0a47f18afc49c7be8d87cb2d "pdflatex"
   (generated)
   "article.bbl"
   "article.blg"
   (rewritten before read)
-["pdflatex"] 1790195205.16132 "/home/westphal/Projekte/BBAW/gendertagger/repo/gendertagger/docs/paper/article.tex" "article.pdf" "article" 1790195205.79626 2
-  "/home/westphal/Projekte/BBAW/gendertagger/repo/gendertagger/docs/paper/article.tex" 1790195112.24362 68612 a0269a0354eee41a87f7e1828a1fcf6f ""
+["pdflatex"] 1790195470.8774 "/home/westphal/Projekte/BBAW/gendertagger/repo/gendertagger/docs/paper/article.tex" "article.pdf" "article" 1790195471.56857 2
+  "/home/westphal/Projekte/BBAW/gendertagger/repo/gendertagger/docs/paper/article.tex" 1790195364.0195 68611 e01aa04dd4dd8acf4b1ec629f23837c9 ""
   "/usr/share/texmf-dist/fonts/enc/dvips/base/8r.enc" 1775415801 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrb7t.tfm" 1775415801 960 4ab65358b8406f30ef5496c8c096d22b ""
   "/usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrb8r.tfm" 1775415801 1292 3059476c50a24578715759f22652f3d0 ""
@@ -202,10 +202,10 @@
   "/usr/share/texmf-dist/web2c/texmf.cnf" 1775415801 43569 fd570f2fa160877d211e859f687312ba ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1780595439 325445 e037c2d0d08ad8cbac81cfa7969967b5 ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1780595438 2809891 6fb0a3c3b8c632bc1effcbe43d160913 ""
-  "article.aux" 1790195205.70313 14194 e083b43c0a47f18afc49c7be8d87cb2d "pdflatex"
+  "article.aux" 1790195471.46433 14194 e083b43c0a47f18afc49c7be8d87cb2d "pdflatex"
   "article.bbl" 1790194050.46623 5212 acf3f3fd838cd0ec356c1989a1d49d51 "bibtex article"
-  "article.out" 1790195205.70584 5301 e12446d15e2ac7f295e4f6bde432a6a5 "pdflatex"
-  "article.tex" 1790195112.24362 68612 a0269a0354eee41a87f7e1828a1fcf6f ""
+  "article.out" 1790195471.46646 5301 e12446d15e2ac7f295e4f6bde432a6a5 "pdflatex"
+  "article.tex" 1790195364.0195 68611 e01aa04dd4dd8acf4b1ec629f23837c9 ""
   "easst.pdf" 1790188604.83191 18460 c04bf8a8a8bdafee992ff1a84ca7f602 ""
   "eceasst.cls" 1790188604.83197 9356 15a9c86faf8a508cb177465e1e3902bf ""
   "figures/gender_coverage_pies.png" 1790188604.83283 186134 80922b38d58fd2ff664015dc98f73bfe ""

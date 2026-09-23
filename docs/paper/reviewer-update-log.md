@@ -251,3 +251,15 @@ register's GND identifiers as the basis for matching records.
 running text, while retaining capitalization in the section heading.
 
 **Status:** Addressed in the local working tree; the checklist item is marked complete.
+
+## 2026-09-23: Reviewer I8 - Study Design opening paragraph
+
+**Request:** Consolidate submitted manuscript lines 91-97 into a single paragraph.
+
+**Changes:** Removed the paragraph break between the two opening passages under Study Design in
+[article.tex](article.tex). Their wording and the existing footnote are unchanged.
+
+**Response to the reviewer:** We consolidated the opening passages of the Study Design section
+into one paragraph.
+
+**Status:** Addressed in the local working tree; the checklist item is marked complete.
