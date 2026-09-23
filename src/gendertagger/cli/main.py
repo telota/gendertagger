@@ -7,7 +7,8 @@ import sys
 from collections.abc import Sequence
 
 from gendertagger.cli import assets, projects, users
-from gendertagger.cli.settings import AssetCliSettings, UsersCliSettings
+from gendertagger.cli.settings import AssetCliSettings
+from gendertagger.config.settings import DatabaseSettings
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -23,10 +24,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Provision assets, users, or project members and emit the result as one JSON line."""
     args = _build_parser().parse_args(argv)
     if args.command == "users":
-        users_settings = UsersCliSettings()  # type: ignore[call-arg]  # Loaded from environment.
+        users_settings = DatabaseSettings()  # type: ignore[call-arg]  # Loaded from environment.
         payload = users.run(args, users_settings)
     elif args.command == "projects":
-        projects_settings = UsersCliSettings()  # type: ignore[call-arg]  # Loaded from environment.
+        projects_settings = DatabaseSettings()  # type: ignore[call-arg]  # Loaded from environment.
         payload = projects.run(args, projects_settings)
     else:
         settings = AssetCliSettings()  # type: ignore[call-arg]  # Loaded from environment.

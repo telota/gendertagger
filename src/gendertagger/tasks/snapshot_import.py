@@ -5,13 +5,12 @@ from __future__ import annotations
 import random
 from datetime import UTC, datetime
 from functools import lru_cache, partial
-from pathlib import Path
 from typing import Any
 from weakref import finalize
 
 from celery import shared_task
-from pydantic import Field
 
+from gendertagger.config.settings import RuntimeSettings
 from gendertagger.db.session import create_database_engine, create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.ingestion.tei import TeiPersonParser
@@ -23,18 +22,10 @@ from gendertagger.services.snapshot_import import (
     TransientSnapshotImportError,
 )
 from gendertagger.storage.local import LocalArtifactStorage
-from gendertagger.tasks.execution import WorkerSettings
 
 EXECUTE_SNAPSHOT_IMPORT_TASK_NAME = "gendertagger.tasks.execute_snapshot_import"
 _RETRY_BASE_SECONDS = 2.0
 _RETRY_MAX_SECONDS = 60.0
-
-
-class SnapshotImportWorkerSettings(WorkerSettings):
-    """Validated database, artifact-storage, and import worker settings."""
-
-    artifact_root: Path = Path("data/artifacts")
-    tei_import_batch_record_count: int = Field(default=500, gt=0, le=10_000)
 
 
 def _retry_countdown(retries: int) -> float:
@@ -46,7 +37,7 @@ def _retry_countdown(retries: int) -> float:
 @lru_cache(maxsize=1)
 def _snapshot_import_executor() -> SnapshotImportExecutor:
     """Build the process-wide snapshot-import executor from worker settings."""
-    settings = SnapshotImportWorkerSettings()  # type: ignore[call-arg]
+    settings = RuntimeSettings()  # type: ignore[call-arg]  # Values come from settings sources.
     engine = create_database_engine(settings.database_url.get_secret_value())
     session_factory = create_session_factory(engine)
     unit_of_work_factory: UnitOfWorkFactory = partial(SqlAlchemyUnitOfWork, session_factory)

@@ -8,6 +8,7 @@ from celery.exceptions import Retry
 from pydantic import SecretStr, ValidationError
 
 import gendertagger.tasks.snapshot_import as snapshot_import_task
+from gendertagger.config.settings import RuntimeSettings
 from gendertagger.models.project import SnapshotImportTaskMessage
 from gendertagger.services.snapshot_import import (
     DEFAULT_MAX_SNAPSHOT_IMPORT_ATTEMPTS,
@@ -63,7 +64,7 @@ def test_task_retries_only_transient_import_failures(
 
 
 def test_worker_settings_share_the_api_artifact_and_batch_configuration(tmp_path: Path) -> None:
-    settings = snapshot_import_task.SnapshotImportWorkerSettings(
+    settings = RuntimeSettings(
         database_url=SecretStr(DATABASE_URL),
         artifact_root=tmp_path,
         tei_import_batch_record_count=123,
@@ -73,7 +74,7 @@ def test_worker_settings_share_the_api_artifact_and_batch_configuration(tmp_path
     assert settings.tei_import_batch_record_count == 123
 
     with pytest.raises(ValidationError, match="greater than 0"):
-        snapshot_import_task.SnapshotImportWorkerSettings(
+        RuntimeSettings(
             database_url=SecretStr(DATABASE_URL),
             tei_import_batch_record_count=0,
         )

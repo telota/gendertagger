@@ -10,16 +10,12 @@ from __future__ import annotations
 import random
 from datetime import UTC, datetime
 from functools import lru_cache, partial
-from pathlib import Path
 from typing import Any
 from weakref import finalize
 
 from celery import shared_task
-from pydantic import SecretStr, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from sqlalchemy.engine import make_url
-from sqlalchemy.exc import ArgumentError
 
+from gendertagger.config.settings import RuntimeSettings
 from gendertagger.db.session import create_database_engine, create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.models.run import TaskBatchMessage
@@ -45,38 +41,10 @@ def _retry_countdown(retries: int) -> float:
     return random.uniform(0.0, ceiling)  # noqa: S311 - retry jitter is not security-sensitive
 
 
-class WorkerSettings(BaseSettings):
-    """Validated worker settings loaded from ``GENDERTAGGER_*`` variables."""
-
-    model_config = SettingsConfigDict(
-        env_prefix="GENDERTAGGER_",
-        extra="ignore",
-        frozen=True,
-        hide_input_in_errors=True,
-    )
-
-    database_url: SecretStr
-    artifact_root: Path = Path("data/artifacts")
-    model_cache_root: Path = Path("data/model-cache")
-
-    @field_validator("database_url")
-    @classmethod
-    def _validate_database_url(cls, value: SecretStr) -> SecretStr:
-        try:
-            database_url = make_url(value.get_secret_value())
-        except ArgumentError as error:
-            msg = "database_url must be a valid SQLAlchemy URL"
-            raise ValueError(msg) from error
-        if database_url.drivername != "postgresql+psycopg":
-            msg = "database_url must use the postgresql+psycopg driver"
-            raise ValueError(msg)
-        return value
-
-
 @lru_cache(maxsize=1)
 def _batch_executor() -> BatchExecutor:
     """Build the process-wide batch executor from worker settings once."""
-    settings = WorkerSettings()  # type: ignore[call-arg]  # Values come from settings sources.
+    settings = RuntimeSettings()  # type: ignore[call-arg]  # Values come from settings sources.
     engine = create_database_engine(settings.database_url.get_secret_value())
     session_factory = create_session_factory(engine)
     unit_of_work_factory: UnitOfWorkFactory = partial(SqlAlchemyUnitOfWork, session_factory)

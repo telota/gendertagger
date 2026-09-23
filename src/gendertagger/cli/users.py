@@ -12,7 +12,7 @@ from uuid import UUID
 
 from pydantic import JsonValue
 
-from gendertagger.cli.settings import UsersCliSettings
+from gendertagger.config.settings import DatabaseSettings
 from gendertagger.db.session import create_database_engine, create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.models.auth import normalize_username, validate_local_password_length
@@ -53,7 +53,7 @@ def add_parser(commands: _SubParsersAction[argparse.ArgumentParser]) -> None:
     reset_password.add_argument("--password", help="Omit to generate and print a random password.")
 
 
-def run(args: argparse.Namespace, settings: UsersCliSettings) -> str:
+def run(args: argparse.Namespace, settings: DatabaseSettings) -> str:
     """Provision or reset one local-account user (ADR-0031) and emit the result as JSON.
 
     Account provisioning is deliberately CLI-only: no v1 frontend screen manages users, so there

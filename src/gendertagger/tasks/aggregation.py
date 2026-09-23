@@ -14,6 +14,7 @@ from weakref import finalize
 
 from celery import shared_task
 
+from gendertagger.config.settings import RuntimeSettings
 from gendertagger.db.session import create_database_engine, create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.models.aggregation import AggregationTaskMessage
@@ -23,7 +24,6 @@ from gendertagger.services.aggregation_execution import (
     TransientAggregationError,
 )
 from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
-from gendertagger.tasks.execution import WorkerSettings
 
 EXECUTE_AGGREGATION_TASK_NAME = "gendertagger.tasks.execute_aggregation"
 _RETRY_BASE_SECONDS = 2.0
@@ -39,7 +39,7 @@ def _retry_countdown(retries: int) -> float:
 @lru_cache(maxsize=1)
 def _aggregation_executor() -> AggregationExecutor:
     """Build the process-wide aggregation executor from worker settings once."""
-    settings = WorkerSettings()  # type: ignore[call-arg]  # Values come from settings sources.
+    settings = RuntimeSettings()  # type: ignore[call-arg]  # Values come from settings sources.
     engine = create_database_engine(settings.database_url.get_secret_value())
     session_factory = create_session_factory(engine)
     unit_of_work_factory: UnitOfWorkFactory = partial(SqlAlchemyUnitOfWork, session_factory)

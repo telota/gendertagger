@@ -13,23 +13,16 @@ from urllib.parse import urlsplit
 from celery import Celery
 from kombu import Queue
 from pydantic import SecretStr, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from gendertagger.config.settings import GendertaggerSettings
 from gendertagger.models.queues import CLASSIFICATION_QUEUES, DEFAULT_QUEUE
 from gendertagger.utils.logging import configure_logging
 
 _REDIS_SCHEMES = frozenset({"redis", "rediss"})
 
 
-class CelerySettings(BaseSettings):
+class CelerySettings(GendertaggerSettings):
     """Validated broker settings loaded from ``GENDERTAGGER_*`` variables."""
-
-    model_config = SettingsConfigDict(
-        env_prefix="GENDERTAGGER_",
-        extra="ignore",
-        frozen=True,
-        hide_input_in_errors=True,
-    )
 
     celery_broker_url: SecretStr = SecretStr("redis://localhost:6379/0")
     celery_result_backend: SecretStr | None = None

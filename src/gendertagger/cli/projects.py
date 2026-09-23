@@ -7,7 +7,7 @@ import json
 from argparse import _SubParsersAction
 from functools import partial
 
-from gendertagger.cli.settings import UsersCliSettings
+from gendertagger.config.settings import DatabaseSettings
 from gendertagger.db.session import create_database_engine, create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.models.auth import normalize_username
@@ -36,7 +36,7 @@ def add_parser(commands: _SubParsersAction[argparse.ArgumentParser]) -> None:
     list_members.add_argument("--project", required=True, help="Project slug.")
 
 
-def run(args: argparse.Namespace, settings: UsersCliSettings) -> str:
+def run(args: argparse.Namespace, settings: DatabaseSettings) -> str:
     """Grant, revoke, or list project memberships (ADR-0033) and emit the result as JSON.
 
     Projects are addressed by slug and members by local-account username. The admin-only
