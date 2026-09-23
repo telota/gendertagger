@@ -396,3 +396,16 @@ preserved and no backslash in the target. Documentation and whitespace checks pa
 **Build note for the authors:** This resolves the DOI-related build error recorded in earlier
 entries. The temporary PDF has 22 pages. The manuscript PDF and build outputs in the working tree
 were not replaced.
+
+## 2026-09-23: Reviewer I16 - Internal reference in a footnote
+
+**Request:** Move the inline link at submitted manuscript line 306 into a footnote.
+
+**Changes:** Moved the reference to the TEI example from the running text of the locally hosted LLM
+paragraph in [article.tex](article.tex) into a footnote: "See the example person entry in
+Section~\ref{sec:tei-encoding}." The parenthetical examples and model citation are unchanged.
+
+**Response to the reviewer:** We moved the internal cross-reference to the TEI example into a
+footnote and shortened the surrounding sentence accordingly.
+
+**Status:** Addressed in the local working tree; I16 is marked complete.

@@ -53,7 +53,7 @@ Source: [Reviewer C's annotated PDF](C-klappenbach,neuber,westphal_2026_genderta
 - [x] **I14 - Lines 238-241:** Justify using GND alone and discuss alternatives such as Wikidata,
   VIAF, and Getty ULAN.
 - [x] **I15 - Footnotes 5 and 6:** Add access dates.
-- [ ] **I16 - Line 306:** Move the inline link into a footnote.
+- [x] **I16 - Line 306:** Move the inline link into a footnote.
 - [x] **I17 - Line 347:** Translate *Tochter des ...*.
 - [x] **I18 - Line 400:** Translate *Frau des ...* and *Schwester von ...*.
 - [x] **I19 - Line 427:** Translate *Tochter* and *Frau des ...*.
