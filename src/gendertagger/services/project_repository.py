@@ -89,10 +89,6 @@ class ProjectRepository(Protocol):
         """Return source members in canonical ordinal order."""
         ...
 
-    def begin_snapshot_import(self, snapshot_id: UUID) -> DatasetSnapshot:
-        """Move a pending snapshot into its importing state."""
-        ...
-
     def claim_snapshot_import(self, snapshot_id: UUID) -> DatasetSnapshot | None:
         """Atomically claim a pending snapshot, or return ``None`` if already claimed."""
         ...

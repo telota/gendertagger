@@ -18,7 +18,6 @@ from gendertagger.models.run import (
     Run,
     RunCreate,
     TaskBatch,
-    TaskBatchCreate,
     TaskBatchPlan,
 )
 from gendertagger.services.pagination import CreationPosition
@@ -55,10 +54,6 @@ class RunRepository(Protocol):
 
     def list_method_executions(self, run_id: UUID) -> list[MethodExecution]:
         """Return a run's method executions in stable order."""
-        ...
-
-    def add_task_batch(self, command: TaskBatchCreate) -> TaskBatch:
-        """Persist one task batch beneath a locked non-terminal execution."""
         ...
 
     def get_task_batch(self, task_batch_id: UUID) -> TaskBatch | None:

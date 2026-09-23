@@ -281,14 +281,6 @@ class SqlAlchemyProjectRepository:
         )
         return tuple(self._source_member_from_row(row) for row in rows)
 
-    def begin_snapshot_import(self, snapshot_id: UUID) -> DatasetSnapshot:
-        """Lock and move a pending snapshot to importing."""
-        row = self._locked_snapshot(snapshot_id)
-        self._require_snapshot_status(row, DatasetSnapshotStatus.pending)
-        row.status = DatasetSnapshotStatus.importing
-        self._session.flush()
-        return self._snapshot_from_row(row)
-
     def claim_snapshot_import(self, snapshot_id: UUID) -> DatasetSnapshot | None:
         """Atomically claim a pending snapshot for one import attempt.
 

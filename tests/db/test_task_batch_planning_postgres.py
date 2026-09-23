@@ -75,7 +75,7 @@ def _ready_execution(
             )
         ],
     )
-    projects.begin_snapshot_import(snapshot.id)
+    assert projects.claim_snapshot_import(snapshot.id) is not None
     projects.add_imported_person_records(
         snapshot.id,
         [

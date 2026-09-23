@@ -46,8 +46,8 @@ from gendertagger.models.run import (
     Run,
     RunCreate,
     TaskBatch,
-    TaskBatchCreate,
     TaskBatchMessage,
+    TaskBatchPlan,
 )
 from gendertagger.services.persistence_errors import (
     InvalidResourceStateError,
@@ -107,7 +107,7 @@ def _execution_context(
             )
         ],
     )
-    projects.begin_snapshot_import(snapshot.id)
+    assert projects.claim_snapshot_import(snapshot.id) is not None
     projects.add_imported_person_records(
         snapshot.id,
         [
@@ -153,14 +153,8 @@ def _execution_context(
             total_count=2,
         )
     )
-    batch = runs.add_task_batch(
-        TaskBatchCreate(
-            method_execution_id=execution.id,
-            batch_index=0,
-            queue_name="cpu",
-            record_offset=0,
-            record_count=1,
-        )
+    (batch,) = runs.create_task_batches(
+        execution.id, [TaskBatchPlan(batch_index=0, record_offset=0, record_count=1)]
     )
     if scheduled:
         run = runs.mark_run_queued(run.id)
@@ -428,7 +422,7 @@ def test_snapshot_dispatch_requires_pending_target_and_cpu_queue(
             _snapshot_dispatch_command(snapshot, available_at=now, queue_name="default")
         )
 
-    projects.begin_snapshot_import(snapshot.id)
+    assert projects.claim_snapshot_import(snapshot.id) is not None
     with pytest.raises(InvalidResourceStateError, match="is not dispatchable"):
         repository.ensure_dispatch(_snapshot_dispatch_command(snapshot, available_at=now))
 
@@ -713,7 +707,7 @@ def test_reconciler_does_not_rearm_snapshot_claimed_by_import_worker(
         lease_owner="relay-1",
         published_at=now,
     )
-    projects.begin_snapshot_import(snapshot.id)
+    assert projects.claim_snapshot_import(snapshot.id) is not None
 
     assert (
         repository.rearm_stale_published(
@@ -804,14 +798,8 @@ def test_claim_available_skips_rows_locked_by_another_relay(
     now = datetime.now(UTC)
     with Session(postgres_engine, autoflush=False, expire_on_commit=False) as seed_session:
         runs, _, execution, first_batch = _execution_context(seed_session)
-        second_batch = runs.add_task_batch(
-            TaskBatchCreate(
-                method_execution_id=execution.id,
-                batch_index=1,
-                queue_name="cpu",
-                record_offset=1,
-                record_count=1,
-            )
+        _, second_batch = runs.create_task_batches(
+            execution.id, [TaskBatchPlan(batch_index=1, record_offset=1, record_count=1)]
         )
         seed_repository = SqlAlchemyDispatchRepository(seed_session)
         seed_repository.ensure_dispatch(

@@ -75,7 +75,7 @@ from gendertagger.models.run import (
     Prediction,
     PredictionWrite,
     RunCreate,
-    TaskBatchCreate,
+    TaskBatchPlan,
 )
 from gendertagger.models.user import User, UserCreate
 from gendertagger.services.artifact_repository import AmbiguousArtifactError
@@ -226,7 +226,7 @@ def test_person_records_require_fields_matching_the_snapshot_profile(
             )
         ],
     )
-    projects.begin_snapshot_import(snapshot.id)
+    assert projects.claim_snapshot_import(snapshot.id) is not None
 
     with pytest.raises(InvalidResourceStateError, match=reason):
         projects.add_imported_person_records(
@@ -433,7 +433,7 @@ def test_modern_non_loose_source_member_must_be_primary_artifact(
             )
         ],
     )
-    projects.begin_snapshot_import(snapshot.id)
+    assert projects.claim_snapshot_import(snapshot.id) is not None
     ready = projects.complete_snapshot_import(snapshot.id, ready_at=datetime.now(UTC))
 
     assert ready.record_count == 0
@@ -479,7 +479,7 @@ def test_ready_transition_rejects_missing_or_malformed_modern_source_sets(
             import_config=modern_import_config(),
         )
     )
-    projects.begin_snapshot_import(missing_members.id)
+    assert projects.claim_snapshot_import(missing_members.id) is not None
     with pytest.raises(InvalidResourceStateError, match="complete source-member set"):
         projects.complete_snapshot_import(missing_members.id, ready_at=datetime.now(UTC))
 
@@ -504,7 +504,7 @@ def test_ready_transition_rejects_missing_or_malformed_modern_source_sets(
         )
     )
     db_session.flush()
-    projects.begin_snapshot_import(wrong_primary.id)
+    assert projects.claim_snapshot_import(wrong_primary.id) is not None
     with pytest.raises(InvalidResourceStateError, match="primary source artifact"):
         projects.complete_snapshot_import(wrong_primary.id, ready_at=datetime.now(UTC))
 
@@ -539,7 +539,7 @@ def test_ready_transition_rejects_missing_or_malformed_modern_source_sets(
         )
     )
     db_session.flush()
-    projects.begin_snapshot_import(ordinal_gap.id)
+    assert projects.claim_snapshot_import(ordinal_gap.id) is not None
     with pytest.raises(InvalidResourceStateError, match="contiguous"):
         projects.complete_snapshot_import(ordinal_gap.id, ready_at=datetime.now(UTC))
 
@@ -589,7 +589,7 @@ def test_ready_transition_rechecks_modern_parser_provenance(db_session: Session)
     assert row is not None
     row.parser_version = "tei_parser_v3"
     db_session.flush()
-    projects.begin_snapshot_import(snapshot.id)
+    assert projects.claim_snapshot_import(snapshot.id) is not None
 
     with pytest.raises(InvalidResourceStateError, match="parser version"):
         projects.complete_snapshot_import(snapshot.id, ready_at=datetime.now(UTC))
@@ -690,7 +690,7 @@ def test_source_members_and_imported_person_provenance_round_trip(db_session: Se
     assert [member.logical_name for member in persisted_members] == ["A.xml", "B.xml"]
     assert projects.list_snapshot_source_members(snapshot.id) == persisted_members
 
-    projects.begin_snapshot_import(snapshot.id)
+    assert projects.claim_snapshot_import(snapshot.id) is not None
     with pytest.raises(InvalidResourceStateError, match="not attached"):
         projects.add_imported_person_records(
             snapshot.id,
@@ -776,7 +776,7 @@ def test_source_members_and_imported_person_provenance_round_trip(db_session: Se
             )
         ],
     )
-    projects.begin_snapshot_import(archive_snapshot.id)
+    assert projects.claim_snapshot_import(archive_snapshot.id) is not None
 
     assert (
         projects.add_imported_person_records(
@@ -840,7 +840,7 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
             )
         ],
     )
-    projects.begin_snapshot_import(snapshot.id)
+    assert projects.claim_snapshot_import(snapshot.id) is not None
     assert (
         projects.add_imported_person_records(
             snapshot.id,
@@ -915,14 +915,8 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
             total_count=1,
         )
     )
-    batch = runs.add_task_batch(
-        TaskBatchCreate(
-            method_execution_id=execution.id,
-            batch_index=0,
-            queue_name="cpu",
-            record_offset=0,
-            record_count=1,
-        )
+    (batch,) = runs.create_task_batches(
+        execution.id, [TaskBatchPlan(batch_index=0, record_offset=0, record_count=1)]
     )
     runs.mark_run_queued(run.id)
     runs.mark_run_started(run.id, started_at=now)
@@ -1003,14 +997,9 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
             )
         )
         execution_ids.append(additional_execution.id)
-        additional_batch = runs.add_task_batch(
-            TaskBatchCreate(
-                method_execution_id=additional_execution.id,
-                batch_index=0,
-                queue_name="cpu",
-                record_offset=0,
-                record_count=1,
-            )
+        (additional_batch,) = runs.create_task_batches(
+            additional_execution.id,
+            [TaskBatchPlan(batch_index=0, record_offset=0, record_count=1)],
         )
         runs.mark_execution_queued(additional_execution.id)
         runs.mark_execution_started(additional_execution.id, started_at=now)

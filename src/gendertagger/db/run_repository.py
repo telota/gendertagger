@@ -29,7 +29,6 @@ from gendertagger.models.run import (
     Run,
     RunCreate,
     TaskBatch,
-    TaskBatchCreate,
     TaskBatchPlan,
 )
 from gendertagger.services.pagination import CreationPosition
@@ -194,48 +193,6 @@ class SqlAlchemyRunRepository:
             .order_by(MethodExecutionRow.method_name)
         )
         return [self._method_execution_from_row(row) for row in rows]
-
-    def add_task_batch(self, command: TaskBatchCreate) -> TaskBatch:
-        """Persist and flush one retryable task batch without committing."""
-        execution = self._session.scalar(
-            select(MethodExecutionRow)
-            .where(MethodExecutionRow.id == command.method_execution_id)
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        )
-        if execution is None:
-            msg = f"method execution {command.method_execution_id} does not exist"
-            raise ResourceNotFoundError(msg)
-        if execution.status not in _EXECUTION_CHILD_CREATION_STATUSES:
-            msg = (
-                f"method execution {command.method_execution_id} cannot add task batches "
-                f"from {execution.status.value}"
-            )
-            raise InvalidResourceStateError(msg)
-        if execution.queue_name != command.queue_name:
-            msg = "task batch queue must match its method execution queue"
-            raise InvalidResourceStateError(msg)
-
-        row = TaskBatchRow(
-            method_execution_id=command.method_execution_id,
-            batch_index=command.batch_index,
-            status=TaskBatchStatus.pending,
-            queue_name=command.queue_name,
-            record_offset=command.record_offset,
-            record_count=command.record_count,
-            worker_task_id=None,
-            attempt_count=0,
-            success_count=0,
-            abstain_count=0,
-            error_count=0,
-            started_at=None,
-            finished_at=None,
-            failure_class=None,
-            failure_diagnostic=None,
-        )
-        self._session.add(row)
-        self._session.flush()
-        return self._task_batch_from_row(row)
 
     def get_task_batch(self, task_batch_id: UUID) -> TaskBatch | None:
         """Return a task batch contract by ID without exposing its row."""

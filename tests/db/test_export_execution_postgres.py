@@ -140,7 +140,7 @@ def test_add_export_rejects_an_incomplete_aggregation(db_session: Session) -> No
             )
         ],
     )
-    projects.begin_snapshot_import(snapshot.id)
+    assert projects.claim_snapshot_import(snapshot.id) is not None
     projects.complete_snapshot_import(snapshot.id, ready_at=NOW)
     runs = SqlAlchemyRunRepository(db_session)
     other_run = runs.add_run(
