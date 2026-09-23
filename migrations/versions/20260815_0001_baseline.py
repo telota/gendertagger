@@ -1699,6 +1699,8 @@ def upgrade() -> None:
                     WHEN 'method_executions' THEN NEW.status = 'pending'
                     WHEN 'task_batches' THEN NEW.status = 'pending'
                     WHEN 'aggregation_executions' THEN NEW.status = 'pending'
+                    WHEN 'evaluation_executions' THEN NEW.status = 'pending'
+                    WHEN 'export_executions' THEN NEW.status = 'pending'
                     ELSE false
                 END;
             ELSIF OLD.status IS NOT DISTINCT FROM NEW.status THEN
@@ -1721,6 +1723,16 @@ def upgrade() -> None:
                         'cancelled'
                     )
                     WHEN 'aggregation_executions' THEN OLD.status IN (
+                        'completed',
+                        'failed',
+                        'cancelled'
+                    )
+                    WHEN 'evaluation_executions' THEN OLD.status IN (
+                        'completed',
+                        'failed',
+                        'cancelled'
+                    )
+                    WHEN 'export_executions' THEN OLD.status IN (
                         'completed',
                         'failed',
                         'cancelled'
@@ -1789,6 +1801,28 @@ def upgrade() -> None:
                             OLD.status IN ('pending', 'queued')
                             AND NEW.status = 'cancelled'
                         )
+                    WHEN 'evaluation_executions' THEN
+                        (OLD.status = 'pending' AND NEW.status IN ('queued', 'running'))
+                        OR (OLD.status = 'queued' AND NEW.status = 'running')
+                        OR (
+                            OLD.status = 'running'
+                            AND NEW.status IN ('completed', 'failed', 'cancelled')
+                        )
+                        OR (
+                            OLD.status IN ('pending', 'queued')
+                            AND NEW.status = 'cancelled'
+                        )
+                    WHEN 'export_executions' THEN
+                        (OLD.status = 'pending' AND NEW.status IN ('queued', 'running'))
+                        OR (OLD.status = 'queued' AND NEW.status = 'running')
+                        OR (
+                            OLD.status = 'running'
+                            AND NEW.status IN ('completed', 'failed', 'cancelled')
+                        )
+                        OR (
+                            OLD.status IN ('pending', 'queued')
+                            AND NEW.status = 'cancelled'
+                        )
                     ELSE false
                 END;
             END IF;
@@ -1834,7 +1868,11 @@ def upgrade() -> None:
                 END IF;
             END IF;
 
-            IF TG_OP = 'INSERT' AND TG_TABLE_NAME = 'aggregation_executions' THEN
+            IF TG_OP = 'INSERT' AND TG_TABLE_NAME IN (
+                'aggregation_executions',
+                'evaluation_executions',
+                'export_executions'
+            ) THEN
                 PERFORM 1
                 FROM runs
                 WHERE id = NEW.run_id
@@ -1842,8 +1880,8 @@ def upgrade() -> None:
                 IF NOT FOUND THEN
                     RAISE EXCEPTION USING
                         ERRCODE = '23514',
-                        CONSTRAINT = 'aggregation_executions_parent_run_exists',
-                        MESSAGE = 'an aggregation requires an existing parent run';
+                        CONSTRAINT = format('%s_parent_run_exists', TG_TABLE_NAME),
+                        MESSAGE = format('%s rows require an existing parent run', TG_TABLE_NAME);
                 END IF;
             END IF;
 
@@ -1939,6 +1977,16 @@ def upgrade() -> None:
                     'failed',
                     'cancelled'
                 )
+                WHEN 'evaluation_executions' THEN NEW.status IN (
+                    'completed',
+                    'failed',
+                    'cancelled'
+                )
+                WHEN 'export_executions' THEN NEW.status IN (
+                    'completed',
+                    'failed',
+                    'cancelled'
+                )
                 ELSE false
             END;
             started_at_required := CASE TG_TABLE_NAME
@@ -1956,6 +2004,16 @@ def upgrade() -> None:
                 )
                 WHEN 'task_batches' THEN NEW.status IN ('running', 'completed', 'failed')
                 WHEN 'aggregation_executions' THEN NEW.status IN (
+                    'running',
+                    'completed',
+                    'failed'
+                )
+                WHEN 'evaluation_executions' THEN NEW.status IN (
+                    'running',
+                    'completed',
+                    'failed'
+                )
+                WHEN 'export_executions' THEN NEW.status IN (
                     'running',
                     'completed',
                     'failed'
@@ -3005,9 +3063,108 @@ def upgrade() -> None:
         ondelete="RESTRICT",
     )
 
+    # Evaluation and export executions are guarded like aggregation executions: the shared
+    # lifecycle function above covers both tables, provenance is immutable after creation, and
+    # evaluation membership is insert-only while pending.
+    op.execute(
+        """CREATE TRIGGER trg_evaluation_executions_lifecycle
+        BEFORE INSERT OR UPDATE OR DELETE ON evaluation_executions
+        FOR EACH ROW EXECUTE FUNCTION gendertagger_protect_lifecycle_row()"""
+    )
+    op.execute(
+        """CREATE TRIGGER trg_evaluation_executions_provenance
+        BEFORE UPDATE ON evaluation_executions
+        FOR EACH ROW EXECUTE FUNCTION gendertagger_protect_provenance_columns(
+            'status',
+            'report_artifact_id',
+            'started_at',
+            'finished_at',
+            'failure_class',
+            'failure_diagnostic'
+        )"""
+    )
+    op.execute(
+        """CREATE TRIGGER trg_export_executions_lifecycle
+        BEFORE INSERT OR UPDATE OR DELETE ON export_executions
+        FOR EACH ROW EXECUTE FUNCTION gendertagger_protect_lifecycle_row()"""
+    )
+    op.execute(
+        """CREATE TRIGGER trg_export_executions_provenance
+        BEFORE UPDATE ON export_executions
+        FOR EACH ROW EXECUTE FUNCTION gendertagger_protect_provenance_columns(
+            'status',
+            'manifest_artifact_id',
+            'started_at',
+            'finished_at',
+            'failure_class',
+            'failure_diagnostic'
+        )"""
+    )
+    op.execute(
+        """
+        CREATE FUNCTION gendertagger_validate_evaluation_membership()
+        RETURNS trigger
+        LANGUAGE plpgsql
+        AS $$
+        DECLARE
+            protected_run_id uuid;
+        BEGIN
+            IF TG_OP <> 'INSERT' THEN
+                RAISE EXCEPTION USING
+                    ERRCODE = '55000',
+                    MESSAGE = 'evaluation method-execution membership is immutable';
+            END IF;
+
+            -- Advance the parent tuple version so a fixed-snapshot status transition cannot
+            -- miss committed membership, as for aggregation membership.
+            UPDATE evaluation_executions AS evaluation
+            SET status = evaluation.status
+            WHERE evaluation.id = NEW.evaluation_execution_id
+              AND evaluation.status = 'pending'
+            RETURNING evaluation.run_id INTO protected_run_id;
+
+            IF NOT FOUND THEN
+                RAISE EXCEPTION USING
+                    ERRCODE = '55000',
+                    MESSAGE = 'evaluation membership may only be added while pending';
+            END IF;
+
+            PERFORM 1
+            FROM method_executions AS execution
+            WHERE execution.id = NEW.method_execution_id
+              AND execution.run_id = protected_run_id
+              AND execution.status IN ('completed', 'completed_with_errors')
+            FOR SHARE OF execution;
+
+            IF NOT FOUND THEN
+                RAISE EXCEPTION USING
+                    ERRCODE = '23514',
+                    CONSTRAINT = 'evaluation_membership_execution_ownership',
+                    MESSAGE = 'evaluation members must be completed executions from its run';
+            END IF;
+            RETURN NEW;
+        END;
+        $$
+        """
+    )
+    op.execute(
+        """CREATE TRIGGER trg_evaluation_methods_validate_mutation
+        BEFORE INSERT OR UPDATE OR DELETE ON evaluation_method_executions
+        FOR EACH ROW EXECUTE FUNCTION gendertagger_validate_evaluation_membership()"""
+    )
+
 
 def downgrade() -> None:
     """Remove the initial database schema."""
+    # Evaluation and export execution guards
+    op.execute(
+        "DROP TRIGGER trg_evaluation_methods_validate_mutation ON evaluation_method_executions"
+    )
+    op.execute("DROP FUNCTION gendertagger_validate_evaluation_membership()")
+    op.execute("DROP TRIGGER trg_export_executions_provenance ON export_executions")
+    op.execute("DROP TRIGGER trg_export_executions_lifecycle ON export_executions")
+    op.execute("DROP TRIGGER trg_evaluation_executions_provenance ON evaluation_executions")
+    op.execute("DROP TRIGGER trg_evaluation_executions_lifecycle ON evaluation_executions")
     # Squashed from 20260922_0005_project_working_aggregation.py
     op.drop_constraint(
         op.f("fk_projects_working_aggregation_execution_id_aggregation_executions"),

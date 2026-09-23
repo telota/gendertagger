@@ -96,6 +96,12 @@ Creation-time scientific provenance is immutable. While work is active, only ope
 progress, attempt/worker metadata, tallies, timestamps, and sanitized failure details may change. Once a
 resource is terminal, the entire row is sealed. Lifecycle resources are not deleted to rewrite history.
 
+These database guards cover runs, method executions, task batches, and aggregation, evaluation, and export
+executions alike. For evaluations and exports, the only fields that may change after creation are the
+lifecycle columns plus the report or manifest artifact that marks completion. Aggregation and evaluation
+method-execution membership is insert-only, may be added only while the execution is pending, and may
+reference only completed executions of the same run.
+
 ## Transactional dispatch outbox
 
 Each outbox row belongs to exactly one durable work target: task batch, aggregation execution, dataset
