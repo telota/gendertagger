@@ -186,6 +186,8 @@ def test_project_and_ready_snapshot_round_trip_through_http(
 
     pending_people_response = client.get(f"/api/v1/snapshots/{snapshot_id}/people")
     assert pending_people_response.status_code == 409
+    pending_person_response = client.get(f"/api/v1/snapshots/{snapshot_id}/people/p1")
+    assert pending_person_response.status_code == 409
 
     with unit_of_work_factory() as unit_of_work:
         dispatch = unit_of_work.dispatches.get_dispatch_for_snapshot(snapshot_id)
@@ -246,6 +248,13 @@ def test_project_and_ready_snapshot_round_trip_through_http(
     ]
     assert first_page["has_more"] is True
     assert first_page["next_cursor"]
+
+    person_response = client.get(f"/api/v1/snapshots/{snapshot_id}/people/p1")
+    assert person_response.status_code == 200
+    assert person_response.json() == first_page["items"][0]
+    missing_person_response = client.get(f"/api/v1/snapshots/{snapshot_id}/people/missing")
+    assert missing_person_response.status_code == 404
+    assert missing_person_response.json()["error"]["code"] == "resource_not_found"
 
     second_page = client.get(
         f"/api/v1/snapshots/{snapshot_id}/people",

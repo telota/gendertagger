@@ -166,6 +166,7 @@ _OTHER = str(OTHER_ID)
 PATH_VALUES = {
     "project_id": _ID,
     "snapshot_id": _ID,
+    "tei_id": "p1",
     "run_id": _ID,
     "aggregation_id": _ID,
     "result_id": _OTHER,
@@ -201,6 +202,12 @@ PROJECT_SCOPED_ROUTES = (
     _ScopedRoute("GET", "/snapshots/{snapshot_id}/runs", ProjectScope.snapshot, ProjectRole.viewer),
     _ScopedRoute(
         "GET", "/snapshots/{snapshot_id}/people", ProjectScope.snapshot, ProjectRole.viewer
+    ),
+    _ScopedRoute(
+        "GET",
+        "/snapshots/{snapshot_id}/people/{tei_id}",
+        ProjectScope.snapshot,
+        ProjectRole.viewer,
     ),
     _ScopedRoute(
         "POST",

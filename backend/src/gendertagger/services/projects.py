@@ -242,6 +242,19 @@ class ProjectService:
             )
         return CursorPage(items=items, next_cursor=next_cursor, has_more=has_more)
 
+    def get_person(self, snapshot_id: UUID, tei_id: str) -> PersonRecord:
+        """Return one ready snapshot's person by canonical TEI identity."""
+        snapshot = self.get_snapshot(snapshot_id)
+        if snapshot.status is not DatasetSnapshotStatus.ready:
+            msg = f"dataset snapshot {snapshot_id} is not ready"
+            raise InvalidResourceStateError(msg)
+        with self._unit_of_work_factory() as unit_of_work:
+            person = unit_of_work.projects.get_person_record_by_tei_id(snapshot_id, tei_id)
+        if person is None:
+            msg = f"person {tei_id!r} does not exist in dataset snapshot {snapshot_id}"
+            raise ResourceNotFoundError(msg)
+        return person
+
     def import_snapshot(
         self,
         *,

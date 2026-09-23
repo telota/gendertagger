@@ -371,7 +371,8 @@ order. `PersonRecord` carries `tei_id`, `surname`, `forenames`, `birth`, `death`
   `list_people`. **The former is preferable** and should be the default reading of this screen.
 - **Gap (frontend):** `name_forms`, `alt_names`, `events`, and `external_ids` are rich source-preserving
   fields the detail panel does not use.
-- **Gap (backend):** no single-person read endpoint; the detail panel must reuse a list row or refetch a page.
+- **Resolved (backend):** `GET /snapshots/{snapshot_id}/people/{tei_id}` supports detail reloads and stable
+  person deep links without searching cursor pages.
 
 ### Spielmodus
 

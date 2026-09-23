@@ -390,6 +390,26 @@ def test_project_service_reads_snapshots_and_paginates_ready_people(tmp_path: Pa
         service.get_snapshot(SNAPSHOT_ID)
 
 
+def test_project_service_reads_one_ready_snapshot_person(tmp_path: Path) -> None:
+    project_repository = Mock(spec=ProjectRepository)
+    person = _people()[0]
+    project_repository.get_snapshot.return_value = _snapshot(DatasetSnapshotStatus.ready)
+    project_repository.get_person_record_by_tei_id.return_value = person
+    unit_of_work = StubUnitOfWork(projects=project_repository)
+    service = _project_service(unit_of_work=unit_of_work, artifact_root=tmp_path)
+
+    assert service.get_person(SNAPSHOT_ID, "p1") == person
+    project_repository.get_person_record_by_tei_id.assert_called_once_with(SNAPSHOT_ID, "p1")
+
+    project_repository.get_person_record_by_tei_id.return_value = None
+    with pytest.raises(ResourceNotFoundError, match="'missing'"):
+        service.get_person(SNAPSHOT_ID, "missing")
+
+    project_repository.get_snapshot.return_value = _snapshot(DatasetSnapshotStatus.failed)
+    with pytest.raises(InvalidResourceStateError, match="is not ready"):
+        service.get_person(SNAPSHOT_ID, "p1")
+
+
 def test_project_service_lists_snapshot_source_members(tmp_path: Path) -> None:
     project_repository = Mock(spec=ProjectRepository)
     snapshot = _snapshot(DatasetSnapshotStatus.ready)

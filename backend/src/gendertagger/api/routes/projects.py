@@ -266,6 +266,30 @@ def list_people(
         raise invalid_cursor_error() from error
 
 
+@router.get(
+    "/snapshots/{snapshot_id}/people/{tei_id}",
+    response_model=PersonRecord,
+)
+def get_person(
+    snapshot_id: UUID,
+    tei_id: str,
+    service: Annotated[ProjectService, Depends(get_project_service)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
+) -> PersonRecord:
+    """Read one person by its snapshot-scoped canonical TEI identity."""
+    access.require(ProjectScope.snapshot, snapshot_id, ProjectRole.viewer)
+    try:
+        return service.get_person(snapshot_id, tei_id)
+    except ResourceNotFoundError as error:
+        raise _not_found() from error
+    except InvalidResourceStateError as error:
+        raise ApiRequestError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="resource_conflict",
+            message="The dataset snapshot is not ready.",
+        ) from error
+
+
 def _not_found() -> ApiRequestError:
     return ApiRequestError(
         status_code=status.HTTP_404_NOT_FOUND,

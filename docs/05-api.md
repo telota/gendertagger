@@ -77,6 +77,9 @@ Snapshot acceptance, supported import combinations, and artifact guarantees are 
 `SnapshotSourceMember` records. It provides logical filenames, SHA-256 digests, byte sizes, media types, and
 ordinals for provenance views without serving source bytes or storage locations.
 
+`GET /snapshots/{snapshot_id}/people/{tei_id}` reads one `PersonRecord` by its snapshot-scoped canonical TEI
+identity. It supports stable detail URLs without requiring clients to search cursor pages.
+
 The bounded synchronous `/classify` operation is the deliberate exception to queued scientific execution. It
 persists no Prediction; see
 [ADR-0028](decisions/ADR-0028-synchronous-on-demand-classification-api.md).
