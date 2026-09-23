@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/vue-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, type Ref } from 'vue'
 
 import { unwrap, type components } from '@/api'
@@ -9,18 +9,22 @@ import { snapshotListKey } from './useSnapshots'
 
 export type DatasetSnapshot = components['schemas']['DatasetSnapshot']
 export type SourceFormat = components['schemas']['SourceFormat']
+export type SourcePackaging = components['schemas']['SourcePackaging']
+export type SnapshotUploadLimits = components['schemas']['SnapshotUploadLimits']
 
 const TERMINAL_STATUSES = new Set<DatasetSnapshot['status']>(['ready', 'failed'])
 
 export interface SnapshotImportInput {
   projectId: string
   sourceFormat: SourceFormat
-  file: File
+  packaging: SourcePackaging
+  /** Exactly one file unless `packaging` is `loose`, which repeats the `source` part per file. */
+  files: readonly File[]
 }
 
 /**
- * `POST /projects/{project_id}/snapshots`, single-file packaging only for now — the full
- * `source_format` × `packaging` matrix (folder, GitLab, loose/zip/tar.gz) is a later slice of M3.
+ * `POST /projects/{project_id}/snapshots` for every `source_format` × `packaging` the backend
+ * accepts (tabular formats only with `single`; the choice is the caller's).
  *
  * openapi-fetch's generated body type mirrors the multipart schema as a plain object; the actual
  * request needs a real `FormData` so the browser sets the multipart boundary itself. The cast is
@@ -36,9 +40,9 @@ export function useImportSnapshot() {
     },
     mutationFn: (input: SnapshotImportInput) => {
       const formData = new FormData()
-      formData.append('packaging', 'single')
+      formData.append('packaging', input.packaging)
       formData.append('source_format', input.sourceFormat)
-      formData.append('source', input.file)
+      for (const file of input.files) formData.append('source', file)
       return unwrap(
         client.POST('/api/v1/projects/{project_id}/snapshots', {
           params: { path: { project_id: input.projectId } },
@@ -64,5 +68,19 @@ export function useSnapshotStatus(snapshotId: Ref<string | null>) {
     },
     isTerminal: (snapshot) => TERMINAL_STATUSES.has(snapshot.status),
     enabled: computed(() => snapshotId.value !== null),
+  })
+}
+
+/**
+ * `GET /snapshot-upload-limits`: the deployment's bounds, readable before uploading so they can be
+ * shown up front rather than only reported by a `413` afterwards.
+ */
+export function useSnapshotUploadLimits() {
+  const client = useApiClient()
+
+  return useQuery({
+    queryKey: ['snapshot-upload-limits'] as const,
+    queryFn: () => unwrap(client.GET('/api/v1/snapshot-upload-limits')),
+    staleTime: Infinity,
   })
 }

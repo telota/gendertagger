@@ -9,9 +9,15 @@ import AppListbox from '@/components/base/AppListbox.vue'
 import { useSessionStore } from '@/stores/session'
 
 import { useProject } from './useProjects'
-import { useImportSnapshot, useSnapshotStatus, type SourceFormat } from './useSnapshotImport'
+import {
+  useImportSnapshot,
+  useSnapshotStatus,
+  useSnapshotUploadLimits,
+  type SourceFormat,
+  type SourcePackaging,
+} from './useSnapshotImport'
 
-const { t } = useI18n()
+const { t, n } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
@@ -53,12 +59,49 @@ const sourceFormatOptions: { value: SourceFormat; label: string }[] = [
   { value: 'json', label: 'JSON' },
 ]
 const sourceFormat = ref<SourceFormat>('tei')
-const file = ref<File | null>(null)
+// Only TEI can arrive as several files or as an archive; the backend rejects any other
+// combination ("tabular imports require packaging='single'"), so the choice is not offered.
+const packaging = ref<SourcePackaging>('single')
+const isTei = computed(() => sourceFormat.value === 'tei')
+const packagingOptions = computed<{ value: SourcePackaging; label: string }[]>(() => [
+  { value: 'single', label: t('projects.import.packaging.single') },
+  { value: 'loose', label: t('projects.import.packaging.loose') },
+  { value: 'zip', label: t('projects.import.packaging.zip') },
+  { value: 'tar_gz', label: t('projects.import.packaging.tarGz') },
+])
+const isArchive = computed(() => packaging.value === 'zip' || packaging.value === 'tar_gz')
+
+const files = ref<File[]>([])
+// A new key remounts the file input, which is the only way to clear a native file selection.
+const fileInputKey = ref(0)
 
 function onFileChange(event: Event): void {
   const input = event.target as HTMLInputElement
-  file.value = input.files?.[0] ?? null
+  files.value = Array.from(input.files ?? [])
 }
+
+watch(sourceFormat, (format) => {
+  if (format !== 'tei') packaging.value = 'single'
+})
+// A selection made for one packaging is not valid for another (one file vs. several).
+watch([sourceFormat, packaging], () => {
+  files.value = []
+  fileInputKey.value += 1
+})
+
+const limits = useSnapshotUploadLimits()
+const mebibytes = (bytes: number): string => n(bytes / (1024 * 1024), 'decimal')
+
+// The bounds are the server's to enforce (a 413 is still handled below); checking them first only
+// saves a doomed upload and lets the message name the problem rather than just the request.
+const sizeProblem = computed<'part' | 'total' | null>(() => {
+  const bounds = limits.data.value
+  if (!bounds) return null
+  if (files.value.some((file) => file.size > bounds.max_upload_part_bytes)) return 'part'
+  const total = files.value.reduce((sum, file) => sum + file.size, 0)
+  return total > bounds.max_total_upload_bytes ? 'total' : null
+})
+const canSubmit = computed(() => files.value.length > 0 && sizeProblem.value === null)
 
 const importMutation = useImportSnapshot()
 const snapshotId = ref<string | null>(null)
@@ -79,12 +122,13 @@ function importErrorMessage(error: unknown): string {
 }
 
 async function submit(): Promise<void> {
-  if (!file.value) return
+  if (!canSubmit.value) return
   try {
     const snapshot = await importMutation.mutateAsync({
       projectId: projectId.value,
       sourceFormat: sourceFormat.value,
-      file: file.value,
+      packaging: packaging.value,
+      files: files.value,
     })
     snapshotId.value = snapshot.id
   } catch {
@@ -124,17 +168,61 @@ async function submit(): Promise<void> {
               :label="t('projects.import.format')"
               :options="sourceFormatOptions"
             />
+            <AppListbox
+              v-if="isTei"
+              v-model="packaging"
+              class="import-packaging"
+              :label="t('projects.import.packagingLabel')"
+              :options="packagingOptions"
+            />
             <div class="import-file-field">
               <label for="import-file">{{ t('projects.import.file') }}</label>
-              <input id="import-file" type="file" required @change="onFileChange" />
+              <input
+                id="import-file"
+                :key="fileInputKey"
+                type="file"
+                required
+                :multiple="packaging === 'loose'"
+                aria-describedby="import-limits"
+                @change="onFileChange"
+              />
             </div>
+            <div id="import-limits" class="import-limits">
+              <template v-if="limits.data.value">
+                <p class="import-limits-upload">
+                  {{
+                    t('projects.import.limits.upload', {
+                      part: mebibytes(limits.data.value.max_upload_part_bytes),
+                      total: mebibytes(limits.data.value.max_total_upload_bytes),
+                    })
+                  }}
+                </p>
+                <p v-if="isArchive || packaging === 'loose'" class="import-limits-archive">
+                  {{
+                    t('projects.import.limits.archive', {
+                      members: n(limits.data.value.import_limits.max_member_count, 'integer'),
+                      expanded: mebibytes(limits.data.value.import_limits.max_total_expanded_bytes),
+                    })
+                  }}
+                </p>
+              </template>
+              <p v-else-if="limits.isError.value" class="import-limits-unknown">
+                {{ t('projects.import.limits.unavailable') }}
+              </p>
+            </div>
+            <p v-if="sizeProblem === 'part'" role="alert" class="import-error">
+              {{ t('projects.import.errors.partTooLarge') }}
+            </p>
+            <p v-else-if="sizeProblem === 'total'" role="alert" class="import-error">
+              {{ t('projects.import.errors.totalTooLarge') }}
+            </p>
             <p v-if="importMutation.isError.value" role="alert" class="import-error">
               {{ importErrorMessage(importMutation.error.value) }}
             </p>
             <AppButton
               class="import-submit"
               type="submit"
-              :disabled="!file || importMutation.isPending.value"
+              :disabled="!canSubmit || importMutation.isPending.value"
             >
               {{
                 importMutation.isPending.value
@@ -235,8 +323,18 @@ async function submit(): Promise<void> {
   gap: var(--space-4);
 }
 
-.import-format {
-  width: 12rem;
+.import-format,
+.import-packaging {
+  width: 14rem;
+}
+
+.import-limits {
+  color: var(--text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.import-limits p {
+  margin: 0;
 }
 
 .import-file-field {

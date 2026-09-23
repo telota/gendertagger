@@ -284,15 +284,22 @@ scope — so that part of the criterion is necessarily verified once M3 exists, 
   reads `GET /aggregations/{id}/review-summary`, which needs a run and an aggregation that cannot exist
   before M4.
 - Import with the full `source_format` × `packaging` matrix; the backend derives the import profile.
-  **Partly delivered.** `ImportView` uploads one file (`packaging: "single"`) to
-  `POST /projects/{project_id}/snapshots`, gated to the project's own operators (`current_user_role`, not
-  the global roles D6 gives project creation). The loose (several TEI files), `zip`, and `tar_gz` packagings remain; the wireframe's GitLab source is a v1 scope exclusion (see below), not part of this matrix.
+  **Delivered.** `ImportView` uploads to `POST /projects/{project_id}/snapshots`, gated to the project's
+  own operators (`current_user_role`, not the global roles D6 gives project creation), for every
+  combination the backend accepts: TEI as a `single` file, several `loose` files (repeated `source` parts),
+  a `zip`, or a `tar_gz`; CSV, XLSX, and JSON only as `single` (the backend rejects anything else, so the
+  delivery choice is not offered for them, and changing format or delivery drops a now-invalid file
+  selection). The wireframe's GitLab source is a v1 scope exclusion (see below), not part of this matrix.
 - The asynchronous snapshot lifecycle: `202` → poll → ready or failed, with `failure_diagnostic` surfaced.
   **Delivered**, and, per docs/23's cross-cutting-concerns table, as the general composable that
   aggregations/evaluations/exports will reuse: `composables/usePolledQuery.ts` wraps `useQuery` with a
   `refetchInterval` that stops once a caller-supplied `isTerminal` predicate is met.
-- Upload limits shown before upload and on `413`. **Partly delivered**: a `413` maps to an inline message;
-  `GET /snapshot-upload-limits` is not yet fetched to show the bound before upload.
+- Upload limits shown before upload and on `413`. **Delivered.** `GET /snapshot-upload-limits` is read
+  before anything is chosen and shown in the form (per-file and total bytes; for loose and archive
+  deliveries also the member count and expanded-size bound), tied to the file input with
+  `aria-describedby`. A selection over either bound is refused with an alert and the submit stays disabled;
+  the server still enforces the bounds, and a `413` still maps to an inline message. If the limits cannot be
+  loaded the form says so and does not block.
 - Snapshot provenance: `source_sha256`, `parser_version`, per-member manifest entries. **Delivered.** The
   project overview lists the project's snapshots (`GET /projects/{id}/snapshots`, newest first, cursor-paginated,
   every lifecycle state) with status, record count, parser version, and the full SHA-256; a disclosure per
@@ -300,8 +307,9 @@ scope — so that part of the criterion is necessarily verified once M3 exists, 
   type, size, and checksum. The import screen's `ready` state shows the checksum and links back to the list.
 
 **Exit criterion.** An operator imports a TEI ZIP and a CSV through the browser and sees both snapshots
-reach `ready` with their checksums. Not yet met: today's import is single-file only, so the ZIP half of the
-check cannot be done from the browser yet; checksums are readable.
+reach `ready` with their checksums. **Met** in the frontend: both formats can be imported and their
+checksums read back on the project overview. It has been verified against the mocked contract, not against
+a real backend and worker.
 
 ### M4 — Runs and aggregation
 

@@ -146,8 +146,10 @@ exist before M4.
 `composables/usePolledQuery.ts` — the generic `202` → poll → terminal-state composable
 docs/23-wireframe-ui-inventory.md calls for, built now since it already names four consumers (snapshots,
 aggregations, evaluations, exports). Import is a project-scoped operator action (checked against
-`current_user_role`, not the global roles D6 gives project creation). Only single-file upload is wired up;
-the rest of the `source_format` × `packaging` matrix (loose, zip, tar.gz) is a later slice; the wireframe's GitLab source is a v1 scope exclusion.
+`current_user_role`, not the global roles D6 gives project creation). The form covers the whole
+`source_format` × `packaging` matrix the backend accepts (TEI as single, loose, zip, or tar.gz; CSV, XLSX,
+and JSON as single only) and shows `GET /snapshot-upload-limits` before upload; the wireframe's GitLab
+source is a v1 scope exclusion.
 
 Test-environment note: constructing a `File` for a `FormData` body in a test must use `node:buffer`'s
 `File`, not jsdom's — Vitest's Node-`fetch` compatibility layer can't read a jsdom `File` inside a

@@ -166,7 +166,9 @@
         "validation": "Bitte überprüfen Sie Ihre Eingaben.",
         "tooLarge": "Die Datei überschreitet die zulässige Größe für diese Installation.",
         "network": "Der Server ist nicht erreichbar.",
-        "generic": "Der Import konnte nicht gestartet werden."
+        "generic": "Der Import konnte nicht gestartet werden.",
+        "partTooLarge": "Mindestens eine Datei überschreitet die zulässige Größe je Datei.",
+        "totalTooLarge": "Die Dateien überschreiten zusammen die zulässige Gesamtgröße."
       },
       "status": {
         "pending": "Der Import läuft …",
@@ -174,6 +176,18 @@
         "failedGeneric": "Der Import ist fehlgeschlagen.",
         "pollError": "Der Importstatus konnte nicht geladen werden.",
         "toOverview": "Zur Projektübersicht"
+      },
+      "packagingLabel": "Lieferform",
+      "packaging": {
+        "single": "Einzelne Datei",
+        "loose": "Mehrere TEI-Dateien",
+        "zip": "ZIP-Archiv",
+        "tarGz": "TAR.GZ-Archiv"
+      },
+      "limits": {
+        "upload": "Erlaubt sind bis zu {part} MiB je Datei und {total} MiB insgesamt.",
+        "archive": "Bei mehreren Dateien oder Archiven: höchstens {members} Dateien, zusammen entpackt bis zu {expanded} MiB.",
+        "unavailable": "Die Upload-Grenzen konnten nicht geladen werden; der Server prüft sie beim Hochladen trotzdem."
       }
     },
     "snapshots": {

@@ -166,7 +166,9 @@
         "validation": "Please check your input.",
         "tooLarge": "The file exceeds this installation's allowed size.",
         "network": "The server could not be reached.",
-        "generic": "The import could not be started."
+        "generic": "The import could not be started.",
+        "partTooLarge": "At least one file exceeds the allowed size per file.",
+        "totalTooLarge": "Together the files exceed the allowed total size."
       },
       "status": {
         "pending": "The import is running …",
@@ -174,6 +176,18 @@
         "failedGeneric": "The import failed.",
         "pollError": "The import status could not be loaded.",
         "toOverview": "Back to the project overview"
+      },
+      "packagingLabel": "Delivery",
+      "packaging": {
+        "single": "Single file",
+        "loose": "Several TEI files",
+        "zip": "ZIP archive",
+        "tarGz": "TAR.GZ archive"
+      },
+      "limits": {
+        "upload": "Up to {part} MiB per file and {total} MiB in total are allowed.",
+        "archive": "For several files or archives: at most {members} files, up to {expanded} MiB in total once unpacked.",
+        "unavailable": "The upload limits could not be loaded; the server still checks them on upload."
       }
     },
     "snapshots": {
