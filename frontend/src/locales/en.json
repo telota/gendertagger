@@ -68,6 +68,10 @@
     "serverError": "The server could not be reached.",
     "retry": "Try again"
   },
+  "nav": {
+    "label": "Main navigation",
+    "projects": "Projects"
+  },
   "locale": {
     "label": "Language"
   },
@@ -114,6 +118,35 @@
       "mismatch": "The passwords do not match.",
       "network": "The server could not be reached.",
       "generic": "The password could not be changed."
+    }
+  },
+  "projects": {
+    "title": "Projects",
+    "loading": "Loading …",
+    "loadError": "The projects could not be loaded.",
+    "sessionLoadError": "The session status could not be loaded.",
+    "retry": "Try again",
+    "empty": "There are no projects yet.",
+    "loadMore": "Load more",
+    "role": {
+      "viewer": "Viewer",
+      "reviewer": "Reviewer",
+      "operator": "Operator"
+    },
+    "new": {
+      "action": "New project",
+      "cancel": "Cancel",
+      "displayName": "Name",
+      "slug": "Slug",
+      "description": "Description",
+      "submit": "Create project",
+      "submitting": "Creating …",
+      "errors": {
+        "validation": "Please check your input.",
+        "conflict": "This slug is already in use.",
+        "network": "The server could not be reached.",
+        "generic": "The project could not be created."
+      }
     }
   }
 }

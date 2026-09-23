@@ -7,6 +7,7 @@ import { useSessionStore } from '@/stores/session'
 
 import AppFooter from './AppFooter.vue'
 import AppHeader from './AppHeader.vue'
+import AppSidebar from './AppSidebar.vue'
 
 const session = useSessionStore()
 
@@ -17,9 +18,12 @@ onMounted(() => {
 
 <template>
   <div class="app-shell">
-    <AppHeader />
-    <RouterView />
-    <AppFooter />
+    <AppSidebar />
+    <div class="app-shell-content">
+      <AppHeader />
+      <RouterView />
+      <AppFooter />
+    </div>
     <SessionRecoveryDialog />
   </div>
 </template>
@@ -27,7 +31,13 @@ onMounted(() => {
 <style scoped>
 .app-shell {
   display: flex;
-  flex-direction: column;
   min-height: 100vh;
+}
+
+.app-shell-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
 }
 </style>

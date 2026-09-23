@@ -32,7 +32,6 @@ function retry(): void {
 
 <template>
   <header class="app-header">
-    <RouterLink :to="{ name: 'home' }" class="app-header-brand">{{ t('app.title') }}</RouterLink>
     <div class="app-header-controls">
       <AppListbox
         class="app-header-switcher app-header-switcher--locale"
@@ -78,17 +77,11 @@ function retry(): void {
 .app-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-4);
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border);
   background: var(--panel);
-}
-
-.app-header-brand {
-  font-weight: var(--weight-semibold);
-  color: var(--text-primary);
-  text-decoration: none;
 }
 
 .app-header-controls {

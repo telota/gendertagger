@@ -68,6 +68,10 @@
     "serverError": "Der Server ist nicht erreichbar.",
     "retry": "Erneut versuchen"
   },
+  "nav": {
+    "label": "Hauptnavigation",
+    "projects": "Projekte"
+  },
   "locale": {
     "label": "Sprache"
   },
@@ -114,6 +118,35 @@
       "mismatch": "Die Passwörter stimmen nicht überein.",
       "network": "Der Server ist nicht erreichbar.",
       "generic": "Das Passwort konnte nicht geändert werden."
+    }
+  },
+  "projects": {
+    "title": "Projekte",
+    "loading": "Wird geladen …",
+    "loadError": "Die Projekte konnten nicht geladen werden.",
+    "sessionLoadError": "Der Sitzungsstatus konnte nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "empty": "Es sind noch keine Projekte vorhanden.",
+    "loadMore": "Weitere laden",
+    "role": {
+      "viewer": "Betrachter*in",
+      "reviewer": "Prüfer*in",
+      "operator": "Verantwortliche*r"
+    },
+    "new": {
+      "action": "Neues Projekt",
+      "cancel": "Abbrechen",
+      "displayName": "Name",
+      "slug": "Kurzname (Slug)",
+      "description": "Beschreibung",
+      "submit": "Projekt anlegen",
+      "submitting": "Wird angelegt …",
+      "errors": {
+        "validation": "Bitte überprüfen Sie Ihre Eingaben.",
+        "conflict": "Dieser Kurzname wird bereits verwendet.",
+        "network": "Der Server ist nicht erreichbar.",
+        "generic": "Das Projekt konnte nicht angelegt werden."
+      }
     }
   }
 }

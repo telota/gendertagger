@@ -1,3 +1,4 @@
+import { VueQueryPlugin } from '@tanstack/vue-query'
 import { createPinia } from 'pinia'
 import { createApp, type App as VueApp } from 'vue'
 import type { RouterHistory } from 'vue-router'
@@ -12,6 +13,7 @@ import {
   LOCALE_STORAGE_KEY,
   resolveInitialLocale,
 } from './i18n'
+import { createQueryClient } from './queryClient'
 import { createAppRouter } from './router'
 import { createUnauthorizedHandler } from './sessionGuard'
 
@@ -45,5 +47,9 @@ export function createApplication(environment: {
     API_CLIENT_KEY,
     createApiClient({ onUnauthorized: createUnauthorizedHandler(router) }),
   )
-  return application.use(createPinia()).use(createAppI18n(locale)).use(router)
+  return application
+    .use(createPinia())
+    .use(createAppI18n(locale))
+    .use(router)
+    .use(VueQueryPlugin, { queryClient: createQueryClient() })
 }

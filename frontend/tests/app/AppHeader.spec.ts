@@ -36,13 +36,6 @@ afterEach(() => {
 describe.each(['de', 'en'] as const)('AppHeader in %s', (locale: AppLocale) => {
   const messages = catalogues[locale].header
 
-  it('always links the brand to the start page', async () => {
-    const wrapper = await mountApplicationAt('/', locale, apiClientWithRoutes(NOT_SIGNED_IN))
-
-    const brand = wrapper.get('header a[href="/"]')
-    expect(brand.text()).toBe(catalogues[locale].app.title)
-  })
-
   it('offers a sign-in link when signed out', async () => {
     const wrapper = await mountApplicationAt('/', locale, apiClientWithRoutes(NOT_SIGNED_IN))
     await flushPromises()

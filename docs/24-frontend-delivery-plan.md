@@ -273,6 +273,13 @@ scope — so that part of the criterion is necessarily verified once M3 exists, 
 
 - Project list and switcher from `GET /projects`, which returns only the caller's projects with the caller's
   role in each; project creation including `slug` and `description`, offered to global operators (D6).
+  **Partly delivered.** `ProjectListView` lists and creates projects, cursor-paginated through the shell's
+  first use of a query cache (`@tanstack/vue-query`, decision noted in `frontend/README.md`); a signed-out
+  visitor is redirected to `/login` and a genuine server error gets its own state, matching the pattern
+  from M2's exit criterion. Also delivered: the sidebar layout from `docs/25` (`AppSidebar`), previously
+  outstanding from M2 and folded in here since M3 is what first needs cross-screen navigation. Not yet
+  built: the project switcher (nothing to switch between screens yet) and the nested
+  `/projects/:projectId/...` routes, added as their own screens land.
 - Import with the full `source_format` × `packaging` matrix; the backend derives the import profile.
 - The asynchronous snapshot lifecycle: `202` → poll → ready or failed, with `failure_diagnostic` surfaced.
 - Upload limits shown before upload and on `413`.

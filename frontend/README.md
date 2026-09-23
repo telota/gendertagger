@@ -67,10 +67,10 @@ provider from [ADR-0031](../docs/decisions/ADR-0031-local-database-authenticatio
 ```text
 src/
   api/          generated types, typed client, error and CSRF handling
-  app/          composition root, router, i18n, footer, header
-  components/   base primitives and domain components (empty until M2)
-  composables/  reusable stateful logic: the injected API client, GET /api/v1/branding
-  features/     one directory per screen: home, legal notice, login, change password, not found
+  app/          composition root, router, i18n, sidebar, header, footer, query client
+  components/   base primitives (button, text field, listbox) and domain components (still empty)
+  composables/  reusable stateful logic: the injected API client, GET /api/v1/branding, theme, locale
+  features/     one directory per screen: home, legal notice, login, change password, projects, not found
   locales/      message catalogues, one JSON file per locale
   stores/       Pinia stores for shared client state: the session and its roles
   styles/       design tokens and global styles
@@ -79,6 +79,10 @@ tests/          unit, component, and policy tests
 public/         theme-init.js, resolved before first paint
 nginx/          history-mode fallback for the production image
 ```
+
+The shell is a fixed sidebar (`AppSidebar`: brand, the one navigation surface per decision D7) plus a
+content region (`AppHeader`: locale/theme switches and session state; the routed view; `AppFooter`), per
+[`docs/25-frontend-design-guidelines.md`](../docs/25-frontend-design-guidelines.md).
 
 Design tokens in `src/styles/tokens.css` are semantic and theme-scoped. `tests/styles/tokens.spec.ts` checks
 that both themes stay complete and that each pairing published in the design guidelines still measures what
@@ -97,6 +101,7 @@ an SBOM. Versions were chosen for mutual compatibility, not recency: TypeScript 
 | `vue-i18n` | MIT | Locale-aware plural, date, and number formatting (ADR-0030) |
 | `pinia` | MIT | The session and its roles — genuinely shared client state, per docs/26-frontend-coding-guidelines.md |
 | `@headlessui/vue` | MIT | The one behavioural dependency decision D9 admits, for Menu, Dialog, and Listbox; brings its own `@tanstack/vue-virtual` (MIT). Covers three of the four named primitives — it ships no Tooltip, which is hand-rolled in-house per D9's resolution in [`24-frontend-delivery-plan.md`](../docs/24-frontend-delivery-plan.md) |
+| `@tanstack/vue-query` | MIT | Server-state cache for cursor-paginated collections (docs/23-wireframe-ui-inventory.md), starting with the project list; brings `@tanstack/query-core` and `vue-demi` (both MIT) |
 | `openapi-fetch` | MIT | A small typed `fetch` wrapper over the generated schema |
 | `vite`, `@vitejs/plugin-vue`, `vue-tsc`, `typescript` | MIT / Apache-2.0 | Build and type checking |
 | `vitest`, `@vitest/coverage-v8`, `@vue/test-utils`, `jsdom` | MIT | Test runner, component mounting, coverage floor |
@@ -108,10 +113,8 @@ an SBOM. Versions were chosen for mutual compatibility, not recency: TypeScript 
 `axe-core` is the only dependency under a weak copyleft licence. It runs only in tests and is not part of the
 shipped bundle, but review it if the licence policy is strict.
 
-Not yet added, on purpose: a shared server-state query/cache library arrives once the first list or
-long-running poll needs one (M2's remaining cross-cutting concerns, or M3's project list) — TanStack Query is
-the intended choice. Until then, `useBranding()` fetches independently per component rather than through a
-shared cache, documented in its own code comment.
+`useBranding()` still fetches independently per component rather than through the shared cache above — it
+predates it, is small and unauthenticated, and moving it over is not yet worth the churn.
 
 ## Session and login
 
@@ -120,9 +123,21 @@ and `GET /api/v1/auth/session`, and backs `/login`, `/change-password`, and the 
 (ADR-0031, ADR-0032). `useApiClient()` is called at the top of the store's `setup()` so Pinia's
 inject()-in-setup-stores support resolves it correctly; do not call it lazily inside an action.
 
-A view that must not render while signed out (so far, only `/change-password`) has to wait for the store's
-one `loading` -> `ready` transition before deciding, rather than reading `isSignedIn` immediately on mount —
-`session.initialize()` is still pending at that point on every fresh page load, cookie or not.
+A view that must not render while signed out (so far, `/change-password` and `/projects`) has to wait for
+the store's one `loading` -> `ready` transition before deciding, rather than reading `isSignedIn`
+immediately on mount — `session.initialize()` is still pending at that point on every fresh page load,
+cookie or not. `session.status` also distinguishes an ordinary `401` (not signed in) from any other
+failure — a `5xx`, a network error — as its own `error` status, so a genuine server problem at boot renders
+as one rather than as a misleading "please sign in".
+
+## Projects (M3)
+
+`/projects` (`src/features/projects/ProjectListView.vue`) is the first screen built on `GET /projects` and
+the shell's first use of the shared query cache, through `src/features/projects/useProjects.ts`. Project
+creation (`POST /projects`) is offered to global operators and admins only (decision D6); every other role
+sees the list without it. The nested `/projects/:projectId/...` routes from
+[`docs/23-wireframe-ui-inventory.md`](../docs/23-wireframe-ui-inventory.md) are added as their own screens
+land, not stubbed ahead of them.
 
 ## Branding
 

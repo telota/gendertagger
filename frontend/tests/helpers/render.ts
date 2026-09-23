@@ -1,3 +1,4 @@
+import { VueQueryPlugin } from '@tanstack/vue-query'
 import { createPinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, type Router } from 'vue-router'
@@ -5,6 +6,7 @@ import { createMemoryHistory, type Router } from 'vue-router'
 import type { ApiClient } from '@/api'
 import App from '@/app/App.vue'
 import { createAppI18n, type AppLocale } from '@/app/i18n'
+import { createQueryClient } from '@/app/queryClient'
 import { createAppRouter } from '@/app/router'
 import { API_CLIENT_KEY } from '@/composables/useApiClient'
 
@@ -25,7 +27,12 @@ export async function mountApplicationAt(
   const wrapper = mount(App, {
     attachTo: document.body,
     global: {
-      plugins: [createPinia(), createAppI18n(locale), router],
+      plugins: [
+        createPinia(),
+        createAppI18n(locale),
+        router,
+        [VueQueryPlugin, { queryClient: createQueryClient() }],
+      ],
       provide: { [API_CLIENT_KEY as symbol]: client },
     },
   })
