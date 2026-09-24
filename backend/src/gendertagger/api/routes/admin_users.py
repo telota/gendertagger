@@ -87,6 +87,31 @@ def reset_admin_user_password(
     return result
 
 
+@router.post(
+    "/admin/users/{user_id}/revoke-sessions",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def revoke_admin_user_sessions(
+    user_id: UUID,
+    request: Request,
+    service: Annotated[UserAdministrationService, Depends(get_user_administration_service)],
+    administrator: Annotated[CurrentUser, Depends(require_admin)],
+) -> None:
+    """Revoke every active session for a local account."""
+    try:
+        service.revoke_user_sessions(
+            user_id,
+            actor_user_id=administrator.id,
+            request_id=cast(str, request.state.request_id),
+        )
+    except ResourceNotFoundError as error:
+        raise ApiRequestError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="resource_not_found",
+            message="The local account was not found.",
+        ) from error
+
+
 @router.patch("/admin/users/{user_id}", response_model=AdminUser)
 def update_admin_user(
     user_id: UUID,

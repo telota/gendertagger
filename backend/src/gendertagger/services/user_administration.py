@@ -155,6 +155,29 @@ class UserAdministrationService:
         )
         return AdminUserPasswordResetResult(temporary_password=temporary_password)
 
+    def revoke_user_sessions(
+        self,
+        user_id: UUID,
+        *,
+        actor_user_id: UUID,
+        request_id: str,
+    ) -> None:
+        """Revoke every active session for one existing local account."""
+        with self._unit_of_work_factory() as unit_of_work:
+            target = unit_of_work.users.get_user_for_update(user_id)
+            credential = unit_of_work.auth.get_credential(user_id)
+            if target is None or credential is None:
+                msg = f"local account {user_id} does not exist"
+                raise ResourceNotFoundError(msg)
+            unit_of_work.auth.revoke_all_sessions(user_id)
+            unit_of_work.commit()
+        logger.info(
+            "local account %s sessions revoked by user %s (request %s)",
+            user_id,
+            actor_user_id,
+            request_id,
+        )
+
     def update_user(
         self,
         user_id: UUID,

@@ -316,6 +316,7 @@ GLOBAL_ROUTES = {
     ("POST", "/admin/users"),
     ("PATCH", "/admin/users/{user_id}"),
     ("POST", "/admin/users/{user_id}/reset-password"),
+    ("POST", "/admin/users/{user_id}/revoke-sessions"),
     ("GET", "/projects"),
     ("GET", "/projects/{project_id}/members"),
     ("PUT", "/projects/{project_id}/members/{user_id}"),
@@ -425,9 +426,10 @@ def test_user_administration_requires_a_global_admin() -> None:
             json={"display_name": "Denied"},
         ),
         client.post(f"/api/v1/admin/users/{_OTHER}/reset-password"),
+        client.post(f"/api/v1/admin/users/{_OTHER}/revoke-sessions"),
     ]
 
-    assert [response.status_code for response in responses] == [403, 403, 403]
+    assert [response.status_code for response in responses] == [403, 403, 403, 403]
     assert all(response.json()["error"]["code"] == "forbidden" for response in responses)
 
 

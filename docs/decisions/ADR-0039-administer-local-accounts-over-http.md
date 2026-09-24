@@ -29,8 +29,9 @@ The surface supports:
 
 - a server-filtered, opaque-cursor-paginated user directory searchable by normalized username or display name;
 - local-account creation with display name, normalized username, and global roles;
-- display-name, activation-state, and global-role updates; and
-- local-account password reset.
+- display-name, activation-state, and global-role updates;
+- local-account password reset; and
+- local-account session revocation.
 
 Account creation returns a server-generated temporary password once. The response is marked non-cacheable,
 and the password is never persisted in plaintext or included in application logs. The existing CLI commands
@@ -41,6 +42,12 @@ credential hash, flags `must_change_password`, and revokes every existing target
 It never reactivates an inactive target. Each successful reset returns a fresh server-generated temporary
 password once in a non-cacheable response. The HTTP command requires a global administrator and follows the
 standard CSRF and password-current gates.
+
+Session revocation accepts no body and validates the local target inside its mutation transaction before
+revoking every active target session. It changes neither credentials nor account state and succeeds when no
+active session remains. An administrator may revoke their own current session: authentication completes before
+the mutation, so the `204 No Content` response is delivered, but the administrator must sign in again for
+their next authenticated request.
 
 Accounts are deactivated, never deleted. This preserves foreign-key references and scholarly attribution.
 Deactivation revokes every active session in the same transaction. Reactivation does not restore revoked

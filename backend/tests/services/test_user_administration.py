@@ -355,3 +355,33 @@ def test_reset_user_password_preserves_activation_and_logs_no_secret(
     assert str(USER_IDS[1]) in caplog.text
     assert "request-987" in caplog.text
     assert temporary_password not in caplog.text
+
+
+def test_revoke_user_sessions_validates_local_target_and_logs_attribution(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    auth = Mock(spec=AuthRepository)
+    users = Mock(spec=UserRepository)
+    users.get_user_for_update.return_value = User(
+        id=USER_IDS[1],
+        display_name="Target user",
+        roles=set(),
+        is_active=True,
+        created_at=NOW,
+        updated_at=NOW,
+    )
+    auth.get_credential.return_value = _local_credential(1)
+    service = _service(auth, users=users)
+
+    with caplog.at_level("INFO"):
+        service.revoke_user_sessions(
+            USER_IDS[1],
+            actor_user_id=USER_IDS[0],
+            request_id="request-654",
+        )
+
+    auth.revoke_all_sessions.assert_called_once_with(USER_IDS[1])
+    users.update_user.assert_not_called()
+    assert str(USER_IDS[0]) in caplog.text
+    assert str(USER_IDS[1]) in caplog.text
+    assert "request-654" in caplog.text

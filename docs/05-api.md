@@ -182,6 +182,14 @@ session in that transaction. A reset never changes activation state; an absent o
 `404 resource_not_found`. Each success returns a fresh server-generated temporary password only in that
 non-cacheable (`Cache-Control: no-store`) response and never logs it.
 
+`POST /admin/users/{user_id}/revoke-sessions` accepts no body and returns `204 No Content`. It is restricted
+to global administrators and carries the standard CSRF and password-current gates. The service validates that
+the target exists and has a local credential in its mutation transaction, then revokes every active target
+session without changing its password, activation state, roles, or forced-password-change flag. An absent or
+non-local target returns `404 resource_not_found`; a target with no active sessions still succeeds. An
+administrator may target their own account: the current session is revoked after authentication, so the `204`
+response completes but the next authenticated request must sign in again.
+
 ## Branding surface
 
 `GET /branding` and `GET /branding/logo` are unauthenticated, need no grant, and carry no scientific or project-scoped data ([ADR-0036](decisions/ADR-0036-institution-branding-configuration.md)). They exist so the client's footer, start page, and legal notice can be reachable without a session and configured per deployment instead of hard-coded.

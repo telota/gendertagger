@@ -176,6 +176,30 @@ def test_admin_user_password_reset_discloses_temporary_password_without_cache() 
     )
 
 
+def test_admin_user_session_revocation_returns_no_content() -> None:
+    service = Mock(spec=UserAdministrationService)
+
+    response = _client(service).post(f"/api/v1/admin/users/{USER_ID}/revoke-sessions")
+
+    assert response.status_code == 204
+    assert response.content == b""
+    service.revoke_user_sessions.assert_called_once_with(
+        USER_ID,
+        actor_user_id=USER_ID,
+        request_id="request-123",
+    )
+
+
+def test_admin_user_session_revocation_maps_missing_local_account() -> None:
+    service = Mock(spec=UserAdministrationService)
+    service.revoke_user_sessions.side_effect = ResourceNotFoundError("not local")
+
+    response = _client(service).post(f"/api/v1/admin/users/{USER_ID}/revoke-sessions")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "resource_not_found"
+
+
 def test_admin_user_update_forwards_patch_and_serializes_account() -> None:
     service = Mock(spec=UserAdministrationService)
     account = AdminUser(

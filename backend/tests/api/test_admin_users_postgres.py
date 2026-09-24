@@ -316,3 +316,74 @@ def test_admin_can_reset_an_inactive_local_account_with_fresh_passwords_and_revo
     assert not Argon2PasswordHasher().verify(credential.password_hash, first_password)
     assert target.is_active is False
     assert all(session is not None and session.revoked_at is not None for session in sessions)
+
+
+def test_admin_can_revoke_only_target_sessions_without_changing_account_state(
+    postgres_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    deployment = _Deployment(postgres_engine, tmp_path)
+    suffix = uuid4().hex[:8]
+    administrator_id = deployment.add_local_account(
+        "Account administrator",
+        f"revoke-administrator-{suffix}",
+        GlobalRole.admin,
+    )
+    target_id = deployment.add_local_account("Target account", f"revoke-target-{suffix}")
+    other_user_id = deployment.add_local_account("Other account", f"revoke-other-{suffix}")
+    session_time = datetime(2026, 9, 24, 10, tzinfo=UTC)
+    target_session_ids = [uuid4().hex, uuid4().hex]
+    other_session_id = uuid4().hex
+    with deployment.unit_of_work_factory() as unit_of_work:
+        for session_id in target_session_ids:
+            unit_of_work.auth.create_session(
+                session_id=session_id,
+                user_id=target_id,
+                csrf_secret="not-used-by-this-test",
+                keep_signed_in=False,
+                expires_at=session_time + timedelta(days=1),
+                absolute_expires_at=session_time + timedelta(days=30),
+            )
+        unit_of_work.auth.create_session(
+            session_id=other_session_id,
+            user_id=other_user_id,
+            csrf_secret="not-used-by-this-test",
+            keep_signed_in=False,
+            expires_at=session_time + timedelta(days=1),
+            absolute_expires_at=session_time + timedelta(days=30),
+        )
+        unit_of_work.commit()
+
+    client = deployment.act_as(administrator_id)
+    first = client.post(f"/api/v1/admin/users/{target_id}/revoke-sessions")
+    second = client.post(f"/api/v1/admin/users/{target_id}/revoke-sessions")
+    missing = client.post(f"/api/v1/admin/users/{uuid4()}/revoke-sessions")
+    external_user_id = deployment.add_provider_user_without_local_credential("External account")
+    external = client.post(f"/api/v1/admin/users/{external_user_id}/revoke-sessions")
+
+    assert first.status_code == 204
+    assert second.status_code == 204
+    assert first.content == b""
+    assert second.content == b""
+    assert missing.status_code == 404
+    assert missing.json()["error"]["code"] == "resource_not_found"
+    assert external.status_code == 404
+    assert external.json()["error"]["code"] == "resource_not_found"
+    with deployment.unit_of_work_factory() as unit_of_work:
+        target = unit_of_work.users.get_user(target_id)
+        credential = unit_of_work.auth.get_credential(target_id)
+        target_sessions = [
+            unit_of_work.auth.get_session(session_id) for session_id in target_session_ids
+        ]
+        other_session = unit_of_work.auth.get_session(other_session_id)
+    assert target is not None
+    assert credential is not None
+    assert target.is_active is True
+    assert target.roles == set()
+    assert credential.password_hash == "not-used-by-this-test"
+    assert credential.must_change_password is True
+    assert all(
+        session is not None and session.revoked_at is not None for session in target_sessions
+    )
+    assert other_session is not None
+    assert other_session.revoked_at is None

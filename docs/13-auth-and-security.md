@@ -104,11 +104,15 @@ target session atomically when deactivating. `POST /api/v1/admin/users/{user_id}
 global administrator replace an existing local account's password without changing its activation state. It
 generates and returns a new temporary password once in a `Cache-Control: no-store` response, sets
 `must_change_password=true`, and revokes every existing target session atomically. A missing or non-local
-target returns `404`. The `gendertagger users create` and `gendertagger users reset-password` commands remain
-break-glass paths. All provisioning and reset paths use the same application service and forced-change
-behavior. See [ADR-0031](decisions/ADR-0031-local-database-authentication.md) for the exact credential,
-session, endpoint, and cookie contract. Institutional SSO remains a later, additive `AuthenticationBackend`
-implementation.
+target returns `404`. `POST /api/v1/admin/users/{user_id}/revoke-sessions` lets a global administrator revoke
+all of a local account's active sessions without changing its credential or account state. It returns `204`
+when no sessions are active as well. An administrator may revoke their own current session; its response
+completes, but the next authenticated request requires sign-in. The `gendertagger users create` and
+`gendertagger users reset-password` commands remain break-glass paths. All provisioning and reset paths use
+the same application service and forced-change behavior. See
+[ADR-0031](decisions/ADR-0031-local-database-authentication.md) for the exact credential, session, endpoint,
+and cookie contract. Institutional SSO remains a later, additive `AuthenticationBackend` implementation.
+
 The gateway throttles `POST /api/v1/auth/login` per client address: six attempts at once, then one every
 12 seconds, answering further attempts with `429 rate_limited` in the API's error envelope and a
 `Retry-After` header ([`deploy/proxy/nginx.conf`](../deploy/proxy/nginx.conf)). Every attempt costs an
