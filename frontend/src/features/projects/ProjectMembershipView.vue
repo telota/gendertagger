@@ -124,6 +124,7 @@ const candidates = computed(
 </template>
 <style scoped>
 .project-members {
+  padding: var(--space-8) var(--space-4);
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
