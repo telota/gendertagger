@@ -488,8 +488,29 @@ artifacts, and the two contract gaps above (configuration schemas, lookup discov
   "confidence ascending" order (D2). The action bar is the four real labels. No default review-state filter: the
   server's triage order deliberately ignores `workflow_state` (ADR-0022), so reviewed people stay in place and are
   filtered out on request with the review-state checkboxes.
-- Still open: M5b (verify / correct / defer with comment, `expected_revision`, the `409 annotation_conflict` flow,
-  live announcements, the final-decision check against the seeded snapshot) and M5c (bulk selection).
+- **M5b: decisions. Delivered.** The detail column has a decision block: confirm the machine label (`verify`, sent
+  with exactly that label and disabled when the machine reached none), correct to one of the four labels, or defer,
+  each with an optional comment. It is one radio group and a save button, so the keyboard model is as decided:
+  `1`–`4` choose the label to correct to and move focus to the save button, then `Enter` saves; the keys stand down
+  in text fields and selects and are shown next to the labels. Every write is `POST /annotations` with
+  `aggregated_result_id` and the `expected_revision` read from a freshly fetched chain; saving stays disabled while
+  that chain is being re-read and for a person the reviewer may not annotate (project role `reviewer` or up,
+  ADR-0033). A success is announced in a status region and focus moves to it; the person's chain, every queue and the
+  queue counts are refetched, so the final label changes in the list. The screen says nowhere that anything is saved
+  automatically.
+- **The `409 annotation_conflict` flow. Delivered.** Nothing is written, the chain is re-read, and a focused alert
+  names who changed the person and what they decided. The stale choice cannot be saved while the alert is open:
+  the reviewer either decides again on the current state (the comment is kept, the choice is not, and the next write
+  uses the new revision) or discards the input. Somebody else's newer decision is therefore never overwritten unseen.
+- **M5 exit check on the real stack (2026-09-24).** As the seeded reviewer, `demo-7` (no machine label, `no_data`)
+  was corrected to `female`: the item's `final_label` went from `null` to `female`, its workflow state from
+  `unreviewed` to `reviewed`, and the review summary gained a `correct` group, while the `AggregatedResult` and the
+  persisted predictions were byte-identical before and after (compared by hash) and `machine_label` was still `null`.
+  Repeating the write with the old revision answered `409` with `current_revision: 1`. The annotation stays in the
+  development database (append-only); `demo-7` is therefore no longer unreviewed on the seed.
+- Not done in M5b: a pinned action bar (the block sits inline under the method results; the WCAG 2.4.11 focus check
+  for a pinned bar therefore does not arise yet). Still open: M5c (bulk selection as a client-side sequence with
+  explicit partial-failure reporting).
 
 **Exit criterion.** A reviewer corrects a machine result and the final-decision view changes without any
 mutation of `Prediction` or `AggregatedResult` rows — the Phase 8 criterion from

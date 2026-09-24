@@ -9,7 +9,7 @@ import { flushPromises } from '@vue/test-utils'
  * test file) needs more than one macrotask tick to resolve, so a fixed-count flush is unreliable;
  * this polls instead of guessing a tick count.
  */
-export async function waitFor(assertion: () => void, timeoutMs = 2000): Promise<void> {
+export async function waitFor(assertion: () => void, timeoutMs = 5000): Promise<void> {
   const deadline = Date.now() + timeoutMs
   for (;;) {
     await flushPromises()

@@ -536,6 +536,35 @@
         "correct": "corrected",
         "defer": "deferred"
       }
+    },
+    "decision": {
+      "title": "Your decision",
+      "viewerNote": "You can read the review, but recording a decision needs the reviewer role in this project.",
+      "choose": "Decision",
+      "verify": "Confirm the machine label",
+      "noMachineLabel": "(the machine reached no label)",
+      "correctTo": "Correct to",
+      "defer": "Defer, decide later",
+      "key": "Key {key}",
+      "comment": "Comment (optional)",
+      "keyboardHint": "Keys 1 to 4 choose the label to correct to; then press Enter to save.",
+      "appendOnly": "Nothing is saved automatically. Every decision is a new, permanent entry in the history; a later decision supersedes it.",
+      "save": "Save decision",
+      "saving": "Saving …",
+      "saved": "{action}. Revision {revision}.",
+      "savedWithLabel": "{action} as {label}. Revision {revision}.",
+      "conflict": {
+        "title": "Somebody else changed this person meanwhile",
+        "body": "Your decision was not saved. The history below now shows the current state.",
+        "latest": "Latest decision: {action} by {name}",
+        "again": "Decide again on the current state",
+        "discard": "Discard my input"
+      },
+      "errors": {
+        "forbidden": "You are not allowed to record decisions in this project.",
+        "network": "The decision could not be saved: the server is not reachable.",
+        "generic": "The decision could not be saved."
+      }
     }
   }
 }

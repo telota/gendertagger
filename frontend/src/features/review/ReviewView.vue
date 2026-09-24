@@ -6,6 +6,7 @@ import { RouterLink } from 'vue-router'
 import AppButton from '@/components/base/AppButton.vue'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
 import { useAggregation } from '@/features/runs/useAggregations'
+import { useProject } from '@/features/projects/useProjects'
 import { useMethodList } from '@/features/runs/useMethods'
 
 import ReviewDetail from './ReviewDetail.vue'
@@ -29,6 +30,13 @@ const runId = useRouteParam('runId')
 const aggregationId = useRouteParam('aggregationId')
 
 const { filters, person, setFilters, setQueue, selectPerson } = useReviewFilters()
+
+// Recording a decision is a project-scoped action from the reviewer role up (ADR-0033).
+const project = useProject(projectId)
+const canReview = computed(() => {
+  const role = project.data.value?.current_user_role
+  return role === 'reviewer' || role === 'operator'
+})
 
 const aggregation = useAggregation(aggregationId, isSignedIn)
 // Certainty and agreement are immutable for a completed aggregation, and only a completed one has
@@ -163,7 +171,7 @@ const announce = computed(() =>
             <h2 id="review-detail-heading" class="review-visually-hidden">
               {{ t('review.detail.title') }}
             </h2>
-            <ReviewDetail v-if="selectedItem" :item="selectedItem" />
+            <ReviewDetail v-if="selectedItem" :item="selectedItem" :can-review="canReview" />
             <p v-else-if="fetched.isPending.value && person" role="status">
               {{ t('review.loading') }}
             </p>

@@ -536,6 +536,35 @@
         "correct": "korrigiert",
         "defer": "zurückgestellt"
       }
+    },
+    "decision": {
+      "title": "Deine Entscheidung",
+      "viewerNote": "Du kannst die Prüfung lesen, für eine Entscheidung brauchst du in diesem Projekt die Rolle Reviewer.",
+      "choose": "Entscheidung",
+      "verify": "Maschinenlabel bestätigen",
+      "noMachineLabel": "(die Maschine kam zu keinem Label)",
+      "correctTo": "Korrigieren zu",
+      "defer": "Zurückstellen, später entscheiden",
+      "key": "Taste {key}",
+      "comment": "Kommentar (optional)",
+      "keyboardHint": "Die Tasten 1 bis 4 wählen das Label, zu dem korrigiert wird; danach speichert Enter.",
+      "appendOnly": "Nichts wird automatisch gespeichert. Jede Entscheidung ist ein neuer, dauerhafter Eintrag im Verlauf; eine spätere ersetzt sie.",
+      "save": "Entscheidung speichern",
+      "saving": "Wird gespeichert …",
+      "saved": "{action}. Revision {revision}.",
+      "savedWithLabel": "{action} als {label}. Revision {revision}.",
+      "conflict": {
+        "title": "Jemand anderes hat diese Person inzwischen bearbeitet",
+        "body": "Deine Entscheidung wurde nicht gespeichert. Der Verlauf unten zeigt jetzt den aktuellen Stand.",
+        "latest": "Letzte Entscheidung: {action} von {name}",
+        "again": "Auf dem aktuellen Stand neu entscheiden",
+        "discard": "Meine Eingabe verwerfen"
+      },
+      "errors": {
+        "forbidden": "Du darfst in diesem Projekt keine Entscheidungen erfassen.",
+        "network": "Die Entscheidung konnte nicht gespeichert werden: Der Server ist nicht erreichbar.",
+        "generic": "Die Entscheidung konnte nicht gespeichert werden."
+      }
     }
   }
 }

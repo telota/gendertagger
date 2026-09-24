@@ -11,9 +11,10 @@ import {
   type ReviewItem,
 } from './useReviewData'
 import { useVocabularyGloss, type CertaintyTier } from './useVocabulary'
+import ReviewDecision from './ReviewDecision.vue'
 import VocabBadge from './VocabBadge.vue'
 
-const props = defineProps<{ item: ReviewItem }>()
+const props = defineProps<{ item: ReviewItem; canReview: boolean }>()
 
 const { t, d, n } = useI18n()
 const gloss = useVocabularyGloss()
@@ -216,6 +217,13 @@ const personFacts = computed(() => {
         <p class="detail-note">{{ t('review.detail.methods.confidenceNote') }}</p>
       </template>
     </section>
+
+    <ReviewDecision
+      :item="item"
+      :history="history.data.value"
+      :history-refreshing="history.isFetching.value"
+      :can-review="canReview"
+    />
 
     <section class="detail-section" aria-labelledby="detail-history-heading">
       <h3 id="detail-history-heading" class="detail-heading">
