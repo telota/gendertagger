@@ -132,7 +132,7 @@ export interface paths {
         post?: never;
         /**
          * Remove Admin Team Member
-         * @description Remove one direct team membership without changing project memberships in this slice.
+         * @description Remove one direct team membership and its derived project grants.
          */
         delete: operations["remove_admin_team_member_api_v1_admin_teams__team_id__members__user_id__delete"];
         options?: never;
@@ -669,9 +669,29 @@ export interface paths {
         put?: never;
         /**
          * Create Project
-         * @description Create one editorial project and make its creator the project operator.
+         * @description Create one team-owned project with an eligible initial manager.
          */
         post: operations["create_project_api_v1_projects_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/managed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Managed Projects
+         * @description List management-only identities of projects currently managed by the caller.
+         */
+        get: operations["list_managed_projects_api_v1_projects_managed_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -698,6 +718,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/eligible-users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Eligible Users
+         * @description Search active direct-team-member candidates without exposing account administration.
+         */
+        get: operations["list_eligible_users_api_v1_projects__project_id__eligible_users_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/manager": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Transfer Project Manager
+         * @description Transfer delegated manager authority without modifying ordinary project roles.
+         */
+        put: operations["transfer_project_manager_api_v1_projects__project_id__manager_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/members": {
         parameters: {
             query?: never;
@@ -707,7 +767,7 @@ export interface paths {
         };
         /**
          * List Project Members
-         * @description List one project's members and their roles, ordered by display name.
+         * @description List one delegated roster's explicit memberships and manager assignment.
          */
         get: operations["list_project_members_api_v1_projects__project_id__members_get"];
         put?: never;
@@ -728,13 +788,13 @@ export interface paths {
         get?: never;
         /**
          * Set Project Member
-         * @description Grant a user a role in one project, or change the role the user already holds.
+         * @description Grant or change one eligible user's role in a project.
          */
         put: operations["set_project_member_api_v1_projects__project_id__members__user_id__put"];
         post?: never;
         /**
          * Remove Project Member
-         * @description Revoke one user's membership in a project.
+         * @description Revoke one eligible user's explicit project role.
          */
         delete: operations["remove_project_member_api_v1_projects__project_id__members__user_id__delete"];
         options?: never;
@@ -1111,6 +1171,13 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Created By User Id
+             * Format: uuid
+             */
+            created_by_user_id: string;
+            /** Current User Can Manage Members */
+            current_user_can_manage_members: boolean;
             current_user_role: components["schemas"]["ProjectRole"];
             /** Description */
             description?: string | null;
@@ -1121,8 +1188,14 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Manager User Id
+             * Format: uuid
+             */
+            manager_user_id: string;
             /** Slug */
             slug: string;
+            team: components["schemas"]["TeamSummary"];
             /**
              * Working Aggregation Execution Id
              * @description The completed AggregationExecution, from one of this project's own runs, that its review queue and dashboard currently summarize (ADR-0035). Set explicitly through PUT /projects/{project_id}/working-aggregation; never inferred from recency.
@@ -1816,12 +1889,30 @@ export interface components {
             /** Next Cursor */
             next_cursor?: string | null;
         };
+        /** CursorPage[ManagedProjectSummary] */
+        CursorPage_ManagedProjectSummary_: {
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["ManagedProjectSummary"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
         /** CursorPage[PersonRecord] */
         CursorPage_PersonRecord_: {
             /** Has More */
             has_more: boolean;
             /** Items */
             items: components["schemas"]["PersonRecord"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
+        /** CursorPage[ProjectEligibleUser] */
+        CursorPage_ProjectEligibleUser_: {
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["ProjectEligibleUser"][];
             /** Next Cursor */
             next_cursor?: string | null;
         };
@@ -2111,6 +2202,22 @@ export interface components {
             password: string;
             /** Username */
             username: string;
+        };
+        /**
+         * ManagedProjectSummary
+         * @description Management-only project identity for a caller assigned as its current manager.
+         */
+        ManagedProjectSummary: {
+            /** Display Name */
+            display_name: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Slug */
+            slug: string;
+            team: components["schemas"]["TeamSummary"];
         };
         /**
          * MethodClassification
@@ -2449,19 +2556,69 @@ export interface components {
         };
         /**
          * ProjectCreate
-         * @description Validated values used to create a long-lived editorial project.
+         * @description Validated values used to create a team-owned editorial project.
          */
         ProjectCreate: {
             /** Description */
             description?: string | null;
             /** Display Name */
             display_name: string;
+            /** Initial Manager User Id */
+            initial_manager_user_id?: string | null;
             /** Slug */
             slug: string;
+            /**
+             * Team Id
+             * Format: uuid
+             */
+            team_id: string;
+        };
+        /**
+         * ProjectEligibleUser
+         * @description Minimal candidate representation for delegated project membership management.
+         */
+        ProjectEligibleUser: {
+            /** Display Name */
+            display_name: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+        };
+        /**
+         * ProjectManager
+         * @description The manager assignment, including an optional ordinary project role.
+         */
+        ProjectManager: {
+            /** Display Name */
+            display_name: string;
+            project_role: components["schemas"]["ProjectRole"] | null;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+        };
+        /**
+         * ProjectManagerUpdate
+         * @description Command transferring a project's manager with optimistic concurrency.
+         */
+        ProjectManagerUpdate: {
+            /**
+             * Expected Manager User Id
+             * Format: uuid
+             */
+            expected_manager_user_id: string;
+            /**
+             * Manager User Id
+             * Format: uuid
+             */
+            manager_user_id: string;
         };
         /**
          * ProjectMember
-         * @description Canonical read model for one user's membership in a project (ADR-0033).
+         * @description Canonical read model for one user's eligible project membership.
          */
         ProjectMember: {
             /**
@@ -2471,6 +2628,8 @@ export interface components {
             created_at: string;
             /** Display Name */
             display_name: string;
+            /** Is Manager */
+            is_manager: boolean;
             /**
              * Project Id
              * Format: uuid
@@ -2490,10 +2649,19 @@ export interface components {
         };
         /**
          * ProjectMemberUpdate
-         * @description Administrative command granting or changing one user's role in a project.
+         * @description Command granting or changing one eligible user's project role.
          */
         ProjectMemberUpdate: {
             role: components["schemas"]["ProjectRole"];
+        };
+        /**
+         * ProjectMembershipState
+         * @description Manager assignment plus the explicit project-membership roster.
+         */
+        ProjectMembershipState: {
+            manager: components["schemas"]["ProjectManager"];
+            /** Members */
+            members: components["schemas"]["ProjectMember"][];
         };
         /**
          * ProjectRole
@@ -6686,6 +6854,101 @@ export interface operations {
             };
         };
     };
+    list_managed_projects_api_v1_projects_managed_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CursorPage_ManagedProjectSummary_"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     get_project_api_v1_projects__project_id__get: {
         parameters: {
             query?: never;
@@ -6780,6 +7043,202 @@ export interface operations {
             };
         };
     };
+    list_eligible_users_api_v1_projects__project_id__eligible_users_get: {
+        parameters: {
+            query?: {
+                query?: string | null;
+                limit?: number;
+                cursor?: string | null;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CursorPage_ProjectEligibleUser_"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    transfer_project_manager_api_v1_projects__project_id__manager_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectManagerUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectMembershipState"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     list_project_members_api_v1_projects__project_id__members_get: {
         parameters: {
             query?: never;
@@ -6797,7 +7256,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ProjectMember"][];
+                    "application/json": components["schemas"]["ProjectMembershipState"];
                 };
             };
             /** @description Invalid request */

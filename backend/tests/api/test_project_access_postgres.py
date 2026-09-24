@@ -96,6 +96,7 @@ class _Deployment:
         )
         assert response.status_code == 200
 
+
 @pytest.fixture
 def deployment(postgres_engine: Engine, tmp_path: Path) -> _Deployment:
     return _Deployment(postgres_engine, tmp_path)
@@ -164,6 +165,48 @@ def test_manager_without_project_role_can_manage_roster_but_cannot_read_project_
     roster = deployment.act_as(manager).get(f"/api/v1/projects/{project_id}/members")
     assert roster.status_code == 200
     assert roster.json()["manager"]["project_role"] is None
+
+
+def test_managed_projects_discovers_only_management_identities_without_project_access(
+    deployment: _Deployment,
+) -> None:
+    creator = deployment.add_user("Creator", GlobalRole.operator)
+    administrator = deployment.add_user("Administrator", GlobalRole.admin)
+    manager = deployment.add_user("Manager")
+    outsider = deployment.add_user("Outsider", GlobalRole.operator)
+    project_id = deployment.create_project(creator, _slug("managed"))
+
+    with deployment.unit_of_work_factory() as unit_of_work:
+        project = unit_of_work.projects.get_project(project_id)
+        assert project is not None
+        unit_of_work.teams.add_member(project.team.id, manager)
+        unit_of_work.commit()
+    transfer = deployment.act_as(administrator).put(
+        f"/api/v1/projects/{project_id}/manager",
+        json={
+            "manager_user_id": str(manager),
+            "expected_manager_user_id": str(creator),
+        },
+    )
+    assert transfer.status_code == 200
+
+    managed = deployment.act_as(manager).get("/api/v1/projects/managed")
+    outsider_page = deployment.act_as(outsider).get("/api/v1/projects/managed")
+
+    assert managed.status_code == 200
+    assert managed.json() == {
+        "items": [
+            {
+                "id": str(project_id),
+                "slug": project.slug,
+                "display_name": project.display_name,
+                "team": project.team.model_dump(mode="json"),
+            }
+        ],
+        "next_cursor": None,
+        "has_more": False,
+    }
+    assert outsider_page.json() == {"items": [], "next_cursor": None, "has_more": False}
 
 
 def test_project_list_paginates_in_slug_order(deployment: _Deployment) -> None:

@@ -163,18 +163,21 @@ Global and project roles are separate hierarchical vocabularies. CurrentUser rem
 neutral and carries global roles only; project access is resolved per request and returned with accessible
 project representations. See [ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md).
 
-[ADR-0041](decisions/ADR-0041-admin-managed-teams-and-delegated-project-membership.md) slice 1
-implements `TeamCreate`, `TeamUpdate`, `TeamSummary`, `TeamMember`, and `TeamMemberAdd`. `TeamCreate`
-normalizes a required slug to its trimmed lowercase canonical form and preserves a validated nonblank display
-name. `TeamUpdate` permits only a display-name patch: omission is a no-op and explicit null is invalid, so
-slugs remain immutable. `TeamSummary` is roster-free; `TeamMember` is the global-administrator roster
-projection with only team/user IDs, display name, active state, and membership creation time.
+[ADR-0041](decisions/ADR-0041-admin-managed-teams-and-delegated-project-membership.md) defines
+`TeamCreate`, `TeamUpdate`, `TeamSummary`, `TeamMember`, and `TeamMemberAdd`. `TeamCreate` normalizes a
+required slug to its trimmed lowercase canonical form and preserves a validated nonblank display name.
+`TeamUpdate` permits only a display-name patch: omission is a no-op and explicit `null` is invalid, so slugs
+remain immutable. `TeamSummary` is roster-free; `TeamMember` is the global-administrator roster projection
+with only team/user IDs, display name, active state, and membership creation time.
 
-The later project slice remains pending: it will add `ProjectEligibleUser`, `ProjectManagerUpdate`, the
-required `ProjectCreate.team_id` and optional `initial_manager_user_id`, `ProjectMember.is_manager`, and
-the `AccessibleProject` team summary plus `current_user_can_manage_members`. Manager-facing candidates will
-contain only `id` and `display_name`; account-directory projections and their security metadata remain
-separate admin contracts.
+The delivered project/team contracts include `ProjectCreate.team_id`, optional
+`initial_manager_user_id`, `ProjectEligibleUser`, `ProjectManagerUpdate`, manager-aware `ProjectMember`, and
+`ProjectMembershipState`. `ManagedProjectSummary`, decided in
+[ADR-0042](decisions/ADR-0042-management-only-project-discovery.md), is a separate non-scientific discovery
+projection for a caller's current manager assignments. It includes only project identity, display identity,
+and roster-free team identity; it does not imply an ordinary project role or expose project data. Manager-
+facing candidates contain only `id` and `display_name`; account-directory projections and their security
+metadata remain separate administrator contracts.
 
 `AdminUser` is the global-administrator projection for a local account. It combines provider-neutral user
 identity and roles with the non-secret local credential fields needed for administration. `AdminUserUpdate`

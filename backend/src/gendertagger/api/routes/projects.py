@@ -24,6 +24,7 @@ from gendertagger.models.project import (
     DEFAULT_SOURCE_PACKAGING,
     AccessibleProject,
     DatasetSnapshot,
+    ManagedProjectSummary,
     ProjectCreate,
     ProjectWorkingAggregationUpdate,
     SnapshotImportRequest,
@@ -81,6 +82,20 @@ def list_projects(
     """List the projects the caller has a role in, in slug order, with that role."""
     try:
         return service.list_projects(user, limit=limit, cursor=cursor)
+    except InvalidCursorError as error:
+        raise invalid_cursor_error() from error
+
+
+@router.get("/projects/managed", response_model=CursorPage[ManagedProjectSummary])
+def list_managed_projects(
+    service: Annotated[ProjectAccessService, Depends(get_project_access_service)],
+    user: Annotated[CurrentUser, Depends(require_authenticated_user)],
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    cursor: Annotated[str | None, Query(max_length=2048)] = None,
+) -> CursorPage[ManagedProjectSummary]:
+    """List management-only identities of projects currently managed by the caller."""
+    try:
+        return service.list_managed_projects(user, limit=limit, cursor=cursor)
     except InvalidCursorError as error:
         raise invalid_cursor_error() from error
 

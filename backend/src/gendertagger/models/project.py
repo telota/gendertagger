@@ -294,6 +294,17 @@ class AccessibleProject(Project):
     current_user_can_manage_members: bool
 
 
+class ManagedProjectSummary(BaseModel):
+    """Management-only project identity for a caller assigned as its current manager."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    id: UUID
+    slug: str = Field(pattern=PROJECT_SLUG_PATTERN, max_length=100)
+    display_name: str = Field(min_length=1, max_length=200)
+    team: TeamSummary
+
+
 class ProjectWorkingAggregationUpdate(BaseModel):
     """Command setting or clearing a project's working-aggregation pointer (ADR-0035)."""
 
@@ -359,6 +370,7 @@ class ProjectMembershipState(BaseModel):
 
     manager: ProjectManager
     members: list[ProjectMember]
+
 
 class DatasetSnapshotCreate(BaseModel):
     """Validated immutable import identity used to create a pending snapshot."""

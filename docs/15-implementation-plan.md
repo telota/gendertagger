@@ -237,10 +237,11 @@ review and a manual commit.
    current project-membership authorization.
 2. **Project/team association, manager authority, and membership APIs — DELIVERED.** Required project team,
    manager, and creator relationships; team-aware project creation; scoped candidate lookup; delegated
-   membership and manager-transfer APIs; project-linked deletion guards; derived-grant cleanup; account-
-   deactivation integration; CLI parity; generated contracts; and focused tests are delivered. The existing
-   project-create UI remains deliberately pending and therefore fails closed against the new required
-   `team_id` contract.
+   membership and manager-transfer APIs; and management-only discovery through
+   [`ADR-0042`](decisions/ADR-0042-management-only-project-discovery.md). Project-linked deletion guards,
+   derived-grant cleanup, account-deactivation integration, CLI parity, generated contracts, and focused
+   tests are delivered. The existing project-create UI remains deliberately pending and therefore fails
+   closed against the new required `team_id` contract.
 3. **Team administration UI — DELIVERED.** Global administrators can search and cursor-page teams, create,
    rename, and confirm deletion of teams, and administer one selected direct roster through the existing
    administrator account directory. Team and roster queries are principal-scoped and removed on access loss;

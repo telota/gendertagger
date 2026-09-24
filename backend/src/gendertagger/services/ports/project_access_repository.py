@@ -8,6 +8,7 @@ from uuid import UUID
 
 from gendertagger.models.project import (
     AccessibleProject,
+    ManagedProjectSummary,
     ProjectEligibleUser,
     ProjectMember,
     ProjectMembershipState,
@@ -57,6 +58,16 @@ class ProjectAccessRepository(Protocol):
         after_slug: str | None = None,
     ) -> Sequence[AccessibleProject]:
         """Return one slug-ordered keyset slice of a member's projects with the member's role."""
+        ...
+
+    def list_managed_projects(
+        self,
+        user_id: UUID,
+        *,
+        limit: int,
+        after_slug: str | None = None,
+    ) -> Sequence[ManagedProjectSummary]:
+        """Return one manager's project identities in unique-slug order."""
         ...
 
     def list_members(self, project_id: UUID) -> ProjectMembershipState:

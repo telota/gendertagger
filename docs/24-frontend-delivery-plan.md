@@ -925,12 +925,11 @@ and manager-transfer UI remain pending. When delivered, the client must use
 - A resource in a project the caller does not belong to returns `404`, exactly like one that does not exist;
   a member below a route's least role receives `403`. The client treats both as it already treats missing
   resources and forbidden actions.
-- Memberships are currently managed by administrators through admin-only `/projects/{project_id}/members`
-  endpoints and the `gendertagger projects` CLI. The accepted delegated endpoints, team discovery, candidate
-  projection, and management UI do not yet exist.
-- Project creation currently accepts no team. The future required-team contract must be deployed with
-  regenerated transport types and an updated creation form; an old client must fail validation rather than
-  create an unassigned project.
+- Delegated roster, candidate, role-mutation, manager-transfer, and management-only project-discovery
+  contracts are delivered. The frontend management UI remains pending; it must keep a management-only entry
+  distinct from ordinary readable projects and must not use the account directory for candidate discovery.
+- Project creation requires a team. The transport is regenerated; the existing creation UI remains pending
+  until it supplies a valid `team_id` and the applicable initial-manager selection.
 
 ### Architectural decisions
 

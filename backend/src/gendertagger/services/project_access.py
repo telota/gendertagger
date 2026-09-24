@@ -7,6 +7,7 @@ from uuid import UUID
 from gendertagger.models.api import CursorPage
 from gendertagger.models.project import (
     AccessibleProject,
+    ManagedProjectSummary,
     Project,
     ProjectEligibleUser,
     ProjectManagerUpdate,
@@ -25,7 +26,7 @@ from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFacto
 logger = logging.getLogger(__name__)
 
 _PROJECT_LIST_RESOURCE = "projects"
-
+_MANAGED_PROJECT_LIST_RESOURCE = "managed_projects"
 
 
 class ProjectManagerConflictError(RuntimeError):
@@ -38,6 +39,7 @@ class ManagerReplacementRequiredError(RuntimeError):
 
 class TeamMembershipConflictError(RuntimeError):
     """Raised when a valid target loses a concurrent race to direct-team removal."""
+
 
 class ProjectAccessService:
     """Resolve a caller's effective project role and administer project memberships.
@@ -130,6 +132,41 @@ class ProjectAccessService:
             last_item = items[-1]
             next_cursor = self._cursor_codec.encode(
                 resource=_PROJECT_LIST_RESOURCE,
+                sort_values=(last_item.slug,),
+                resource_id=last_item.id,
+            )
+        return CursorPage(items=items, next_cursor=next_cursor, has_more=has_more)
+
+    def list_managed_projects(
+        self,
+        user: CurrentUser,
+        *,
+        limit: int,
+        cursor: str | None,
+    ) -> CursorPage[ManagedProjectSummary]:
+        """Return non-scientific identities of projects currently managed by one caller."""
+        if limit <= 0:
+            msg = "limit must be positive"
+            raise ValueError(msg)
+        position = (
+            self._cursor_codec.decode(cursor, expected_resource=_MANAGED_PROJECT_LIST_RESOURCE)
+            if cursor is not None
+            else None
+        )
+        after_slug = position.sort_values[0] if position is not None else None
+        with self._unit_of_work_factory() as unit_of_work:
+            projects = unit_of_work.access.list_managed_projects(
+                user.id,
+                limit=limit + 1,
+                after_slug=after_slug,
+            )
+        has_more = len(projects) > limit
+        items = list(projects[:limit])
+        next_cursor = None
+        if has_more:
+            last_item = items[-1]
+            next_cursor = self._cursor_codec.encode(
+                resource=_MANAGED_PROJECT_LIST_RESOURCE,
                 sort_values=(last_item.slug,),
                 resource_id=last_item.id,
             )
@@ -284,7 +321,8 @@ class ProjectAccessService:
             before = unit_of_work.projects.get_project(project_id)
             was_eligible = (
                 before is not None
-                and unit_of_work.teams.get_member(before.team.id, command.manager_user_id) is not None
+                and unit_of_work.teams.get_member(before.team.id, command.manager_user_id)
+                is not None
             )
             project = self._lock_managed_project(
                 unit_of_work,

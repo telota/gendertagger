@@ -53,7 +53,7 @@ Changing it is an explicit project operation; creating an aggregation never move
 Only the unversioned liveness endpoints `/health` and `/ready` are public without authentication. Readiness
 checks the database and artifact root.
 
-## Teams and delegated project membership — slice 1 delivered
+## Teams and delegated project membership
 
 All paths below are relative to `/api/v1`. `GET /teams` returns a cursor-paginated, roster-free
 `TeamSummary` collection for the caller's direct teams; a global administrator sees all teams. It requires
@@ -66,12 +66,18 @@ roster pages by normalized display name then user ID. All support server-side op
 pagination, and scope/filter-bound cursors. `POST /admin/teams` returns `201`; a duplicate canonical slug
 returns `409 team_slug_conflict`. Team patches rename only the display name and preserve an immutable slug.
 Empty deletion returns `204`; a nonempty team returns `409 team_not_empty`. Roster addition creates with
-`201`, repeats idempotently with `200`, and rejects an inactive target with `409 inactive_user`. Missing
-teams, accounts, or memberships return `404 resource_not_found`.
+`201`, repeats idempotently with `200`, and rejects an inactive target with `409 inactive_user`.
 
-These routes retain existing authentication, password-current, and unsafe-request CSRF protections.
-Project-team association, manager authority, project eligible-user lookup, derived-grant cleanup, manager
-replacement, and account-deactivation integration remain slice 2 work.
+`GET /projects/managed`, decided in
+[ADR-0042](decisions/ADR-0042-management-only-project-discovery.md), returns the caller's current manager
+assignments in slug order using opaque cursor pagination. Its `ManagedProjectSummary` contains only identity,
+display identity, and roster-free team identity. It is not an accessible-project collection, does not alter
+`GET /projects`, and exposes no scientific project data.
+
+Project managers and global administrators use `GET /projects/{project_id}/members`,
+`GET /projects/{project_id}/eligible-users`, project-membership writes, and manager transfer through the
+delegated management guard. Those endpoints retain project-resource `404` hiding and do not grant ordinary
+project access to a manager without a project role.
 
 ## Long-running commands
 

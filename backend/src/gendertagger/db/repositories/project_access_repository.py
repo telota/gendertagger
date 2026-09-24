@@ -15,6 +15,7 @@ from gendertagger.db.rows.teams import TeamMembershipRow, TeamRow
 from gendertagger.db.rows.users import ProjectMembershipRow, UserRow
 from gendertagger.models.project import (
     AccessibleProject,
+    ManagedProjectSummary,
     ProjectEligibleUser,
     ProjectManager,
     ProjectMember,
@@ -115,6 +116,35 @@ class SqlAlchemyProjectAccessRepository:
             for project, role, team in rows
         )
 
+    def list_managed_projects(
+        self,
+        user_id: UUID,
+        *,
+        limit: int,
+        after_slug: str | None = None,
+    ) -> Sequence[ManagedProjectSummary]:
+        """Return one manager's non-scientific project identities in unique-slug order."""
+        if limit <= 0:
+            msg = "limit must be positive"
+            raise ValueError(msg)
+        statement = (
+            select(ProjectRow, TeamRow)
+            .join(TeamRow, TeamRow.id == ProjectRow.team_id)
+            .where(ProjectRow.manager_user_id == user_id)
+        )
+        if after_slug is not None:
+            statement = statement.where(ProjectRow.slug > after_slug)
+        rows = self._session.execute(statement.order_by(ProjectRow.slug).limit(limit))
+        return tuple(
+            ManagedProjectSummary(
+                id=project.id,
+                slug=project.slug,
+                display_name=project.display_name,
+                team=_team_from_row(team),
+            )
+            for project, team in rows
+        )
+
     def list_members(self, project_id: UUID) -> ProjectMembershipState:
         """Return a project's manager assignment and members ordered by display name."""
         manager = self._session.execute(
@@ -191,7 +221,10 @@ class SqlAlchemyProjectAccessRepository:
         rows = self._session.execute(
             statement.order_by(normalized_display_name, UserRow.id).limit(limit)
         )
-        return tuple(ProjectEligibleUser(id=user_id, display_name=display_name) for user_id, display_name in rows)
+        return tuple(
+            ProjectEligibleUser(id=user_id, display_name=display_name)
+            for user_id, display_name in rows
+        )
 
     def set_manager(self, project_id: UUID, user_id: UUID) -> None:
         """Replace one project's manager assignment and flush without committing."""
@@ -244,7 +277,9 @@ class SqlAlchemyProjectAccessRepository:
         manager_user_id = self._session.scalar(
             select(ProjectRow.manager_user_id).where(ProjectRow.id == project_id)
         )
-        return self._member_from_row(row, user.display_name, is_manager=row.user_id == manager_user_id)
+        return self._member_from_row(
+            row, user.display_name, is_manager=row.user_id == manager_user_id
+        )
 
     def remove_member(self, project_id: UUID, user_id: UUID) -> bool:
         """Revoke one membership, flush without committing, and return whether it existed."""

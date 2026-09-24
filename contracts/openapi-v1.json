@@ -10,6 +10,15 @@
             "title": "Created At",
             "type": "string"
           },
+          "created_by_user_id": {
+            "format": "uuid",
+            "title": "Created By User Id",
+            "type": "string"
+          },
+          "current_user_can_manage_members": {
+            "title": "Current User Can Manage Members",
+            "type": "boolean"
+          },
           "current_user_role": {
             "$ref": "#/components/schemas/ProjectRole"
           },
@@ -35,11 +44,19 @@
             "title": "Id",
             "type": "string"
           },
+          "manager_user_id": {
+            "format": "uuid",
+            "title": "Manager User Id",
+            "type": "string"
+          },
           "slug": {
             "maxLength": 100,
             "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
             "title": "Slug",
             "type": "string"
+          },
+          "team": {
+            "$ref": "#/components/schemas/TeamSummary"
           },
           "working_aggregation_execution_id": {
             "anyOf": [
@@ -56,11 +73,15 @@
           }
         },
         "required": [
+          "id",
           "slug",
           "display_name",
-          "id",
+          "team",
+          "manager_user_id",
+          "created_by_user_id",
           "created_at",
-          "current_user_role"
+          "current_user_role",
+          "current_user_can_manage_members"
         ],
         "title": "AccessibleProject",
         "type": "object"
@@ -1856,6 +1877,40 @@
         "title": "CursorPage[ExportExecution]",
         "type": "object"
       },
+      "CursorPage_ManagedProjectSummary_": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ManagedProjectSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "has_more"
+        ],
+        "title": "CursorPage[ManagedProjectSummary]",
+        "type": "object"
+      },
       "CursorPage_PersonRecord_": {
         "additionalProperties": false,
         "properties": {
@@ -1888,6 +1943,40 @@
           "has_more"
         ],
         "title": "CursorPage[PersonRecord]",
+        "type": "object"
+      },
+      "CursorPage_ProjectEligibleUser_": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectEligibleUser"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "has_more"
+        ],
+        "title": "CursorPage[ProjectEligibleUser]",
         "type": "object"
       },
       "CursorPage_ReviewItem_": {
@@ -2584,6 +2673,40 @@
           "password"
         ],
         "title": "LoginRequest",
+        "type": "object"
+      },
+      "ManagedProjectSummary": {
+        "additionalProperties": false,
+        "description": "Management-only project identity for a caller assigned as its current manager.",
+        "properties": {
+          "display_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "slug": {
+            "maxLength": 100,
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+            "title": "Slug",
+            "type": "string"
+          },
+          "team": {
+            "$ref": "#/components/schemas/TeamSummary"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "display_name",
+          "team"
+        ],
+        "title": "ManagedProjectSummary",
         "type": "object"
       },
       "MethodClassification": {
@@ -3386,7 +3509,7 @@
       },
       "ProjectCreate": {
         "additionalProperties": false,
-        "description": "Validated values used to create a long-lived editorial project.",
+        "description": "Validated values used to create a team-owned editorial project.",
         "properties": {
           "description": {
             "anyOf": [
@@ -3405,23 +3528,120 @@
             "title": "Display Name",
             "type": "string"
           },
+          "initial_manager_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initial Manager User Id"
+          },
           "slug": {
             "maxLength": 100,
             "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
             "title": "Slug",
             "type": "string"
+          },
+          "team_id": {
+            "format": "uuid",
+            "title": "Team Id",
+            "type": "string"
           }
         },
         "required": [
           "slug",
-          "display_name"
+          "display_name",
+          "team_id"
         ],
         "title": "ProjectCreate",
         "type": "object"
       },
+      "ProjectEligibleUser": {
+        "additionalProperties": false,
+        "description": "Minimal candidate representation for delegated project membership management.",
+        "properties": {
+          "display_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "display_name"
+        ],
+        "title": "ProjectEligibleUser",
+        "type": "object"
+      },
+      "ProjectManager": {
+        "additionalProperties": false,
+        "description": "The manager assignment, including an optional ordinary project role.",
+        "properties": {
+          "display_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "project_role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectRole"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "display_name",
+          "project_role"
+        ],
+        "title": "ProjectManager",
+        "type": "object"
+      },
+      "ProjectManagerUpdate": {
+        "additionalProperties": false,
+        "description": "Command transferring a project's manager with optimistic concurrency.",
+        "properties": {
+          "expected_manager_user_id": {
+            "format": "uuid",
+            "title": "Expected Manager User Id",
+            "type": "string"
+          },
+          "manager_user_id": {
+            "format": "uuid",
+            "title": "Manager User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "manager_user_id",
+          "expected_manager_user_id"
+        ],
+        "title": "ProjectManagerUpdate",
+        "type": "object"
+      },
       "ProjectMember": {
         "additionalProperties": false,
-        "description": "Canonical read model for one user's membership in a project (ADR-0033).",
+        "description": "Canonical read model for one user's eligible project membership.",
         "properties": {
           "created_at": {
             "format": "date-time",
@@ -3433,6 +3653,10 @@
             "minLength": 1,
             "title": "Display Name",
             "type": "string"
+          },
+          "is_manager": {
+            "title": "Is Manager",
+            "type": "boolean"
           },
           "project_id": {
             "format": "uuid",
@@ -3458,6 +3682,7 @@
           "user_id",
           "display_name",
           "role",
+          "is_manager",
           "created_at",
           "updated_at"
         ],
@@ -3466,7 +3691,7 @@
       },
       "ProjectMemberUpdate": {
         "additionalProperties": false,
-        "description": "Administrative command granting or changing one user's role in a project.",
+        "description": "Command granting or changing one eligible user's project role.",
         "properties": {
           "role": {
             "$ref": "#/components/schemas/ProjectRole"
@@ -3476,6 +3701,28 @@
           "role"
         ],
         "title": "ProjectMemberUpdate",
+        "type": "object"
+      },
+      "ProjectMembershipState": {
+        "additionalProperties": false,
+        "description": "Manager assignment plus the explicit project-membership roster.",
+        "properties": {
+          "manager": {
+            "$ref": "#/components/schemas/ProjectManager"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectMember"
+            },
+            "title": "Members",
+            "type": "array"
+          }
+        },
+        "required": [
+          "manager",
+          "members"
+        ],
+        "title": "ProjectMembershipState",
         "type": "object"
       },
       "ProjectRole": {
@@ -5540,7 +5787,7 @@
     },
     "/api/v1/admin/teams/{team_id}/members/{user_id}": {
       "delete": {
-        "description": "Remove one direct team membership without changing project memberships in this slice.",
+        "description": "Remove one direct team membership and its derived project grants.",
         "operationId": "remove_admin_team_member_api_v1_admin_teams__team_id__members__user_id__delete",
         "parameters": [
           {
@@ -8872,7 +9119,7 @@
         ]
       },
       "post": {
-        "description": "Create one editorial project and make its creator the project operator.",
+        "description": "Create one team-owned project with an eligible initial manager.",
         "operationId": "create_project_api_v1_projects_post",
         "requestBody": {
           "content": {
@@ -8977,6 +9224,139 @@
           }
         },
         "summary": "Create Project",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/v1/projects/managed": {
+      "get": {
+        "description": "List management-only identities of projects currently managed by the caller.",
+        "operationId": "list_managed_projects_api_v1_projects_managed_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 2048,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_ManagedProjectSummary_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List Managed Projects",
         "tags": [
           "projects"
         ]
@@ -9096,9 +9476,293 @@
         ]
       }
     },
+    "/api/v1/projects/{project_id}/eligible-users": {
+      "get": {
+        "description": "Search active direct-team-member candidates without exposing account administration.",
+        "operationId": "list_eligible_users_api_v1_projects__project_id__eligible_users_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Query"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 2048,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_ProjectEligibleUser_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List Eligible Users",
+        "tags": [
+          "project members"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/manager": {
+      "put": {
+        "description": "Transfer delegated manager authority without modifying ordinary project roles.",
+        "operationId": "transfer_project_manager_api_v1_projects__project_id__manager_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectManagerUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectMembershipState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Transfer Project Manager",
+        "tags": [
+          "project members"
+        ]
+      }
+    },
     "/api/v1/projects/{project_id}/members": {
       "get": {
-        "description": "List one project's members and their roles, ordered by display name.",
+        "description": "List one delegated roster's explicit memberships and manager assignment.",
         "operationId": "list_project_members_api_v1_projects__project_id__members_get",
         "parameters": [
           {
@@ -9117,11 +9781,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ProjectMember"
-                  },
-                  "title": "Response List Project Members Api V1 Projects  Project Id  Members Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/ProjectMembershipState"
                 }
               }
             },
@@ -9216,7 +9876,7 @@
     },
     "/api/v1/projects/{project_id}/members/{user_id}": {
       "delete": {
-        "description": "Revoke one user's membership in a project.",
+        "description": "Revoke one eligible user's explicit project role.",
         "operationId": "remove_project_member_api_v1_projects__project_id__members__user_id__delete",
         "parameters": [
           {
@@ -9331,7 +9991,7 @@
         ]
       },
       "put": {
-        "description": "Grant a user a role in one project, or change the role the user already holds.",
+        "description": "Grant or change one eligible user's role in a project.",
         "operationId": "set_project_member_api_v1_projects__project_id__members__user_id__put",
         "parameters": [
           {

@@ -35,14 +35,15 @@ administration, and `require_any_grant` admits any caller holding a global role 
 routes that read no project data. [`05-api.md`](05-api.md) lists the root identifier and least role of every
 route.
 
-Administrators manage memberships through the admin-only `/api/v1/projects/{project_id}/members` endpoints
-or the `gendertagger projects add-member`, `remove-member`, and `list-members` CLI commands.
+Project managers and global administrators use the delegated
+`/api/v1/projects/{project_id}/members`, eligible-user, membership-write, and manager-transfer endpoints.
+`ProjectMembershipManagementGuard` authorizes only those commands; it never grants project-data access.
 
-## Teams and delegated project membership — slice 1 delivered
+## Teams and delegated project membership
 
-[ADR-0041](decisions/ADR-0041-admin-managed-teams-and-delegated-project-membership.md) slice 1 implements
-direct, administrator-managed teams as eligibility groups, not automatic project-access groups. An
-authenticated caller with a current password may discover only roster-free summaries of direct teams through
+[ADR-0041](decisions/ADR-0041-admin-managed-teams-and-delegated-project-membership.md) defines direct,
+administrator-managed teams as eligibility groups, not automatic project-access groups. An authenticated
+caller with a current password may discover only roster-free summaries of direct teams through
 `GET /api/v1/teams`; a global administrator sees every summary. Only global administrators may create,
 rename, delete, or list teams and administer their direct rosters under `/api/v1/admin/teams`.
 
@@ -51,9 +52,11 @@ roster-add target is active inside its advisory-lock-protected transaction. Succ
 secret-free operational logs with the actor, request where available, action, affected IDs, and changed
 fields. The roster projection never exposes usernames, global roles, credential state, or project grants.
 
-Projects are not yet associated with teams. Project-linked deletion guards, derived-grant cleanup, manager
-replacement, manager authority, and account-deactivation integration remain slice 2 work. Existing project
-visibility, creation, authorization, and direct project-membership behavior are unchanged.
+[ADR-0042](decisions/ADR-0042-management-only-project-discovery.md) adds authenticated
+`GET /api/v1/projects/managed` for a caller's current manager assignments. Its summary is deliberately
+insufficient to read snapshots, runs, annotations, or other project data. `GET /projects` stays limited to
+ordinary project visibility, and `GET /projects/{project_id}` continues to return `404` to a manager with no
+ordinary project role.
 
 ## Data safety
 
