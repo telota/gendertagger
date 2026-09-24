@@ -777,7 +777,7 @@ resolve, and the review path works end to end behind a real session.
   and the CSRF cookie is readable by the client; the review deep link shows the queue with its counts and the first
   person; **key 2 then Enter records a decision** and the person's revision advances; the run, aggregation, people,
   evaluation and exports screens load without scrolling sideways; a hard reload on a deep link keeps the session;
-  and no request failed and nothing was thrown (13 of 13). It appends one annotation to the seed by design, so it
+  and no request failed and nothing was thrown (14 of 14, including the manifest of a completed export). It appends one annotation to the seed by design, so it
   is for the development stack only.
 - **What the browser found that the component tests could not.** Three defects, all fixed, each with a test that
   fails without the fix: (1) the eight screens added from M4 on lacked the page padding every earlier screen sets on

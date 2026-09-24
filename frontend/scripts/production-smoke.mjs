@@ -85,7 +85,11 @@ async function discover() {
   const evaluation = (await get(`/runs/${run.id}/evaluations`)).items.find(
     (e) => e.status === 'completed',
   )
+  const completedExport = (await get(`/runs/${run.id}/exports`)).items.find(
+    (e) => e.status === 'completed',
+  )
   return {
+    export: completedExport?.id,
     project: project.id,
     snapshot: run.dataset_snapshot_id,
     run: run.id,
@@ -289,6 +293,15 @@ async function main() {
       '.export, .export-list-empty',
       'exports',
     ],
+    ...(ids.export
+      ? [
+          [
+            `${BASE}/projects/${ids.project}/runs/${ids.run}/exports/${ids.export}`,
+            '.export-detail-manifest-section table',
+            'export manifest',
+          ],
+        ]
+      : []),
   ]
   for (const [url, marker, name] of screens) {
     await go(url)
