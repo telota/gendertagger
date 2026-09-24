@@ -70,7 +70,8 @@
   },
   "nav": {
     "label": "Hauptnavigation",
-    "projects": "Projekte"
+    "projects": "Projekte",
+    "administration": "Administration"
   },
   "locale": {
     "label": "Sprache"
@@ -118,6 +119,44 @@
       "mismatch": "Die Passwörter stimmen nicht überein.",
       "network": "Der Server ist nicht erreichbar.",
       "generic": "Das Passwort konnte nicht geändert werden."
+    }
+  },
+  "admin": {
+    "title": "Administration",
+    "description": "Lokale Konten",
+    "loadingAccess": "Administrativer Zugriff wird geprüft …",
+    "sessionLoadError": "Die Sitzung konnte nicht geprüft werden.",
+    "forbidden": "Sie haben keine Berechtigung, lokale Konten zu verwalten.",
+    "passwordChangeRequired": "Bevor Sie lokale Konten verwalten können, müssen Sie Ihr Passwort ändern.",
+    "loading": "Konten werden geladen …",
+    "loadError": "Das Kontoverzeichnis konnte nicht geladen werden.",
+    "paginationError": "Weitere Konten konnten nicht geladen werden. Die bereits angezeigten Konten bleiben unverändert.",
+    "retry": "Erneut versuchen",
+    "refetch": "Verzeichnis aktualisieren",
+    "loadMore": "Mehr laden",
+    "empty": "Es sind keine lokalen Konten vorhanden.",
+    "currentAccount": "Aktuelles Konto",
+    "search": {
+      "label": "Benutzername oder Anzeigename suchen",
+      "empty": "Keine lokalen Konten entsprechen dieser Suche."
+    },
+    "table": {
+      "username": "Benutzername",
+      "displayName": "Anzeigename",
+      "roles": "Globale Rollen",
+      "active": "Kontostatus",
+      "passwordChange": "Passwortstatus"
+    },
+    "roles": {
+      "admin": "Administrator*in",
+      "operator": "Operator*in",
+      "none": "Keine globale Rolle"
+    },
+    "states": {
+      "active": "Aktiv",
+      "inactive": "Inaktiv",
+      "passwordChangeRequired": "Änderung erforderlich",
+      "passwordCurrent": "Aktuell"
     }
   },
   "projects": {

@@ -70,7 +70,8 @@
   },
   "nav": {
     "label": "Main navigation",
-    "projects": "Projects"
+    "projects": "Projects",
+    "administration": "Administration"
   },
   "locale": {
     "label": "Language"
@@ -118,6 +119,44 @@
       "mismatch": "The passwords do not match.",
       "network": "The server could not be reached.",
       "generic": "The password could not be changed."
+    }
+  },
+  "admin": {
+    "title": "Administration",
+    "description": "Local accounts",
+    "loadingAccess": "Checking administrative access …",
+    "sessionLoadError": "The session could not be checked.",
+    "forbidden": "You do not have permission to administer local accounts.",
+    "passwordChangeRequired": "Your password must be changed before you can administer local accounts.",
+    "loading": "Loading accounts …",
+    "loadError": "The account directory could not be loaded.",
+    "paginationError": "More accounts could not be loaded. The accounts already shown are unchanged.",
+    "retry": "Try again",
+    "refetch": "Refresh directory",
+    "loadMore": "Load more",
+    "empty": "No local accounts are available.",
+    "currentAccount": "Current account",
+    "search": {
+      "label": "Search username or display name",
+      "empty": "No local accounts match this search."
+    },
+    "table": {
+      "username": "Username",
+      "displayName": "Display name",
+      "roles": "Global roles",
+      "active": "Account state",
+      "passwordChange": "Password state"
+    },
+    "roles": {
+      "admin": "Administrator",
+      "operator": "Operator",
+      "none": "No global role"
+    },
+    "states": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "passwordChangeRequired": "Change required",
+      "passwordCurrent": "Current"
     }
   },
   "projects": {

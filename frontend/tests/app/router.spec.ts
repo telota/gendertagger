@@ -16,6 +16,7 @@ describe('routes', () => {
     ['/impressum', 'legalNotice'],
     ['/login', 'login'],
     ['/change-password', 'changePassword'],
+    ['/admin/users', 'adminUsers'],
     ['/irgendwas', 'notFound'],
     ['/impressum/zu-viel', 'notFound'],
   ])('resolves %s to %s', async (path, name) => {

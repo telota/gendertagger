@@ -30,7 +30,11 @@ function redirectTarget(): string {
 async function submit(): Promise<void> {
   const succeeded = await attemptLogin()
   if (succeeded) {
-    await router.push(session.mustChangePassword ? { name: 'changePassword' } : redirectTarget())
+    await router.push(
+      session.mustChangePassword
+        ? { name: 'changePassword', query: { redirect: redirectTarget() } }
+        : redirectTarget(),
+    )
   }
 }
 </script>

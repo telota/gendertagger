@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
@@ -12,6 +12,7 @@ const MIN_PASSWORD_LENGTH = 12
 
 const { t } = useI18n()
 const router = useRouter()
+const route = useRoute()
 const session = useSessionStore()
 
 const currentPassword = ref('')
@@ -36,6 +37,10 @@ watch(
 
 function retry(): void {
   void session.initialize()
+}
+function redirectTarget(): string {
+  const redirect = route.query.redirect
+  return typeof redirect === 'string' && redirect.startsWith('/') ? redirect : '/'
 }
 
 function messageFor(error: unknown): string {
@@ -64,7 +69,7 @@ async function submit(): Promise<void> {
       currentPassword: currentPassword.value,
       newPassword: newPassword.value,
     })
-    await router.push({ name: 'home' })
+    await router.push(redirectTarget())
   } catch (error) {
     errorMessage.value = messageFor(error)
   } finally {

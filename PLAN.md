@@ -22,7 +22,9 @@ endpoints and collections the screens need are delivered; see
 operating the stack in production following [`docs/21-production-promotion.md`](docs/21-production-promotion.md).
 
 Administrative branding settings are a separate accepted extension under
-[ADR-0040](docs/decisions/ADR-0040-administrative-branding-overrides.md), not yet implemented. Its backend
-persistence/read and write/public-branding increments precede frontend editing; each stops for review
-and a manual commit. Scope, sequencing, and acceptance criteria are recorded in
+[ADR-0040](docs/decisions/ADR-0040-administrative-branding-overrides.md). Its backend persistence, reads,
+writes, and public-branding integration are delivered; the permitted frontend settings work remains pending.
+The separate frontend administrative increment delivers only the read-only local-account directory from
+[ADR-0039](docs/decisions/ADR-0039-administer-local-accounts-over-http.md), and stops before settings forms
+or branding-consumer changes. Scope, sequencing, and acceptance criteria are recorded in
 [`docs/15-implementation-plan.md`](docs/15-implementation-plan.md#administrative-settings-increment-adr-0040).

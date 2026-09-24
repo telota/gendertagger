@@ -208,8 +208,13 @@ contract change fails CI.
   page reload. `initialize()` also distinguishes an ordinary `401` (not signed in) from any other failure —
   a `5xx`, a network error, an unparseable response — as its own `error` status, so a genuine server problem
   at boot renders as one rather than as a misleading "please sign in" (see the M2 exit criterion below).
-  Role-aware hiding/disabling and `current_user_role`-scoped controls remain open: there is no
-  project-scoped screen yet for them to apply to.
+  Role-aware hiding and `current_user_role`-scoped project controls remain open: there is no
+  project-scoped screen yet for them to apply to. The separate ADR-0039 administrative increment now
+  delivers the corresponding global-admin read path: `/admin/users` waits for session initialization, is
+  available only to a password-current global administrator, and keeps a signed-in non-administrator in an
+  explicit permission state. Its TanStack Query pages are scoped to the principal and server-side search
+  tuple, and are cancelled and removed on access loss. Account creation, mutation, reset, revocation, and
+  membership screens remain pending.
 - Recovery from a `401` at any moment: keep the unsent decision, offer an inline sign-in, and retry the
   request rather than redirecting away and losing the user's place (D1). **Delivered.** The API client takes
   an `onUnauthorized(request)` hook (`src/api/client.ts`); on a `401` it clones the request up front (so a
@@ -263,6 +268,21 @@ retry, instead of a misleading "sign in" prompt when the real problem is the ser
 shows the analogous load-error-and-retry state instead of "Loading …" forever. Viewer/reviewer/operator
 role-scoping itself has nothing to show yet — there is no project-scoped screen in the shell for a role to
 scope — so that part of the criterion is necessarily verified once M3 exists, not before it.
+
+### Administrative local-account directory — ADR-0039
+
+**Status.** Delivered as the first frontend administrative increment. `/admin/users` is a read-only,
+global-admin screen backed by the generated `GET /api/v1/admin/users` client. It presents server-ordered
+accounts with username/display-name search, opaque cursor pagination, account state, required-password-change
+state, global roles, and a current-account marker. The route and sidebar both wait for the session result;
+the screen retains its clear signed-in non-admin, signed-out, password-change, session-error, retry, empty,
+search-empty, initial-error, pagination-error, and refetch states. Private administrative query data is
+principal-scoped and removed on a principal or eligibility change and when the view unmounts.
+
+Creation, updates, password resets, session revocation, project memberships, settings forms, and branding
+consumers are subsequent administrative slices. ADR-0040 permits frontend edits only for its six branding
+fields; this increment does not add those controls.
+
 
 ### M3 — Projects and import
 
@@ -479,8 +499,10 @@ same `CurrentUser`, so that swap stays contained. Recorded as
 - The client signs in with `POST /auth/login`, reads its principal from `GET /me`, and signs out with
   `POST /auth/logout`. The backend sets an HTTP-only `session` cookie and a readable `csrf_token` cookie,
   which the client mirrors into the `X-CSRF-Token` header on every unsafe request.
-- Accounts are created by an administrator with `gendertagger users create`. No screen manages users, and
-  there is neither self-registration nor email-based password recovery.
+- Account provisioning and administration are available through the global-admin HTTP surface in
+  [ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md), which supersedes ADR-0031's
+  CLI-only scope. The first client slice delivers only its read-only directory; there is neither
+  self-registration nor email-based password recovery, and account mutations remain pending.
 - A new or reset account must change its password first. `GET /auth/session` reports this right after login
   and on page load, and until `POST /me/password` succeeds, every endpoint except `GET /me`,
   `GET /auth/session`, `POST /auth/logout`, and `POST /me/password` returns
@@ -632,9 +654,9 @@ roles remain — `operator`, which may create projects and becomes operator of e
   a member below a route's least role receives `403`. The client treats both as it already treats missing
   resources and forbidden actions.
 - Memberships are managed by administrators through admin-only `/projects/{project_id}/members` endpoints
-  and the `gendertagger projects` CLI. `GET /admin/users` now provides the searchable user directory an
-  administrator screen needs ([ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md)); the
-  screen itself remains outside the current frontend milestones.
+  and the `gendertagger projects` CLI. `GET /admin/users` has a delivered read-only administrator screen
+  under [ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md); membership editing remains a
+  subsequent frontend slice.
 - The upgrade drops the global viewer and reviewer roles and assigns no memberships, so every deployment
   must assign project memberships after migrating.
 

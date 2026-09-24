@@ -430,11 +430,13 @@ toggle, interval); gamification (visibility toggle, collapsed-by-default toggle)
 
 **Gaps.**
 
-- **Gap (backend):** **none of the eight settings is persistable.** There is no settings resource, no project
-  configuration endpoint, no user-preference endpoint.
-  [`api/settings.py`](../backend/src/gendertagger/api/settings.py) is deployment configuration read from the
-  environment, not user-editable state.
-- This screen is the clearest candidate to defer entirely from v1 or to reduce to read-only deployment facts.
+- The wireframe's eight settings are still unsupported. ADR-0040 now permits persistence only for six
+  deployment-wide branding fields; its backend contracts are delivered, but their frontend forms and active
+  branding-consumer refresh remain deferred. No project, scientific, session-policy, or arbitrary deployment
+  setting is made editable.
+- The `/admin/users` directory delivered under
+  [ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md) is a separate administration route,
+  not an implementation of this wireframe settings screen.
 
 ### Overlays
 
@@ -470,7 +472,8 @@ checked against the project that owns the addressed resource.
 | `GET /auth/session` | authenticated | **absent** |
 | `POST /auth/login` | unauthenticated | **absent — no login screen** |
 | `POST /auth/logout` | authenticated | **absent** |
-| `POST /me/password` | authenticated | **absent — no password-change screen** |
+| `POST /me/password` | authenticated | **Delivered** — forced-password-change view |
+| `GET /admin/users` | global admin, password current | **Delivered** — read-only searchable, cursor-paginated local-account directory ([ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md)) |
 | `POST /projects` | global operator | modal, missing `slug`/`description` |
 | `GET /projects` | authenticated; own projects only | mocked card grid and switcher |
 | `GET /projects/{id}` | viewer | mocked in topbar |
@@ -628,6 +631,7 @@ openapi.json  ->  src/api/schema.d.ts  (openapi-typescript)
 
 ```text
 /login
+/admin/users                                 AdminUserDirectoryView
 /projects                                   ProjectListView
 /projects/:projectId
   /overview                                 OverviewView

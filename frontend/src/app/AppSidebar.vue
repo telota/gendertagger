@@ -4,7 +4,10 @@
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
+import { useAdminAccess } from '@/composables/useAdminAccess'
+
 const { t } = useI18n()
+const { canAccessAdmin } = useAdminAccess()
 </script>
 
 <template>
@@ -15,6 +18,11 @@ const { t } = useI18n()
         <li>
           <RouterLink :to="{ name: 'projects' }" class="app-sidebar-nav-item">{{
             t('nav.projects')
+          }}</RouterLink>
+        </li>
+        <li v-if="canAccessAdmin">
+          <RouterLink :to="{ name: 'adminUsers' }" class="app-sidebar-nav-item">{{
+            t('nav.administration')
           }}</RouterLink>
         </li>
       </ul>
