@@ -94,8 +94,8 @@ const PREDICTION_STATUSES: readonly PredictionStatus[] = ['success', 'abstain', 
           "
         />
         <label :for="`review-state-${state}`">
-          <span class="token">{{ state }}</span>
-          <span class="gloss">{{ gloss.workflow(state) }}</span>
+          <span class="token">{{ state }}</span
+          >{{ ' ' }}<span class="gloss">{{ gloss.workflow(state) }}</span>
         </label>
       </div>
     </fieldset>
@@ -135,8 +135,8 @@ const PREDICTION_STATUSES: readonly PredictionStatus[] = ['success', 'abstain', 
           "
         />
         <label :for="`review-agreement-${tier}`">
-          <span class="token">{{ tier }}</span>
-          <span class="gloss">{{ gloss.agreement(tier) }}</span>
+          <span class="token">{{ tier }}</span
+          >{{ ' ' }}<span class="gloss">{{ gloss.agreement(tier) }}</span>
         </label>
       </div>
     </fieldset>

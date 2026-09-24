@@ -18,7 +18,7 @@ const { session, isSignedIn, retrySession } = useRequireSession()
 const projectId = useRouteParam('projectId')
 const snapshotId = useRouteParam('snapshotId')
 
-const project = useProject(projectId)
+const project = useProject(projectId, isSignedIn)
 // Starting a run is a project-scoped operator action, like importing a snapshot.
 const canRun = computed(() => project.data.value?.current_user_role === 'operator')
 
@@ -86,6 +86,7 @@ function loadMore(): void {
 
 <style scoped>
 .run-list-view {
+  padding: var(--space-8) var(--space-4);
   display: flex;
   flex-direction: column;
   align-items: flex-start;

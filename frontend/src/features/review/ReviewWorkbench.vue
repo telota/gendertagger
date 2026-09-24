@@ -41,7 +41,7 @@ const { filters, person, setFilters, setQueue, selectPerson } = useReviewFilters
 )
 
 // Recording a decision is a project-scoped action from the reviewer role up (ADR-0033).
-const project = useProject(projectId)
+const project = useProject(projectId, isSignedIn)
 const canReview = computed(() => {
   const role = project.data.value?.current_user_role
   return role === 'reviewer' || role === 'operator'
@@ -237,6 +237,7 @@ const announce = computed(() =>
 
 <style scoped>
 .review {
+  padding: var(--space-8) var(--space-4);
   display: flex;
   flex-direction: column;
   align-items: stretch;

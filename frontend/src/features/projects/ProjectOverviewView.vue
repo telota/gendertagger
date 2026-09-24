@@ -41,7 +41,7 @@ const projectId = computed(() => {
   return Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? '')
 })
 
-const query = useProject(projectId)
+const query = useProject(projectId, isSignedIn)
 </script>
 
 <template>

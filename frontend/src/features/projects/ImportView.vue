@@ -52,7 +52,7 @@ const projectId = computed(() => {
   return Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? '')
 })
 
-const project = useProject(projectId)
+const project = useProject(projectId, isSignedIn)
 // Import is a project-scoped operator action (backend: ProjectAccessGuard requires
 // ProjectRole.operator here), not the global operator/admin role D6 gives project *creation*.
 const canImport = computed(() => project.data.value?.current_user_role === 'operator')
@@ -94,7 +94,7 @@ watch([sourceFormat, packaging], () => {
   fileInputKey.value += 1
 })
 
-const limits = useSnapshotUploadLimits()
+const limits = useSnapshotUploadLimits(isSignedIn)
 const mebibytes = (bytes: number): string => n(bytes / (1024 * 1024), 'decimal')
 
 // The bounds are the server's to enforce (a 413 is still handled below); checking them first only

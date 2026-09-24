@@ -245,6 +245,15 @@ API for a multi-output export, and the seeded one is kept as a fixture (`tests/f
 Two backend gaps are recorded in `docs/24` (M8): the manifest of a single-output export is unreadable, and the worker does
 not register the export task.
 
+## Production smoke test (M9)
+
+`npm run smoke:production` drives a real headless Chrome against the built client behind the gateway: deep link,
+sign-in with the secure cookie, the review path with a keyboard decision, and the other screens. Start the production
+profile first (`docker compose -f compose.yaml up -d --build frontend gateway`) on a stack with the development seed;
+it appends one annotation to the seed, so never point it at a real deployment. Settings: `SMOKE_BASE`, `SMOKE_USER`,
+`SMOKE_PASSWORD`, `CHROME_PATH`, `SMOKE_OUT` (screenshots). Component tests cannot lay anything out, so layout defects
+(padding, overflow) are caught by this script and by `tests/tooling/view-layout.spec.ts`.
+
 ## Branding
 
 The footer, the start page, and `/impressum` render `GET /api/v1/branding` ([ADR-0036](../docs/decisions/ADR-0036-institution-branding-configuration.md))

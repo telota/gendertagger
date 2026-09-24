@@ -164,6 +164,7 @@ const connectionLabel = computed(() => {
 
 <style scoped>
 .run-detail {
+  padding: var(--space-8) var(--space-4);
   display: flex;
   flex-direction: column;
   align-items: flex-start;

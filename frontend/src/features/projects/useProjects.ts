@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/vue-query'
-import { computed, type Ref } from 'vue'
+import { computed, ref, type Ref } from 'vue'
 
 import { unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
@@ -28,8 +28,12 @@ export function useProjectList(enabled: Ref<boolean>) {
   })
 }
 
-/** `GET /projects/{project_id}` — one project, for its own detail screen. */
-export function useProject(projectId: Ref<string>) {
+/**
+ * `GET /projects/{project_id}` — one project, for its own detail screen. A screen passes its
+ * signed-in state as `enabled`, so a visitor without a session (about to be sent to /login) causes
+ * no request at all.
+ */
+export function useProject(projectId: Ref<string>, enabled: Ref<boolean> = ref(true)) {
   const client = useApiClient()
 
   return useQuery({
@@ -40,5 +44,6 @@ export function useProject(projectId: Ref<string>) {
           params: { path: { project_id: projectId.value } },
         }),
       ),
+    enabled,
   })
 }

@@ -241,6 +241,7 @@ const downloadUrl = computed(() => `/api/v1/evaluations/${evaluationId.value}/re
 
 <style scoped>
 .evaluation-detail {
+  padding: var(--space-8) var(--space-4);
   display: flex;
   flex-direction: column;
   align-items: stretch;

@@ -760,6 +760,33 @@ resolve, and the review path works end to end behind a real session.
   asserted against the tokens (`tests/styles/tokens.spec.ts`); focus movement and announcements are tested where the
   interaction lives (review, decision, bulk). What this cannot show remains the manual pass of D17: real screen
   readers, keyboard-only use of the running application, contrast in the rendered pages, and the user round of D18.
+- **Production profile through the gateway. Verified (2026-09-24).** The client image builds from
+  `deploy/docker/frontend.Dockerfile` (target `production`, about 2.5 minutes) and runs behind the gateway
+  (`compose.yaml`, `frontend` and `gateway`). Checked over HTTP: every application route, and an unknown path,
+  answers `200` with the shell (the D13 history fallback); `/api/v1/` reaches the API, including its JSON `404`;
+  content-hashed assets carry `Cache-Control: public, max-age=31536000, immutable` while `index.html`,
+  `theme-init.js` and the fallback are `no-cache`; the built bundle contains no absolute host of its own.
+- **Real-browser smoke test. Delivered** (`frontend/scripts/production-smoke.mjs`, `npm run smoke:production`).
+  A headless Chrome over the DevTools Protocol, against the production profile with the development seed: a deep link
+  without a session goes to `/login` and returns after signing in; the session cookie is `HttpOnly` and `Secure`
+  and the CSRF cookie is readable by the client; the review deep link shows the queue with its counts and the first
+  person; **key 2 then Enter records a decision** and the person's revision advances; the run, aggregation, people,
+  evaluation and exports screens load without scrolling sideways; a hard reload on a deep link keeps the session;
+  and no request failed and nothing was thrown (13 of 13). It appends one annotation to the seed by design, so it
+  is for the development stack only.
+- **What the browser found that the component tests could not.** Three defects, all fixed, each with a test that
+  fails without the fix: (1) the eight screens added from M4 on lacked the page padding every earlier screen sets on
+  its own `<main>` (the shell does not pad), so they sat flush against the sidebar and the window edge
+  (`tests/tooling/view-layout.spec.ts`); (2) the review filters ran a token and its gloss together
+  ("unreviewednoch nicht geprüft"), on screen and for a screen reader, because two spans had no whitespace between
+  them (`review.spec.ts`); (3) screens asked the API for the project and the upload limits before the session was
+  known, a burst of requests that could only fail for a visitor about to be sent to `/login`
+  (`tests/app/signed-out-requests.spec.ts`, every screen).
+- **Observation (not a documented requirement): the gateway sets no security headers.** No `Content-Security-Policy`,
+  `X-Frame-Options` / `frame-ancestors`, `X-Content-Type-Options` or `Referrer-Policy` on the entry document, and no
+  HSTS (no TLS is configured in `deploy/proxy/nginx.conf`). Nothing in docs/13 or the ADRs asks for them, so this
+  is a hardening recommendation for a public deployment, best decided with an ADR; the client itself loads nothing
+  from another origin and uses no inline script beyond `theme-init.js`, so a strict CSP should be feasible.
 
 ## Decisions taken
 

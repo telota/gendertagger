@@ -18,7 +18,7 @@ const { session, isSignedIn, retrySession } = useRequireSession()
 const projectId = useRouteParam('projectId')
 const runId = useRouteParam('runId')
 
-const project = useProject(projectId)
+const project = useProject(projectId, isSignedIn)
 // Starting an export is a project-scoped operator action, like a run, an aggregation or an evaluation.
 const canRun = computed(() => project.data.value?.current_user_role === 'operator')
 
@@ -90,6 +90,7 @@ const items = computed(() => list.data.value?.pages.flatMap((page) => page.items
 
 <style scoped>
 .export-list-view {
+  padding: var(--space-8) var(--space-4);
   display: flex;
   flex-direction: column;
   align-items: flex-start;

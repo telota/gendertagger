@@ -8,6 +8,7 @@
     "node": "^26.9.0"
   },
   "scripts": {
+    "smoke:production": "node scripts/production-smoke.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",

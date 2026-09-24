@@ -41,6 +41,16 @@ describe.each(['de', 'en'] as const)('review workbench in %s', (locale: AppLocal
     return request
   }
 
+  it('keeps a filter token and its gloss apart as words, on screen and for a screen reader', async () => {
+    const wrapper = await mountReview(newServer())
+
+    const label = wrapper.get('label[for="review-state-unreviewed"]').text()
+    expect(label).toBe(`unreviewed ${messages.gloss.workflow.unreviewed}`)
+    expect(wrapper.get('label[for="review-agreement-unanimous"]').text()).toBe(
+      `unanimous ${messages.gloss.agreement.unanimous}`,
+    )
+  })
+
   it('starts on the contested-evidence queue with its own tiers and the triage order', async () => {
     const server = newServer()
     await mountReview(server)

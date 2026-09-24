@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { computed, type Ref } from 'vue'
+import { computed, ref, type Ref } from 'vue'
 
 import { unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
@@ -75,12 +75,13 @@ export function useSnapshotStatus(snapshotId: Ref<string | null>) {
  * `GET /snapshot-upload-limits`: the deployment's bounds, readable before uploading so they can be
  * shown up front rather than only reported by a `413` afterwards.
  */
-export function useSnapshotUploadLimits() {
+export function useSnapshotUploadLimits(enabled: Ref<boolean> = ref(true)) {
   const client = useApiClient()
 
   return useQuery({
     queryKey: ['snapshot-upload-limits'] as const,
     queryFn: () => unwrap(client.GET('/api/v1/snapshot-upload-limits')),
     staleTime: Infinity,
+    enabled,
   })
 }
