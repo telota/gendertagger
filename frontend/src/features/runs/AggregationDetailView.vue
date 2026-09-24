@@ -6,6 +6,7 @@ import { RouterLink } from 'vue-router'
 import AppButton from '@/components/base/AppButton.vue'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
 
+import RunProvenance from './RunProvenance.vue'
 import { useAggregation } from './useAggregations'
 import { useRun, useRunExecutions } from './useRunDetail'
 import { useStatusLabel } from './useStatusLabel'
@@ -139,6 +140,11 @@ const resolvedConfig = computed(() =>
             </li>
           </ul>
         </section>
+
+        <div v-if="run.data.value" class="aggregation-detail-block">
+          <p class="aggregation-detail-hint">{{ t('aggregations.detail.provenanceHint') }}</p>
+          <RunProvenance :run="run.data.value" />
+        </div>
       </template>
     </template>
   </main>

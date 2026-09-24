@@ -426,11 +426,25 @@ default single-file delivery, see the upload-limits item) and showed that the re
   why.** The client cannot tell which methods a strategy needs, and `details` is empty, so the message names the rule
   in general terms. A per-strategy required/optional method list on `AggregationStrategy` (or the `409` naming the
   missing methods, which the repository already computes) would let the form guide the selection.
-- Still open in M4: run and method provenance display (code commit, dependency lock, image digest, model and
-  prompt identity), which the exit criterion's "code provenance" needs.
+- Run and method provenance. **Delivered.** The run screen has a provenance section (code commit, application and
+  Python version, container image digest, dependency lock checksum and artifact, configuration hash, resolved
+  configuration); a value that was not recorded says "Not recorded" rather than disappearing. Each method execution
+  carries a disclosure with its implementation and normalization version, configuration hash, resolved configuration
+  and, where it has them, model identifier, revision and checksum, prompt version and schema version
+  ([`11-provenance-and-reproducibility.md`](11-provenance-and-reproducibility.md)). The aggregation screen shows the
+  provenance of the run it was computed from, so the configuration hash and code provenance behind an aggregation
+  are readable from the aggregation itself.
 
 **Exit criterion.** An operator starts a run, watches it complete live, produces an aggregation, and can
 read back the exact configuration hash and code provenance that produced it.
+
+**Status of the exit criterion (2026-09-24).** Met in the frontend, in two parts that could not be exercised together on
+the development stack. Starting a run and watching it complete over SSE was verified with the three methods that need
+no configuration; producing an aggregation and reading back its hashes and code provenance was verified on the seeded
+run, which holds all reference methods. A run of fewer methods cannot be aggregated with `reference_v1` at all (see
+the constraint above), and a run of all of them needs six lookup artifacts and a model endpoint that this stack lacks.
+The end-to-end path from a browser-started run to its aggregation therefore still needs an environment with those
+artifacts, and the two contract gaps above (configuration schemas, lookup discovery) closed to be pleasant to use.
 
 ### M5 — Review workbench
 

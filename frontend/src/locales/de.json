@@ -323,6 +323,29 @@
         "live": "Live-Updates aktiv",
         "reconnecting": "Verbindung unterbrochen, wird neu aufgebaut …"
       }
+    },
+    "provenance": {
+      "title": "Provenienz",
+      "hint": "Was diesen Lauf erzeugt hat: der Code, die Umgebung und die genaue Konfiguration. Aus diesen Werten lässt sich derselbe Lauf reproduzieren.",
+      "codeCommit": "Code-Commit",
+      "applicationVersion": "Anwendungsversion",
+      "pythonVersion": "Python-Version",
+      "imageDigest": "Container-Image-Digest",
+      "dependencyLockHash": "Prüfsumme der Abhängigkeitssperre",
+      "dependencyLockArtifact": "Artefakt der Abhängigkeitssperre",
+      "configHash": "Konfigurations-Hash",
+      "resolvedConfig": "Aufgelöste Konfiguration",
+      "notRecorded": "Nicht erfasst"
+    },
+    "execution": {
+      "provenance": "Methodenprovenienz",
+      "implementationVersion": "Implementierungsversion",
+      "normalizationVersion": "Normalisierungsversion",
+      "modelIdentifier": "Modell",
+      "modelRevision": "Modellrevision",
+      "modelChecksum": "Modellprüfsumme",
+      "promptVersion": "Prompt-Version",
+      "schemaVersion": "Schema-Version"
     }
   },
   "aggregations": {
@@ -363,7 +386,8 @@
       "finished": "Beendet",
       "resolvedConfig": "Aufgelöste Konfiguration",
       "selection": "Gewählte Methodenausführungen",
-      "selectionHint": "Genau die Ausführungen, die diese Aggregation verwendet hat, in der verwendeten Reihenfolge."
+      "selectionHint": "Genau die Ausführungen, die diese Aggregation verwendet hat, in der verwendeten Reihenfolge.",
+      "provenanceHint": "Der Lauf, aus dem diese Aggregation berechnet wurde:"
     }
   }
 }

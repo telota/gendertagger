@@ -307,6 +307,48 @@ describe.each(['de', 'en'] as const)('run detail with live progress in %s', (loc
     await waitFor(() => expect(state.runGets).toBeGreaterThan(runGetsBefore))
   })
 
+  it('reads back the run provenance and says so when a value was not recorded', async () => {
+    const wrapper = await mountDetail(
+      server({
+        run: runBody('completed', progress(8, 0, 8), {
+          code_git_commit: 'a'.repeat(40),
+          dependency_lock_sha256: 'b'.repeat(64),
+          container_image_digest: null,
+        }),
+      }),
+    )
+
+    const fact = (key: string) => wrapper.get(`.provenance-fact[data-key="${key}"] dd`).text()
+    expect(fact('codeCommit')).toBe('a'.repeat(40))
+    expect(fact('dependencyLockHash')).toBe('b'.repeat(64))
+    expect(fact('configHash')).toBe('e'.repeat(64))
+    expect(fact('imageDigest')).toBe(messages.provenance.notRecorded)
+  })
+
+  it('shows each method execution its own model and prompt identity, only where it has one', async () => {
+    const wrapper = await mountDetail(
+      server({
+        run: runBody('completed', progress(8, 0, 8)),
+        executions: [
+          executionBody('completed', progress(4, 0, 4), {
+            method_name: 'local_llm',
+            model_identifier: 'llama3',
+            model_revision: 'rev-7',
+            prompt_version: 'prompt_v2',
+          }),
+        ],
+      }),
+    )
+
+    const labels = wrapper.findAll('.execution-provenance-fact dt').map((dt) => dt.text())
+    expect(labels).toContain(messages.execution.modelIdentifier)
+    expect(labels).toContain(messages.execution.promptVersion)
+    expect(labels).not.toContain(messages.execution.schemaVersion)
+    expect(labels).not.toContain(messages.execution.modelChecksum)
+    expect(wrapper.text()).toContain('llama3')
+    expect(wrapper.text()).toContain('prompt_v2')
+  })
+
   it('closes the stream when the screen is left', async () => {
     const wrapper = await mountDetail(server())
     await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1))

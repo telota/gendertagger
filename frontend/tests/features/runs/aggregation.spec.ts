@@ -262,5 +262,8 @@ describe.each(['de', 'en'] as const)('aggregation in %s', (locale: AppLocale) =>
       'gnd',
     ])
     expect(wrapper.get('.aggregation-detail-back').attributes('href')).toBe(runPath)
+    // The exit criterion: the code that produced the aggregation's run is readable from here.
+    expect(wrapper.get('.provenance-fact[data-key="codeCommit"] dd').text()).toBe('abc')
+    expect(wrapper.get('.provenance-fact[data-key="configHash"] dd').text()).toBe('e'.repeat(64))
   })
 })

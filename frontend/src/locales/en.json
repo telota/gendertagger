@@ -323,6 +323,29 @@
         "live": "Live updates on",
         "reconnecting": "Connection lost, reconnecting …"
       }
+    },
+    "provenance": {
+      "title": "Provenance",
+      "hint": "What produced this run: the code, the environment and the exact configuration. The same run can be reproduced from these values.",
+      "codeCommit": "Code commit",
+      "applicationVersion": "Application version",
+      "pythonVersion": "Python version",
+      "imageDigest": "Container image digest",
+      "dependencyLockHash": "Dependency lock checksum",
+      "dependencyLockArtifact": "Dependency lock artifact",
+      "configHash": "Configuration hash",
+      "resolvedConfig": "Resolved configuration",
+      "notRecorded": "Not recorded"
+    },
+    "execution": {
+      "provenance": "Method provenance",
+      "implementationVersion": "Implementation version",
+      "normalizationVersion": "Normalization version",
+      "modelIdentifier": "Model",
+      "modelRevision": "Model revision",
+      "modelChecksum": "Model checksum",
+      "promptVersion": "Prompt version",
+      "schemaVersion": "Schema version"
     }
   },
   "aggregations": {
@@ -363,7 +386,8 @@
       "finished": "Finished",
       "resolvedConfig": "Resolved configuration",
       "selection": "Selected method executions",
-      "selectionHint": "Exactly the executions this aggregation used, in the order it used them."
+      "selectionHint": "Exactly the executions this aggregation used, in the order it used them.",
+      "provenanceHint": "The run this aggregation was computed from:"
     }
   }
 }

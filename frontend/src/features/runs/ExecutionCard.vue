@@ -13,6 +13,43 @@ const { t, n } = useI18n()
 const label = useStatusLabel()
 
 const statusLabel = computed(() => label(props.execution.status))
+
+// The method's own identity: which implementation, which model and prompt produced these results
+// (docs/11). Optional entries appear only for methods that have them; the ones every execution
+// carries always do.
+interface ProvenanceRow {
+  key: string
+  label: string
+  value: string
+}
+const provenanceRows = computed<ProvenanceRow[]>(() => {
+  const e = props.execution
+  const always: ProvenanceRow[] = [
+    {
+      key: 'implementationVersion',
+      label: t('runs.execution.implementationVersion'),
+      value: e.implementation_version,
+    },
+    {
+      key: 'normalizationVersion',
+      label: t('runs.execution.normalizationVersion'),
+      value: e.normalization_version,
+    },
+    { key: 'configHash', label: t('runs.item.configHash'), value: e.config_sha256 },
+  ]
+  const optional: [string, string, string | null | undefined][] = [
+    ['modelIdentifier', t('runs.execution.modelIdentifier'), e.model_identifier],
+    ['modelRevision', t('runs.execution.modelRevision'), e.model_revision],
+    ['modelChecksum', t('runs.execution.modelChecksum'), e.model_checksum],
+    ['promptVersion', t('runs.execution.promptVersion'), e.prompt_version],
+    ['schemaVersion', t('runs.execution.schemaVersion'), e.schema_version],
+  ]
+  for (const [key, label, value] of optional) {
+    if (value) always.push({ key, label, value })
+  }
+  return always
+})
+const resolvedConfig = computed(() => JSON.stringify(props.execution.resolved_config, null, 2))
 </script>
 
 <template>
@@ -36,6 +73,18 @@ const statusLabel = computed(() => label(props.execution.status))
         })
       }}
     </p>
+    <details class="execution-provenance">
+      <summary>{{ t('runs.execution.provenance') }}</summary>
+      <dl class="execution-provenance-facts">
+        <div v-for="row in provenanceRows" :key="row.key" class="execution-provenance-fact">
+          <dt>{{ row.label }}</dt>
+          <dd>
+            <code class="execution-provenance-value">{{ row.value }}</code>
+          </dd>
+        </div>
+      </dl>
+      <pre class="execution-provenance-config">{{ resolvedConfig }}</pre>
+    </details>
     <div v-if="execution.failure_class || execution.failure_diagnostic" class="execution-failure">
       <p v-if="execution.failure_class" class="execution-failure-class">
         {{ execution.failure_class }}
@@ -87,6 +136,46 @@ const statusLabel = computed(() => label(props.execution.status))
 .execution-counts {
   margin: 0;
   color: var(--text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.execution-provenance summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.execution-provenance-facts {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-2) 0;
+}
+
+.execution-provenance-fact {
+  display: grid;
+  grid-template-columns: 10rem 1fr;
+  gap: var(--space-3);
+}
+
+.execution-provenance-fact dt {
+  color: var(--text-secondary);
+}
+
+.execution-provenance-fact dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.execution-provenance-value {
+  font-size: var(--font-size-small);
+}
+
+.execution-provenance-config {
+  margin: 0;
+  padding: var(--space-3);
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
   font-size: var(--font-size-small);
 }
 

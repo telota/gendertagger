@@ -9,6 +9,7 @@ import { useRequireSession, useRouteParam } from '@/composables/useRequireSessio
 
 import AggregationSection from './AggregationSection.vue'
 import ExecutionCard from './ExecutionCard.vue'
+import RunProvenance from './RunProvenance.vue'
 import { TERMINAL_RUN_STATUSES, useRun, useRunExecutions } from './useRunDetail'
 import { useRunProgress } from './useRunProgress'
 import { useStatusLabel } from './useStatusLabel'
@@ -106,6 +107,8 @@ const connectionLabel = computed(() => {
             {{ run.data.value.failure_diagnostic }}
           </p>
         </div>
+
+        <RunProvenance :run="run.data.value" />
 
         <section class="run-detail-executions" aria-labelledby="run-executions-heading">
           <h2 id="run-executions-heading" class="run-detail-heading">

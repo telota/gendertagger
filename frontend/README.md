@@ -207,6 +207,8 @@ and is one click for two backend commands (`POST /runs`, then `POST /runs/{id}/e
 per-method configuration schema, so each selected method gets a JSON text field that the server validates; see
 `docs/24-frontend-delivery-plan.md` (M4) for the two backend gaps this exposes. `composables/useRequireSession.ts`
 is the shared signed-out rule for new screens; the older project views still carry their own copy.
+`RunProvenance.vue` (run: code, environment, configuration) and the disclosure on `ExecutionCard.vue` (method: versions,
+model, prompt) show the reproducibility fields; the aggregation screen embeds the run's provenance.
 Aggregations (D4) live in the same folder: the run screen creates the default `reference_v1` aggregation once for a
 finished run and lists all of them; `useStatusLabel.ts` holds the one status wording shared by runs, executions and
 aggregations.
