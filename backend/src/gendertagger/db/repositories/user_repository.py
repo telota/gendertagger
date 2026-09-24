@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from gendertagger.db.rows.users import UserRoleRow, UserRow
@@ -37,6 +37,56 @@ class SqlAlchemyUserRepository:
         roles = set(
             self._session.scalars(select(UserRoleRow.role).where(UserRoleRow.user_id == user_id))
         )
+        return self._user_from_row(row, roles)
+
+    def lock_active_administrator_ids(self) -> set[UUID]:
+        """Lock every active administrator before validating a role-state change.
+
+        Locking this complete set serializes mutations that could remove the final active
+        administrator. PostgreSQL re-evaluates the query after a concurrent transaction releases
+        its lock under ``READ COMMITTED``, so each waiter observes the previous committed mutation.
+        """
+        statement = (
+            select(UserRow.id)
+            .join(UserRoleRow, UserRoleRow.user_id == UserRow.id)
+            .where(UserRow.is_active.is_(True), UserRoleRow.role == GlobalRole.admin)
+            .with_for_update(of=UserRow)
+        )
+        return set(self._session.scalars(statement))
+
+    def get_user_for_update(self, user_id: UUID) -> User | None:
+        """Return one user under a write lock, or ``None`` when absent."""
+        row = self._session.get(UserRow, user_id, with_for_update=True)
+        if row is None:
+            return None
+        roles = set(
+            self._session.scalars(select(UserRoleRow.role).where(UserRoleRow.user_id == user_id))
+        )
+        return self._user_from_row(row, roles)
+
+    def update_user(
+        self,
+        *,
+        user_id: UUID,
+        display_name: str,
+        roles: set[GlobalRole],
+        is_active: bool,
+    ) -> User:
+        """Replace mutable user fields while preserving identity and history."""
+        row = self._session.get(UserRow, user_id, with_for_update=True)
+        if row is None:
+            msg = f"user {user_id} does not exist"
+            raise LookupError(msg)
+        row.display_name = display_name
+        row.is_active = is_active
+        self._session.execute(delete(UserRoleRow).where(UserRoleRow.user_id == user_id))
+        self._session.add_all(
+            [
+                UserRoleRow(user_id=user_id, role=role)
+                for role in sorted(roles, key=lambda role: role.value)
+            ]
+        )
+        self._session.flush()
         return self._user_from_row(row, roles)
 
     @staticmethod

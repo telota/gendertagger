@@ -50,6 +50,13 @@ The application service enforces these invariants in addition to the route-level
 - at least one active administrator must remain; and
 - every account and role mutation validates the target inside the transaction that persists it.
 
+For every activation or global-role change, the service first locks every current active-administrator
+`users` row with `SELECT ... FOR UPDATE`, then revalidates the actor and locks the target before mutation.
+This serializes changes that could remove an active administrator. Under PostgreSQL's default `READ COMMITTED`
+isolation, a waiter evaluates the locked set after its predecessor commits, so it validates against the
+predecessor's result rather than a stale count. The session revocation update and account update share that
+same transaction.
+
 Successful mutations emit structured operational logs containing the acting user ID, action, target user ID,
 request ID, and non-secret changed fields. Logs never contain passwords, password hashes, session or CSRF
 tokens, API keys, or complete secret-bearing request bodies. A persisted administrative event history and an

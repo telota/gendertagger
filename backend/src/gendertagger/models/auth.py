@@ -6,10 +6,19 @@ database-backed account provider.
 """
 
 import re
-from typing import Annotated
+from typing import Annotated, Self
 from uuid import UUID
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, SecretStr, field_validator
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    SecretStr,
+    field_validator,
+    model_validator,
+)
+from pydantic.json_schema import SkipJsonSchema
 
 from gendertagger.models.common import UtcDatetime
 from gendertagger.models.user import GlobalRole
@@ -77,6 +86,32 @@ class AdminUserCreateResult(BaseModel):
 
     account: AdminUser
     temporary_password: str = Field(min_length=MIN_LOCAL_PASSWORD_LENGTH, repr=False)
+
+
+class AdminUserUpdate(BaseModel):
+    """Global-administrator patch for mutable local-account fields."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    display_name: str | SkipJsonSchema[None] = Field(default=None, max_length=200)
+    roles: set[GlobalRole] | SkipJsonSchema[None] = None
+    is_active: bool | SkipJsonSchema[None] = None
+
+    @field_validator("display_name")
+    @classmethod
+    def _validate_display_name(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            msg = "display_name must not be blank"
+            raise ValueError(msg)
+        return value
+
+    @model_validator(mode="after")
+    def _reject_explicit_nulls(self) -> Self:
+        for field_name in self.model_fields_set:
+            if getattr(self, field_name) is None:
+                msg = f"{field_name} must not be null"
+                raise ValueError(msg)
+        return self
 
 
 class LoginRequest(BaseModel):

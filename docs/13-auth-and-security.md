@@ -96,11 +96,14 @@ Argon2id password hashes, and server-side revocable sessions, with no external i
 no self-service registration or email-based password recovery. Global administrators create accounts with
 `POST /api/v1/admin/users`; the server generates a temporary password, returns it once in a non-cacheable
 response, and flags the account to change it at next use. `GET /api/v1/admin/users` provides the associated
-searchable, cursor-paginated directory without exposing credential or session secrets. The
-`gendertagger users create` command remains the break-glass provisioning path. Password reset remains
-available through `gendertagger users reset-password` until its administrative HTTP command from
-[ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md) lands. Both provisioning paths and
-reset use the same application service and forced-change behavior. See
+searchable, cursor-paginated directory without exposing credential or session secrets.
+`PATCH /api/v1/admin/users/{user_id}` lets global administrators change a local account's display name,
+global roles, or activation state under the normal CSRF and password-current protections. It revalidates the
+actor as an active administrator in its transaction, preserves usernames and memberships, and revokes every
+target session atomically when deactivating. The `gendertagger users create` command remains the
+break-glass provisioning path. Password reset remains available through `gendertagger users reset-password`
+until its administrative HTTP command from [ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md)
+lands. Both provisioning paths and reset use the same application service and forced-change behavior. See
 [ADR-0031](decisions/ADR-0031-local-database-authentication.md) for the exact credential, session, endpoint,
 and cookie contract. Institutional SSO remains a later, additive `AuthenticationBackend` implementation.
 The gateway throttles `POST /api/v1/auth/login` per client address: six attempts at once, then one every

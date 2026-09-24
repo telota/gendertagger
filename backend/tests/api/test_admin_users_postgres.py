@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -200,3 +201,59 @@ def test_admin_can_create_local_account_and_duplicate_username_conflicts(
         params={"query": f"new-{suffix}"},
     )
     assert len(directory.json()["items"]) == 1
+
+
+def test_admin_can_patch_local_account_and_deactivation_revokes_sessions(
+    postgres_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    deployment = _Deployment(postgres_engine, tmp_path)
+    suffix = uuid4().hex[:8]
+    administrator_id = deployment.add_local_account(
+        "Account administrator",
+        f"administrator-{suffix}",
+        GlobalRole.admin,
+    )
+    target_id = deployment.add_local_account("Existing account", f"target-{suffix}")
+    session_id = uuid4().hex
+    session_time = datetime(2026, 9, 24, 10, tzinfo=UTC)
+    with deployment.unit_of_work_factory() as unit_of_work:
+        unit_of_work.auth.create_session(
+            session_id=session_id,
+            user_id=target_id,
+            csrf_secret="not-used-by-this-test",
+            keep_signed_in=False,
+            expires_at=session_time + timedelta(days=1),
+            absolute_expires_at=session_time + timedelta(days=30),
+        )
+        unit_of_work.commit()
+
+    updated = deployment.act_as(administrator_id).patch(
+        f"/api/v1/admin/users/{target_id}",
+        json={
+            "display_name": "Renamed account",
+            "roles": ["operator"],
+            "is_active": False,
+        },
+    )
+    reactivated = deployment.act_as(administrator_id).patch(
+        f"/api/v1/admin/users/{target_id}",
+        json={"is_active": True},
+    )
+    external_user_id = deployment.add_provider_user_without_local_credential("External account")
+    external = deployment.act_as(administrator_id).patch(
+        f"/api/v1/admin/users/{external_user_id}",
+        json={"display_name": "Not local"},
+    )
+
+    assert updated.status_code == 200
+    assert updated.json()["username"] == f"target-{suffix}"
+    assert updated.json()["roles"] == ["operator"]
+    assert updated.json()["is_active"] is False
+    assert reactivated.status_code == 200
+    assert reactivated.json()["is_active"] is True
+    assert external.status_code == 404
+    with deployment.unit_of_work_factory() as unit_of_work:
+        session = unit_of_work.auth.get_session(session_id)
+    assert session is not None
+    assert session.revoked_at is not None

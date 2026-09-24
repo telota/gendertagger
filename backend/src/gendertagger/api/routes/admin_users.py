@@ -1,6 +1,7 @@
 """Global-administrator local-account resources (ADR-0039)."""
 
 from typing import Annotated, cast
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 
@@ -8,11 +9,22 @@ from gendertagger.api.authorization import require_admin
 from gendertagger.api.dependencies import get_user_administration_service
 from gendertagger.api.errors import ApiRequestError, invalid_cursor_error
 from gendertagger.models.api import CursorPage
-from gendertagger.models.auth import AdminUser, AdminUserCreate, AdminUserCreateResult
+from gendertagger.models.auth import (
+    AdminUser,
+    AdminUserCreate,
+    AdminUserCreateResult,
+    AdminUserUpdate,
+)
 from gendertagger.models.user import CurrentUser
 from gendertagger.services.pagination import InvalidCursorError
-from gendertagger.services.ports.persistence_errors import DuplicateUsernameError
-from gendertagger.services.user_administration import UserAdministrationService
+from gendertagger.services.ports.persistence_errors import (
+    DuplicateUsernameError,
+    ResourceNotFoundError,
+)
+from gendertagger.services.user_administration import (
+    AdminUserStateConflictError,
+    UserAdministrationService,
+)
 
 router = APIRouter(tags=["admin users"])
 
@@ -44,6 +56,36 @@ def create_admin_user(
         ) from error
     response.headers["Cache-Control"] = "no-store"
     return result
+
+
+@router.patch("/admin/users/{user_id}", response_model=AdminUser)
+def update_admin_user(
+    user_id: UUID,
+    command: AdminUserUpdate,
+    request: Request,
+    service: Annotated[UserAdministrationService, Depends(get_user_administration_service)],
+    administrator: Annotated[CurrentUser, Depends(require_admin)],
+) -> AdminUser:
+    """Update mutable local-account fields without changing its username."""
+    try:
+        return service.update_user(
+            user_id,
+            command,
+            actor_user_id=administrator.id,
+            request_id=cast(str, request.state.request_id),
+        )
+    except ResourceNotFoundError as error:
+        raise ApiRequestError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="resource_not_found",
+            message="The local account was not found.",
+        ) from error
+    except AdminUserStateConflictError as error:
+        raise ApiRequestError(
+            status_code=status.HTTP_409_CONFLICT,
+            code=error.code,
+            message=error.message,
+        ) from error
 
 
 @router.get("/admin/users", response_model=CursorPage[AdminUser])

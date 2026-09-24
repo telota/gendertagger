@@ -6,13 +6,23 @@ from uuid import UUID
 
 import pytest
 
-from gendertagger.models.auth import AdminUser, AdminUserCreate
+from gendertagger.models.auth import (
+    AdminUser,
+    AdminUserCreate,
+    AdminUserUpdate,
+    LocalCredential,
+)
 from gendertagger.models.user import GlobalRole, User
 from gendertagger.services.authentication import AuthenticationService
 from gendertagger.services.pagination import CursorCodec, InvalidCursorError
 from gendertagger.services.ports.auth_repository import AdminUserCursor, AuthRepository
+from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
 from gendertagger.services.ports.unit_of_work import UnitOfWork
-from gendertagger.services.user_administration import UserAdministrationService
+from gendertagger.services.ports.user_repository import UserRepository
+from gendertagger.services.user_administration import (
+    AdminUserStateConflictError,
+    UserAdministrationService,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -25,8 +35,10 @@ USER_IDS = (
 
 
 class _UnitOfWork:
-    def __init__(self, auth: AuthRepository) -> None:
+    def __init__(self, auth: AuthRepository, users: UserRepository | None = None) -> None:
         self.auth = auth
+        self.users = users or Mock(spec=UserRepository)
+        self.commit = Mock()
 
     def __enter__(self) -> Self:
         return self
@@ -55,8 +67,9 @@ def _user(index: int) -> AdminUser:
 def _service(
     repository: AuthRepository,
     authentication_service: AuthenticationService | None = None,
+    users: UserRepository | None = None,
 ) -> UserAdministrationService:
-    unit_of_work = _UnitOfWork(repository)
+    unit_of_work = _UnitOfWork(repository, users)
 
     def factory() -> UnitOfWork:
         return cast(UnitOfWork, unit_of_work)
@@ -152,3 +165,148 @@ def test_create_user_returns_once_disclosed_temporary_password_and_logs_context(
     assert str(USER_IDS[1]) in caplog.text
     assert "request-123" in caplog.text
     assert result.temporary_password not in caplog.text
+
+
+def _local_credential(index: int) -> LocalCredential:
+    return LocalCredential(
+        user_id=USER_IDS[index],
+        username=f"user{index}",
+        password_hash="not-exposed",
+        must_change_password=False,
+        updated_at=NOW,
+    )
+
+
+def test_update_user_applies_only_supplied_fields_revokes_sessions_and_logs(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    auth = Mock(spec=AuthRepository)
+    users = Mock(spec=UserRepository)
+    target = User(
+        id=USER_IDS[1],
+        display_name="Existing user",
+        roles=set(),
+        is_active=True,
+        created_at=NOW,
+        updated_at=NOW,
+    )
+    updated = target.model_copy(
+        update={
+            "display_name": "Renamed user",
+            "roles": {GlobalRole.operator},
+            "is_active": False,
+        }
+    )
+    users.lock_active_administrator_ids.return_value = {USER_IDS[0]}
+    users.get_user_for_update.return_value = target
+    users.update_user.return_value = updated
+    auth.get_credential.return_value = _local_credential(1)
+    service = _service(auth, users=users)
+
+    with caplog.at_level("INFO"):
+        account = service.update_user(
+            USER_IDS[1],
+            AdminUserUpdate(
+                display_name="Renamed user",
+                roles={GlobalRole.operator},
+                is_active=False,
+            ),
+            actor_user_id=USER_IDS[0],
+            request_id="request-456",
+        )
+
+    assert account.display_name == "Renamed user"
+    assert account.roles == {GlobalRole.operator}
+    assert account.is_active is False
+    users.update_user.assert_called_once_with(
+        user_id=USER_IDS[1],
+        display_name="Renamed user",
+        roles={GlobalRole.operator},
+        is_active=False,
+    )
+    auth.revoke_all_sessions.assert_called_once_with(USER_IDS[1])
+    assert "request-456" in caplog.text
+    assert "display_name,roles,is_active" in caplog.text
+
+
+def test_update_user_is_idempotent_when_requested_state_already_holds() -> None:
+    auth = Mock(spec=AuthRepository)
+    users = Mock(spec=UserRepository)
+    target = User(
+        id=USER_IDS[1],
+        display_name="Existing user",
+        roles={GlobalRole.operator},
+        is_active=True,
+        created_at=NOW,
+        updated_at=NOW,
+    )
+    users.lock_active_administrator_ids.return_value = {USER_IDS[0]}
+    users.get_user_for_update.return_value = target
+    auth.get_credential.return_value = _local_credential(1)
+    service = _service(auth, users=users)
+
+    account = service.update_user(
+        USER_IDS[1],
+        AdminUserUpdate(is_active=True),
+        actor_user_id=USER_IDS[0],
+        request_id="request-789",
+    )
+
+    assert account.display_name == "Existing user"
+    users.update_user.assert_not_called()
+    auth.revoke_all_sessions.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("command", "code"),
+    [
+        (AdminUserUpdate(is_active=False), "self_deactivation_forbidden"),
+        (AdminUserUpdate(roles={GlobalRole.operator}), "self_admin_role_removal_forbidden"),
+    ],
+)
+def test_update_user_rejects_self_administrator_state_changes(
+    command: AdminUserUpdate,
+    code: str,
+) -> None:
+    auth = Mock(spec=AuthRepository)
+    users = Mock(spec=UserRepository)
+    target = User(
+        id=USER_IDS[0],
+        display_name="Administrator",
+        roles={GlobalRole.admin},
+        is_active=True,
+        created_at=NOW,
+        updated_at=NOW,
+    )
+    users.lock_active_administrator_ids.return_value = {USER_IDS[0]}
+    users.get_user_for_update.return_value = target
+    auth.get_credential.return_value = _local_credential(0)
+    service = _service(auth, users=users)
+
+    with pytest.raises(AdminUserStateConflictError) as error:
+        service.update_user(
+            USER_IDS[0],
+            command,
+            actor_user_id=USER_IDS[0],
+            request_id="request-012",
+        )
+
+    assert error.value.code == code
+    users.update_user.assert_not_called()
+
+
+def test_update_user_hides_missing_and_nonlocal_accounts() -> None:
+    auth = Mock(spec=AuthRepository)
+    users = Mock(spec=UserRepository)
+    users.lock_active_administrator_ids.return_value = {USER_IDS[0]}
+    users.get_user_for_update.return_value = None
+    auth.get_credential.return_value = None
+    service = _service(auth, users=users)
+
+    with pytest.raises(ResourceNotFoundError):
+        service.update_user(
+            USER_IDS[2],
+            AdminUserUpdate(display_name="No account"),
+            actor_user_id=USER_IDS[0],
+            request_id="request-345",
+        )

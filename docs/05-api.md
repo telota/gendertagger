@@ -164,7 +164,14 @@ state, and creation time; it never exposes password hashes or session data.
 active account with a server-generated temporary password and `must_change_password=true`, then returns
 `201 Created` with the account and that password. The password is disclosed only in that response, which
 sets `Cache-Control: no-store`; it is never logged. A duplicate normalized username returns
-`409 username_conflict`. See
+`409 username_conflict`.
+
+`PATCH /admin/users/{user_id}` accepts only `display_name`, `roles`, and `is_active`; omitted fields remain
+unchanged, while `null`, unknown fields, blank display names, and a username are rejected. It returns the
+updated `AdminUser`, or `404 resource_not_found` when the account is absent or non-local. It returns stable
+`409` account-state codes when a patch would deactivate the acting administrator, remove the actor's own
+`admin` role, or violate a concurrently revalidated administrator invariant. Deactivation revokes every
+session in the same transaction; reactivation never restores them. See
 [ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md).
 
 ## Branding surface

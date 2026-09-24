@@ -11,12 +11,23 @@ from gendertagger.api.authentication import require_authenticated_user, require_
 from gendertagger.api.dependencies import get_user_administration_service
 from gendertagger.api.settings import AppSettings
 from gendertagger.models.api import CursorPage
-from gendertagger.models.auth import AdminUser, AdminUserCreate, AdminUserCreateResult
+from gendertagger.models.auth import (
+    AdminUser,
+    AdminUserCreate,
+    AdminUserCreateResult,
+    AdminUserUpdate,
+)
 from gendertagger.models.user import CurrentUser, GlobalRole
 from gendertagger.services.pagination import InvalidCursorError
-from gendertagger.services.ports.persistence_errors import DuplicateUsernameError
+from gendertagger.services.ports.persistence_errors import (
+    DuplicateUsernameError,
+    ResourceNotFoundError,
+)
 from gendertagger.services.ports.unit_of_work import UnitOfWork
-from gendertagger.services.user_administration import UserAdministrationService
+from gendertagger.services.user_administration import (
+    AdminUserStateConflictError,
+    UserAdministrationService,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -144,3 +155,84 @@ def test_admin_user_creation_maps_duplicate_username_to_stable_conflict() -> Non
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "username_conflict"
     assert "temporary_password" not in response.text
+
+
+def test_admin_user_update_forwards_patch_and_serializes_account() -> None:
+    service = Mock(spec=UserAdministrationService)
+    account = AdminUser(
+        id=USER_ID,
+        display_name="Renamed administrator",
+        username="admin",
+        roles={GlobalRole.admin, GlobalRole.operator},
+        is_active=True,
+        must_change_password=False,
+        created_at=NOW,
+    )
+    service.update_user.return_value = account
+
+    response = _client(service).patch(
+        f"/api/v1/admin/users/{USER_ID}",
+        json={"display_name": "Renamed administrator", "roles": ["admin", "operator"]},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == account.model_dump(mode="json")
+    service.update_user.assert_called_once_with(
+        USER_ID,
+        AdminUserUpdate(
+            display_name="Renamed administrator",
+            roles={GlobalRole.admin, GlobalRole.operator},
+        ),
+        actor_user_id=USER_ID,
+        request_id="request-123",
+    )
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"display_name": None},
+        {"roles": None},
+        {"is_active": None},
+        {"display_name": "   "},
+        {"username": "changed"},
+    ],
+)
+def test_admin_user_update_rejects_null_blank_and_immutable_fields(
+    payload: dict[str, object],
+) -> None:
+    response = _client(Mock(spec=UserAdministrationService)).patch(
+        f"/api/v1/admin/users/{USER_ID}",
+        json=payload,
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        ResourceNotFoundError("not local"),
+        AdminUserStateConflictError(
+            code="self_deactivation_forbidden",
+            message="Administrators cannot deactivate their own account.",
+        ),
+    ],
+)
+def test_admin_user_update_maps_not_found_and_state_conflicts(error: Exception) -> None:
+    service = Mock(spec=UserAdministrationService)
+    service.update_user.side_effect = error
+
+    response = _client(service).patch(
+        f"/api/v1/admin/users/{USER_ID}",
+        json={"display_name": "Unchanged"},
+    )
+
+    expected_status = 404 if isinstance(error, ResourceNotFoundError) else 409
+    assert response.status_code == expected_status
+    expected_code = (
+        "resource_not_found"
+        if isinstance(error, ResourceNotFoundError)
+        else "self_deactivation_forbidden"
+    )
+    assert response.json()["error"]["code"] == expected_code
