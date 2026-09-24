@@ -1169,5 +1169,12 @@
         "notApplicable": "Dieser Download ist das Manifest selbst, es gibt keine Ausgabe zum Vergleichen."
       }
     }
+  },
+  "projectSwitcher": {
+    "label": "Projekt wechseln",
+    "choose": "Projekt wählen",
+    "all": "Alle Projekte ansehen",
+    "empty": "Noch keine Projekte.",
+    "loadError": "Die Projekte konnten nicht geladen werden."
   }
 }

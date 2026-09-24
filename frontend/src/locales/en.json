@@ -1169,5 +1169,12 @@
         "notApplicable": "This download is the manifest itself, so there is no output to compare it to."
       }
     }
+  },
+  "projectSwitcher": {
+    "label": "Switch project",
+    "choose": "Choose a project",
+    "all": "View all projects",
+    "empty": "No projects yet.",
+    "loadError": "The projects could not be loaded."
   }
 }

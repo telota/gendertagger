@@ -8,6 +8,8 @@ import { useLocale } from '@/composables/useLocale'
 import { useTheme, type ThemePreference } from '@/composables/useTheme'
 import { useSessionStore } from '@/stores/session'
 
+import ProjectSwitcher from './ProjectSwitcher.vue'
+
 const { t } = useI18n()
 const router = useRouter()
 const session = useSessionStore()
@@ -32,6 +34,7 @@ function retry(): void {
 
 <template>
   <header class="app-header">
+    <ProjectSwitcher />
     <div class="app-header-controls">
       <AppListbox
         class="app-header-switcher app-header-switcher--locale"

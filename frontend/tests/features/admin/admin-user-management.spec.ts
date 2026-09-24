@@ -522,7 +522,8 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
     const client = signedInClient(
       (request) => {
         const { pathname } = new URL(request.url)
-        requests.push(pathname)
+        // The header's project switcher reads the project list; that is not part of this flow.
+        if (pathname !== '/api/v1/projects') requests.push(pathname)
         if (pathname === '/api/v1/admin/users' && request.method === 'GET') {
           return jsonResponse({ items: [currentAccount], has_more: false, next_cursor: null })
         }

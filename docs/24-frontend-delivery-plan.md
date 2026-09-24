@@ -356,9 +356,9 @@ this delivery.
   first use of a query cache (`@tanstack/vue-query`, decision noted in `frontend/README.md`); a signed-out
   visitor is redirected to `/login` and a genuine server error gets its own state, matching the pattern
   from M2's exit criterion. Also delivered: the sidebar layout from `docs/25` (`AppSidebar`), previously
-  outstanding from M2 and folded in here since M3 is what first needs cross-screen navigation. Not yet
-  built: the project switcher (nothing to switch between screens yet) and the nested
-  `/projects/:projectId/...` routes, added as their own screens land.
+  outstanding from M2 and folded in here since M3 is what first needs cross-screen navigation. The project
+  switcher was built in M9 (below), and the nested `/projects/:projectId/...` routes were added as their own
+  screens landed.
 - `ProjectOverviewView` (`/projects/:projectId/overview`). **Delivered**, deliberately minimal: name, slug,
   role, description, and a link to import — the wireframe's KPI dashboard is not attempted here, since it
   reads `GET /aggregations/{id}/review-summary`, which needs a run and an aggregation that cannot exist
@@ -745,7 +745,8 @@ closed; what is still open is one limit of the development seed (below).
 - ~~Spielmodus as a presentation layer over the annotation contract~~ — deferred out of v1 (D20). The
   constraint from [`22-future-development.md`](22-future-development.md) holds for whenever it is built: it must
   never influence which records are shown.
-- Einstellungen reduced to whatever persistence exists, or read-only deployment facts.
+- ~~Einstellungen reduced to whatever persistence exists, or read-only deployment facts~~ — covered by the
+  existing administration screens for now, see the Einstellungen bullet below.
 - SPA routing fallback in the frontend image (D13), production build, same-origin smoke test through the
   gateway in both themes.
 - Accessibility pass: keyboard paths, focus order, contrast against the token palette, screen-reader labels
@@ -767,6 +768,16 @@ resolve, and the review path works end to end behind a real session.
   MIT, named imports so unused icons are tree-shaken), decorative and `aria-hidden`. There is no Spielmodus
   entry (D20). Tailwind is not used (D21): styling stays on the semantic tokens of
   [`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md).
+- **Project switcher. Delivered.** `ProjectSwitcher` in the header (docs/23, topbar) is a menu of the caller's
+  projects (first page of `GET /projects`, server order), names and marks the current one, and links to the full
+  list. Shown only with a session. The wireframe's completion percentages and its "new project" action are not
+  part of it: no backend data exists for the former, and creating a project stays on the project list.
+- **Einstellungen: not built as a separate screen. Open for confirmation.** The wireframe's eight settings are
+  unsupported by design ([`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md)); the only persisted
+  settings are the six branding fields of ADR-0040, which `/admin/settings` already edits (sidebar: Admin,
+  "Branding-Einstellungen"). A read-only page of deployment facts (version, environment, `LLM_BASE_URL`) would need a
+  backend endpoint that does not exist, and the client does not invent one; if it is wanted, the endpoint comes first,
+  with its own contract and ADR.
 - **Accessibility pass, automated part. Delivered.** `tests/accessibility/screens.spec.ts` mounts every screen
   (projects, overview, import, runs, run, aggregation, review, people, evaluations, evaluation, exports, export) in
   both locales against one in-memory API (`tests/accessibility/mockApi.ts`, layered on the review fixture) and asserts
