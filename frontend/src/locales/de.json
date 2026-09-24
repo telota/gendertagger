@@ -565,6 +565,44 @@
         "network": "Die Entscheidung konnte nicht gespeichert werden: Der Server ist nicht erreichbar.",
         "generic": "Die Entscheidung konnte nicht gespeichert werden."
       }
+    },
+    "bulk": {
+      "label": "Sammelentscheidung",
+      "selectAll": "Alle {count} geladenen auswählen",
+      "selected": "{count} ausgewählt",
+      "clear": "Auswahl aufheben",
+      "tick": "{name} auswählen",
+      "action": "Für alle Ausgewählten entscheiden",
+      "choose": "Entscheidung wählen …",
+      "actions": {
+        "verify": "Jedes Maschinenlabel bestätigen",
+        "correct": "Alle zu {label} korrigieren",
+        "defer": "Alle zurückstellen"
+      },
+      "comment": "Kommentar für alle (optional)",
+      "review": "Vor dem Speichern prüfen",
+      "confirmTitle": "Sammelentscheidung bestätigen",
+      "confirm": "{action}: {count} Personen.",
+      "willSkip": "{count} davon haben kein Maschinenlabel und werden übersprungen.",
+      "andMore": "und {count} weitere",
+      "appendOnly": "Das fügt jeder Person einen dauerhaften Eintrag im Verlauf hinzu. Jede wird für sich gespeichert; wurde jemand inzwischen von anderen geändert, fällt nur diese Person heraus.",
+      "apply": "Für alle speichern",
+      "back": "Zurück",
+      "progress": "Wird gespeichert … {done} von {total}",
+      "stop": "Nach dieser Person anhalten",
+      "stopping": "Wird angehalten …",
+      "summary": "{saved} von {total} gespeichert.",
+      "notSaved": "Personen, die nicht gespeichert wurden, bleiben ausgewählt. Prüfe sie und entscheide erneut.",
+      "close": "Bericht schließen",
+      "outcome": {
+        "saved": "gespeichert (Revision {revision})",
+        "conflict": "nicht gespeichert: inzwischen von jemand anderem geändert",
+        "conflictAt": "nicht gespeichert: inzwischen von jemand anderem geändert (jetzt Revision {revision})",
+        "skipped": "übersprungen: kein Maschinenlabel zum Bestätigen",
+        "forbidden": "nicht gespeichert: du darfst hier nicht entscheiden",
+        "failed": "nicht gespeichert: die Anfrage ist fehlgeschlagen",
+        "notAttempted": "nicht versucht: vor dieser Person angehalten"
+      }
     }
   }
 }

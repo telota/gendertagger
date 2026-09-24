@@ -215,7 +215,7 @@ aggregations.
 `useRunProgress.ts` is the SSE composable (reconnect, refetch after every re-connection); EventSource is not in
 jsdom, so its specs use a small fake with open/emit/fail.
 
-## Review (M5a and M5b, in progress)
+## Review (M5)
 
 `features/review/` is the review workbench, reached from a completed aggregation. Its whole view state lives in the
 URL (`useReviewFilters.ts`: queue, filters, selected person). `useVocabulary.ts` and `VocabBadge.vue` render the
@@ -223,7 +223,8 @@ controlled vocabulary as an untranslated token with an optional gloss (D3). Keyb
 labels, no letter shortcuts, `Tab`/`Enter` for everything else. A method's own confidence uses the
 `confidence` number format (two places), never the one-place `decimal`. Decisions (`ReviewDecision.vue`, `useAnnotate.ts`) are append-only `POST /annotations` writes against an
 `expected_revision`; a `409 annotation_conflict` opens a recovery block instead of retrying.
-`tests/features/review/fixtures.ts` is the shared stateful test server (it extends its annotation chain on a write
+Bulk decisions (`ReviewBulkBar.vue`, `useBulkDecision.ts`) are a client-side sequence of those same writes with a
+per-person report, because the backend has no batch endpoint. `tests/features/review/fixtures.ts` is the shared stateful test server (it extends its annotation chain on a write
 and records every non-read request).
 
 ## Branding

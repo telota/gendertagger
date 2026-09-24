@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/base/AppButton.vue'
 
+import { reviewItemName } from './reviewItemName'
 import type { ReviewItem } from './useReviewData'
 import type { CertaintyTier } from './useVocabulary'
 import VocabBadge from './VocabBadge.vue'
@@ -15,8 +16,16 @@ defineProps<{
   failed: boolean
   hasMore: boolean
   loadingMore: boolean
+  /** Whether the person may decide (reviewer or up): only then rows can be ticked for a bulk decision. */
+  selectable: boolean
+  ticked: ReadonlySet<string>
 }>()
-const emit = defineEmits<{ select: [teiId: string]; loadMore: []; retry: [] }>()
+const emit = defineEmits<{
+  select: [teiId: string]
+  toggle: [teiId: string, checked: boolean]
+  loadMore: []
+  retry: []
+}>()
 
 const { t } = useI18n()
 const list = ref<HTMLUListElement | null>(null)
@@ -27,12 +36,6 @@ const toneOf = (tier: CertaintyTier): 'contested' | 'low' | 'thin' | 'neutral' =
   if (tier === 'low') return 'low'
   if (tier === 'single' || tier === 'uncertain') return 'thin'
   return 'neutral'
-}
-
-function displayName(item: ReviewItem): string {
-  const forenames = (item.forenames ?? []).join(' ')
-  if (item.surname && forenames) return `${item.surname}, ${forenames}`
-  return item.surname ?? (forenames || item.tei_id)
 }
 
 // Arrow keys move between rows (the rows are ordinary buttons, so Tab and Enter work as well).
@@ -61,7 +64,15 @@ function onKeydown(event: KeyboardEvent): void {
     <template v-else>
       <p v-if="items.length === 0" class="review-list-empty">{{ t('review.list.empty') }}</p>
       <ul v-else ref="list" class="review-list-items" :aria-label="t('review.list.label')">
-        <li v-for="item in items" :key="item.aggregated_result_id">
+        <li v-for="item in items" :key="item.aggregated_result_id" class="row-item">
+          <input
+            v-if="selectable"
+            type="checkbox"
+            class="row-check"
+            :checked="ticked.has(item.tei_id)"
+            :aria-label="t('review.bulk.tick', { name: reviewItemName(item) })"
+            @change="emit('toggle', item.tei_id, ($event.target as HTMLInputElement).checked)"
+          />
           <button
             type="button"
             class="row"
@@ -70,7 +81,7 @@ function onKeydown(event: KeyboardEvent): void {
             @keydown="onKeydown"
           >
             <span class="row-main">
-              <span class="row-name">{{ displayName(item) }}</span>
+              <span class="row-name">{{ reviewItemName(item) }}</span>
               <span class="row-meta">
                 {{ item.tei_id }}
                 <span v-if="item.override_source" class="row-flag">{{
@@ -119,9 +130,20 @@ function onKeydown(event: KeyboardEvent): void {
   list-style: none;
 }
 
+.row-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.row-check {
+  flex-shrink: 0;
+}
+
 .row {
   display: flex;
-  width: 100%;
+  min-width: 0;
+  flex: 1;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);

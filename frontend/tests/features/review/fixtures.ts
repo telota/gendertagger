@@ -214,6 +214,12 @@ export interface Server {
   posts: Record<string, unknown>[]
   /** Every request that is not a read, as `METHOD path`: the only writes a reviewer may cause. */
   writes: string[]
+  /** People whose write is refused with a 409 (somebody else changed them first). */
+  conflictTeis: string[]
+  /** People whose write fails with a 500. */
+  failTeis: string[]
+  /** When set, every `POST /annotations` waits for it, so a test can act while a write is in flight. */
+  gate: Promise<void> | null
   /** What the next `POST /annotations` answers. */
   postOutcome: 'ok' | 'conflict' | 'forbidden'
 }
@@ -240,6 +246,9 @@ export function newServer(overrides: Partial<Server> = {}): Server {
     history: structuredClone(HISTORY) as HistoryFixture,
     posts: [],
     writes: [],
+    conflictTeis: [],
+    failTeis: [],
+    gate: null,
     postOutcome: 'ok',
     ...overrides,
   }
@@ -318,6 +327,26 @@ export function reviewClient(server: Server) {
       if (pathname === '/api/v1/annotations' && request.method === 'POST') {
         const body = (await request.json()) as Record<string, unknown>
         server.posts.push(body)
+        if (server.gate) await server.gate
+        if (server.conflictTeis.includes(body.tei_id as string)) {
+          return jsonResponse(
+            {
+              error: {
+                code: 'annotation_conflict',
+                message: 'The review state has changed.',
+                details: { current_revision: 9 },
+                request_id: 'r',
+              },
+            },
+            { status: 409 },
+          )
+        }
+        if (server.failTeis.includes(body.tei_id as string)) {
+          return jsonResponse(
+            { error: { code: 'internal_error', message: 'boom', details: {}, request_id: 'r' } },
+            { status: 500 },
+          )
+        }
         if (server.postOutcome === 'forbidden') {
           return jsonResponse(
             { error: { code: 'forbidden', message: 'no', details: {}, request_id: 'r' } },

@@ -24,6 +24,9 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
     include: ['tests/**/*.spec.ts'],
+    // The first test of a file that mounts a lazy route imports that whole screen cold; with coverage
+    // instrumentation and many files in parallel that can pass the 5 s default on a loaded machine.
+    testTimeout: 20_000,
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{ts,vue}'],

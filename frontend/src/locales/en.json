@@ -565,6 +565,44 @@
         "network": "The decision could not be saved: the server is not reachable.",
         "generic": "The decision could not be saved."
       }
+    },
+    "bulk": {
+      "label": "Bulk decision",
+      "selectAll": "Select all {count} loaded",
+      "selected": "{count} selected",
+      "clear": "Clear selection",
+      "tick": "Select {name}",
+      "action": "Decide for all selected",
+      "choose": "Choose a decision …",
+      "actions": {
+        "verify": "Confirm each machine label",
+        "correct": "Correct all to {label}",
+        "defer": "Defer all"
+      },
+      "comment": "Comment for all (optional)",
+      "review": "Review before saving",
+      "confirmTitle": "Confirm the bulk decision",
+      "confirm": "{action}: {count} people.",
+      "willSkip": "{count} of them have no machine label and will be skipped.",
+      "andMore": "and {count} more",
+      "appendOnly": "This adds one permanent entry to each person’s history. Each is saved on its own; if somebody was changed by someone else in the meantime, only that person is left out.",
+      "apply": "Save for all",
+      "back": "Back",
+      "progress": "Saving … {done} of {total}",
+      "stop": "Stop after this one",
+      "stopping": "Stopping …",
+      "summary": "{saved} of {total} saved.",
+      "notSaved": "The people that were not saved stay selected. Check them, then decide again.",
+      "close": "Close report",
+      "outcome": {
+        "saved": "saved (revision {revision})",
+        "conflict": "not saved: changed by somebody else in the meantime",
+        "conflictAt": "not saved: changed by somebody else in the meantime (now at revision {revision})",
+        "skipped": "skipped: there is no machine label to confirm",
+        "forbidden": "not saved: you are not allowed to decide here",
+        "failed": "not saved: the request failed",
+        "notAttempted": "not attempted: stopped before this person"
+      }
     }
   }
 }

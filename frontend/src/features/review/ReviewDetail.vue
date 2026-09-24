@@ -12,6 +12,7 @@ import {
 } from './useReviewData'
 import { useVocabularyGloss, type CertaintyTier } from './useVocabulary'
 import ReviewDecision from './ReviewDecision.vue'
+import { reviewItemName } from './reviewItemName'
 import VocabBadge from './VocabBadge.vue'
 
 const props = defineProps<{ item: ReviewItem; canReview: boolean }>()
@@ -35,11 +36,7 @@ const toneOf = (tier: CertaintyTier): 'contested' | 'low' | 'thin' | 'neutral' =
   return 'neutral'
 }
 
-const displayName = computed(() => {
-  const forenames = (props.item.forenames ?? []).join(' ')
-  if (props.item.surname && forenames) return `${props.item.surname}, ${forenames}`
-  return props.item.surname ?? (forenames || props.item.tei_id)
-})
+const displayName = computed(() => reviewItemName(props.item))
 
 const personFacts = computed(() => {
   const record = person.data.value

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
@@ -10,6 +10,7 @@ import { useProject } from '@/features/projects/useProjects'
 import { useMethodList } from '@/features/runs/useMethods'
 
 import ReviewDetail from './ReviewDetail.vue'
+import ReviewBulkBar from './ReviewBulkBar.vue'
 import ReviewFilterPanel from './ReviewFilterPanel.vue'
 import ReviewList from './ReviewList.vue'
 import ReviewQueueTabs from './ReviewQueueTabs.vue'
@@ -49,6 +50,35 @@ const methodNames = computed(() => (methods.data.value ?? []).map((method) => me
 
 const list = useReviewItems(aggregationId, filters, isCompleted)
 const items = computed(() => list.data.value?.pages.flatMap((page) => page.items) ?? [])
+
+// Bulk selection. It belongs to the list as it is now: another queue or another filter is another
+// list, so the selection is dropped with it rather than silently applying to people out of view.
+const ticked = ref<ReadonlySet<string>>(new Set())
+watch(
+  () => JSON.stringify(filters.value),
+  () => {
+    ticked.value = new Set()
+  },
+)
+const tickedItems = computed(() => items.value.filter((item) => ticked.value.has(item.tei_id)))
+
+function toggleTick(teiId: string, checked: boolean): void {
+  const next = new Set(ticked.value)
+  if (checked) next.add(teiId)
+  else next.delete(teiId)
+  ticked.value = next
+}
+
+function toggleAll(checked: boolean): void {
+  ticked.value = checked ? new Set(items.value.map((item) => item.tei_id)) : new Set()
+}
+
+// People whose decision was saved leave the selection; the others stay, for another try.
+function finishBulk(saved: string[]): void {
+  const next = new Set(ticked.value)
+  for (const teiId of saved) next.delete(teiId)
+  ticked.value = next
+}
 
 // The counts on the queue cards come from the summary, never from the pages loaded so far.
 const counts = computed<Record<QueueId, QueueCount> | null>(() => {
@@ -154,7 +184,17 @@ const announce = computed(() =>
             <h2 id="review-list-heading" class="review-column-title">
               {{ t('review.list.title') }}
             </h2>
+            <ReviewBulkBar
+              v-if="canReview"
+              :items="tickedItems"
+              :loaded-count="items.length"
+              @toggle-all="toggleAll"
+              @clear="toggleAll(false)"
+              @finished="finishBulk"
+            />
             <ReviewList
+              :selectable="canReview"
+              :ticked="ticked"
               :items="items"
               :selected="person"
               :loading="list.isPending.value"
@@ -162,6 +202,7 @@ const announce = computed(() =>
               :has-more="list.hasNextPage.value"
               :loading-more="list.isFetchingNextPage.value"
               @select="selectPerson"
+              @toggle="toggleTick"
               @load-more="() => list.fetchNextPage()"
               @retry="() => list.refetch()"
             />

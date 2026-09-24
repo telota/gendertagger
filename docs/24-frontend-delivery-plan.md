@@ -508,9 +508,23 @@ artifacts, and the two contract gaps above (configuration schemas, lookup discov
   persisted predictions were byte-identical before and after (compared by hash) and `machine_label` was still `null`.
   Repeating the write with the old revision answered `409` with `current_revision: 1`. The annotation stays in the
   development database (append-only); `demo-7` is therefore no longer unreviewed on the seed.
-- Not done in M5b: a pinned action bar (the block sits inline under the method results; the WCAG 2.4.11 focus check
-  for a pinned bar therefore does not arise yet). Still open: M5c (bulk selection as a client-side sequence with
-  explicit partial-failure reporting).
+- **M5c: bulk selection. Delivered.** Reviewers (and operators) can tick people in the queue, or all loaded ones,
+  and apply one decision to the selection: confirm each machine label, correct all to one label, or defer all, with
+  an optional comment. There is no batch endpoint, so this is a **client-side sequence** (`useBulkDecision.ts`): one
+  `POST /annotations` per person, one after the other in list order, each against that person's own
+  `review_revision` from the list the reviewer was looking at. A confirmation step names the action, the count and the
+  people first and says plainly that each person gets a permanent history entry; nothing is written before it. A
+  conflict, a refusal or a failure for one person is that person's outcome only: it neither stops nor retries nor
+  undoes the others. The result is an explicit per-person report (saved with revision, conflict with the current
+  revision, skipped because there is no machine label to confirm, forbidden, failed, not attempted), announced in a
+  status region and focused. A stop request finishes the person in flight and marks the rest "not attempted". People
+  who were saved leave the selection; the others stay selected. The queues and counts are refetched once at the end,
+  not per person. The selection is dropped when the queue or a filter changes, so it can never apply to people out of
+  view. Verified against the real API: a write against the current revision saves (revision +1), a stale write to
+  another person answers `409` and leaves that person unchanged, and the first write stays saved. (`demo-1` therefore
+  carries an extra `defer` on the seed.)
+- Not done: a pinned action bar (the decision block sits inline under the method results; the WCAG 2.4.11 focus check
+  for a pinned bar does not arise yet).
 
 **Exit criterion.** A reviewer corrects a machine result and the final-decision view changes without any
 mutation of `Prediction` or `AggregatedResult` rows — the Phase 8 criterion from
