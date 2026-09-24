@@ -100,12 +100,15 @@ searchable, cursor-paginated directory without exposing credential or session se
 `PATCH /api/v1/admin/users/{user_id}` lets global administrators change a local account's display name,
 global roles, or activation state under the normal CSRF and password-current protections. It revalidates the
 actor as an active administrator in its transaction, preserves usernames and memberships, and revokes every
-target session atomically when deactivating. The `gendertagger users create` command remains the
-break-glass provisioning path. Password reset remains available through `gendertagger users reset-password`
-until its administrative HTTP command from [ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md)
-lands. Both provisioning paths and reset use the same application service and forced-change behavior. See
-[ADR-0031](decisions/ADR-0031-local-database-authentication.md) for the exact credential, session, endpoint,
-and cookie contract. Institutional SSO remains a later, additive `AuthenticationBackend` implementation.
+target session atomically when deactivating. `POST /api/v1/admin/users/{user_id}/reset-password` lets a
+global administrator replace an existing local account's password without changing its activation state. It
+generates and returns a new temporary password once in a `Cache-Control: no-store` response, sets
+`must_change_password=true`, and revokes every existing target session atomically. A missing or non-local
+target returns `404`. The `gendertagger users create` and `gendertagger users reset-password` commands remain
+break-glass paths. All provisioning and reset paths use the same application service and forced-change
+behavior. See [ADR-0031](decisions/ADR-0031-local-database-authentication.md) for the exact credential,
+session, endpoint, and cookie contract. Institutional SSO remains a later, additive `AuthenticationBackend`
+implementation.
 The gateway throttles `POST /api/v1/auth/login` per client address: six attempts at once, then one every
 12 seconds, answering further attempts with `429 rate_limited` in the API's error envelope and a
 `Retry-After` header ([`deploy/proxy/nginx.conf`](../deploy/proxy/nginx.conf)). Every attempt costs an

@@ -17,8 +17,9 @@ lifetime of 8 hours from login, with no refresh. Planning the application shell 
 - The 8 hours had no stated basis. NIST SP 800-63B (revision 3) asks single-factor sessions (AAL1) to
   reauthenticate at least every 30 days; the 12-hour and 30-minute limits belong to multi-factor AAL2. Local
   accounts are single-factor. The risk a web session carries is also limited: provisioning and password
-  resets are CLI-only, a password change requires the current password, and annotations are append-only and
-  attributed, so a wrong one is traceable and superseded rather than lost.
+  resets are global-administrator actions behind the standard CSRF and password-current gates, a password
+  change requires the current password, and annotations are append-only and attributed, so a wrong one is
+  traceable and superseded rather than lost.
 - Shared workstations, such as a reading room, are plausible. A reviewer there needs a session that does not
   outlive the browser.
 

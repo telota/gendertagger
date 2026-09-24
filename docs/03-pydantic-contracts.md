@@ -166,7 +166,8 @@ project representations. See [ADR-0033](decisions/ADR-0033-project-scoped-member
 `AdminUser` is the global-administrator projection for a local account. It combines provider-neutral user
 identity and roles with the non-secret local credential fields needed for administration. `AdminUserUpdate`
 uses Pydantic field-set semantics so omitted fields remain unchanged while explicit `null` is invalid; username
-is intentionally absent. Password hashes and session state never enter either contract. See
+is intentionally absent. `AdminUserPasswordResetResult` contains only the once-disclosed server-generated
+temporary password. Password hashes and session state never enter these contracts. See
 [ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md).
 
 Per-person method-result projections preserve the difference between an absent Prediction and a present

@@ -257,3 +257,62 @@ def test_admin_can_patch_local_account_and_deactivation_revokes_sessions(
         session = unit_of_work.auth.get_session(session_id)
     assert session is not None
     assert session.revoked_at is not None
+
+
+def test_admin_can_reset_an_inactive_local_account_with_fresh_passwords_and_revoked_sessions(
+    postgres_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    deployment = _Deployment(postgres_engine, tmp_path)
+    suffix = uuid4().hex[:8]
+    administrator_id = deployment.add_local_account(
+        "Account administrator",
+        f"reset-administrator-{suffix}",
+        GlobalRole.admin,
+    )
+    target_id = deployment.add_local_account("Inactive account", f"reset-target-{suffix}")
+    session_time = datetime(2026, 9, 24, 10, tzinfo=UTC)
+    session_ids = [uuid4().hex, uuid4().hex]
+    with deployment.unit_of_work_factory() as unit_of_work:
+        for session_id in session_ids:
+            unit_of_work.auth.create_session(
+                session_id=session_id,
+                user_id=target_id,
+                csrf_secret="not-used-by-this-test",
+                keep_signed_in=False,
+                expires_at=session_time + timedelta(days=1),
+                absolute_expires_at=session_time + timedelta(days=30),
+            )
+        unit_of_work.commit()
+
+    client = deployment.act_as(administrator_id)
+    deactivated = client.patch(f"/api/v1/admin/users/{target_id}", json={"is_active": False})
+    first = client.post(f"/api/v1/admin/users/{target_id}/reset-password")
+    second = client.post(f"/api/v1/admin/users/{target_id}/reset-password")
+    missing = client.post(f"/api/v1/admin/users/{uuid4()}/reset-password")
+    external_user_id = deployment.add_provider_user_without_local_credential("External account")
+    external = client.post(f"/api/v1/admin/users/{external_user_id}/reset-password")
+
+    assert deactivated.status_code == 200
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.headers["cache-control"] == "no-store"
+    assert second.headers["cache-control"] == "no-store"
+    first_password = first.json()["temporary_password"]
+    second_password = second.json()["temporary_password"]
+    assert first_password != second_password
+    assert missing.status_code == 404
+    assert missing.json()["error"]["code"] == "resource_not_found"
+    assert external.status_code == 404
+    assert external.json()["error"]["code"] == "resource_not_found"
+    with deployment.unit_of_work_factory() as unit_of_work:
+        credential = unit_of_work.auth.get_credential(target_id)
+        target = unit_of_work.users.get_user(target_id)
+        sessions = [unit_of_work.auth.get_session(session_id) for session_id in session_ids]
+    assert credential is not None
+    assert target is not None
+    assert credential.must_change_password is True
+    assert Argon2PasswordHasher().verify(credential.password_hash, second_password)
+    assert not Argon2PasswordHasher().verify(credential.password_hash, first_password)
+    assert target.is_active is False
+    assert all(session is not None and session.revoked_at is not None for session in sessions)

@@ -88,6 +88,14 @@ class AdminUserCreateResult(BaseModel):
     temporary_password: str = Field(min_length=MIN_LOCAL_PASSWORD_LENGTH, repr=False)
 
 
+class AdminUserPasswordResetResult(BaseModel):
+    """Once-disclosed temporary password from a global-administrator reset."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    temporary_password: str = Field(min_length=MIN_LOCAL_PASSWORD_LENGTH, repr=False)
+
+
 class AdminUserUpdate(BaseModel):
     """Global-administrator patch for mutable local-account fields."""
 

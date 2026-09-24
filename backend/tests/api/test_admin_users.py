@@ -15,6 +15,7 @@ from gendertagger.models.auth import (
     AdminUser,
     AdminUserCreate,
     AdminUserCreateResult,
+    AdminUserPasswordResetResult,
     AdminUserUpdate,
 )
 from gendertagger.models.user import CurrentUser, GlobalRole
@@ -155,6 +156,24 @@ def test_admin_user_creation_maps_duplicate_username_to_stable_conflict() -> Non
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "username_conflict"
     assert "temporary_password" not in response.text
+
+
+def test_admin_user_password_reset_discloses_temporary_password_without_cache() -> None:
+    service = Mock(spec=UserAdministrationService)
+    service.reset_user_password.return_value = AdminUserPasswordResetResult(
+        temporary_password="new-temporary-password"
+    )
+
+    response = _client(service).post(f"/api/v1/admin/users/{USER_ID}/reset-password")
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json() == {"temporary_password": "new-temporary-password"}
+    service.reset_user_password.assert_called_once_with(
+        USER_ID,
+        actor_user_id=USER_ID,
+        request_id="request-123",
+    )
 
 
 def test_admin_user_update_forwards_patch_and_serializes_account() -> None:

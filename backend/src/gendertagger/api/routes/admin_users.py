@@ -13,6 +13,7 @@ from gendertagger.models.auth import (
     AdminUser,
     AdminUserCreate,
     AdminUserCreateResult,
+    AdminUserPasswordResetResult,
     AdminUserUpdate,
 )
 from gendertagger.models.user import CurrentUser
@@ -53,6 +54,34 @@ def create_admin_user(
             status_code=status.HTTP_409_CONFLICT,
             code="username_conflict",
             message="A local account with that username already exists.",
+        ) from error
+    response.headers["Cache-Control"] = "no-store"
+    return result
+
+
+@router.post(
+    "/admin/users/{user_id}/reset-password",
+    response_model=AdminUserPasswordResetResult,
+)
+def reset_admin_user_password(
+    user_id: UUID,
+    request: Request,
+    response: Response,
+    service: Annotated[UserAdministrationService, Depends(get_user_administration_service)],
+    administrator: Annotated[CurrentUser, Depends(require_admin)],
+) -> AdminUserPasswordResetResult:
+    """Reset a local account password and disclose the generated replacement once."""
+    try:
+        result = service.reset_user_password(
+            user_id,
+            actor_user_id=administrator.id,
+            request_id=cast(str, request.state.request_id),
+        )
+    except ResourceNotFoundError as error:
+        raise ApiRequestError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="resource_not_found",
+            message="The local account was not found.",
         ) from error
     response.headers["Cache-Control"] = "no-store"
     return result

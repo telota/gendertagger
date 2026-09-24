@@ -6,9 +6,9 @@
 
 [ADR-0031](ADR-0031-local-database-authentication.md) made local-account provisioning and administrative
 password reset CLI-only because the first frontend scope contained no user-management screen. The browser
-client now needs a global-administrator area for account discovery, creation, and updates. Project-membership
-administration already has admin-only HTTP resources, but those resources are impractical without a user
-directory that resolves usernames and display names to user IDs.
+client now needs a global-administrator area for account discovery, creation, updates, and password resets.
+Project-membership administration already has admin-only HTTP resources, but those resources are impractical
+without a user directory that resolves usernames and display names to user IDs.
 
 The existing `AuthenticationService` already creates local accounts, resets passwords, and revokes sessions.
 The provider-neutral `User` contract already represents activation and global roles, but its repository has no
@@ -28,12 +28,19 @@ SQLAlchemy rows and password hashes never cross the service or API boundaries.
 The surface supports:
 
 - a server-filtered, opaque-cursor-paginated user directory searchable by normalized username or display name;
-- local-account creation with display name, normalized username, and global roles; and
-- display-name, activation-state, and global-role updates.
+- local-account creation with display name, normalized username, and global roles;
+- display-name, activation-state, and global-role updates; and
+- local-account password reset.
 
 Account creation returns a server-generated temporary password once. The response is marked non-cacheable,
 and the password is never persisted in plaintext or included in application logs. The existing CLI commands
 remain available as a break-glass path and use the same application service.
+
+Password reset accepts no body. It validates the local target inside its mutation transaction, replaces the
+credential hash, flags `must_change_password`, and revokes every existing target session in that transaction.
+It never reactivates an inactive target. Each successful reset returns a fresh server-generated temporary
+password once in a non-cacheable response. The HTTP command requires a global administrator and follows the
+standard CSRF and password-current gates.
 
 Accounts are deactivated, never deleted. This preserves foreign-key references and scholarly attribution.
 Deactivation revokes every active session in the same transaction. Reactivation does not restore revoked
@@ -44,7 +51,7 @@ The application service enforces these invariants in addition to the route-level
 
 - an administrator cannot deactivate their own account or remove their own `admin` role;
 - at least one active administrator must remain; and
-- every account and role mutation validates the target inside the transaction that persists it.
+- every account, role, and credential mutation validates the target inside the transaction that persists it.
 
 For every local-account patch, the service first acquires a fixed transaction-level PostgreSQL advisory lock.
 After acquiring that serialization lock, it runs a fresh active-administrator query and revalidates the actor
@@ -69,9 +76,9 @@ increments so each public-contract change has a small review and rollback surfac
 - Deactivation terminates existing sessions without deleting their rows.
 - The user repository and authentication service gain update and collection operations, but their existing CLI
   consumers remain valid.
-- ADR-0031's CLI-only provisioning decision is superseded; its CLI-only password-reset, authentication,
+- ADR-0031's CLI-only provisioning and password-reset decisions are superseded; its authentication,
   credential, session, cookie, and forced-password-change decisions remain accepted.
 - Operational logs provide lightweight attribution but are not a tamper-resistant or application-queryable
   audit history. Deployments that require such a history need a later explicit decision.
-- Self-service registration, email recovery, user deletion, project memberships, application settings,
-  administrative password reset, and external identity-provider administration remain out of scope.
+- Self-service registration, email recovery, user deletion, project memberships, application settings, and
+  external identity-provider administration remain out of scope.

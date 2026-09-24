@@ -11,6 +11,7 @@ from gendertagger.models.auth import (
     AdminUser,
     AdminUserCreate,
     AdminUserCreateResult,
+    AdminUserPasswordResetResult,
     AdminUserUpdate,
     normalize_username,
 )
@@ -124,6 +125,35 @@ class UserAdministrationService:
             ",".join(sorted(role.value for role in command.roles)) or "none",
         )
         return AdminUserCreateResult(account=account, temporary_password=temporary_password)
+
+    def reset_user_password(
+        self,
+        user_id: UUID,
+        *,
+        actor_user_id: UUID,
+        request_id: str,
+    ) -> AdminUserPasswordResetResult:
+        """Reset one existing local account without changing its activation state."""
+        with self._unit_of_work_factory() as unit_of_work:
+            target = unit_of_work.users.get_user_for_update(user_id)
+            credential = unit_of_work.auth.get_credential(user_id)
+            if target is None or credential is None:
+                msg = f"local account {user_id} does not exist"
+                raise ResourceNotFoundError(msg)
+            temporary_password = secrets.token_urlsafe(16)
+            self._authentication_service.reset_password_in_transaction(
+                unit_of_work=unit_of_work,
+                user_id=user_id,
+                new_password=temporary_password,
+            )
+            unit_of_work.commit()
+        logger.info(
+            "local account %s password reset by user %s (request %s)",
+            user_id,
+            actor_user_id,
+            request_id,
+        )
+        return AdminUserPasswordResetResult(temporary_password=temporary_password)
 
     def update_user(
         self,

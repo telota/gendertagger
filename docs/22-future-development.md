@@ -184,8 +184,9 @@ to a hard lockout: a lockout would let an outsider lock a reviewer out on purpos
 
 ### Self-service password recovery
 
-Passwords are reset only by an administrator through `gendertagger users reset-password`. There is no
-"forgot password" flow.
+Global administrators can reset local passwords through `POST /api/v1/admin/users/{user_id}/reset-password`
+or the break-glass `gendertagger users reset-password` command. There is no self-service "forgot password"
+flow.
 
 Adding one needs outbound email, which the repository does not have. The reset token must be single-use
 and short-lived, and using it must revoke the account's existing sessions, as the administrative reset

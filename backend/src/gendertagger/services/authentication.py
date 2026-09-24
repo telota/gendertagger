@@ -15,7 +15,7 @@ from uuid import UUID
 from gendertagger.models.common import UtcDatetime
 from gendertagger.models.user import CurrentUser, GlobalRole, User, UserCreate
 from gendertagger.services.password_hashing import PasswordHasherProtocol
-from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 Clock = Callable[[], UtcDatetime]
 
@@ -198,10 +198,20 @@ class AuthenticationService:
     def reset_password(self, *, user_id: UUID, new_password: str) -> None:
         """Admin action: set a new password, re-flag it forced, and revoke every session."""
         with self._unit_of_work_factory() as unit_of_work:
-            unit_of_work.auth.set_password(
+            self.reset_password_in_transaction(
+                unit_of_work=unit_of_work,
                 user_id=user_id,
-                password_hash=self._password_hasher.hash(new_password),
-                must_change_password=True,
+                new_password=new_password,
             )
-            unit_of_work.auth.revoke_all_sessions(user_id)
             unit_of_work.commit()
+
+    def reset_password_in_transaction(
+        self, *, unit_of_work: UnitOfWork, user_id: UUID, new_password: str
+    ) -> None:
+        """Apply a password reset using a transaction owned by the calling service."""
+        unit_of_work.auth.set_password(
+            user_id=user_id,
+            password_hash=self._password_hasher.hash(new_password),
+            must_change_password=True,
+        )
+        unit_of_work.auth.revoke_all_sessions(user_id)

@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from types import TracebackType
 from typing import Self, cast
-from unittest.mock import Mock
+from unittest.mock import ANY, Mock
 from uuid import UUID
 
 import pytest
@@ -311,3 +311,47 @@ def test_update_user_hides_missing_and_nonlocal_accounts() -> None:
             actor_user_id=USER_IDS[0],
             request_id="request-345",
         )
+
+
+def test_reset_user_password_preserves_activation_and_logs_no_secret(
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    auth = Mock(spec=AuthRepository)
+    users = Mock(spec=UserRepository)
+    target = User(
+        id=USER_IDS[1],
+        display_name="Inactive user",
+        roles=set(),
+        is_active=False,
+        created_at=NOW,
+        updated_at=NOW,
+    )
+    users.get_user_for_update.return_value = target
+    auth.get_credential.return_value = _local_credential(1)
+    authentication_service = Mock(spec=AuthenticationService)
+    service = _service(auth, authentication_service, users)
+    temporary_password = "fresh-temporary-password"
+    monkeypatch.setattr(
+        "gendertagger.services.user_administration.secrets.token_urlsafe",
+        lambda _: temporary_password,
+    )
+
+    with caplog.at_level("INFO"):
+        result = service.reset_user_password(
+            USER_IDS[1],
+            actor_user_id=USER_IDS[0],
+            request_id="request-987",
+        )
+
+    assert result.temporary_password == temporary_password
+    authentication_service.reset_password_in_transaction.assert_called_once_with(
+        unit_of_work=ANY,
+        user_id=USER_IDS[1],
+        new_password=temporary_password,
+    )
+    users.update_user.assert_not_called()
+    assert str(USER_IDS[0]) in caplog.text
+    assert str(USER_IDS[1]) in caplog.text
+    assert "request-987" in caplog.text
+    assert temporary_password not in caplog.text

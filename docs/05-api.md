@@ -174,6 +174,14 @@ updated `AdminUser`, or `404 resource_not_found` when the account is absent or n
 session in the same transaction; reactivation never restores them. See
 [ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md).
 
+`POST /admin/users/{user_id}/reset-password` accepts no body and returns `200 OK` with an
+`AdminUserPasswordResetResult`. It is restricted to global administrators and carries the standard CSRF and
+password-current gates. The service validates that the target exists and has a local credential in its mutation
+transaction, replaces only its password hash, sets `must_change_password=true`, and revokes every target
+session in that transaction. A reset never changes activation state; an absent or non-local target returns
+`404 resource_not_found`. Each success returns a fresh server-generated temporary password only in that
+non-cacheable (`Cache-Control: no-store`) response and never logs it.
+
 ## Branding surface
 
 `GET /branding` and `GET /branding/logo` are unauthenticated, need no grant, and carry no scientific or project-scoped data ([ADR-0036](decisions/ADR-0036-institution-branding-configuration.md)). They exist so the client's footer, start page, and legal notice can be reachable without a session and configured per deployment instead of hard-coded.
