@@ -325,8 +325,15 @@ secret_detection:
       /kaniko/executor
       --context "$CI_PROJECT_DIR/$IMAGE_CONTEXT"
       --dockerfile "$CI_PROJECT_DIR/$IMAGE_DOCKERFILE"
+      --destination "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHA"
       --destination "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_REF_SLUG"
-      --image-name-with-digest-file "$CI_PROJECT_DIR/$IMAGE_NAME-image.txt"
+      --digest-file "$CI_PROJECT_DIR/$IMAGE_NAME-digest.txt"
+    # Kaniko's image-name output repeats the reference for each destination.
+    # Keep one digest-pinned reference for the SBOM consumer, regardless of tag count.
+    - >-
+      printf '%s@%s\n' "$CI_REGISTRY_IMAGE/$IMAGE_NAME"
+      "$(cat "$CI_PROJECT_DIR/$IMAGE_NAME-digest.txt")"
+      > "$CI_PROJECT_DIR/$IMAGE_NAME-image.txt"
   artifacts:
     expire_in: 1 week
     paths:

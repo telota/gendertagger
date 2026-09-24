@@ -133,16 +133,23 @@ needs local socket-pair communication to wake its background event loop; a restr
 fail with a direct diagnostic instead of consuming the entire test-job timeout.
 
 The merge-request pipeline covers PostgreSQL/Alembic, API/OpenAPI, Redis/Celery, conformance coverage for
-every reference adapter, and the complete evaluation/export workflow, plus the packaging, SBOM, and
-secret-detection gates from Phase 7's operational hardening and the frontend jobs described above;
-heavy-model checks remain on protected or scheduled runners.
+every reference adapter, and the complete evaluation/export workflow, plus packaging, secret detection,
+and the frontend jobs described above. Image publishing and image SBOM generation run only on the
+default branch; heavy-model checks remain on protected or scheduled runners.
 
 Ordinary merge-request jobs have no production secrets and must not use private-network, GPU, model, or
 deployment runners. Such runners are protected and accept only trusted protected refs or schedules.
 
-Tagged releases should build immutable artifacts once, publish checksums/SBOM/provenance, and promote those
-same artifacts with manual production approval. Database deployment requires a migration rehearsal and a
-verified backup/restore policy. Ordinary branches never deploy production.
+Default-branch CI builds each application image once and publishes both a full commit-SHA tag and the
+moving branch-slug alias (`main` for the current default branch). The SBOM jobs scan the exact image
+digests recorded by those builds. Production promotion is manual: select both images from one successful
+pipeline using its full SHA, retain the digest references and SBOMs, and follow the
+[production runbook](21-production-promotion.md). Commit-SHA tagging alone does not enforce registry
+immutability; digests identify the exact artifacts. CI does not publish version tags or deploy any environment.
+
+Versioned release automation remains deferred. Future tagged releases should promote the already-tested
+artifacts with checksums/SBOM/provenance and manual production approval. Database deployment requires a
+migration rehearsal and a verified backup/restore policy. Ordinary branches never deploy production.
 
 ## Repository controls
 

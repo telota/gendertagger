@@ -134,8 +134,10 @@ For institutional branding and contact details, configure the API's
 [`GENDERTAGGER_BRANDING__*` settings](docs/decisions/ADR-0036-institution-branding-configuration.md).
 For backups, migration rehearsal, and subsequent release updates, use the
 [production runbook](docs/21-production-promotion.md). Its image-pull steps assume a configured
-release registry. With the locally built images used here, rebuild from the new checkout instead,
-update the commit and lockfile hash in `.env`, and apply migrations before recreating services.
+GitLab container registry and use the full commit-SHA image tags published by a successful
+default-branch pipeline, not the moving `main` tag. With the locally built images used here,
+rebuild from the new checkout instead, update the commit and lockfile hash in `.env`, and apply
+migrations before recreating services.
 
 ## 6. Add accounts and method data as needed
 
