@@ -184,21 +184,17 @@ Exit criterion: a reviewer can correct a machine result and the final-decision v
 ### Administrative settings increment (ADR-0040)
 
 [ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md) accepts administrative overrides for
-six branding fields as a separate extension to the review-client scope. Slice 1, persistence and the
-administrative read API, is delivered. Public branding remains environment-backed until Slice 2. Stop for
-architect/user review and a manual commit before starting the next slice.
+six branding fields as a separate extension to the review-client scope. Both backend slices are delivered:
+the singleton persistence/read API and the revisioned mutations/public-branding integration. Frontend editing
+comes last; stop for architect/user review and a manual commit before starting it.
 
-1. **Persistence and administrative read API — DELIVERED.** Adds the closed Pydantic contracts, singleton
-   migration, repository/application-service boundaries, default/override resolution, and
-   `GET /api/v1/admin/settings`. It initializes revision `0` with an empty override document and preserves
-   absent keys versus explicit nulls. OpenAPI, generated transport, and focused coverage are updated. Public
-   branding behavior remains unchanged in this slice.
-2. **Writes and public branding integration.** Add `PATCH /api/v1/admin/settings` and
-   `POST /api/v1/admin/settings/reset` with the shared revision-checked transaction, field validation,
-   and safe operational attribution. Integrate the shared resolver into public branding while retaining
-   its schema and unauthenticated access. Apply `Cache-Control: no-store` and the accepted
-   `503 settings_unavailable` behavior without environment fallback. Document migration ordering,
-   consistent replica fallbacks, and older-release rollback behavior.
+1. **Persistence and administrative read API — DELIVERED.** Closed Pydantic contracts, singleton migration,
+   repository/application-service boundaries, default/override resolution, and `GET /api/v1/admin/settings`
+   preserve absent keys versus explicit nulls while leaving public branding unchanged.
+2. **Writes and public branding integration — DELIVERED.** `PATCH /api/v1/admin/settings` and
+   `POST /api/v1/admin/settings/reset` perform revision-checked atomic mutations with safe attribution.
+   Public branding resolves committed overrides per request, retains its schema and unauthenticated access,
+   and returns the accepted `Cache-Control: no-store` and `503 settings_unavailable` behavior.
 3. **Frontend separately.** Add accessible forms, effective/deployment-default indicators, distinct
    clearing and resetting actions, stale-write handling, and refresh of mounted branding consumers.
    Use generated contracts and existing session/CSRF behavior.

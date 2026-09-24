@@ -97,6 +97,51 @@
         "title": "AdminSettings",
         "type": "object"
       },
+      "AdminSettingsReset": {
+        "additionalProperties": false,
+        "description": "Revision-checked request to remove selected branding overrides.",
+        "properties": {
+          "expected_revision": {
+            "minimum": 0.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/BrandingSettingField"
+            },
+            "minItems": 1,
+            "title": "Fields",
+            "type": "array"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "fields"
+        ],
+        "title": "AdminSettingsReset",
+        "type": "object"
+      },
+      "AdminSettingsUpdate": {
+        "additionalProperties": false,
+        "description": "Revision-checked request to set one or more explicit branding overrides.",
+        "properties": {
+          "branding": {
+            "$ref": "#/components/schemas/BrandingOverrides"
+          },
+          "expected_revision": {
+            "minimum": 0.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "branding"
+        ],
+        "title": "AdminSettingsUpdate",
+        "type": "object"
+      },
       "AdminUser": {
         "additionalProperties": false,
         "description": "Administrator-facing read model for one local account (ADR-0039).",
@@ -1041,7 +1086,7 @@
       },
       "BrandingEditableValues": {
         "additionalProperties": false,
-        "description": "The six editable branding values after deployment fallback resolution.\n\nThis contract deliberately mirrors existing environment value types. Administrative write validation is\nintroduced with the mutation slice, so read construction cannot tighten accepted environment settings.",
+        "description": "The six editable branding values after deployment fallback resolution.\n\nThis contract deliberately mirrors existing environment value types. Administrative write validation is\nconfined to ``BrandingOverrides``, so read construction cannot tighten accepted environment settings.",
         "properties": {
           "contact_email": {
             "anyOf": [
@@ -1314,6 +1359,76 @@
           "name"
         ],
         "title": "BrandingLegalEntity",
+        "type": "object"
+      },
+      "BrandingOverrides": {
+        "additionalProperties": false,
+        "description": "Sparse, write-validated overrides retaining omission separately from explicit clearing.",
+        "properties": {
+          "contact_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Email"
+          },
+          "editors": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Editors",
+            "type": "array"
+          },
+          "institution_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution Name"
+          },
+          "institution_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution Url"
+          },
+          "privacy_notice_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Privacy Notice Url"
+          },
+          "published_since_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published Since Year"
+          }
+        },
+        "title": "BrandingOverrides",
         "type": "object"
       },
       "BrandingSettingField": {
@@ -4196,6 +4311,248 @@
         "tags": [
           "admin settings"
         ]
+      },
+      "patch": {
+        "description": "Set explicit branding overrides under the requested singleton revision.",
+        "operationId": "update_admin_settings_api_v1_admin_settings_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminSettingsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Settings storage unavailable"
+          }
+        },
+        "summary": "Update Admin Settings",
+        "tags": [
+          "admin settings"
+        ]
+      }
+    },
+    "/api/v1/admin/settings/reset": {
+      "post": {
+        "description": "Remove selected branding overrides under the requested singleton revision.",
+        "operationId": "reset_admin_settings_api_v1_admin_settings_reset_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminSettingsReset"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Settings storage unavailable"
+          }
+        },
+        "summary": "Reset Admin Settings",
+        "tags": [
+          "admin settings"
+        ]
       }
     },
     "/api/v1/admin/users": {
@@ -5971,7 +6328,7 @@
     },
     "/api/v1/branding": {
       "get": {
-        "description": "Return this deployment's operator-configured branding.\n\nA field the operator has not set is `None`: nothing here is invented on its behalf.",
+        "description": "Return the effective public branding resolved from committed overrides and deployment fallback.",
         "operationId": "get_branding_api_v1_branding_get",
         "responses": {
           "200": {
@@ -6063,6 +6420,16 @@
               }
             },
             "description": "Internal server error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Settings storage unavailable"
           }
         },
         "summary": "Get Branding",

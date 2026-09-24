@@ -48,6 +48,19 @@ Wait a few moments for the startup sequence to complete, then test the external 
 
 
 
+## Administrative Branding Overrides
+
+Apply the singleton settings migration before starting an API release that serves ADR-0040 settings-backed
+branding. Every API replica must be deployed with equivalent `GENDERTAGGER_BRANDING__*` fallback values:
+stored overrides are shared, but inherited fields resolve in each process. Coordinate environment changes as a
+single rollout to avoid replica-dependent branding at the same settings revision.
+
+An older application release ignores stored overrides and displays environment branding. Rolling back only the
+application image is therefore database-compatible, but administrators' committed overrides remain in the
+database and become effective again after restoring a settings-aware release. Do not roll back the migration
+or restore a database backup merely to hide an override; reset it through the administrative API when the
+settings-aware release is available.
+
 ## Rollback Procedure
 If the health checks fail or critical errors are identified:
 1. Revert the `.env` file to the previous `TAG`.

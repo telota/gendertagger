@@ -2,9 +2,9 @@
 
 **Status:** Accepted
 
-Implementation status: persistence and `GET /api/v1/admin/settings` are delivered in the first backend
-slice. Administrative writes, public branding integration, and frontend editing remain pending. Delivery
-follows the separate slices in [`15-implementation-plan.md`](../15-implementation-plan.md#administrative-settings-increment-adr-0040).
+Implementation status: persistence, administrative reads and writes, and public branding integration are
+delivered in the backend slices. Frontend editing and active-view refresh remain pending. Delivery follows the
+separate slices in [`15-implementation-plan.md`](../15-implementation-plan.md#administrative-settings-increment-adr-0040).
 
 ## Context
 

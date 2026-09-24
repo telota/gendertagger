@@ -1,19 +1,17 @@
-"""Public deployment-branding resource (ADR-0036).
-
-Unauthenticated, like `POST /auth/login`: the legal notice it backs must be reachable without a
-session, and it carries no scientific or project-scoped data.
-"""
+"""Public effective-branding resources (ADR-0036 and ADR-0040)."""
 
 from mimetypes import guess_type
-from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response, status
 
-from gendertagger.api.dependencies import get_app_settings
+from gendertagger.api.dependencies import get_admin_settings_service, get_app_settings
 from gendertagger.api.errors import ApiRequestError
-from gendertagger.api.settings import AppSettings, BrandingSettings
+from gendertagger.api.settings import AppSettings
+from gendertagger.models.api import ApiErrorEnvelope
 from gendertagger.models.branding import BrandingInfo
+from gendertagger.services.admin_settings import AdminSettingsService
+from gendertagger.services.ports.persistence_errors import SettingsUnavailableError
 
 router = APIRouter(tags=["branding"])
 
@@ -22,15 +20,27 @@ router = APIRouter(tags=["branding"])
 LOGO_ROUTE_PATH = "/api/v1/branding/logo"
 
 
-@router.get("/branding", response_model=BrandingInfo)
+@router.get(
+    "/branding",
+    response_model=BrandingInfo,
+    responses={
+        status.HTTP_503_SERVICE_UNAVAILABLE: {
+            "model": ApiErrorEnvelope,
+            "description": "Settings storage unavailable",
+        }
+    },
+)
 def get_branding(
-    settings: Annotated[AppSettings, Depends(get_app_settings)],
+    response: Response,
+    service: Annotated[AdminSettingsService, Depends(get_admin_settings_service)],
 ) -> BrandingInfo:
-    """Return this deployment's operator-configured branding.
-
-    A field the operator has not set is `None`: nothing here is invented on its behalf.
-    """
-    return _branding_info(settings.branding)
+    """Return the effective public branding resolved from committed overrides and deployment fallback."""
+    try:
+        branding = service.get_branding()
+    except SettingsUnavailableError as error:
+        raise _settings_unavailable_error() from error
+    response.headers["Cache-Control"] = "no-store"
+    return branding
 
 
 @router.get("/branding/logo")
@@ -48,28 +58,19 @@ def get_branding_logo(
     )
 
 
-def _branding_info(branding: BrandingSettings) -> BrandingInfo:
-    logo_url = LOGO_ROUTE_PATH if _logo_exists(branding.logo_path) else None
-    return BrandingInfo(
-        institution_name=branding.institution_name,
-        institution_url=branding.institution_url,
-        logo_url=logo_url,
-        editors=list(branding.editors),
-        published_since_year=branding.published_since_year,
-        initiatives=list(branding.initiatives),
-        contact_email=branding.contact_email,
-        privacy_notice_url=branding.privacy_notice_url,
-        legal_entity=branding.legal_entity,
-    )
-
-
-def _logo_exists(logo_path: Path | None) -> bool:
-    return logo_path is not None and logo_path.is_file()
-
-
 def _logo_not_found() -> ApiRequestError:
     return ApiRequestError(
         status_code=status.HTTP_404_NOT_FOUND,
         code="resource_not_found",
         message="No branding logo is configured for this deployment.",
+    )
+
+
+def _settings_unavailable_error() -> ApiRequestError:
+    """Return the safe public settings-storage outage response without fallback."""
+    return ApiRequestError(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        code="settings_unavailable",
+        message="Branding settings are currently unavailable.",
+        headers={"Cache-Control": "no-store"},
     )

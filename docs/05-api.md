@@ -192,30 +192,28 @@ response completes but the next authenticated request must sign in again.
 
 ## Administrative settings
 
-The persistence and administrative-read slice of
-[ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md) is implemented and listed in generated
-OpenAPI. The write endpoints remain accepted design pending the next slice. All paths are relative to
-`/api/v1`.
+The two backend slices of [ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md) are
+implemented and listed in generated OpenAPI. All paths are relative to `/api/v1`.
 
 | Endpoint | Request | Success | Status |
 |---|---|---|---|
 | `GET /admin/settings` | None | `200 AdminSettings` | Delivered |
-| `PATCH /admin/settings` | `AdminSettingsUpdate` with `expected_revision` and nonempty partial `branding` | `200 AdminSettings` | Pending |
-| `POST /admin/settings/reset` | `AdminSettingsReset` with `expected_revision` and nonempty distinct `fields` | `200 AdminSettings` | Pending |
+| `PATCH /admin/settings` | `AdminSettingsUpdate` with `expected_revision` and nonempty partial `branding` | `200 AdminSettings` | Delivered |
+| `POST /admin/settings/reset` | `AdminSettingsReset` with `expected_revision` and nonempty distinct `fields` | `200 AdminSettings` | Delivered |
 
-The delivered read requires a global administrator who has completed any forced password change and returns
-`Cache-Control: no-store`. Pending mutations will additionally use existing CSRF protection.
-`AdminSettings` exposes the revision, effective `BrandingInfo`, current deployment fallbacks for the six
-editable fields, and overridden field names. It never serializes `AppSettings` wholesale. See the
+All operations require a global administrator who has completed any forced password change. Unsafe operations
+use existing CSRF protection; every response uses `Cache-Control: no-store`. `AdminSettings` exposes the
+revision, effective `BrandingInfo`, current deployment fallbacks for the six editable fields, and overridden
+field names. It never serializes `AppSettings` wholesale. See the
 [canonical contracts](03-pydantic-contracts.md#administrative-settings-contracts).
 
-The pending update/reset operations preserve omitted overrides. Explicit `null` clears nullable values, and
-`editors: []` clears the editor list; these remain overrides. Reset removes overrides for explicitly selected
-allowlisted fields, revealing the current environment/application fallback. There are no arbitrary keys,
-paths, or wildcard resets. Both commands will validate and apply all requested changes atomically under the
-same revision check. A matching-revision no-op retains its revision; a stale command still conflicts even if
-its requested values match. Setting a previously inherited value as an explicit override is a change even
-when the value equals the fallback.
+Updates preserve omitted overrides. Explicit `null` clears nullable values, and `editors: []` clears the
+editor list; these remain overrides. Reset removes overrides for explicitly selected allowlisted fields,
+revealing the current environment/application fallback. There are no arbitrary keys, paths, or wildcard
+resets. Both commands validate and apply all requested changes atomically under the same revision check. A
+matching-revision no-op retains its revision; a stale command still conflicts even if its requested values
+match. Setting a previously inherited value as an explicit override is a change even when the value equals
+the fallback.
 
 Errors use the shared envelope: `401 authentication_required`, existing `403 forbidden` or
 `403 password_change_required` gates, `422 validation_error` for invalid values or commands,
@@ -233,18 +231,16 @@ read-only branding, and logo behavior is unchanged.
 
 `GET /branding` and `GET /branding/logo` are unauthenticated, need no grant, and carry no scientific or project-scoped data ([ADR-0036](decisions/ADR-0036-institution-branding-configuration.md)). They exist so the client's footer, start page, and legal notice can be reachable without a session and configured per deployment instead of hard-coded.
 
-- Currently, `GET /branding` returns `BrandingInfo`, built from the operator's startup-loaded
-  `GENDERTAGGER_BRANDING__*` settings. Unconfigured nullable fields are `null` and lists are empty; the client
-  renders absent details as an explicit "not configured" state.
-- `GET /branding/logo` streams the configured logo file with its detected media type, or `404 resource_not_found` when no `logo_path` is set or the file is missing. `BrandingInfo.logo_url` is the literal path `/api/v1/branding/logo` when the file exists and `null` otherwise, so the client never constructs the path itself.
+- `GET /branding` returns effective `BrandingInfo`, resolving committed stored overrides before the operator's
+  startup-loaded `GENDERTAGGER_BRANDING__*` fallback. It remains unauthenticated, preserves its response
+  schema, reads settings storage for every request, returns `Cache-Control: no-store`, and maps unavailable
+  settings storage to `503 settings_unavailable` without substituting fallback branding.
+- `GET /branding/logo` remains filesystem-backed and streams the configured logo file with its detected media
+  type, or `404 resource_not_found` when no `logo_path` is set or the file is missing. `BrandingInfo.logo_url`
+  remains the literal path `/api/v1/branding/logo` when the file exists and `null` otherwise.
 
-After ADR-0040's public integration slice, `GET /branding` will resolve stored overrides before startup
-environment values and application defaults. Its unauthenticated access and `BrandingInfo` schema remain
-unchanged. Branding JSON will use `Cache-Control: no-store`, read committed overrides on each request, and
-return `503 settings_unavailable` on settings-storage failure without substituting deployment defaults.
-The logo endpoint stays filesystem-backed. Saved values take effect on subsequent server reads without a
-restart; already-open frontend views need a refresh or component remount. This integration is accepted but
-not yet delivered.
+Saved values take effect on subsequent server reads without a restart. Already-open frontend views require a
+refresh or component remount; active-view refresh behavior remains pending with the frontend slice.
 
 ## CORS
 

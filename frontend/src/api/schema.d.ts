@@ -21,6 +21,30 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
+        /**
+         * Update Admin Settings
+         * @description Set explicit branding overrides under the requested singleton revision.
+         */
+        patch: operations["update_admin_settings_api_v1_admin_settings_patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/settings/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Admin Settings
+         * @description Remove selected branding overrides under the requested singleton revision.
+         */
+        post: operations["reset_admin_settings_api_v1_admin_settings_reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -307,9 +331,7 @@ export interface paths {
         };
         /**
          * Get Branding
-         * @description Return this deployment's operator-configured branding.
-         *
-         *     A field the operator has not set is `None`: nothing here is invented on its behalf.
+         * @description Return the effective public branding resolved from committed overrides and deployment fallback.
          */
         get: operations["get_branding_api_v1_branding_get"];
         put?: never;
@@ -1008,6 +1030,25 @@ export interface components {
             revision: number;
         };
         /**
+         * AdminSettingsReset
+         * @description Revision-checked request to remove selected branding overrides.
+         */
+        AdminSettingsReset: {
+            /** Expected Revision */
+            expected_revision: number;
+            /** Fields */
+            fields: components["schemas"]["BrandingSettingField"][];
+        };
+        /**
+         * AdminSettingsUpdate
+         * @description Revision-checked request to set one or more explicit branding overrides.
+         */
+        AdminSettingsUpdate: {
+            branding: components["schemas"]["BrandingOverrides"];
+            /** Expected Revision */
+            expected_revision: number;
+        };
+        /**
          * AdminUser
          * @description Administrator-facing read model for one local account (ADR-0039).
          */
@@ -1410,7 +1451,7 @@ export interface components {
          * @description The six editable branding values after deployment fallback resolution.
          *
          *     This contract deliberately mirrors existing environment value types. Administrative write validation is
-         *     introduced with the mutation slice, so read construction cannot tighten accepted environment settings.
+         *     confined to ``BrandingOverrides``, so read construction cannot tighten accepted environment settings.
          */
         BrandingEditableValues: {
             /** Contact Email */
@@ -1486,6 +1527,24 @@ export interface components {
             telephone_href?: string | null;
             /** Vat Id */
             vat_id?: string | null;
+        };
+        /**
+         * BrandingOverrides
+         * @description Sparse, write-validated overrides retaining omission separately from explicit clearing.
+         */
+        BrandingOverrides: {
+            /** Contact Email */
+            contact_email?: string | null;
+            /** Editors */
+            editors?: string[];
+            /** Institution Name */
+            institution_name?: string | null;
+            /** Institution Url */
+            institution_url?: string | null;
+            /** Privacy Notice Url */
+            privacy_notice_url?: string | null;
+            /** Published Since Year */
+            published_since_year?: number | null;
         };
         /**
          * BrandingSettingField
@@ -2689,6 +2748,216 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSettings"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Settings storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    update_admin_settings_api_v1_admin_settings_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSettings"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Settings storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    reset_admin_settings_api_v1_admin_settings_reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSettingsReset"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -4285,6 +4554,15 @@ export interface operations {
             };
             /** @description Internal server error */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Settings storage unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

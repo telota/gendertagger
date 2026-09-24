@@ -3,9 +3,9 @@
 **Status:** Accepted
 
 Later decision: [ADR-0040](ADR-0040-administrative-branding-overrides.md) partially supersedes the
-environment-only, startup-only behavior for six branding fields. Its persistence and administrative-read
-slice is delivered; write and public-branding integration remain pending. This record preserves the original
-decision; its remaining rules and Accepted status apply.
+environment-only, startup-only behavior for six branding fields. Its persistence, administrative settings,
+and public-branding integration are delivered; frontend editing remains pending. This record preserves the
+original decision; its remaining rules and Accepted status apply.
 
 ## Context
 

@@ -140,9 +140,9 @@ conflict rather than an overwrite.
 
 ## Deployment branding overrides
 
-This section records the delivered persistence/read slice of
-[ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md). Its singleton table, migration, and
-read repository are implemented; mutation transactions remain pending.
+This section records the delivered persistence and mutation slices of
+[ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md). Its singleton table, migration, read
+repository, and revision-checked mutation transactions are implemented.
 
 One deployment-wide settings row stores a fixed `id = 1`, a nonnegative `revision`, a non-null
 `branding_overrides` JSONB object, and UTC `updated_at`. Database constraints enforce the singleton identity,
@@ -162,10 +162,10 @@ matching-revision no-op leaves both unchanged; a stale request conflicts even if
 match. Setting an override equal to its fallback is a real change because it pins the value. Revisions track
 stored overrides only, not changes in deployment environment configuration.
 
-Settings resolution reads once per request from the primary database without a process-local or Redis
-override cache. Requests reading after commit observe the committed overrides; a read already in progress
-may return the previous complete state. API replicas must use equivalent startup fallback configuration.
-Storage failures do not silently restore environment branding: after public integration, settings and
+Settings and public-branding resolution read once per request from the primary database without a
+process-local or Redis override cache. Requests reading after commit observe the committed overrides; a read
+already in progress may return the previous complete state. API replicas must use equivalent startup fallback
+configuration. Storage failures do not silently restore environment branding: administrative settings and
 branding JSON return `503 settings_unavailable`. The filesystem-backed logo remains independent.
 
 ## Query indexes

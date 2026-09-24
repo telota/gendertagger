@@ -82,10 +82,10 @@ Do not log secrets or unnecessarily duplicate sensitive source content.
 
 ## Administrative settings
 
-[ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md) delivers its global-admin-only read
-surface through `GET /api/v1/admin/settings`. It requires an authenticated global administrator who has
-completed any forced password change. The update and reset operations remain pending; they will also use
-existing CSRF protection. Project membership never grants permission to change deployment branding.
+[ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md) delivers a global-admin-only settings
+surface through `GET`, `PATCH`, and reset operations at `/api/v1/admin/settings`. All require an
+authenticated global administrator who has completed any forced password change; the unsafe operations also
+use existing CSRF protection. Project membership never grants permission to change deployment branding.
 
 Only six allowlisted branding fields are editable through closed Pydantic contracts. `initiatives` and
 `legal_entity` remain read-only; `logo_url` is derived, and `logo_path` must not be exposed. Infrastructure
@@ -93,16 +93,15 @@ addresses, secrets, filesystem paths, session/import limits, worker tuning, and 
 remain deployment-managed. The administrative response must never serialize `AppSettings` wholesale.
 Branding URLs are validated links, not instructions for the backend to fetch remote content.
 
-The delivered read maps inaccessible or missing settings storage to `503 settings_unavailable` and uses
-`Cache-Control: no-store`; it does not substitute environment fallbacks. The pending update/reset operations
-will share atomic revision protection and preserve explicit clearing separately from removed overrides.
-After public integration, public branding JSON will follow the same unavailable-storage and cache policy.
-Public branding access and the filesystem-backed logo remain unauthenticated.
+Administrative reads and mutations map inaccessible or missing settings storage to `503 settings_unavailable`
+and use `Cache-Control: no-store`; they do not substitute environment fallbacks. Updates and resets share
+atomic revision protection and preserve explicit clearing separately from removed overrides. Public branding
+follows the same unavailable-storage and cache policy while remaining unauthenticated; the filesystem-backed
+logo remains independent.
 
-The pending write slice will log actor ID, action, request ID, resulting revision, and changed field names
-after a successful transaction. Logs must exclude values, full request bodies, secrets, and sensitive database
-diagnostics. A no-op may log its unchanged revision and an empty changed-field list. No administrative
-history table or audit UI is introduced.
+Successful write logs contain actor ID, action, request ID, resulting revision, and changed field names.
+They exclude values, full request bodies, secrets, and sensitive database diagnostics. A no-op may log its
+unchanged revision and an empty changed-field list. No administrative history table or audit UI is introduced.
 
 
 ## Browser session

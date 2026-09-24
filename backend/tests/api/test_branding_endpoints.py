@@ -1,13 +1,17 @@
 """End-to-end tests for the public branding resource (ADR-0036)."""
 
 from pathlib import Path
+from unittest.mock import Mock
 
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
 from gendertagger.api.app import create_app
+from gendertagger.api.dependencies import get_admin_settings_service
 from gendertagger.api.settings import AppSettings, BrandingSettings
-from gendertagger.models.branding import BrandingInitiative, BrandingLegalEntity
+from gendertagger.models.branding import BrandingInfo, BrandingInitiative, BrandingLegalEntity
+from gendertagger.services.admin_settings import AdminSettingsService
+from gendertagger.services.ports.persistence_errors import SettingsUnavailableError
 from gendertagger.services.ports.unit_of_work import UnitOfWork
 
 DATABASE_URL = "postgresql+psycopg://api:secret@localhost/gendertagger"
@@ -19,14 +23,23 @@ def _unused_unit_of_work_factory() -> UnitOfWork:
     raise AssertionError("The branding resource must not open persistence")
 
 
-def _client(*, branding: BrandingSettings | None = None) -> TestClient:
+def _client(
+    *,
+    branding: BrandingSettings | None = None,
+    service: object | None = None,
+) -> TestClient:
+    resolved_branding = branding or BrandingSettings()
     settings = AppSettings(
         database_url=SecretStr(DATABASE_URL),
         code_git_commit=CODE_GIT_COMMIT,
         dependency_lock_sha256=DEPENDENCY_LOCK_SHA256,
-        branding=branding or BrandingSettings(),
+        branding=resolved_branding,
     )
     application = create_app(settings=settings, unit_of_work_factory=_unused_unit_of_work_factory)
+    if service is None:
+        service = Mock(spec=AdminSettingsService)
+        service.get_branding.return_value = _resolved_branding(resolved_branding)
+    application.dependency_overrides[get_admin_settings_service] = lambda: service
     return TestClient(application)
 
 
@@ -126,3 +139,31 @@ def test_logo_falls_back_to_a_generic_media_type_for_an_unrecognised_extension(
 
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/octet-stream"
+
+
+def test_public_branding_maps_settings_outages_without_environment_fallback() -> None:
+    service = Mock(spec=AdminSettingsService)
+    service.get_branding.side_effect = SettingsUnavailableError("primary unavailable")
+
+    response = _client(service=service).get("/api/v1/branding")
+
+    assert response.status_code == 503
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json()["error"]["code"] == "settings_unavailable"
+    assert "primary unavailable" not in response.text
+
+
+def _resolved_branding(branding: BrandingSettings) -> BrandingInfo:
+    return BrandingInfo(
+        institution_name=branding.institution_name,
+        institution_url=branding.institution_url,
+        logo_url="/api/v1/branding/logo"
+        if branding.logo_path is not None and branding.logo_path.is_file()
+        else None,
+        editors=list(branding.editors),
+        published_since_year=branding.published_since_year,
+        initiatives=list(branding.initiatives),
+        contact_email=branding.contact_email,
+        privacy_notice_url=branding.privacy_notice_url,
+        legal_entity=branding.legal_entity,
+    )
