@@ -696,6 +696,18 @@ stack because of one backend defect and one missing endpoint (below).
 **Exit criterion.** The production Compose profile serves the built client through the gateway, deep links
 resolve, and the review path works end to end behind a real session.
 
+**Delivery status (2026-09-24).**
+
+- **Accessibility pass, automated part. Delivered.** `tests/accessibility/screens.spec.ts` mounts every screen
+  (projects, overview, import, runs, run, aggregation, review, people, evaluations, evaluation, exports, export) in
+  both locales against one in-memory API (`tests/accessibility/mockApi.ts`, layered on the review fixture) and asserts
+  exactly one page title and no axe-core violation. It also covers the states that add or move content: a decision
+  chosen with the bulk form and its confirmation open, a decision that meets a `409` conflict, a finished bulk
+  report, and the read-only variants for a viewer. All pass. Colour contrast is not computed by jsdom and stays
+  asserted against the tokens (`tests/styles/tokens.spec.ts`); focus movement and announcements are tested where the
+  interaction lives (review, decision, bulk). What this cannot show remains the manual pass of D17: real screen
+  readers, keyboard-only use of the running application, contrast in the rendered pages, and the user round of D18.
+
 ## Decisions taken
 
 ### D1 — Local accounts now, institutional SSO later

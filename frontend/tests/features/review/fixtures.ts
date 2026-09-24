@@ -254,196 +254,199 @@ export function newServer(overrides: Partial<Server> = {}): Server {
   }
 }
 
-export function reviewClient(server: Server) {
-  return createApiClient({
-    fetch: async (request) => {
-      const url = new URL(request.url)
-      const { pathname } = url
-      if (request.method !== 'GET') server.writes.push(`${request.method} ${pathname}`)
-      if (pathname === '/api/v1/branding') return jsonResponse({})
-      if (pathname === '/api/v1/me') return jsonResponse(USER)
-      if (pathname === '/api/v1/auth/session') {
-        return jsonResponse({ must_change_password: false, keep_signed_in: false })
-      }
-      if (pathname === `/api/v1/projects/${PROJECT_ID}`) {
+/** The test server's answers as a `fetch` function, so other suites can layer more endpoints on top. */
+export function reviewFetch(server: Server): (request: Request) => Promise<Response> {
+  return async (request) => {
+    const url = new URL(request.url)
+    const { pathname } = url
+    if (request.method !== 'GET') server.writes.push(`${request.method} ${pathname}`)
+    if (pathname === '/api/v1/branding') return jsonResponse({})
+    if (pathname === '/api/v1/me') return jsonResponse(USER)
+    if (pathname === '/api/v1/auth/session') {
+      return jsonResponse({ must_change_password: false, keep_signed_in: false })
+    }
+    if (pathname === `/api/v1/projects/${PROJECT_ID}`) {
+      return jsonResponse({
+        id: PROJECT_ID,
+        slug: 'p',
+        display_name: 'Project A',
+        description: null,
+        current_user_role: server.role,
+        created_at: '2026-01-01T00:00:00Z',
+      })
+    }
+    if (pathname === '/api/v1/methods') {
+      return jsonResponse([
+        {
+          name: 'gnd',
+          implementation_version: 'v1',
+          normalization_version: 'v1',
+          method_confidence_range: null,
+        },
+        {
+          name: 'local_llm',
+          implementation_version: 'v1',
+          normalization_version: 'v1',
+          method_confidence_range: { minimum: 0, maximum: 1 },
+        },
+      ])
+    }
+    if (pathname === `/api/v1/aggregations/${AGG_ID}`) {
+      return jsonResponse({
+        id: AGG_ID,
+        run_id: RUN_ID,
+        strategy: 'reference_v1',
+        status: server.aggregationStatus,
+        resolved_config: {},
+        method_execution_ids: [],
+        config_sha256: '9'.repeat(64),
+        created_at: '2026-01-01T11:00:00Z',
+      })
+    }
+    if (pathname === `/api/v1/aggregations/${AGG_ID}/review-summary`) return jsonResponse(SUMMARY)
+    if (pathname === '/api/v1/review-items') {
+      server.requests.push(url.searchParams)
+      const cursor = url.searchParams.get('cursor')
+      const q = url.searchParams.get('q')
+      if (q !== null && server.known.length > 0) {
         return jsonResponse({
-          id: PROJECT_ID,
-          slug: 'p',
-          display_name: 'Project A',
-          description: null,
-          current_user_role: server.role,
-          created_at: '2026-01-01T00:00:00Z',
+          items: server.known.filter((i) => i.tei_id === q),
+          next_cursor: null,
+          has_more: false,
         })
       }
-      if (pathname === '/api/v1/methods') {
-        return jsonResponse([
+      const index = cursor === null ? 0 : Number(cursor)
+      const page = server.pages[index] ?? { items: [], next: null }
+      return jsonResponse({
+        items: page.items,
+        next_cursor: page.next,
+        has_more: page.next !== null,
+      })
+    }
+    if (pathname.endsWith('/predictions')) return jsonResponse(PREDICTIONS)
+    if (pathname === '/api/v1/annotations' && request.method === 'POST') {
+      const body = (await request.json()) as Record<string, unknown>
+      server.posts.push(body)
+      if (server.gate) await server.gate
+      if (server.conflictTeis.includes(body.tei_id as string)) {
+        return jsonResponse(
           {
-            name: 'gnd',
-            implementation_version: 'v1',
-            normalization_version: 'v1',
-            method_confidence_range: null,
-          },
-          {
-            name: 'local_llm',
-            implementation_version: 'v1',
-            normalization_version: 'v1',
-            method_confidence_range: { minimum: 0, maximum: 1 },
-          },
-        ])
-      }
-      if (pathname === `/api/v1/aggregations/${AGG_ID}`) {
-        return jsonResponse({
-          id: AGG_ID,
-          run_id: RUN_ID,
-          strategy: 'reference_v1',
-          status: server.aggregationStatus,
-          resolved_config: {},
-          method_execution_ids: [],
-          config_sha256: '9'.repeat(64),
-          created_at: '2026-01-01T11:00:00Z',
-        })
-      }
-      if (pathname === `/api/v1/aggregations/${AGG_ID}/review-summary`) return jsonResponse(SUMMARY)
-      if (pathname === '/api/v1/review-items') {
-        server.requests.push(url.searchParams)
-        const cursor = url.searchParams.get('cursor')
-        const q = url.searchParams.get('q')
-        if (q !== null && server.known.length > 0) {
-          return jsonResponse({
-            items: server.known.filter((i) => i.tei_id === q),
-            next_cursor: null,
-            has_more: false,
-          })
-        }
-        const index = cursor === null ? 0 : Number(cursor)
-        const page = server.pages[index] ?? { items: [], next: null }
-        return jsonResponse({
-          items: page.items,
-          next_cursor: page.next,
-          has_more: page.next !== null,
-        })
-      }
-      if (pathname.endsWith('/predictions')) return jsonResponse(PREDICTIONS)
-      if (pathname === '/api/v1/annotations' && request.method === 'POST') {
-        const body = (await request.json()) as Record<string, unknown>
-        server.posts.push(body)
-        if (server.gate) await server.gate
-        if (server.conflictTeis.includes(body.tei_id as string)) {
-          return jsonResponse(
-            {
-              error: {
-                code: 'annotation_conflict',
-                message: 'The review state has changed.',
-                details: { current_revision: 9 },
-                request_id: 'r',
-              },
+            error: {
+              code: 'annotation_conflict',
+              message: 'The review state has changed.',
+              details: { current_revision: 9 },
+              request_id: 'r',
             },
-            { status: 409 },
-          )
-        }
-        if (server.failTeis.includes(body.tei_id as string)) {
-          return jsonResponse(
-            { error: { code: 'internal_error', message: 'boom', details: {}, request_id: 'r' } },
-            { status: 500 },
-          )
-        }
-        if (server.postOutcome === 'forbidden') {
-          return jsonResponse(
-            { error: { code: 'forbidden', message: 'no', details: {}, request_id: 'r' } },
-            { status: 403 },
-          )
-        }
-        if (server.postOutcome === 'conflict') {
-          // Somebody else got there first: the person moved on and the write is refused.
-          const revision = server.history.revision + 1
-          server.history = {
-            ...server.history,
-            revision,
-            annotations: [
-              {
-                ...server.history.annotations[0]!,
-                id: `other-${revision}`,
-                action: 'correct',
-                label: 'institution',
-                reviewer_display_name: 'Alex Other',
-                resulting_revision: revision,
-                comment: null,
-              },
-              ...server.history.annotations,
-            ],
-          }
-          return jsonResponse(
-            {
-              error: {
-                code: 'annotation_conflict',
-                message: 'The review state has changed.',
-                details: { current_revision: revision },
-                request_id: 'r',
-              },
-            },
-            { status: 409 },
-          )
-        }
+          },
+          { status: 409 },
+        )
+      }
+      if (server.failTeis.includes(body.tei_id as string)) {
+        return jsonResponse(
+          { error: { code: 'internal_error', message: 'boom', details: {}, request_id: 'r' } },
+          { status: 500 },
+        )
+      }
+      if (server.postOutcome === 'forbidden') {
+        return jsonResponse(
+          { error: { code: 'forbidden', message: 'no', details: {}, request_id: 'r' } },
+          { status: 403 },
+        )
+      }
+      if (server.postOutcome === 'conflict') {
+        // Somebody else got there first: the person moved on and the write is refused.
         const revision = server.history.revision + 1
-        const created = {
-          ...server.history.annotations[0]!,
-          id: `new-${revision}`,
-          action: body.action as string,
-          label: (body.label as string | undefined) ?? null,
-          comment: (body.comment as string | undefined) ?? null,
-          reviewer_display_name: 'Me Reviewer',
-          resulting_revision: revision,
-        }
         server.history = {
           ...server.history,
           revision,
-          annotations: [created, ...server.history.annotations],
-        }
-        // The queue's projection follows the decision; the machine result it came from does not.
-        for (const page of server.pages) {
-          for (const entry of page.items) {
-            if (entry.tei_id !== body.tei_id) continue
-            entry.review_revision = revision
-            entry.workflow_state = body.action === 'defer' ? 'deferred' : 'reviewed'
-            if (body.action !== 'defer') entry.final_label = body.label as string
-          }
-        }
-        return jsonResponse(created, { status: 201 })
-      }
-      if (pathname === '/api/v1/annotations') return jsonResponse(server.history)
-      if (pathname.startsWith(`/api/v1/snapshots/${SNAPSHOT_ID}/people/`)) {
-        return jsonResponse({
-          id: 'p',
-          dataset_snapshot_id: SNAPSHOT_ID,
-          tei_id: 'demo-1',
-          surname: 'S',
-          forenames: ['G'],
-          birth: '1768',
-          death: '1834',
-          gnd_id: '118607626',
-          note: 'A theologian.',
-          alt_names: ['Fritz S.'],
-          name_forms: [
-            { type: 'reg', subtype: null, name: null, surname: 'S', forenames: ['G'] },
+          annotations: [
             {
-              type: 'alt',
-              subtype: 'birthname',
-              name: 'Gottfried Sturm',
-              surname: null,
-              forenames: [],
+              ...server.history.annotations[0]!,
+              id: `other-${revision}`,
+              action: 'correct',
+              label: 'institution',
+              reviewer_display_name: 'Alex Other',
+              resulting_revision: revision,
+              comment: null,
             },
+            ...server.history.annotations,
           ],
-          events: [
-            { type: 'wedding', when: '1817-09-24', note: 'Berlin' },
-            { type: 'appointment', when: null, note: null },
-          ],
-          external_ids: { viaf: '98765', wikidata: 'Q42' },
-          source_member_name: 'persons-a.xml',
-          source_record_locator: '17',
-          created_at: '2026-01-01T00:00:00Z',
-        })
+        }
+        return jsonResponse(
+          {
+            error: {
+              code: 'annotation_conflict',
+              message: 'The review state has changed.',
+              details: { current_revision: revision },
+              request_id: 'r',
+            },
+          },
+          { status: 409 },
+        )
       }
-      return jsonResponse({}, { status: 404 })
-    },
-  })
+      const revision = server.history.revision + 1
+      const created = {
+        ...server.history.annotations[0]!,
+        id: `new-${revision}`,
+        action: body.action as string,
+        label: (body.label as string | undefined) ?? null,
+        comment: (body.comment as string | undefined) ?? null,
+        reviewer_display_name: 'Me Reviewer',
+        resulting_revision: revision,
+      }
+      server.history = {
+        ...server.history,
+        revision,
+        annotations: [created, ...server.history.annotations],
+      }
+      // The queue's projection follows the decision; the machine result it came from does not.
+      for (const page of server.pages) {
+        for (const entry of page.items) {
+          if (entry.tei_id !== body.tei_id) continue
+          entry.review_revision = revision
+          entry.workflow_state = body.action === 'defer' ? 'deferred' : 'reviewed'
+          if (body.action !== 'defer') entry.final_label = body.label as string
+        }
+      }
+      return jsonResponse(created, { status: 201 })
+    }
+    if (pathname === '/api/v1/annotations') return jsonResponse(server.history)
+    if (pathname.startsWith(`/api/v1/snapshots/${SNAPSHOT_ID}/people/`)) {
+      return jsonResponse({
+        id: 'p',
+        dataset_snapshot_id: SNAPSHOT_ID,
+        tei_id: 'demo-1',
+        surname: 'S',
+        forenames: ['G'],
+        birth: '1768',
+        death: '1834',
+        gnd_id: '118607626',
+        note: 'A theologian.',
+        alt_names: ['Fritz S.'],
+        name_forms: [
+          { type: 'reg', subtype: null, name: null, surname: 'S', forenames: ['G'] },
+          {
+            type: 'alt',
+            subtype: 'birthname',
+            name: 'Gottfried Sturm',
+            surname: null,
+            forenames: [],
+          },
+        ],
+        events: [
+          { type: 'wedding', when: '1817-09-24', note: 'Berlin' },
+          { type: 'appointment', when: null, note: null },
+        ],
+        external_ids: { viaf: '98765', wikidata: 'Q42' },
+        source_member_name: 'persons-a.xml',
+        source_record_locator: '17',
+        created_at: '2026-01-01T00:00:00Z',
+      })
+    }
+    return jsonResponse({}, { status: 404 })
+  }
+}
+
+export function reviewClient(server: Server) {
+  return createApiClient({ fetch: reviewFetch(server) })
 }
