@@ -10,6 +10,7 @@ import { useAdminAccess } from '@/composables/useAdminAccess'
 
 import AdminUserCreationForm from './AdminUserCreationForm.vue'
 import AdminUserEditForm from './AdminUserEditForm.vue'
+import AdminUserSecurityActions from './AdminUserSecurityActions.vue'
 import { useAdminUserDirectory, type AdminUser } from './useAdminUserDirectory'
 import { useAdminUserMutations } from './useAdminUserMutations'
 
@@ -59,17 +60,20 @@ watch(
   },
 )
 
-watch([mutations.createError, mutations.updateError], ([createError, updateError]) => {
-  const error = createError ?? updateError
-  if (!mutations.isAdminAccessError(error)) return
+watch(
+  [mutations.createError, mutations.updateError, mutations.securityError],
+  ([createError, updateError, securityError]) => {
+    const error = createError ?? updateError ?? securityError
+    if (!mutations.isAdminAccessError(error)) return
 
-  serverAccessError.value =
-    error === 'password_change_required' ? 'passwordChangeRequired' : 'forbidden'
-  editingAccount.value = null
-  mutations.clearPrivateState()
-  void session.initialize()
-  directory.clearPrivateData()
-})
+    serverAccessError.value =
+      error === 'password_change_required' ? 'passwordChangeRequired' : 'forbidden'
+    editingAccount.value = null
+    mutations.clearPrivateState()
+    void session.initialize()
+    directory.clearPrivateData()
+  },
+)
 
 function retrySession(): void {
   void session.initialize()
@@ -100,6 +104,23 @@ async function updateAccount(command: components['schemas']['AdminUserUpdate']):
 
   editingAccount.value = null
   if (updated.id === principalId.value) await session.initialize()
+}
+
+async function resetAccountPassword(account: AdminUser): Promise<void> {
+  await mutations.resetPassword(account)
+}
+
+async function revokeAccountSessions(account: AdminUser): Promise<void> {
+  const isCurrentAccount = account.id === principalId.value
+  const succeeded = await mutations.revokeSessions(account)
+  if (!succeeded || !isCurrentAccount) return
+
+  // The server has already revoked this browser session. Clear only local/private state and route to
+  // sign-in; a logout request or an administrative refetch would be redundant and cannot authenticate.
+  directory.clearPrivateData(account.id)
+  mutations.clearPrivateState()
+  session.forgetSession()
+  await router.replace({ name: 'login' })
 }
 
 function roleLabel(role: AdminUser['roles'][number]): string {
@@ -243,9 +264,24 @@ function rolesLabel(account: AdminUser): string {
                   </span>
                 </td>
                 <td>
-                  <AppButton type="button" variant="text" @click="startEditing(account)">
-                    {{ t('admin.editing.open') }}
-                  </AppButton>
+                  <div class="admin-user-directory-actions">
+                    <AppButton type="button" variant="text" @click="startEditing(account)">
+                      {{ t('admin.editing.open') }}
+                    </AppButton>
+                    <AdminUserSecurityActions
+                      v-if="principalId !== null"
+                      :account="account"
+                      :actor-user-id="principalId"
+                      :is-submitting="mutations.isPerformingSecurityAction.value"
+                      :error="mutations.securityError.value"
+                      :error-target-user-id="mutations.securityTargetUserId.value"
+                      :reset-disclosure="mutations.resetDisclosure.value"
+                      :reset-directory-refresh-failed="mutations.resetDirectoryRefreshFailed.value"
+                      @reset-password="resetAccountPassword"
+                      @revoke-sessions="revokeAccountSessions"
+                      @dismiss-reset-disclosure="mutations.clearResetDisclosure"
+                    />
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -305,6 +341,11 @@ function rolesLabel(account: AdminUser): string {
   margin-bottom: var(--space-6);
 }
 
+.admin-user-directory-actions {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 13rem;
+}
 .admin-user-directory-heading h1 {
   margin: 0 0 var(--space-2);
   font-size: var(--font-size-page);

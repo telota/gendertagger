@@ -335,4 +335,242 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
     expect(wrapper.text()).not.toContain('must-not-survive-view-disposal')
     expect(directoryRequests).toBe(1)
   })
+
+  it('confirms another account password reset, sends no request body, supports inactive accounts, and discloses the returned password', async () => {
+    const inactiveAccount = { ...ACCOUNT, is_active: false }
+    const resetBodies: string[] = []
+    const client = signedInClient(
+      async (request) => {
+        const { pathname } = new URL(request.url)
+        if (pathname === '/api/v1/admin/users' && request.method === 'GET') {
+          return jsonResponse({ items: [inactiveAccount], has_more: false, next_cursor: null })
+        }
+        if (
+          pathname === `/api/v1/admin/users/${ACCOUNT.id}/reset-password` &&
+          request.method === 'POST'
+        ) {
+          resetBodies.push(await request.clone().text())
+          return jsonResponse({ temporary_password: 'reset-password-only-once' })
+        }
+        return jsonResponse({}, { status: 404 })
+      },
+      () => ADMIN_A,
+    )
+    const wrapper = await mountApplicationAt('/admin/users', locale, client)
+    await waitFor(() => expect(wrapper.text()).toContain(ACCOUNT.username))
+
+    await buttonWithText(wrapper, messages.security.reset.open).trigger('click')
+    await waitFor(() =>
+      expect(wrapper.get('[role="dialog"]').text()).toContain(
+        messages.security.reset.confirm.inactive,
+      ),
+    )
+    await buttonWithText(wrapper, messages.security.cancel).trigger('click')
+    expect(resetBodies).toEqual([])
+
+    await buttonWithText(wrapper, messages.security.reset.open).trigger('click')
+    await buttonWithText(wrapper, messages.security.reset.confirm.submit).trigger('click')
+    await waitFor(() => expect(wrapper.text()).toContain('reset-password-only-once'))
+
+    expect(resetBodies).toEqual([''])
+    await expectNoAxeViolations(wrapper.element)
+    await buttonWithText(wrapper, messages.security.reset.dismissTemporaryPassword).trigger('click')
+    expect(wrapper.text()).not.toContain('reset-password-only-once')
+  })
+
+  it('prevents overlapping security actions and retains a reset disclosure when its directory refresh fails', async () => {
+    let directoryRequests = 0
+    let resetRequests = 0
+    let resolveReset: ((response: Response) => void) | undefined
+    const client = signedInClient(
+      (request) => {
+        const { pathname } = new URL(request.url)
+        if (pathname === '/api/v1/admin/users' && request.method === 'GET') {
+          directoryRequests += 1
+          if (directoryRequests > 1) {
+            return jsonResponse(
+              { error: { code: 'server_error', message: 'Unavailable.' } },
+              { status: 500 },
+            )
+          }
+          return jsonResponse({ items: [ACCOUNT], has_more: false, next_cursor: null })
+        }
+        if (
+          pathname === `/api/v1/admin/users/${ACCOUNT.id}/reset-password` &&
+          request.method === 'POST'
+        ) {
+          resetRequests += 1
+          return new Promise<Response>((resolve) => {
+            resolveReset = resolve
+          })
+        }
+        if (
+          pathname === `/api/v1/admin/users/${ACCOUNT.id}/revoke-sessions` &&
+          request.method === 'POST'
+        ) {
+          throw new Error('The revocation control must remain disabled.')
+        }
+        return jsonResponse({}, { status: 404 })
+      },
+      () => ADMIN_A,
+    )
+    const wrapper = await mountApplicationAt('/admin/users', locale, client)
+    await waitFor(() => expect(wrapper.text()).toContain(ACCOUNT.username))
+
+    await buttonWithText(wrapper, messages.security.reset.open).trigger('click')
+    await buttonWithText(wrapper, messages.security.reset.confirm.submit).trigger('click')
+    await buttonWithText(wrapper, messages.security.reset.open).trigger('click')
+    await buttonWithText(wrapper, messages.security.revoke.open).trigger('click')
+    expect(resetRequests).toBe(1)
+
+    resolveReset?.(jsonResponse({ temporary_password: 'survives-refresh-failure' }))
+    await waitFor(() => expect(wrapper.text()).toContain(messages.security.reset.refreshFailed))
+    expect(wrapper.text()).toContain('survives-refresh-failure')
+  })
+
+  it('shows an uncertain reset outcome without automatically repeating the request', async () => {
+    let resetRequests = 0
+    const client = signedInClient(
+      (request) => {
+        const { pathname } = new URL(request.url)
+        if (pathname === '/api/v1/admin/users' && request.method === 'GET') {
+          return jsonResponse({ items: [ACCOUNT], has_more: false, next_cursor: null })
+        }
+        if (
+          pathname === `/api/v1/admin/users/${ACCOUNT.id}/reset-password` &&
+          request.method === 'POST'
+        ) {
+          resetRequests += 1
+          return Promise.reject(new Error('Connection lost.'))
+        }
+        return jsonResponse({}, { status: 404 })
+      },
+      () => ADMIN_A,
+    )
+    const wrapper = await mountApplicationAt('/admin/users', locale, client)
+    await waitFor(() => expect(wrapper.text()).toContain(ACCOUNT.username))
+
+    await buttonWithText(wrapper, messages.security.reset.open).trigger('click')
+    await buttonWithText(wrapper, messages.security.reset.confirm.submit).trigger('click')
+    await waitFor(() => expect(wrapper.text()).toContain(messages.security.errors.networkError))
+
+    expect(resetRequests).toBe(1)
+  })
+
+  it('confirms session revocation with an exact no-body request', async () => {
+    const revokeBodies: string[] = []
+    const client = signedInClient(
+      async (request) => {
+        const { pathname } = new URL(request.url)
+        if (pathname === '/api/v1/admin/users' && request.method === 'GET') {
+          return jsonResponse({ items: [ACCOUNT], has_more: false, next_cursor: null })
+        }
+        if (
+          pathname === `/api/v1/admin/users/${ACCOUNT.id}/revoke-sessions` &&
+          request.method === 'POST'
+        ) {
+          revokeBodies.push(await request.clone().text())
+          return new Response(null, { status: 204 })
+        }
+        return jsonResponse({}, { status: 404 })
+      },
+      () => ADMIN_A,
+    )
+    const wrapper = await mountApplicationAt('/admin/users', locale, client)
+    await waitFor(() => expect(wrapper.text()).toContain(ACCOUNT.username))
+
+    await buttonWithText(wrapper, messages.security.revoke.open).trigger('click')
+    await waitFor(() =>
+      expect(wrapper.get('[role="dialog"]').text()).toContain(
+        messages.security.revoke.confirm.description,
+      ),
+    )
+    await buttonWithText(wrapper, messages.security.cancel).trigger('click')
+    expect(revokeBodies).toEqual([])
+
+    await buttonWithText(wrapper, messages.security.revoke.open).trigger('click')
+    await buttonWithText(wrapper, messages.security.revoke.confirm.submit).trigger('click')
+    await waitFor(() => expect(revokeBodies).toEqual(['']))
+  })
+
+  it('links own password changes and clears this session after self-revocation without a logout request', async () => {
+    const currentAccount = { ...ACCOUNT, id: ADMIN_A.id, username: 'admin.a' }
+    const requests: string[] = []
+    const client = signedInClient(
+      (request) => {
+        const { pathname } = new URL(request.url)
+        requests.push(pathname)
+        if (pathname === '/api/v1/admin/users' && request.method === 'GET') {
+          return jsonResponse({ items: [currentAccount], has_more: false, next_cursor: null })
+        }
+        if (
+          pathname === `/api/v1/admin/users/${ADMIN_A.id}/revoke-sessions` &&
+          request.method === 'POST'
+        ) {
+          return new Response(null, { status: 204 })
+        }
+        return jsonResponse({}, { status: 404 })
+      },
+      () => ADMIN_A,
+    )
+    const router = createAppRouter(createMemoryHistory())
+    const wrapper = await mountApplicationAt('/admin/users', locale, client, router)
+    await waitFor(() => expect(wrapper.text()).toContain(currentAccount.username))
+
+    await wrapper.get('a[href="/change-password"]').trigger('click')
+    await waitFor(() => expect(router.currentRoute.value.name).toBe('changePassword'))
+    await router.push('/admin/users')
+    await waitFor(() => expect(wrapper.text()).toContain(currentAccount.username))
+
+    await buttonWithText(wrapper, messages.security.revoke.open).trigger('click')
+    await waitFor(() =>
+      expect(wrapper.get('[role="dialog"]').text()).toContain(
+        messages.security.revoke.confirm.selfWarning,
+      ),
+    )
+    await buttonWithText(wrapper, messages.security.revoke.confirm.submit).trigger('click')
+    await waitFor(() => expect(router.currentRoute.value.name).toBe('login'))
+
+    expect(currentSession().isSignedIn).toBe(false)
+    expect(requests).toEqual([
+      '/api/v1/admin/users',
+      '/api/v1/admin/users',
+      `/api/v1/admin/users/${ADMIN_A.id}/revoke-sessions`,
+    ])
+  })
+
+  it('clears a late password reset disclosure after the principal changes', async () => {
+    let currentUser = ADMIN_A
+    let resolveReset: ((response: Response) => void) | undefined
+    const client = signedInClient(
+      (request) => {
+        const { pathname } = new URL(request.url)
+        if (pathname === '/api/v1/admin/users' && request.method === 'GET') {
+          return jsonResponse({ items: [ACCOUNT], has_more: false, next_cursor: null })
+        }
+        if (
+          pathname === `/api/v1/admin/users/${ACCOUNT.id}/reset-password` &&
+          request.method === 'POST'
+        ) {
+          return new Promise<Response>((resolve) => {
+            resolveReset = resolve
+          })
+        }
+        return jsonResponse({}, { status: 404 })
+      },
+      () => currentUser,
+    )
+    const wrapper = await mountApplicationAt('/admin/users', locale, client)
+    await waitFor(() => expect(wrapper.text()).toContain(ACCOUNT.username))
+
+    await buttonWithText(wrapper, messages.security.reset.open).trigger('click')
+    await buttonWithText(wrapper, messages.security.reset.confirm.submit).trigger('click')
+    currentUser = ADMIN_B
+    await currentSession().initialize()
+    resolveReset?.(jsonResponse({ temporary_password: 'must-not-survive-reset-principal-change' }))
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('must-not-survive-reset-principal-change')
+    expect(currentSession().user?.id).toBe(ADMIN_B.id)
+  })
 })

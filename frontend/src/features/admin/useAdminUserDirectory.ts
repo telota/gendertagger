@@ -20,12 +20,21 @@ function clearAdminUserQueries(queryClient: QueryClient, principalId: string): v
   queryClient.removeQueries({ queryKey })
 }
 
-/** Mark every search variant for one administrator stale and refetch active directory views. */
+/**
+ * Mark every search variant for one administrator stale and refetch active directory views.
+ *
+ * Security writes request a rejecting refetch so the UI can distinguish a committed write from a failed
+ * follow-up read without storing the response in a mutation cache.
+ */
 export function invalidateAdminUserQueries(
   queryClient: QueryClient,
   principalId: string,
+  throwOnError = false,
 ): Promise<void> {
-  return queryClient.invalidateQueries({ queryKey: [...ADMIN_USERS_QUERY_ROOT, principalId] })
+  return queryClient.invalidateQueries(
+    { queryKey: [...ADMIN_USERS_QUERY_ROOT, principalId] },
+    { throwOnError },
+  )
 }
 
 /**

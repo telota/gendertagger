@@ -278,16 +278,22 @@ scope — so that part of the criterion is necessarily verified once M3 exists, 
 
 ### Administrative local-account directory — ADR-0039
 
-**Status.** The read-only directory is delivered. This branch implements the next administrative slice:
-global-admin account creation and mutable-account editing. It uses the generated `POST /api/v1/admin/users`
-and `PATCH /api/v1/admin/users/{user_id}` operations; keeps server-ordered, cursor-paginated directory data
-in its principal-scoped query cache; and deliberately does not replay either write after `401` recovery.
-Creation discloses the server-generated temporary password only in component-local state and removes it on
-dismissal, unmount, principal/access change, and logout; mutation responses from an obsolete view, principal,
-or access state are discarded. Editing permits only display name, global roles, and
-activation state, confirms deactivation, and prevents obvious self-lockout controls without treating the
-paginated client directory as an authority on the last active administrator. Manual browser verification of
-the new German/English, light/dark, keyboard, responsive, and recovery states remains pending review.
+**Status.** The read-only directory, global-admin account creation, mutable-account editing, password reset,
+and session revocation are delivered. The generated `POST /api/v1/admin/users`,
+`PATCH /api/v1/admin/users/{user_id}`, `POST /api/v1/admin/users/{user_id}/reset-password`, and
+`POST /api/v1/admin/users/{user_id}/revoke-sessions` operations keep server-ordered, cursor-paginated
+directory data in a principal-scoped query cache and never replay an administrative write after `401`
+recovery. Creation and reset disclose generated temporary passwords only in component-local state; reset
+captures its target and operation, retains the disclosure when the follow-up directory refresh fails, and
+clears it on dismissal, unmount, principal/access change, and logout. Reset controls explain the forced
+password change, session revocation, and inactive-account boundary. The current administrator links to
+`/change-password` instead of using an administrative self-reset. Session revocation confirms its
+password/role/activation invariants; self-revocation clears local private state and routes to sign-in without
+an extra logout or administrative refetch. Mutation responses from an obsolete view, principal, or access
+state are discarded. Editing permits only display name, global roles, and activation state, confirms
+deactivation, and prevents obvious self-lockout controls without treating the paginated client directory as
+an authority on the last active administrator. Manual browser verification of the new German/English,
+light/dark, keyboard, responsive, and recovery states remains pending review.
 
 The existing read path presents server-ordered accounts with username/display-name search, opaque cursor
 pagination, account state, required-password-change state, global roles, and a current-account marker. The
@@ -296,9 +302,8 @@ password-change, session-error, retry, empty, search-empty, initial-error, pagin
 states. Private administrative query data is principal-scoped and removed on a principal or eligibility
 change and when the view unmounts.
 
-Password reset, session revocation, and project memberships remain subsequent administrative slices.
-ADR-0040 permits frontend edits only for its six branding fields; the implementation does not expose any
-other deployment settings.
+Project memberships remain a subsequent administrative slice. ADR-0040 permits frontend edits only for its
+six branding fields; the implementation does not expose any other deployment settings.
 
 ### Administrative branding settings — ADR-0040
 

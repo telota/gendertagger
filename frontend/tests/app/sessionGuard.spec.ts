@@ -63,6 +63,22 @@ describe('shouldRetryAfterUnauthorized', () => {
     ).toBe(false)
     expect(
       shouldRetryAfterUnauthorized(
+        new Request(
+          'https://example.test/api/v1/admin/users/6f9619ff-8b86-4011-b42d-00c04fc964ff/reset-password',
+          { method: 'POST' },
+        ),
+      ),
+    ).toBe(false)
+    expect(
+      shouldRetryAfterUnauthorized(
+        new Request(
+          'https://example.test/api/v1/admin/users/6f9619ff-8b86-4011-b42d-00c04fc964ff/revoke-sessions',
+          { method: 'POST' },
+        ),
+      ),
+    ).toBe(false)
+    expect(
+      shouldRetryAfterUnauthorized(
         new Request('https://example.test/api/v1/admin/settings', { method: 'PATCH' }),
       ),
     ).toBe(false)

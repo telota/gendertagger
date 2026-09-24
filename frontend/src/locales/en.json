@@ -207,6 +207,45 @@
       "cancel": "Keep account active",
       "confirm": "Deactivate account"
     },
+    "security": {
+      "cancel": "Cancel",
+      "changeOwnPassword": "Change your password",
+      "reset": {
+        "open": "Reset password",
+        "ariaLabel": "Reset password for {username}",
+        "successTitle": "Password reset for {username}",
+        "successDescription": "Record this temporary password now. It will not be shown again; the account must change it at next sign-in.",
+        "temporaryPassword": "Temporary password",
+        "temporaryPasswordHelp": "Select this value and copy it through your browser or password manager.",
+        "dismissTemporaryPassword": "I have recorded the password",
+        "refreshFailed": "The password reset was confirmed, but the account directory could not be refreshed. The temporary password remains available.",
+        "confirm": {
+          "title": "Reset password for {username}?",
+          "description": "This replaces the password, requires the account to change it at next sign-in, and revokes all of its sessions.",
+          "inactive": "It does not reactivate an inactive account.",
+          "submit": "Reset password"
+        }
+      },
+      "revoke": {
+        "open": "Revoke sessions",
+        "ariaLabel": "Revoke all sessions for {username}",
+        "confirm": {
+          "title": "Revoke sessions for {username}?",
+          "description": "This signs out all sessions without changing the password, roles, or activation status. It succeeds even when no sessions are active.",
+          "selfWarning": "This browser session will also end. You will need to sign in again.",
+          "submit": "Revoke sessions"
+        }
+      },
+      "errors": {
+        "resourceNotFound": "This account no longer exists. Refresh the directory before deciding whether to try again.",
+        "passwordChangeRequired": "Change your password before administering account security.",
+        "forbidden": "You no longer have permission to administer account security.",
+        "validationError": "The server rejected this security action. Refresh the directory and review the account before trying again.",
+        "authenticationRequired": "Your session ended before this security action was confirmed. Sign in again and check the account before deciding whether to try again.",
+        "networkError": "The security action may have completed because the response was lost. Refresh the directory and check the account before trying again; do not repeat a password reset automatically.",
+        "unexpected": "The security action was not confirmed. Its outcome may be unknown; refresh the directory and check the account before deciding whether to try again."
+      }
+    },
     "errors": {
       "usernameConflict": "This username is already in use. Choose another username.",
       "selfDeactivationForbidden": "You cannot deactivate your own account.",

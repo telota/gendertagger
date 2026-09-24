@@ -207,6 +207,45 @@
       "cancel": "Konto aktiv lassen",
       "confirm": "Konto deaktivieren"
     },
+    "security": {
+      "cancel": "Abbrechen",
+      "changeOwnPassword": "Eigenes Passwort ändern",
+      "reset": {
+        "open": "Passwort zurücksetzen",
+        "ariaLabel": "Passwort für {username} zurücksetzen",
+        "successTitle": "Passwort für {username} zurückgesetzt",
+        "successDescription": "Halten Sie dieses temporäre Passwort jetzt fest. Es wird nicht erneut angezeigt; das Konto muss es bei der nächsten Anmeldung ändern.",
+        "temporaryPassword": "Temporäres Passwort",
+        "temporaryPasswordHelp": "Markieren Sie diesen Wert und kopieren Sie ihn mit Ihrem Browser oder Passwortmanager.",
+        "dismissTemporaryPassword": "Passwort festgehalten",
+        "refreshFailed": "Das Zurücksetzen des Passworts wurde bestätigt, aber das Kontoverzeichnis konnte nicht aktualisiert werden. Das temporäre Passwort bleibt verfügbar.",
+        "confirm": {
+          "title": "Passwort für {username} zurücksetzen?",
+          "description": "Dies ersetzt das Passwort, verlangt beim nächsten Anmelden eine Passwortänderung und beendet alle Sitzungen dieses Kontos.",
+          "inactive": "Ein inaktives Konto wird dadurch nicht reaktiviert.",
+          "submit": "Passwort zurücksetzen"
+        }
+      },
+      "revoke": {
+        "open": "Sitzungen beenden",
+        "ariaLabel": "Alle Sitzungen von {username} beenden",
+        "confirm": {
+          "title": "Sitzungen von {username} beenden?",
+          "description": "Dies meldet alle Sitzungen ab, ohne Passwort, Rollen oder Aktivierungsstatus zu ändern. Die Aktion gelingt auch ohne aktive Sitzungen.",
+          "selfWarning": "Diese Browser-Sitzung wird ebenfalls beendet. Sie müssen sich erneut anmelden.",
+          "submit": "Sitzungen beenden"
+        }
+      },
+      "errors": {
+        "resourceNotFound": "Dieses Konto existiert nicht mehr. Aktualisieren Sie das Verzeichnis, bevor Sie entscheiden, ob Sie es erneut versuchen.",
+        "passwordChangeRequired": "Ändern Sie Ihr Passwort, bevor Sie die Kontosicherheit verwalten.",
+        "forbidden": "Sie haben keine Berechtigung mehr, die Kontosicherheit zu verwalten.",
+        "validationError": "Der Server hat diese Sicherheitsaktion abgelehnt. Aktualisieren Sie das Verzeichnis und prüfen Sie das Konto, bevor Sie es erneut versuchen.",
+        "authenticationRequired": "Ihre Sitzung endete, bevor diese Sicherheitsaktion bestätigt wurde. Melden Sie sich erneut an und prüfen Sie das Konto, bevor Sie entscheiden, ob Sie es erneut versuchen.",
+        "networkError": "Die Sicherheitsaktion könnte erfolgt sein, weil die Antwort verloren ging. Aktualisieren Sie das Verzeichnis und prüfen Sie das Konto, bevor Sie es erneut versuchen; setzen Sie ein Passwort nicht automatisch erneut zurück.",
+        "unexpected": "Die Sicherheitsaktion wurde nicht bestätigt. Ihr Ergebnis könnte unbekannt sein; aktualisieren Sie das Verzeichnis und prüfen Sie das Konto, bevor Sie entscheiden, ob Sie es erneut versuchen."
+      }
+    },
     "errors": {
       "usernameConflict": "Dieser Benutzername wird bereits verwendet. Wählen Sie einen anderen Benutzernamen.",
       "selfDeactivationForbidden": "Sie können Ihr eigenes Konto nicht deaktivieren.",

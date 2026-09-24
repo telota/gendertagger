@@ -17,10 +17,21 @@ export function shouldRetryAfterUnauthorized(request: Request): boolean {
   const isAccountCreate = request.method === 'POST' && pathname.endsWith('/api/v1/admin/users')
   const isAccountUpdate =
     request.method === 'PATCH' && /\/api\/v1\/admin\/users\/[^/]+$/.test(pathname)
+  const isPasswordReset =
+    request.method === 'POST' && /\/api\/v1\/admin\/users\/[^/]+\/reset-password$/.test(pathname)
+  const isSessionRevocation =
+    request.method === 'POST' && /\/api\/v1\/admin\/users\/[^/]+\/revoke-sessions$/.test(pathname)
   const isSettingsUpdate = request.method === 'PATCH' && pathname.endsWith('/api/v1/admin/settings')
   const isSettingsReset =
     request.method === 'POST' && pathname.endsWith('/api/v1/admin/settings/reset')
-  return !isAccountCreate && !isAccountUpdate && !isSettingsUpdate && !isSettingsReset
+  return !(
+    isAccountCreate ||
+    isAccountUpdate ||
+    isPasswordReset ||
+    isSessionRevocation ||
+    isSettingsUpdate ||
+    isSettingsReset
+  )
 }
 
 /**
