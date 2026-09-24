@@ -7,11 +7,14 @@ import AppButton from '@/components/base/AppButton.vue'
 import AppProgress from '@/components/base/AppProgress.vue'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
 
+import AggregationSection from './AggregationSection.vue'
 import ExecutionCard from './ExecutionCard.vue'
 import { TERMINAL_RUN_STATUSES, useRun, useRunExecutions } from './useRunDetail'
 import { useRunProgress } from './useRunProgress'
+import { useStatusLabel } from './useStatusLabel'
 
 const { t, d, n } = useI18n()
+const label = useStatusLabel()
 const { session, isSignedIn, retrySession } = useRequireSession()
 
 const projectId = useRouteParam('projectId')
@@ -27,25 +30,7 @@ const isLive = computed(
 )
 const { state: streamState } = useRunProgress(runId, isLive)
 
-const statusLabel = computed(() => {
-  switch (run.data.value?.status) {
-    case 'created':
-      return t('runs.status.created')
-    case 'queued':
-      return t('runs.status.queued')
-    case 'running':
-      return t('runs.status.running')
-    case 'completed':
-      return t('runs.status.completed')
-    case 'completed_with_errors':
-      return t('runs.status.completedWithErrors')
-    case 'failed':
-      return t('runs.status.failed')
-    case 'cancelled':
-      return t('runs.status.cancelled')
-  }
-  return ''
-})
+const statusLabel = computed(() => label(run.data.value?.status ?? ''))
 
 const connectionLabel = computed(() => {
   switch (streamState.value) {
@@ -148,6 +133,13 @@ const connectionLabel = computed(() => {
             />
           </ul>
         </section>
+
+        <AggregationSection
+          v-if="executions.data.value"
+          :project-id="projectId"
+          :run="run.data.value"
+          :executions="executions.data.value"
+        />
       </template>
     </template>
   </main>

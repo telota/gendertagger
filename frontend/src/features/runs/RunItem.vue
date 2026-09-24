@@ -4,30 +4,14 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
 import type { Run } from './useRuns'
+import { useStatusLabel } from './useStatusLabel'
 
 const props = defineProps<{ run: Run; projectId: string }>()
 
 const { t, d, n } = useI18n()
+const label = useStatusLabel()
 
-const statusLabel = computed(() => {
-  switch (props.run.status) {
-    case 'created':
-      return t('runs.status.created')
-    case 'queued':
-      return t('runs.status.queued')
-    case 'running':
-      return t('runs.status.running')
-    case 'completed':
-      return t('runs.status.completed')
-    case 'completed_with_errors':
-      return t('runs.status.completedWithErrors')
-    case 'failed':
-      return t('runs.status.failed')
-    case 'cancelled':
-      return t('runs.status.cancelled')
-  }
-  return props.run.status
-})
+const statusLabel = computed(() => label(props.run.status))
 
 const methodNames = computed(() => props.run.resolved_config.methods.map((m) => m.name).join(', '))
 </script>

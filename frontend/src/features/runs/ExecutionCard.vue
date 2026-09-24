@@ -5,30 +5,14 @@ import { useI18n } from 'vue-i18n'
 import AppProgress from '@/components/base/AppProgress.vue'
 
 import type { MethodExecutionSummary } from './useRunDetail'
+import { useStatusLabel } from './useStatusLabel'
 
 const props = defineProps<{ execution: MethodExecutionSummary }>()
 
 const { t, n } = useI18n()
+const label = useStatusLabel()
 
-const statusLabel = computed(() => {
-  switch (props.execution.status) {
-    case 'pending':
-      return t('runs.status.pending')
-    case 'queued':
-      return t('runs.status.queued')
-    case 'running':
-      return t('runs.status.running')
-    case 'completed':
-      return t('runs.status.completed')
-    case 'completed_with_errors':
-      return t('runs.status.completedWithErrors')
-    case 'failed':
-      return t('runs.status.failed')
-    case 'cancelled':
-      return t('runs.status.cancelled')
-  }
-  return props.execution.status
-})
+const statusLabel = computed(() => label(props.execution.status))
 </script>
 
 <template>

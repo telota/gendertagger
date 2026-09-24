@@ -324,5 +324,46 @@
         "reconnecting": "Verbindung unterbrochen, wird neu aufgebaut …"
       }
     }
+  },
+  "aggregations": {
+    "title": "Aggregationen",
+    "hint": "Eine Aggregation fasst die Ergebnisse der gewählten Methodenausführungen zu einer Entscheidung je Person zusammen. Ein Lauf kann mehrere haben; erneutes Aggregieren führt keine Methode noch einmal aus.",
+    "waitingForRun": "Aggregationen können angelegt werden, sobald der Lauf erfolgreich beendet ist.",
+    "empty": "Für diesen Lauf gibt es noch keine Aggregation.",
+    "loadError": "Die Aggregationen konnten nicht geladen werden.",
+    "inProgress": "Eine Aggregation läuft …",
+    "reused": "Eine identische Aggregation existiert bereits.",
+    "item": {
+      "strategy": "Strategie",
+      "selection": "Auswahl",
+      "selectionValue": "{count} Methodenausführungen",
+      "configHash": "Konfigurations-Hash",
+      "open": "Aggregation öffnen"
+    },
+    "errors": {
+      "autoNotAggregatable": "Die automatische Referenz-Aggregation konnte nicht angelegt werden: Die Methodenausführungen dieses Laufs sind keine vollständige Referenzauswahl. Die Referenzstrategie braucht ihren vollständigen Methodensatz, jede Methode einmal und alle abgeschlossen. Starte einen Lauf mit dem vollständigen Methodensatz.",
+      "notAggregatable": "Diese Auswahl lässt sich nicht aggregieren. Die Referenzstrategie braucht ihren vollständigen Methodensatz, jede Methode einmal und alle abgeschlossen.",
+      "network": "Die Aggregation konnte nicht angelegt werden: Der Server ist nicht erreichbar.",
+      "generic": "Die Aggregation konnte nicht angelegt werden."
+    },
+    "advanced": {
+      "title": "Weitere Aggregation anlegen",
+      "hint": "Wähle genau, welche Methodenausführungen in die Aggregation eingehen. Der Server akzeptiert nur Auswahlen, die zur Strategie passen, und weist alle anderen ab.",
+      "strategy": "Strategie: {strategy}",
+      "selection": "Methodenausführungen",
+      "submit": "Aggregation anlegen",
+      "submitting": "Wird angelegt …"
+    },
+    "detail": {
+      "title": "Aggregation",
+      "backToRun": "Zurück zum Lauf",
+      "loadError": "Die Aggregation konnte nicht geladen werden.",
+      "created": "Angelegt",
+      "started": "Gestartet",
+      "finished": "Beendet",
+      "resolvedConfig": "Aufgelöste Konfiguration",
+      "selection": "Gewählte Methodenausführungen",
+      "selectionHint": "Genau die Ausführungen, die diese Aggregation verwendet hat, in der verwendeten Reihenfolge."
+    }
   }
 }
