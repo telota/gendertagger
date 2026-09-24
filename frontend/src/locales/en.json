@@ -285,5 +285,46 @@
         "reconnecting": "Connection lost, reconnecting …"
       }
     }
+  },
+  "aggregations": {
+    "title": "Aggregations",
+    "hint": "An aggregation combines the results of the selected method executions into one decision per person. A run can have several; re-aggregating does not run any method again.",
+    "waitingForRun": "Aggregations can be created once the run has finished successfully.",
+    "empty": "No aggregation exists for this run yet.",
+    "loadError": "The aggregations could not be loaded.",
+    "inProgress": "An aggregation is in progress …",
+    "reused": "An identical aggregation already exists.",
+    "item": {
+      "strategy": "Strategy",
+      "selection": "Selection",
+      "selectionValue": "{count} method executions",
+      "configHash": "Configuration hash",
+      "open": "Open aggregation"
+    },
+    "errors": {
+      "autoNotAggregatable": "The automatic reference aggregation could not be created: the method executions of this run are not a complete reference selection. The reference strategy needs its full method set, each method once, all completed. Start a run with the full method set.",
+      "notAggregatable": "This selection cannot be aggregated. The reference strategy needs its full method set, each method once, all completed.",
+      "network": "The aggregation could not be created: the server is not reachable.",
+      "generic": "The aggregation could not be created."
+    },
+    "advanced": {
+      "title": "Create another aggregation",
+      "hint": "Choose exactly which method executions enter the aggregation. The server accepts only selections that satisfy the strategy and rejects any other.",
+      "strategy": "Strategy: {strategy}",
+      "selection": "Method executions",
+      "submit": "Create aggregation",
+      "submitting": "Creating …"
+    },
+    "detail": {
+      "title": "Aggregation",
+      "backToRun": "Back to the run",
+      "loadError": "The aggregation could not be loaded.",
+      "created": "Created",
+      "started": "Started",
+      "finished": "Finished",
+      "resolvedConfig": "Resolved configuration",
+      "selection": "Selected method executions",
+      "selectionHint": "Exactly the executions this aggregation used, in the order it used them."
+    }
   }
 }

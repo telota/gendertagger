@@ -377,7 +377,30 @@ default single-file delivery, see the upload-limits item) and showed that the re
   `api/routes/run_events.py`, against AGENTS.md rule 17. A `text/event-stream` response schema per event (or a
   documented union) would let them be generated. Also: a `cancelled` run is not a terminal state for the stream,
   so it would stream until the five-minute limit.
-- Still open in M4: run and method provenance display, and aggregation as a first-class step.
+- Aggregation as a first-class step (D4). **Delivered.** The run screen has an aggregations section
+  (`GET /runs/{id}/aggregations`, newest first, re-reading itself while one is queued or running) and
+  `/projects/:projectId/runs/:runId/aggregations/:aggregationId` (`AggregationDetailView`, polled to an end state)
+  reads back the strategy, timestamps, configuration hash, resolved configuration and the exact selection by method
+  name and version. When a run has finished successfully, a project operator's client creates the default
+  `reference_v1` aggregation over every completed execution, in the order `GET /runs/{id}/executions` returns
+  them, unless a queued, running or completed aggregation already exists. It runs once per run per visit and a
+  failure (`409`) is shown, never swallowed or retried in a loop. The advanced form re-aggregates from a chosen
+  subset without re-running any method; a `200` is reported as "an identical aggregation already exists" with a
+  link (ADR-0034). Verified against the real API and worker on the seeded run: `202` queued, `completed` within
+  seconds, an identical repeat answered `200`.
+- **Constraint found (backend): `reference_v1` accepts only its complete method set.** Nine methods are required,
+  each exactly once (`parenthetical_qualifier`, `gnd`, `gender_guesser`, `wiki_gendersort`, `hivoto`,
+  `nomquamgender`, `hf_distilbert`, `hf_genderize`, `local_llm`), `hivoto_xgboost` is optional and ignored, and
+  anything else is a `409` (ADR-0029). So "exclude a method and re-aggregate" (D4) is only possible for
+  `hivoto_xgboost`, and a run of fewer methods can never be aggregated with the reference strategy. Together with
+  the configuration gap above, a complete run needs a lookup artifact for six methods plus a model endpoint. The
+  development stack has neither, so the automatic path was exercised on the seeded run only.
+- **Gap (backend contract): the reference method set is not in the contract, and the `409` says nothing about
+  why.** The client cannot tell which methods a strategy needs, and `details` is empty, so the message names the rule
+  in general terms. A per-strategy required/optional method list on `AggregationStrategy` (or the `409` naming the
+  missing methods, which the repository already computes) would let the form guide the selection.
+- Still open in M4: run and method provenance display (code commit, dependency lock, image digest, model and
+  prompt identity), which the exit criterion's "code provenance" needs.
 
 **Exit criterion.** An operator starts a run, watches it complete live, produces an aggregation, and can
 read back the exact configuration hash and code provenance that produced it.

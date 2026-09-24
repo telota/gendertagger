@@ -169,6 +169,9 @@ and is one click for two backend commands (`POST /runs`, then `POST /runs/{id}/e
 per-method configuration schema, so each selected method gets a JSON text field that the server validates; see
 `docs/24-frontend-delivery-plan.md` (M4) for the two backend gaps this exposes. `composables/useRequireSession.ts`
 is the shared signed-out rule for new screens; the older project views still carry their own copy.
+Aggregations (D4) live in the same folder: the run screen creates the default `reference_v1` aggregation once for a
+finished run and lists all of them; `useStatusLabel.ts` holds the one status wording shared by runs, executions and
+aggregations.
 `useRunProgress.ts` is the SSE composable (reconnect, refetch after every re-connection); EventSource is not in
 jsdom, so its specs use a small fake with open/emit/fail.
 
