@@ -19,6 +19,7 @@ from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.models.dispatch import DispatchStatus
 from gendertagger.models.lifecycle import RunStatus
 from gendertagger.models.project import SnapshotImportTaskMessage
+from gendertagger.models.team import TeamCreate
 from gendertagger.models.user import GlobalRole, UserCreate
 from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
 from gendertagger.services.snapshot_import import SnapshotImportExecutor
@@ -63,6 +64,10 @@ def _client(
         operator = unit_of_work.users.add_user(
             UserCreate(display_name="Run operator", roles={GlobalRole.operator})
         )
+        team = unit_of_work.teams.add_team(
+            TeamCreate(slug=f"run-{operator.id.hex}", display_name="Run fixture team")
+        )
+        unit_of_work.teams.add_member(team.id, operator.id)
         unit_of_work.commit()
     application = create_app(
         settings=AppSettings(
@@ -87,6 +92,7 @@ def _ready_snapshot_id(
         json={
             "slug": f"run-{uuid4().hex}",
             "display_name": "Run endpoint fixture",
+            "team_id": client.get("/api/v1/teams").json()["items"][0]["id"],
         },
     )
     project_id = UUID(project_response.json()["id"])

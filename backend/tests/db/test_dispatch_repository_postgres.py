@@ -8,6 +8,7 @@ from sqlalchemy import Engine, insert, select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 from tests.factories import tei_person_input
+from tests.seeding import seed_project, session_repositories
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.db.repositories.artifact_repository import SqlAlchemyArtifactRepository
@@ -33,7 +34,6 @@ from gendertagger.models.person import ImportedPerson
 from gendertagger.models.project import (
     DatasetSnapshot,
     DatasetSnapshotCreate,
-    ProjectCreate,
     SnapshotImportConfig,
     SnapshotImportLimits,
     SnapshotImportTaskMessage,
@@ -63,12 +63,12 @@ def _execution_context(
     scheduled: bool = False,
 ) -> tuple[SqlAlchemyRunRepository, Run, MethodExecution, TaskBatch]:
     now = datetime.now(UTC)
-    projects = SqlAlchemyProjectRepository(session)
-    project = projects.add_project(
-        ProjectCreate(
-            slug=f"dispatch-{uuid4().hex}",
-            display_name="Dispatch repository project",
-        )
+    repositories = session_repositories(session)
+    projects = repositories.projects
+    project = seed_project(
+        repositories,
+        slug_prefix="dispatch",
+        display_name="Dispatch repository project",
     )
     artifacts = SqlAlchemyArtifactRepository(session)
     source = artifacts.add_artifact(
@@ -243,12 +243,12 @@ def _aggregation_dispatch_command(
 def _pending_snapshot_context(
     session: Session,
 ) -> tuple[SqlAlchemyProjectRepository, DatasetSnapshot]:
-    projects = SqlAlchemyProjectRepository(session)
-    project = projects.add_project(
-        ProjectCreate(
-            slug=f"snapshot-dispatch-{uuid4().hex}",
-            display_name="Snapshot dispatch repository project",
-        )
+    repositories = session_repositories(session)
+    projects = repositories.projects
+    project = seed_project(
+        repositories,
+        slug_prefix="snapshot-dispatch",
+        display_name="Snapshot dispatch repository project",
     )
     artifacts = SqlAlchemyArtifactRepository(session)
     source = artifacts.add_artifact(

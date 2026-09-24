@@ -1,4 +1,4 @@
-import { flushPromises, type DOMWrapper } from '@vue/test-utils'
+import { DOMWrapper, flushPromises } from '@vue/test-utils'
 import { getActivePinia } from 'pinia'
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -79,7 +79,12 @@ function buttonWithText(
   wrapper: { findAll: (selector: string) => DOMWrapper<Element>[] },
   text: string,
 ) {
-  const button = wrapper.findAll('button').find((candidate) => candidate.text() === text)
+  const dialog = new DOMWrapper(document.body).find('[role="dialog"]')
+  const dialogButton = dialog.exists()
+    ? dialog.findAll('button').find((candidate) => candidate.text() === text)
+    : undefined
+  const button =
+    dialogButton ?? wrapper.findAll('button').find((candidate) => candidate.text() === text)
   if (!button) throw new Error(`Button ${text} was not rendered.`)
   return button
 }
@@ -183,7 +188,7 @@ describe.each(['de', 'en'] as const)(
       await waitFor(() => expect(wrapper.find('#admin-settings-contact_email').exists()).toBe(true))
 
       await wrapper.get('input[name="contact_email-mode"][value="clear"]').setValue()
-      expect(buttonWithText(wrapper, messages.reset.submit).attributes('disabled')).toBeDefined()
+      expect(wrapper.find('.admin-settings-reset button').exists()).toBe(false)
       expect(wrapper.text()).toContain(messages.reset.unsavedChanges)
       await wrapper.get('input[name="contact_email-mode"][value="unchanged"]').setValue()
       await wrapper.get('input[name="contact_email-mode"][value="clear"]').setValue()
@@ -198,7 +203,9 @@ describe.each(['de', 'en'] as const)(
       await wrapper.get('#admin-settings-reset-institution_name').setValue(true)
       await buttonWithText(wrapper, messages.reset.submit).trigger('click')
       await waitFor(() =>
-        expect(wrapper.get('[role="dialog"]').text()).toContain('Deployment Institute'),
+        expect(new DOMWrapper(document.body).get('[role="dialog"]').text()).toContain(
+          'Deployment Institute',
+        ),
       )
       await buttonWithText(wrapper, messages.reset.confirm.submit).trigger('click')
       await waitFor(() =>

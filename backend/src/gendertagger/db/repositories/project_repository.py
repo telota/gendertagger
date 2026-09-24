@@ -142,6 +142,7 @@ class SqlAlchemyProjectRepository:
             if status is not AggregationExecutionStatus.completed:
                 msg = f"aggregation execution {aggregation_execution_id} is not completed"
                 raise InvalidResourceStateError(msg)
+        row.working_aggregation_execution_id = aggregation_execution_id
         self._session.flush()
         return self._project_from_row(row, self._require_team(row.team_id))
 

@@ -10,6 +10,7 @@ EXPECTED_TABLES = {
     "annotations",
     "artifacts",
     "dispatch_outbox",
+    "deployment_settings",
     "dataset_snapshots",
     "evaluation_executions",
     "evaluation_method_executions",

@@ -29,9 +29,9 @@ class TeamNotEmptyError(RuntimeError):
     """Raised when a requested team deletion would orphan direct memberships."""
 
 
-
 class TeamInUseError(RuntimeError):
     """Raised when a team still owns one or more projects."""
+
 
 class InactiveUserError(RuntimeError):
     """Raised when a roster-add command targets a currently inactive account."""

@@ -98,7 +98,7 @@ export function useAdminTeams(
       ),
     ),
     queryFn: ({ pageParam, signal, queryKey }) => {
-      const [, , requestedTeamId, requestedSearch] = queryKey
+      const [, , , requestedTeamId, requestedSearch] = queryKey
       return unwrap(
         client.GET('/api/v1/admin/teams/{team_id}/members', {
           params: {

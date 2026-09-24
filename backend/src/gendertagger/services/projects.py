@@ -141,7 +141,8 @@ class ProjectService:
                 unit_of_work.users.lock_membership_updates(user_id)
             unit_of_work.teams.lock_team(command.team_id)
             locked_users = {
-                user_id: unit_of_work.users.get_user_for_update(user_id) for user_id in lock_user_ids
+                user_id: unit_of_work.users.get_user_for_update(user_id)
+                for user_id in lock_user_ids
             }
             creator_record = locked_users[creator.id]
             if creator_record is None or not creator_record.is_active:
@@ -151,9 +152,7 @@ class ProjectService:
                 msg = f"team {command.team_id} does not exist"
                 raise ResourceNotFoundError(msg)
             creator_membership = unit_of_work.teams.get_member(command.team_id, creator.id)
-            creator_is_eligible = (
-                creator_membership is not None and creator_membership.is_active
-            )
+            creator_is_eligible = creator_membership is not None and creator_membership.is_active
             if GlobalRole.admin in creator_record.roles:
                 manager_user_id = command.initial_manager_user_id
                 if manager_user_id is None:

@@ -93,7 +93,6 @@ def get_project_access_guard(
     return ProjectAccessGuard(user=user, service=service)
 
 
-
 @dataclass(frozen=True, slots=True)
 class ProjectMembershipManagementGuard:
     """Authorize only delegated project-membership management, never project data access."""
@@ -117,6 +116,7 @@ def get_project_membership_management_guard(
 ) -> ProjectMembershipManagementGuard:
     """Return the narrow guard for delegated membership administration endpoints."""
     return ProjectMembershipManagementGuard(user=user, service=service)
+
 
 def _require_global_role(user: CurrentUser, required_role: GlobalRole) -> CurrentUser:
     if not has_global_role(user, required_role):

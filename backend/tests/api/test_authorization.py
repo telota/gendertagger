@@ -42,6 +42,7 @@ def _user(*roles: GlobalRole) -> CurrentUser:
 class _FixedProjectAccess:
     role: ProjectRole | None = None
     any_grant: bool = False
+    manages_members: bool = False
     calls: list[tuple[ProjectScope, UUID]] = field(default_factory=list)
 
     def effective_role(
@@ -52,6 +53,9 @@ class _FixedProjectAccess:
 
     def has_any_grant(self, user: CurrentUser) -> bool:
         return self.any_grant
+
+    def can_manage_members(self, user: CurrentUser, project_id: UUID) -> bool:
+        return self.manages_members
 
 
 def _guard(access: _FixedProjectAccess) -> ProjectAccessGuard:
@@ -312,8 +316,22 @@ PROJECT_SCOPED_ROUTES = (
     ),
 )
 GLOBAL_ROUTES = {
+    ("DELETE", "/admin/teams/{team_id}"),
+    ("DELETE", "/admin/teams/{team_id}/members/{user_id}"),
+    ("GET", "/admin/settings"),
+    ("GET", "/admin/teams"),
+    ("GET", "/admin/teams/{team_id}/members"),
     ("GET", "/admin/users"),
+    ("GET", "/projects/managed"),
+    ("GET", "/projects/{project_id}/eligible-users"),
+    ("GET", "/teams"),
+    ("PATCH", "/admin/settings"),
+    ("PATCH", "/admin/teams/{team_id}"),
     ("POST", "/admin/users"),
+    ("POST", "/admin/settings/reset"),
+    ("POST", "/admin/teams"),
+    ("POST", "/admin/teams/{team_id}/members"),
+    ("POST", "/projects"),
     ("PATCH", "/admin/users/{user_id}"),
     ("POST", "/admin/users/{user_id}/reset-password"),
     ("POST", "/admin/users/{user_id}/revoke-sessions"),
@@ -321,6 +339,7 @@ GLOBAL_ROUTES = {
     ("GET", "/projects/{project_id}/members"),
     ("PUT", "/projects/{project_id}/members/{user_id}"),
     ("DELETE", "/projects/{project_id}/members/{user_id}"),
+    ("PUT", "/projects/{project_id}/manager"),
     ("GET", "/methods"),
     ("GET", "/snapshot-upload-limits"),
     ("POST", "/classify"),
@@ -400,7 +419,7 @@ def test_project_scoped_route_forbids_the_role_below_its_least_role(
     assert response.json()["error"]["code"] == "forbidden"
 
 
-def test_member_administration_requires_a_global_admin() -> None:
+def test_member_administration_hides_projects_the_caller_cannot_manage() -> None:
     client = _client(_FixedProjectAccess(role=ProjectRole.operator), _user(GlobalRole.operator))
 
     responses = [
@@ -409,7 +428,7 @@ def test_member_administration_requires_a_global_admin() -> None:
         client.delete(f"/api/v1/projects/{_ID}/members/{_OTHER}"),
     ]
 
-    assert [response.status_code for response in responses] == [403, 403, 403]
+    assert [response.status_code for response in responses] == [404, 404, 404]
 
 
 def test_user_administration_requires_a_global_admin() -> None:
@@ -429,7 +448,7 @@ def test_user_administration_requires_a_global_admin() -> None:
         client.post(f"/api/v1/admin/users/{_OTHER}/revoke-sessions"),
     ]
 
-    assert [response.status_code for response in responses] == [403, 403, 403, 403]
+    assert [response.status_code for response in responses] == [403, 403, 403, 403, 403]
     assert all(response.json()["error"]["code"] == "forbidden" for response in responses)
 
 

@@ -28,6 +28,8 @@ from gendertagger.db.repositories.aggregation_repository import SqlAlchemyAggreg
 from gendertagger.db.repositories.artifact_repository import SqlAlchemyArtifactRepository
 from gendertagger.db.repositories.project_repository import SqlAlchemyProjectRepository
 from gendertagger.db.repositories.run_repository import SqlAlchemyRunRepository
+from gendertagger.db.repositories.team_repository import SqlAlchemyTeamRepository
+from gendertagger.db.repositories.user_repository import SqlAlchemyUserRepository
 from gendertagger.domain.aggregation_assessment import assess_reference_predictions
 from gendertagger.ingestion.registry import version_for_snapshot_import
 from gendertagger.models.aggregation import (
@@ -51,12 +53,15 @@ from gendertagger.models.project import (
     TeiImportProfile,
 )
 from gendertagger.models.run import MethodExecutionCreate, PredictionWrite, Run, RunCreate
+from gendertagger.models.team import TeamCreate
 from gendertagger.models.user import ProjectRole, User, UserCreate
 from gendertagger.services.ports.aggregation_repository import AggregationRepository
 from gendertagger.services.ports.artifact_repository import ArtifactRepository
 from gendertagger.services.ports.project_repository import ProjectRepository
 from gendertagger.services.ports.run_repository import RunRepository
+from gendertagger.services.ports.team_repository import TeamRepository
 from gendertagger.services.ports.unit_of_work import UnitOfWork
+from gendertagger.services.ports.user_repository import UserRepository
 from gendertagger.services.task_batches import plan_task_batches
 
 SEED_TIME = datetime(2026, 8, 14, 18, 0, tzinfo=UTC)
@@ -95,6 +100,16 @@ class SeedRepositories(Protocol):
         """Return aggregation persistence."""
         ...
 
+    @property
+    def teams(self) -> TeamRepository:
+        """Return team persistence."""
+        ...
+
+    @property
+    def users(self) -> UserRepository:
+        """Return user persistence."""
+        ...
+
 
 @dataclass(frozen=True, slots=True)
 class SessionRepositories:
@@ -104,6 +119,8 @@ class SessionRepositories:
     artifacts: SqlAlchemyArtifactRepository
     runs: SqlAlchemyRunRepository
     aggregations: SqlAlchemyAggregationRepository
+    teams: SqlAlchemyTeamRepository
+    users: SqlAlchemyUserRepository
 
 
 def session_repositories(session: Session) -> SessionRepositories:
@@ -113,6 +130,8 @@ def session_repositories(session: Session) -> SessionRepositories:
         artifacts=SqlAlchemyArtifactRepository(session),
         runs=SqlAlchemyRunRepository(session),
         aggregations=SqlAlchemyAggregationRepository(session),
+        teams=SqlAlchemyTeamRepository(session),
+        users=SqlAlchemyUserRepository(session),
     )
 
 
@@ -126,10 +145,29 @@ class CompletedRun:
     """The snapshot's person records, keyed by TEI ``xml:id``."""
 
 
-def seed_project(repositories: SeedRepositories, *, slug_prefix: str = "seed") -> Project:
-    """Create a project with a unique slug."""
+def seed_project(
+    repositories: SeedRepositories,
+    *,
+    slug_prefix: str = "seed",
+    slug: str | None = None,
+    display_name: str = "Seeded project",
+) -> Project:
+    """Create a project with its required team, creator, manager, and direct membership."""
+    suffix = uuid4().hex
+    project_slug = slug or f"{slug_prefix}-{suffix}"
+    team = repositories.teams.add_team(
+        TeamCreate(slug=f"{slug_prefix}-{suffix}", display_name="Seeded team")
+    )
+    manager = repositories.users.add_user(UserCreate(display_name="Seeded project manager"))
+    repositories.teams.add_member(team.id, manager.id)
     return repositories.projects.add_project(
-        ProjectCreate(slug=f"{slug_prefix}-{uuid4().hex}", display_name="Seeded project")
+        ProjectCreate(
+            slug=project_slug,
+            display_name=display_name,
+            team_id=team.id,
+        ),
+        manager_user_id=manager.id,
+        created_by_user_id=manager.id,
     )
 
 

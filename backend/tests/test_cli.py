@@ -15,14 +15,13 @@ from gendertagger.cli.assets import _download_https
 from gendertagger.cli.main import _build_parser, main
 from gendertagger.db.repositories.artifact_repository import SqlAlchemyArtifactRepository
 from gendertagger.db.repositories.auth_repository import SqlAlchemyAuthRepository
-from gendertagger.db.repositories.project_repository import SqlAlchemyProjectRepository
 from gendertagger.db.repositories.user_repository import SqlAlchemyUserRepository
 from gendertagger.models.artifact import LookupArtifactMetadata
-from gendertagger.models.project import ProjectCreate
 from gendertagger.models.user import GlobalRole
 from gendertagger.services.password_hashing import Argon2PasswordHasher
 from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
 from gendertagger.storage.local import LocalArtifactStorage
+from tests.seeding import seed_project, session_repositories
 
 
 def test_asset_download_rejects_non_https_urls(tmp_path: Path) -> None:
@@ -307,8 +306,10 @@ def test_projects_cli_grants_changes_lists_and_revokes_membership(
         "GENDERTAGGER_DATABASE_URL", database_url.render_as_string(hide_password=False)
     )
     with Session(postgres_engine) as session:
-        project = SqlAlchemyProjectRepository(session).add_project(
-            ProjectCreate(slug="cli-membership", display_name="CLI membership")
+        project = seed_project(
+            session_repositories(session),
+            slug="cli-membership",
+            display_name="CLI membership",
         )
         session.commit()
     main(["users", "create", "--display-name", "Member One", "--username", "member.one"])
@@ -347,8 +348,10 @@ def test_projects_cli_rejects_unknown_projects_users_and_memberships(
         "GENDERTAGGER_DATABASE_URL", database_url.render_as_string(hide_password=False)
     )
     with Session(postgres_engine) as session:
-        SqlAlchemyProjectRepository(session).add_project(
-            ProjectCreate(slug="cli-unknowns", display_name="CLI unknowns")
+        seed_project(
+            session_repositories(session),
+            slug="cli-unknowns",
+            display_name="CLI unknowns",
         )
         session.commit()
     main(["users", "create", "--display-name", "Outsider", "--username", "outsider"])

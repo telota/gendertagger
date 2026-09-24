@@ -25,6 +25,7 @@ const OPERATOR = {
   display_name: 'Operator One',
   roles: ['operator'],
 }
+const ADMIN = { ...OPERATOR, id: 'a0000000-0000-0000-0000-000000000004', roles: ['admin'] }
 
 const PROJECT_A = {
   id: 'b0000000-0000-0000-0000-000000000001',
@@ -235,5 +236,146 @@ describe.each(['de', 'en'] as const)('ProjectListView in %s', (locale: AppLocale
     expect(wrapper.text()).toContain('Project A')
     expect(wrapper.text()).toContain('Project B')
     expect(calls).toBe(2)
+  })
+
+  it('creates a team-owned project with an administrator-selected manager', async () => {
+    const bodies: unknown[] = []
+    let createCalls = 0
+    let managerPageRequests = 0
+    const rejectedCodes = [
+      'validation_error',
+      'forbidden',
+      'resource_not_found',
+      'authentication_required',
+      'password_change_required',
+      'unknown_error',
+    ]
+    const team = PROJECT_A.team
+    const manager = {
+      team_id: team.id,
+      user_id: OPERATOR.id,
+      display_name: OPERATOR.display_name,
+      is_active: true,
+      created_at: '2026-01-01T00:00:00Z',
+    }
+    const client = createApiClient({
+      fetch: async (request) => {
+        const url = new URL(request.url)
+        if (url.pathname === '/api/v1/branding') return jsonResponse({})
+        if (url.pathname === '/api/v1/me') return jsonResponse(ADMIN)
+        if (url.pathname === '/api/v1/auth/session') {
+          return jsonResponse({ must_change_password: false, keep_signed_in: false })
+        }
+        if (url.pathname === '/api/v1/projects' && request.method === 'GET') {
+          return jsonResponse({ items: [], has_more: false, next_cursor: null })
+        }
+        if (url.pathname === '/api/v1/projects/managed') {
+          return jsonResponse({ items: [], has_more: false, next_cursor: null })
+        }
+        if (url.pathname === '/api/v1/teams') {
+          return jsonResponse({ items: [team], has_more: false, next_cursor: null })
+        }
+        if (url.pathname === `/api/v1/admin/teams/${team.id}/members`) {
+          managerPageRequests += 1
+          return url.searchParams.get('cursor') === 'manager-next'
+            ? jsonResponse({
+                items: [{ ...manager, user_id: ADMIN.id, is_active: false }],
+                has_more: false,
+                next_cursor: null,
+              })
+            : jsonResponse({ items: [manager], has_more: true, next_cursor: 'manager-next' })
+        }
+        if (url.pathname === '/api/v1/projects' && request.method === 'POST') {
+          createCalls += 1
+          bodies.push(JSON.parse(await request.clone().text()) as unknown)
+          if (createCalls <= rejectedCodes.length) {
+            return jsonResponse(
+              { error: { code: rejectedCodes[createCalls - 1], message: 'Try again.' } },
+              { status: 422 },
+            )
+          }
+          return jsonResponse({ ...PROJECT_A, current_user_role: 'operator' }, { status: 201 })
+        }
+        if (url.pathname === `/api/v1/projects/${PROJECT_A.id}`) return jsonResponse(PROJECT_A)
+        return jsonResponse({}, { status: 404 })
+      },
+    })
+    const wrapper = await mountApplicationAt('/projects', locale, client)
+    await waitFor(() => expect(wrapper.find('#project-create-team').exists()).toBe(true))
+    await wrapper.get('#project-create-team').setValue(team.id)
+    await waitFor(() => expect(wrapper.text()).toContain(OPERATOR.display_name))
+    const managerLoadMore = wrapper
+      .findAll('.project-creation button')
+      .find((button) => button.text() === messages.loadMore)
+    await managerLoadMore?.trigger('click')
+    await waitFor(() => expect(managerPageRequests).toBe(2))
+    expect(wrapper.find(`#project-create-manager option[value="${ADMIN.id}"]`).exists()).toBe(false)
+    await wrapper.get('#project-create-slug').setValue('new-edition')
+    await wrapper.get('#project-create-name').setValue('New edition')
+    await wrapper.get('#project-create-description').setValue('Project description')
+    await wrapper.get('#project-create-manager').setValue(OPERATOR.id)
+
+    for (const [index] of rejectedCodes.entries()) {
+      await wrapper.get('.project-creation form').trigger('submit')
+      await waitFor(() => expect(createCalls).toBe(index + 1))
+      expect(wrapper.find('.project-creation [role="alert"]').exists()).toBe(true)
+    }
+    await wrapper.get('.project-creation form').trigger('submit')
+    await waitFor(() => expect(createCalls).toBe(rejectedCodes.length + 1))
+
+    expect(bodies).toHaveLength(rejectedCodes.length + 1)
+    expect(bodies.every((body) => JSON.stringify(body) === JSON.stringify(bodies[0]))).toBe(true)
+    expect(bodies[0]).toEqual({
+      slug: 'new-edition',
+      display_name: 'New edition',
+      description: 'Project description',
+      team_id: team.id,
+      initial_manager_user_id: OPERATOR.id,
+    })
+  })
+
+  it('lets an operator create in a direct team without optional fields or manager discovery', async () => {
+    let body: unknown
+    const team = PROJECT_A.team
+    const client = createApiClient({
+      fetch: async (request) => {
+        const url = new URL(request.url)
+        if (url.pathname === '/api/v1/branding') return jsonResponse({})
+        if (url.pathname === '/api/v1/me') return jsonResponse(OPERATOR)
+        if (url.pathname === '/api/v1/auth/session') {
+          return jsonResponse({ must_change_password: false, keep_signed_in: false })
+        }
+        if (url.pathname === '/api/v1/projects' && request.method === 'GET') {
+          return jsonResponse({ items: [], has_more: false, next_cursor: null })
+        }
+        if (url.pathname === '/api/v1/projects/managed') {
+          return jsonResponse({ items: [], has_more: false, next_cursor: null })
+        }
+        if (url.pathname === '/api/v1/teams') {
+          return jsonResponse({ items: [team], has_more: false, next_cursor: null })
+        }
+        if (url.pathname === '/api/v1/projects' && request.method === 'POST') {
+          body = JSON.parse(await request.clone().text()) as unknown
+          return jsonResponse({ ...PROJECT_A, current_user_role: 'operator' }, { status: 201 })
+        }
+        if (url.pathname === `/api/v1/projects/${PROJECT_A.id}`) return jsonResponse(PROJECT_A)
+        return jsonResponse({}, { status: 404 })
+      },
+    })
+    const wrapper = await mountApplicationAt('/projects', locale, client)
+    await waitFor(() => expect(wrapper.find('#project-create-team').exists()).toBe(true))
+    expect(wrapper.find('#project-create-manager').exists()).toBe(false)
+    await wrapper.get('.project-creation form').trigger('submit')
+    expect(body).toBeUndefined()
+    await wrapper.get('#project-create-team').setValue(team.id)
+    await wrapper.get('#project-create-slug').setValue('operator-edition')
+    await wrapper.get('#project-create-name').setValue('Operator edition')
+    await wrapper.get('.project-creation form').trigger('submit')
+    await waitFor(() => expect(body).toBeDefined())
+    expect(body).toEqual({
+      slug: 'operator-edition',
+      display_name: 'Operator edition',
+      team_id: team.id,
+    })
   })
 })

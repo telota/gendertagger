@@ -24,6 +24,7 @@ from gendertagger.models.project import (
     TeiImportProfile,
 )
 from gendertagger.models.queues import CPU_QUEUE
+from gendertagger.models.team import TeamCreate
 from gendertagger.models.user import GlobalRole, UserCreate
 from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
 from gendertagger.services.snapshot_import import SnapshotImportExecutor
@@ -79,6 +80,10 @@ def _operator_id(unit_of_work_factory: UnitOfWorkFactory) -> UUID:
         operator = unit_of_work.users.add_user(
             UserCreate(display_name="HTTP operator", roles={GlobalRole.operator})
         )
+        team = unit_of_work.teams.add_team(
+            TeamCreate(slug=f"http-{operator.id.hex}", display_name="HTTP fixture team")
+        )
+        unit_of_work.teams.add_member(team.id, operator.id)
         unit_of_work.commit()
     return operator.id
 
@@ -133,7 +138,11 @@ def test_project_and_ready_snapshot_round_trip_through_http(
 
     project_response = client.post(
         "/api/v1/projects",
-        json={"slug": slug, "display_name": "HTTP fixture"},
+        json={
+            "slug": slug,
+            "display_name": "HTTP fixture",
+            "team_id": client.get("/api/v1/teams").json()["items"][0]["id"],
+        },
     )
     assert project_response.status_code == 201
     project_id = UUID(project_response.json()["id"])
@@ -303,7 +312,11 @@ def test_invalid_tei_persists_failed_snapshot_without_source_disclosure(
     )
     project_response = client.post(
         "/api/v1/projects",
-        json={"slug": f"failed-{uuid4().hex}", "display_name": "Failed fixture"},
+        json={
+            "slug": f"failed-{uuid4().hex}",
+            "display_name": "Failed fixture",
+            "team_id": client.get("/api/v1/teams").json()["items"][0]["id"],
+        },
     )
     project_id = UUID(project_response.json()["id"])
     malicious_source = b"""<!DOCTYPE TEI [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>

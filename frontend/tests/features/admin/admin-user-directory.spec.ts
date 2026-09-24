@@ -187,7 +187,7 @@ describe.each(['de', 'en'] as const)('AdminUserDirectoryView in %s', (locale: Ap
     )
 
     await flushPromises()
-    expect(wrapper.get('[role="alert"]').text()).toBe(messages.sessionLoadError)
+    expect(wrapper.get('main [role="alert"]').text()).toBe(messages.sessionLoadError)
   })
 
   it('renders the server order, account states, and current account marker', async () => {

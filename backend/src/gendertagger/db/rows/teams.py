@@ -23,7 +23,7 @@ class TeamRow(UuidPrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, Base):
     __table_args__ = (
         CheckConstraint("slug ~ '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'", name="slug_format"),
         CheckConstraint("btrim(display_name) <> ''", name="display_name_nonblank"),
-        UniqueConstraint("slug", name="slug"),
+        UniqueConstraint("slug", name="uq_teams_slug"),
     )
 
     slug: Mapped[str] = mapped_column(String(100), nullable=False)

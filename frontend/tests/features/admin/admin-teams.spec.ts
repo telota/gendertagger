@@ -1,4 +1,4 @@
-import { flushPromises } from '@vue/test-utils'
+import { DOMWrapper, flushPromises } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createApiClient } from '@/api'
@@ -331,9 +331,10 @@ describe.each(['de', 'en'] as const)('AdminTeamsView in %s', (locale: AppLocale)
       .find((button) => button.text() === messages.roster.remove)
     if (!remove) throw new Error('The member removal control was not rendered.')
     await remove.trigger('click')
-    const confirm = wrapper
+    const confirm = new DOMWrapper(document.body)
       .findAll('button')
-      .find((button) => button.text() === messages.roster.confirm.submit)
+      .filter((button) => button.text() === messages.roster.confirm.submit)
+      .at(-1)
     if (!confirm) throw new Error('The removal confirmation was not rendered.')
     await confirm.trigger('click')
     await waitFor(() =>
@@ -378,10 +379,12 @@ describe.each(['de', 'en'] as const)('AdminTeamsView in %s', (locale: AppLocale)
       .find((button) => button.text() === messages.deletion.open)
     if (!deleteButton) throw new Error('The team deletion control was not rendered.')
     await deleteButton.trigger('click')
-    expect(wrapper.text()).toContain(messages.deletion.confirm.emptyRequirement)
-    const confirm = wrapper
+    const page = new DOMWrapper(document.body)
+    expect(page.text()).toContain(messages.deletion.confirm.emptyRequirement)
+    const confirm = page
       .findAll('button')
-      .find((button) => button.text() === messages.deletion.confirm.submit)
+      .filter((button) => button.text() === messages.deletion.confirm.submit)
+      .at(-1)
     if (!confirm) throw new Error('The team deletion confirmation was not rendered.')
     await confirm.trigger('click')
     await waitFor(() => expect(wrapper.text()).toContain(messages.success.deleted))

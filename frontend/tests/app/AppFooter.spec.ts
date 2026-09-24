@@ -1,3 +1,4 @@
+import { VueQueryPlugin } from '@tanstack/vue-query'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory } from 'vue-router'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -6,6 +7,7 @@ import type { ApiClient } from '@/api'
 import AppFooter from '@/app/AppFooter.vue'
 import { createAppI18n, type AppLocale } from '@/app/i18n'
 import { SOURCE_CODE_LICENSE } from '@/app/publication'
+import { createQueryClient } from '@/app/queryClient'
 import { createAppRouter } from '@/app/router'
 import { API_CLIENT_KEY } from '@/composables/useApiClient'
 import de from '@/locales/de.json'
@@ -21,7 +23,11 @@ async function renderFooter(locale: AppLocale, client: ApiClient) {
   await router.isReady()
   const wrapper = mount(AppFooter, {
     global: {
-      plugins: [createAppI18n(locale), router],
+      plugins: [
+        createAppI18n(locale),
+        router,
+        [VueQueryPlugin, { queryClient: createQueryClient() }],
+      ],
       provide: { [API_CLIENT_KEY as symbol]: client },
     },
   })

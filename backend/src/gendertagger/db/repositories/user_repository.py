@@ -1,4 +1,5 @@
 """SQLAlchemy repository for provider-neutral users and global roles."""
+
 import hashlib
 from uuid import UUID
 
@@ -52,10 +53,10 @@ class SqlAlchemyUserRepository:
                 )
             )
         )
+
     def lock_membership_updates(self, user_id: UUID) -> None:
         """Acquire the stable transaction-scoped team-derived access lock for one user."""
         self._session.execute(select(func.pg_advisory_xact_lock(_membership_lock_key(user_id))))
-
 
     def get_active_administrator_ids(self) -> set[UUID]:
         """Return active global administrator IDs from the current transaction view."""

@@ -2,9 +2,9 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy.orm import Session
+from tests.seeding import seed_project, session_repositories
 
 from gendertagger.db.repositories.project_repository import SqlAlchemyProjectRepository
-from gendertagger.models.project import ProjectCreate
 from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
@@ -22,8 +22,10 @@ def test_set_working_aggregation_rejects_an_unknown_project(db_session: Session)
 
 def test_set_working_aggregation_rejects_an_unknown_aggregation(db_session: Session) -> None:
     repository = SqlAlchemyProjectRepository(db_session)
-    project = repository.add_project(
-        ProjectCreate(slug=f"working-agg-{uuid4().hex}", display_name="Working aggregation fixture")
+    project = seed_project(
+        session_repositories(db_session),
+        slug_prefix="working-agg",
+        display_name="Working aggregation fixture",
     )
     missing_aggregation_id = uuid4()
 

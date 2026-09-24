@@ -40,7 +40,6 @@ from gendertagger.models.lifecycle import ExportExecutionStatus
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.project import (
     DatasetSnapshotCreate,
-    ProjectCreate,
     SnapshotImportConfig,
     SnapshotImportLimits,
     SnapshotSourceMemberCreate,
@@ -101,8 +100,10 @@ def _create(run_id: UUID, aggregation_execution_id: UUID) -> ExportExecutionCrea
 
 def test_add_export_rejects_an_incomplete_aggregation(db_session: Session) -> None:
     projects = SqlAlchemyProjectRepository(db_session)
-    project = projects.add_project(
-        ProjectCreate(slug=f"export-incomplete-{uuid4().hex}", display_name="Incomplete fixture")
+    project = seed_project(
+        session_repositories(db_session),
+        slug_prefix="export-incomplete",
+        display_name="Incomplete fixture",
     )
     other_source = SqlAlchemyArtifactRepository(db_session).add_artifact(
         ArtifactCreate(

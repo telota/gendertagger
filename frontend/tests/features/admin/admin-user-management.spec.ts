@@ -1,4 +1,4 @@
-import { flushPromises } from '@vue/test-utils'
+import { DOMWrapper, flushPromises } from '@vue/test-utils'
 import { getActivePinia } from 'pinia'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createMemoryHistory } from 'vue-router'
@@ -69,7 +69,12 @@ function buttonWithText(
   },
   text: string,
 ) {
-  const button = wrapper.findAll('button').find((candidate) => candidate.text() === text)
+  const dialog = new DOMWrapper(document.body).find('[role="dialog"]')
+  const dialogButton = dialog.exists()
+    ? dialog.findAll('button').find((candidate) => candidate.text() === text)
+    : undefined
+  const button =
+    dialogButton ?? wrapper.findAll('button').find((candidate) => candidate.text() === text)
   if (!button) throw new Error(`Button ${text} was not rendered.`)
   return button
 }
@@ -126,7 +131,12 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
     await wrapper.get('#admin-user-create-display-name').setValue('New administrator')
     await buttonWithText(wrapper, messages.creation.submit).trigger('click')
 
-    await waitFor(() => expect(wrapper.text()).toContain('temporary-password-only-once'))
+    await waitFor(() =>
+      expect(wrapper.get('#admin-user-temporary-password').element).toHaveProperty(
+        'value',
+        'temporary-password-only-once',
+      ),
+    )
     expect(
       requests.filter(
         (request) => request.pathname === '/api/v1/admin/users' && request.body !== null,
@@ -224,6 +234,7 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
           })
         }
         if (pathname === `/api/v1/admin/users/${ACCOUNT.id}` && request.method === 'PATCH') {
+          patchBodies.push(JSON.parse(await request.clone().text()) as unknown)
           return jsonResponse({ ...ACCOUNT, is_active: false })
         }
         return jsonResponse({}, { status: 404 })
@@ -237,9 +248,13 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
     await wrapper.get(`#admin-user-edit-active-${ACCOUNT.id}`).setValue(false)
     await buttonWithText(wrapper, messages.editing.save).trigger('click')
     await waitFor(() =>
-      expect(wrapper.get('[role="dialog"]').text()).toContain(messages.deactivation.sessions),
+      expect(new DOMWrapper(document.body).get('[role="dialog"]').text()).toContain(
+        messages.deactivation.sessions,
+      ),
     )
-    await buttonWithText(wrapper, messages.deactivation.confirm).trigger('click')
+    await new DOMWrapper(document.body)
+      .get('.admin-user-deactivation-actions .app-button--solid')
+      .trigger('click')
     await waitFor(() => expect(patchBodies).toEqual([{ is_active: false }]))
 
     await buttonWithText(wrapper, messages.editing.open).trigger('click')
@@ -361,7 +376,7 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
 
     await buttonWithText(wrapper, messages.security.reset.open).trigger('click')
     await waitFor(() =>
-      expect(wrapper.get('[role="dialog"]').text()).toContain(
+      expect(new DOMWrapper(document.body).get('[role="dialog"]').text()).toContain(
         messages.security.reset.confirm.inactive,
       ),
     )
@@ -370,7 +385,12 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
 
     await buttonWithText(wrapper, messages.security.reset.open).trigger('click')
     await buttonWithText(wrapper, messages.security.reset.confirm.submit).trigger('click')
-    await waitFor(() => expect(wrapper.text()).toContain('reset-password-only-once'))
+    await waitFor(() =>
+      expect(wrapper.get(`#admin-user-reset-password-${ACCOUNT.id}`).element).toHaveProperty(
+        'value',
+        'reset-password-only-once',
+      ),
+    )
 
     expect(resetBodies).toEqual([''])
     await expectNoAxeViolations(wrapper.element)
@@ -425,7 +445,10 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
 
     resolveReset?.(jsonResponse({ temporary_password: 'survives-refresh-failure' }))
     await waitFor(() => expect(wrapper.text()).toContain(messages.security.reset.refreshFailed))
-    expect(wrapper.text()).toContain('survives-refresh-failure')
+    expect(wrapper.get(`#admin-user-reset-password-${ACCOUNT.id}`).element).toHaveProperty(
+      'value',
+      'survives-refresh-failure',
+    )
   })
 
   it('shows an uncertain reset outcome without automatically repeating the request', async () => {
@@ -481,7 +504,7 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
 
     await buttonWithText(wrapper, messages.security.revoke.open).trigger('click')
     await waitFor(() =>
-      expect(wrapper.get('[role="dialog"]').text()).toContain(
+      expect(new DOMWrapper(document.body).get('[role="dialog"]').text()).toContain(
         messages.security.revoke.confirm.description,
       ),
     )
@@ -524,7 +547,7 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
 
     await buttonWithText(wrapper, messages.security.revoke.open).trigger('click')
     await waitFor(() =>
-      expect(wrapper.get('[role="dialog"]').text()).toContain(
+      expect(new DOMWrapper(document.body).get('[role="dialog"]').text()).toContain(
         messages.security.revoke.confirm.selfWarning,
       ),
     )

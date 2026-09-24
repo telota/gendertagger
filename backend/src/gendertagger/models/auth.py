@@ -101,7 +101,7 @@ class AdminUserUpdate(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    display_name: str | SkipJsonSchema[None] = Field(default=None, max_length=200)
+    display_name: Annotated[str, Field(max_length=200)] | SkipJsonSchema[None] = None
     roles: set[GlobalRole] | SkipJsonSchema[None] = None
     is_active: bool | SkipJsonSchema[None] = None
 

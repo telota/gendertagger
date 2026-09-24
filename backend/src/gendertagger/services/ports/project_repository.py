@@ -33,6 +33,7 @@ class ProjectRepository(Protocol):
     def get_project(self, project_id: UUID) -> Project | None:
         """Return a project by ID, or ``None`` when absent."""
         ...
+
     def get_project_for_update(self, project_id: UUID) -> Project | None:
         """Return one project under a write lock, or ``None`` when absent."""
         ...

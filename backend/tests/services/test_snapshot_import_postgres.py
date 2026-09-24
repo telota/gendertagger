@@ -32,7 +32,8 @@ from gendertagger.models.project import (
     SourceFormat,
     SourcePackaging,
 )
-from gendertagger.models.user import UserCreate
+from gendertagger.models.team import TeamCreate
+from gendertagger.models.user import CurrentUser, GlobalRole, UserCreate
 from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.services.projects import ProjectService, SnapshotUpload
@@ -95,11 +96,20 @@ def _executor(
     )
 
 
-def _creator_id(unit_of_work_factory: UnitOfWorkFactory) -> UUID:
+def _creator_context(unit_of_work_factory: UnitOfWorkFactory) -> tuple[CurrentUser, UUID]:
     with unit_of_work_factory() as unit_of_work:
-        creator = unit_of_work.users.add_user(UserCreate(display_name="Project creator"))
+        creator = unit_of_work.users.add_user(
+            UserCreate(display_name="Project creator", roles={GlobalRole.operator})
+        )
+        team = unit_of_work.teams.add_team(
+            TeamCreate(slug=f"snapshot-creators-{uuid4().hex}", display_name="Snapshot creators")
+        )
+        unit_of_work.teams.add_member(team.id, creator.id)
         unit_of_work.commit()
-    return creator.id
+    return (
+        CurrentUser(id=creator.id, display_name=creator.display_name, roles=creator.roles),
+        team.id,
+    )
 
 
 def test_snapshot_acceptance_rolls_back_every_flushed_database_row(
@@ -118,12 +128,14 @@ def test_snapshot_acceptance_rolls_back_every_flushed_database_row(
         clock=lambda: NOW,
         max_upload_bytes=len(VALID_TEI),
     )
+    creator, team_id = _creator_context(unit_of_work_factory)
     project = service.create_project(
         ProjectCreate(
             slug=f"snapshot-acceptance-{uuid4().hex}",
             display_name="Snapshot acceptance fixture",
+            team_id=team_id,
         ),
-        creator_user_id=_creator_id(unit_of_work_factory),
+        creator=creator,
     )
 
     flushed = _FlushedAcceptance()
@@ -215,12 +227,14 @@ def test_loose_tei_acceptance_and_import_round_trip_source_provenance(
         max_upload_bytes=100_000,
         max_total_upload_bytes=200_000,
     )
+    creator, team_id = _creator_context(unit_of_work_factory)
     project = service.create_project(
         ProjectCreate(
             slug=f"loose-snapshot-{uuid4().hex}",
             display_name="Loose snapshot fixture",
+            team_id=team_id,
         ),
-        creator_user_id=_creator_id(unit_of_work_factory),
+        creator=creator,
     )
     a_source = VALID_TEI.replace(b'xml:id="p2"', b'xml:id="a2"')
     b_source = VALID_TEI.replace(b'xml:id="p1"', b'xml:id="b1"')
@@ -272,12 +286,14 @@ def test_json_acceptance_and_import_round_trip_tei_equivalent_fields(
         clock=lambda: NOW,
         max_upload_bytes=100_000,
     )
+    creator, team_id = _creator_context(unit_of_work_factory)
     project = service.create_project(
         ProjectCreate(
             slug=f"json-snapshot-{uuid4().hex}",
             display_name="JSON snapshot fixture",
+            team_id=team_id,
         ),
-        creator_user_id=_creator_id(unit_of_work_factory),
+        creator=creator,
     )
     payload = json.dumps(
         [

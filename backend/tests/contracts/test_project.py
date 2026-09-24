@@ -67,7 +67,7 @@ def test_project_create_requires_team_and_rejects_unknown_fields() -> None:
     with pytest.raises(ValidationError, match="display_name must not be blank"):
         ProjectCreate(slug="edition", display_name="  ", team_id=TEAM_ID)
     with pytest.raises(ValidationError, match="Field required"):
-        ProjectCreate(slug="edition", display_name="Edition")
+        ProjectCreate.model_validate({"slug": "edition", "display_name": "Edition"})
     with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
         ProjectCreate.model_validate(
             {

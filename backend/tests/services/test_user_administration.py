@@ -17,6 +17,9 @@ from gendertagger.services.authentication import AuthenticationService
 from gendertagger.services.pagination import CursorCodec, InvalidCursorError
 from gendertagger.services.ports.auth_repository import AdminUserCursor, AuthRepository
 from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
+from gendertagger.services.ports.project_access_repository import ProjectAccessRepository
+from gendertagger.services.ports.project_repository import ProjectRepository
+from gendertagger.services.ports.team_repository import TeamRepository
 from gendertagger.services.ports.unit_of_work import UnitOfWork
 from gendertagger.services.ports.user_repository import UserRepository
 from gendertagger.services.user_administration import (
@@ -38,6 +41,10 @@ class _UnitOfWork:
     def __init__(self, auth: AuthRepository, users: UserRepository | None = None) -> None:
         self.auth = auth
         self.users = users or Mock(spec=UserRepository)
+        self.access = Mock(spec=ProjectAccessRepository)
+        self.projects = Mock(spec=ProjectRepository)
+        self.teams = Mock(spec=TeamRepository)
+        self.teams.list_member_team_ids.return_value = ()
         self.commit = Mock()
 
     def __enter__(self) -> Self:

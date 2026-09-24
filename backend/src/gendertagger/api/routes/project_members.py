@@ -146,6 +146,7 @@ def transfer_project_manager(
     except TeamMembershipConflictError as error:
         raise _team_membership_conflict() from error
 
+
 def _team_membership_conflict() -> ApiRequestError:
     """Build the stable race outcome for a target removed from the direct team."""
     return ApiRequestError(

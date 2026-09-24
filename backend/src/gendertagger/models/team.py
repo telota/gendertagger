@@ -1,7 +1,7 @@
 """Canonical team and direct-team-membership contracts (ADR-0041 slice 1)."""
 
 import re
-from typing import Self
+from typing import Annotated, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -50,7 +50,7 @@ class TeamUpdate(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    display_name: str | SkipJsonSchema[None] = Field(default=None, max_length=200)
+    display_name: Annotated[str, Field(max_length=200)] | SkipJsonSchema[None] = None
 
     @field_validator("display_name")
     @classmethod

@@ -18,7 +18,8 @@ from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.models.dispatch import DispatchStatus
 from gendertagger.models.lifecycle import DatasetSnapshotStatus
 from gendertagger.models.project import ProjectCreate, SnapshotImportRequest
-from gendertagger.models.user import UserCreate
+from gendertagger.models.team import TeamCreate
+from gendertagger.models.user import CurrentUser, GlobalRole, UserCreate
 from gendertagger.services.dispatch import OutboxRelay
 from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
@@ -46,11 +47,20 @@ _VALID_TEI = b"""<?xml version="1.0" encoding="UTF-8"?>
 """
 
 
-def _creator_id(unit_of_work_factory: UnitOfWorkFactory) -> UUID:
+def _creator_context(unit_of_work_factory: UnitOfWorkFactory) -> tuple[CurrentUser, UUID]:
     with unit_of_work_factory() as unit_of_work:
-        creator = unit_of_work.users.add_user(UserCreate(display_name="Project creator"))
+        creator = unit_of_work.users.add_user(
+            UserCreate(display_name="Project creator", roles={GlobalRole.operator})
+        )
+        team = unit_of_work.teams.add_team(
+            TeamCreate(slug=f"snapshot-creators-{uuid4().hex}", display_name="Snapshot creators")
+        )
+        unit_of_work.teams.add_member(team.id, creator.id)
         unit_of_work.commit()
-    return creator.id
+    return (
+        CurrentUser(id=creator.id, display_name=creator.display_name, roles=creator.roles),
+        team.id,
+    )
 
 
 def test_snapshot_import_runs_through_relay_and_real_worker(
@@ -80,12 +90,14 @@ def test_snapshot_import_runs_through_relay_and_real_worker(
         clock=partial(datetime.now, UTC),
         max_upload_bytes=len(_VALID_TEI),
     )
+    creator, team_id = _creator_context(factory)
     project = project_service.create_project(
         ProjectCreate(
             slug=f"snapshot-redis-{uuid4().hex}",
             display_name="Snapshot Redis e2e project",
+            team_id=team_id,
         ),
-        creator_user_id=_creator_id(factory),
+        creator=creator,
     )
     snapshot = project_service.import_snapshot(
         project_id=project.id,

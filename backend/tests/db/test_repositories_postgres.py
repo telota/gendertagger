@@ -7,6 +7,7 @@ from pydantic import JsonValue
 from sqlalchemy import func, select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
+from tests.seeding import seed_project, session_repositories
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.db.repositories.aggregation_repository import SqlAlchemyAggregationRepository
@@ -60,7 +61,6 @@ from gendertagger.models.person import (
 from gendertagger.models.project import (
     DatasetSnapshotCreate,
     Project,
-    ProjectCreate,
     SnapshotImportConfig,
     SnapshotImportLimits,
     SnapshotSourceMemberCreate,
@@ -182,11 +182,10 @@ def test_person_records_require_fields_matching_the_snapshot_profile(
     reason: str,
 ) -> None:
     projects = SqlAlchemyProjectRepository(db_session)
-    project = projects.add_project(
-        ProjectCreate(
-            slug=f"profile-{uuid4().hex}",
-            display_name="Profile consistency fixture",
-        )
+    project = seed_project(
+        session_repositories(db_session),
+        slug_prefix="profile",
+        display_name="Profile consistency fixture",
     )
     source_format = (
         SourceFormat.csv if isinstance(profile, TabularImportProfile) else SourceFormat.tei
@@ -255,17 +254,16 @@ def test_modern_snapshot_requires_complete_config_and_primary_artifact_provenanc
 ) -> None:
     projects = SqlAlchemyProjectRepository(db_session)
     artifacts = SqlAlchemyArtifactRepository(db_session)
-    project = projects.add_project(
-        ProjectCreate(
-            slug=f"modern-primary-{uuid4().hex}",
-            display_name="Modern primary artifact fixture",
-        )
+    repositories = session_repositories(db_session)
+    project = seed_project(
+        repositories,
+        slug_prefix="modern-primary",
+        display_name="Modern primary artifact fixture",
     )
-    other_project = projects.add_project(
-        ProjectCreate(
-            slug=f"modern-primary-other-{uuid4().hex}",
-            display_name="Other primary artifact fixture",
-        )
+    other_project = seed_project(
+        repositories,
+        slug_prefix="modern-primary-other",
+        display_name="Other primary artifact fixture",
     )
     primary = artifacts.add_artifact(
         ArtifactCreate(
@@ -369,11 +367,10 @@ def test_modern_non_loose_source_member_must_be_primary_artifact(
 ) -> None:
     projects = SqlAlchemyProjectRepository(db_session)
     artifacts = SqlAlchemyArtifactRepository(db_session)
-    project = projects.add_project(
-        ProjectCreate(
-            slug=f"modern-member-{uuid4().hex}",
-            display_name="Modern source member fixture",
-        )
+    project = seed_project(
+        session_repositories(db_session),
+        slug_prefix="modern-member",
+        display_name="Modern source member fixture",
     )
     primary = artifacts.add_artifact(
         ArtifactCreate(
@@ -444,11 +441,10 @@ def test_ready_transition_rejects_missing_or_malformed_modern_source_sets(
 ) -> None:
     projects = SqlAlchemyProjectRepository(db_session)
     artifacts = SqlAlchemyArtifactRepository(db_session)
-    project = projects.add_project(
-        ProjectCreate(
-            slug=f"modern-ready-{uuid4().hex}",
-            display_name="Modern ready transition fixture",
-        )
+    project = seed_project(
+        session_repositories(db_session),
+        slug_prefix="modern-ready",
+        display_name="Modern ready transition fixture",
     )
     primary = artifacts.add_artifact(
         ArtifactCreate(
@@ -547,11 +543,10 @@ def test_ready_transition_rejects_missing_or_malformed_modern_source_sets(
 def test_ready_transition_rechecks_modern_parser_provenance(db_session: Session) -> None:
     projects = SqlAlchemyProjectRepository(db_session)
     artifacts = SqlAlchemyArtifactRepository(db_session)
-    project = projects.add_project(
-        ProjectCreate(
-            slug=f"modern-ready-parser-{uuid4().hex}",
-            display_name="Modern ready parser fixture",
-        )
+    project = seed_project(
+        session_repositories(db_session),
+        slug_prefix="modern-ready-parser",
+        display_name="Modern ready parser fixture",
     )
     primary = artifacts.add_artifact(
         ArtifactCreate(
@@ -598,11 +593,10 @@ def test_ready_transition_rechecks_modern_parser_provenance(db_session: Session)
 def test_source_members_and_imported_person_provenance_round_trip(db_session: Session) -> None:
     artifacts = SqlAlchemyArtifactRepository(db_session)
     projects = SqlAlchemyProjectRepository(db_session)
-    project = projects.add_project(
-        ProjectCreate(
-            slug=f"source-members-{uuid4().hex}",
-            display_name="Source members fixture",
-        )
+    project = seed_project(
+        session_repositories(db_session),
+        slug_prefix="source-members",
+        display_name="Source members fixture",
     )
     manifest_artifact = artifacts.add_artifact(
         ArtifactCreate(
@@ -800,11 +794,10 @@ def test_source_members_and_imported_person_provenance_round_trip(db_session: Se
 def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> None:
     now = datetime.now(UTC)
     projects = SqlAlchemyProjectRepository(db_session)
-    project = projects.add_project(
-        ProjectCreate(
-            slug=f"integration-{uuid4().hex}",
-            display_name="Synthetic integration project",
-        )
+    project = seed_project(
+        session_repositories(db_session),
+        slug_prefix="integration",
+        display_name="Synthetic integration project",
     )
     artifacts = SqlAlchemyArtifactRepository(db_session)
     source_artifact = artifacts.add_artifact(

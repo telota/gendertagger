@@ -1,8 +1,10 @@
+import { VueQueryPlugin } from '@tanstack/vue-query'
 import { flushPromises, mount } from '@vue/test-utils'
 import { defineComponent } from 'vue'
 import { describe, expect, it } from 'vitest'
 
 import { createApiClient, type ApiClient } from '@/api'
+import { createQueryClient } from '@/app/queryClient'
 import { useBranding, type BrandingState, type UseBranding } from '@/composables/useBranding'
 
 import { apiClientWithJsonResponse, apiClientWithNetworkError } from '../helpers/api'
@@ -32,6 +34,11 @@ function mountBranding(client: Parameters<typeof useBranding>[0]) {
         return () => null
       },
     }),
+    {
+      global: {
+        plugins: [[VueQueryPlugin, { queryClient: createQueryClient() }]],
+      },
+    },
   )
   return { wrapper, hook: () => hook }
 }

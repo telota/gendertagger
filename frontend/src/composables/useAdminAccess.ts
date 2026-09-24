@@ -17,7 +17,7 @@ export function useAdminAccess() {
     if (session.status === 'error') return 'sessionError'
     if (!session.isSignedIn) return 'signedOut'
     if (session.mustChangePassword) return 'passwordChangeRequired'
-    return session.user?.roles.includes('admin') ? 'eligible' : 'forbidden'
+    return session.user?.roles?.includes('admin') ? 'eligible' : 'forbidden'
   })
 
   const canAccessAdmin = computed(() => state.value === 'eligible')

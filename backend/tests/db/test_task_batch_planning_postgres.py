@@ -6,10 +6,10 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.orm import Session
 from tests.factories import tei_person_input
+from tests.seeding import seed_project, session_repositories
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.db.repositories.artifact_repository import SqlAlchemyArtifactRepository
-from gendertagger.db.repositories.project_repository import SqlAlchemyProjectRepository
 from gendertagger.db.repositories.run_repository import SqlAlchemyRunRepository
 from gendertagger.ingestion.registry import version_for_snapshot_import
 from gendertagger.models.artifact import ArtifactCreate
@@ -17,7 +17,6 @@ from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.person import ImportedPerson
 from gendertagger.models.project import (
     DatasetSnapshotCreate,
-    ProjectCreate,
     SnapshotImportConfig,
     SnapshotImportLimits,
     SnapshotSourceMemberCreate,
@@ -34,9 +33,12 @@ def _ready_execution(
     db_session: Session, *, record_count: int
 ) -> tuple[SqlAlchemyRunRepository, MethodExecution]:
     now = datetime.now(UTC)
-    projects = SqlAlchemyProjectRepository(db_session)
-    project = projects.add_project(
-        ProjectCreate(slug=f"batch-{uuid4().hex}", display_name="Batch planning project")
+    repositories = session_repositories(db_session)
+    projects = repositories.projects
+    project = seed_project(
+        repositories,
+        slug_prefix="batch",
+        display_name="Batch planning project",
     )
     artifacts = SqlAlchemyArtifactRepository(db_session)
     source = artifacts.add_artifact(

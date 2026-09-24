@@ -114,7 +114,7 @@ def test_team_collection_maps_scope_bound_invalid_cursor() -> None:
 
     response = _client(service, _member()).get("/api/v1/teams", params={"cursor": "invalid"})
 
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
     assert response.json()["error"]["details"] == {"reason": "invalid_cursor"}
 
 
