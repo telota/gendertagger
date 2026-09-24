@@ -172,6 +172,7 @@ PATH_VALUES = {
     "result_id": _OTHER,
     "evaluation_id": _ID,
     "export_execution_id": _ID,
+    "user_id": _OTHER,
 }
 PROJECT_SCOPED_ROUTES = (
     _ScopedRoute("GET", "/projects/{project_id}", ProjectScope.project, ProjectRole.viewer),
@@ -313,7 +314,7 @@ PROJECT_SCOPED_ROUTES = (
 GLOBAL_ROUTES = {
     ("GET", "/admin/users"),
     ("POST", "/admin/users"),
-    ("POST", "/projects"),
+    ("PATCH", "/admin/users/{user_id}"),
     ("GET", "/projects"),
     ("GET", "/projects/{project_id}/members"),
     ("PUT", "/projects/{project_id}/members/{user_id}"),
@@ -418,9 +419,13 @@ def test_user_administration_requires_a_global_admin() -> None:
             "/api/v1/admin/users",
             json={"display_name": "Denied", "username": "denied", "roles": []},
         ),
+        client.patch(
+            f"/api/v1/admin/users/{_OTHER}",
+            json={"display_name": "Denied"},
+        ),
     ]
 
-    assert [response.status_code for response in responses] == [403, 403]
+    assert [response.status_code for response in responses] == [403, 403, 403]
     assert all(response.json()["error"]["code"] == "forbidden" for response in responses)
 
 

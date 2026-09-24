@@ -18,8 +18,12 @@ class UserRepository(Protocol):
         """Return a user by ID, or ``None`` when absent."""
         ...
 
-    def lock_active_administrator_ids(self) -> Collection[UUID]:
-        """Lock and return every currently active global administrator."""
+    def lock_administrator_updates(self) -> None:
+        """Serialize local-account mutations for the current transaction."""
+        ...
+
+    def get_active_administrator_ids(self) -> Collection[UUID]:
+        """Return the active global administrators from the current transaction view."""
         ...
 
     def get_user_for_update(self, user_id: UUID) -> User | None:

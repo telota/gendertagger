@@ -197,7 +197,7 @@ def test_update_user_applies_only_supplied_fields_revokes_sessions_and_logs(
             "is_active": False,
         }
     )
-    users.lock_active_administrator_ids.return_value = {USER_IDS[0]}
+    users.get_active_administrator_ids.return_value = {USER_IDS[0]}
     users.get_user_for_update.return_value = target
     users.update_user.return_value = updated
     auth.get_credential.return_value = _local_credential(1)
@@ -225,6 +225,7 @@ def test_update_user_applies_only_supplied_fields_revokes_sessions_and_logs(
         is_active=False,
     )
     auth.revoke_all_sessions.assert_called_once_with(USER_IDS[1])
+    users.lock_administrator_updates.assert_called_once_with()
     assert "request-456" in caplog.text
     assert "display_name,roles,is_active" in caplog.text
 
@@ -240,7 +241,7 @@ def test_update_user_is_idempotent_when_requested_state_already_holds() -> None:
         created_at=NOW,
         updated_at=NOW,
     )
-    users.lock_active_administrator_ids.return_value = {USER_IDS[0]}
+    users.get_active_administrator_ids.return_value = {USER_IDS[0]}
     users.get_user_for_update.return_value = target
     auth.get_credential.return_value = _local_credential(1)
     service = _service(auth, users=users)
@@ -278,7 +279,7 @@ def test_update_user_rejects_self_administrator_state_changes(
         created_at=NOW,
         updated_at=NOW,
     )
-    users.lock_active_administrator_ids.return_value = {USER_IDS[0]}
+    users.get_active_administrator_ids.return_value = {USER_IDS[0]}
     users.get_user_for_update.return_value = target
     auth.get_credential.return_value = _local_credential(0)
     service = _service(auth, users=users)
@@ -298,7 +299,7 @@ def test_update_user_rejects_self_administrator_state_changes(
 def test_update_user_hides_missing_and_nonlocal_accounts() -> None:
     auth = Mock(spec=AuthRepository)
     users = Mock(spec=UserRepository)
-    users.lock_active_administrator_ids.return_value = {USER_IDS[0]}
+    users.get_active_administrator_ids.return_value = {USER_IDS[0]}
     users.get_user_for_update.return_value = None
     auth.get_credential.return_value = None
     service = _service(auth, users=users)

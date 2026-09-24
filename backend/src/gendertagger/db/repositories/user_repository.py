@@ -2,11 +2,14 @@
 
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from gendertagger.db.rows.users import UserRoleRow, UserRow
 from gendertagger.models.user import GlobalRole, User, UserCreate
+
+_ADMINISTRATOR_UPDATE_LOCK_CLASS_ID = 0x47454E44
+_ADMINISTRATOR_UPDATE_LOCK_OBJECT_ID = 0x41444D49
 
 
 class SqlAlchemyUserRepository:
@@ -39,18 +42,24 @@ class SqlAlchemyUserRepository:
         )
         return self._user_from_row(row, roles)
 
-    def lock_active_administrator_ids(self) -> set[UUID]:
-        """Lock every active administrator before validating a role-state change.
+    def lock_administrator_updates(self) -> None:
+        """Acquire the stable transaction-scoped lock for local-account mutations."""
+        self._session.execute(
+            select(
+                func.pg_advisory_xact_lock(
+                    _ADMINISTRATOR_UPDATE_LOCK_CLASS_ID,
+                    _ADMINISTRATOR_UPDATE_LOCK_OBJECT_ID,
+                )
+            )
+        )
 
-        Locking this complete set serializes mutations that could remove the final active
-        administrator. PostgreSQL re-evaluates the query after a concurrent transaction releases
-        its lock under ``READ COMMITTED``, so each waiter observes the previous committed mutation.
-        """
+    def get_active_administrator_ids(self) -> set[UUID]:
+        """Return active global administrator IDs from the current transaction view."""
         statement = (
             select(UserRow.id)
             .join(UserRoleRow, UserRoleRow.user_id == UserRow.id)
             .where(UserRow.is_active.is_(True), UserRoleRow.role == GlobalRole.admin)
-            .with_for_update(of=UserRow)
+            .order_by(UserRow.id)
         )
         return set(self._session.scalars(statement))
 

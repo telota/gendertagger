@@ -135,7 +135,8 @@ class UserAdministrationService:
     ) -> AdminUser:
         """Atomically apply a mutable local-account patch with administrator invariants."""
         with self._unit_of_work_factory() as unit_of_work:
-            active_administrator_ids = unit_of_work.users.lock_active_administrator_ids()
+            unit_of_work.users.lock_administrator_updates()
+            active_administrator_ids = unit_of_work.users.get_active_administrator_ids()
             if actor_user_id not in active_administrator_ids:
                 raise AdminUserStateConflictError(
                     code="acting_user_not_active_administrator",
