@@ -13,15 +13,15 @@ Yes, and it's more than confusing wording. The paper contradicts itself, because
 This goes back to the prototype, which stored the internal tier in a column called `cert` (`data/output/gender_summary.csv`), and the paper kept that name.
 
 **Where the paper mixes them:**
-- [Line 169](docs/paper/article.tex#L169) describes TEI `@cert`, but it maps straight from method agreement. It leaves out the two tiers for entries only the LLM classified (`single`, `uncertain`): 1,048 entries, or 12.7%. It also reads as if TEI allowed only three values, but TEI defines `high`, `medium`, `low` and `unknown`.
-- [Line 234](docs/paper/article.tex#L234) names internal tiers `high` and `low`, the same words as the TEI values.
-- [Line 363](docs/paper/article.tex#L363) calls the internal tiers "the TEI `@cert` values written into the final output" and lists `contested`, `single` and `uncertain`. That contradicts line 169, and these aren't valid TEI values.
-- The disagreement-examples table ([line 400](docs/paper/article.tex#L400)) writes "cert `high`" and "cert `single`" for the internal tier.
-- [Line 472](docs/paper/article.tex#L472) uses `cert` for the LLM's own output field.
+- [Line 169](article.tex#L169) describes TEI `@cert`, but it maps straight from method agreement. It leaves out the two tiers for entries only the LLM classified (`single`, `uncertain`): 1,048 entries, or 12.7%. It also reads as if TEI allowed only three values, but TEI defines `high`, `medium`, `low` and `unknown`.
+- [Line 234](article.tex#L234) names internal tiers `high` and `low`, the same words as the TEI values.
+- [Line 363](article.tex#L363) calls the internal tiers "the TEI `@cert` values written into the final output" and lists `contested`, `single` and `uncertain`. That contradicts line 169, and these aren't valid TEI values.
+- The disagreement-examples table ([line 400](article.tex#L400)) writes "cert `high`" and "cert `single`" for the internal tier.
+- [Line 472](article.tex#L472) uses `cert` for the LLM's own output field.
 
 **The two implementations also differ, and the paper's example matches neither the current code nor line 169:**
 - **Prototype:** its export script (`scripts/enrich_sex.py` in commit `31a5273`) produced the case-study TEI. It keeps `high` and turns every other tier into `low`. The tagged register in `data/raw` has 6,865 `high`, 628 `low` and no `unknown`.
-- **Current backend** ([certainty_projection.py](backend/src/gendertagger/export/certainty_projection.py), [docs/08](docs/08-ingestion-and-export.md#L248)): `high` stays `high` and `low` stays `low`; every other tier becomes `unknown`. Human-reviewed entries always become `high`.
+- **Current backend** ([certainty_projection.py](../../backend/src/gendertagger/export/certainty_projection.py), [docs/08](../08-ingestion-and-export.md#tei-certainty-projection)): `high` stays `high` and `low` stays `low`; every other tier becomes `unknown`. Human-reviewed entries always become `high`.
 - **Example entry S0001126** has tier `single` (LLM only). The prototype wrote `cert="low"`, which is what the paper shows. The backend would write `unknown`, and line 169 doesn't cover this case.
 
 **Suggested fix for I13:**
@@ -40,7 +40,7 @@ I think **I13 needs a clearer definition and justification of the existing schem
 
 The central distinction is that **`@cert` expresses the workflow’s assessment of an annotation’s support—not a calibrated probability that it is correct**. For example, 75% agreement between methods does not establish 75% accuracy.
 
-The [implemented rules](/home/westphal/Projekte/BBAW/gendertagger/repo/gendertagger/backend/src/gendertagger/domain/aggregation_assessment.py:116) and [TEI projection](/home/westphal/Projekte/BBAW/gendertagger/repo/gendertagger/backend/src/gendertagger/export/certainty_projection.py:11) give us this explanation:
+The [implemented rules](../../backend/src/gendertagger/domain/aggregation_assessment.py#L116) and [TEI projection](../../backend/src/gendertagger/export/certainty_projection.py#L11) give us this explanation:
 
 | Exported `@cert` | How it is assigned |
 |---|---|
