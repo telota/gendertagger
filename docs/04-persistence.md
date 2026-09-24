@@ -44,6 +44,21 @@ The project working-aggregation pointer may reference only a completed aggregati
 project's snapshots. The repository enforces the cross-resource ownership and lifecycle rule described in
 [ADR-0035](decisions/ADR-0035-project-working-aggregation.md).
 
+## Teams and delegated membership — pending implementation
+
+[ADR-0041](decisions/ADR-0041-admin-managed-teams-and-delegated-project-membership.md) accepts `teams` and
+direct `team_memberships`, keyed by `(team_id, user_id)`. A future project row will carry non-null
+`team_id`, `manager_user_id`, and `created_by_user_id`; the manager will be constrained to the project's
+team membership, while the historical creator is not an authorization source. Existing
+`project_memberships` remain explicit project grants and must be eligible through active direct team
+membership.
+
+The project has no production or legacy data. The pre-deployment baseline may therefore receive this schema
+without a backfill, inferred creator, default team, or temporary unassigned-project state. Team-dependent
+mutations will serialize with a transaction-scoped PostgreSQL advisory lock keyed by team ID, then lock and
+freshly validate the relevant project, target user, and team-membership rows. Team-member removal will delete
+affected project grants atomically after requiring replacements for every managed project.
+
 ## Immutable snapshots and import atomicity
 
 A ready DatasetSnapshot and its source/member/person projection are immutable. A failed DatasetSnapshot is

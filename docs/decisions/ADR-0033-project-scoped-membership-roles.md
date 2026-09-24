@@ -4,6 +4,9 @@
 
 The missing user-directory follow-up in this decision is resolved by
 [ADR-0039](ADR-0039-administer-local-accounts-over-http.md) and `GET /api/v1/admin/users`.
+[ADR-0041](ADR-0041-admin-managed-teams-and-delegated-project-membership.md) partially amends this
+decision's project-creation and membership-administration rules; this ADR's role and isolation decisions
+remain accepted.
 
 ## Context
 

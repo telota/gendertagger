@@ -38,6 +38,28 @@ route.
 Administrators manage memberships through the admin-only `/api/v1/projects/{project_id}/members` endpoints
 or the `gendertagger projects add-member`, `remove-member`, and `list-members` CLI commands.
 
+## Accepted team and management design — pending implementation
+
+[ADR-0041](decisions/ADR-0041-admin-managed-teams-and-delegated-project-membership.md) accepts direct,
+administrator-managed teams as eligibility groups, not automatic project-access groups. Each project will
+belong to one team and have one active team-member manager, distinct from `ProjectRole`. The three existing
+project roles and global-admin effective operator access remain unchanged.
+
+Global operators will create projects only in their own active teams and become that project's operator and
+manager. Global administrators will retain universal project access and may create for any team; when not a
+member of that team, they must select an eligible initial manager and receive no ineligible explicit
+membership. Removing global `operator` will not remove a project's explicit grants or management assignment.
+
+For an assigned project, the manager will list its members, search minimal active candidates from only its
+team, manage eligible project roles, and transfer management. It will not access `/admin/users`, usernames,
+global roles, account activity, password state, or other team rosters. `current_user_can_manage_members`,
+rather than `current_user_role`, will expose this capability to clients.
+
+Removing a team member or deactivating an account will remove its explicit grants within that team. Rejoining
+will not restore them. A manager must be explicitly replaced before removal or deactivation; administrators
+recover by appointing an active team member. The target contract, route, error, locking, and CSRF details
+remain pending implementation.
+
 ## Data safety
 
 - bound each upload part and the complete multipart collection before acceptance

@@ -53,6 +53,26 @@ Changing it is an explicit project operation; creating an aggregation never move
 Only the unversioned liveness endpoints `/health` and `/ready` are public without authentication. Readiness
 checks the database and artifact root.
 
+## Teams and delegated project membership — pending implementation
+
+[ADR-0041](decisions/ADR-0041-admin-managed-teams-and-delegated-project-membership.md) accepts a future
+team surface. `GET /teams` will return cursor-paginated caller-visible team summaries. Global-admin-only
+`/admin/teams` resources will create, list, rename, and, only when empty, delete teams; their member
+resources will manage direct active account membership. `/admin/users` remains global-admin-only.
+
+For an assigned project, global administrators and its manager will use
+`GET /projects/{project_id}/members`, `GET /projects/{project_id}/eligible-users`, and the existing
+membership mutation paths. Managers will receive only server-filtered, paginated `{id, display_name}`
+candidates from that project's team. `PUT /projects/{project_id}/manager` will transfer management with an
+expected current manager ID. Project-create requests will require `team_id`; an administrator creating
+outside its team will name an eligible `initial_manager_user_id`.
+
+Manager requests for inaccessible projects or unknown, inactive, or ineligible targets will return
+`404 resource_not_found` without directory disclosure. Pending target errors include
+`409 manager_replacement_required`, `409 project_manager_conflict`, and
+`409 team_membership_conflict`. All target routes retain the existing authentication, password-current, and
+CSRF dependencies; none exists in the current generated OpenAPI contract.
+
 ## Long-running commands
 
 Snapshot imports, runs, method executions, aggregations, evaluations, and exports are persisted asynchronous

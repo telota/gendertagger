@@ -302,8 +302,11 @@ password-change, session-error, retry, empty, search-empty, initial-error, pagin
 states. Private administrative query data is principal-scoped and removed on a principal or eligibility
 change and when the view unmounts.
 
-Project memberships remain a subsequent administrative slice. ADR-0040 permits frontend edits only for its
-six branding fields; the implementation does not expose any other deployment settings.
+Project memberships are an accepted, pending team-management increment under
+[ADR-0041](decisions/ADR-0041-admin-managed-teams-and-delegated-project-membership.md). It will add separate
+global-admin team administration and project-manager membership flows without exposing the administrative
+account directory to managers. ADR-0040 still permits frontend edits only for its six branding fields; the
+implementation does not expose any other deployment settings.
 
 ### Administrative branding settings — ADR-0040
 
@@ -901,12 +904,18 @@ people collection.
 ### D6 — Project visibility and role scope
 
 **Resolved and implemented: project-scoped membership roles.** Recorded as
-[ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md). Team membership is per project, as the
-wireframe states. Viewer, reviewer, and operator are project roles held through memberships; only two global
-roles remain — `operator`, which may create projects and becomes operator of each one it creates, and
-`admin`, which holds operator in every project and administers memberships.
+[ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md). Viewer, reviewer, and operator are
+explicit project roles; only `operator`, which may create projects, and `admin`, which has effective operator
+access everywhere, are global roles.
 
-**Consequences.**
+**Accepted target, pending implementation:** [ADR-0041](decisions/ADR-0041-admin-managed-teams-and-delegated-project-membership.md)
+partially amends D6. Direct teams will establish eligibility rather than automatic access. Every project will
+belong to one team and have one manager, distinct from project `operator`. A manager will manage only its
+project's eligible team members and will receive `current_user_can_manage_members`; the client must not infer
+that capability from `current_user_role`. Global administrators retain access everywhere and the
+global-admin-only account directory remains unavailable to managers.
+
+**Current consequences.**
 
 - `GET /projects` lists only the projects where the caller has a role, cursor-paginated in slug order. Every
   project representation carries `current_user_role`, the caller's effective role, which the shell uses to
@@ -914,12 +923,12 @@ roles remain — `operator`, which may create projects and becomes operator of e
 - A resource in a project the caller does not belong to returns `404`, exactly like one that does not exist;
   a member below a route's least role receives `403`. The client treats both as it already treats missing
   resources and forbidden actions.
-- Memberships are managed by administrators through admin-only `/projects/{project_id}/members` endpoints
-  and the `gendertagger projects` CLI. `GET /admin/users` has a delivered read-only administrator screen
-  under [ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md); membership editing remains a
-  subsequent frontend slice.
-- The upgrade drops the global viewer and reviewer roles and assigns no memberships, so every deployment
-  must assign project memberships after migrating.
+- Memberships are currently managed by administrators through admin-only `/projects/{project_id}/members`
+  endpoints and the `gendertagger projects` CLI. The accepted delegated endpoints, team discovery, candidate
+  projection, and management UI do not yet exist.
+- Project creation currently accepts no team. The future required-team contract must be deployed with
+  regenerated transport types and an updated creation form; an old client must fail validation rather than
+  create an unassigned project.
 
 ### Architectural decisions
 

@@ -163,6 +163,18 @@ Global and project roles are separate hierarchical vocabularies. CurrentUser rem
 neutral and carries global roles only; project access is resolved per request and returned with accessible
 project representations. See [ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md).
 
+[ADR-0041](decisions/ADR-0041-admin-managed-teams-and-delegated-project-membership.md) accepts, but does
+not yet implement, `TeamCreate`, `TeamUpdate`, `TeamSummary`, `TeamMember`, `ProjectEligibleUser`, and
+`ProjectManagerUpdate`. It extends future `ProjectCreate` with required `team_id` and optional
+`initial_manager_user_id`; future `ProjectMember` with `is_manager`; and future `AccessibleProject` with a
+team summary and explicit `current_user_can_manage_members`. Manager-facing candidates contain only `id` and
+`display_name`; account-directory projections and their security metadata remain separate admin contracts.
+
+`ProjectManagerUpdate` will carry the expected current manager ID so a stale transfer returns
+`409 project_manager_conflict`. Project membership and manager writes will revalidate active direct
+team-membership eligibility server-side and may return `409 team_membership_conflict`; they will never rely
+on client-side candidate filtering.
+
 `AdminUser` is the global-administrator projection for a local account. It combines provider-neutral user
 identity and roles with the non-secret local credential fields needed for administration. `AdminUserUpdate`
 uses Pydantic field-set semantics so omitted fields remain unchanged while explicit `null` is invalid; username
