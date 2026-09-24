@@ -1,0 +1,428 @@
+{
+  "definition": "gnd_benchmark_v1",
+  "benchmark": {
+    "method_name": "gnd",
+    "labels": ["male", "female"],
+    "size": 7,
+    "class_counts": { "male": 4, "female": 3 }
+  },
+  "coverage": [
+    {
+      "method_name": "gnd",
+      "total": 7,
+      "coverage_count": 7,
+      "coverage_share": 1.0,
+      "label_distribution": { "male": 4, "female": 3, "unknown": 0, "institution": 0 },
+      "abstain_count": 0,
+      "error_count": 0
+    },
+    {
+      "method_name": "gender_guesser",
+      "total": 7,
+      "coverage_count": 5,
+      "coverage_share": 0.714,
+      "label_distribution": { "male": 3, "female": 2, "unknown": 0, "institution": 0 },
+      "abstain_count": 2,
+      "error_count": 0
+    },
+    {
+      "method_name": "wiki_gendersort",
+      "total": 7,
+      "coverage_count": 6,
+      "coverage_share": 0.857,
+      "label_distribution": { "male": 3, "female": 3, "unknown": 0, "institution": 0 },
+      "abstain_count": 1,
+      "error_count": 0
+    },
+    {
+      "method_name": "hivoto",
+      "total": 7,
+      "coverage_count": 6,
+      "coverage_share": 0.857,
+      "label_distribution": { "male": 4, "female": 2, "unknown": 0, "institution": 0 },
+      "abstain_count": 1,
+      "error_count": 0
+    },
+    {
+      "method_name": "nomquamgender",
+      "total": 7,
+      "coverage_count": 5,
+      "coverage_share": 0.714,
+      "label_distribution": { "male": 3, "female": 2, "unknown": 0, "institution": 0 },
+      "abstain_count": 2,
+      "error_count": 0
+    },
+    {
+      "method_name": "hf_distilbert",
+      "total": 7,
+      "coverage_count": 5,
+      "coverage_share": 0.714,
+      "label_distribution": { "male": 3, "female": 2, "unknown": 0, "institution": 0 },
+      "abstain_count": 2,
+      "error_count": 0
+    },
+    {
+      "method_name": "hf_genderize",
+      "total": 7,
+      "coverage_count": 6,
+      "coverage_share": 0.857,
+      "label_distribution": { "male": 4, "female": 2, "unknown": 0, "institution": 0 },
+      "abstain_count": 1,
+      "error_count": 0
+    },
+    {
+      "method_name": "local_llm",
+      "total": 7,
+      "coverage_count": 5,
+      "coverage_share": 0.714,
+      "label_distribution": { "male": 3, "female": 2, "unknown": 0, "institution": 0 },
+      "abstain_count": 2,
+      "error_count": 0
+    },
+    {
+      "method_name": "hivoto_xgboost",
+      "total": 7,
+      "coverage_count": 4,
+      "coverage_share": 0.571,
+      "label_distribution": { "male": 2, "female": 2, "unknown": 0, "institution": 0 },
+      "abstain_count": 2,
+      "error_count": 1
+    }
+  ],
+  "accuracy": [
+    {
+      "method_name": "gender_guesser",
+      "answered_count": 5,
+      "correct_count": 5,
+      "accuracy": 1.0,
+      "effective_accuracy": 0.714,
+      "confusion_matrix": {
+        "male": { "male": 3, "female": 0, "unknown": 0, "institution": 0 },
+        "female": { "male": 0, "female": 2, "unknown": 0, "institution": 0 }
+      },
+      "recall": [
+        {
+          "label": "male",
+          "class_size": 4,
+          "correct": 3,
+          "recall": 0.75,
+          "ci_low": 0.301,
+          "ci_high": 0.954
+        },
+        {
+          "label": "female",
+          "class_size": 3,
+          "correct": 2,
+          "recall": 0.667,
+          "ci_low": 0.208,
+          "ci_high": 0.939
+        }
+      ]
+    },
+    {
+      "method_name": "wiki_gendersort",
+      "answered_count": 6,
+      "correct_count": 4,
+      "accuracy": 0.667,
+      "effective_accuracy": 0.571,
+      "confusion_matrix": {
+        "male": { "male": 2, "female": 1, "unknown": 0, "institution": 0 },
+        "female": { "male": 1, "female": 2, "unknown": 0, "institution": 0 }
+      },
+      "recall": [
+        {
+          "label": "male",
+          "class_size": 4,
+          "correct": 2,
+          "recall": 0.5,
+          "ci_low": 0.15,
+          "ci_high": 0.85
+        },
+        {
+          "label": "female",
+          "class_size": 3,
+          "correct": 2,
+          "recall": 0.667,
+          "ci_low": 0.208,
+          "ci_high": 0.939
+        }
+      ]
+    },
+    {
+      "method_name": "hivoto",
+      "answered_count": 6,
+      "correct_count": 6,
+      "accuracy": 1.0,
+      "effective_accuracy": 0.857,
+      "confusion_matrix": {
+        "male": { "male": 4, "female": 0, "unknown": 0, "institution": 0 },
+        "female": { "male": 0, "female": 2, "unknown": 0, "institution": 0 }
+      },
+      "recall": [
+        {
+          "label": "male",
+          "class_size": 4,
+          "correct": 4,
+          "recall": 1.0,
+          "ci_low": 0.51,
+          "ci_high": 1.0
+        },
+        {
+          "label": "female",
+          "class_size": 3,
+          "correct": 2,
+          "recall": 0.667,
+          "ci_low": 0.208,
+          "ci_high": 0.939
+        }
+      ]
+    },
+    {
+      "method_name": "nomquamgender",
+      "answered_count": 5,
+      "correct_count": 5,
+      "accuracy": 1.0,
+      "effective_accuracy": 0.714,
+      "confusion_matrix": {
+        "male": { "male": 3, "female": 0, "unknown": 0, "institution": 0 },
+        "female": { "male": 0, "female": 2, "unknown": 0, "institution": 0 }
+      },
+      "recall": [
+        {
+          "label": "male",
+          "class_size": 4,
+          "correct": 3,
+          "recall": 0.75,
+          "ci_low": 0.301,
+          "ci_high": 0.954
+        },
+        {
+          "label": "female",
+          "class_size": 3,
+          "correct": 2,
+          "recall": 0.667,
+          "ci_low": 0.208,
+          "ci_high": 0.939
+        }
+      ]
+    },
+    {
+      "method_name": "hf_distilbert",
+      "answered_count": 5,
+      "correct_count": 5,
+      "accuracy": 1.0,
+      "effective_accuracy": 0.714,
+      "confusion_matrix": {
+        "male": { "male": 3, "female": 0, "unknown": 0, "institution": 0 },
+        "female": { "male": 0, "female": 2, "unknown": 0, "institution": 0 }
+      },
+      "recall": [
+        {
+          "label": "male",
+          "class_size": 4,
+          "correct": 3,
+          "recall": 0.75,
+          "ci_low": 0.301,
+          "ci_high": 0.954
+        },
+        {
+          "label": "female",
+          "class_size": 3,
+          "correct": 2,
+          "recall": 0.667,
+          "ci_low": 0.208,
+          "ci_high": 0.939
+        }
+      ]
+    },
+    {
+      "method_name": "hf_genderize",
+      "answered_count": 6,
+      "correct_count": 5,
+      "accuracy": 0.833,
+      "effective_accuracy": 0.714,
+      "confusion_matrix": {
+        "male": { "male": 3, "female": 0, "unknown": 0, "institution": 0 },
+        "female": { "male": 1, "female": 2, "unknown": 0, "institution": 0 }
+      },
+      "recall": [
+        {
+          "label": "male",
+          "class_size": 4,
+          "correct": 3,
+          "recall": 0.75,
+          "ci_low": 0.301,
+          "ci_high": 0.954
+        },
+        {
+          "label": "female",
+          "class_size": 3,
+          "correct": 2,
+          "recall": 0.667,
+          "ci_low": 0.208,
+          "ci_high": 0.939
+        }
+      ]
+    },
+    {
+      "method_name": "local_llm",
+      "answered_count": 5,
+      "correct_count": 5,
+      "accuracy": 1.0,
+      "effective_accuracy": 0.714,
+      "confusion_matrix": {
+        "male": { "male": 3, "female": 0, "unknown": 0, "institution": 0 },
+        "female": { "male": 0, "female": 2, "unknown": 0, "institution": 0 }
+      },
+      "recall": [
+        {
+          "label": "male",
+          "class_size": 4,
+          "correct": 3,
+          "recall": 0.75,
+          "ci_low": 0.301,
+          "ci_high": 0.954
+        },
+        {
+          "label": "female",
+          "class_size": 3,
+          "correct": 2,
+          "recall": 0.667,
+          "ci_low": 0.208,
+          "ci_high": 0.939
+        }
+      ]
+    }
+  ],
+  "kappa_matrix": [
+    {
+      "method_a": "gender_guesser",
+      "method_b": "wiki_gendersort",
+      "co_answered_count": 4,
+      "kappa": 0.0
+    },
+    { "method_a": "gender_guesser", "method_b": "hivoto", "co_answered_count": 4, "kappa": 1.0 },
+    {
+      "method_a": "gender_guesser",
+      "method_b": "nomquamgender",
+      "co_answered_count": 3,
+      "kappa": 1.0
+    },
+    {
+      "method_a": "gender_guesser",
+      "method_b": "hf_distilbert",
+      "co_answered_count": 3,
+      "kappa": 1.0
+    },
+    {
+      "method_a": "gender_guesser",
+      "method_b": "hf_genderize",
+      "co_answered_count": 4,
+      "kappa": 0.5
+    },
+    { "method_a": "gender_guesser", "method_b": "local_llm", "co_answered_count": 5, "kappa": 1.0 },
+    {
+      "method_a": "gender_guesser",
+      "method_b": "hivoto_xgboost",
+      "co_answered_count": 4,
+      "kappa": 1.0
+    },
+    { "method_a": "wiki_gendersort", "method_b": "hivoto", "co_answered_count": 5, "kappa": 0.615 },
+    {
+      "method_a": "wiki_gendersort",
+      "method_b": "nomquamgender",
+      "co_answered_count": 4,
+      "kappa": 0.0
+    },
+    {
+      "method_a": "wiki_gendersort",
+      "method_b": "hf_distilbert",
+      "co_answered_count": 4,
+      "kappa": 0.0
+    },
+    {
+      "method_a": "wiki_gendersort",
+      "method_b": "hf_genderize",
+      "co_answered_count": 5,
+      "kappa": 1.0
+    },
+    {
+      "method_a": "wiki_gendersort",
+      "method_b": "local_llm",
+      "co_answered_count": 4,
+      "kappa": 0.0
+    },
+    {
+      "method_a": "wiki_gendersort",
+      "method_b": "hivoto_xgboost",
+      "co_answered_count": 3,
+      "kappa": -0.5
+    },
+    { "method_a": "hivoto", "method_b": "nomquamgender", "co_answered_count": 4, "kappa": 1.0 },
+    { "method_a": "hivoto", "method_b": "hf_distilbert", "co_answered_count": 4, "kappa": 1.0 },
+    { "method_a": "hivoto", "method_b": "hf_genderize", "co_answered_count": 5, "kappa": 1.0 },
+    { "method_a": "hivoto", "method_b": "local_llm", "co_answered_count": 4, "kappa": 1.0 },
+    { "method_a": "hivoto", "method_b": "hivoto_xgboost", "co_answered_count": 3, "kappa": 1.0 },
+    {
+      "method_a": "nomquamgender",
+      "method_b": "hf_distilbert",
+      "co_answered_count": 5,
+      "kappa": 1.0
+    },
+    {
+      "method_a": "nomquamgender",
+      "method_b": "hf_genderize",
+      "co_answered_count": 4,
+      "kappa": 0.5
+    },
+    { "method_a": "nomquamgender", "method_b": "local_llm", "co_answered_count": 3, "kappa": 1.0 },
+    {
+      "method_a": "nomquamgender",
+      "method_b": "hivoto_xgboost",
+      "co_answered_count": 3,
+      "kappa": 1.0
+    },
+    {
+      "method_a": "hf_distilbert",
+      "method_b": "hf_genderize",
+      "co_answered_count": 4,
+      "kappa": 0.5
+    },
+    { "method_a": "hf_distilbert", "method_b": "local_llm", "co_answered_count": 3, "kappa": 1.0 },
+    {
+      "method_a": "hf_distilbert",
+      "method_b": "hivoto_xgboost",
+      "co_answered_count": 3,
+      "kappa": 1.0
+    },
+    { "method_a": "hf_genderize", "method_b": "local_llm", "co_answered_count": 4, "kappa": 0.5 },
+    {
+      "method_a": "hf_genderize",
+      "method_b": "hivoto_xgboost",
+      "co_answered_count": 3,
+      "kappa": 0.4
+    },
+    { "method_a": "local_llm", "method_b": "hivoto_xgboost", "co_answered_count": 4, "kappa": 1.0 }
+  ],
+  "ensemble": {
+    "canonical_label_distribution": { "male": 2, "female": 1, "unknown": 1, "institution": 1 },
+    "agreement_tier_distribution": {
+      "unanimous": 1,
+      "strong_majority": 1,
+      "weak_majority": 1,
+      "no_consensus": 1,
+      "single_rater": 2,
+      "no_answer": 1
+    },
+    "certainty_tier_distribution": {
+      "high": 2,
+      "low": 1,
+      "contested": 1,
+      "single": 1,
+      "uncertain": 1,
+      "no_data": 1
+    },
+    "human_reviewed_count": 2,
+    "human_correction_count": 1
+  }
+}

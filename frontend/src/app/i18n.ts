@@ -17,6 +17,8 @@ export type MessageSchema = typeof en
 const numberFormats = {
   integer: { maximumFractionDigits: 0 },
   decimal: { minimumFractionDigits: 1, maximumFractionDigits: 1 },
+  // Rates and coefficients of the evaluation report keep the three places the report itself stores.
+  ratio: { minimumFractionDigits: 3, maximumFractionDigits: 3 },
   // A method's own confidence keeps two places: rounding 0.42 to 0.4 would misreport it.
   confidence: { minimumFractionDigits: 2, maximumFractionDigits: 2 },
 } as const

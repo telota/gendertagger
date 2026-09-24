@@ -108,6 +108,13 @@ const connectionLabel = computed(() => {
           </p>
         </div>
 
+        <RouterLink
+          class="run-detail-evaluations"
+          :to="{ name: 'evaluations', params: { projectId, runId } }"
+        >
+          {{ t('runs.detail.evaluations') }}
+        </RouterLink>
+
         <RunProvenance :run="run.data.value" />
 
         <section class="run-detail-executions" aria-labelledby="run-executions-heading">
@@ -159,6 +166,12 @@ const connectionLabel = computed(() => {
 
 .run-detail > * {
   max-width: 100%;
+}
+
+.run-detail-evaluations {
+  color: var(--accent);
+  font-weight: var(--weight-semibold);
+  text-underline-offset: 0.2em;
 }
 
 .run-detail-back {

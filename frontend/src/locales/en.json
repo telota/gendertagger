@@ -322,7 +322,8 @@
         "connecting": "Connecting to live updates …",
         "live": "Live updates on",
         "reconnecting": "Connection lost, reconnecting …"
-      }
+      },
+      "evaluations": "Evaluations of this run"
     },
     "provenance": {
       "title": "Provenance",
@@ -615,6 +616,110 @@
     "people": {
       "title": "People",
       "hint": "Everyone in the register, in TEI order, whatever the automation made of them. Find a person by name, other name, TEI id or an authority id such as a GND number."
+    }
+  },
+  "evaluation": {
+    "title": "Evaluations",
+    "intro": "An evaluation scores the methods of a run against a benchmark: the decisions of the GND authority, gendered entries only. It is a stored, reproducible result with its own configuration hash.",
+    "backToRun": "Back to the run",
+    "forbidden": "Only project operators can start an evaluation. You can read the results below.",
+    "history": "Evaluations of this run",
+    "empty": "No evaluation has been started on this run yet.",
+    "loadError": "The evaluations could not be loaded.",
+    "item": {
+      "definition": "Definition",
+      "methods": "Methods",
+      "methodsValue": "{count} method executions",
+      "configHash": "Configuration hash",
+      "open": "Open evaluation"
+    },
+    "new": {
+      "title": "Start an evaluation",
+      "hint": "Choose the completed method executions to score. The server accepts only the selection its definition prescribes: the benchmark method, the scored methods and the methods that only enter the agreement matrix, each exactly once.",
+      "executionsLoadError": "The method executions of this run could not be loaded.",
+      "definition": "Definition: {definition}",
+      "methods": "Method executions",
+      "fromEarlier": "Pre-selected: the selection the server accepted for the latest evaluation of this run.",
+      "fromAll": "Pre-selected: every completed execution. If the server refuses this selection, remove the methods the definition does not use.",
+      "aggregation": "Aggregation for the ensemble figures",
+      "noAggregation": "none",
+      "aggregationHint": "Optional. With an aggregation, the report also describes how it decided and how much of it people have reviewed.",
+      "submit": "Start evaluation",
+      "submitting": "Starting …",
+      "errors": {
+        "notEvaluatable": "The server did not accept this selection. The evaluation needs exactly the benchmark method, the scored methods and the agreement-only methods of its definition, each once and all completed.",
+        "network": "The evaluation could not be started: the server is not reachable.",
+        "generic": "The evaluation could not be started."
+      },
+      "aggregationOption": "{strategy} · {hash}"
+    },
+    "detail": {
+      "backToList": "Back to the evaluations",
+      "loadError": "The evaluation could not be loaded.",
+      "title": "Evaluation",
+      "provenance": "What produced this evaluation",
+      "aggregation": "Aggregation",
+      "openAggregation": "Open the aggregation",
+      "resolvedConfig": "Resolved configuration",
+      "selection": "Scored method executions ({count})",
+      "download": "Download the report (JSON)",
+      "waiting": "The evaluation is being computed. The report appears here as soon as it is finished."
+    },
+    "report": {
+      "method": "Method",
+      "shapeError": "The stored report is not in the expected shape and cannot be shown.",
+      "loadError": "The report could not be loaded.",
+      "benchmark": {
+        "title": "Benchmark",
+        "text": "The benchmark is what {method} decided, kept to the labels below: {size} entries."
+      },
+      "coverage": {
+        "title": "Coverage",
+        "note": "Coverage counts the entries for which a method gave a label, over the whole corpus of the run. A method that abstained and a method that failed technically are counted separately.",
+        "caption": "Coverage and label distribution per method",
+        "total": "Entries",
+        "answered": "Answered",
+        "share": "Coverage",
+        "abstained": "Abstained",
+        "errors": "Errors"
+      },
+      "accuracy": {
+        "title": "Accuracy and recall",
+        "note": "Accuracy divides the correct labels by the entries the method answered, on the benchmark only.",
+        "effectiveNote": "Effective accuracy divides by the whole benchmark, so an abstention counts against the method. This is the definition of the published study.",
+        "recallNote": "Recall per class is the share of that class the method got right, with a {level} % Wilson confidence interval in brackets, then correct / class size.",
+        "recallNoteUnknown": "Recall per class is the share of that class the method got right, with a Wilson confidence interval in brackets, then correct / class size.",
+        "caption": "Accuracy, effective accuracy and per-class recall per method",
+        "answered": "Answered",
+        "correct": "Correct",
+        "accuracy": "Accuracy",
+        "effective": "Effective accuracy",
+        "recall": "Recall",
+        "recallCell": "{recall} [{low}–{high}] {correct}/{size}"
+      },
+      "confusion": {
+        "title": "Confusion matrices",
+        "note": "Rows are the benchmark label, columns the label the method gave. Only entries the method answered are counted.",
+        "truth": "Benchmark label"
+      },
+      "kappa": {
+        "title": "Agreement between methods (Cohen’s κ)",
+        "note": "Cohen’s κ is computed pairwise between methods, only on entries both answered. It measures how well two methods agree beyond chance. It is not agreement between human annotators.",
+        "undefinedNote": "n/d: κ is undefined when fewer than two entries were answered by both methods, or when both methods gave one constant label.",
+        "caption": "Pairwise Cohen’s κ between methods",
+        "undefined": "κ is undefined for this pair",
+        "undefinedShort": "n/d",
+        "coAnswered": "n = {count}"
+      },
+      "ensemble": {
+        "title": "Ensemble",
+        "none": "This evaluation was started without an aggregation, so there are no ensemble figures.",
+        "note": "How the chosen aggregation decided over the whole run, and how much of it people have reviewed.",
+        "labels": "Final labels",
+        "agreement": "Agreement",
+        "certainty": "Certainty",
+        "review": "{reviewed} people were reviewed by a human, {corrected} of them were corrected."
+      }
     }
   }
 }

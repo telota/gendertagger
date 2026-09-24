@@ -229,6 +229,14 @@ Bulk decisions (`ReviewBulkBar.vue`, `useBulkDecision.ts`) are a client-side seq
 per-person report, because the backend has no batch endpoint. `tests/features/review/fixtures.ts` is the shared stateful test server (it extends its annotation chain on a write
 and records every non-read request).
 
+## Evaluation (M7)
+
+`features/evaluation/` lists and starts evaluations of a run and renders the stored report. The report response is
+untyped in OpenAPI, so `reportSchema.ts` declares and validates its shape (`tests/features/evaluation/fixtures/seed-report.json`
+is a real backend report used as a contract fixture). Rates and coefficients use the `ratio` number format (three places,
+as stored). Two backend gaps are recorded in `docs/24` (M7): the report is not in OpenAPI, and the worker does not register
+the evaluation task, so a newly created evaluation stays queued.
+
 ## Branding
 
 The footer, the start page, and `/impressum` render `GET /api/v1/branding` ([ADR-0036](../docs/decisions/ADR-0036-institution-branding-configuration.md))

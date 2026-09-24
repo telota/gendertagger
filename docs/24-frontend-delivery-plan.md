@@ -585,6 +585,48 @@ person is visible with its author.
 **Exit criterion.** The published reference study's tables are reproducible from the browser against a
 stored run.
 
+**Delivery status (2026-09-24).** M7 is delivered in the frontend, with one backend defect that blocks new
+evaluations (below).
+
+- **Evaluations as executions. Delivered.** `/projects/:projectId/runs/:runId/evaluations` lists a run's
+  evaluations newest first (polled while one is live) and, for project operators, starts one:
+  `POST /evaluations` over exact completed method executions, with an optional aggregation for the ensemble figures.
+  A started evaluation is opened and polled to an end state; a failure shows `failure_class` and
+  `failure_diagnostic`. `/projects/:projectId/runs/:runId/evaluations/:evaluationId` shows what produced it
+  (definition, configuration hash, resolved configuration, the scored executions by method name and version, the
+  aggregation) and offers the stored report as a JSON download. It reaches a run from the run screen.
+- **The report, section by section. Delivered.** Benchmark composition; coverage per method with abstentions and
+  technical errors counted apart; accuracy **and** effective accuracy; per-class recall with its Wilson interval and
+  correct / class size; one confusion matrix per scored method (rows are the benchmark label, columns the label the
+  method gave); the pairwise Cohen's κ matrix, shown in both directions with the co-answered count and "n/d" where κ is
+  undefined; and the ensemble tier distributions with the review and correction counts. Numbers keep the three places
+  the report stores.
+- **Correct labelling of what each metric measures.** Accuracy divides by the answered entries, effective accuracy by
+  the whole benchmark so an abstention counts against the method (the published study's definition; from
+  `evaluation/metrics.py`). κ is Cohen's κ **between methods**, restricted to entries both answered, and the screen
+  says it is not agreement between human annotators. There is no cross-method confidence column (D2), no "Fleiss'
+  κ", and no review-time figure, because the backend computes none of them (docs/23).
+- **The report is read defensively.** `GET /evaluations/{id}/report` is an untyped `200` in OpenAPI, so the shape is
+  declared in `features/evaluation/reportSchema.ts` from `models/evaluation.py` and checked at run time; a body of
+  another shape is an error message, never a half-rendered table. The real report of the seeded evaluation is stored
+  as a contract fixture (`tests/features/evaluation/fixtures/seed-report.json`) and parsed in the tests.
+- **Gap (backend contract): the report is not in OpenAPI.** The response should carry the `EvaluationReport` schema so
+  the client can be generated (AGENTS.md rule 17).
+- **Gap (backend contract): the definition's required method set is not exposed.** `gnd_benchmark_v1` accepts
+  exactly the benchmark method, the seven scored methods and `hivoto_xgboost` (so **not**
+  `parenthetical_qualifier`), each once; anything else is a `409`. The form starts from the selection the server
+  accepted for the run's latest evaluation, or from every completed execution when there is none, and explains the
+  `409`.
+- **Defect (backend): new evaluations never run.** `gendertagger.tasks.evaluation` is missing from the `include` list in
+  `tasks/celery_app.py`, so the worker does not register `execute_evaluation` and the task is rejected as
+  unregistered; an evaluation created on the development stack stays `queued` forever (observed 2026-09-24, and the
+  same list omits `gendertagger.tasks.export`, which M8 will meet). The seeded evaluation was created directly and is
+  complete, so the screens were verified on it.
+- **Exit criterion.** The screens display every table of the report from a stored run, verified on the seeded
+  evaluation. Two limits: the seed is seven synthetic people, so its numbers are not the published study's; comparing
+  those needs the real corpus run through a stack whose worker registers the evaluation task. The definitions and the
+  labelling above are what such a comparison relies on.
+
 ### M8 — Export
 
 **Goal.** Reproducible, provenanced output.

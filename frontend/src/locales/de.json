@@ -322,7 +322,8 @@
         "connecting": "Verbindung zu Live-Updates wird aufgebaut …",
         "live": "Live-Updates aktiv",
         "reconnecting": "Verbindung unterbrochen, wird neu aufgebaut …"
-      }
+      },
+      "evaluations": "Auswertungen dieses Laufs"
     },
     "provenance": {
       "title": "Provenienz",
@@ -615,6 +616,110 @@
     "people": {
       "title": "Personen",
       "hint": "Alle Personen des Registers in TEI-Reihenfolge, unabhängig davon, was die Automatik aus ihnen gemacht hat. Suche nach Name, weiterem Namen, TEI-ID oder einer Normdaten-ID wie einer GND-Nummer."
+    }
+  },
+  "evaluation": {
+    "title": "Auswertungen",
+    "intro": "Eine Auswertung misst die Methoden eines Laufs an einem Benchmark: den Entscheidungen der GND-Autorität, nur Einträge mit Geschlecht. Sie ist ein gespeichertes, reproduzierbares Ergebnis mit eigenem Konfigurations-Hash.",
+    "backToRun": "Zurück zum Lauf",
+    "forbidden": "Nur Projekt-Operatoren können eine Auswertung starten. Die Ergebnisse kannst du unten lesen.",
+    "history": "Auswertungen dieses Laufs",
+    "empty": "Auf diesem Lauf wurde noch keine Auswertung gestartet.",
+    "loadError": "Die Auswertungen konnten nicht geladen werden.",
+    "item": {
+      "definition": "Definition",
+      "methods": "Methoden",
+      "methodsValue": "{count} Methodenausführungen",
+      "configHash": "Konfigurations-Hash",
+      "open": "Auswertung öffnen"
+    },
+    "new": {
+      "title": "Auswertung starten",
+      "hint": "Wähle die abgeschlossenen Methodenausführungen, die bewertet werden. Der Server akzeptiert nur die Auswahl, die seine Definition vorschreibt: die Benchmark-Methode, die bewerteten Methoden und die Methoden, die nur in die Übereinstimmungsmatrix eingehen, jede genau einmal.",
+      "executionsLoadError": "Die Methodenausführungen dieses Laufs konnten nicht geladen werden.",
+      "definition": "Definition: {definition}",
+      "methods": "Methodenausführungen",
+      "fromEarlier": "Vorausgewählt: die Auswahl, die der Server für die letzte Auswertung dieses Laufs akzeptiert hat.",
+      "fromAll": "Vorausgewählt: jede abgeschlossene Ausführung. Lehnt der Server diese Auswahl ab, nimm die Methoden heraus, die die Definition nicht verwendet.",
+      "aggregation": "Aggregation für die Ensemble-Zahlen",
+      "noAggregation": "keine",
+      "aggregationHint": "Optional. Mit einer Aggregation beschreibt der Bericht auch, wie sie entschieden hat und wie viel davon Menschen geprüft haben.",
+      "submit": "Auswertung starten",
+      "submitting": "Wird gestartet …",
+      "errors": {
+        "notEvaluatable": "Der Server hat diese Auswahl nicht akzeptiert. Die Auswertung braucht genau die Benchmark-Methode, die bewerteten Methoden und die nur für die Übereinstimmung genutzten Methoden ihrer Definition, jede einmal und alle abgeschlossen.",
+        "network": "Die Auswertung konnte nicht gestartet werden: Der Server ist nicht erreichbar.",
+        "generic": "Die Auswertung konnte nicht gestartet werden."
+      },
+      "aggregationOption": "{strategy} · {hash}"
+    },
+    "detail": {
+      "backToList": "Zurück zu den Auswertungen",
+      "loadError": "Die Auswertung konnte nicht geladen werden.",
+      "title": "Auswertung",
+      "provenance": "Was diese Auswertung erzeugt hat",
+      "aggregation": "Aggregation",
+      "openAggregation": "Aggregation öffnen",
+      "resolvedConfig": "Aufgelöste Konfiguration",
+      "selection": "Bewertete Methodenausführungen ({count})",
+      "download": "Bericht herunterladen (JSON)",
+      "waiting": "Die Auswertung wird berechnet. Der Bericht erscheint hier, sobald sie fertig ist."
+    },
+    "report": {
+      "method": "Methode",
+      "shapeError": "Der gespeicherte Bericht hat nicht die erwartete Form und kann nicht angezeigt werden.",
+      "loadError": "Der Bericht konnte nicht geladen werden.",
+      "benchmark": {
+        "title": "Benchmark",
+        "text": "Der Benchmark ist, was {method} entschieden hat, beschränkt auf die Labels unten: {size} Einträge."
+      },
+      "coverage": {
+        "title": "Abdeckung",
+        "note": "Die Abdeckung zählt die Einträge, für die eine Methode ein Label vergeben hat, über den ganzen Datenbestand des Laufs. Eine Methode, die sich enthalten hat, und eine, die technisch gescheitert ist, werden getrennt gezählt.",
+        "caption": "Abdeckung und Label-Verteilung je Methode",
+        "total": "Einträge",
+        "answered": "Beantwortet",
+        "share": "Abdeckung",
+        "abstained": "Enthalten",
+        "errors": "Fehler"
+      },
+      "accuracy": {
+        "title": "Genauigkeit und Recall",
+        "note": "Die Genauigkeit teilt die richtigen Labels durch die Einträge, die die Methode beantwortet hat, nur auf dem Benchmark.",
+        "effectiveNote": "Die effektive Genauigkeit teilt durch den ganzen Benchmark, eine Enthaltung zählt also gegen die Methode. So ist sie in der veröffentlichten Studie definiert.",
+        "recallNote": "Der Recall je Klasse ist der Anteil der Klasse, den die Methode richtig hat, mit einem Wilson-Konfidenzintervall von {level} % in Klammern, dann richtig / Klassengröße.",
+        "recallNoteUnknown": "Der Recall je Klasse ist der Anteil der Klasse, den die Methode richtig hat, mit einem Wilson-Konfidenzintervall in Klammern, dann richtig / Klassengröße.",
+        "caption": "Genauigkeit, effektive Genauigkeit und Recall je Klasse und Methode",
+        "answered": "Beantwortet",
+        "correct": "Richtig",
+        "accuracy": "Genauigkeit",
+        "effective": "Effektive Genauigkeit",
+        "recall": "Recall",
+        "recallCell": "{recall} [{low}–{high}] {correct}/{size}"
+      },
+      "confusion": {
+        "title": "Konfusionsmatrizen",
+        "note": "Zeilen sind das Benchmark-Label, Spalten das Label der Methode. Gezählt werden nur Einträge, die die Methode beantwortet hat.",
+        "truth": "Benchmark-Label"
+      },
+      "kappa": {
+        "title": "Übereinstimmung zwischen Methoden (Cohens κ)",
+        "note": "Cohens κ wird paarweise zwischen Methoden berechnet, nur auf Einträgen, die beide beantwortet haben. Es misst, wie gut zwei Methoden über den Zufall hinaus übereinstimmen. Es ist keine Übereinstimmung zwischen menschlichen Annotierenden.",
+        "undefinedNote": "n/d: κ ist nicht definiert, wenn weniger als zwei Einträge von beiden Methoden beantwortet wurden oder wenn beide Methoden immer dasselbe Label vergeben haben.",
+        "caption": "Paarweises Cohens κ zwischen Methoden",
+        "undefined": "κ ist für dieses Paar nicht definiert",
+        "undefinedShort": "n/d",
+        "coAnswered": "n = {count}"
+      },
+      "ensemble": {
+        "title": "Ensemble",
+        "none": "Diese Auswertung wurde ohne Aggregation gestartet, deshalb gibt es keine Ensemble-Zahlen.",
+        "note": "Wie die gewählte Aggregation über den ganzen Lauf entschieden hat und wie viel davon Menschen geprüft haben.",
+        "labels": "Endgültige Labels",
+        "agreement": "Übereinstimmung",
+        "certainty": "Sicherheit",
+        "review": "{reviewed} Personen wurden von Menschen geprüft, {corrected} davon wurden korrigiert."
+      }
     }
   }
 }

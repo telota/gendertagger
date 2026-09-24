@@ -1,0 +1,69 @@
+/* Shared look of the evaluation tables: one place, so every metric reads the same way. */
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.metric-title {
+  margin: 0;
+  font-size: var(--font-size-body-strong);
+  font-weight: var(--weight-semibold);
+}
+
+.metric-note {
+  margin: 0;
+  max-width: 60rem;
+  color: var(--text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.metric-scroll {
+  overflow-x: auto;
+}
+
+.metric-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-small);
+}
+
+.metric-caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.metric-table th,
+.metric-table td {
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--grid);
+  text-align: left;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
+.metric-table thead th {
+  color: var(--text-secondary);
+  font-weight: normal;
+}
+
+.metric-table tbody th {
+  font-weight: var(--weight-semibold);
+}
+
+.metric-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-table .token {
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+.metric-muted {
+  color: var(--text-secondary);
+}
