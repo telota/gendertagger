@@ -75,7 +75,18 @@
     "projects": "Projekte",
     "administration": "Administration",
     "teams": "Teams",
-    "settings": "Branding-Einstellungen"
+    "settings": "Branding-Einstellungen",
+    "currentProject": "Aktuelles Projekt",
+    "overview": "Übersicht",
+    "import": "Import",
+    "classification": "Klassifikation",
+    "review": "Redigieren",
+    "annotate": "Manuell annotieren",
+    "evaluationGroup": "Auswertung",
+    "evaluations": "Statistik & Methoden",
+    "exports": "Export",
+    "administrationGroup": "Admin",
+    "unavailable": "Noch nicht verfügbar: Das Projekt hat noch keinen Lauf mit Aggregation."
   },
   "locale": {
     "label": "Sprache"

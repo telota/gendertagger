@@ -75,7 +75,18 @@
     "projects": "Projects",
     "administration": "Administration",
     "teams": "Teams",
-    "settings": "Branding settings"
+    "settings": "Branding settings",
+    "currentProject": "Current project",
+    "overview": "Overview",
+    "import": "Import",
+    "classification": "Classification",
+    "review": "Review",
+    "annotate": "Annotate manually",
+    "evaluationGroup": "Evaluation",
+    "evaluations": "Statistics & methods",
+    "exports": "Export",
+    "administrationGroup": "Admin",
+    "unavailable": "Not available yet: the project has no run with an aggregation."
   },
   "locale": {
     "label": "Language"

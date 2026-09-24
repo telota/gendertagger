@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@headlessui/vue": "1.7.23",
+    "@phosphor-icons/vue": "2.2.1",
     "@tanstack/vue-query": "5.103.2",
     "openapi-fetch": "0.17.0",
     "pinia": "4.0.3",

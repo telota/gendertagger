@@ -756,6 +756,18 @@ resolve, and the review path works end to end behind a real session.
 
 **Delivery status (2026-09-24).**
 
+- **Sidebar navigation and icons. Delivered.** `AppSidebar` now carries the groups of the wireframe
+  ([`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md)): Projekte; Aktuelles Projekt (Übersicht,
+  Import, Klassifikation, Redigieren, Manuell annotieren); Auswertung (Statistik & Methoden, Export); Admin. The
+  project group appears only inside a project. Run-level entries follow the run, aggregation or snapshot in the
+  URL; elsewhere in the project they follow the project's working aggregation (ADR-0035) and the run and snapshot
+  it belongs to, never a guess from recency (`app/useProjectNavigation.ts`). An entry with no target yet is shown
+  disabled (`aria-disabled`, not focusable) with a reason, not as a dead link. Below 1080 px the sidebar is an
+  icon rail; the labels stay available to assistive technology. Icons are Phosphor (`@phosphor-icons/vue`,
+  MIT, named imports so unused icons are tree-shaken), decorative and `aria-hidden`. The Spielmodus entry is not
+  part of it until that path is decided (D14). Tailwind is not used: styling stays on the semantic tokens of
+  [`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md); adopting it would replace that concept
+  and needs a decision with an ADR.
 - **Accessibility pass, automated part. Delivered.** `tests/accessibility/screens.spec.ts` mounts every screen
   (projects, overview, import, runs, run, aggregation, review, people, evaluations, evaluation, exports, export) in
   both locales against one in-memory API (`tests/accessibility/mockApi.ts`, layered on the review fixture) and asserts

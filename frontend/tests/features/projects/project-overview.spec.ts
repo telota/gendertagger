@@ -71,7 +71,7 @@ describe.each(['de', 'en'] as const)('ProjectOverviewView in %s', (locale: AppLo
     )
     await flushPromises()
 
-    expect(wrapper.get(`a[href="/projects/${PROJECT_ID}/import"]`).text()).toBe(
+    expect(wrapper.get(`main a[href="/projects/${PROJECT_ID}/import"]`).text()).toBe(
       messages.overview.importAction,
     )
   })

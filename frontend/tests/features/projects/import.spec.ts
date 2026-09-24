@@ -183,7 +183,7 @@ describe.each(['de', 'en'] as const)('ImportView in %s', (locale: AppLocale) => 
 
     expect(wrapper.text()).toContain(messages.status.ready.replace('{count}', '42'))
     expect(wrapper.get('.import-status-provenance').text()).toContain('a'.repeat(64))
-    expect(wrapper.get(`a[href="/projects/${PROJECT_ID}/overview"]`).text()).toBe(
+    expect(wrapper.get(`main a[href="/projects/${PROJECT_ID}/overview"]`).text()).toBe(
       messages.status.toOverview,
     )
   })

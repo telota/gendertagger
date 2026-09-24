@@ -165,6 +165,8 @@ describe('ProjectMembershipView', () => {
             jsonResponse({ items: [CANDIDATE], has_more: false, next_cursor: null }),
           )
         }
+        // The sidebar reads the project for its links; that is not a membership write.
+        if (request.method === 'GET') return Promise.resolve(jsonResponse({}, { status: 404 }))
         mutationAttempts += 1
         return Promise.resolve(
           jsonResponse(

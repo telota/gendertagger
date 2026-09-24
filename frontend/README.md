@@ -118,7 +118,8 @@ public/         theme-init.js, resolved before first paint
 nginx/          history-mode fallback for the production image
 ```
 
-The shell is a fixed sidebar (`AppSidebar`: brand, the one navigation surface per decision D7) plus a
+The shell is a fixed sidebar (`AppSidebar`: brand and the one navigation surface per decision D7, with a project
+group that follows the run in the URL or else the project's working aggregation, and Phosphor icons) plus a
 content region (`AppHeader`: locale/theme switches and session state; the routed view; `AppFooter`), per
 [`docs/25-frontend-design-guidelines.md`](../docs/25-frontend-design-guidelines.md).
 
