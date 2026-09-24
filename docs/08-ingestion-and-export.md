@@ -286,10 +286,21 @@ identifiers, the source snapshot SHA-256, the format, the label-source policy, t
 checksummed descriptor per output. Only a completed export has a manifest artifact, and every completed export
 has one.
 
+`GET /exports/{export_execution_id}/manifest` returns that persisted `ExportManifest` as JSON for
+every completed export, including single-output JSON, CSV, and TEI exports. It requires the same project
+viewer access as the export itself and returns `404` when the export has no manifest artifact. Clients can
+verify a downloaded output against its manifest descriptor's SHA-256 and byte size without retrieving
+artifacts through internal storage locations.
+
 `GET /exports/{export_execution_id}/download` returns the export's own output bytes and media type when the export
 produced exactly one output, which covers every `json` and `csv` export and a `tei` export over a one-member
 source. When an export produced several outputs, as a loose TEI collection does, the endpoint returns the
 manifest instead, and the individual member outputs are not separately addressable; see
 [22-future-development.md](22-future-development.md). An export without a manifest artifact returns `404`.
+
+Every successful download includes `Content-Disposition: attachment` with the output's logical basename
+(UTF-8 encoded when necessary) and `X-Checksum-SHA256` with the persisted lowercase hexadecimal SHA-256
+of the downloaded artifact. For a multi-output export these headers describe `manifest.json` itself;
+the checksums of the individual outputs remain in the manifest's `outputs` descriptors.
 
 Never mutate the original source artifact in place.

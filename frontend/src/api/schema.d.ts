@@ -594,6 +594,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/exports/{export_execution_id}/manifest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Export Manifest
+         * @description Read a completed export's persisted provenance and output checksums.
+         */
+        get: operations["get_export_manifest_api_v1_exports__export_execution_id__manifest_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me": {
         parameters: {
             query?: never;
@@ -2168,6 +2188,67 @@ export interface components {
          * @enum {string}
          */
         ExportFormat: "tei" | "json" | "csv";
+        /**
+         * ExportManifest
+         * @description Provenance record persisted alongside every export's output artifacts.
+         *
+         *     ``version`` identifies the serialized manifest format; any change to the persisted fields
+         *     requires a new version so a reader can tell formats apart.
+         */
+        ExportManifest: {
+            /**
+             * Aggregation Execution Id
+             * Format: uuid
+             */
+            aggregation_execution_id: string;
+            /**
+             * Dataset Snapshot Id
+             * Format: uuid
+             */
+            dataset_snapshot_id: string;
+            /**
+             * Export Execution Id
+             * Format: uuid
+             */
+            export_execution_id: string;
+            format: components["schemas"]["ExportFormat"];
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            label_source_policy: components["schemas"]["LabelSourcePolicy"];
+            /** Outputs */
+            outputs: components["schemas"]["ExportManifestOutput"][];
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Source Snapshot Sha256 */
+            source_snapshot_sha256: string;
+            tei_profile?: components["schemas"]["TeiExportProfile"] | null;
+            /**
+             * Version
+             * @default 1
+             * @constant
+             */
+            version: 1;
+        };
+        /**
+         * ExportManifestOutput
+         * @description Checksummed descriptor for one produced export output artifact.
+         */
+        ExportManifestOutput: {
+            /** Byte Size */
+            byte_size: number;
+            /** Logical Name */
+            logical_name: string;
+            /** Media Type */
+            media_type: string;
+            /** Sha256 */
+            sha256: string;
+        };
         /**
          * GlobalRole
          * @description Hierarchical authorization role that applies outside any one project (ADR-0033).
@@ -6302,13 +6383,113 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Primary output bytes, or the manifest for a multi-output export. */
+            200: {
+                headers: {
+                    /** @description Attachment filename from the logical output basename (UTF-8). */
+                    "Content-Disposition"?: string;
+                    /** @description Persisted lowercase hexadecimal SHA-256 of the downloaded artifact. */
+                    "X-Checksum-SHA256"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                    "application/tei+xml": string;
+                    "text/csv": string;
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_export_manifest_api_v1_exports__export_execution_id__manifest_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                export_execution_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
             /** @description Successful Response */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ExportManifest"];
                 };
             };
             /** @description Invalid request */

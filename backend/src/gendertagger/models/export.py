@@ -198,6 +198,17 @@ class ExportManifest(BaseModel):
     generated_at: UtcDatetime
 
 
+class ExportDownload(BaseModel):
+    """Immutable output bytes and persisted metadata for an export download."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    content: bytes
+    logical_name: str = Field(min_length=1, max_length=1024)
+    sha256: str = Field(pattern=SHA256_PATTERN)
+    media_type: str = Field(min_length=1, max_length=255)
+
+
 class ExportSourceMember(BaseModel):
     """One ordered exact source member available for TEI re-export."""
 

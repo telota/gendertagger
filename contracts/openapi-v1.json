@@ -2627,6 +2627,121 @@
         "title": "ExportFormat",
         "type": "string"
       },
+      "ExportManifest": {
+        "additionalProperties": false,
+        "description": "Provenance record persisted alongside every export's output artifacts.\n\n``version`` identifies the serialized manifest format; any change to the persisted fields\nrequires a new version so a reader can tell formats apart.",
+        "properties": {
+          "aggregation_execution_id": {
+            "format": "uuid",
+            "title": "Aggregation Execution Id",
+            "type": "string"
+          },
+          "dataset_snapshot_id": {
+            "format": "uuid",
+            "title": "Dataset Snapshot Id",
+            "type": "string"
+          },
+          "export_execution_id": {
+            "format": "uuid",
+            "title": "Export Execution Id",
+            "type": "string"
+          },
+          "format": {
+            "$ref": "#/components/schemas/ExportFormat"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "label_source_policy": {
+            "$ref": "#/components/schemas/LabelSourcePolicy"
+          },
+          "outputs": {
+            "items": {
+              "$ref": "#/components/schemas/ExportManifestOutput"
+            },
+            "minItems": 1,
+            "title": "Outputs",
+            "type": "array"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "source_snapshot_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Source Snapshot Sha256",
+            "type": "string"
+          },
+          "tei_profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TeiExportProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version": {
+            "const": 1,
+            "default": 1,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "export_execution_id",
+          "dataset_snapshot_id",
+          "source_snapshot_sha256",
+          "run_id",
+          "aggregation_execution_id",
+          "format",
+          "label_source_policy",
+          "outputs",
+          "generated_at"
+        ],
+        "title": "ExportManifest",
+        "type": "object"
+      },
+      "ExportManifestOutput": {
+        "additionalProperties": false,
+        "description": "Checksummed descriptor for one produced export output artifact.",
+        "properties": {
+          "byte_size": {
+            "minimum": 0.0,
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "logical_name": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Logical Name",
+            "type": "string"
+          },
+          "media_type": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Media Type",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "logical_name",
+          "sha256",
+          "byte_size",
+          "media_type"
+        ],
+        "title": "ExportManifestOutput",
+        "type": "object"
+      },
       "GlobalRole": {
         "description": "Hierarchical authorization role that applies outside any one project (ADR-0033).\n\n``operator`` may create projects and grants no access to existing ones. ``admin`` additionally\nholds operator capability in every project and administers local accounts and project memberships.",
         "enum": [
@@ -8581,7 +8696,151 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "application/tei+xml": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Primary output bytes, or the manifest for a multi-output export.",
+            "headers": {
+              "Content-Disposition": {
+                "description": "Attachment filename from the logical output basename (UTF-8).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Checksum-SHA256": {
+                "description": "Persisted lowercase hexadecimal SHA-256 of the downloaded artifact.",
+                "schema": {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Download Export",
+        "tags": [
+          "exports"
+        ]
+      }
+    },
+    "/api/v1/exports/{export_execution_id}/manifest": {
+      "get": {
+        "description": "Read a completed export's persisted provenance and output checksums.",
+        "operationId": "get_export_manifest_api_v1_exports__export_execution_id__manifest_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_execution_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Export Execution Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportManifest"
+                }
               }
             },
             "description": "Successful Response"
@@ -8667,7 +8926,7 @@
             "description": "Internal server error"
           }
         },
-        "summary": "Download Export",
+        "summary": "Get Export Manifest",
         "tags": [
           "exports"
         ]

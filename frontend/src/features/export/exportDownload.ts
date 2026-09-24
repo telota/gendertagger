@@ -4,8 +4,8 @@ import type { ExportFormat } from './useExports'
 
 /**
  * The manifest of an export (`backend/src/gendertagger/models/export.py`, `ExportManifest` version 1).
- * The API returns it only in place of the output when an export produced several outputs; the
- * OpenAPI document does not describe it, so its shape is declared here and checked.
+ * Multi-output downloads return this shape in place of an output; it is checked here to distinguish
+ * manifests from JSON result bundles. Every export also exposes a typed `/manifest` resource.
  */
 export interface ExportManifestOutput {
   logical_name: string
@@ -127,7 +127,7 @@ function filenameFrom(response: Response, fallback: string): string {
 /**
  * `GET /exports/{id}/download`: the export's own output when it produced exactly one, otherwise the
  * manifest (docs/08). The bytes are hashed here so the reader can compare the checksum with the one
- * the manifest records, since that manifest is not otherwise readable through the API.
+ * recorded by `GET /exports/{id}/manifest` or the download's `X-Checksum-SHA256` header.
  */
 export async function downloadExport(
   client: ApiClient,

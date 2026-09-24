@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import json
+import subprocess
+import sys
+from textwrap import dedent
+
 import pytest
 from pydantic import SecretStr
 
@@ -24,7 +29,9 @@ def test_celery_app_uses_json_only_durable_friendly_defaults() -> None:
     assert app.conf.task_default_queue == "default"
     assert set(app.conf.include) == {
         "gendertagger.tasks.aggregation",
+        "gendertagger.tasks.evaluation",
         "gendertagger.tasks.execution",
+        "gendertagger.tasks.export",
         "gendertagger.tasks.snapshot_import",
     }
 
@@ -36,6 +43,39 @@ def test_celery_app_declares_routing_class_queues() -> None:
     declared = {queue.name for queue in app.conf.task_queues}
     assert declared == set(CLASSIFICATION_QUEUES)
     assert CPU_QUEUE in declared
+
+
+@pytest.mark.unit
+def test_fresh_worker_loads_every_dispatch_task() -> None:
+    # Test collection imports shared tasks; a fresh interpreter prevents those
+    # imports from masking a missing worker include.
+    startup = dedent(
+        """
+        import json
+
+        from gendertagger.tasks.celery_app import app
+
+        app.loader.init_worker()
+        app.finalize()
+        print(json.dumps(sorted(name for name in app.tasks if name.startswith("gendertagger."))))
+        """
+    )
+    result = subprocess.run(  # noqa: S603 -- the interpreter and startup code are repository-controlled.
+        [sys.executable, "-c", startup],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert set(json.loads(result.stdout)) == {
+        "gendertagger.tasks.execute_aggregation",
+        "gendertagger.tasks.execute_batch",
+        "gendertagger.tasks.execute_evaluation",
+        "gendertagger.tasks.execute_export",
+        "gendertagger.tasks.execute_snapshot_import",
+    }
 
 
 @pytest.mark.unit

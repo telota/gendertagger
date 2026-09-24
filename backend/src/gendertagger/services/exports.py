@@ -4,13 +4,16 @@ from collections.abc import Callable
 from uuid import UUID
 
 from gendertagger.models.api import CursorPage
+from gendertagger.models.artifact import Artifact
 from gendertagger.models.common import UtcDatetime
 from gendertagger.models.dispatch import ExportDispatchCreate
 from gendertagger.models.export import (
     ExportCreateRequest,
+    ExportDownload,
     ExportExecution,
     ExportExecutionCreate,
     ExportFormat,
+    ExportManifest,
     ExportTaskMessage,
     TeiExportProfile,
 )
@@ -108,8 +111,17 @@ class ExportService:
             )
         return newest_first_page(self._cursor_codec, exports, limit=limit, resource=resource)
 
-    def download_export(self, export_execution_id: UUID) -> tuple[bytes, str]:
-        """Return one completed export's primary bytes and media type.
+    def get_manifest(self, export_execution_id: UUID) -> ExportManifest:
+        """Read the persisted manifest for any completed export format.
+
+        Incomplete exports have no manifest and raise a not-found failure.
+        """
+        manifest = self._get_manifest_artifact(export_execution_id)
+        with self._artifact_storage.open(manifest.storage_uri) as source:
+            return ExportManifest.model_validate_json(source.read())
+
+    def download_export(self, export_execution_id: UUID) -> ExportDownload:
+        """Return one completed export's primary bytes and persisted metadata.
 
         A single-output export (``json``, ``csv``, or ``tei`` over a
         single-file source) downloads that output directly. A multi-output
@@ -117,20 +129,37 @@ class ExportService:
         instead -- fetching every individual member output is not yet
         exposed as a separate resource.
         """
+        manifest = self._get_manifest_artifact(export_execution_id)
+        with self._unit_of_work_factory() as unit_of_work:
+            outputs = [
+                artifact
+                for artifact in unit_of_work.artifacts.list_artifacts_by_export(export_execution_id)
+                if artifact.id != manifest.id
+            ]
+        if len(outputs) == 1:
+            target = outputs[0]
+            with self._artifact_storage.open(manifest.storage_uri) as source:
+                (output,) = ExportManifest.model_validate_json(source.read()).outputs
+            logical_name = output.logical_name
+        else:
+            target = manifest
+            logical_name = "manifest.json"
+        with self._artifact_storage.open(target.storage_uri) as source:
+            return ExportDownload(
+                content=source.read(),
+                logical_name=logical_name,
+                sha256=target.sha256,
+                media_type=target.media_type,
+            )
+
+    def _get_manifest_artifact(self, export_execution_id: UUID) -> Artifact:
         export = self.get_export(export_execution_id)
         if export.manifest_artifact_id is None:
             msg = f"export execution {export_execution_id} has no output artifacts"
             raise ResourceNotFoundError(msg)
         with self._unit_of_work_factory() as unit_of_work:
-            outputs = [
-                artifact
-                for artifact in unit_of_work.artifacts.list_artifacts_by_export(export_execution_id)
-                if artifact.id != export.manifest_artifact_id
-            ]
             manifest = unit_of_work.artifacts.get_artifact(export.manifest_artifact_id)
         if manifest is None:
             msg = f"artifact {export.manifest_artifact_id} does not exist"
             raise ResourceNotFoundError(msg)
-        target = outputs[0] if len(outputs) == 1 else manifest
-        with self._artifact_storage.open(target.storage_uri) as source:
-            return source.read(), target.media_type
+        return manifest

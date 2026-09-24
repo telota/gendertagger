@@ -314,6 +314,9 @@ PROJECT_SCOPED_ROUTES = (
     _ScopedRoute(
         "GET", "/exports/{export_execution_id}/download", ProjectScope.export, ProjectRole.viewer
     ),
+    _ScopedRoute(
+        "GET", "/exports/{export_execution_id}/manifest", ProjectScope.export, ProjectRole.viewer
+    ),
 )
 GLOBAL_ROUTES = {
     ("DELETE", "/admin/teams/{team_id}"),
