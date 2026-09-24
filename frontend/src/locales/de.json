@@ -71,7 +71,8 @@
   "nav": {
     "label": "Hauptnavigation",
     "projects": "Projekte",
-    "administration": "Administration"
+    "administration": "Administration",
+    "settings": "Branding-Einstellungen"
   },
   "locale": {
     "label": "Sprache"
@@ -217,6 +218,77 @@
       "authenticationRequired": "Ihre Sitzung ist beendet. Melden Sie sich erneut an und senden Sie die Änderung dann bewusst erneut ab.",
       "networkError": "Der Server ist nicht erreichbar. Die Änderung könnte erfolgt sein; aktualisieren Sie das Verzeichnis, bevor Sie es erneut versuchen.",
       "unexpected": "Die Kontoänderung konnte nicht abgeschlossen werden. Aktualisieren Sie das Verzeichnis, bevor Sie es erneut versuchen."
+    }
+  },
+  "adminSettings": {
+    "title": "Branding-Einstellungen",
+    "description": "Wirksames Branding und Deployment-Fallbacks",
+    "loadingAccess": "Administrativer Zugriff wird geprüft …",
+    "sessionLoadError": "Die Sitzung konnte nicht geprüft werden.",
+    "forbidden": "Sie haben keine Berechtigung, Branding-Einstellungen anzuzeigen.",
+    "passwordChangeRequired": "Bevor Sie Branding-Einstellungen anzeigen können, müssen Sie Ihr Passwort ändern.",
+    "loading": "Branding-Einstellungen werden geladen …",
+    "loadError": "Die Branding-Einstellungen konnten nicht geladen werden.",
+    "settingsUnavailable": "Der Einstellungsspeicher ist nicht verfügbar. Deployment-Fallbacks können nicht sicher angezeigt werden.",
+    "retry": "Erneut versuchen",
+    "refetch": "Einstellungen aktualisieren",
+    "readOnly": "Diese Übersicht ist schreibgeschützt. Branding-Overrides werden in einer späteren administrativen Ausbaustufe bearbeitet.",
+    "precedence": {
+      "title": "Auflösungsreihenfolge",
+      "description": "Gespeicherter Override → Deployment-Umgebung → Anwendungsstandard."
+    },
+    "branding": {
+      "title": "Editierbare Branding-Felder",
+      "description": "Wirksame Werte und die Deployment-Fallbacks, die ohne gespeicherten Override gelten."
+    },
+    "revision": "Revision {revision}",
+    "table": {
+      "field": "Feld",
+      "effectiveValue": "Wirksamer Wert",
+      "deploymentFallback": "Deployment-Fallback",
+      "overrideStatus": "Override-Status"
+    },
+    "fields": {
+      "institutionName": "Institutionsname",
+      "institutionUrl": "Institutions-URL",
+      "contactEmail": "Kontakt-E-Mail",
+      "privacyNoticeUrl": "URL der Datenschutzerklärung",
+      "editors": "Herausgebende",
+      "publishedSinceYear": "Veröffentlicht seit Jahr"
+    },
+    "status": {
+      "inherited": "Geerbt",
+      "overridden": "Überschrieben",
+      "cleared": "Ausdrücklich geleert"
+    },
+    "values": {
+      "notConfigured": "Nicht konfiguriert",
+      "noEditors": "Keine Herausgebenden",
+      "noLogo": "Kein Logo konfiguriert",
+      "noInitiatives": "Keine Initiativen konfiguriert",
+      "noLegalEntity": "Keine Rechtseinheit konfiguriert"
+    },
+    "deployment": {
+      "title": "Deployment-verwaltetes Branding",
+      "description": "Diese Werte dienen dem Kontext und können hier nicht geändert werden.",
+      "logo": {
+        "title": "Abgeleitete Logo-URL",
+        "description": "Diese Same-Origin-URL wird vom Deployment abgeleitet; ein Dateisystempfad wird nicht offengelegt."
+      },
+      "initiatives": {
+        "title": "Initiativen",
+        "description": "Vom Deployment verwalteter institutioneller Kontext."
+      },
+      "legalEntity": {
+        "title": "Rechtseinheit",
+        "description": "Vom Deployment verwaltete Anbieterangaben.",
+        "name": "Name",
+        "legalForm": "Rechtsform",
+        "address": "Adresse",
+        "telephone": "Telefon",
+        "representative": "Vertretung",
+        "vatId": "Umsatzsteuer-Identifikationsnummer"
+      }
     }
   },
   "projects": {

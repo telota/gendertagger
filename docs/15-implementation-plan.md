@@ -195,9 +195,12 @@ comes last; stop for architect/user review and a manual commit before starting i
    `POST /api/v1/admin/settings/reset` perform revision-checked atomic mutations with safe attribution.
    Public branding resolves committed overrides per request, retains its schema and unauthenticated access,
    and returns the accepted `Cache-Control: no-store` and `503 settings_unavailable` behavior.
-3. **Frontend separately.** Add accessible forms, effective/deployment-default indicators, distinct
-   clearing and resetting actions, stale-write handling, and refresh of mounted branding consumers.
-   Use generated contracts and existing session/CSRF behavior.
+3. **Read-only frontend overview — DELIVERED.** `/admin/settings` uses the generated administrative read
+   operation for an eligible administrator and presents effective values, deployment fallbacks, and explicit
+   override metadata without writes, reset controls, or public-branding changes.
+4. **Editing separately.** Add accessible forms, distinct clearing and resetting actions, stale-write
+   handling, and refresh of mounted branding consumers. Use generated contracts and existing session/CSRF
+   behavior.
 
 Exit criteria: the
 [ADR acceptance criteria](decisions/ADR-0040-administrative-branding-overrides.md#acceptance-criteria-and-future-verification)

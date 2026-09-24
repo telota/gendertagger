@@ -71,7 +71,8 @@
   "nav": {
     "label": "Main navigation",
     "projects": "Projects",
-    "administration": "Administration"
+    "administration": "Administration",
+    "settings": "Branding settings"
   },
   "locale": {
     "label": "Language"
@@ -217,6 +218,77 @@
       "authenticationRequired": "Your session ended. Sign in again, then deliberately resubmit the change.",
       "networkError": "The server could not be reached. The change may have been applied; refresh the directory before trying again.",
       "unexpected": "The account change could not be completed. Refresh the directory before trying again."
+    }
+  },
+  "adminSettings": {
+    "title": "Branding settings",
+    "description": "Effective branding and deployment fallbacks",
+    "loadingAccess": "Checking administrative access …",
+    "sessionLoadError": "The session could not be checked.",
+    "forbidden": "You do not have permission to view branding settings.",
+    "passwordChangeRequired": "Your password must be changed before you can view branding settings.",
+    "loading": "Loading branding settings …",
+    "loadError": "The branding settings could not be loaded.",
+    "settingsUnavailable": "Settings storage is unavailable. Deployment fallbacks cannot be shown safely.",
+    "retry": "Try again",
+    "refetch": "Refresh settings",
+    "readOnly": "This overview is read-only. Editing branding overrides is a later administrative slice.",
+    "precedence": {
+      "title": "Resolution order",
+      "description": "Stored override → deployment environment → application default."
+    },
+    "branding": {
+      "title": "Editable branding fields",
+      "description": "Effective values and the deployment fallbacks used when no stored override exists."
+    },
+    "revision": "Revision {revision}",
+    "table": {
+      "field": "Field",
+      "effectiveValue": "Effective value",
+      "deploymentFallback": "Deployment fallback",
+      "overrideStatus": "Override status"
+    },
+    "fields": {
+      "institutionName": "Institution name",
+      "institutionUrl": "Institution URL",
+      "contactEmail": "Contact email",
+      "privacyNoticeUrl": "Privacy notice URL",
+      "editors": "Editors",
+      "publishedSinceYear": "Published since year"
+    },
+    "status": {
+      "inherited": "Inherited",
+      "overridden": "Overridden",
+      "cleared": "Explicitly cleared"
+    },
+    "values": {
+      "notConfigured": "Not configured",
+      "noEditors": "No editors",
+      "noLogo": "No logo configured",
+      "noInitiatives": "No initiatives configured",
+      "noLegalEntity": "No legal entity configured"
+    },
+    "deployment": {
+      "title": "Deployment-managed branding",
+      "description": "These values are shown for context and cannot be changed here.",
+      "logo": {
+        "title": "Derived logo URL",
+        "description": "This same-origin URL is derived by the deployment; no filesystem path is exposed."
+      },
+      "initiatives": {
+        "title": "Initiatives",
+        "description": "Deployment-managed institutional context."
+      },
+      "legalEntity": {
+        "title": "Legal entity",
+        "description": "Deployment-managed provider details.",
+        "name": "Name",
+        "legalForm": "Legal form",
+        "address": "Address",
+        "telephone": "Telephone",
+        "representative": "Representative",
+        "vatId": "VAT identification number"
+      }
     }
   },
   "projects": {

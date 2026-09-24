@@ -25,6 +25,11 @@ const { canAccessAdmin } = useAdminAccess()
             t('nav.administration')
           }}</RouterLink>
         </li>
+        <li v-if="canAccessAdmin">
+          <RouterLink :to="{ name: 'adminSettings' }" class="app-sidebar-nav-item">{{
+            t('nav.settings')
+          }}</RouterLink>
+        </li>
       </ul>
     </nav>
   </aside>
