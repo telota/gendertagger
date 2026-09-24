@@ -20,7 +20,7 @@ from gendertagger.services.authentication import AuthenticationService
 from gendertagger.services.pagination import CursorCodec, InvalidCursorError
 from gendertagger.services.ports.auth_repository import AdminUserCursor
 from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
-from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 _USER_DIRECTORY_RESOURCE = "admin_users"
 logger = logging.getLogger(__name__)
@@ -195,6 +195,7 @@ class UserAdministrationService:
                     code="acting_user_not_active_administrator",
                     message="The acting account is no longer an active administrator.",
                 )
+            unit_of_work.users.lock_membership_updates(user_id)
             target = unit_of_work.users.get_user_for_update(user_id)
             credential = unit_of_work.auth.get_credential(user_id)
             if target is None or credential is None:
@@ -247,6 +248,7 @@ class UserAdministrationService:
                     is_active=is_active,
                 )
             if deactivating:
+                self._remove_derived_access_for_deactivation(unit_of_work, user_id)
                 unit_of_work.auth.revoke_all_sessions(user_id)
             unit_of_work.commit()
 
@@ -268,6 +270,28 @@ class UserAdministrationService:
                 ",".join(changed_fields),
             )
         return account
+
+    @staticmethod
+    def _remove_derived_access_for_deactivation(unit_of_work: UnitOfWork, user_id: UUID) -> None:
+        """Remove every team-derived grant after proving no manager assignment is abandoned."""
+        team_ids = unit_of_work.teams.list_member_team_ids(user_id)
+        for team_id in team_ids:
+            unit_of_work.teams.lock_team(team_id)
+        managed_project_ids = tuple(
+            project_id
+            for team_id in team_ids
+            for project_id in unit_of_work.access.list_managed_project_ids(team_id, user_id)
+        )
+        for project_id in managed_project_ids:
+            unit_of_work.projects.get_project_for_update(project_id)
+        if managed_project_ids:
+            raise AdminUserStateConflictError(
+                code="manager_replacement_required",
+                message="Replace the account's project-manager assignments before deactivation.",
+            )
+        for team_id in team_ids:
+            unit_of_work.access.remove_team_member_project_memberships(team_id, user_id)
+            unit_of_work.teams.remove_member(team_id, user_id)
 
 
 def _normalize_query(query: str | None) -> str | None:

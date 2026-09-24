@@ -398,21 +398,6 @@
       "reviewer": "Prüfer*in",
       "operator": "Verantwortliche*r"
     },
-    "new": {
-      "action": "Neues Projekt",
-      "cancel": "Abbrechen",
-      "displayName": "Name",
-      "slug": "Kurzname (Slug)",
-      "description": "Beschreibung",
-      "submit": "Projekt anlegen",
-      "submitting": "Wird angelegt …",
-      "errors": {
-        "validation": "Bitte überprüfen Sie Ihre Eingaben.",
-        "conflict": "Dieser Kurzname wird bereits verwendet.",
-        "network": "Der Server ist nicht erreichbar.",
-        "generic": "Das Projekt konnte nicht angelegt werden."
-      }
-    },
     "overview": {
       "loadError": "Das Projekt konnte nicht geladen werden.",
       "slug": "Kurzname (Slug)",

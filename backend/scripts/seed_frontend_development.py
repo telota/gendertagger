@@ -59,6 +59,7 @@ from gendertagger.models.export import (
 from gendertagger.models.lifecycle import MethodExecutionStatus, RunStatus
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.project import ProjectCreate
+from gendertagger.models.team import TeamCreate
 from gendertagger.models.review import AnnotationCreate, ReviewAction
 from gendertagger.models.run import MethodExecutionCreate
 from gendertagger.models.user import GlobalRole, ProjectRole, UserCreate
@@ -242,20 +243,33 @@ def _seed_database(unit_of_work_factory: UnitOfWorkFactory, password: str) -> di
             password_hash=password_hash,
             global_roles={GlobalRole.operator},
         )
+        team = unit_of_work.teams.add_team(
+            TeamCreate(slug="frontend-demonstration", display_name="Frontend demonstration team")
+        )
+        for user in (viewer, reviewer, operator):
+            unit_of_work.teams.add_member(team.id, user.id)
 
         project = unit_of_work.projects.add_project(
             ProjectCreate(
                 slug=MARKER_PROJECT_SLUG,
                 display_name="Frontend demonstration",
                 description="Representative data for browser-client development.",
-            )
+                team_id=team.id,
+                initial_manager_user_id=operator.id,
+            ),
+            manager_user_id=operator.id,
+            created_by_user_id=operator.id,
         )
         lifecycle_project = unit_of_work.projects.add_project(
             ProjectCreate(
                 slug=SECONDARY_PROJECT_SLUG,
                 display_name="Frontend lifecycle states",
                 description="Failed and in-progress resources for browser-client development.",
-            )
+                team_id=team.id,
+                initial_manager_user_id=operator.id,
+            ),
+            manager_user_id=operator.id,
+            created_by_user_id=operator.id,
         )
         for project_id in (project.id, lifecycle_project.id):
             unit_of_work.access.set_member_role(project_id, viewer.id, ProjectRole.viewer)

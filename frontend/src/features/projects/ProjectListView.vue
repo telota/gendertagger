@@ -1,14 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
-import { ApiError } from '@/api'
-import AppButton from '@/components/base/AppButton.vue'
-import AppTextField from '@/components/base/AppTextField.vue'
 import { useSessionStore } from '@/stores/session'
 
-import { useCreateProject, useProjectList } from './useProjects'
+import { useProjectList } from './useProjects'
 import { useRoleLabel } from './useRoleLabel'
 
 const { t } = useI18n()
@@ -34,9 +31,6 @@ function retrySession(): void {
 }
 
 const isSignedIn = computed(() => session.status === 'ready' && session.isSignedIn)
-const canCreateProject = computed(
-  () => session.user?.roles.some((role) => role === 'operator' || role === 'admin') ?? false,
-)
 
 const query = useProjectList(isSignedIn)
 const projects = computed(() => query.data.value?.pages.flatMap((page) => page.items) ?? [])
@@ -47,50 +41,6 @@ function loadMore(): void {
   void query.fetchNextPage()
 }
 
-const isCreating = ref(false)
-const displayName = ref('')
-const slug = ref('')
-const description = ref('')
-const creation = useCreateProject()
-
-function creationErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    switch (error.code) {
-      case 'validation_error':
-        return t('projects.new.errors.validation')
-      case 'resource_conflict':
-        return t('projects.new.errors.conflict')
-      case 'network_error':
-        return t('projects.new.errors.network')
-    }
-  }
-  return t('projects.new.errors.generic')
-}
-
-function openCreateForm(): void {
-  isCreating.value = true
-}
-
-function cancelCreateForm(): void {
-  isCreating.value = false
-  displayName.value = ''
-  slug.value = ''
-  description.value = ''
-  creation.reset()
-}
-
-async function submitCreateForm(): Promise<void> {
-  try {
-    await creation.mutateAsync({
-      displayName: displayName.value,
-      slug: slug.value,
-      description: description.value,
-    })
-    cancelCreateForm()
-  } catch {
-    // creation.isError/creation.error already reflect this; the form stays open to show it.
-  }
-}
 </script>
 
 <template>
@@ -105,62 +55,6 @@ async function submitCreateForm(): Promise<void> {
       <AppButton type="button" @click="retrySession">{{ t('projects.retry') }}</AppButton>
     </div>
     <template v-else-if="isSignedIn">
-      <AppButton
-        v-if="canCreateProject && !isCreating"
-        class="project-list-new-project"
-        type="button"
-        @click="openCreateForm"
-      >
-        {{ t('projects.new.action') }}
-      </AppButton>
-
-      <form
-        v-if="isCreating"
-        class="project-list-form"
-        novalidate
-        @submit.prevent="submitCreateForm"
-      >
-        <AppTextField
-          id="new-project-display-name"
-          v-model="displayName"
-          name="display-name"
-          :label="t('projects.new.displayName')"
-          required
-        />
-        <AppTextField
-          id="new-project-slug"
-          v-model="slug"
-          name="slug"
-          :label="t('projects.new.slug')"
-          required
-        />
-        <AppTextField
-          id="new-project-description"
-          v-model="description"
-          name="description"
-          :label="t('projects.new.description')"
-        />
-        <p v-if="creation.isError.value" role="alert" class="project-list-error">
-          {{ creationErrorMessage(creation.error.value) }}
-        </p>
-        <div class="project-list-form-actions">
-          <AppButton
-            class="project-list-cancel-create"
-            variant="ghost"
-            type="button"
-            @click="cancelCreateForm"
-          >
-            {{ t('projects.new.cancel') }}
-          </AppButton>
-          <AppButton
-            class="project-list-submit-create"
-            type="submit"
-            :disabled="creation.isPending.value"
-          >
-            {{ creation.isPending.value ? t('projects.new.submitting') : t('projects.new.submit') }}
-          </AppButton>
-        </div>
-      </form>
 
       <p v-if="query.isPending.value" role="status">{{ t('projects.loading') }}</p>
       <div v-else-if="query.isError.value" class="project-list-load-error">
@@ -223,23 +117,9 @@ async function submitCreateForm(): Promise<void> {
   gap: var(--space-4);
 }
 
-.project-list-load-error p,
-.project-list-error {
+.project-list-load-error p {
   margin: 0;
   color: var(--critical);
-}
-
-.project-list-form {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-4);
-  margin-top: var(--space-4);
-}
-
-.project-list-form-actions {
-  display: flex;
-  gap: var(--space-3);
 }
 
 .project-list-empty {

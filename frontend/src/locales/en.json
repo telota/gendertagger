@@ -398,21 +398,6 @@
       "reviewer": "Reviewer",
       "operator": "Operator"
     },
-    "new": {
-      "action": "New project",
-      "cancel": "Cancel",
-      "displayName": "Name",
-      "slug": "Slug",
-      "description": "Description",
-      "submit": "Create project",
-      "submitting": "Creating …",
-      "errors": {
-        "validation": "Please check your input.",
-        "conflict": "This slug is already in use.",
-        "network": "The server could not be reached.",
-        "generic": "The project could not be created."
-      }
-    },
     "overview": {
       "loadError": "The project could not be loaded.",
       "slug": "Slug",

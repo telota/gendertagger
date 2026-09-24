@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator, m
 
 from gendertagger.models.common import UtcDatetime
 from gendertagger.models.lifecycle import DatasetSnapshotStatus
+from gendertagger.models.team import TeamSummary
 from gendertagger.models.user import ProjectRole
 
 SHA256_PATTERN = r"^[0-9a-f]{64}$"
@@ -244,13 +245,15 @@ class SnapshotImportTaskMessage(BaseModel):
 
 
 class ProjectCreate(BaseModel):
-    """Validated values used to create a long-lived editorial project."""
+    """Validated values used to create a team-owned editorial project."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     slug: str = Field(pattern=PROJECT_SLUG_PATTERN, max_length=100)
     display_name: str = Field(min_length=1, max_length=200)
     description: str | None = None
+    team_id: UUID
+    initial_manager_user_id: UUID | None = None
 
     @field_validator("display_name")
     @classmethod
@@ -261,10 +264,18 @@ class ProjectCreate(BaseModel):
         return value
 
 
-class Project(ProjectCreate):
-    """Canonical read model for a persisted project."""
+class Project(BaseModel):
+    """Canonical read model for a persisted team-owned project."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     id: UUID
+    slug: str = Field(pattern=PROJECT_SLUG_PATTERN, max_length=100)
+    display_name: str = Field(min_length=1, max_length=200)
+    description: str | None = None
+    team: TeamSummary
+    manager_user_id: UUID
+    created_by_user_id: UUID
     created_at: UtcDatetime
     working_aggregation_execution_id: UUID | None = Field(
         default=None,
@@ -280,6 +291,7 @@ class AccessibleProject(Project):
     """A project as its caller sees it, with the caller's effective role in it (ADR-0033)."""
 
     current_user_role: ProjectRole
+    current_user_can_manage_members: bool
 
 
 class ProjectWorkingAggregationUpdate(BaseModel):
@@ -291,15 +303,43 @@ class ProjectWorkingAggregationUpdate(BaseModel):
 
 
 class ProjectMemberUpdate(BaseModel):
-    """Administrative command granting or changing one user's role in a project."""
+    """Command granting or changing one eligible user's project role."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     role: ProjectRole
 
 
+class ProjectManagerUpdate(BaseModel):
+    """Command transferring a project's manager with optimistic concurrency."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    manager_user_id: UUID
+    expected_manager_user_id: UUID
+
+
+class ProjectEligibleUser(BaseModel):
+    """Minimal candidate representation for delegated project membership management."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    id: UUID
+    display_name: str = Field(min_length=1, max_length=200)
+
+
+class ProjectManager(BaseModel):
+    """The manager assignment, including an optional ordinary project role."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    user_id: UUID
+    display_name: str = Field(min_length=1, max_length=200)
+    project_role: ProjectRole | None
+
+
 class ProjectMember(BaseModel):
-    """Canonical read model for one user's membership in a project (ADR-0033)."""
+    """Canonical read model for one user's eligible project membership."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -307,9 +347,18 @@ class ProjectMember(BaseModel):
     user_id: UUID
     display_name: str = Field(min_length=1, max_length=200)
     role: ProjectRole
+    is_manager: bool
     created_at: UtcDatetime
     updated_at: UtcDatetime
 
+
+class ProjectMembershipState(BaseModel):
+    """Manager assignment plus the explicit project-membership roster."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    manager: ProjectManager
+    members: list[ProjectMember]
 
 class DatasetSnapshotCreate(BaseModel):
     """Validated immutable import identity used to create a pending snapshot."""

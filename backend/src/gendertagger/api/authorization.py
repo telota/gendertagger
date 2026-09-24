@@ -93,6 +93,31 @@ def get_project_access_guard(
     return ProjectAccessGuard(user=user, service=service)
 
 
+
+@dataclass(frozen=True, slots=True)
+class ProjectMembershipManagementGuard:
+    """Authorize only delegated project-membership management, never project data access."""
+
+    user: CurrentUser
+    service: ProjectAccessService
+
+    def require(self, project_id: UUID) -> None:
+        """Require current global-admin or manager authority, preserving hidden-project 404s."""
+        if not self.service.can_manage_members(self.user, project_id):
+            raise ApiRequestError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="resource_not_found",
+                message="The requested resource does not exist.",
+            )
+
+
+def get_project_membership_management_guard(
+    user: Annotated[CurrentUser, Depends(require_authenticated_user)],
+    service: Annotated[ProjectAccessService, Depends(get_project_access_service)],
+) -> ProjectMembershipManagementGuard:
+    """Return the narrow guard for delegated membership administration endpoints."""
+    return ProjectMembershipManagementGuard(user=user, service=service)
+
 def _require_global_role(user: CurrentUser, required_role: GlobalRole) -> CurrentUser:
     if not has_global_role(user, required_role):
         raise _forbidden("The authenticated user lacks the required role.")

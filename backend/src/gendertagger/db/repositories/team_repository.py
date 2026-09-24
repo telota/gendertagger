@@ -8,6 +8,7 @@ from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from gendertagger.db.rows.projects import ProjectRow
 from gendertagger.db.rows.teams import TeamMembershipRow, TeamRow
 from gendertagger.db.rows.users import UserRow
 from gendertagger.models.team import TeamCreate, TeamMember, TeamSummary
@@ -85,6 +86,15 @@ class SqlAlchemyTeamRepository:
             is not None
         )
 
+    def has_projects(self, team_id: UUID) -> bool:
+        """Return whether one team owns a project."""
+        return (
+            self._session.scalar(
+                select(ProjectRow.id).where(ProjectRow.team_id == team_id).limit(1)
+            )
+            is not None
+        )
+
     def list_teams(
         self,
         *,
@@ -121,6 +131,16 @@ class SqlAlchemyTeamRepository:
             statement.order_by(TeamRow.slug, TeamRow.id).limit(limit)
         ).all()
         return tuple(_team_from_row(row) for row in rows)
+
+    def list_member_team_ids(self, user_id: UUID) -> Sequence[UUID]:
+        """Return every direct-team ID for a user in deterministic UUID order."""
+        return tuple(
+            self._session.scalars(
+                select(TeamMembershipRow.team_id)
+                .where(TeamMembershipRow.user_id == user_id)
+                .order_by(TeamMembershipRow.team_id)
+            )
+        )
 
     def list_members(
         self,

@@ -17,7 +17,13 @@ from gendertagger.services.ports.persistence_errors import (
     DuplicateTeamSlugError,
     ResourceNotFoundError,
 )
-from gendertagger.services.teams import InactiveUserError, TeamNotEmptyError, TeamService
+from gendertagger.services.project_access import ManagerReplacementRequiredError
+from gendertagger.services.teams import (
+    InactiveUserError,
+    TeamInUseError,
+    TeamNotEmptyError,
+    TeamService,
+)
 
 router = APIRouter(tags=["teams"])
 
@@ -121,6 +127,12 @@ def delete_admin_team(
             code="team_not_empty",
             message="A team with direct members cannot be deleted.",
         ) from error
+    except TeamInUseError as error:
+        raise ApiRequestError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="team_in_use",
+            message="A team with assigned projects cannot be deleted.",
+        ) from error
 
 
 @router.get("/admin/teams/{team_id}/members", response_model=CursorPage[TeamMember])
@@ -189,7 +201,7 @@ def remove_admin_team_member(
     service: Annotated[TeamService, Depends(get_team_service)],
     administrator: Annotated[CurrentUser, Depends(require_admin)],
 ) -> None:
-    """Remove one direct team membership without changing project memberships in this slice."""
+    """Remove one direct team membership and its derived project grants."""
     try:
         service.remove_member(
             team_id,
@@ -199,6 +211,12 @@ def remove_admin_team_member(
         )
     except ResourceNotFoundError as error:
         raise _resource_not_found_error("The team membership was not found.") from error
+    except ManagerReplacementRequiredError as error:
+        raise ApiRequestError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="manager_replacement_required",
+            message="Replace the user's project-manager assignments before removal.",
+        ) from error
 
 
 def _resource_not_found_error(message: str) -> ApiRequestError:

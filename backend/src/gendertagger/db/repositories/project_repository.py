@@ -21,6 +21,7 @@ from gendertagger.db.rows.projects import (
     ProjectRow,
     SnapshotSourceMemberRow,
 )
+from gendertagger.db.rows.teams import TeamRow
 from gendertagger.ingestion.registry import version_for_snapshot_import
 from gendertagger.models.common import normalize_utc_datetime
 from gendertagger.models.lifecycle import AggregationExecutionStatus, DatasetSnapshotStatus
@@ -43,6 +44,7 @@ from gendertagger.models.project import (
     TabularImportProfile,
     TeiImportProfile,
 )
+from gendertagger.models.team import TeamSummary
 from gendertagger.services.pagination import CreationPosition
 from gendertagger.services.ports.persistence_errors import (
     ImmutableResourceError,
@@ -57,26 +59,41 @@ class SqlAlchemyProjectRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def add_project(self, command: ProjectCreate) -> Project:
-        """Persist and flush a new project without committing."""
+    def add_project(
+        self,
+        command: ProjectCreate,
+        *,
+        manager_user_id: UUID,
+        created_by_user_id: UUID,
+    ) -> Project:
+        """Persist and flush a new team-owned project without committing."""
         row = ProjectRow(
             slug=command.slug,
             display_name=command.display_name,
             description=command.description,
+            team_id=command.team_id,
+            manager_user_id=manager_user_id,
+            created_by_user_id=created_by_user_id,
         )
         self._session.add(row)
         self._session.flush()
-        return self._project_from_row(row)
+        team = self._require_team(row.team_id)
+        return self._project_from_row(row, team)
 
     def get_project(self, project_id: UUID) -> Project | None:
         """Return a project contract by ID without exposing its row."""
         row = self._session.get(ProjectRow, project_id)
-        return None if row is None else self._project_from_row(row)
+        return None if row is None else self._project_from_row(row, self._require_team(row.team_id))
+
+    def get_project_for_update(self, project_id: UUID) -> Project | None:
+        """Return a project contract under a write lock without exposing its row."""
+        row = self._session.get(ProjectRow, project_id, with_for_update=True)
+        return None if row is None else self._project_from_row(row, self._require_team(row.team_id))
 
     def get_project_by_slug(self, slug: str) -> Project | None:
         """Return a project contract by its unique slug without exposing its row."""
         row = self._session.scalar(select(ProjectRow).where(ProjectRow.slug == slug))
-        return None if row is None else self._project_from_row(row)
+        return None if row is None else self._project_from_row(row, self._require_team(row.team_id))
 
     def list_projects(
         self,
@@ -88,11 +105,11 @@ class SqlAlchemyProjectRepository:
         if limit <= 0:
             msg = "limit must be positive"
             raise ValueError(msg)
-        statement = select(ProjectRow)
+        statement = select(ProjectRow, TeamRow).join(TeamRow, TeamRow.id == ProjectRow.team_id)
         if after_slug is not None:
             statement = statement.where(ProjectRow.slug > after_slug)
-        rows = self._session.scalars(statement.order_by(ProjectRow.slug).limit(limit))
-        return tuple(self._project_from_row(row) for row in rows)
+        rows = self._session.execute(statement.order_by(ProjectRow.slug).limit(limit))
+        return tuple(self._project_from_row(project, team) for project, team in rows)
 
     def set_working_aggregation(
         self,
@@ -125,9 +142,8 @@ class SqlAlchemyProjectRepository:
             if status is not AggregationExecutionStatus.completed:
                 msg = f"aggregation execution {aggregation_execution_id} is not completed"
                 raise InvalidResourceStateError(msg)
-        row.working_aggregation_execution_id = aggregation_execution_id
         self._session.flush()
-        return self._project_from_row(row)
+        return self._project_from_row(row, self._require_team(row.team_id))
 
     def add_snapshot(self, command: DatasetSnapshotCreate) -> DatasetSnapshot:
         """Persist and flush a new pending snapshot without committing."""
@@ -789,13 +805,30 @@ class SqlAlchemyProjectRepository:
             external_ids["gnd"] = person.gnd_id
         return dict(sorted(external_ids.items()))
 
+    def _require_team(self, team_id: UUID) -> TeamRow:
+        """Return a project's referentially required team row."""
+        team = self._session.get(TeamRow, team_id)
+        if team is None:
+            msg = f"team {team_id} does not exist"
+            raise RuntimeError(msg)
+        return team
+
     @staticmethod
-    def _project_from_row(row: ProjectRow) -> Project:
+    def _project_from_row(row: ProjectRow, team: TeamRow) -> Project:
         return Project(
             id=row.id,
             slug=row.slug,
             display_name=row.display_name,
             description=row.description,
+            team=TeamSummary(
+                id=team.id,
+                slug=team.slug,
+                display_name=team.display_name,
+                created_at=team.created_at,
+                updated_at=team.updated_at,
+            ),
+            manager_user_id=row.manager_user_id,
+            created_by_user_id=row.created_by_user_id,
             created_at=row.created_at,
             working_aggregation_execution_id=row.working_aggregation_execution_id,
         )

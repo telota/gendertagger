@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from uuid import UUID
 
-from sqlalchemy import Select, delete, exists, select
+from sqlalchemy import Select, delete, exists, func, select
 from sqlalchemy.orm import Session
 
 from gendertagger.db.rows.aggregations import AggregationExecutionRow
@@ -11,11 +11,22 @@ from gendertagger.db.rows.evaluations import EvaluationExecutionRow
 from gendertagger.db.rows.executions import RunRow
 from gendertagger.db.rows.exports import ExportExecutionRow
 from gendertagger.db.rows.projects import DatasetSnapshotRow, ProjectRow
+from gendertagger.db.rows.teams import TeamMembershipRow, TeamRow
 from gendertagger.db.rows.users import ProjectMembershipRow, UserRow
-from gendertagger.models.project import AccessibleProject, ProjectMember
+from gendertagger.models.project import (
+    AccessibleProject,
+    ProjectEligibleUser,
+    ProjectManager,
+    ProjectMember,
+    ProjectMembershipState,
+)
+from gendertagger.models.team import TeamSummary
 from gendertagger.models.user import ProjectRole
 from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
-from gendertagger.services.ports.project_access_repository import ProjectScope
+from gendertagger.services.ports.project_access_repository import (
+    EligibleUserCursor,
+    ProjectScope,
+)
 
 
 def _owning_project_statement(scope: ProjectScope, resource_id: UUID) -> Select[tuple[UUID]]:
@@ -79,8 +90,9 @@ class SqlAlchemyProjectAccessRepository:
             msg = "limit must be positive"
             raise ValueError(msg)
         statement = (
-            select(ProjectRow, ProjectMembershipRow.role)
+            select(ProjectRow, ProjectMembershipRow.role, TeamRow)
             .join(ProjectMembershipRow, ProjectMembershipRow.project_id == ProjectRow.id)
+            .join(TeamRow, TeamRow.id == ProjectRow.team_id)
             .where(ProjectMembershipRow.user_id == user_id)
         )
         if after_slug is not None:
@@ -92,22 +104,125 @@ class SqlAlchemyProjectAccessRepository:
                 slug=project.slug,
                 display_name=project.display_name,
                 description=project.description,
+                team=_team_from_row(team),
+                manager_user_id=project.manager_user_id,
+                created_by_user_id=project.created_by_user_id,
                 created_at=project.created_at,
                 working_aggregation_execution_id=project.working_aggregation_execution_id,
                 current_user_role=role,
+                current_user_can_manage_members=project.manager_user_id == user_id,
             )
-            for project, role in rows
+            for project, role, team in rows
         )
 
-    def list_members(self, project_id: UUID) -> Sequence[ProjectMember]:
-        """Return a project's members ordered by display name, then user ID."""
+    def list_members(self, project_id: UUID) -> ProjectMembershipState:
+        """Return a project's manager assignment and members ordered by display name."""
+        manager = self._session.execute(
+            select(ProjectRow.manager_user_id, UserRow.display_name, ProjectMembershipRow.role)
+            .join(UserRow, UserRow.id == ProjectRow.manager_user_id)
+            .outerjoin(
+                ProjectMembershipRow,
+                (ProjectMembershipRow.project_id == ProjectRow.id)
+                & (ProjectMembershipRow.user_id == ProjectRow.manager_user_id),
+            )
+            .where(ProjectRow.id == project_id)
+        ).one_or_none()
+        if manager is None:
+            msg = f"project {project_id} does not exist"
+            raise ResourceNotFoundError(msg)
         rows = self._session.execute(
             select(ProjectMembershipRow, UserRow.display_name)
             .join(UserRow, UserRow.id == ProjectMembershipRow.user_id)
             .where(ProjectMembershipRow.project_id == project_id)
             .order_by(UserRow.display_name, UserRow.id)
         )
-        return tuple(self._member_from_row(row, display_name) for row, display_name in rows)
+        manager_user_id, manager_display_name, manager_role = manager
+        return ProjectMembershipState(
+            manager=ProjectManager(
+                user_id=manager_user_id,
+                display_name=manager_display_name,
+                project_role=manager_role,
+            ),
+            members=[
+                self._member_from_row(
+                    row,
+                    display_name,
+                    is_manager=row.user_id == manager_user_id,
+                )
+                for row, display_name in rows
+            ],
+        )
+
+    def is_manager(self, project_id: UUID, user_id: UUID) -> bool:
+        """Return whether a user is currently assigned as one project's manager."""
+        return bool(
+            self._session.scalar(
+                select(ProjectRow.id).where(
+                    ProjectRow.id == project_id, ProjectRow.manager_user_id == user_id
+                )
+            )
+        )
+
+    def list_eligible_users(
+        self,
+        team_id: UUID,
+        *,
+        search: str | None,
+        limit: int,
+        after: EligibleUserCursor | None,
+    ) -> Sequence[ProjectEligibleUser]:
+        """Return active direct-team-member candidates in a stable keyset order."""
+        normalized_display_name = func.lower(UserRow.display_name)
+        statement = (
+            select(UserRow.id, UserRow.display_name)
+            .join(TeamMembershipRow, TeamMembershipRow.user_id == UserRow.id)
+            .where(TeamMembershipRow.team_id == team_id, UserRow.is_active.is_(True))
+        )
+        if search is not None:
+            statement = statement.where(UserRow.display_name.icontains(search, autoescape=True))
+        if after is not None:
+            statement = statement.where(
+                (normalized_display_name > after.normalized_display_name)
+                | (
+                    (normalized_display_name == after.normalized_display_name)
+                    & (UserRow.id > after.user_id)
+                )
+            )
+        rows = self._session.execute(
+            statement.order_by(normalized_display_name, UserRow.id).limit(limit)
+        )
+        return tuple(ProjectEligibleUser(id=user_id, display_name=display_name) for user_id, display_name in rows)
+
+    def set_manager(self, project_id: UUID, user_id: UUID) -> None:
+        """Replace one project's manager assignment and flush without committing."""
+        row = self._session.get(ProjectRow, project_id, with_for_update=True)
+        if row is None:
+            msg = f"project {project_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        row.manager_user_id = user_id
+        self._session.flush()
+
+    def list_managed_project_ids(self, team_id: UUID, user_id: UUID) -> Sequence[UUID]:
+        """Return managed projects deterministically for one team member."""
+        return tuple(
+            self._session.scalars(
+                select(ProjectRow.id)
+                .where(ProjectRow.team_id == team_id, ProjectRow.manager_user_id == user_id)
+                .order_by(ProjectRow.id)
+            )
+        )
+
+    def remove_team_member_project_memberships(self, team_id: UUID, user_id: UUID) -> None:
+        """Remove the user's explicit memberships in every project owned by one team."""
+        self._session.execute(
+            delete(ProjectMembershipRow).where(
+                ProjectMembershipRow.user_id == user_id,
+                ProjectMembershipRow.project_id.in_(
+                    select(ProjectRow.id).where(ProjectRow.team_id == team_id)
+                ),
+            )
+        )
+        self._session.flush()
 
     def set_member_role(self, project_id: UUID, user_id: UUID, role: ProjectRole) -> ProjectMember:
         """Grant or change one user's role in a project and flush without committing."""
@@ -126,7 +241,10 @@ class SqlAlchemyProjectAccessRepository:
             row.role = role
         self._session.flush()
         self._session.refresh(row)
-        return self._member_from_row(row, user.display_name)
+        manager_user_id = self._session.scalar(
+            select(ProjectRow.manager_user_id).where(ProjectRow.id == project_id)
+        )
+        return self._member_from_row(row, user.display_name, is_manager=row.user_id == manager_user_id)
 
     def remove_member(self, project_id: UUID, user_id: UUID) -> bool:
         """Revoke one membership, flush without committing, and return whether it existed."""
@@ -141,12 +259,29 @@ class SqlAlchemyProjectAccessRepository:
         return result.first() is not None
 
     @staticmethod
-    def _member_from_row(row: ProjectMembershipRow, display_name: str) -> ProjectMember:
+    def _member_from_row(
+        row: ProjectMembershipRow,
+        display_name: str,
+        *,
+        is_manager: bool,
+    ) -> ProjectMember:
         return ProjectMember(
             project_id=row.project_id,
             user_id=row.user_id,
             display_name=display_name,
             role=row.role,
+            is_manager=is_manager,
             created_at=row.created_at,
             updated_at=row.updated_at,
         )
+
+
+def _team_from_row(row: TeamRow) -> TeamSummary:
+    """Map a team row into the roster-free project response representation."""
+    return TeamSummary(
+        id=row.id,
+        slug=row.slug,
+        display_name=row.display_name,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )

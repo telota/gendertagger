@@ -9,9 +9,12 @@ from gendertagger.models.team import TeamCreate, TeamMember, TeamMemberAdd, Team
 from gendertagger.models.user import CurrentUser, GlobalRole, User
 from gendertagger.services.pagination import CursorCodec, InvalidCursorError
 from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
+from gendertagger.services.ports.project_access_repository import ProjectAccessRepository
+from gendertagger.services.ports.project_repository import ProjectRepository
 from gendertagger.services.ports.team_repository import TeamRepository
 from gendertagger.services.ports.unit_of_work import UnitOfWork
 from gendertagger.services.ports.user_repository import UserRepository
+from gendertagger.services.project_access import ManagerReplacementRequiredError
 from gendertagger.services.teams import InactiveUserError, TeamNotEmptyError, TeamService
 
 NOW = datetime(2026, 9, 24, 12, 0, tzinfo=UTC)
@@ -26,6 +29,8 @@ class StubUnitOfWork:
     def __init__(self, teams: TeamRepository, users: UserRepository) -> None:
         self.teams = teams
         self.users = users
+        self.access = Mock(spec=ProjectAccessRepository)
+        self.projects = Mock(spec=ProjectRepository)
         self.commit_count = 0
 
     def __enter__(self) -> "StubUnitOfWork":
@@ -175,25 +180,46 @@ def test_add_member_returns_existing_membership_without_a_second_write() -> None
     assert unit_of_work.commit_count == 0
 
 
-@pytest.mark.unit
-def test_remove_member_uses_team_lock_and_never_touches_project_access() -> None:
-    service, unit_of_work, teams, _ = _service()
+def test_remove_member_removes_derived_project_roles_inside_team_lock() -> None:
+    service, unit_of_work, teams, users = _service()
     teams.get_team_for_update.return_value = _team()
-    teams.remove_member.return_value = True
+    teams.get_member.return_value = _member()
+    users.get_user_for_update.return_value = _user()
+    unit_of_work.access.list_managed_project_ids.return_value = ()
 
     service.remove_member(TEAM_ID, USER_ID, actor_user_id=USER_ID, request_id="request-1")
 
+    users.lock_membership_updates.assert_called_once_with(USER_ID)
     teams.lock_team.assert_called_once_with(TEAM_ID)
+    unit_of_work.access.remove_team_member_project_memberships.assert_called_once_with(
+        TEAM_ID, USER_ID
+    )
     teams.remove_member.assert_called_once_with(TEAM_ID, USER_ID)
     assert unit_of_work.commit_count == 1
-    assert not hasattr(unit_of_work, "access")
+
+
+@pytest.mark.unit
+def test_remove_member_requires_manager_replacement_before_revoking_roles() -> None:
+    service, unit_of_work, teams, users = _service()
+    teams.get_team_for_update.return_value = _team()
+    users.get_user_for_update.return_value = _user()
+    unit_of_work.access.list_managed_project_ids.return_value = (UUID(int=99),)
+
+    with pytest.raises(ManagerReplacementRequiredError):
+        service.remove_member(TEAM_ID, USER_ID, actor_user_id=USER_ID, request_id="request-1")
+
+    unit_of_work.projects.get_project_for_update.assert_called_once_with(UUID(int=99))
+    unit_of_work.access.remove_team_member_project_memberships.assert_not_called()
+    assert unit_of_work.commit_count == 0
 
 
 @pytest.mark.unit
 def test_missing_membership_rolls_back_without_committing() -> None:
-    service, unit_of_work, teams, _ = _service()
+    service, unit_of_work, teams, users = _service()
     teams.get_team_for_update.return_value = _team()
-    teams.remove_member.return_value = False
+    teams.get_member.return_value = None
+    users.get_user_for_update.return_value = _user()
+    unit_of_work.access.list_managed_project_ids.return_value = ()
 
     with pytest.raises(ResourceNotFoundError):
         service.remove_member(TEAM_ID, USER_ID, actor_user_id=USER_ID, request_id="request-1")

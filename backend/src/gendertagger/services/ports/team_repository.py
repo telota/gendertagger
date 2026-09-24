@@ -58,6 +58,9 @@ class TeamRepository(Protocol):
     def has_members(self, team_id: UUID) -> bool:
         """Return whether one team has any direct members."""
         ...
+    def has_projects(self, team_id: UUID) -> bool:
+        """Return whether one team owns at least one project."""
+        ...
 
     def list_teams(
         self,
@@ -78,6 +81,9 @@ class TeamRepository(Protocol):
         after: TeamCursor | None,
     ) -> Sequence[TeamSummary]:
         """Return one filtered slug-ordered keyset slice of a user's direct teams."""
+        ...
+    def list_member_team_ids(self, user_id: UUID) -> Sequence[UUID]:
+        """Return all direct-team IDs for one user in deterministic UUID order."""
         ...
 
     def list_members(

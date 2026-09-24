@@ -36,7 +36,7 @@ from gendertagger.models.project import (
     normalize_source_member_logical_name,
 )
 from gendertagger.models.queues import CPU_QUEUE
-from gendertagger.models.user import ProjectRole
+from gendertagger.models.user import CurrentUser, GlobalRole, ProjectRole
 from gendertagger.services.pagination import (
     CursorCodec,
     decode_creation_position,
@@ -76,6 +76,10 @@ class _StagedUpload:
     storage_uri: str
     sha256: str
     byte_size: int
+
+
+class ProjectCreationForbiddenError(RuntimeError):
+    """Raised when a creator lacks current authority or team eligibility."""
 
 
 class ProjectService:
@@ -126,13 +130,77 @@ class ProjectService:
             import_limits=self._import_limits,
         )
 
-    def create_project(self, command: ProjectCreate, *, creator_user_id: UUID) -> AccessibleProject:
-        """Create one editorial project with its creator as operator, atomically (ADR-0033)."""
+    def create_project(self, command: ProjectCreate, *, creator: CurrentUser) -> AccessibleProject:
+        """Create one team-owned project with valid initial manager and eligible roles."""
+        lock_user_ids = sorted(
+            {creator.id, command.initial_manager_user_id or creator.id},
+            key=lambda user_id: user_id.bytes,
+        )
         with self._unit_of_work_factory() as unit_of_work:
-            project = unit_of_work.projects.add_project(command)
-            unit_of_work.access.set_member_role(project.id, creator_user_id, ProjectRole.operator)
+            for user_id in lock_user_ids:
+                unit_of_work.users.lock_membership_updates(user_id)
+            unit_of_work.teams.lock_team(command.team_id)
+            locked_users = {
+                user_id: unit_of_work.users.get_user_for_update(user_id) for user_id in lock_user_ids
+            }
+            creator_record = locked_users[creator.id]
+            if creator_record is None or not creator_record.is_active:
+                raise ProjectCreationForbiddenError("the project creator is not active")
+            team = unit_of_work.teams.get_team_for_update(command.team_id)
+            if team is None:
+                msg = f"team {command.team_id} does not exist"
+                raise ResourceNotFoundError(msg)
+            creator_membership = unit_of_work.teams.get_member(command.team_id, creator.id)
+            creator_is_eligible = (
+                creator_membership is not None and creator_membership.is_active
+            )
+            if GlobalRole.admin in creator_record.roles:
+                manager_user_id = command.initial_manager_user_id
+                if manager_user_id is None:
+                    if not creator_is_eligible:
+                        raise ValueError(
+                            "an administrator outside the team must name an initial manager"
+                        )
+                    manager_user_id = creator.id
+            else:
+                if GlobalRole.operator not in creator_record.roles:
+                    raise ProjectCreationForbiddenError("the creator lacks the operator role")
+                if not creator_is_eligible:
+                    raise ProjectCreationForbiddenError(
+                        "an operator may create a project only in a direct team"
+                    )
+                if (
+                    command.initial_manager_user_id is not None
+                    and command.initial_manager_user_id != creator.id
+                ):
+                    raise ValueError("an operator must be the initial manager")
+                manager_user_id = creator.id
+
+            manager_record = locked_users.get(manager_user_id)
+            if manager_record is None:
+                manager_record = unit_of_work.users.get_user_for_update(manager_user_id)
+            manager_membership = unit_of_work.teams.get_member(command.team_id, manager_user_id)
+            if (
+                manager_record is None
+                or not manager_record.is_active
+                or manager_membership is None
+                or not manager_membership.is_active
+            ):
+                msg = "the initial manager is not an active direct member of the project team"
+                raise ResourceNotFoundError(msg)
+            project = unit_of_work.projects.add_project(
+                command,
+                manager_user_id=manager_user_id,
+                created_by_user_id=creator.id,
+            )
+            if creator_is_eligible:
+                unit_of_work.access.set_member_role(project.id, creator.id, ProjectRole.operator)
             unit_of_work.commit()
-        return AccessibleProject(**project.model_dump(), current_user_role=ProjectRole.operator)
+        return AccessibleProject(
+            **project.model_dump(),
+            current_user_role=ProjectRole.operator,
+            current_user_can_manage_members=True,
+        )
 
     def get_project(self, project_id: UUID) -> Project:
         """Return one project or raise a resource-level not-found failure."""

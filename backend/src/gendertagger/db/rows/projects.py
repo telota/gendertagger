@@ -9,6 +9,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -39,11 +40,30 @@ class ProjectRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
             "slug ~ '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'",
             name="slug_format",
         ),
+        ForeignKeyConstraint(
+            ["team_id", "manager_user_id"],
+            ["team_memberships.team_id", "team_memberships.user_id"],
+            name="fk_projects_manager_team_membership",
+            ondelete="RESTRICT",
+        ),
+        Index("ix_projects_team_id", "team_id"),
+        Index("ix_projects_manager_user_id", "manager_user_id"),
     )
 
     slug: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     display_name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
+    team_id: Mapped[UUID] = mapped_column(
+        POSTGRESQL_UUID(as_uuid=True),
+        ForeignKey("teams.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    manager_user_id: Mapped[UUID] = mapped_column(POSTGRESQL_UUID(as_uuid=True), nullable=False)
+    created_by_user_id: Mapped[UUID] = mapped_column(
+        POSTGRESQL_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
     # Forward reference: `projects` is created before `aggregation_executions` in the baseline
     # migration, so this column needs `use_alter=True`, like every other forward FK in
     # db/artifacts.py. The repository enforces that the referenced aggregation belongs to a run

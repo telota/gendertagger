@@ -22,8 +22,11 @@ from gendertagger.models.project import (
     TabularImportProfile,
     TeiImportProfile,
 )
+from gendertagger.models.team import TeamSummary
 
 PROJECT_ID = UUID("10000000-0000-0000-0000-000000000001")
+TEAM_ID = UUID("10000000-0000-0000-0000-000000000002")
+USER_ID = UUID("10000000-0000-0000-0000-000000000003")
 SNAPSHOT_ID = UUID("20000000-0000-0000-0000-000000000001")
 ARTIFACT_ID = UUID("30000000-0000-0000-0000-000000000001")
 PERSON_ID = UUID("40000000-0000-0000-0000-000000000001")
@@ -50,12 +53,29 @@ def snapshot_payload(**overrides: object) -> dict[str, object]:
     return payload
 
 
-def test_project_create_rejects_blank_display_name_and_unknown_fields() -> None:
+def team_summary() -> TeamSummary:
+    return TeamSummary(
+        id=TEAM_ID,
+        slug="editorial-team",
+        display_name="Editorial team",
+        created_at=CREATED_AT,
+        updated_at=CREATED_AT,
+    )
+
+
+def test_project_create_requires_team_and_rejects_unknown_fields() -> None:
     with pytest.raises(ValidationError, match="display_name must not be blank"):
-        ProjectCreate(slug="edition", display_name="  ")
+        ProjectCreate(slug="edition", display_name="  ", team_id=TEAM_ID)
+    with pytest.raises(ValidationError, match="Field required"):
+        ProjectCreate(slug="edition", display_name="Edition")
     with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
         ProjectCreate.model_validate(
-            {"slug": "edition", "display_name": "Edition", "unexpected": True}
+            {
+                "slug": "edition",
+                "display_name": "Edition",
+                "team_id": TEAM_ID,
+                "unexpected": True,
+            }
         )
 
 
@@ -64,6 +84,9 @@ def test_project_working_aggregation_defaults_to_none_and_is_settable() -> None:
         id=PROJECT_ID,
         slug="edition",
         display_name="Edition",
+        team=team_summary(),
+        manager_user_id=USER_ID,
+        created_by_user_id=USER_ID,
         created_at=CREATED_AT,
     )
     with_pointer = without_pointer.model_copy(
@@ -218,7 +241,7 @@ def test_snapshot_import_config_rejects_mismatched_derived_profile(
 @pytest.mark.parametrize("slug", ["Uppercase", "two_words", "-leading", "trailing-"])
 def test_project_create_rejects_noncanonical_slug(slug: str) -> None:
     with pytest.raises(ValidationError):
-        ProjectCreate(slug=slug, display_name="Edition")
+        ProjectCreate(slug=slug, display_name="Edition", team_id=TEAM_ID)
 
 
 def test_snapshot_create_requires_json_compatible_config_and_sha256() -> None:

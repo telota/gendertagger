@@ -67,7 +67,13 @@ def test_team_read_contracts_are_frozen_and_roster_free() -> None:
 
 
 @pytest.mark.contract
-def test_team_slice_preserves_the_existing_unscoped_project_create_contract() -> None:
-    project = ProjectCreate(slug="existing-project", display_name="Existing project")
+def test_project_create_requires_a_team_and_optionally_names_an_initial_manager() -> None:
+    project = ProjectCreate(
+        slug="team-project",
+        display_name="Team project",
+        team_id=TEAM_ID,
+        initial_manager_user_id=USER_ID,
+    )
 
-    assert "team_id" not in project.model_dump()
+    assert project.team_id == TEAM_ID
+    assert project.initial_manager_user_id == USER_ID

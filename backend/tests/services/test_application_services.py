@@ -62,6 +62,7 @@ from gendertagger.models.review import (
     ReviewWorkflowState,
 )
 from gendertagger.models.run import Progress, Run, RunCreate, RunCreateRequest
+from gendertagger.models.team import TeamMember, TeamSummary
 from gendertagger.models.user import CurrentUser, GlobalRole, ProjectRole, User, UserCreate
 from gendertagger.services.aggregations import AggregationCreation, AggregationService
 from gendertagger.services.annotations import AnnotationService
@@ -90,6 +91,7 @@ from gendertagger.services.ports.review_repository import (
     ReviewSummaryData,
 )
 from gendertagger.services.ports.run_repository import RunRepository
+from gendertagger.services.ports.team_repository import TeamRepository
 from gendertagger.services.ports.unit_of_work import UnitOfWork
 from gendertagger.services.ports.user_repository import UserRepository
 from gendertagger.services.projects import (
@@ -144,6 +146,7 @@ class StubUnitOfWork:
         users: object | None = None,
         auth: object | None = None,
         access: object | None = None,
+        teams: object | None = None,
     ) -> None:
         self._projects = projects if projects is not None else Mock(spec=ProjectRepository)
         self._artifacts = artifacts if artifacts is not None else Mock(spec=ArtifactRepository)
@@ -156,6 +159,7 @@ class StubUnitOfWork:
         self._users = users if users is not None else Mock(spec=UserRepository)
         self._auth = auth if auth is not None else Mock(spec=AuthRepository)
         self._access = access if access is not None else Mock(spec=ProjectAccessRepository)
+        self._teams = teams if teams is not None else Mock(spec=TeamRepository)
         self.commit_count = 0
         self.rollback_count = 0
 
@@ -206,6 +210,10 @@ class StubUnitOfWork:
     def access(self) -> ProjectAccessRepository:
         return cast(ProjectAccessRepository, self._access)
 
+    @property
+    def teams(self) -> TeamRepository:
+        return cast(TeamRepository, self._teams)
+
     def commit(self) -> None:
         self.commit_count += 1
 
@@ -217,10 +225,20 @@ class StubUnitOfWork:
 
 
 def _project() -> Project:
+    team = TeamSummary(
+        id=UUID("10000000-0000-0000-0000-000000000004"),
+        slug="service-team",
+        display_name="Service team",
+        created_at=NOW,
+        updated_at=NOW,
+    )
     return Project(
         id=PROJECT_ID,
         slug="service-project",
         display_name="Service project",
+        team=team,
+        manager_user_id=AUTH_USER_ID,
+        created_by_user_id=AUTH_USER_ID,
         created_at=NOW,
     )
 
@@ -307,15 +325,49 @@ def test_project_service_validates_limits_and_project_resources(tmp_path: Path) 
     project_repository.add_project.return_value = _project()
     project_repository.get_project.side_effect = [_project(), None]
     access_repository = Mock(spec=ProjectAccessRepository)
-    unit_of_work = StubUnitOfWork(projects=project_repository, access=access_repository)
+    user_repository = Mock(spec=UserRepository)
+    team_repository = Mock(spec=TeamRepository)
+    unit_of_work = StubUnitOfWork(
+        projects=project_repository,
+        access=access_repository,
+        users=user_repository,
+        teams=team_repository,
+    )
     service = _project_service(unit_of_work=unit_of_work, artifact_root=tmp_path)
+    creator = User(
+        id=AUTH_USER_ID,
+        display_name="Operator",
+        roles={GlobalRole.operator},
+        is_active=True,
+        created_at=NOW,
+        updated_at=NOW,
+    )
+    team_repository.get_team_for_update.return_value = _project().team
+    team_repository.get_member.return_value = TeamMember(
+        team_id=_project().team.id,
+        user_id=AUTH_USER_ID,
+        display_name="Operator",
+        is_active=True,
+        created_at=NOW,
+    )
+    user_repository.get_user_for_update.return_value = creator
 
     created = service.create_project(
-        ProjectCreate(slug="service-project", display_name="Service project"),
-        creator_user_id=AUTH_USER_ID,
+        ProjectCreate(
+            slug="service-project",
+            display_name="Service project",
+            team_id=_project().team.id,
+        ),
+        creator=CurrentUser(
+            id=AUTH_USER_ID,
+            display_name="Operator",
+            roles={GlobalRole.operator},
+        ),
     )
     assert created == AccessibleProject(
-        **_project().model_dump(), current_user_role=ProjectRole.operator
+        **_project().model_dump(),
+        current_user_role=ProjectRole.operator,
+        current_user_can_manage_members=True,
     )
     access_repository.set_member_role.assert_called_once_with(
         PROJECT_ID, AUTH_USER_ID, ProjectRole.operator

@@ -12,6 +12,7 @@ from gendertagger.api.authentication import AuthenticationBackend
 from gendertagger.api.settings import AppSettings
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
+from gendertagger.models.team import TeamCreate
 from gendertagger.models.user import GlobalRole, UserCreate
 from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
@@ -51,6 +52,7 @@ class _Deployment:
             unit_of_work_factory=unit_of_work_factory,
             authentication_backend=StaticAuthenticationBackend(uuid4()),
         )
+        self.user_team_ids: dict[UUID, UUID] = {}
         self.client = TestClient(self.application)
 
     def add_user(self, display_name: str, *roles: GlobalRole) -> UUID:
@@ -58,7 +60,12 @@ class _Deployment:
             user = unit_of_work.users.add_user(
                 UserCreate(display_name=display_name, roles=set(roles))
             )
+            team = unit_of_work.teams.add_team(
+                TeamCreate(slug=f"user-{user.id.hex}", display_name=f"{display_name} team")
+            )
+            unit_of_work.teams.add_member(team.id, user.id)
             unit_of_work.commit()
+        self.user_team_ids[user.id] = team.id
         return user.id
 
     def act_as(self, user_id: UUID) -> TestClient:
@@ -67,18 +74,27 @@ class _Deployment:
 
     def create_project(self, creator_id: UUID, slug: str) -> UUID:
         response = self.act_as(creator_id).post(
-            "/api/v1/projects", json={"slug": slug, "display_name": slug.title()}
+            "/api/v1/projects",
+            json={
+                "slug": slug,
+                "display_name": slug.title(),
+                "team_id": str(self.user_team_ids[creator_id]),
+            },
         )
         assert response.status_code == 201
         assert response.json()["current_user_role"] == "operator"
         return UUID(response.json()["id"])
 
     def grant(self, admin_id: UUID, project_id: UUID, user_id: UUID, role: str) -> None:
+        with self.unit_of_work_factory() as unit_of_work:
+            project = unit_of_work.projects.get_project(project_id)
+            assert project is not None
+            unit_of_work.teams.add_member(project.team.id, user_id)
+            unit_of_work.commit()
         response = self.act_as(admin_id).put(
             f"/api/v1/projects/{project_id}/members/{user_id}", json={"role": role}
         )
         assert response.status_code == 200
-
 
 @pytest.fixture
 def deployment(postgres_engine: Engine, tmp_path: Path) -> _Deployment:
@@ -119,6 +135,35 @@ def test_project_list_shows_only_member_projects_with_the_callers_role(
     ]
     assert outsider_page == {"items": [], "next_cursor": None, "has_more": False}
     assert {admin_ids[str(project)] for project in (first, second, foreign)} == {"operator"}
+
+
+def test_manager_without_project_role_can_manage_roster_but_cannot_read_project_data(
+    deployment: _Deployment,
+) -> None:
+    creator = deployment.add_user("Creator", GlobalRole.operator)
+    administrator = deployment.add_user("Administrator", GlobalRole.admin)
+    manager = deployment.add_user("Manager")
+    project_id = deployment.create_project(creator, _slug("manager"))
+
+    with deployment.unit_of_work_factory() as unit_of_work:
+        project = unit_of_work.projects.get_project(project_id)
+        assert project is not None
+        unit_of_work.teams.add_member(project.team.id, manager)
+        unit_of_work.commit()
+    transfer = deployment.act_as(administrator).put(
+        f"/api/v1/projects/{project_id}/manager",
+        json={
+            "manager_user_id": str(manager),
+            "expected_manager_user_id": str(creator),
+        },
+    )
+
+    assert transfer.status_code == 200
+    assert transfer.json()["manager"]["user_id"] == str(manager)
+    assert deployment.act_as(manager).get(f"/api/v1/projects/{project_id}").status_code == 404
+    roster = deployment.act_as(manager).get(f"/api/v1/projects/{project_id}/members")
+    assert roster.status_code == 200
+    assert roster.json()["manager"]["project_role"] is None
 
 
 def test_project_list_paginates_in_slug_order(deployment: _Deployment) -> None:
@@ -214,6 +259,11 @@ def test_administrators_grant_change_list_and_revoke_memberships(
     admin = deployment.add_user("Administrator", GlobalRole.admin)
     member = deployment.add_user("Member")
     project_id = deployment.create_project(creator, _slug("members"))
+    with deployment.unit_of_work_factory() as unit_of_work:
+        project = unit_of_work.projects.get_project(project_id)
+        assert project is not None
+        unit_of_work.teams.add_member(project.team.id, member)
+        unit_of_work.commit()
     client = deployment.act_as(admin)
     members_url = f"/api/v1/projects/{project_id}/members"
 
@@ -230,7 +280,7 @@ def test_administrators_grant_change_list_and_revoke_memberships(
     assert granted.json()["role"] == "viewer"
     assert changed.json()["role"] == "operator"
     assert changed.json()["created_at"] == granted.json()["created_at"]
-    assert [(item["display_name"], item["role"]) for item in listed.json()] == [
+    assert [(item["display_name"], item["role"]) for item in listed.json()["members"]] == [
         ("Creator", "operator"),
         ("Member", "operator"),
     ]

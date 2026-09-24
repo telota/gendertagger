@@ -11,6 +11,7 @@ from gendertagger.api.authentication import require_authenticated_user
 from gendertagger.api.authorization import (
     ProjectAccessGuard,
     get_project_access_guard,
+    has_global_role,
     require_any_grant,
     require_project_creator,
 )
@@ -31,7 +32,7 @@ from gendertagger.models.project import (
     SourceFormat,
     SourcePackaging,
 )
-from gendertagger.models.user import CurrentUser, ProjectRole
+from gendertagger.models.user import CurrentUser, GlobalRole, ProjectRole
 from gendertagger.services.pagination import InvalidCursorError
 from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
@@ -41,6 +42,7 @@ from gendertagger.services.ports.project_access_repository import ProjectScope
 from gendertagger.services.project_access import ProjectAccessService
 from gendertagger.services.projects import (
     InvalidSnapshotSourceError,
+    ProjectCreationForbiddenError,
     ProjectService,
     SnapshotUpload,
     SnapshotUploadTooLargeError,
@@ -56,8 +58,17 @@ def create_project(
     service: Annotated[ProjectService, Depends(get_project_service)],
     creator: Annotated[CurrentUser, Depends(require_project_creator)],
 ) -> AccessibleProject:
-    """Create one editorial project and make its creator the project operator."""
-    return service.create_project(command, creator_user_id=creator.id)
+    """Create one team-owned project with an eligible initial manager."""
+    try:
+        return service.create_project(command, creator=creator)
+    except ProjectCreationForbiddenError as error:
+        raise ApiRequestError(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="forbidden",
+            message="The authenticated user cannot create a project in this team.",
+        ) from error
+    except ResourceNotFoundError as error:
+        raise _not_found() from error
 
 
 @router.get("/projects", response_model=CursorPage[AccessibleProject])
@@ -86,7 +97,14 @@ def get_project(
         project = service.get_project(project_id)
     except ResourceNotFoundError as error:
         raise _not_found() from error
-    return AccessibleProject(**project.model_dump(), current_user_role=role)
+    return AccessibleProject(
+        **project.model_dump(),
+        current_user_role=role,
+        current_user_can_manage_members=(
+            has_global_role(access.user, GlobalRole.admin)
+            or access.user.id == project.manager_user_id
+        ),
+    )
 
 
 @router.put(
@@ -114,7 +132,14 @@ def set_working_aggregation(
             code="resource_conflict",
             message="The aggregation execution is not completed.",
         ) from error
-    return AccessibleProject(**project.model_dump(), current_user_role=role)
+    return AccessibleProject(
+        **project.model_dump(),
+        current_user_role=role,
+        current_user_can_manage_members=(
+            has_global_role(access.user, GlobalRole.admin)
+            or access.user.id == project.manager_user_id
+        ),
+    )
 
 
 @router.get("/snapshot-upload-limits", response_model=SnapshotUploadLimits)

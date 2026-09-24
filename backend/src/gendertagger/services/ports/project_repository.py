@@ -20,12 +20,21 @@ from gendertagger.services.pagination import CreationPosition
 class ProjectRepository(Protocol):
     """Persist canonical project resources without owning the transaction."""
 
-    def add_project(self, command: ProjectCreate) -> Project:
-        """Persist and return a new project in the current transaction."""
+    def add_project(
+        self,
+        command: ProjectCreate,
+        *,
+        manager_user_id: UUID,
+        created_by_user_id: UUID,
+    ) -> Project:
+        """Persist a validated team-owned project without committing."""
         ...
 
     def get_project(self, project_id: UUID) -> Project | None:
         """Return a project by ID, or ``None`` when absent."""
+        ...
+    def get_project_for_update(self, project_id: UUID) -> Project | None:
+        """Return one project under a write lock, or ``None`` when absent."""
         ...
 
     def get_project_by_slug(self, slug: str) -> Project | None:

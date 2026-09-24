@@ -21,6 +21,9 @@ class UserRepository(Protocol):
     def lock_administrator_updates(self) -> None:
         """Serialize local-account mutations for the current transaction."""
         ...
+    def lock_membership_updates(self, user_id: UUID) -> None:
+        """Serialize a user's team-derived access lifecycle transitions."""
+        ...
 
     def get_active_administrator_ids(self) -> Collection[UUID]:
         """Return the active global administrators from the current transaction view."""

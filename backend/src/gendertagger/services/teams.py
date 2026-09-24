@@ -20,6 +20,7 @@ from gendertagger.services.pagination import CursorCodec, CursorPosition, Invali
 from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
 from gendertagger.services.ports.team_repository import TeamCursor, TeamMemberCursor
 from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.project_access import ManagerReplacementRequiredError
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,10 @@ logger = logging.getLogger(__name__)
 class TeamNotEmptyError(RuntimeError):
     """Raised when a requested team deletion would orphan direct memberships."""
 
+
+
+class TeamInUseError(RuntimeError):
+    """Raised when a team still owns one or more projects."""
 
 class InactiveUserError(RuntimeError):
     """Raised when a roster-add command targets a currently inactive account."""
@@ -151,6 +156,8 @@ class TeamService:
                 raise ResourceNotFoundError(msg)
             if unit_of_work.teams.has_members(team_id):
                 raise TeamNotEmptyError("a team with direct members cannot be deleted")
+            if unit_of_work.teams.has_projects(team_id):
+                raise TeamInUseError("a team with assigned projects cannot be deleted")
             unit_of_work.teams.delete_team(team_id)
             unit_of_work.commit()
         logger.info(
@@ -216,6 +223,7 @@ class TeamService:
     ) -> tuple[TeamMember, bool]:
         """Add one active account to a team, returning the membership and whether it was new."""
         with self._unit_of_work_factory() as unit_of_work:
+            unit_of_work.users.lock_membership_updates(command.user_id)
             unit_of_work.teams.lock_team(team_id)
             if unit_of_work.teams.get_team_for_update(team_id) is None:
                 msg = f"team {team_id} does not exist"
@@ -248,15 +256,28 @@ class TeamService:
         actor_user_id: UUID | None,
         request_id: str | None,
     ) -> None:
-        """Remove one direct membership without altering unrelated project memberships."""
+        """Remove team membership and all derived project roles atomically."""
         with self._unit_of_work_factory() as unit_of_work:
+            unit_of_work.users.lock_membership_updates(user_id)
             unit_of_work.teams.lock_team(team_id)
             if unit_of_work.teams.get_team_for_update(team_id) is None:
                 msg = f"team {team_id} does not exist"
                 raise ResourceNotFoundError(msg)
-            if not unit_of_work.teams.remove_member(team_id, user_id):
+            if unit_of_work.users.get_user_for_update(user_id) is None:
+                msg = f"user {user_id} does not exist"
+                raise ResourceNotFoundError(msg)
+            managed_project_ids = unit_of_work.access.list_managed_project_ids(team_id, user_id)
+            for project_id in managed_project_ids:
+                unit_of_work.projects.get_project_for_update(project_id)
+            if managed_project_ids:
+                raise ManagerReplacementRequiredError(
+                    "a manager must be replaced before removing team membership"
+                )
+            if not unit_of_work.teams.get_member(team_id, user_id):
                 msg = f"user {user_id} is not a member of team {team_id}"
                 raise ResourceNotFoundError(msg)
+            unit_of_work.access.remove_team_member_project_memberships(team_id, user_id)
+            unit_of_work.teams.remove_member(team_id, user_id)
             unit_of_work.commit()
         logger.info(
             "team %s membership of user %s removed by %s (request %s)",
