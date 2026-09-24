@@ -10,7 +10,7 @@ import { useRequireSession, useRouteParam } from '@/composables/useRequireSessio
 import { useStatusLabel } from '@/features/runs/useStatusLabel'
 
 import { downloadExport, saveDownload, type DownloadedExport } from './exportDownload'
-import { useExport } from './useExports'
+import { useExport, useExportManifest } from './useExports'
 
 const { t, d, n } = useI18n()
 const label = useStatusLabel()
@@ -23,6 +23,7 @@ const exportId = useRouteParam('exportId')
 
 const item = useExport(exportId, isSignedIn)
 const isCompleted = computed(() => item.data.value?.status === 'completed')
+const manifest = useExportManifest(exportId, isCompleted)
 
 // Downloading also hashes what arrived, so the result can be compared with the manifest's checksum.
 const downloading = ref(false)
@@ -48,6 +49,21 @@ async function download(): Promise<void> {
     downloading.value = false
   }
 }
+
+// The download is checked against the manifest the server persisted for this export: the bytes must
+// have the checksum and size the manifest records for the (one) output. An export with several outputs
+// downloads as the manifest itself, so there is nothing to compare it to.
+type ManifestVerdict = 'none' | 'match' | 'mismatch' | 'notApplicable'
+const manifestVerdict = computed<ManifestVerdict>(() => {
+  const downloaded = result.value
+  const outputs = manifest.data.value?.outputs
+  if (!downloaded || !outputs) return 'none'
+  if (downloaded.manifest || outputs.length !== 1) return 'notApplicable'
+  const [only] = outputs
+  return only?.sha256 === downloaded.sha256 && only.byte_size === downloaded.byteSize
+    ? 'match'
+    : 'mismatch'
+})
 
 const SHA256 = /^[0-9a-f]{64}$/
 const normalized = computed(() => expected.value.trim().toLowerCase())
@@ -164,6 +180,65 @@ const verdict = computed<Verdict>(() => {
 
         <section
           v-if="isCompleted"
+          class="export-detail-block export-detail-manifest-section"
+          aria-labelledby="export-manifest-heading"
+        >
+          <h2 id="export-manifest-heading" class="export-detail-heading">
+            {{ t('export.detail.manifest.title') }}
+          </h2>
+          <p class="export-detail-note">{{ t('export.detail.manifest.note') }}</p>
+          <p v-if="manifest.isPending.value" role="status">{{ t('runs.loading') }}</p>
+          <div v-else-if="manifest.isError.value" class="export-detail-load-error">
+            <p role="alert" class="export-detail-manifest-error">
+              {{ t('export.detail.manifest.loadError') }}
+            </p>
+            <AppButton type="button" @click="() => manifest.refetch()">
+              {{ t('runs.retry') }}
+            </AppButton>
+          </div>
+          <template v-else-if="manifest.data.value">
+            <dl class="export-detail-facts">
+              <div class="export-detail-fact">
+                <dt>{{ t('export.detail.sourceSnapshot') }}</dt>
+                <dd>
+                  <code class="export-detail-hash export-detail-source-hash">{{
+                    manifest.data.value.source_snapshot_sha256
+                  }}</code>
+                </dd>
+              </div>
+              <div class="export-detail-fact">
+                <dt>{{ t('export.detail.manifest.generated') }}</dt>
+                <dd>{{ d(new Date(manifest.data.value.generated_at), 'timestamp') }}</dd>
+              </div>
+            </dl>
+            <table class="export-detail-outputs export-detail-manifest-outputs">
+              <caption class="export-detail-caption">
+                {{
+                  t('export.detail.outputs')
+                }}
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">{{ t('export.detail.file') }}</th>
+                  <th scope="col">{{ t('export.detail.size') }}</th>
+                  <th scope="col">{{ t('export.detail.checksum') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="output in manifest.data.value.outputs" :key="output.logical_name">
+                  <th scope="row">{{ output.logical_name }}</th>
+                  <td>{{ t('export.detail.bytes', { size: n(output.byte_size, 'integer') }) }}</td>
+                  <td>
+                    <code class="export-detail-hash">{{ output.sha256 }}</code>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </template>
+        </section>
+
+        <section
+          v-if="isCompleted"
           class="export-detail-block"
           aria-labelledby="export-download-heading"
         >
@@ -199,45 +274,22 @@ const verdict = computed<Verdict>(() => {
               </div>
             </dl>
 
-            <div v-if="result.manifest" class="export-detail-manifest">
-              <p class="export-detail-note">{{ t('export.detail.manifestReceived') }}</p>
-              <dl class="export-detail-facts">
-                <div class="export-detail-fact">
-                  <dt>{{ t('export.detail.sourceSnapshot') }}</dt>
-                  <dd>
-                    <code class="export-detail-hash">{{
-                      result.manifest.source_snapshot_sha256
-                    }}</code>
-                  </dd>
-                </div>
-              </dl>
-              <table class="export-detail-outputs">
-                <caption class="export-detail-caption">
-                  {{
-                    t('export.detail.outputs')
-                  }}
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">{{ t('export.detail.file') }}</th>
-                    <th scope="col">{{ t('export.detail.size') }}</th>
-                    <th scope="col">{{ t('export.detail.checksum') }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="output in result.manifest.outputs" :key="output.logical_name">
-                    <th scope="row">{{ output.logical_name }}</th>
-                    <td>
-                      {{ t('export.detail.bytes', { size: n(output.byte_size, 'integer') }) }}
-                    </td>
-                    <td>
-                      <code class="export-detail-hash">{{ output.sha256 }}</code>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <p v-else class="export-detail-note">{{ t('export.detail.manifestNotExposed') }}</p>
+            <p v-if="result.manifest" class="export-detail-note">
+              {{ t('export.detail.manifestReceived') }}
+            </p>
+            <p class="export-detail-manifest-verdict" role="status">
+              <span v-if="manifestVerdict === 'match'" class="export-detail-verdict--match">{{
+                t('export.detail.manifestVerdict.match')
+              }}</span>
+              <span
+                v-else-if="manifestVerdict === 'mismatch'"
+                class="export-detail-verdict--mismatch"
+                >{{ t('export.detail.manifestVerdict.mismatch') }}</span
+              >
+              <span v-else-if="manifestVerdict === 'notApplicable'" class="export-detail-note">{{
+                t('export.detail.manifestVerdict.notApplicable')
+              }}</span>
+            </p>
 
             <div class="export-detail-verify">
               <label for="export-expected">{{ t('export.detail.verifyLabel') }}</label>

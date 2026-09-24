@@ -234,16 +234,16 @@ and records every non-read request).
 `features/evaluation/` lists and starts evaluations of a run and renders the stored report. The report response is
 untyped in OpenAPI, so `reportSchema.ts` declares and validates its shape (`tests/features/evaluation/fixtures/seed-report.json`
 is a real backend report used as a contract fixture). Rates and coefficients use the `ratio` number format (three places,
-as stored). Two backend gaps are recorded in `docs/24` (M7): the report is not in OpenAPI, and the worker does not register
-the evaluation task, so a newly created evaluation stays queued.
+as stored). One backend gap is recorded in `docs/24` (M7): the report is not in OpenAPI.
 
 ## Export (M8)
 
-`features/export/` lists and starts exports of a run and downloads them. `exportDownload.ts` hashes the downloaded bytes
-in the browser (SHA-256) so the reader can compare them with the manifest's checksum; the manifest is only returned by the
-API for a multi-output export, and the seeded one is kept as a fixture (`tests/features/export/fixtures/seed-manifest.json`).
-Two backend gaps are recorded in `docs/24` (M8): the manifest of a single-output export is unreadable, and the worker does
-not register the export task.
+`features/export/` lists and starts exports of a run, shows the persisted manifest of a completed export
+(`GET /exports/{id}/manifest`) and downloads it. `exportDownload.ts` hashes the downloaded bytes in the browser
+(SHA-256) and the detail screen compares them with the manifest's output (checksum and size); a checksum pasted from
+elsewhere is a second check. A multi-output export downloads as its manifest. The seeded manifest is kept as a fixture
+(`tests/features/export/fixtures/seed-manifest.json`). The development seed cannot produce a TEI export (its source
+file is a placeholder), see `docs/24` (M8).
 
 ## Production smoke test (M9)
 

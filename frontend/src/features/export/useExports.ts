@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref, type Ref } from 'vue'
 
 import { unwrap, type components } from '@/api'
@@ -9,6 +9,7 @@ export type ExportExecution = components['schemas']['ExportExecution']
 export type ExportCreateRequest = components['schemas']['ExportCreateRequest']
 export type ExportFormat = components['schemas']['ExportFormat']
 export type LabelSourcePolicy = components['schemas']['LabelSourcePolicy']
+export type ExportManifestRecord = components['schemas']['ExportManifest']
 
 const TERMINAL_STATUSES = new Set<ExportExecution['status']>(['completed', 'failed', 'cancelled'])
 export const isTerminalExport = (item: ExportExecution): boolean =>
@@ -72,5 +73,26 @@ export function useCreateExport() {
     },
     mutationFn: (input: ExportCreateRequest): Promise<ExportExecution> =>
       unwrap(client.POST('/api/v1/exports', { body: input })),
+  })
+}
+
+/**
+ * `GET /exports/{id}/manifest`: the persisted provenance of a completed export (source snapshot
+ * checksum and one checksummed descriptor per output), for every format. It is immutable once the
+ * export is completed.
+ */
+export function useExportManifest(exportId: Ref<string>, enabled: Ref<boolean>) {
+  const client = useApiClient()
+
+  return useQuery({
+    queryKey: computed(() => ['exports', exportId.value, 'manifest'] as const),
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/v1/exports/{export_execution_id}/manifest', {
+          params: { path: { export_execution_id: exportId.value } },
+        }),
+      ),
+    staleTime: Infinity,
+    enabled,
   })
 }

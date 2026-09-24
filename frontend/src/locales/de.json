@@ -1133,8 +1133,7 @@
       "size": "Größe",
       "bytes": "{size} Bytes",
       "checksum": "SHA-256",
-      "manifestReceived": "Dieser Export hat mehrere Ausgaben erzeugt, deshalb hat der Server sein Manifest geliefert. Die Ausgaben stehen unten; die einzelnen Ausgaben lassen sich nicht getrennt herunterladen.",
-      "manifestNotExposed": "Der Server gibt das Manifest eines Exports mit einer einzigen Ausgabe nicht heraus. Vergleiche die Prüfsumme oben mit dem sha256 dieser Ausgabe in der manifest.json.",
+      "manifestReceived": "Dieser Export hat mehrere Ausgaben erzeugt, deshalb ist der Download sein Manifest; die Ausgaben stehen im Abschnitt Manifest oben und lassen sich nicht getrennt herunterladen.",
       "sourceSnapshot": "SHA-256 des Quell-Snapshots",
       "outputs": "Im Manifest festgehaltene Ausgaben",
       "verifyLabel": "Prüfsumme aus dem Manifest (zum Vergleichen einfügen)",
@@ -1146,6 +1145,17 @@
       "errors": {
         "notFound": "Dieser Export hat keine Ausgabe zum Herunterladen.",
         "generic": "Der Download ist fehlgeschlagen."
+      },
+      "manifest": {
+        "title": "Manifest",
+        "note": "Der Server hält dieses Manifest fest, sobald der Export abgeschlossen ist; es ändert sich danach nicht mehr.",
+        "loadError": "Das Manifest konnte nicht geladen werden.",
+        "generated": "Manifest erzeugt"
+      },
+      "manifestVerdict": {
+        "match": "Die heruntergeladene Datei stimmt mit dem Manifest überein: gleiche SHA-256 und gleiche Größe.",
+        "mismatch": "Die heruntergeladene Datei stimmt NICHT mit dem Manifest überein. Nicht verwenden; erneut herunterladen.",
+        "notApplicable": "Dieser Download ist das Manifest selbst, es gibt keine Ausgabe zum Vergleichen."
       }
     }
   }

@@ -77,6 +77,18 @@ const MANIFEST = {
   generated_at: '2026-01-01T12:00:05Z',
 }
 
+const SINGLE_MANIFEST = {
+  ...MANIFEST,
+  outputs: [
+    {
+      logical_name: 'persons.xml',
+      sha256: OUTPUT_SHA,
+      byte_size: new TextEncoder().encode(OUTPUT_BYTES).length,
+      media_type: 'application/tei+xml',
+    },
+  ],
+}
+
 interface Server {
   role: 'operator' | 'viewer'
   exports: ReturnType<typeof exportItem>[]
@@ -85,6 +97,9 @@ interface Server {
   posts: Record<string, unknown>[]
   snapshotConfig: { source_format: string; packaging: string }
   download: { status: number; body: string; type: string }
+  /** What GET /exports/{id}/manifest answers: a manifest, or the HTTP status of a refusal. */
+  manifest: typeof MANIFEST | number
+  manifestRequests: number
   aggregations: boolean
 }
 
@@ -97,6 +112,8 @@ function newServer(overrides: Partial<Server> = {}): Server {
     posts: [],
     snapshotConfig: { source_format: 'tei', packaging: 'single' },
     download: { status: 200, body: OUTPUT_BYTES, type: 'application/tei+xml' },
+    manifest: SINGLE_MANIFEST,
+    manifestRequests: 0,
     aggregations: true,
     ...overrides,
   }
@@ -198,6 +215,16 @@ function exportClient(server: Server) {
         pathname === `/api/v1/exports/${NEW_EXPORT_ID}`
       ) {
         return jsonResponse(server.detail)
+      }
+      if (pathname === `/api/v1/exports/${EXPORT_ID}/manifest`) {
+        server.manifestRequests += 1
+        if (typeof server.manifest === 'number') {
+          return jsonResponse(
+            { error: { code: 'resource_not_found', message: 'no', details: {}, request_id: 'r' } },
+            { status: server.manifest },
+          )
+        }
+        return jsonResponse(server.manifest)
       }
       if (pathname === `/api/v1/exports/${EXPORT_ID}/download`) {
         if (server.download.status !== 200) {
@@ -361,10 +388,81 @@ describe.each(['de', 'en'] as const)('exports in %s', (locale: AppLocale) => {
     expect(wrapper.get('.export-detail-result').text()).toContain('export-')
     expect(saved).toHaveLength(1)
     expect(saved[0]?.name).toMatch(/\.xml$/)
-    // A single output has no manifest in the API: the reader is told where to compare.
-    expect(wrapper.get('.export-detail-result').text()).toContain(
-      messages.detail.manifestNotExposed,
+  })
+
+  it('shows the persisted manifest of a completed export before anything is downloaded', async () => {
+    const wrapper = await mountDetail(newServer())
+    await waitFor(() =>
+      expect(wrapper.find('.export-detail-manifest-section table').exists()).toBe(true),
     )
+
+    const section = wrapper.get('.export-detail-manifest-section')
+    expect(section.get('.export-detail-source-hash').text()).toBe('a'.repeat(64))
+    const rows = section.findAll('tbody tr').map((row) => row.text())
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toContain('persons.xml')
+    expect(rows[0]).toContain(OUTPUT_SHA)
+    expect(wrapper.find('.export-detail-manifest-verdict').exists()).toBe(false)
+  })
+
+  it('checks the downloaded bytes against the manifest: match', async () => {
+    const wrapper = await mountDetail(newServer())
+    await waitFor(() =>
+      expect(wrapper.find('.export-detail-manifest-section table').exists()).toBe(true),
+    )
+    await wrapper.get('.export-detail-download').trigger('click')
+    await waitFor(() =>
+      expect(wrapper.find('.export-detail-manifest-verdict span').exists()).toBe(true),
+    )
+
+    expect(wrapper.get('.export-detail-manifest-verdict').text()).toBe(
+      messages.detail.manifestVerdict.match,
+    )
+  })
+
+  it('warns when the downloaded bytes are not what the manifest recorded', async () => {
+    const wrapper = await mountDetail(
+      newServer({
+        download: { status: 200, body: OUTPUT_BYTES + ' ', type: 'application/tei+xml' },
+      }),
+    )
+    await waitFor(() =>
+      expect(wrapper.find('.export-detail-manifest-section table').exists()).toBe(true),
+    )
+    await wrapper.get('.export-detail-download').trigger('click')
+    await waitFor(() =>
+      expect(wrapper.find('.export-detail-manifest-verdict span').exists()).toBe(true),
+    )
+
+    expect(wrapper.get('.export-detail-manifest-verdict').text()).toBe(
+      messages.detail.manifestVerdict.mismatch,
+    )
+    expect(wrapper.find('.export-detail-verdict--mismatch').exists()).toBe(true)
+  })
+
+  it('does not fail the screen when the manifest cannot be loaded, and offers a retry', async () => {
+    const server = newServer({ manifest: 404 })
+    const wrapper = await mountDetail(server)
+    await waitFor(() => expect(wrapper.find('.export-detail-manifest-error').exists()).toBe(true))
+
+    expect(wrapper.get('.export-detail-manifest-error').text()).toBe(
+      messages.detail.manifest.loadError,
+    )
+    expect(wrapper.find('.export-detail-download').exists()).toBe(true)
+
+    server.manifest = SINGLE_MANIFEST
+    await wrapper.get('.export-detail-manifest-section button').trigger('click')
+    await waitFor(() =>
+      expect(wrapper.find('.export-detail-manifest-section table').exists()).toBe(true),
+    )
+  })
+
+  it('requests no manifest for an export that has not completed', async () => {
+    const server = newServer({ detail: exportItem('running', { finished_at: null }) })
+    await mountDetail(server)
+    await flushPromises()
+
+    expect(server.manifestRequests).toBe(0)
   })
 
   it('verifies a pasted manifest checksum: match, mismatch, and not a checksum', async () => {
@@ -386,22 +484,27 @@ describe.each(['de', 'en'] as const)('exports in %s', (locale: AppLocale) => {
     expect(wrapper.get('.export-detail-verdict').text()).toBe('')
   })
 
-  it('lists the manifest’s outputs and the source snapshot when the server answers with the manifest', async () => {
+  it('says the download is the manifest when an export has several outputs', async () => {
     const server = newServer({
+      manifest: MANIFEST,
       download: { status: 200, body: JSON.stringify(MANIFEST), type: 'application/json' },
     })
     const wrapper = await mountDetail(server)
     await waitFor(() => expect(wrapper.find('.export-detail-download').exists()).toBe(true))
     await wrapper.get('.export-detail-download').trigger('click')
-    await waitFor(() => expect(wrapper.find('.export-detail-manifest').exists()).toBe(true))
+    await waitFor(() => expect(saved).toHaveLength(1))
+    await flushPromises()
 
-    const manifest = wrapper.get('.export-detail-manifest')
-    expect(manifest.text()).toContain(messages.detail.manifestReceived)
-    expect(manifest.text()).toContain('a'.repeat(64))
-    const rows = manifest.findAll('tbody tr').map((row) => row.text())
+    const section = wrapper.get('.export-detail-manifest-section')
+    expect(section.text()).toContain('a'.repeat(64))
+    const rows = section.findAll('tbody tr').map((row) => row.text())
     expect(rows[0]).toContain('persons-a.xml')
     expect(rows[0]).toContain('b'.repeat(64))
     expect(rows[1]).toContain('persons-b.xml')
+    expect(wrapper.get('.export-detail-result').text()).toContain(messages.detail.manifestReceived)
+    expect(wrapper.get('.export-detail-manifest-verdict').text()).toBe(
+      messages.detail.manifestVerdict.notApplicable,
+    )
     expect(saved[0]?.name).toBe('manifest.json')
   })
 
@@ -419,7 +522,9 @@ describe.each(['de', 'en'] as const)('exports in %s', (locale: AppLocale) => {
     await wrapper.get('.export-detail-download').trigger('click')
     await waitFor(() => expect(wrapper.find('.export-detail-result').exists()).toBe(true))
 
-    expect(wrapper.find('.export-detail-manifest').exists()).toBe(false)
+    expect(wrapper.get('.export-detail-result').text()).not.toContain(
+      messages.detail.manifestReceived,
+    )
     expect(saved[0]?.name).toMatch(/\.json$/)
   })
 
