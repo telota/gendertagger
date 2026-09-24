@@ -106,7 +106,8 @@ services:
       - model
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "celery", "-A", "gendertagger.tasks.celery_app", "inspect", "ping", "-d", "celery@$$HOSTNAME"]
+      # Compose preserves $$; the container shell expands its own worker hostname.
+      test: ["CMD-SHELL", "celery -A gendertagger.tasks.celery_app inspect ping -d \"celery@$$HOSTNAME\""]
       interval: 30s
       timeout: 10s
       retries: 3
