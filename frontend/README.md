@@ -215,6 +215,14 @@ aggregations.
 `useRunProgress.ts` is the SSE composable (reconnect, refetch after every re-connection); EventSource is not in
 jsdom, so its specs use a small fake with open/emit/fail.
 
+## Review (M5a, in progress)
+
+`features/review/` is the review workbench, reached from a completed aggregation. Its whole view state lives in the
+URL (`useReviewFilters.ts`: queue, filters, selected person). `useVocabulary.ts` and `VocabBadge.vue` render the
+controlled vocabulary as an untranslated token with an optional gloss (D3). Keyboard model: `1`–`4` for the four
+labels (M5b), no letter shortcuts, `Tab`/`Enter` for everything else. A method's own confidence uses the
+`confidence` number format (two places), never the one-place `decimal`.
+
 ## Branding
 
 The footer, the start page, and `/impressum` render `GET /api/v1/branding` ([ADR-0036](../docs/decisions/ADR-0036-institution-branding-configuration.md))

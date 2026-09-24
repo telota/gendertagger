@@ -88,6 +88,14 @@ const resolvedConfig = computed(() =>
           </p>
         </div>
 
+        <RouterLink
+          v-if="aggregation.data.value.status === 'completed'"
+          class="aggregation-detail-review"
+          :to="{ name: 'review', params: { projectId, runId, aggregationId } }"
+        >
+          {{ t('aggregations.detail.review') }}
+        </RouterLink>
+
         <dl class="aggregation-detail-facts">
           <div class="aggregation-detail-fact">
             <dt>{{ t('aggregations.item.strategy') }}</dt>
@@ -161,6 +169,12 @@ const resolvedConfig = computed(() =>
 
 .aggregation-detail-back {
   color: var(--accent);
+  text-underline-offset: 0.2em;
+}
+
+.aggregation-detail-review {
+  color: var(--accent);
+  font-weight: var(--weight-semibold);
   text-underline-offset: 0.2em;
 }
 

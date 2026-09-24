@@ -387,7 +387,155 @@
       "resolvedConfig": "Aufgelöste Konfiguration",
       "selection": "Gewählte Methodenausführungen",
       "selectionHint": "Genau die Ausführungen, die diese Aggregation verwendet hat, in der verwendeten Reihenfolge.",
-      "provenanceHint": "Der Lauf, aus dem diese Aggregation berechnet wurde:"
+      "provenanceHint": "Der Lauf, aus dem diese Aggregation berechnet wurde:",
+      "review": "Ergebnisse dieser Aggregation prüfen"
+    }
+  },
+  "review": {
+    "title": "Prüfen",
+    "back": "Zurück zur Aggregation",
+    "loading": "Wird geladen …",
+    "retry": "Erneut versuchen",
+    "loadMore": "Mehr laden",
+    "none": "keine",
+    "subtitle": "Strategie {strategy} · {count} Personen",
+    "aggregationLoadError": "Die Aggregation konnte nicht geladen werden.",
+    "notCompleted": "Diese Aggregation ist noch nicht fertig. Ihre Ergebnisse lassen sich prüfen, sobald sie abgeschlossen ist.",
+    "queue": {
+      "label": "Warteschlange",
+      "count": "{open} offen von {total}",
+      "contested": {
+        "title": "Umstrittene Evidenz",
+        "hint": "low, contested: die Methoden widersprechen sich"
+      },
+      "thin": {
+        "title": "Dünne Evidenz",
+        "hint": "single, uncertain: nur das LLM hat geantwortet"
+      },
+      "all": {
+        "title": "Alle Personen",
+        "hint": "Das ganze Register in TEI-Reihenfolge"
+      }
+    },
+    "filters": {
+      "title": "Filter",
+      "search": "Suche (Name oder TEI-ID)",
+      "sort": "Reihenfolge",
+      "sortUncertainty": "Unsicherste zuerst (review_triage_v1)",
+      "sortTei": "TEI-ID",
+      "states": "Prüfstand",
+      "label": "Endgültiges Label",
+      "agreement": "Übereinstimmung",
+      "authorityConflict": "Autorität widerspricht dem Ensemble",
+      "predictionError": "Eine Methode ist technisch fehlgeschlagen",
+      "method": "Methode",
+      "methodLabel": "Label der Methode",
+      "predictionStatus": "Status der Methode",
+      "any": "egal",
+      "yes": "ja",
+      "no": "nein",
+      "hint": "Jeder Filter wird vom Server angewendet. Eine Änderung beginnt die Liste von vorn."
+    },
+    "list": {
+      "title": "Warteschlange",
+      "label": "Zu prüfende Personen",
+      "count": "{count} Einträge",
+      "empty": "Keine Person passt zu diesen Filtern.",
+      "loadError": "Die Liste konnte nicht geladen werden.",
+      "authority": "Autorität: {source}",
+      "conflict": "Autoritätskonflikt",
+      "error": "Methodenfehler"
+    },
+    "detail": {
+      "title": "Person",
+      "none": "Wähle eine Person aus der Liste.",
+      "notFound": "Diese Person gehört nicht zu dieser Aggregation.",
+      "certainty": "Sicherheit",
+      "agreement": "Übereinstimmung",
+      "outcome": "Ergebnis",
+      "machineLabel": "Maschinenlabel",
+      "finalLabel": "Endgültiges Label",
+      "state": "Prüfstand",
+      "revision": "Revision {revision}",
+      "authorityTitle": "Eine Autorität hat entschieden.",
+      "authorityBody": "{source} hat die gemeinsame Abstimmung überstimmt.",
+      "conflictTitle": "Autorität und Ensemble widersprechen sich.",
+      "conflictBody": "Ein Autoritätssignal zeigt auf ein anderes Label als die Abstimmung.",
+      "errorTitle": "Eine Methode ist technisch fehlgeschlagen.",
+      "errorBody": "Die Entscheidung ignoriert diese Methode; sie hat sich nicht enthalten.",
+      "person": {
+        "title": "Registereintrag",
+        "birth": "Geboren",
+        "death": "Gestorben",
+        "gnd": "GND",
+        "altNames": "Weitere Namen",
+        "note": "Notiz",
+        "empty": "Das Register enthält keine weiteren Angaben zu dieser Person.",
+        "loadError": "Der Registereintrag konnte nicht geladen werden."
+      },
+      "methods": {
+        "title": "Ergebnis je Methode",
+        "method": "Methode",
+        "label": "Label",
+        "status": "Status",
+        "confidence": "Eigene Konfidenz",
+        "raw": "roh: {raw}",
+        "noPrediction": "Diese Methode hat für diese Person nichts gespeichert.",
+        "confidenceNote": "Ein Konfidenzwert gilt nur für seine Methode. Er beeinflusst die Abstimmung nicht und ist zwischen Methoden nicht vergleichbar.",
+        "loadError": "Die Methodenergebnisse konnten nicht geladen werden."
+      },
+      "history": {
+        "title": "Verlauf",
+        "empty": "Diese Person hat noch niemand geprüft.",
+        "revision": "Aktuelle Revision {revision}, neueste Entscheidung zuerst.",
+        "by": "von {name}, {when}",
+        "loadError": "Der Verlauf konnte nicht geladen werden."
+      }
+    },
+    "gloss": {
+      "label": {
+        "unknown": "nicht bestimmbar"
+      },
+      "certainty": {
+        "high": "verlässliche Übereinstimmung",
+        "low": "knappe Mehrheit",
+        "contested": "Methoden uneinig",
+        "single": "nur LLM, hohe Sicherheit",
+        "uncertain": "nur LLM, geringe Sicherheit",
+        "noData": "keine Methode konnte abstimmen"
+      },
+      "agreement": {
+        "unanimous": "alle einig",
+        "strongMajority": "75 % oder mehr einig",
+        "weakMajority": "50 % oder mehr einig",
+        "noConsensus": "weniger als 50 % einig",
+        "singleRater": "nur eine Antwort",
+        "noAnswer": "keine Antwort"
+      },
+      "workflow": {
+        "unreviewed": "noch nicht geprüft",
+        "reviewed": "geprüft",
+        "deferred": "zurückgestellt"
+      },
+      "outcome": {
+        "decided": "entschieden",
+        "unresolvedTie": "Stimmengleichheit",
+        "noData": "keine Daten"
+      },
+      "override": {
+        "gnd": "die GND-Autorität",
+        "parentheticalQualifier": "der Zusatz im Namen"
+      },
+      "prediction": {
+        "success": "geantwortet",
+        "abstain": "enthalten",
+        "error": "technischer Fehler"
+      },
+      "action": {
+        "verify": "bestätigt",
+        "correct": "korrigiert",
+        "defer": "zurückgestellt"
+      }
     }
   }
 }

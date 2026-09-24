@@ -462,6 +462,35 @@ artifacts, and the two contract gaps above (configuration schemas, lookup discov
 - The `409 annotation_conflict` recovery flow as a designed interaction, not an error toast.
 - Bulk selection as a client-side sequence with explicit partial-failure reporting.
 
+**Delivery status (2026-09-24).** M5 is delivered in three slices: **M5a** (queue and detail, read-only), **M5b**
+(decisions) and **M5c** (bulk selection).
+
+- **Keyboard model for the action bar (decided 2026-09-24).** The four labels are the single-key shortcuts `1`–`4`
+  in the order of the vocabulary (`male`, `female`, `unknown`, `institution`), as docs/25 already asks. `verify` and
+  `defer` get **no** letter shortcut: they are ordinary buttons reached with `Tab` and `Enter`. Letters would be
+  English initials in a bilingual interface, and nobody had specified them. All shortcuts are suppressed while a text
+  input has focus and are listed in the interface. (M5b.)
+- **M5a: queue and detail. Delivered.** `/projects/:projectId/runs/:runId/aggregations/:aggregationId/review`
+  (`ReviewView`), reached from a completed aggregation. Three entry points per D2: contested evidence (`low`,
+  `contested`), thin evidence (`single`, `uncertain`) and all people; each is one `GET /review-items` query, so its
+  order and cursor come from the server. The counts on the cards are summed from `review-summary`, never counted from
+  loaded pages. Filters cover the whole server-side set (`q`, `sort`, `workflow_states`, `final_label`,
+  `agreement_tiers`, `has_authority_conflict`, `has_prediction_error`, and `method_name` with `method_label` and
+  `prediction_status`, which the server only accepts together with a method). The whole view state (queue, filters,
+  selected person) is in the URL, so it can be bookmarked and shared. The list pages by cursor and the filter tuple is
+  part of the query key, so a cursor is never reused across tuples. The detail shows the tiers (token untranslated
+  beside a gloss, D3), `override_source` as a marked block, the authority conflict and prediction-error flags, every
+  method's result in selection order with `abstain`, `error`, a stored `unknown` and a missing prediction kept
+  apart, each `method_confidence` labelled as method-specific and shown to two places, the register entry, and the
+  complete attributed annotation chain. Verified against the real API on the seeded aggregation (queues
+  `demo-4, demo-3` / `demo-6, demo-5`, seven people in TEI order).
+- **Deviations from the wireframe, deliberate.** No automatic save (append-only). No confidence threshold or
+  "confidence ascending" order (D2). The action bar is the four real labels. No default review-state filter: the
+  server's triage order deliberately ignores `workflow_state` (ADR-0022), so reviewed people stay in place and are
+  filtered out on request with the review-state checkboxes.
+- Still open: M5b (verify / correct / defer with comment, `expected_revision`, the `409 annotation_conflict` flow,
+  live announcements, the final-decision check against the seeded snapshot) and M5c (bulk selection).
+
 **Exit criterion.** A reviewer corrects a machine result and the final-decision view changes without any
 mutation of `Prediction` or `AggregatedResult` rows — the Phase 8 criterion from
 [`15-implementation-plan.md`](15-implementation-plan.md), verified against a seeded snapshot.

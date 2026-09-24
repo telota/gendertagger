@@ -387,7 +387,155 @@
       "resolvedConfig": "Resolved configuration",
       "selection": "Selected method executions",
       "selectionHint": "Exactly the executions this aggregation used, in the order it used them.",
-      "provenanceHint": "The run this aggregation was computed from:"
+      "provenanceHint": "The run this aggregation was computed from:",
+      "review": "Review the results of this aggregation"
+    }
+  },
+  "review": {
+    "title": "Review",
+    "back": "Back to the aggregation",
+    "loading": "Loading …",
+    "retry": "Try again",
+    "loadMore": "Load more",
+    "none": "none",
+    "subtitle": "Strategy {strategy} · {count} people",
+    "aggregationLoadError": "The aggregation could not be loaded.",
+    "notCompleted": "This aggregation has not finished yet. Its results can be reviewed once it is completed.",
+    "queue": {
+      "label": "Queue",
+      "count": "{open} open of {total}",
+      "contested": {
+        "title": "Contested evidence",
+        "hint": "low, contested: the methods disagree"
+      },
+      "thin": {
+        "title": "Thin evidence",
+        "hint": "single, uncertain: only the LLM answered"
+      },
+      "all": {
+        "title": "All people",
+        "hint": "The whole register, in TEI order"
+      }
+    },
+    "filters": {
+      "title": "Filters",
+      "search": "Search (name or TEI id)",
+      "sort": "Order",
+      "sortUncertainty": "Most uncertain first (review_triage_v1)",
+      "sortTei": "TEI id",
+      "states": "Review state",
+      "label": "Final label",
+      "agreement": "Agreement",
+      "authorityConflict": "Authority disagrees with the ensemble",
+      "predictionError": "A method failed technically",
+      "method": "Method",
+      "methodLabel": "Label given by the method",
+      "predictionStatus": "Status of the method",
+      "any": "any",
+      "yes": "yes",
+      "no": "no",
+      "hint": "Every filter is applied by the server. Changing one starts the list from the beginning."
+    },
+    "list": {
+      "title": "Queue",
+      "label": "People to review",
+      "count": "{count} entries",
+      "empty": "No person matches these filters.",
+      "loadError": "The list could not be loaded.",
+      "authority": "authority: {source}",
+      "conflict": "authority conflict",
+      "error": "method error"
+    },
+    "detail": {
+      "title": "Person",
+      "none": "Choose a person from the list.",
+      "notFound": "This person is not part of this aggregation.",
+      "certainty": "Certainty",
+      "agreement": "Agreement",
+      "outcome": "Outcome",
+      "machineLabel": "Machine label",
+      "finalLabel": "Final label",
+      "state": "Review state",
+      "revision": "revision {revision}",
+      "authorityTitle": "An authority decided.",
+      "authorityBody": "{source} overruled the pooled vote.",
+      "conflictTitle": "Authority and ensemble disagree.",
+      "conflictBody": "An authority signal points to a different label than the vote.",
+      "errorTitle": "A method failed technically.",
+      "errorBody": "The decision ignores that method; it did not abstain.",
+      "person": {
+        "title": "Register entry",
+        "birth": "Born",
+        "death": "Died",
+        "gnd": "GND",
+        "altNames": "Other names",
+        "note": "Note",
+        "empty": "The register holds no further details for this person.",
+        "loadError": "The register entry could not be loaded."
+      },
+      "methods": {
+        "title": "Result of each method",
+        "method": "Method",
+        "label": "Label",
+        "status": "Status",
+        "confidence": "Own confidence",
+        "raw": "raw: {raw}",
+        "noPrediction": "This method stored no prediction for this person.",
+        "confidenceNote": "A confidence value is specific to its method. It does not influence the vote and is not comparable between methods.",
+        "loadError": "The method results could not be loaded."
+      },
+      "history": {
+        "title": "History",
+        "empty": "Nobody has reviewed this person yet.",
+        "revision": "Current revision {revision}, newest decision first.",
+        "by": "by {name}, {when}",
+        "loadError": "The history could not be loaded."
+      }
+    },
+    "gloss": {
+      "label": {
+        "unknown": "not determinable"
+      },
+      "certainty": {
+        "high": "reliable agreement",
+        "low": "narrow majority",
+        "contested": "methods disagree",
+        "single": "LLM only, high confidence",
+        "uncertain": "LLM only, low confidence",
+        "noData": "no method could vote"
+      },
+      "agreement": {
+        "unanimous": "all agree",
+        "strongMajority": "75 % or more agree",
+        "weakMajority": "50 % or more agree",
+        "noConsensus": "fewer than 50 % agree",
+        "singleRater": "one answer only",
+        "noAnswer": "no answers"
+      },
+      "workflow": {
+        "unreviewed": "not yet reviewed",
+        "reviewed": "reviewed",
+        "deferred": "deferred"
+      },
+      "outcome": {
+        "decided": "decided",
+        "unresolvedTie": "tie",
+        "noData": "no data"
+      },
+      "override": {
+        "gnd": "the GND authority",
+        "parentheticalQualifier": "the qualifier in the name"
+      },
+      "prediction": {
+        "success": "answered",
+        "abstain": "abstained",
+        "error": "technical error"
+      },
+      "action": {
+        "verify": "confirmed",
+        "correct": "corrected",
+        "defer": "deferred"
+      }
     }
   }
 }

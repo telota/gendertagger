@@ -17,6 +17,8 @@ export type MessageSchema = typeof en
 const numberFormats = {
   integer: { maximumFractionDigits: 0 },
   decimal: { minimumFractionDigits: 1, maximumFractionDigits: 1 },
+  // A method's own confidence keeps two places: rounding 0.42 to 0.4 would misreport it.
+  confidence: { minimumFractionDigits: 2, maximumFractionDigits: 2 },
 } as const
 
 const datetimeFormats = {

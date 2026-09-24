@@ -60,6 +60,11 @@ export const routes: readonly RouteRecordRaw[] = [
     component: () => import('@/features/runs/AggregationDetailView.vue'),
   },
   {
+    path: '/projects/:projectId/runs/:runId/aggregations/:aggregationId/review',
+    name: 'review',
+    component: () => import('@/features/review/ReviewView.vue'),
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'notFound',
     component: () => import('@/features/errors/NotFoundView.vue'),
