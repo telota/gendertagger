@@ -1,4 +1,5 @@
-import { onMounted, ref, type Ref } from 'vue'
+import { useQuery, type QueryClient } from '@tanstack/vue-query'
+import { computed, type ComputedRef } from 'vue'
 
 import { unwrap, type ApiClient, type components } from '@/api'
 
@@ -7,6 +8,8 @@ import { useApiClient } from './useApiClient'
 type RawBrandingInfo = components['schemas']['BrandingInfo']
 type BrandingInitiative = components['schemas']['BrandingInitiative']
 type RawBrandingLegalEntity = components['schemas']['BrandingLegalEntity']
+
+const BRANDING_QUERY_KEY = ['branding'] as const
 
 /**
  * `GET /api/v1/branding` (ADR-0036) with every collection field normalized to a guaranteed array.
@@ -32,7 +35,7 @@ export type BrandingState =
   { status: 'loading' } | { status: 'ready'; data: BrandingInfo } | { status: 'error' }
 
 export interface UseBranding {
-  state: Ref<BrandingState>
+  state: ComputedRef<BrandingState>
   /** Re-fetch, e.g. from a retry affordance after `status === 'error'`. */
   refresh: () => Promise<void>
 }
@@ -63,31 +66,42 @@ function normalizeLegalEntity(raw: RawBrandingLegalEntity): BrandingLegalEntity 
   }
 }
 
+function brandingQueryOptions(client: ApiClient) {
+  return {
+    queryKey: BRANDING_QUERY_KEY,
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      unwrap(client.GET('/api/v1/branding', { signal })).then(normalize),
+  }
+}
+
 /**
- * Fetch this deployment's branding (ADR-0036) once for the calling component.
- *
- * A deliberate stand-in for the shared server-state query/cache layer that arrives with the M2
- * shell (docs/26-frontend-coding-guidelines.md): every caller fetches independently rather than
- * sharing one cached request. `GET /api/v1/branding` is small, unauthenticated, and cheap, so
- * fetching it once per mounted footer, start page, and legal notice is an acceptable
- * simplification until that layer exists.
+ * Refresh public branding after a confirmed administrative write. Cancelling an in-flight read first
+ * prevents a response that started before the write from overwriting the server-confirmed refresh.
+ */
+export async function refreshPublicBranding(
+  queryClient: QueryClient,
+  client: ApiClient,
+): Promise<BrandingInfo> {
+  await queryClient.cancelQueries({ queryKey: BRANDING_QUERY_KEY })
+  return queryClient.fetchQuery(brandingQueryOptions(client))
+}
+
+/**
+ * Shared unauthenticated public branding. The public cache intentionally contains only `BrandingInfo`;
+ * administrative revision and override metadata remain in a separate principal-scoped query.
  */
 export function useBranding(client: ApiClient = useApiClient()): UseBranding {
-  const state = ref<BrandingState>({ status: 'loading' })
+  const query = useQuery(brandingQueryOptions(client))
+  const state = computed<BrandingState>(() => {
+    if (query.isPending.value) return { status: 'loading' }
+    if (query.isError.value) return { status: 'error' }
+    const data = query.data.value
+    return data === undefined ? { status: 'loading' } : { status: 'ready', data }
+  })
 
   async function refresh(): Promise<void> {
-    state.value = { status: 'loading' }
-    try {
-      const data = normalize(await unwrap(client.GET('/api/v1/branding')))
-      state.value = { status: 'ready', data }
-    } catch {
-      // The footer and start page degrade to their unconfigured treatment on error; the legal
-      // notice page, where branding is the page's own content, surfaces this status itself.
-      state.value = { status: 'error' }
-    }
+    await query.refetch()
   }
-
-  onMounted(refresh)
 
   return { state, refresh }
 }

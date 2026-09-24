@@ -10,7 +10,8 @@
     "initiatives": "Entstanden im Rahmen von",
     "published": "Veröffentlichung",
     "publishedSince": "seit {year}",
-    "notConfigured": "Für diese Installation sind noch keine Publikationsangaben hinterlegt."
+    "notConfigured": "Für diese Installation sind noch keine Publikationsangaben hinterlegt.",
+    "loadError": "Die Publikationsangaben konnten nicht geladen werden."
   },
   "footer": {
     "publisher": "Herausgeber",
@@ -20,7 +21,8 @@
     "sourceCodeLicense": "Quellcode unter der {license}-Lizenz",
     "legalNavigation": "Rechtliche Angaben",
     "legalNotice": "Impressum",
-    "privacyNotice": "Datenschutzhinweis"
+    "privacyNotice": "Datenschutzhinweis",
+    "brandingUnavailable": "Das Publikations-Branding konnte nicht geladen werden."
   },
   "legal": {
     "title": "Impressum",
@@ -232,7 +234,7 @@
     "settingsUnavailable": "Der Einstellungsspeicher ist nicht verfügbar. Deployment-Fallbacks können nicht sicher angezeigt werden.",
     "retry": "Erneut versuchen",
     "refetch": "Einstellungen aktualisieren",
-    "readOnly": "Diese Übersicht ist schreibgeschützt. Branding-Overrides werden in einer späteren administrativen Ausbaustufe bearbeitet.",
+    "editingAvailable": "Wählen Sie nur Branding-Overrides aus, die Sie speichern möchten. Änderungen sind revisionsgeschützt.",
     "precedence": {
       "title": "Auflösungsreihenfolge",
       "description": "Gespeicherter Override → Deployment-Umgebung → Anwendungsstandard."
@@ -267,6 +269,59 @@
       "noLogo": "Kein Logo konfiguriert",
       "noInitiatives": "Keine Initiativen konfiguriert",
       "noLegalEntity": "Keine Rechtseinheit konfiguriert"
+    },
+    "editing": {
+      "title": "Branding-Overrides bearbeiten",
+      "description": "Jedes Feld bleibt unverändert, bis Sie es ausdrücklich speichern oder leeren. Ein gespeicherter Wert kann bewusst einem aktuellen Fallback entsprechen.",
+      "modes": {
+        "unchanged": "Unverändert lassen",
+        "set": "Wert speichern",
+        "clear": "Wert leeren"
+      },
+      "fallback": "Aktueller Deployment-Fallback: {value}",
+      "value": "Wert",
+      "editorsHint": "Geben Sie eine Person pro Zeile ein. Die Reihenfolge bleibt erhalten.",
+      "save": "Overrides speichern",
+      "submitting": "Wird gespeichert …",
+      "discard": "Entwurf verwerfen",
+      "validation": {
+        "institutionName": "Geben Sie einen nichtleeren Institutionsnamen mit höchstens 200 Zeichen ein.",
+        "url": "Geben Sie eine absolute HTTP(S)-URL oder einen Same-Origin-Pfad mit genau einem führenden Schrägstrich ein.",
+        "contactEmail": "Geben Sie eine gültige E-Mail-Adresse ein.",
+        "editors": "Geben Sie höchstens 50 verschiedene, nichtleere Namen mit jeweils höchstens 200 Zeichen ein.",
+        "publishedSinceYear": "Geben Sie ein ganzzahliges Jahr von 1 bis {currentYear} ein."
+      },
+      "conflict": {
+        "latestLoaded": "Eine andere Administration hat diese Einstellungen geändert. Revision {revision} wird jetzt oben angezeigt. Prüfen Sie sie und behalten oder verwerfen Sie diesen Entwurf dann ausdrücklich.",
+        "latestUnavailable": "Eine andere Administration hat diese Einstellungen geändert, aber der aktuelle Stand konnte nicht geladen werden. Ihr Entwurf bleibt erhalten; aktualisieren Sie die Einstellungen vor der Abstimmung.",
+        "reconcile": "Aktuelle Revision verwenden und Entwurf behalten"
+      },
+      "errors": {
+        "settingsUnavailable": "Der Einstellungsspeicher ist nicht verfügbar. Es wurde keine Änderung bestätigt.",
+        "validation": "Prüfen Sie die ausgewählten Override-Werte und versuchen Sie es erneut.",
+        "authenticationRequired": "Ihre Sitzung ist beendet. Melden Sie sich erneut an, prüfen Sie die aktuellen Einstellungen und senden Sie die Änderung dann bewusst erneut.",
+        "passwordChangeRequired": "Ändern Sie Ihr Passwort, bevor Sie Branding-Einstellungen bearbeiten.",
+        "forbidden": "Sie haben keine Berechtigung mehr, Branding-Einstellungen zu bearbeiten.",
+        "uncertain": "Das Ergebnis ist unsicher, weil die Anfrage nicht abgeschlossen wurde. Aktualisieren und prüfen Sie die Einstellungen, bevor Sie es erneut versuchen."
+      },
+      "publicRefreshFailed": "Die Branding-Änderung wurde bestätigt, aber das Branding bereits geöffneter öffentlicher Ansichten konnte nicht aktualisiert werden.",
+      "retryPublicRefresh": "Aktualisierung des öffentlichen Brandings erneut versuchen"
+    },
+    "reset": {
+      "title": "Gespeicherte Overrides zurücksetzen",
+      "description": "Das Zurücksetzen entfernt ausgewählte gespeicherte Overrides und zeigt den aktuellen Deployment-Fallback.",
+      "unsavedChanges": "Speichern oder verwerfen Sie den aktuellen Entwurf, bevor Sie Overrides zurücksetzen.",
+      "fallback": "Fallback nach dem Zurücksetzen: {value}",
+      "submit": "Ausgewählte Overrides zurücksetzen",
+      "none": "Es gibt keine gespeicherten Overrides zum Zurücksetzen.",
+      "confirm": {
+        "title": "Ausgewählte Overrides zurücksetzen?",
+        "description": "Die ausgewählten Werte zeigen danach die hier dargestellten Deployment-Fallbacks.",
+        "entry": "{field}: {value}",
+        "nonAtomic": "Overrides speichern und Overrides zurücksetzen sind getrennte Operationen.",
+        "cancel": "Abbrechen",
+        "submit": "Overrides zurücksetzen"
+      }
     },
     "deployment": {
       "title": "Deployment-verwaltetes Branding",

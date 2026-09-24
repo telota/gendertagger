@@ -29,7 +29,10 @@ const hasAnyPublicationFact = computed(
       <h2 id="publication-heading" class="home-publication-heading">
         {{ t('publication.heading') }}
       </h2>
-      <p v-if="!hasAnyPublicationFact" class="home-publication-empty">
+      <p v-if="state.status === 'error'" class="home-publication-empty" role="alert">
+        {{ t('publication.loadError') }}
+      </p>
+      <p v-else-if="!hasAnyPublicationFact" class="home-publication-empty">
         {{ t('publication.notConfigured') }}
       </p>
       <dl v-else class="home-publication-facts">

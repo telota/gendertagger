@@ -7,7 +7,13 @@ import { ApiError, type components } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
 import { useAdminAccess } from '@/composables/useAdminAccess'
 
+import AdminSettingsEditor from './AdminSettingsEditor.vue'
 import { useAdminSettings, type AdminSettings } from './useAdminSettings'
+import {
+  useAdminSettingsMutations,
+  type AdminSettingsMutationError,
+  type AdminSettingsMutationResult,
+} from './useAdminSettingsMutations'
 
 type EditableBrandingValues = components['schemas']['BrandingEditableValues']
 type EditableBrandingField = keyof EditableBrandingValues
@@ -30,7 +36,13 @@ const principalId = computed(() => session.user?.id ?? null)
 const serverAccessError = ref<'forbidden' | 'passwordChangeRequired' | null>(null)
 const canLoadSettings = computed(() => canAccessAdmin.value && serverAccessError.value === null)
 const settings = useAdminSettings(principalId, canLoadSettings)
+const mutations = useAdminSettingsMutations(principalId, canLoadSettings)
 const data = computed(() => settings.query.data.value ?? null)
+const mutationError = ref<AdminSettingsMutationError | null>(null)
+const hasConflict = ref(false)
+const conflictLatest = ref<AdminSettings | null>(null)
+const hasPublicRefreshFailure = ref(false)
+const editorKey = ref(0)
 const isSettingsUnavailable = computed(() => {
   const error = settings.query.error.value
   return error instanceof ApiError && error.status === 503 && error.code === 'settings_unavailable'
@@ -57,15 +69,22 @@ watch(
     if (error.status === 403) {
       serverAccessError.value =
         error.code === 'password_change_required' ? 'passwordChangeRequired' : 'forbidden'
+      clearPrivateMutationState()
       settings.clearPrivateData()
       void session.initialize()
     }
     if (error.status === 401) {
+      clearPrivateMutationState()
       settings.clearPrivateData()
       void session.initialize()
     }
   },
 )
+
+watch([principalId, canLoadSettings], () => {
+  clearPrivateMutationState()
+  editorKey.value += 1
+})
 
 function retrySession(): void {
   void session.initialize()
@@ -73,6 +92,69 @@ function retrySession(): void {
 
 function refetch(): void {
   void settings.query.refetch()
+}
+
+function clearPrivateMutationState(): void {
+  mutationError.value = null
+  hasConflict.value = false
+  conflictLatest.value = null
+  hasPublicRefreshFailure.value = false
+}
+
+async function retryPublicBrandingRefresh(): Promise<void> {
+  hasPublicRefreshFailure.value = !(await mutations.refreshBranding())
+}
+
+async function handleMutation(result: AdminSettingsMutationResult): Promise<void> {
+  switch (result.status) {
+    case 'success':
+      mutationError.value = null
+      hasConflict.value = false
+      conflictLatest.value = null
+      hasPublicRefreshFailure.value = result.publicRefreshFailed
+      editorKey.value += 1
+      return
+    case 'conflict':
+      mutationError.value = null
+      hasConflict.value = true
+      conflictLatest.value = result.latest
+      return
+    case 'failure':
+      mutationError.value = result.error
+      if (
+        result.error === 'authentication_required' ||
+        result.error === 'password_change_required' ||
+        result.error === 'forbidden'
+      ) {
+        serverAccessError.value =
+          result.error === 'password_change_required' ? 'passwordChangeRequired' : 'forbidden'
+        clearPrivateMutationState()
+        settings.clearPrivateData()
+        await session.initialize()
+      }
+      return
+    case 'discarded':
+      return
+  }
+}
+
+async function saveSettings(command: components['schemas']['AdminSettingsUpdate']): Promise<void> {
+  await handleMutation(await mutations.update(command))
+}
+
+async function resetSettings(command: components['schemas']['AdminSettingsReset']): Promise<void> {
+  await handleMutation(await mutations.reset(command))
+}
+
+function discardDraft(): void {
+  clearPrivateMutationState()
+  editorKey.value += 1
+}
+
+function reconcileConflict(): void {
+  hasConflict.value = false
+  conflictLatest.value = null
+  mutationError.value = null
 }
 
 function effectiveValue(settingsData: AdminSettings, field: EditableBrandingField): BrandingValue {
@@ -179,7 +261,7 @@ function legalEntityAddress(values: string[] | undefined): string {
         </AppButton>
       </header>
 
-      <p class="admin-settings-read-only">{{ t('adminSettings.readOnly') }}</p>
+      <p class="admin-settings-read-only">{{ t('adminSettings.editingAvailable') }}</p>
 
       <p v-if="settings.query.isPending.value" role="status">{{ t('adminSettings.loading') }}</p>
 
@@ -243,6 +325,26 @@ function legalEntityAddress(values: string[] | undefined): string {
             </table>
           </div>
         </section>
+
+        <AdminSettingsEditor
+          :key="editorKey"
+          :settings="data"
+          :is-submitting="mutations.isSubmitting.value"
+          :mutation-error="mutationError"
+          :has-conflict="hasConflict"
+          :conflict-latest="conflictLatest"
+          @save="saveSettings"
+          @reset="resetSettings"
+          @discard-draft="discardDraft"
+          @reconcile-conflict="reconcileConflict"
+        />
+
+        <div v-if="hasPublicRefreshFailure" class="admin-settings-public-refresh-error">
+          <p role="alert">{{ t('adminSettings.editing.publicRefreshFailed') }}</p>
+          <AppButton type="button" variant="ghost" @click="retryPublicBrandingRefresh">
+            {{ t('adminSettings.editing.retryPublicRefresh') }}
+          </AppButton>
+        </div>
 
         <section
           class="admin-settings-deployment"
@@ -537,6 +639,18 @@ function legalEntityAddress(values: string[] | undefined): string {
 .admin-settings-error p {
   margin: 0;
   color: var(--critical);
+}
+
+.admin-settings-public-refresh-error {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  color: var(--critical);
+}
+
+.admin-settings-public-refresh-error p {
+  margin: 0;
 }
 
 @media (max-width: 56rem) {

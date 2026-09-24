@@ -184,9 +184,8 @@ Exit criterion: a reviewer can correct a machine result and the final-decision v
 ### Administrative settings increment (ADR-0040)
 
 [ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md) accepts administrative overrides for
-six branding fields as a separate extension to the review-client scope. Both backend slices are delivered:
-the singleton persistence/read API and the revisioned mutations/public-branding integration. Frontend editing
-comes last; stop for architect/user review and a manual commit before starting it.
+six branding fields as a separate extension to the review-client scope. Both backend slices and the
+revision-protected frontend editing slice are delivered.
 
 1. **Persistence and administrative read API — DELIVERED.** Closed Pydantic contracts, singleton migration,
    repository/application-service boundaries, default/override resolution, and `GET /api/v1/admin/settings`
@@ -195,12 +194,17 @@ comes last; stop for architect/user review and a manual commit before starting i
    `POST /api/v1/admin/settings/reset` perform revision-checked atomic mutations with safe attribution.
    Public branding resolves committed overrides per request, retains its schema and unauthenticated access,
    and returns the accepted `Cache-Control: no-store` and `503 settings_unavailable` behavior.
-3. **Read-only frontend overview — DELIVERED.** `/admin/settings` uses the generated administrative read
+3. **Administrative overview — DELIVERED.** `/admin/settings` uses the generated administrative read
    operation for an eligible administrator and presents effective values, deployment fallbacks, and explicit
-   override metadata without writes, reset controls, or public-branding changes.
-4. **Editing separately.** Add accessible forms, distinct clearing and resetting actions, stale-write
-   handling, and refresh of mounted branding consumers. Use generated contracts and existing session/CSRF
-   behavior.
+   override metadata without exposing deployment-only data.
+4. **Revision-protected editing and public refresh — DELIVERED.** The form can patch only the six permitted
+   fields with a sparse body and baseline revision. Per-field set, clear, and unchanged modes preserve a
+   deliberately pinned value equal to its fallback. Reset uses its separate endpoint and confirmation; dirty
+   edits block reset rather than silently combining operations. A `409` fetches the newest private settings
+   snapshot without replacing the draft or replaying a write; the administrator explicitly reconciles or
+   discards. Success adopts the server response and refreshes the shared public-branding query for mounted
+   public consumers. A public refresh failure is visible and retried as a read only. Settings mutations are
+   excluded from automatic unauthorized replay.
 
 Exit criteria: the
 [ADR acceptance criteria](decisions/ADR-0040-administrative-branding-overrides.md#acceptance-criteria-and-future-verification)
@@ -210,7 +214,10 @@ and committed overrides are visible across API instances without restart. Verify
 storage-outage errors, unchanged public branding and logo contracts, and secret-free logs. Import
 limits, session policy, scientific behavior, and deployment-only configuration remain unchanged.
 
-The eventual implementation requires model/service, PostgreSQL concurrency, API/contract, and frontend
-coverage. Runtime suites and browser verification remain reserved for the user's manual testing stage
-in this workflow. Only the documentation checker and `git diff --check` run for this documentation-only
-increment; accepting the design does not claim those future runtime checks have passed.
+Focused frontend contract tests cover sparse patching, local validation, clear/reset separation, conflict
+reconciliation, unavailable and uncertain write outcomes, public-cache refresh, and principal cleanup.
+Runtime suites and browser verification remain reserved for the user's manual testing stage in this workflow.
+Manually verify: an equal-valued override stays pinned after the deployment fallback changes; a dirty form
+cannot reset; two administrators produce and reconcile a `409`; and an already-mounted footer, home page,
+and legal notice update after a successful save without navigation. Also verify the localized responsive,
+keyboard, `503`, and public-refresh-retry states. Do not treat the static checks as that runtime evidence.

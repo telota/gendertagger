@@ -47,7 +47,7 @@ afterEach(() => {
 })
 
 describe('shouldRetryAfterUnauthorized', () => {
-  it('excludes only administrative account creation and updates from automatic replay', () => {
+  it('excludes administrative account and settings writes from automatic replay', () => {
     expect(
       shouldRetryAfterUnauthorized(
         new Request('https://example.test/api/v1/admin/users', { method: 'POST' }),
@@ -59,6 +59,16 @@ describe('shouldRetryAfterUnauthorized', () => {
           'https://example.test/api/v1/admin/users/6f9619ff-8b86-4011-b42d-00c04fc964ff',
           { method: 'PATCH' },
         ),
+      ),
+    ).toBe(false)
+    expect(
+      shouldRetryAfterUnauthorized(
+        new Request('https://example.test/api/v1/admin/settings', { method: 'PATCH' }),
+      ),
+    ).toBe(false)
+    expect(
+      shouldRetryAfterUnauthorized(
+        new Request('https://example.test/api/v1/admin/settings/reset', { method: 'POST' }),
       ),
     ).toBe(false)
     expect(

@@ -51,10 +51,11 @@ describe.each(['de', 'en'] as const)('start page in %s', (locale: AppLocale) => 
     expect(page.find('dl').exists()).toBe(false)
   })
 
-  it('says publication details are not configured on a fetch error too', async () => {
+  it('distinguishes a publication-details fetch failure from an unconfigured deployment', async () => {
     const page = (await mountApplicationAt('/', locale, apiClientWithNetworkError())).get('main')
 
-    expect(page.text()).toContain(messages.notConfigured)
+    expect(page.text()).toContain(messages.loadError)
+    expect(page.text()).not.toContain(messages.notConfigured)
   })
 })
 

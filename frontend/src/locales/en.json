@@ -10,7 +10,8 @@
     "initiatives": "Developed within",
     "published": "Published",
     "publishedSince": "since {year}",
-    "notConfigured": "This installation has not configured publication details yet."
+    "notConfigured": "This installation has not configured publication details yet.",
+    "loadError": "Publication details could not be loaded."
   },
   "footer": {
     "publisher": "Publisher",
@@ -20,7 +21,8 @@
     "sourceCodeLicense": "Source code under the {license} licence",
     "legalNavigation": "Legal information",
     "legalNotice": "Legal notice",
-    "privacyNotice": "Privacy notice"
+    "privacyNotice": "Privacy notice",
+    "brandingUnavailable": "Publication branding could not be loaded."
   },
   "legal": {
     "title": "Legal notice",
@@ -232,7 +234,7 @@
     "settingsUnavailable": "Settings storage is unavailable. Deployment fallbacks cannot be shown safely.",
     "retry": "Try again",
     "refetch": "Refresh settings",
-    "readOnly": "This overview is read-only. Editing branding overrides is a later administrative slice.",
+    "editingAvailable": "Choose only the branding overrides you intend to store. Editing is revision-protected.",
     "precedence": {
       "title": "Resolution order",
       "description": "Stored override → deployment environment → application default."
@@ -267,6 +269,59 @@
       "noLogo": "No logo configured",
       "noInitiatives": "No initiatives configured",
       "noLegalEntity": "No legal entity configured"
+    },
+    "editing": {
+      "title": "Edit branding overrides",
+      "description": "Each field stays unchanged unless you explicitly store or clear it. Storing a value can intentionally pin a value equal to the current fallback.",
+      "modes": {
+        "unchanged": "Leave unchanged",
+        "set": "Store value",
+        "clear": "Clear value"
+      },
+      "fallback": "Current deployment fallback: {value}",
+      "value": "Value",
+      "editorsHint": "Enter one editor per line. Order is preserved.",
+      "save": "Save overrides",
+      "submitting": "Saving …",
+      "discard": "Discard draft",
+      "validation": {
+        "institutionName": "Enter a nonblank institution name with at most 200 characters.",
+        "url": "Enter an absolute HTTP(S) URL or a same-origin path beginning with one slash.",
+        "contactEmail": "Enter one valid email address.",
+        "editors": "Enter at most 50 distinct, nonblank editors with at most 200 characters each.",
+        "publishedSinceYear": "Enter a whole year from 1 through {currentYear}."
+      },
+      "conflict": {
+        "latestLoaded": "Another administrator changed these settings. Revision {revision} is now shown above. Review it, then explicitly keep or discard this draft.",
+        "latestUnavailable": "Another administrator changed these settings, but the latest state could not be loaded. Your draft is retained; refresh the settings before reconciling it.",
+        "reconcile": "Use latest revision and keep draft"
+      },
+      "errors": {
+        "settingsUnavailable": "Settings storage is unavailable. No change was confirmed.",
+        "validation": "Review the selected override values and try again.",
+        "authenticationRequired": "Your session ended. Sign in again, review the current settings, and deliberately resubmit.",
+        "passwordChangeRequired": "Change your password before editing branding settings.",
+        "forbidden": "You no longer have permission to edit branding settings.",
+        "uncertain": "The result is uncertain because the request did not complete. Refresh the settings and review them before trying again."
+      },
+      "publicRefreshFailed": "The branding change was confirmed, but mounted public branding could not be refreshed.",
+      "retryPublicRefresh": "Retry public branding refresh"
+    },
+    "reset": {
+      "title": "Reset stored overrides",
+      "description": "Reset removes selected stored overrides and reveals the current deployment fallback.",
+      "unsavedChanges": "Save or discard the current draft before resetting overrides.",
+      "fallback": "Fallback after reset: {value}",
+      "submit": "Reset selected overrides",
+      "none": "No stored overrides can be reset.",
+      "confirm": {
+        "title": "Reset selected overrides?",
+        "description": "The selected values will reveal the deployment fallbacks shown here.",
+        "entry": "{field}: {value}",
+        "nonAtomic": "Saving overrides and resetting overrides are separate operations.",
+        "cancel": "Cancel",
+        "submit": "Reset overrides"
+      }
     },
     "deployment": {
       "title": "Deployment-managed branding",

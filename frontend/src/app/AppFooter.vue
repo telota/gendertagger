@@ -18,6 +18,9 @@ const data = computed(() => (state.value.status === 'ready' ? state.value.data :
 <template>
   <footer class="app-footer">
     <div class="app-footer-inner">
+      <p v-if="state.status === 'error'" class="app-footer-branding-error" role="alert">
+        {{ t('footer.brandingUnavailable') }}
+      </p>
       <dl class="app-footer-facts">
         <div v-if="data?.institution_name" class="app-footer-fact">
           <dt>{{ t('footer.publisher') }}</dt>
@@ -104,6 +107,11 @@ const data = computed(() => (state.value.status === 'ready' ? state.value.data :
 
 .app-footer-fact dd {
   margin: 0;
+}
+
+.app-footer-branding-error {
+  margin: 0;
+  color: var(--critical);
 }
 
 .app-footer-publisher {

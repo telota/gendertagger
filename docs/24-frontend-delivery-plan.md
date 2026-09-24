@@ -296,22 +296,43 @@ password-change, session-error, retry, empty, search-empty, initial-error, pagin
 states. Private administrative query data is principal-scoped and removed on a principal or eligibility
 change and when the view unmounts.
 
-Password reset, session revocation, project memberships, settings editing, and branding-consumer refresh are
-subsequent administrative slices. ADR-0040 permits frontend edits only for its six branding fields; this
-increment does not add those controls.
+Password reset, session revocation, and project memberships remain subsequent administrative slices.
+ADR-0040 permits frontend edits only for its six branding fields; the implementation does not expose any
+other deployment settings.
 
-### Administrative branding settings overview — ADR-0040
+### Administrative branding settings — ADR-0040
 
-**Status.** The read-only administrative settings screen is delivered. Eligible global administrators can
-read `GET /api/v1/admin/settings` at `/admin/settings`; its query key is principal-scoped, and its request and
-cached result are cancelled and removed on a principal or eligibility change and when the view unmounts. The
-overview presents the six permitted fields with effective value, deployment fallback, and server-authoritative
-override status, including explicit `null`/`[]` clearing and overrides equal to their fallback. It separately
-shows the derived logo URL and deployment-managed initiatives and legal entity, without exposing filesystem
-paths or arbitrary settings. The `503 settings_unavailable` state remains distinct from ordinary fetch errors
-and never renders fallback data as a substitute for unavailable storage. Editing, reset controls, and public
-branding refresh are later slices. Manual browser verification of the German/English, light/dark, keyboard,
-responsive, and error/retry states remains pending review.
+**Status.** The administrative settings screen is delivered at `/admin/settings` for eligible global
+administrators. Its principal-scoped administrative query is cancelled and removed on a principal or
+eligibility change and on view unmount. The overview shows each permitted field's effective value,
+deployment fallback, and server-authoritative override state, including explicit `null`/`[]` clearing and
+overrides equal to the fallback. Derived logo URL and deployment-managed initiatives and legal entity remain
+read-only.
+
+The editor sends only a sparse `branding` object with its baseline `expected_revision`. Each field is
+explicitly unchanged, set, or cleared; an equal set value remains an override instead of being silently
+normalized away. Client validation mirrors the canonical six-field contract before a request, while the
+server remains authoritative. Reset is a distinct selected-field operation: the form explains that it is
+disabled while unsaved edits exist, and the confirmation names the fallback that will take effect and that
+concurrent edits can conflict.
+
+A mutation response replaces the private query's metadata and revision, including server-defined no-ops.
+`409 settings_revision_conflict` loads the latest private snapshot but retains the draft and refuses another
+write until the administrator explicitly reconciles or discards it. `503 settings_unavailable`, network
+failure, and an uncertain post-submit outcome have distinct visible errors; none claim success, synthesize
+fallback data, or automatically replay the write after reauthentication.
+
+`useBranding` now reads the single shared public TanStack query. Successful administrative mutations cancel
+stale public reads and refresh that query so already-mounted footer, home, and legal-notice consumers update
+without navigation. Private administrative settings and public branding remain separate caches. If that
+follow-up read fails, saved administrative state remains confirmed, the public failure is visible, and Retry
+performs only the public read.
+
+**Manual verification pending.** Verify German and English light/dark, keyboard, and responsive editing;
+an equal-valued pinned override after changing deployment fallback; dirty-form reset blocking; two tabs
+conflicting then explicitly reconciling; `503` and lost-response messaging; and mounted footer, home, and
+legal notice updating after save without navigation. Runtime/browser suites were intentionally not run for
+this delivery.
 
 ### M3 — Projects and import
 

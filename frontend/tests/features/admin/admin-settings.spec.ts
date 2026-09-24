@@ -233,7 +233,7 @@ describe.each(['de', 'en'] as const)('AdminSettingsView in %s', (locale: AppLoca
     expect(wrapper.text()).toContain(SETTINGS.branding.logo_url)
     expect(wrapper.text()).toContain(SETTINGS.branding.initiatives[0]?.name)
     expect(wrapper.text()).toContain(SETTINGS.branding.legal_entity.name)
-    expect(wrapper.text()).toContain(messages.readOnly)
+    expect(wrapper.text()).toContain(messages.editingAvailable)
     await expectNoAxeViolations(wrapper.element)
   })
 

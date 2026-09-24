@@ -14,9 +14,13 @@ const PATHS_EXEMPT_FROM_RECOVERY = ['/api/v1/auth/login', '/api/v1/auth/logout']
  */
 export function shouldRetryAfterUnauthorized(request: Request): boolean {
   const { pathname } = new URL(request.url)
-  const isCreate = request.method === 'POST' && pathname.endsWith('/api/v1/admin/users')
-  const isUpdate = request.method === 'PATCH' && /\/api\/v1\/admin\/users\/[^/]+$/.test(pathname)
-  return !isCreate && !isUpdate
+  const isAccountCreate = request.method === 'POST' && pathname.endsWith('/api/v1/admin/users')
+  const isAccountUpdate =
+    request.method === 'PATCH' && /\/api\/v1\/admin\/users\/[^/]+$/.test(pathname)
+  const isSettingsUpdate = request.method === 'PATCH' && pathname.endsWith('/api/v1/admin/settings')
+  const isSettingsReset =
+    request.method === 'POST' && pathname.endsWith('/api/v1/admin/settings/reset')
+  return !isAccountCreate && !isAccountUpdate && !isSettingsUpdate && !isSettingsReset
 }
 
 /**
