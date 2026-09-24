@@ -1,0 +1,39 @@
+{
+  "servers": {
+    "pyright": {
+      "rootMarkers": [".git"],
+      "settings": {
+        "python": {
+          "pythonPath": "backend/.venv/bin/python",
+          "analysis": {
+            "extraPaths": ["backend/src"]
+          }
+        }
+      }
+    },
+    "typescript-language-server": {
+      "command": "npm",
+      "args": [
+        "exec",
+        "--prefix",
+        "frontend",
+        "--",
+        "typescript-language-server",
+        "--stdio"
+      ],
+      "rootMarkers": [".git"]
+    },
+    "vue-language-server": {
+      "command": "npm",
+      "args": [
+        "exec",
+        "--prefix",
+        "frontend",
+        "--",
+        "vue-language-server",
+        "--stdio"
+      ],
+      "rootMarkers": [".git"]
+    }
+  }
+}
