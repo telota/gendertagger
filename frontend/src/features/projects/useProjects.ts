@@ -6,7 +6,6 @@ import { useApiClient } from '@/composables/useApiClient'
 
 export type AccessibleProject = components['schemas']['AccessibleProject']
 
-
 /** One query key for the whole list — server-side sort is fixed (slug order), so there is no filter tuple yet. */
 const PROJECTS_QUERY_KEY = ['projects'] as const
 
@@ -43,4 +42,3 @@ export function useProject(projectId: Ref<string>) {
       ),
   })
 }
-

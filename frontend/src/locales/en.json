@@ -572,7 +572,46 @@
         "bytes": "{size} bytes"
       },
       "openRuns": "Runs on this snapshot"
+    },
+    "creation": {
+      "title": "Create project",
+      "description": "Choose a team before creating a project.",
+      "slug": "Slug",
+      "displayName": "Display name",
+      "descriptionField": "Description",
+      "teamSearch": "Search teams",
+      "team": "Team",
+      "chooseTeam": "Choose a team",
+      "noTeams": "No eligible teams were found.",
+      "initialManager": "Initial manager",
+      "defaultManager": "Use the server default",
+      "noManagers": "This team has no active eligible manager.",
+      "submit": "Create project",
+      "error": "The project could not be created. Review the current team and try again.",
+      "refreshFailed": "The project was created, but the project list could not be refreshed."
     }
+  },
+  "projectMembers": {
+    "title": "Project membership",
+    "description": "Management authority is separate from ordinary project access.",
+    "loadError": "The membership state could not be loaded.",
+    "managedProjects": "Projects you manage",
+    "manager": "Manager",
+    "noRole": "No ordinary project role",
+    "transfer": "Transfer management",
+    "members": "Project members",
+    "remove": "Remove role",
+    "add": "Add member",
+    "search": "Search eligible teammates",
+    "choose": "Choose a person",
+    "person": "Person",
+    "role": "Project role",
+    "roles": {
+      "viewer": "Viewer",
+      "reviewer": "Reviewer",
+      "operator": "Operator"
+    },
+    "error": "The membership change was not confirmed. Refresh and review before trying again."
   },
   "runs": {
     "loading": "Loading …",

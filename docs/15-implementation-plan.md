@@ -240,16 +240,16 @@ review and a manual commit.
    membership and manager-transfer APIs; and management-only discovery through
    [`ADR-0042`](decisions/ADR-0042-management-only-project-discovery.md). Project-linked deletion guards,
    derived-grant cleanup, account-deactivation integration, CLI parity, generated contracts, and focused
-   tests are delivered. The existing project-create UI remains deliberately pending and therefore fails
-   closed against the new required `team_id` contract.
+   tests are delivered.
 3. **Team administration UI — DELIVERED.** Global administrators can search and cursor-page teams, create,
    rename, and confirm deletion of teams, and administer one selected direct roster through the existing
    administrator account directory. Team and roster queries are principal-scoped and removed on access loss;
    mutations are not replayed after authentication recovery. Focused frontend tests cover the shipped
    transport and lifecycle states. Runtime suites and manual browser verification remain pending.
-4. **Project creation integration and project-membership UI — PENDING.** Regenerate frontend transport types;
-   deliver eligible-team selection, administrator initial-manager selection, manager membership and transfer
-   flows, candidate search, stale-cache recovery, and browser verification.
+4. **Project creation integration and project-membership UI — DELIVERED.** Eligible-team selection,
+   administrator roster-derived initial-manager selection, management-only project discovery, member-role
+   changes, candidate search, and confirmed manager transfer are implemented. Runtime suites and browser
+   verification remain reserved for the user's manual testing stage.
 
 Verification still covers global-role and manager boundaries, candidate-directory privacy, team-removal/grant
 races, manager replacement and administrator recovery, deactivation/rejoin non-restoration, fresh-schema

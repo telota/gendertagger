@@ -1,7 +1,7 @@
 import { flushPromises } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { createApiClient } from '@/api'
+import { createApiClient, type components } from '@/api'
 import type { AppLocale } from '@/app/i18n'
 import de from '@/locales/de.json'
 import en from '@/locales/en.json'
@@ -211,9 +211,19 @@ function evaluationClient(server: Server) {
           slug: 'p',
           display_name: 'Project A',
           description: null,
+          team: {
+            id: 'b1000000-0000-0000-0000-000000000001',
+            slug: 'editorial-team',
+            display_name: 'Editorial team',
+            created_at: '2026-01-01T00:00:00Z',
+            updated_at: '2026-01-01T00:00:00Z',
+          },
+          manager_user_id: 'a0000000-0000-0000-0000-000000000003',
+          created_by_user_id: 'a0000000-0000-0000-0000-000000000003',
           current_user_role: server.role,
+          current_user_can_manage_members: false,
           created_at: '2026-01-01T00:00:00Z',
-        })
+        } satisfies components['schemas']['AccessibleProject'])
       }
       if (pathname === `/api/v1/runs/${RUN_ID}`) {
         return jsonResponse({

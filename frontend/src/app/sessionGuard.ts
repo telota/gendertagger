@@ -33,6 +33,12 @@ export function shouldRetryAfterUnauthorized(request: Request): boolean {
     request.method === 'POST' && /\/api\/v1\/admin\/teams\/[^/]+\/members$/.test(pathname)
   const isTeamMemberRemoval =
     request.method === 'DELETE' && /\/api\/v1\/admin\/teams\/[^/]+\/members\/[^/]+$/.test(pathname)
+  const isProjectCreate = request.method === 'POST' && pathname.endsWith('/api/v1/projects')
+  const isProjectMemberWrite =
+    /\/api\/v1\/projects\/[^/]+\/members\/[^/]+$/.test(pathname) &&
+    (request.method === 'PUT' || request.method === 'DELETE')
+  const isManagerTransfer =
+    request.method === 'PUT' && /\/api\/v1\/projects\/[^/]+\/manager$/.test(pathname)
   return !(
     isAccountCreate ||
     isAccountUpdate ||
@@ -44,7 +50,10 @@ export function shouldRetryAfterUnauthorized(request: Request): boolean {
     isTeamUpdate ||
     isTeamDeletion ||
     isTeamMemberAdd ||
-    isTeamMemberRemoval
+    isTeamMemberRemoval ||
+    isProjectCreate ||
+    isProjectMemberWrite ||
+    isManagerTransfer
   )
 }
 

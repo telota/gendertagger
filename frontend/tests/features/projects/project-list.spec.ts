@@ -54,6 +54,8 @@ function signedInRoutes(
     '/api/v1/me': { body: user },
     '/api/v1/auth/session': { body: { must_change_password: false, keep_signed_in: false } },
     '/api/v1/projects': projectsBody,
+    '/api/v1/projects/managed': { body: { items: [], next_cursor: null, has_more: false } },
+    '/api/v1/teams': { body: { items: [], next_cursor: null, has_more: false } },
   }
 }
 
@@ -234,5 +236,4 @@ describe.each(['de', 'en'] as const)('ProjectListView in %s', (locale: AppLocale
     expect(wrapper.text()).toContain('Project B')
     expect(calls).toBe(2)
   })
-
 })

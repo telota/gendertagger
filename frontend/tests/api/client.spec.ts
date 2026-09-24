@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ApiError, CLIENT_ERROR_CODES, CSRF_HEADER_NAME, createApiClient, unwrap } from '@/api'
 
 const USER_ID = '6f9619ff-8b86-4011-b42d-00c04fc964ff'
+const TEAM_ID = 'e248da36-6ff9-4ea3-a486-cc2ce8ddf32a'
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -44,7 +45,9 @@ describe('createApiClient', () => {
   it('attaches the CSRF token to every unsafe method', async () => {
     const { client, requests } = setup(() => jsonResponse({}, { status: 201 }))
 
-    await client.POST('/api/v1/projects', { body: { display_name: 'Register', slug: 'register' } })
+    await client.POST('/api/v1/projects', {
+      body: { display_name: 'Register', slug: 'register', team_id: TEAM_ID },
+    })
 
     expect(requests[0]?.headers.get(CSRF_HEADER_NAME)).toBe('token-1')
   })
@@ -59,7 +62,9 @@ describe('createApiClient', () => {
       csrfToken: () => null,
     })
 
-    await client.POST('/api/v1/projects', { body: { display_name: 'Register', slug: 'register' } })
+    await client.POST('/api/v1/projects', {
+      body: { display_name: 'Register', slug: 'register', team_id: TEAM_ID },
+    })
 
     expect(requests[0]?.headers.has(CSRF_HEADER_NAME)).toBe(false)
   })
@@ -75,7 +80,9 @@ describe('createApiClient', () => {
       },
     })
 
-    await client.POST('/api/v1/projects', { body: { display_name: 'Register', slug: 'register' } })
+    await client.POST('/api/v1/projects', {
+      body: { display_name: 'Register', slug: 'register', team_id: TEAM_ID },
+    })
 
     expect(requests[0]?.headers.get(CSRF_HEADER_NAME)).toBe('from-cookie')
   })

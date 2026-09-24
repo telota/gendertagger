@@ -572,7 +572,46 @@
         "bytes": "{size} Byte"
       },
       "openRuns": "Läufe auf diesem Snapshot"
+    },
+    "creation": {
+      "title": "Projekt anlegen",
+      "description": "Wählen Sie vor dem Anlegen eines Projekts ein Team.",
+      "slug": "Slug",
+      "displayName": "Anzeigename",
+      "descriptionField": "Beschreibung",
+      "teamSearch": "Teams suchen",
+      "team": "Team",
+      "chooseTeam": "Team auswählen",
+      "noTeams": "Es wurden keine geeigneten Teams gefunden.",
+      "initialManager": "Anfängliche Verwaltung",
+      "defaultManager": "Servervorgabe verwenden",
+      "noManagers": "Dieses Team hat keine aktive geeignete Verwaltung.",
+      "submit": "Projekt anlegen",
+      "error": "Das Projekt konnte nicht angelegt werden. Prüfen Sie das aktuelle Team und versuchen Sie es erneut.",
+      "refreshFailed": "Das Projekt wurde angelegt, aber die Projektliste konnte nicht aktualisiert werden."
     }
+  },
+  "projectMembers": {
+    "title": "Projektmitgliedschaften",
+    "description": "Verwaltungsbefugnis und gewöhnlicher Projektzugriff sind getrennt.",
+    "loadError": "Der Mitgliedschaftsstatus konnte nicht geladen werden.",
+    "managedProjects": "Von Ihnen verwaltete Projekte",
+    "manager": "Verwaltung",
+    "noRole": "Keine gewöhnliche Projektrolle",
+    "transfer": "Verwaltung übertragen",
+    "members": "Projektmitglieder",
+    "remove": "Rolle entfernen",
+    "add": "Mitglied hinzufügen",
+    "search": "Geeignete Teammitglieder suchen",
+    "choose": "Person auswählen",
+    "person": "Person",
+    "role": "Projektrolle",
+    "roles": {
+      "viewer": "Betrachtung",
+      "reviewer": "Prüfung",
+      "operator": "Bearbeitung"
+    },
+    "error": "Die Mitgliedschaftsänderung wurde nicht bestätigt. Aktualisieren und prüfen Sie den Stand vor einem weiteren Versuch."
   },
   "runs": {
     "loading": "Wird geladen …",

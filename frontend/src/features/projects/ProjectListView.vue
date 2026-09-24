@@ -4,8 +4,10 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { useSessionStore } from '@/stores/session'
+import ProjectCreationForm from './ProjectCreationForm.vue'
 
 import { useProjectList } from './useProjects'
+import { useManagedProjects } from './useManagedProjects'
 import { useRoleLabel } from './useRoleLabel'
 
 const { t } = useI18n()
@@ -34,13 +36,29 @@ const isSignedIn = computed(() => session.status === 'ready' && session.isSigned
 
 const query = useProjectList(isSignedIn)
 const projects = computed(() => query.data.value?.pages.flatMap((page) => page.items) ?? [])
+const managedQuery = useManagedProjects(
+  isSignedIn,
+  computed(() => session.user?.id ?? null),
+)
+const managedProjects = computed(
+  () => managedQuery.data.value?.pages.flatMap((page) => page.items) ?? [],
+)
 
 const roleLabel = useRoleLabel()
+
+const canCreateProject = computed(
+  () =>
+    session.user?.roles.includes('operator') === true ||
+    session.user?.roles.includes('admin') === true,
+)
+
+function openCreatedProject(projectId: string): void {
+  void router.push({ name: 'projectOverview', params: { projectId } })
+}
 
 function loadMore(): void {
   void query.fetchNextPage()
 }
-
 </script>
 
 <template>
@@ -55,7 +73,22 @@ function loadMore(): void {
       <AppButton type="button" @click="retrySession">{{ t('projects.retry') }}</AppButton>
     </div>
     <template v-else-if="isSignedIn">
-
+      <ProjectCreationForm
+        v-if="canCreateProject && session.user"
+        :principal-id="session.user.id"
+        :is-administrator="session.user.roles.includes('admin')"
+        @created="openCreatedProject"
+      />
+      <section v-if="managedProjects.length" class="project-list-managed">
+        <h2>{{ t('projectMembers.managedProjects') }}</h2>
+        <ul class="project-list-items">
+          <li v-for="project in managedProjects" :key="project.id" class="project-card">
+            <RouterLink :to="{ name: 'projectMembers', params: { projectId: project.id } }">
+              {{ project.display_name }}
+            </RouterLink>
+          </li>
+        </ul>
+      </section>
       <p v-if="query.isPending.value" role="status">{{ t('projects.loading') }}</p>
       <div v-else-if="query.isError.value" class="project-list-load-error">
         <p role="alert">{{ t('projects.loadError') }}</p>
