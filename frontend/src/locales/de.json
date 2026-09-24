@@ -74,6 +74,7 @@
     "label": "Hauptnavigation",
     "projects": "Projekte",
     "administration": "Administration",
+    "teams": "Teams",
     "settings": "Branding-Einstellungen"
   },
   "locale": {
@@ -259,6 +260,105 @@
       "authenticationRequired": "Ihre Sitzung ist beendet. Melden Sie sich erneut an und senden Sie die Änderung dann bewusst erneut ab.",
       "networkError": "Der Server ist nicht erreichbar. Die Änderung könnte erfolgt sein; aktualisieren Sie das Verzeichnis, bevor Sie es erneut versuchen.",
       "unexpected": "Die Kontoänderung konnte nicht abgeschlossen werden. Aktualisieren Sie das Verzeichnis, bevor Sie es erneut versuchen."
+    }
+  },
+  "adminTeams": {
+    "title": "Teams",
+    "description": "Die direkte Teammitgliedschaft schafft die Berechtigung für explizite Projektfreigaben, aber keinen Projektzugriff.",
+    "loadingAccess": "Administrativer Zugriff wird geprüft …",
+    "sessionLoadError": "Die Sitzung konnte nicht geprüft werden.",
+    "forbidden": "Sie haben keine Berechtigung, Teams zu verwalten.",
+    "passwordChangeRequired": "Bevor Sie Teams verwalten können, müssen Sie Ihr Passwort ändern.",
+    "loading": "Wird geladen …",
+    "retry": "Erneut versuchen",
+    "refetch": "Aktualisieren",
+    "loadMore": "Mehr laden",
+    "cancel": "Abbrechen",
+    "refreshFailed": "Die Änderung wurde bestätigt, aber die betroffenen Listen konnten nicht aktualisiert werden. Prüfen Sie den aktuellen Stand, bevor Sie eine weitere Änderung vornehmen.",
+    "creation": {
+      "title": "Team anlegen",
+      "description": "Ein Team ist eine Berechtigungsgruppe, keine Projektrolle und kein automatischer Projektzugriff.",
+      "slug": "Slug",
+      "displayName": "Anzeigename",
+      "submit": "Team anlegen"
+    },
+    "creating": "Team wird angelegt …",
+    "list": {
+      "title": "Teams",
+      "search": "Teams suchen",
+      "loadError": "Die Teamliste konnte nicht geladen werden.",
+      "paginationError": "Weitere Teams konnten nicht geladen werden. Die bereits angezeigten Teams bleiben unverändert.",
+      "empty": "Es sind keine Teams vorhanden.",
+      "searchEmpty": "Keine Teams entsprechen dieser Suche."
+    },
+    "selection": {
+      "title": "Team auswählen",
+      "description": "Wählen Sie ein Team, um seine direkten Mitglieder anzuzeigen und die Mitgliedschaft zu verwalten."
+    },
+    "rename": {
+      "title": "Team umbenennen",
+      "displayName": "Anzeigename",
+      "slugImmutable": "Der Slug ist unveränderlich.",
+      "submit": "Anzeigenamen speichern"
+    },
+    "roster": {
+      "title": "Direkte Mitglieder",
+      "search": "Direkte Mitglieder suchen",
+      "loadError": "Die Teamliste konnte nicht geladen werden.",
+      "paginationError": "Weitere Teammitglieder konnten nicht geladen werden. Die bereits angezeigten Mitglieder bleiben unverändert.",
+      "empty": "Dieses Team hat keine direkten Mitglieder.",
+      "searchEmpty": "Keine direkten Mitglieder entsprechen dieser Suche.",
+      "remove": "Mitglied entfernen",
+      "confirm": {
+        "title": "{name} aus {team} entfernen?",
+        "description": "Das Entfernen dieser direkten Mitgliedschaft widerruft auch die expliziten Projektmitgliedschaften dieser Person innerhalb des Teams. Konto und historische Arbeit bleiben erhalten.",
+        "managerRequirement": "Falls diese Person ein betroffenes Projekt verwaltet, muss zuerst eine geeignete Ersatzverwaltung bestimmt werden. Diese Aktion überträgt die Verwaltung nicht automatisch.",
+        "submit": "Mitglied entfernen"
+      }
+    },
+    "addMember": {
+      "title": "Bestehendes Konto hinzufügen",
+      "description": "Durchsuchen Sie das administrative Kontoverzeichnis. Das Hinzufügen schafft nur eine direkte Teammitgliedschaft und weist keine Projektrolle zu.",
+      "search": "Benutzername oder Anzeigename suchen",
+      "loadError": "Das Kontoverzeichnis konnte nicht geladen werden.",
+      "paginationError": "Weitere Konten konnten nicht geladen werden. Die bereits angezeigten Konten bleiben unverändert.",
+      "empty": "Es sind keine lokalen Konten vorhanden.",
+      "searchEmpty": "Keine lokalen Konten entsprechen dieser Suche.",
+      "inactive": "Inaktive Konten können nicht hinzugefügt werden.",
+      "add": "Zum Team hinzufügen"
+    },
+    "deletion": {
+      "title": "Team löschen",
+      "description": "Löschen Sie nur ein leeres Team. Schließen Sie nicht von der gerade angezeigten Roster-Seite darauf, dass ein Team leer ist.",
+      "open": "Team löschen",
+      "confirm": {
+        "title": "{name} ({slug}) löschen?",
+        "description": "Dadurch wird das Team selbst entfernt.",
+        "emptyRequirement": "Das Löschen erfordert, dass das Team keine direkten Mitglieder und keine zugehörigen Projekte hat. Es wird nichts anderes automatisch entfernt.",
+        "submit": "Team löschen"
+      }
+    },
+    "success": {
+      "created": "Team angelegt.",
+      "renamed": "Team-Anzeigename gespeichert.",
+      "deleted": "Team gelöscht.",
+      "memberConfirmed": "Teammitgliedschaft bestätigt.",
+      "memberRemoved": "Teammitglied entfernt."
+    },
+    "errors": {
+      "teamSlugConflict": "Dieser Team-Slug wird bereits verwendet. Wählen Sie einen anderen Slug.",
+      "teamNotEmpty": "Das Team hat direkte Mitglieder und kann nicht gelöscht werden. Prüfen Sie vor dem Entfernen deren Projektverwaltungen.",
+      "teamInUse": "Das Team hat zugehörige Projekte und kann nicht gelöscht werden.",
+      "inactiveUser": "Ein inaktives Konto kann nicht zu einem Team hinzugefügt werden.",
+      "managerReplacementRequired": "Diese Person verwaltet betroffene Projekte. Bestimmen Sie vor dem Entfernen der Teammitgliedschaft eine geeignete Ersatzverwaltung; es wurde kein Zugriff entfernt.",
+      "teamMembershipConflict": "Die Teammitgliedschaft wurde gleichzeitig geändert. Aktualisieren und prüfen Sie das Roster, bevor Sie erneut entscheiden.",
+      "resourceNotFound": "Das angeforderte Team oder Konto existiert nicht mehr. Aktualisieren Sie die betroffene Liste, bevor Sie erneut entscheiden.",
+      "passwordChangeRequired": "Ändern Sie Ihr Passwort, bevor Sie Teams verwalten.",
+      "forbidden": "Sie haben keine Berechtigung mehr, Teams zu verwalten.",
+      "validationError": "Prüfen Sie die eingegebenen Teamdaten und versuchen Sie es erneut.",
+      "authenticationRequired": "Ihre Sitzung ist beendet. Melden Sie sich erneut an, prüfen Sie den aktuellen Stand und senden Sie die Änderung dann bewusst erneut ab.",
+      "networkError": "Die Änderung könnte erfolgt sein, weil die Antwort verloren ging. Aktualisieren und prüfen Sie den aktuellen Stand, bevor Sie es erneut versuchen; wiederholen Sie sie nicht automatisch.",
+      "unexpected": "Die Änderung wurde nicht bestätigt. Ihr Ergebnis könnte unbekannt sein; aktualisieren und prüfen Sie den aktuellen Stand, bevor Sie erneut entscheiden."
     }
   },
   "adminSettings": {

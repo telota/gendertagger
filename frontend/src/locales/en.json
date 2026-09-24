@@ -74,6 +74,7 @@
     "label": "Main navigation",
     "projects": "Projects",
     "administration": "Administration",
+    "teams": "Teams",
     "settings": "Branding settings"
   },
   "locale": {
@@ -259,6 +260,105 @@
       "authenticationRequired": "Your session ended. Sign in again, then deliberately resubmit the change.",
       "networkError": "The server could not be reached. The change may have been applied; refresh the directory before trying again.",
       "unexpected": "The account change could not be completed. Refresh the directory before trying again."
+    }
+  },
+  "adminTeams": {
+    "title": "Teams",
+    "description": "Direct team membership establishes eligibility for explicit project grants; it does not grant project access.",
+    "loadingAccess": "Checking administrative access …",
+    "sessionLoadError": "The session could not be checked.",
+    "forbidden": "You do not have permission to administer teams.",
+    "passwordChangeRequired": "Your password must be changed before you can administer teams.",
+    "loading": "Loading …",
+    "retry": "Try again",
+    "refetch": "Refresh",
+    "loadMore": "Load more",
+    "cancel": "Cancel",
+    "refreshFailed": "The change was confirmed, but the affected lists could not be refreshed. Review the current state before making another change.",
+    "creation": {
+      "title": "Create team",
+      "description": "A team is an eligibility group, not a project role or automatic project access.",
+      "slug": "Slug",
+      "displayName": "Display name",
+      "submit": "Create team"
+    },
+    "creating": "Creating team …",
+    "list": {
+      "title": "Teams",
+      "search": "Search teams",
+      "loadError": "The team list could not be loaded.",
+      "paginationError": "More teams could not be loaded. The teams already shown are unchanged.",
+      "empty": "No teams are available.",
+      "searchEmpty": "No teams match this search."
+    },
+    "selection": {
+      "title": "Select a team",
+      "description": "Choose a team to view its direct roster and administer its membership."
+    },
+    "rename": {
+      "title": "Rename team",
+      "displayName": "Display name",
+      "slugImmutable": "The slug is immutable.",
+      "submit": "Save display name"
+    },
+    "roster": {
+      "title": "Direct members",
+      "search": "Search direct members",
+      "loadError": "The team roster could not be loaded.",
+      "paginationError": "More team members could not be loaded. The members already shown are unchanged.",
+      "empty": "This team has no direct members.",
+      "searchEmpty": "No direct members match this search.",
+      "remove": "Remove member",
+      "confirm": {
+        "title": "Remove {name} from {team}?",
+        "description": "Removing this direct membership also revokes this person's explicit project memberships within this team. It preserves the account and historical work.",
+        "managerRequirement": "If this person manages an affected project, an eligible replacement manager must be appointed first. This action does not transfer management automatically.",
+        "submit": "Remove member"
+      }
+    },
+    "addMember": {
+      "title": "Add existing account",
+      "description": "Search the administrative account directory. Adding a person establishes direct team membership only; it does not assign a project role.",
+      "search": "Search username or display name",
+      "loadError": "The account directory could not be loaded.",
+      "paginationError": "More accounts could not be loaded. The accounts already shown are unchanged.",
+      "empty": "No local accounts are available.",
+      "searchEmpty": "No local accounts match this search.",
+      "inactive": "Inactive accounts cannot be added.",
+      "add": "Add to team"
+    },
+    "deletion": {
+      "title": "Delete team",
+      "description": "Delete only an empty team. Do not infer that a team is empty from the roster page currently displayed.",
+      "open": "Delete team",
+      "confirm": {
+        "title": "Delete {name} ({slug})?",
+        "description": "This removes the team itself.",
+        "emptyRequirement": "Deletion requires no direct members and no owned projects. Nothing else will be removed automatically.",
+        "submit": "Delete team"
+      }
+    },
+    "success": {
+      "created": "Team created.",
+      "renamed": "Team display name saved.",
+      "deleted": "Team deleted.",
+      "memberConfirmed": "Team membership confirmed.",
+      "memberRemoved": "Team member removed."
+    },
+    "errors": {
+      "teamSlugConflict": "This team slug is already in use. Choose another slug.",
+      "teamNotEmpty": "The team has direct members and cannot be deleted. Remove members only after reviewing their project-manager assignments.",
+      "teamInUse": "The team owns projects and cannot be deleted.",
+      "inactiveUser": "An inactive account cannot be added to a team.",
+      "managerReplacementRequired": "This person manages affected projects. Appoint an eligible replacement manager before removing the team membership; no access was removed.",
+      "teamMembershipConflict": "The team membership changed concurrently. Refresh the roster and review it before deciding whether to try again.",
+      "resourceNotFound": "The requested team or account no longer exists. Refresh the affected list before deciding whether to try again.",
+      "passwordChangeRequired": "Change your password before administering teams.",
+      "forbidden": "You no longer have permission to administer teams.",
+      "validationError": "Review the entered team details and try again.",
+      "authenticationRequired": "Your session ended. Sign in again, review the current state, then deliberately resubmit the change.",
+      "networkError": "The change may have completed because the response was lost. Refresh and review the current state before trying again; do not repeat it automatically.",
+      "unexpected": "The change was not confirmed. Its outcome may be unknown; refresh and review the current state before deciding whether to try again."
     }
   },
   "adminSettings": {

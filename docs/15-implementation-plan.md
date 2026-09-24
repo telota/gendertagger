@@ -235,14 +235,17 @@ review and a manual commit.
    advisory-lock-protected direct roster mutations, secret-free operational logs, generated contract outputs,
    and focused tests are delivered. This slice does not change project creation, project visibility, or
    current project-membership authorization.
-2. **Project/team association, manager authority, and membership APIs — PENDING.** Add required project team,
+2. **Project/team association, manager authority, and membership APIs — DELIVERED.** Required project team,
    manager, and creator relationships; team-aware project creation; scoped candidate lookup; delegated
    membership and manager-transfer APIs; project-linked deletion guards; derived-grant cleanup; account-
-   deactivation integration; CLI parity; and focused tests. The existing create UI will fail validation until
-   its transport/types are regenerated and updated; it must never create an unassigned project or bypass
-   eligibility.
-3. **Team administration UI — PENDING.** Deliver global-admin team/roster flows with principal-scoped caches,
-   cancellation/removal on access loss, localization, accessibility checks, and browser verification.
+   deactivation integration; CLI parity; generated contracts; and focused tests are delivered. The existing
+   project-create UI remains deliberately pending and therefore fails closed against the new required
+   `team_id` contract.
+3. **Team administration UI — DELIVERED.** Global administrators can search and cursor-page teams, create,
+   rename, and confirm deletion of teams, and administer one selected direct roster through the existing
+   administrator account directory. Team and roster queries are principal-scoped and removed on access loss;
+   mutations are not replayed after authentication recovery. Focused frontend tests cover the shipped
+   transport and lifecycle states. Runtime suites and manual browser verification remain pending.
 4. **Project creation integration and project-membership UI — PENDING.** Regenerate frontend transport types;
    deliver eligible-team selection, administrator initial-manager selection, manager membership and transfer
    flows, candidate search, stale-cache recovery, and browser verification.

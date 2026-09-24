@@ -24,13 +24,27 @@ export function shouldRetryAfterUnauthorized(request: Request): boolean {
   const isSettingsUpdate = request.method === 'PATCH' && pathname.endsWith('/api/v1/admin/settings')
   const isSettingsReset =
     request.method === 'POST' && pathname.endsWith('/api/v1/admin/settings/reset')
+  const isTeamCreate = request.method === 'POST' && pathname.endsWith('/api/v1/admin/teams')
+  const isTeamUpdate =
+    request.method === 'PATCH' && /\/api\/v1\/admin\/teams\/[^/]+$/.test(pathname)
+  const isTeamDeletion =
+    request.method === 'DELETE' && /\/api\/v1\/admin\/teams\/[^/]+$/.test(pathname)
+  const isTeamMemberAdd =
+    request.method === 'POST' && /\/api\/v1\/admin\/teams\/[^/]+\/members$/.test(pathname)
+  const isTeamMemberRemoval =
+    request.method === 'DELETE' && /\/api\/v1\/admin\/teams\/[^/]+\/members\/[^/]+$/.test(pathname)
   return !(
     isAccountCreate ||
     isAccountUpdate ||
     isPasswordReset ||
     isSessionRevocation ||
     isSettingsUpdate ||
-    isSettingsReset
+    isSettingsReset ||
+    isTeamCreate ||
+    isTeamUpdate ||
+    isTeamDeletion ||
+    isTeamMemberAdd ||
+    isTeamMemberRemoval
   )
 }
 

@@ -302,10 +302,12 @@ password-change, session-error, retry, empty, search-empty, initial-error, pagin
 states. Private administrative query data is principal-scoped and removed on a principal or eligibility
 change and when the view unmounts.
 
-Project memberships are an accepted, pending team-management increment under
-[ADR-0041](decisions/ADR-0041-admin-managed-teams-and-delegated-project-membership.md). It will add separate
-global-admin team administration and project-manager membership flows without exposing the administrative
-account directory to managers. ADR-0040 still permits frontend edits only for its six branding fields; the
+ADR-0041's global-administrator team administration UI is delivered: it keeps team and roster discovery
+principal-scoped, provides confirmed lifecycle and roster mutations, and does not replay a mutation after
+authentication recovery. The project-creation and project-membership UI remains pending. In particular,
+project managers still receive no account-directory UI, and no manager-transfer screen is linked before that
+project-scoped workflow is delivered. Focused frontend tests are added; runtime suites and manual browser
+verification remain pending. ADR-0040 still permits frontend edits only for its six branding fields; the
 implementation does not expose any other deployment settings.
 
 ### Administrative branding settings — ADR-0040
@@ -908,12 +910,12 @@ people collection.
 explicit project roles; only `operator`, which may create projects, and `admin`, which has effective operator
 access everywhere, are global roles.
 
-**Accepted target, pending implementation:** [ADR-0041](decisions/ADR-0041-admin-managed-teams-and-delegated-project-membership.md)
-partially amends D6. Direct teams will establish eligibility rather than automatic access. Every project will
-belong to one team and have one manager, distinct from project `operator`. A manager will manage only its
-project's eligible team members and will receive `current_user_can_manage_members`; the client must not infer
-that capability from `current_user_role`. Global administrators retain access everywhere and the
-global-admin-only account directory remains unavailable to managers.
+**Accepted target, partially delivered:** [ADR-0041](decisions/ADR-0041-admin-managed-teams-and-delegated-project-membership.md)
+partially amends D6. The global-administrator team/roster UI is delivered: direct teams establish eligibility
+rather than automatic access, and the global account directory remains unavailable to managers. Every project
+will use one team and one manager, distinct from project `operator`; project creation, manager membership,
+and manager-transfer UI remain pending. When delivered, the client must use
+`current_user_can_manage_members` rather than inferring that capability from `current_user_role`.
 
 **Current consequences.**
 
