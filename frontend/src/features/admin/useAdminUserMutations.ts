@@ -66,13 +66,20 @@ export function useAdminUserMutations(
   const isUpdating = ref(false)
   const createError = ref<AdminUserMutationError | null>(null)
   const updateError = ref<AdminUserMutationError | null>(null)
+  // An in-flight write must not repopulate private state after its view, principal, or access changes.
+  let privateStateEpoch = 0
 
-  function isCurrentPrincipal(principal: string): boolean {
-    return canAccessAdmin.value && principalId.value === principal
+  function isCurrentPrincipal(principal: string, requestEpoch: number): boolean {
+    return (
+      privateStateEpoch === requestEpoch && canAccessAdmin.value && principalId.value === principal
+    )
   }
 
   function clearPrivateState(): void {
+    privateStateEpoch += 1
     temporaryPassword.value = null
+    isCreating.value = false
+    isUpdating.value = false
     createError.value = null
     updateError.value = null
   }
@@ -85,25 +92,30 @@ export function useAdminUserMutations(
 
   async function create(command: AdminUserCreateCommand): Promise<boolean> {
     const principal = principalId.value
-    if (principal === null || !isCurrentPrincipal(principal) || isCreating.value) return false
+    const requestEpoch = privateStateEpoch
+    if (principal === null || !isCurrentPrincipal(principal, requestEpoch) || isCreating.value) {
+      return false
+    }
 
     isCreating.value = true
     createError.value = null
     temporaryPassword.value = null
     try {
       const result = await unwrap(client.POST('/api/v1/admin/users', { body: command }))
-      if (!isCurrentPrincipal(principal)) return false
+      if (!isCurrentPrincipal(principal, requestEpoch)) return false
 
       temporaryPassword.value = result.temporary_password
       void refreshDirectory(principal)
       return true
     } catch (error) {
-      if (isCurrentPrincipal(principal)) {
+      if (isCurrentPrincipal(principal, requestEpoch)) {
         createError.value = mutationErrorCode(error)
       }
       return false
     } finally {
-      isCreating.value = false
+      if (isCurrentPrincipal(principal, requestEpoch)) {
+        isCreating.value = false
+      }
     }
   }
 
@@ -112,7 +124,10 @@ export function useAdminUserMutations(
     command: AdminUserUpdateCommand,
   ): Promise<AdminUser | null> {
     const principal = principalId.value
-    if (principal === null || !isCurrentPrincipal(principal) || isUpdating.value) return null
+    const requestEpoch = privateStateEpoch
+    if (principal === null || !isCurrentPrincipal(principal, requestEpoch) || isUpdating.value) {
+      return null
+    }
 
     isUpdating.value = true
     updateError.value = null
@@ -123,17 +138,19 @@ export function useAdminUserMutations(
           body: command,
         }),
       )
-      if (!isCurrentPrincipal(principal)) return null
+      if (!isCurrentPrincipal(principal, requestEpoch)) return null
 
       void refreshDirectory(principal)
       return account
     } catch (error) {
-      if (isCurrentPrincipal(principal)) {
+      if (isCurrentPrincipal(principal, requestEpoch)) {
         updateError.value = mutationErrorCode(error)
       }
       return null
     } finally {
-      isUpdating.value = false
+      if (isCurrentPrincipal(principal, requestEpoch)) {
+        isUpdating.value = false
+      }
     }
   }
 

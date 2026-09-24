@@ -1,9 +1,11 @@
 import { flushPromises } from '@vue/test-utils'
 import { getActivePinia } from 'pinia'
 import { afterEach, describe, expect, it } from 'vitest'
+import { createMemoryHistory } from 'vue-router'
 
 import { createApiClient } from '@/api'
 import type { AppLocale } from '@/app/i18n'
+import { createAppRouter } from '@/app/router'
 import { useSessionStore } from '@/stores/session'
 import de from '@/locales/de.json'
 import en from '@/locales/en.json'
@@ -43,6 +45,8 @@ const DUPLICATE_SUBMISSION_TEST =
 const DEACTIVATION_TEST =
   'confirms deactivation and disables the self-lockout controls with their explanations'
 const LATE_RESPONSE_TEST = 'clears a late temporary-password response after the principal changes'
+const DISPOSED_RESPONSE_TEST =
+  'ignores a late create response after the administrative view is disposed'
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -290,5 +294,45 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
 
     expect(wrapper.text()).not.toContain('must-not-survive-principal-change')
     expect(currentSession().user?.id).toBe(ADMIN_B.id)
+  })
+
+  it(DISPOSED_RESPONSE_TEST, async () => {
+    let resolveCreate: ((response: Response) => void) | undefined
+    let directoryRequests = 0
+    const client = signedInClient(
+      (request) => {
+        const { pathname } = new URL(request.url)
+        if (pathname === '/api/v1/admin/users' && request.method === 'GET') {
+          directoryRequests += 1
+          return jsonResponse({ items: [], has_more: false, next_cursor: null })
+        }
+        if (pathname === '/api/v1/admin/users' && request.method === 'POST') {
+          return new Promise<Response>((resolve) => {
+            resolveCreate = resolve
+          })
+        }
+        return jsonResponse({}, { status: 404 })
+      },
+      () => ADMIN_A,
+    )
+    const router = createAppRouter(createMemoryHistory())
+    const wrapper = await mountApplicationAt('/admin/users', locale, client, router)
+    await waitFor(() => expect(wrapper.find('#admin-user-create-username').exists()).toBe(true))
+    await wrapper.get('#admin-user-create-username').setValue('new.admin')
+    await wrapper.get('#admin-user-create-display-name').setValue('New administrator')
+    await buttonWithText(wrapper, messages.creation.submit).trigger('click')
+
+    await router.push('/')
+    await flushPromises()
+    resolveCreate?.(
+      jsonResponse(
+        { account: ACCOUNT, temporary_password: 'must-not-survive-view-disposal' },
+        { status: 201 },
+      ),
+    )
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('must-not-survive-view-disposal')
+    expect(directoryRequests).toBe(1)
   })
 })

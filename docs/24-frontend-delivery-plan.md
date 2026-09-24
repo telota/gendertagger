@@ -18,12 +18,12 @@ is deliberately not asserted here.
 
 Phase 8's backend prerequisites and blocking semantic decisions are met.
 
-| Precondition | State | Blocks |
-|---|---|---|
-| A real `AuthenticationBackend` | **Met.** `DatabaseAuthenticationBackend` is the default: admin-provisioned local accounts and server-side sessions ([ADR-0031](decisions/ADR-0031-local-database-authentication.md)). | — |
-| Three missing read endpoints | **Met.** `GET /projects` ([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)), `GET /aggregations/{id}/results/{result_id}/predictions`, and `GET /annotations?snapshot_id=&tei_id=` are delivered. | — |
-| Collections to navigate by | **Met.** `GET /projects/{id}/snapshots`, `GET /snapshots/{id}/runs`, and `GET /runs/{id}/aggregations`, `/evaluations`, and `/exports` list their resources newest first, so the routes can recover the identifiers they carry. | — |
-| Blocking semantic decisions | **Met.** D1–D6 are resolved. See [Decisions](#decisions-taken). | — |
+| Precondition                   | State                                                                                                                                                                                                                           | Blocks |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| A real `AuthenticationBackend` | **Met.** `DatabaseAuthenticationBackend` is the default: admin-provisioned local accounts and server-side sessions ([ADR-0031](decisions/ADR-0031-local-database-authentication.md)).                                           | —      |
+| Three missing read endpoints   | **Met.** `GET /projects` ([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)), `GET /aggregations/{id}/results/{result_id}/predictions`, and `GET /annotations?snapshot_id=&tei_id=` are delivered.              | —      |
+| Collections to navigate by     | **Met.** `GET /projects/{id}/snapshots`, `GET /snapshots/{id}/runs`, and `GET /runs/{id}/aggregations`, `/evaluations`, and `/exports` list their resources newest first, so the routes can recover the identifiers they carry. | —      |
+| Blocking semantic decisions    | **Met.** D1–D6 are resolved. See [Decisions](#decisions-taken).                                                                                                                                                                 | —      |
 
 M1 is delivered and M2 is not blocked, since a real authentication backend is in place. No milestone waits on
 a missing read endpoint any more.
@@ -95,18 +95,18 @@ interaction markup is not a reference for implementation**, only its layout and 
 
 ### Per-milestone accessibility criteria
 
-| Milestone | Added criterion |
-|---|---|
-| M0 | Accessibility owner appointed (D18); statement obligation confirmed; test protocol drafted (D17) |
-| M1 | `rem`-based token scale; automated checks in CI — linter accessibility rules, `axe-core` in component tests, contrast assertions for both themes |
-| M2 | Skip link, focus management, live-region infrastructure, accessible theme and locale switches, documented keyboard model; the shell passes a manual screen-reader pass |
-| M3 | Form labelling and error association; upload limits announced, not only shown |
-| M4 | Long-running progress announced through a live region without flooding it |
-| M5 | The hardest screen: pinned action bar must not obscure focus (2.4.11); shortcuts suppressed in text inputs; annotation results and conflicts announced; list selection state exposed |
-| M6 | Annotation history readable as a structured list, not a visual timeline only |
-| M7 | Every chart has a table equivalent; no meaning carried by colour alone |
-| M8 | Export lifecycle and completion announced |
-| M9 | Full internal conformance pass across the D17 matrix; user testing round completed (D18); statement and feedback mechanism published if required |
+| Milestone | Added criterion                                                                                                                                                                      |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| M0        | Accessibility owner appointed (D18); statement obligation confirmed; test protocol drafted (D17)                                                                                     |
+| M1        | `rem`-based token scale; automated checks in CI — linter accessibility rules, `axe-core` in component tests, contrast assertions for both themes                                     |
+| M2        | Skip link, focus management, live-region infrastructure, accessible theme and locale switches, documented keyboard model; the shell passes a manual screen-reader pass               |
+| M3        | Form labelling and error association; upload limits announced, not only shown                                                                                                        |
+| M4        | Long-running progress announced through a live region without flooding it                                                                                                            |
+| M5        | The hardest screen: pinned action bar must not obscure focus (2.4.11); shortcuts suppressed in text inputs; annotation results and conflicts announced; list selection state exposed |
+| M6        | Annotation history readable as a structured list, not a visual timeline only                                                                                                         |
+| M7        | Every chart has a table equivalent; no meaning carried by colour alone                                                                                                               |
+| M8        | Export lifecycle and completion announced                                                                                                                                            |
+| M9        | Full internal conformance pass across the D17 matrix; user testing round completed (D18); statement and feedback mechanism published if required                                     |
 
 No milestone is complete while its criterion is outstanding. Automated checks are a floor: they catch a
 minority of real defects, and none of the wireframe's non-semantic controls would have been fully caught by
@@ -122,18 +122,18 @@ than reconstructed at the end.
 
 ## Milestones
 
-| ID | Milestone | Size | Hard dependencies |
-|---|---|---|---|
-| M0 | Decisions and backend prerequisites | M | scope-exclusion confirmation; accessibility assignments |
-| M1 | Scaffold and transport | S | none — D3, D8, D11, D12 all resolved |
-| M2 | Application shell | M | M1; a working auth backend; `GET /api/v1/branding` ([ADR-0036](decisions/ADR-0036-institution-branding-configuration.md)), **delivered** |
-| M3 | Projects and import | M | M2 |
-| M4 | Runs and aggregation | L | M3 |
-| M5 | Review workbench | L | M4 |
-| M6 | Person browser and audit view | M | M5; D5 resolved |
-| M7 | Evaluation and statistics | M | M4 |
-| M8 | Export | S | M4 |
-| M9 | Optional paths and production build | M | M5 |
+| ID  | Milestone                           | Size | Hard dependencies                                                                                                                        |
+| --- | ----------------------------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| M0  | Decisions and backend prerequisites | M    | scope-exclusion confirmation; accessibility assignments                                                                                  |
+| M1  | Scaffold and transport              | S    | none — D3, D8, D11, D12 all resolved                                                                                                     |
+| M2  | Application shell                   | M    | M1; a working auth backend; `GET /api/v1/branding` ([ADR-0036](decisions/ADR-0036-institution-branding-configuration.md)), **delivered** |
+| M3  | Projects and import                 | M    | M2                                                                                                                                       |
+| M4  | Runs and aggregation                | L    | M3                                                                                                                                       |
+| M5  | Review workbench                    | L    | M4                                                                                                                                       |
+| M6  | Person browser and audit view       | M    | M5; D5 resolved                                                                                                                          |
+| M7  | Evaluation and statistics           | M    | M4                                                                                                                                       |
+| M8  | Export                              | S    | M4                                                                                                                                       |
+| M9  | Optional paths and production build | M    | M5                                                                                                                                       |
 
 ### M0 — Decisions and backend prerequisites
 
@@ -283,7 +283,8 @@ global-admin account creation and mutable-account editing. It uses the generated
 and `PATCH /api/v1/admin/users/{user_id}` operations; keeps server-ordered, cursor-paginated directory data
 in its principal-scoped query cache; and deliberately does not replay either write after `401` recovery.
 Creation discloses the server-generated temporary password only in component-local state and removes it on
-dismissal, unmount, principal/access change, and logout. Editing permits only display name, global roles, and
+dismissal, unmount, principal/access change, and logout; mutation responses from an obsolete view, principal,
+or access state are discarded. Editing permits only display name, global roles, and
 activation state, confirms deactivation, and prevents obvious self-lockout controls without treating the
 paginated client directory as an authority on the last active administrator. Manual browser verification of
 the new German/English, light/dark, keyboard, responsive, and recovery states remains pending review.
@@ -298,7 +299,6 @@ change and when the view unmounts.
 Password reset, session revocation, project memberships, settings forms, and branding consumers are
 subsequent administrative slices. ADR-0040 permits frontend edits only for its six branding fields; this
 increment does not add those controls.
-
 
 ### M3 — Projects and import
 
@@ -337,7 +337,7 @@ increment does not add those controls.
   the server still enforces the bounds, and a `413` still maps to an inline message. If the limits cannot be
   loaded the form says so and does not block. Found in the first real-backend run: a ZIP sent under the
   default "single file" delivery is read as XML and only fails after the snapshot exists (`invalid TEI XML at
-  line 1, column 1`), so the form also compares the file name with the chosen delivery (`.zip`,
+line 1, column 1`), so the form also compares the file name with the chosen delivery (`.zip`,
   `.tar.gz`/`.tgz`) and refuses a mismatch before uploading. The server stays authoritative.
   The same run showed that CSV, XLSX and JSON share one fixed profile (`docs/08-ingestion-and-export.md`) that
   the form never named, and that the backend's `unknown columns` diagnostic does not list the expected ones.
@@ -740,20 +740,20 @@ same `CurrentUser`, so that swap stays contained. Recorded as
 ### D2 — Certainty and agreement tiers, not a confidence threshold
 
 **Resolved from the paper** ([`paper/article.tex`](paper/article.tex), §Aggregation). The wireframe's
-percentage threshold has no counterpart in the published method and is not implementable: *"The per-method
-confidence values are recorded but do not influence the vote."* Aggregation is an unweighted majority vote
+percentage threshold has no counterpart in the published method and is not implementable: _"The per-method
+confidence values are recorded but do not influence the vote."_ Aggregation is an unweighted majority vote
 under a fixed authority priority chain, and decision quality is expressed categorically.
 
 The UI adopts the paper's vocabulary verbatim. Certainty tiers:
 
-| Tier | Condition |
-|---|---|
-| `high` | at least two methods voted and at least three quarters agreed, or an authority signal fired in agreement with the vote |
-| `low` | at least two voted and a majority of half or more agreed |
-| `contested` | at least two voted but agreement fell below half |
-| `single` | only the LLM had usable output, with self-reported `high` confidence |
-| `uncertain` | only the LLM had usable output, with `low` or `uncertain` self-reported confidence |
-| `no_data` | no method could vote |
+| Tier        | Condition                                                                                                              |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `high`      | at least two methods voted and at least three quarters agreed, or an authority signal fired in agreement with the vote |
+| `low`       | at least two voted and a majority of half or more agreed                                                               |
+| `contested` | at least two voted but agreement fell below half                                                                       |
+| `single`    | only the LLM had usable output, with self-reported `high` confidence                                                   |
+| `uncertain` | only the LLM had usable output, with `low` or `uncertain` self-reported confidence                                     |
+| `no_data`   | no method could vote                                                                                                   |
 
 Agreement tiers are the share of answering methods that voted for the winning label: `unanimous`,
 `strong_majority` (≥ 75 %), `weak_majority` (≥ 50 %), `no_consensus` (< 50 %), `single_rater`, `no_answer`.
@@ -776,7 +776,7 @@ Agreement tiers are the share of answering methods that voted for the winning la
   averaged across methods, or used for ordering. This also removes the "Ø Konfidenz" column from the
   Statistik table.
 - Triage is driven by disagreement, which the paper states is the intended signal: the entries on which the
-  methods cannot agree *"concentrates exactly the cases where editorial attention is most warranted."*
+  methods cannot agree _"concentrates exactly the cases where editorial attention is most warranted."_
 
 No backend change and therefore no ADR: this aligns the UI with
 [ADR-0009](decisions/ADR-0009-reference-agreement-certainty.md) and
@@ -800,8 +800,8 @@ The interface chrome is internationalised in **German and English from M1**, not
   "LLM only, low confidence".
 - This dissolves the `uncertain`/`unknown` collision from
   [`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md). The paper explicitly warns against
-  conflating them: `uncertain` *"identifies entries where only the LLM responded and did so with low
-  confidence, not a vote-level output category."* The wireframe's fourth action button is therefore
+  conflating them: `uncertain` _"identifies entries where only the LLM responded and did so with low
+  confidence, not a vote-level output category."_ The wireframe's fourth action button is therefore
   relabelled `unknown`.
 - The action bar becomes `male` / `female` / `unknown` / `institution`, matching the vote alphabet exactly.
 - Locale coverage belongs in the test strategy (D11): a missing-translation check, and at least one
@@ -822,7 +822,7 @@ and an exact subset of executions — remains available as an advanced action.
   (`/runs/:runId/aggregations/:aggregationId/...`). The model stays visible and shareable; only the common
   path is shortened.
 - Re-aggregation is a first-class action, not a hidden one. The paper treats it as a design benefit:
-  methods are kept independent so *"slow methods need only run once before being re-aggregated freely."*
+  methods are kept independent so _"slow methods need only run once before being re-aggregated freely."_
   Excluding a method and re-aggregating without re-running the LLM is exactly the workflow the UI should
   make cheap.
 - Multiple aggregations per run must therefore be listable and comparable, and the UI must always show
@@ -955,12 +955,12 @@ external check, D17 and D18 carry the whole weight of the assessment.
 
 **D17 — Test matrix.** Required on every screen:
 
-| Layer | Scope |
-|---|---|
-| Automated | `axe-core` in component tests; linter accessibility ruleset; contrast assertions in both themes |
-| Keyboard | Full pass on every screen, both themes, both locales — no pointer used |
-| Screen reader | NVDA with Firefox, and VoiceOver with Safari |
-| Zoom and reflow | 400 % zoom / 320 CSS px width; text-spacing overrides applied |
+| Layer           | Scope                                                                                           |
+| --------------- | ----------------------------------------------------------------------------------------------- |
+| Automated       | `axe-core` in component tests; linter accessibility ruleset; contrast assertions in both themes |
+| Keyboard        | Full pass on every screen, both themes, both locales — no pointer used                          |
+| Screen reader   | NVDA with Firefox, and VoiceOver with Safari                                                    |
+| Zoom and reflow | 400 % zoom / 320 CSS px width; text-spacing overrides applied                                   |
 
 JAWS with Chrome is added only if the institutional user base requires it; that is a question for the
 accessibility owner once the user base is known. Automated coverage alone is explicitly not a test strategy.
@@ -1011,20 +1011,20 @@ expectations. Each is analysed in [`23-wireframe-ui-inventory.md`](23-wireframe-
 
 ## Risks
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| No real authentication provider | Client cannot ship regardless of its completeness | Resolved by D1: the local account backend (ADR-0031) is implemented and is the default |
-| Aggregation is invisible in the accepted design | Users expect review immediately after classification | Resolved by D4: auto-create the default aggregation, keep the step legible in the route and the UI |
-| D6 left open while `GET /projects` is implemented | Narrowing the response later is a breaking contract change | Resolved by D6: `GET /projects` shipped with its final visibility rule (ADR-0033) |
-| The membership upgrade removes non-admin access | Users see no projects until an administrator assigns memberships | Plan membership assignment with `gendertagger projects add-member` as part of each deployment's upgrade |
-| Tier vocabulary is unfamiliar to reviewers | Six certainty tiers replace one intuitive percentage | Glosses per D3, and two clearly separated queue entry points rather than six raw filters |
-| Wireframe promises unbuilt features | Stakeholder expectation gap at delivery | Confirm the scope exclusions in writing at M0 |
-| Frontend dependency tree meets a provenance-strict repository | SBOM and licence review friction late in delivery | Resolved: D9 sets the dependency budget at one library, `@headlessui/vue` (MIT), justified in `frontend/README.md` |
-| No UI-level acceptance coverage | Scientific fixtures pass while the review path is broken | Define the seeded-snapshot acceptance test as part of D11 |
-| Accessibility deferred to a closing phase | Legal exposure plus structural rework; the wireframe's controls are unusable as drawn | Per-milestone criteria above; automated checks from M1 |
-| Internal-only assessment misses defects (D16) | No external check before release | The D17 matrix is mandatory, not advisory, and the D18 user round is scheduled rather than optional |
-| Game-mode timer conflicts with WCAG 2.2.1 | A shipped feature that cannot be made conformant | Resolved by D19: the timer is switchable off before the first round |
-| Unconfirmed legal notice goes public | Wrong provider, representative, or tax details in a legally binding statement | Its confirmation is an outstanding assignment that gates public deployment, and production promotion stays manual |
+| Risk                                                          | Impact                                                                                | Mitigation                                                                                                         |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| No real authentication provider                               | Client cannot ship regardless of its completeness                                     | Resolved by D1: the local account backend (ADR-0031) is implemented and is the default                             |
+| Aggregation is invisible in the accepted design               | Users expect review immediately after classification                                  | Resolved by D4: auto-create the default aggregation, keep the step legible in the route and the UI                 |
+| D6 left open while `GET /projects` is implemented             | Narrowing the response later is a breaking contract change                            | Resolved by D6: `GET /projects` shipped with its final visibility rule (ADR-0033)                                  |
+| The membership upgrade removes non-admin access               | Users see no projects until an administrator assigns memberships                      | Plan membership assignment with `gendertagger projects add-member` as part of each deployment's upgrade            |
+| Tier vocabulary is unfamiliar to reviewers                    | Six certainty tiers replace one intuitive percentage                                  | Glosses per D3, and two clearly separated queue entry points rather than six raw filters                           |
+| Wireframe promises unbuilt features                           | Stakeholder expectation gap at delivery                                               | Confirm the scope exclusions in writing at M0                                                                      |
+| Frontend dependency tree meets a provenance-strict repository | SBOM and licence review friction late in delivery                                     | Resolved: D9 sets the dependency budget at one library, `@headlessui/vue` (MIT), justified in `frontend/README.md` |
+| No UI-level acceptance coverage                               | Scientific fixtures pass while the review path is broken                              | Define the seeded-snapshot acceptance test as part of D11                                                          |
+| Accessibility deferred to a closing phase                     | Legal exposure plus structural rework; the wireframe's controls are unusable as drawn | Per-milestone criteria above; automated checks from M1                                                             |
+| Internal-only assessment misses defects (D16)                 | No external check before release                                                      | The D17 matrix is mandatory, not advisory, and the D18 user round is scheduled rather than optional                |
+| Game-mode timer conflicts with WCAG 2.2.1                     | A shipped feature that cannot be made conformant                                      | Resolved by D19: the timer is switchable off before the first round                                                |
+| Unconfirmed legal notice goes public                          | Wrong provider, representative, or tax details in a legally binding statement         | Its confirmation is an outstanding assignment that gates public deployment, and production promotion stays manual  |
 
 ## Immediate next steps
 
