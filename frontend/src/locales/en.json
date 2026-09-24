@@ -220,7 +220,53 @@
         "size": "Size",
         "checksum": "SHA-256",
         "bytes": "{size} bytes"
-      }
+      },
+      "openRuns": "Runs on this snapshot"
+    }
+  },
+  "runs": {
+    "loading": "Loading …",
+    "retry": "Try again",
+    "title": "Runs",
+    "backToOverview": "Back to the project overview",
+    "forbidden": "Only project operators can start runs.",
+    "history": "Run history",
+    "loadError": "The runs could not be loaded.",
+    "empty": "No run has been started on this snapshot yet.",
+    "loadMore": "Load more",
+    "status": {
+      "created": "Created",
+      "queued": "Queued",
+      "running": "Running",
+      "completed": "Completed",
+      "completedWithErrors": "Completed with errors",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "item": {
+      "methods": "Methods",
+      "progress": "Progress",
+      "progressValue": "{completed} of {total} done, {failed} failed",
+      "configHash": "Configuration hash"
+    },
+    "new": {
+      "title": "Start a run",
+      "methods": "Methods",
+      "methodsHint": "Each method runs independently on the snapshot. Confidence values are specific to their method and are not comparable between methods.",
+      "methodsLoadError": "The available methods could not be loaded.",
+      "version": "Version {version}",
+      "config": "Method configuration (JSON)",
+      "configHint": "Leave empty for the method's defaults. Some methods require values such as a lookup checksum or a model address; the server rejects a configuration it cannot resolve.",
+      "failOnOptionalError": "Fail the whole run if an optional method fails",
+      "submit": "Start run",
+      "submitting": "Starting …",
+      "errors": {
+        "notJsonObject": "The configuration must be a JSON object.",
+        "invalidConfig": "The server rejected the run configuration. Check the selected methods and their configuration values.",
+        "network": "The run could not be started: the server is not reachable.",
+        "generic": "The run could not be started."
+      },
+      "versionWithConfidence": "Version {version} · reports its own confidence, {min} to {max}"
     }
   }
 }

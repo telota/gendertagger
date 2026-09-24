@@ -339,6 +339,31 @@ default single-file delivery, see the upload-limits item) and showed that the re
   completion, an explicit advanced path, and a listing that makes re-aggregation without re-running
   methods a cheap, visible action.
 
+**Delivery status (2026-09-24).**
+
+- Method roster from `GET /methods`. **Delivered.** `features/runs/useMethods.ts`; the new-run form lists exactly
+  what the server returns, with each method's implementation version and, where the method reports one, its own
+  confidence range (stated as method-specific, never comparable across methods).
+- Run creation and scheduling. **Delivered.** `/projects/:projectId/snapshots/:snapshotId/runs` (`RunListView`)
+  lists the snapshot's runs newest first (`GET /snapshots/{id}/runs`, cursor-paginated) and, for project operators,
+  starts a run: `POST /runs` then `POST /runs/{id}/executions` as one action. If scheduling fails the run stays
+  `created` in the list. `execution.fail_run_on_optional_method_error` is exposed. Reached from every `ready`
+  snapshot on the project overview. Verified against the real API and worker: a two-method run over four persons
+  reached `completed` within seconds.
+- **Gap (backend contract): no configuration schema.** `RunConfig.methods[].config` is an opaque object that only the
+  server-side registry validates, and `MethodDescriptor` carries no schema. Seven of the ten methods reject an empty
+  configuration (probed on 2026-09-24: only `parenthetical_qualifier`, `gender_guesser` and `nomquamgender`
+  accept `{}`). Lookup methods (`gnd`, `wiki_gendersort`, `hivoto`, `hivoto_xgboost`, `hf_distilbert`,
+  `hf_genderize`) require `lookup_sha256`, the digest of a compiled lookup artifact, and `local_llm` requires
+  `model` and `base_url`. The form therefore offers a JSON text field per selected method, validated only as a JSON
+  object client-side; the server's `422` is shown. Typed per-method forms need the contract to expose each method's
+  configuration schema.
+- **Gap (backend contract): no way to discover lookup artifacts.** Nothing lists the compiled lookup artifacts
+  (or their digests) an operator could choose, so `lookup_sha256` has to be known out of band. A read-only
+  listing, and `LLM_BASE_URL` as the default for `local_llm.base_url` (AGENTS.md rule 15), would remove this.
+- Still open in M4: live progress over SSE, the per-execution failure surface, run and method provenance display,
+  and aggregation as a first-class step.
+
 **Exit criterion.** An operator starts a run, watches it complete live, produces an aggregation, and can
 read back the exact configuration hash and code provenance that produced it.
 

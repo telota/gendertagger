@@ -160,6 +160,16 @@ Other nested `/projects/:projectId/...` routes from
 [`docs/23-wireframe-ui-inventory.md`](../docs/23-wireframe-ui-inventory.md) are added as their own screens
 land, not stubbed ahead of them.
 
+## Runs (M4, in progress)
+
+`features/runs/` holds the run screens; the route is
+`/projects/:projectId/snapshots/:snapshotId/runs`, reached from every `ready` snapshot on the project overview.
+The method roster comes from `GET /methods` (never hardcoded). Starting a run is a project-scoped operator action
+and is one click for two backend commands (`POST /runs`, then `POST /runs/{id}/executions`). The contract has no
+per-method configuration schema, so each selected method gets a JSON text field that the server validates; see
+`docs/24-frontend-delivery-plan.md` (M4) for the two backend gaps this exposes. `composables/useRequireSession.ts`
+is the shared signed-out rule for new screens; the older project views still carry their own copy.
+
 ## Branding
 
 The footer, the start page, and `/impressum` render `GET /api/v1/branding` ([ADR-0036](../docs/decisions/ADR-0036-institution-branding-configuration.md))

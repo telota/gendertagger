@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { RouterLink } from 'vue-router'
 
 import AppButton from '@/components/base/AppButton.vue'
 
@@ -61,6 +62,16 @@ function toggleMembers(): void {
         </dd>
       </div>
     </dl>
+    <RouterLink
+      v-if="snapshot.status === 'ready'"
+      class="snapshot-runs-link"
+      :to="{
+        name: 'snapshotRuns',
+        params: { projectId: snapshot.project_id, snapshotId: snapshot.id },
+      }"
+    >
+      {{ t('projects.snapshots.openRuns') }}
+    </RouterLink>
     <p v-if="snapshot.failure_diagnostic" class="snapshot-failure">
       {{ snapshot.failure_diagnostic }}
     </p>
@@ -114,6 +125,13 @@ function toggleMembers(): void {
 </template>
 
 <style scoped>
+.snapshot-runs-link {
+  display: inline-block;
+  margin-right: var(--space-4);
+  color: var(--accent);
+  text-underline-offset: 0.2em;
+}
+
 .snapshot {
   padding: var(--space-4);
   border: 1px solid var(--border);
