@@ -7,6 +7,10 @@ anticipated hashing settings in this decision are superseded by
 [ADR-0032](ADR-0032-sliding-session-lifetime.md). Credential and session storage, cookie names, the CSRF
 scheme, CLI provisioning, and the password-change gate remain accepted.
 
+The decision to expose account provisioning and administrative password reset only through the CLI is
+superseded by [ADR-0039](ADR-0039-administer-local-accounts-over-http.md). The CLI remains the break-glass
+administrative path.
+
 ## Context
 
 [`13-auth-and-security.md`](../13-auth-and-security.md) defines `AuthenticationBackend` as a provider-neutral
