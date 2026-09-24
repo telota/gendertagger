@@ -190,12 +190,60 @@ non-local target returns `404 resource_not_found`; a target with no active sessi
 administrator may target their own account: the current session is revoked after authentication, so the `204`
 response completes but the next authenticated request must sign in again.
 
+## Administrative settings
+
+The following surface is accepted design under
+[ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md), not yet implemented or listed in the
+generated OpenAPI contract. All paths are relative to `/api/v1`.
+
+| Endpoint | Request | Success |
+|---|---|---|
+| `GET /admin/settings` | None | `200 AdminSettings` |
+| `PATCH /admin/settings` | `AdminSettingsUpdate` with `expected_revision` and nonempty partial `branding` | `200 AdminSettings` |
+| `POST /admin/settings/reset` | `AdminSettingsReset` with `expected_revision` and nonempty distinct `fields` | `200 AdminSettings` |
+
+All operations require a global administrator who has completed any forced password change; unsafe
+methods additionally require existing CSRF protection. Responses use `Cache-Control: no-store`.
+`AdminSettings` exposes the revision, effective `BrandingInfo`, current deployment fallbacks for the six
+editable fields, and overridden field names. It never serializes `AppSettings` wholesale. See the
+[canonical contracts](03-pydantic-contracts.md#administrative-settings-contracts).
+
+Updates preserve omitted overrides. Explicit `null` clears nullable values, and `editors: []` clears the
+editor list; these remain overrides. Reset removes overrides for explicitly selected allowlisted fields,
+revealing the current environment/application fallback. There are no arbitrary keys, paths, or wildcard
+resets. Both commands validate and apply all requested changes atomically under the same revision check.
+A matching-revision no-op retains its revision; a stale command still conflicts even if its requested values
+match. Setting a previously inherited value as an explicit override is a change even when the value equals
+the fallback.
+
+Errors use the shared envelope: `401 authentication_required`, existing `403 forbidden` or
+`403 password_change_required` gates, `422 validation_error` for invalid values or commands,
+`409 settings_revision_conflict` with safe expected/current revision details for stale writes, and
+`503 settings_unavailable` for unavailable settings storage. Failed mutations return no success response
+or success log. Reset-to-default reveals the serving process's current fallback, not the value from the
+original deployment.
+
+Import limits remain deployment-managed; existing upload-limit discovery continues through
+`GET /snapshot-upload-limits`. Session policy, infrastructure, secrets, filesystem paths, worker tuning,
+and scientific configuration are outside this settings API. `initiatives` and `legal_entity` remain
+read-only branding, and logo behavior is unchanged.
+
 ## Branding surface
 
 `GET /branding` and `GET /branding/logo` are unauthenticated, need no grant, and carry no scientific or project-scoped data ([ADR-0036](decisions/ADR-0036-institution-branding-configuration.md)). They exist so the client's footer, start page, and legal notice can be reachable without a session and configured per deployment instead of hard-coded.
 
-- `GET /branding` returns `BrandingInfo`, built from the operator's `GENDERTAGGER_BRANDING__*` settings. Every field is `null` when the operator has not configured it; the client renders that as an explicit "not configured" state.
+- Currently, `GET /branding` returns `BrandingInfo`, built from the operator's startup-loaded
+  `GENDERTAGGER_BRANDING__*` settings. Unconfigured nullable fields are `null` and lists are empty; the client
+  renders absent details as an explicit "not configured" state.
 - `GET /branding/logo` streams the configured logo file with its detected media type, or `404 resource_not_found` when no `logo_path` is set or the file is missing. `BrandingInfo.logo_url` is the literal path `/api/v1/branding/logo` when the file exists and `null` otherwise, so the client never constructs the path itself.
+
+After ADR-0040's public integration slice, `GET /branding` will resolve stored overrides before startup
+environment values and application defaults. Its unauthenticated access and `BrandingInfo` schema remain
+unchanged. Branding JSON will use `Cache-Control: no-store`, read committed overrides on each request, and
+return `503 settings_unavailable` on settings-storage failure without substituting deployment defaults.
+The logo endpoint stays filesystem-backed. Saved values take effect on subsequent server reads without a
+restart; already-open frontend views need a refresh or component remount. This integration is accepted but
+not yet delivered.
 
 ## CORS
 

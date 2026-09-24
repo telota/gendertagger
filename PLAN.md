@@ -14,9 +14,15 @@ persisted API-to-worker workflow.
 
 Active work is Phase 8, the annotation and review client. Its backend prerequisites are already met:
 the review-items query API is stable and review-stream revision conflicts return `409`. The remaining
-Phase 8 items are frontend work: `frontend/` holds the scaffold and transport layer (milestone M1), the
-local account backend from [ADR-0031](docs/decisions/ADR-0031-local-database-authentication.md) gives it a
+review-client items are frontend work: `frontend/` holds the scaffold and transport layer (milestone M1),
+the local account backend from [ADR-0031](docs/decisions/ADR-0031-local-database-authentication.md) gives it a
 real session to sign in to, and the application shell and every screen remain to be built. The read
 endpoints and collections the screens need are delivered; see
 [`docs/24-frontend-delivery-plan.md`](docs/24-frontend-delivery-plan.md). The second active track is
 operating the stack in production following [`docs/21-production-promotion.md`](docs/21-production-promotion.md).
+
+Administrative branding settings are a separate accepted extension under
+[ADR-0040](docs/decisions/ADR-0040-administrative-branding-overrides.md), not yet implemented. Its backend
+persistence/read and write/public-branding increments precede frontend editing; each stops for review
+and a manual commit. Scope, sequencing, and acceptance criteria are recorded in
+[`docs/15-implementation-plan.md`](docs/15-implementation-plan.md#administrative-settings-increment-adr-0040).

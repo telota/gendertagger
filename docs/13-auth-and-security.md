@@ -80,6 +80,31 @@ Record security-relevant and scholarly changes such as:
 
 Do not log secrets or unnecessarily duplicate sensitive source content.
 
+## Administrative settings
+
+[ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md) accepts a global-admin-only settings
+surface; this design is not yet implemented. Its read, update, and reset operations require an authenticated
+global administrator who has completed any forced password change. Updates and resets also use existing
+CSRF protection. Project membership never grants permission to change deployment branding.
+
+Only six allowlisted branding fields are editable through closed Pydantic contracts. `initiatives` and
+`legal_entity` remain read-only; `logo_url` is derived, and `logo_path` must not be exposed. Infrastructure
+addresses, secrets, filesystem paths, session/import limits, worker tuning, and scientific configuration
+remain deployment-managed. The administrative response must never serialize `AppSettings` wholesale.
+Branding URLs are validated links, not instructions for the backend to fetch remote content.
+
+Update and reset share atomic revision protection. Stale writes return `409 settings_revision_conflict`
+rather than replacing another administrator's changes. Explicit clearing remains distinct from removing an
+override, so a cleared contact address cannot silently reappear from the deployment fallback. Settings
+storage outages return `503 settings_unavailable`; after integration, public branding JSON follows the same
+policy. Administrative settings and public branding JSON use `Cache-Control: no-store` once implemented.
+Public branding access and the filesystem-backed logo remain unauthenticated.
+
+After a successful transaction, operational logs include actor ID, action, request ID, resulting revision,
+and changed field names. They exclude values, full request bodies, secrets, and sensitive database
+diagnostics. A no-op may log its unchanged revision and an empty changed-field list. No administrative
+history table or audit UI is introduced.
+
 
 ## Browser session
 

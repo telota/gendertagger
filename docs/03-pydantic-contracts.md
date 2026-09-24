@@ -182,6 +182,38 @@ API errors use a stable envelope and client-facing codes even when internal exce
 public request and response shapes remain generated OpenAPI concerns; see
 [`05-api.md`](05-api.md).
 
+## Administrative settings contracts
+
+The following contracts are accepted design, not yet implemented or present in generated OpenAPI. Their
+normative specification is
+[ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md).
+
+The editable allowlist contains exactly `institution_name`, `institution_url`, `contact_email`,
+`privacy_notice_url`, `editors`, and `published_since_year`. ADR-0040 defines their types, validation, and
+bounds; new administrative validation does not retroactively tighten startup environment configuration.
+
+| Contract | Responsibility |
+|---|---|
+| `BrandingSettingField` | Closed enum of the six editable field names |
+| `BrandingEditableValues` | All six resolved values, explicitly represented |
+| `BrandingOverrides` | Sparse validated overrides that retain which fields were supplied |
+| `AdminSettings` | `revision`, effective `branding: BrandingInfo`, `branding_defaults: BrandingEditableValues`, and `overridden_fields: list[BrandingSettingField]` |
+| `AdminSettingsUpdate` | Required `expected_revision` and a nonempty partial `branding` update |
+| `AdminSettingsReset` | Required `expected_revision` and a nonempty list of distinct `BrandingSettingField` values |
+
+All contracts reject unknown fields. Omission in an update leaves the existing override unchanged. An
+explicit `null` clears a nullable field and remains stored as an override; `editors: []` clears the ordered
+editor list, while `editors: null` is invalid. Reset removes the selected override, exposing the current
+deployment fallback. Serialization must preserve explicit nulls rather than dropping them alongside unset
+fields.
+
+`branding_defaults` contains the serving process's environment-resolved fallback, including application
+defaults. Effective values resolve stored override, then environment, then application default. The public
+`BrandingInfo` schema stays unchanged and receives no revision or override metadata. Infrastructure and
+scientific configuration, secrets, and filesystem paths must never enter these administrative contracts.
+`initiatives` and `legal_entity` remain deployment-managed, read-only branding; `logo_url` remains derived
+and read-only.
+
 ## Serialization
 
 Public `/api/v1` serialization uses `snake_case`, stable lowercase enum strings, UUID strings, and

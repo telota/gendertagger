@@ -180,3 +180,39 @@ definition of done.
 - same-origin production build/routing
 
 Exit criterion: a reviewer can correct a machine result and the final-decision view changes without mutating Predictions/AggregatedResults.
+
+### Administrative settings increment (ADR-0040)
+
+[ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md) accepts administrative overrides for
+six branding fields as a separate extension to the review-client scope. The design is accepted; none
+of the implementation slices below is delivered yet. Current branding remains environment-backed.
+Keep each slice independently reviewable and stop for architect/user review and a manual commit before
+starting the next one. Frontend editing comes last.
+
+1. **Persistence and administrative read API.** Add the closed Pydantic contracts, singleton migration,
+   repository/application-service boundaries, default/override resolution, and `GET /api/v1/admin/settings`.
+   Initialize revision `0` with an empty override document; preserve absent keys versus explicit nulls.
+   Update OpenAPI, generated transport, and focused coverage. Keep public branding behavior unchanged
+   in this slice.
+2. **Writes and public branding integration.** Add `PATCH /api/v1/admin/settings` and
+   `POST /api/v1/admin/settings/reset` with the shared revision-checked transaction, field validation,
+   and safe operational attribution. Integrate the shared resolver into public branding while retaining
+   its schema and unauthenticated access. Apply `Cache-Control: no-store` and the accepted
+   `503 settings_unavailable` behavior without environment fallback. Document migration ordering,
+   consistent replica fallbacks, and older-release rollback behavior.
+3. **Frontend separately.** Add accessible forms, effective/deployment-default indicators, distinct
+   clearing and resetting actions, stale-write handling, and refresh of mounted branding consumers.
+   Use generated contracts and existing session/CSRF behavior.
+
+Exit criteria: the
+[ADR acceptance criteria](decisions/ADR-0040-administrative-branding-overrides.md#acceptance-criteria-and-future-verification)
+are verified. In particular, cleared values survive round trips, resets reveal current deployment
+fallbacks, concurrent writes cannot lose changes, invalid requests leave state and revision unchanged,
+and committed overrides are visible across API instances without restart. Verify authorization, CSRF,
+storage-outage errors, unchanged public branding and logo contracts, and secret-free logs. Import
+limits, session policy, scientific behavior, and deployment-only configuration remain unchanged.
+
+The eventual implementation requires model/service, PostgreSQL concurrency, API/contract, and frontend
+coverage. Runtime suites and browser verification remain reserved for the user's manual testing stage
+in this workflow. Only the documentation checker and `git diff --check` run for this documentation-only
+increment; accepting the design does not claim those future runtime checks have passed.

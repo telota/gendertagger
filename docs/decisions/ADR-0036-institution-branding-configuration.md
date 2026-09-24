@@ -2,6 +2,10 @@
 
 **Status:** Accepted
 
+Later decision: [ADR-0040](ADR-0040-administrative-branding-overrides.md) partially supersedes the
+environment-only, startup-only behavior for six branding fields. That design is accepted but not yet
+implemented. This record preserves the original decision; its remaining rules and Accepted status apply.
+
 ## Context
 
 The client must carry the publication, footer, and legal-notice information required by the BBAW guideline

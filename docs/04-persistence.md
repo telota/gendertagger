@@ -138,6 +138,36 @@ Creating an annotation locks the person and review-state row, compares `expected
 immutable annotation, advances the projection, and commits once. A stale revision becomes an application-level
 conflict rather than an overwrite.
 
+## Deployment branding overrides
+
+This section records accepted design under
+[ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md); its table, migration, and repository
+are not yet implemented.
+
+One deployment-wide settings row stores a fixed `id = 1`, a nonnegative `revision`, a non-null
+`branding_overrides` JSONB object, and UTC `updated_at`. Database constraints enforce the singleton identity,
+revision bounds, and JSON object shape. The object is a closed Pydantic-validated document containing only
+the six allowed branding override fields, validated on reads and writes, not an arbitrary-key configuration
+store. No administrative history table is added.
+
+The migration initializes row `1` with revision `0` and `{}`. It never copies environment configuration into
+the database. Reads perform no initialization; a missing row after migration is an operational error.
+Missing keys inherit deployment fallbacks, whereas explicit JSON nulls and an empty `editors` list remain
+overrides that clear a value. Reset deletes selected keys rather than writing their fallback values.
+
+Update and reset share one application-owned transaction protocol: lock the singleton, compare
+`expected_revision` with the current revision, apply and validate the complete override document, then
+persist and commit atomically. A changed document increments the revision and updates `updated_at`. A
+matching-revision no-op leaves both unchanged; a stale request conflicts even if its intended values already
+match. Setting an override equal to its fallback is a real change because it pins the value. Revisions track
+stored overrides only, not changes in deployment environment configuration.
+
+Settings resolution reads once per request from the primary database without a process-local or Redis
+override cache. Requests reading after commit observe the committed overrides; a read already in progress
+may return the previous complete state. API replicas must use equivalent startup fallback configuration.
+Storage failures do not silently restore environment branding: after public integration, settings and
+branding JSON return `503 settings_unavailable`. The filesystem-backed logo remains independent.
+
 ## Query indexes
 
 Indexes support ownership traversal, lifecycle polling, stable cursor orders, review filters, uncertainty
