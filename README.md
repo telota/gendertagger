@@ -87,9 +87,11 @@ licensing rules.
 
 ## Frontend development
 
-For hot reload while working on the client, run `npm run dev` in `frontend/` on the host; it proxies
-`/api/v1` to `http://localhost:8000` in the local Compose mode. See
-[`frontend/README.md`](frontend/README.md).
+The local Compose mode in [QUICKSTART.md](QUICKSTART.md) runs Vite with hot reload by default.
+Open <http://localhost:8080>, edit files in `frontend/`, and save; no image rebuild or host Node
+installation is needed for source changes. The API also reloads source edits; workers still need
+an explicit restart. See the [development workflow](QUICKSTART.md#development-workflow) for dependency
+updates and the [frontend guide](frontend/README.md#local-development) for optional host-side Vite.
 
 ### Seed representative frontend data
 

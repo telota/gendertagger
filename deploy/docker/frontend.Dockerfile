@@ -1,4 +1,4 @@
-# The build context is the `frontend/` directory (compose.dev.yaml and the CI image job both use it),
+# The build context is the `frontend/` directory (compose.yaml and the CI image job both use it),
 # so package.json and package-lock.json are the client's own manifests.
 #
 # Node is pinned by version and multi-platform index digest. The version must satisfy the `engines`
@@ -10,11 +10,12 @@ WORKDIR /app
 COPY package.json package-lock.json .npmrc ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
 
-# Vite development server with hot reload. Bind-mount `frontend/` over /app for live edits, or run
-# `npm run dev` on the host against http://localhost:8000; the dev server proxies /api/v1.
+# Vite uses the same internal port as the static image so the gateway and published ports stay
+# unchanged. compose.dev.yaml mounts source and isolates node_modules in a container volume.
 FROM dependencies AS development
 COPY . .
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+EXPOSE 80
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "80", "--strictPort"]
 
 FROM dependencies AS builder
 COPY . .

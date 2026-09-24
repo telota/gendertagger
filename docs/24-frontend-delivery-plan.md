@@ -54,12 +54,19 @@ Deployment and CI already anticipate the client. Reusing it correctly is cheaper
   proxying `/api/v1` to `http://localhost:8000`, is the working hot-reload path.
 - The image job built its context from the repository root, which cannot see `frontend/package.json` as a
   top-level file. `.kaniko_build` now takes an `IMAGE_CONTEXT` per image, and the frontend uses `frontend/`,
-  matching `compose.dev.yaml`.
+  matching the build context in `compose.yaml`.
+
+**Delivered development-workflow follow-up.**
+
+- `compose.dev.yaml` now selects the Vite `development` target with a distinct `frontend-dev` image tag,
+  mounted source, and isolated container dependencies. The gateway forwards hot-reload WebSockets at
+  `http://localhost:8080`; host-side Vite remains an optional alternative.
+- Production image builds use `compose.yaml` with `compose.prod.yaml`, without the development override.
+  Source edits, dependency refreshes, and explicit worker/migration steps are documented in the
+  [quickstart development workflow](../QUICKSTART.md#development-workflow).
 
 **Still needed.**
 
-- `compose.dev.yaml` still builds the `production` target, so there is no hot reload inside Compose. Switching
-  it to the `development` target with a bind mount is left until someone needs it.
 - `frontend_sbom` now produces a real dependency tree. The repository's provenance and licence culture applies
   to npm packages too: the M1 and M2 dependencies are justified in [`frontend/README.md`](../frontend/README.md),
   including the headless accessibility library chosen under decision D9.

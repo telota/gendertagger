@@ -16,9 +16,47 @@ Read before changing anything here:
 - [`docs/17-frontend-integration.md`](../docs/17-frontend-integration.md)
 - [`docs/05-api.md`](../docs/05-api.md)
 
+## Local development
+
+Use the [local Compose mode](../QUICKSTART.md#2-choose-local-or-server-mode) for the default workflow.
+After the quickstart's first-time build, migration, and account setup, start it from the repository root:
+
+```bash
+export COMPOSE_FILE=compose.yaml:compose.dev.yaml
+docker compose up -d
+```
+
+Keep the existing Compose project name when resuming a stack. Open <http://localhost:8080> and edit files
+in `frontend/`: Vite serves the mounted source and forwards hot updates through the gateway's WebSocket
+connection. `/api/v1` stays on the same browser origin. The standalone Vite port at
+<http://localhost:5173> also proxies `/api/v1` to the API service, but use one address consistently for
+sessions. Source changes do not need an image rebuild, and Docker supplies the required Node version.
+
+The container's `/app/node_modules` lives in a separate anonymous volume; it does not use the host's
+dependencies. After frontend dependency or lockfile changes, follow the quickstart's
+[dependency refresh instructions](../QUICKSTART.md#development-workflow). Keep database and artifact
+volumes; never remove all volumes to update frontend dependencies. Production builds remain compiled
+static assets served by Nginx, not Vite.
+
+### Optional host-side Vite
+
+If you prefer running Vite on the host, install the dependencies below, keep the local API running,
+and use a separate port because Docker already occupies `5173`:
+
+```bash
+npm --prefix frontend run dev -- --host localhost --port 5174 --strictPort
+```
+
+Open <http://localhost:5174>. The API proxy defaults to `http://localhost:8000`; Compose overrides its
+server-side `GENDERTAGGER_DEV_API_TARGET` to `http://api:8000` for the container network. This variable
+changes the development proxy target, not the browser API base URL. Use `localhost` consistently with
+the quickstart's cookie guidance. A second host-side Vite process is optional, not needed for Compose
+hot reload.
+
 ## Requirements
 
-Node `^26.9.0` (declared in `package.json` `engines`, enforced by `.npmrc`, and pinned to the same version in
+Host-side Vite and frontend tooling require Node `^26.9.0` (declared in `package.json` `engines`, enforced
+by `.npmrc`, and pinned to the same version in
 [`deploy/docker/frontend.Dockerfile`](../deploy/docker/frontend.Dockerfile) and `.gitlab-ci.yml`). Install from
 the committed lockfile:
 
@@ -32,7 +70,7 @@ Run from the repository root with `npm --prefix frontend run <script>`, or from 
 
 | Script | Purpose |
 |---|---|
-| `dev` | Vite development server; proxies `/api/v1` to `http://localhost:8000` so requests stay same-origin |
+| `dev` | Vite development server; proxies `/api/v1` to `GENDERTAGGER_DEV_API_TARGET` or `http://localhost:8000` so requests stay same-origin |
 | `build` | Production build into `dist/` |
 | `lint` | ESLint with the Vue, TypeScript, accessibility, and i18n rules; warnings fail |
 | `format:check` | Prettier |

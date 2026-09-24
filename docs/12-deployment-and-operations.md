@@ -204,7 +204,11 @@ https://gendertagger.example.org/           -> Vue static assets
 https://gendertagger.example.org/api/v1/... -> FastAPI
 ```
 
-This reduces CORS/cookie complexity and keeps the browser API boundary explicit. Development may run Vite on `localhost:5173` and FastAPI on `localhost:8000` with an explicit development CORS allow-list.
+This reduces CORS/cookie complexity and keeps the browser API boundary explicit. The development
+Compose mode serves Vite through the same gateway at `http://localhost:8080`, including WebSocket
+forwarding for hot reload. Optional host-side Vite proxies `/api/v1` to `http://localhost:8000`, so
+neither development workflow needs a separate browser API origin or a CORS allow-list. See the
+[development workflow](../QUICKSTART.md#development-workflow) for startup and rebuild instructions.
 
 The reverse proxy must support Server-Sent Events for run progress. Disable proxy response buffering on SSE routes and allow long-lived HTTP connections/keepalives.
 

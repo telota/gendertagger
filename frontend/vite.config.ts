@@ -4,8 +4,9 @@ import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vitest/config'
 
 // Same-origin topology (docs/17-frontend-integration.md): the browser only ever talks to its own
-// origin. In development the Vite server stands in for the reverse proxy.
-const API_DEVELOPMENT_TARGET = 'http://localhost:8000'
+// origin. The gateway routes API traffic in Docker; Vite also proxies it for direct dev-server
+// access. This server-only setting points at the API container, or the host API by default.
+const API_DEVELOPMENT_TARGET = process.env.GENDERTAGGER_DEV_API_TARGET || 'http://localhost:8000'
 
 export default defineConfig({
   plugins: [vue()],

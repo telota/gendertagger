@@ -31,7 +31,7 @@ printf 'GENDERTAGGER_DEPENDENCY_LOCK_SHA256=%s\n' \
 
 ## 2. Choose local or server mode
 
-For a **local instance**, set:
+For **local development** (the default contributor workflow), set:
 
 ```bash
 export COMPOSE_FILE=compose.yaml:compose.dev.yaml
@@ -44,9 +44,15 @@ export COMPOSE_FILE=compose.yaml:compose.prod.yaml
 ```
 
 Keep this choice set in the shell for the remaining commands, and set it again in a new shell.
-The local configuration enables backend source reload and exposes diagnostic ports on loopback.
-The server configuration applies resource limits and exposes only the gateway on
-`127.0.0.1:8080`. Server access through HTTPS is configured in step 5.
+Local mode runs Vite with frontend hot reload, enables API source reload, and exposes diagnostic
+ports on loopback. Server mode serves the compiled frontend through Nginx, applies resource limits,
+and exposes only the gateway on `127.0.0.1:8080`. Server access through HTTPS is configured in step 5.
+Never expose the development server as a shared production installation.
+
+When reusing an existing stack, keep its Compose project name as well as its `.env` and mode.
+Check the name with `docker compose ls`; if it is not the default `gendertagger`, set
+`COMPOSE_PROJECT_NAME` to that existing name in your shell or `.env`. A different project name
+selects different containers and named volumes; it does not move the existing instance data.
 
 Both modes persist the database, Redis state, and uploaded/generated artifacts in Docker volumes.
 On a server, you can instead set `POSTGRES_DATA_PATH`, `REDIS_DATA_PATH`, and `ARTIFACTS_PATH` in
@@ -56,14 +62,18 @@ writable by the backend container's `app` user. Back up the database and artifac
 
 ## 3. Build and initialize
 
-The development Compose file supplies the build definitions for both modes. Build the two
-application images, then use your selected mode to start the database and run migrations:
+Build the two application images using the mode selected above, then start the database and
+run migrations:
 
 ```bash
-docker compose -f compose.yaml -f compose.dev.yaml build api frontend
+docker compose build api frontend
 docker compose up -d db redis
 docker compose --profile ops run --rm migrate
 ```
+
+The base Compose file defines the builds. Local mode selects the frontend's development target
+and a separate `frontend-dev` image tag; server mode selects its production target and `frontend`
+tag. Do not include `compose.dev.yaml` when building images for a server.
 
 Create the first administrator:
 
@@ -102,7 +112,8 @@ the [browser cookie guidance](https://developer.mozilla.org/en-US/docs/Web/HTTP/
 The gateway serves the frontend and `/api/v1` together at this address.
 
 The local API documentation is at <http://localhost:8000/docs>. Use the gateway address for the
-browser application; the standalone frontend port does not proxy API requests.
+browser application and hot reload. The standalone Vite address, <http://localhost:5173>, also
+proxies `/api/v1` to the API, but choose one browser address consistently when working with sessions.
 
 ### Shared server
 
@@ -148,6 +159,49 @@ workers and their model configuration are described in
 [deployment and operations](docs/12-deployment-and-operations.md) and the
 [method reference](docs/20-method-adapters-reference.md).
 
+## Development workflow
+
+With local mode selected, `docker compose up -d` starts the development stack. Open
+<http://localhost:8080>, edit files in `frontend/`, and save: Vite updates the browser without an
+image rebuild. Docker supplies Node and keeps container dependencies in a separate volume, so
+host `node_modules` are not used inside the container. API edits under `backend/src/` reload too.
+
+For an existing local stack created before this hot-reload setup, keep its project name and
+persistent volumes, then replace just the frontend and gateway:
+
+```bash
+docker compose up -d --build --no-deps --force-recreate frontend gateway
+```
+
+Not every change is a hot-reload change:
+
+| Change | Required action |
+|---|---|
+| Vue, TypeScript, or CSS source | Save; Vite updates the browser automatically |
+| API code under `backend/src/` | Save; Uvicorn reloads the API |
+| Code used by a worker | Restart the affected worker, for example `docker compose restart worker-cpu` |
+| Frontend dependencies or lockfile | Rebuild/recreate the frontend and refresh its dependency volume, as below |
+| Backend dependencies, coordinator code, or migration files | Rebuild `api`, apply migrations when needed, and recreate the affected backend services; these files are baked into the image |
+| Compose configuration or environment | Recreate affected services; a process restart alone does not apply changed container environment |
+
+After changing `frontend/package.json` or its lockfile, replace only the frontend's anonymous
+dependency volume and restart the gateway so it resolves the recreated frontend:
+
+```bash
+docker compose up -d --build --no-deps --renew-anon-volumes frontend
+docker compose restart gateway
+```
+
+This does not delete database or artifact volumes. Do not use `docker compose down --volumes`
+to refresh dependencies. For optional host-side Vite development and its separate port, see
+the [frontend guide](frontend/README.md#local-development).
+
+To verify hot reload manually, open the gateway URL, make a small visible text or CSS change,
+and confirm it appears without rebuilding. Confirm the browser's Vite WebSocket connects,
+then check login, an `/api/v1` request, and a direct refresh of a nested application URL.
+Revert the temporary source edit afterwards. Worker reload and database migrations remain
+explicit operations; frontend hot reload does not apply either of them.
+
 ## Stop and restart
 
 ```bash
@@ -156,5 +210,5 @@ docker compose up -d
 ```
 
 `down` preserves the persistent volumes. Adding `--volumes` deletes them and the instance data
-they contain. Keep the same `.env` and Compose mode when restarting; changing the PostgreSQL
-password in `.env` does not change the password in an already initialized database.
+they contain. Keep the same `.env`, Compose mode, and project name when restarting; changing the
+PostgreSQL password in `.env` does not change the password in an already initialized database.
