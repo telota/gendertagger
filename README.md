@@ -97,10 +97,11 @@ updates and the [frontend guide](frontend/README.md#local-development) for optio
 
 After migrations, the development stack can be populated with two synthetic projects and the full set of
 browser-visible lifecycle and review states. The command creates `frontend-viewer`, `frontend-reviewer`,
-and `frontend-operator`, all with the printed development-only password. It also creates ready and failed
-snapshots; running, completed, and failed runs; completed and failed method executions; every agreement and
-certainty tier; annotation history and a reproducible stale-revision conflict; and completed evaluation and
-JSON-export artifacts.
+`frontend-operator`, `frontend-admin`, and `frontend-manager`, all with the printed development-only
+password. The manager owns the primary project without an ordinary project role; the administrator has the
+global administrator role. It also creates ready and failed snapshots; running, completed, and failed runs;
+completed and failed method executions; every agreement and certainty tier; annotation history and a
+reproducible stale-revision conflict; and completed evaluation and JSON-export artifacts.
 
 The safety flag is mandatory. The marker project makes an exact repeat a read-only no-op. Mounting the
 backend project read-only supplies the development script and shared production-path seed helpers without adding

@@ -59,9 +59,9 @@ from gendertagger.models.export import (
 from gendertagger.models.lifecycle import MethodExecutionStatus, RunStatus
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.project import ProjectCreate
-from gendertagger.models.team import TeamCreate
 from gendertagger.models.review import AnnotationCreate, ReviewAction
 from gendertagger.models.run import MethodExecutionCreate
+from gendertagger.models.team import TeamCreate
 from gendertagger.models.user import GlobalRole, ProjectRole, UserCreate
 from gendertagger.services.evaluation_execution import EvaluationExecutor
 from gendertagger.services.export_execution import ExportExecutor
@@ -88,7 +88,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--password",
         default=DEFAULT_PASSWORD,
-        help="Shared local password for the three demo accounts (default: development-only).",
+        help="Shared local password for the five demo accounts (default: development-only).",
     )
     return parser
 
@@ -243,10 +243,23 @@ def _seed_database(unit_of_work_factory: UnitOfWorkFactory, password: str) -> di
             password_hash=password_hash,
             global_roles={GlobalRole.operator},
         )
+        administrator = _add_account(
+            unit_of_work,
+            username="frontend-admin",
+            display_name="Frontend Administrator",
+            password_hash=password_hash,
+            global_roles={GlobalRole.admin},
+        )
+        manager = _add_account(
+            unit_of_work,
+            username="frontend-manager",
+            display_name="Frontend Manager",
+            password_hash=password_hash,
+        )
         team = unit_of_work.teams.add_team(
             TeamCreate(slug="frontend-demonstration", display_name="Frontend demonstration team")
         )
-        for user in (viewer, reviewer, operator):
+        for user in (viewer, reviewer, operator, administrator, manager):
             unit_of_work.teams.add_member(team.id, user.id)
 
         project = unit_of_work.projects.add_project(
@@ -255,9 +268,9 @@ def _seed_database(unit_of_work_factory: UnitOfWorkFactory, password: str) -> di
                 display_name="Frontend demonstration",
                 description="Representative data for browser-client development.",
                 team_id=team.id,
-                initial_manager_user_id=operator.id,
+                initial_manager_user_id=manager.id,
             ),
-            manager_user_id=operator.id,
+            manager_user_id=manager.id,
             created_by_user_id=operator.id,
         )
         lifecycle_project = unit_of_work.projects.add_project(
@@ -437,6 +450,8 @@ def _seed_database(unit_of_work_factory: UnitOfWorkFactory, password: str) -> di
             "viewer": {"username": "frontend-viewer", "user_id": str(viewer.id)},
             "reviewer": {"username": "frontend-reviewer", "user_id": str(reviewer.id)},
             "operator": {"username": "frontend-operator", "user_id": str(operator.id)},
+            "administrator": {"username": "frontend-admin", "user_id": str(administrator.id)},
+            "manager": {"username": "frontend-manager", "user_id": str(manager.id)},
         },
         "project_id": str(project.id),
         "lifecycle_project_id": str(lifecycle_project.id),
