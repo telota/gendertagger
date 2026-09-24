@@ -182,7 +182,7 @@ class AuthenticationService:
     def create_local_account(
         self, *, display_name: str, roles: set[GlobalRole], username: str, password: str
     ) -> User:
-        """Provision one admin-created local account. CLI-only; see ADR-0031."""
+        """Provision one admin-created local account through a caller-owned interface."""
         with self._unit_of_work_factory() as unit_of_work:
             user = unit_of_work.users.add_user(
                 UserCreate(display_name=display_name, roles=roles, is_active=True)

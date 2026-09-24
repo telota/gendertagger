@@ -17,7 +17,11 @@ export interface paths {
          */
         get: operations["list_admin_users_api_v1_admin_users_get"];
         put?: never;
-        post?: never;
+        /**
+         * Create Admin User
+         * @description Provision one local account and disclose its temporary password once.
+         */
+        post: operations["create_admin_user_api_v1_admin_users_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -936,6 +940,27 @@ export interface components {
             roles: components["schemas"]["GlobalRole"][];
             /** Username */
             username: string;
+        };
+        /**
+         * AdminUserCreate
+         * @description Global-administrator command for provisioning one local account.
+         */
+        AdminUserCreate: {
+            /** Display Name */
+            display_name: string;
+            /** Roles */
+            roles?: components["schemas"]["GlobalRole"][];
+            /** Username */
+            username: string;
+        };
+        /**
+         * AdminUserCreateResult
+         * @description Created account plus its once-returned temporary password.
+         */
+        AdminUserCreateResult: {
+            account: components["schemas"]["AdminUser"];
+            /** Temporary Password */
+            temporary_password: string;
         };
         /**
          * AggregatedClassification
@@ -2537,6 +2562,102 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CursorPage_AdminUser_"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_admin_user_api_v1_admin_users_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserCreateResult"];
                 };
             };
             /** @description Invalid request */

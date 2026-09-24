@@ -1,19 +1,49 @@
 """Global-administrator local-account resources (ADR-0039)."""
 
-from typing import Annotated
+from typing import Annotated, cast
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 
 from gendertagger.api.authorization import require_admin
 from gendertagger.api.dependencies import get_user_administration_service
-from gendertagger.api.errors import invalid_cursor_error
+from gendertagger.api.errors import ApiRequestError, invalid_cursor_error
 from gendertagger.models.api import CursorPage
-from gendertagger.models.auth import AdminUser
+from gendertagger.models.auth import AdminUser, AdminUserCreate, AdminUserCreateResult
 from gendertagger.models.user import CurrentUser
 from gendertagger.services.pagination import InvalidCursorError
+from gendertagger.services.ports.persistence_errors import DuplicateUsernameError
 from gendertagger.services.user_administration import UserAdministrationService
 
 router = APIRouter(tags=["admin users"])
+
+
+@router.post(
+    "/admin/users",
+    response_model=AdminUserCreateResult,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_admin_user(
+    command: AdminUserCreate,
+    request: Request,
+    response: Response,
+    service: Annotated[UserAdministrationService, Depends(get_user_administration_service)],
+    administrator: Annotated[CurrentUser, Depends(require_admin)],
+) -> AdminUserCreateResult:
+    """Provision one local account and disclose its temporary password once."""
+    try:
+        result = service.create_user(
+            command,
+            actor_user_id=administrator.id,
+            request_id=cast(str, request.state.request_id),
+        )
+    except DuplicateUsernameError as error:
+        raise ApiRequestError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="username_conflict",
+            message="A local account with that username already exists.",
+        ) from error
+    response.headers["Cache-Control"] = "no-store"
+    return result
 
 
 @router.get("/admin/users", response_model=CursorPage[AdminUser])

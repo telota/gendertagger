@@ -5,6 +5,10 @@ class ResourceNotFoundError(LookupError):
     """Raised when a command targets a resource that does not exist."""
 
 
+class DuplicateUsernameError(ValueError):
+    """Raised when local-account provisioning reuses an existing normalized username."""
+
+
 class InvalidResourceStateError(RuntimeError):
     """Raised when a resource cannot perform the requested state transition."""
 

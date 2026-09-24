@@ -13,6 +13,7 @@ from gendertagger.api.settings import AppSettings
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.models.user import GlobalRole, UserCreate
+from gendertagger.services.password_hashing import Argon2PasswordHasher
 from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
@@ -143,3 +144,59 @@ def test_admin_user_directory_treats_search_wildcards_as_literals(
 
     assert response.status_code == 200
     assert [item["id"] for item in response.json()["items"]] == [str(matching_id)]
+
+
+def test_admin_can_create_local_account_and_duplicate_username_conflicts(
+    postgres_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    deployment = _Deployment(postgres_engine, tmp_path)
+    suffix = uuid4().hex[:8]
+    admin_id = deployment.add_local_account(
+        "Account administrator",
+        f"creator-{suffix}",
+        GlobalRole.admin,
+    )
+    client = deployment.act_as(admin_id)
+
+    created = client.post(
+        "/api/v1/admin/users",
+        json={
+            "display_name": "New operator",
+            "username": f"NEW-{suffix}",
+            "roles": ["operator"],
+        },
+    )
+    duplicate = client.post(
+        "/api/v1/admin/users",
+        json={
+            "display_name": "Duplicate operator",
+            "username": f"new-{suffix}",
+            "roles": [],
+        },
+    )
+
+    assert created.status_code == 201
+    assert created.headers["cache-control"] == "no-store"
+    payload = created.json()
+    assert payload["account"]["username"] == f"new-{suffix}"
+    assert payload["account"]["roles"] == ["operator"]
+    assert payload["account"]["is_active"] is True
+    assert payload["account"]["must_change_password"] is True
+    assert len(payload["temporary_password"]) >= 12
+    with deployment.unit_of_work_factory() as unit_of_work:
+        credential = unit_of_work.auth.get_credential(UUID(payload["account"]["id"]))
+    assert credential is not None
+    assert Argon2PasswordHasher().verify(
+        credential.password_hash,
+        payload["temporary_password"],
+    )
+    assert duplicate.status_code == 409
+    assert duplicate.json()["error"]["code"] == "username_conflict"
+    assert "temporary_password" not in duplicate.text
+
+    directory = client.get(
+        "/api/v1/admin/users",
+        params={"query": f"new-{suffix}"},
+    )
+    assert len(directory.json()["items"]) == 1

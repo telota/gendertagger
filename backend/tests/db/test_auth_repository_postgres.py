@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from gendertagger.db.repositories.auth_repository import SqlAlchemyAuthRepository
 from gendertagger.db.repositories.user_repository import SqlAlchemyUserRepository
 from gendertagger.models.user import UserCreate
+from gendertagger.services.ports.persistence_errors import DuplicateUsernameError
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 
@@ -71,3 +72,22 @@ def test_session_expiry_cannot_pass_its_absolute_limit(db_session: Session) -> N
 
     with pytest.raises(IntegrityError, match="ck_user_sessions_expiry_within_lifetime"):
         auth.renew_session(SESSION_ID, expires_at=LOGIN_AT + timedelta(days=31))
+
+
+def test_duplicate_username_is_translated_to_application_error(db_session: Session) -> None:
+    users = SqlAlchemyUserRepository(db_session)
+    first_user = users.add_user(UserCreate(display_name="First local user"))
+    second_user = users.add_user(UserCreate(display_name="Second local user"))
+    auth = SqlAlchemyAuthRepository(db_session)
+    auth.add_credential(
+        user_id=first_user.id,
+        username="duplicate-user",
+        password_hash="first-hash",
+    )
+
+    with pytest.raises(DuplicateUsernameError, match="duplicate-user"):
+        auth.add_credential(
+            user_id=second_user.id,
+            username="duplicate-user",
+            password_hash="second-hash",
+        )

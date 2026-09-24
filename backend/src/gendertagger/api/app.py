@@ -95,6 +95,7 @@ def create_app(
     user_administration_service = UserAdministrationService(
         unit_of_work_factory=unit_of_work_factory,
         cursor_codec=cursor_codec,
+        authentication_service=authentication_service,
     )
     artifact_storage = LocalArtifactStorage(resolved_settings.artifact_root)
     project_access_service = ProjectAccessService(

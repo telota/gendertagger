@@ -11,9 +11,10 @@ from gendertagger.api.authentication import require_authenticated_user, require_
 from gendertagger.api.dependencies import get_user_administration_service
 from gendertagger.api.settings import AppSettings
 from gendertagger.models.api import CursorPage
-from gendertagger.models.auth import AdminUser
+from gendertagger.models.auth import AdminUser, AdminUserCreate, AdminUserCreateResult
 from gendertagger.models.user import CurrentUser, GlobalRole
 from gendertagger.services.pagination import InvalidCursorError
+from gendertagger.services.ports.persistence_errors import DuplicateUsernameError
 from gendertagger.services.ports.unit_of_work import UnitOfWork
 from gendertagger.services.user_administration import UserAdministrationService
 
@@ -40,6 +41,7 @@ def _client(service: object) -> TestClient:
             dependency_lock_sha256="b" * 64,
         ),
         unit_of_work_factory=_unused_unit_of_work_factory,
+        request_id_factory=lambda: "request-123",
     )
     application.dependency_overrides[require_authenticated_user] = _admin
     application.dependency_overrides[require_csrf_protection] = lambda: None
@@ -86,3 +88,59 @@ def test_admin_user_route_normalizes_invalid_cursor_error() -> None:
 
     assert response.status_code == 422
     assert response.json()["error"]["details"] == {"reason": "invalid_cursor"}
+
+
+def test_admin_user_creation_returns_temporary_password_without_cache() -> None:
+    service = Mock(spec=UserAdministrationService)
+    account = AdminUser(
+        id=USER_ID,
+        display_name="New user",
+        username="new.user",
+        roles={GlobalRole.operator},
+        is_active=True,
+        must_change_password=True,
+        created_at=NOW,
+    )
+    service.create_user.return_value = AdminUserCreateResult(
+        account=account,
+        temporary_password="temporary-password",
+    )
+
+    response = _client(service).post(
+        "/api/v1/admin/users",
+        json={
+            "display_name": "New user",
+            "username": "NEW.USER",
+            "roles": ["operator"],
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json() == {
+        "account": account.model_dump(mode="json"),
+        "temporary_password": "temporary-password",
+    }
+    service.create_user.assert_called_once_with(
+        AdminUserCreate(
+            display_name="New user",
+            username="new.user",
+            roles={GlobalRole.operator},
+        ),
+        actor_user_id=USER_ID,
+        request_id="request-123",
+    )
+
+
+def test_admin_user_creation_maps_duplicate_username_to_stable_conflict() -> None:
+    service = Mock(spec=UserAdministrationService)
+    service.create_user.side_effect = DuplicateUsernameError("existing")
+
+    response = _client(service).post(
+        "/api/v1/admin/users",
+        json={"display_name": "Duplicate", "username": "existing", "roles": []},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "username_conflict"
+    assert "temporary_password" not in response.text

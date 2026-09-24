@@ -93,13 +93,14 @@ persistence-only fields.
 
 The production provider is a local, database-backed account system: admin-provisioned users,
 Argon2id password hashes, and server-side revocable sessions, with no external identity provider and
-no self-service registration or email-based password recovery. Administrators create accounts with
-`gendertagger users create` and force a new password with `gendertagger users reset-password`; both
-flag the account to change its password at next use. `GET /api/v1/admin/users` gives global administrators
-a searchable, cursor-paginated local-account directory without exposing credential or session secrets. The
-remaining administrative HTTP commands are specified by
-[ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md) and land incrementally; until then, the
-CLI remains the provisioning and reset path. See
+no self-service registration or email-based password recovery. Global administrators create accounts with
+`POST /api/v1/admin/users`; the server generates a temporary password, returns it once in a non-cacheable
+response, and flags the account to change it at next use. `GET /api/v1/admin/users` provides the associated
+searchable, cursor-paginated directory without exposing credential or session secrets. The
+`gendertagger users create` command remains the break-glass provisioning path. Password reset remains
+available through `gendertagger users reset-password` until its administrative HTTP command from
+[ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md) lands. Both provisioning paths and
+reset use the same application service and forced-change behavior. See
 [ADR-0031](decisions/ADR-0031-local-database-authentication.md) for the exact credential, session, endpoint,
 and cookie contract. Institutional SSO remains a later, additive `AuthenticationBackend` implementation.
 The gateway throttles `POST /api/v1/auth/login` per client address: six attempts at once, then one every

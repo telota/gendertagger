@@ -56,8 +56,7 @@ def add_parser(commands: _SubParsersAction[argparse.ArgumentParser]) -> None:
 def run(args: argparse.Namespace, settings: DatabaseSettings) -> str:
     """Provision or reset one local-account user (ADR-0031) and emit the result as JSON.
 
-    Account provisioning is deliberately CLI-only: no v1 frontend screen manages users, so there
-    is no HTTP surface for it. See ADR-0031.
+    The CLI remains the break-glass path alongside the admin-only HTTP surface from ADR-0039.
     """
     engine = create_database_engine(settings.database_url.get_secret_value())
     session_factory = create_session_factory(engine)

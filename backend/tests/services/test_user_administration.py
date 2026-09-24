@@ -6,8 +6,9 @@ from uuid import UUID
 
 import pytest
 
-from gendertagger.models.auth import AdminUser
-from gendertagger.models.user import GlobalRole
+from gendertagger.models.auth import AdminUser, AdminUserCreate
+from gendertagger.models.user import GlobalRole, User
+from gendertagger.services.authentication import AuthenticationService
 from gendertagger.services.pagination import CursorCodec, InvalidCursorError
 from gendertagger.services.ports.auth_repository import AdminUserCursor, AuthRepository
 from gendertagger.services.ports.unit_of_work import UnitOfWork
@@ -51,7 +52,10 @@ def _user(index: int) -> AdminUser:
     )
 
 
-def _service(repository: AuthRepository) -> UserAdministrationService:
+def _service(
+    repository: AuthRepository,
+    authentication_service: AuthenticationService | None = None,
+) -> UserAdministrationService:
     unit_of_work = _UnitOfWork(repository)
 
     def factory() -> UnitOfWork:
@@ -60,6 +64,7 @@ def _service(repository: AuthRepository) -> UserAdministrationService:
     return UserAdministrationService(
         unit_of_work_factory=factory,
         cursor_codec=CursorCodec(),
+        authentication_service=authentication_service or Mock(spec=AuthenticationService),
     )
 
 
@@ -98,3 +103,52 @@ def test_user_directory_scopes_cursor_to_normalized_search() -> None:
         service.list_users(query="other", limit=1, cursor=first_page.next_cursor)
     with pytest.raises(ValueError, match="limit must be positive"):
         service.list_users(query=None, limit=0, cursor=None)
+
+
+def test_create_user_returns_once_disclosed_temporary_password_and_logs_context(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    repository = Mock(spec=AuthRepository)
+    authentication_service = Mock(spec=AuthenticationService)
+    authentication_service.create_local_account.return_value = User(
+        id=USER_IDS[1],
+        display_name="New user",
+        roles={GlobalRole.operator},
+        is_active=True,
+        created_at=NOW,
+        updated_at=NOW,
+    )
+    service = _service(repository, authentication_service)
+    command = AdminUserCreate(
+        display_name="New user",
+        username="  NEW.USER  ",
+        roles={GlobalRole.operator},
+    )
+
+    with caplog.at_level("INFO"):
+        result = service.create_user(
+            command,
+            actor_user_id=USER_IDS[0],
+            request_id="request-123",
+        )
+
+    assert result.account == AdminUser(
+        id=USER_IDS[1],
+        display_name="New user",
+        username="new.user",
+        roles={GlobalRole.operator},
+        is_active=True,
+        must_change_password=True,
+        created_at=NOW,
+    )
+    assert len(result.temporary_password) >= 12
+    authentication_service.create_local_account.assert_called_once_with(
+        display_name="New user",
+        roles={GlobalRole.operator},
+        username="new.user",
+        password=result.temporary_password,
+    )
+    assert str(USER_IDS[0]) in caplog.text
+    assert str(USER_IDS[1]) in caplog.text
+    assert "request-123" in caplog.text
+    assert result.temporary_password not in caplog.text

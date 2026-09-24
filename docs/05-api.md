@@ -158,7 +158,13 @@ experience aid, never the security boundary.
 `GET /admin/users` is restricted to global administrators and returns local accounts in normalized-username
 order. It supports server-side username/display-name search and opaque cursor pagination. The
 administrator-facing projection contains identity, global roles, activation state, forced-password-change
-state, and creation time; it never exposes password hashes or session data. See
+state, and creation time; it never exposes password hashes or session data.
+
+`POST /admin/users` accepts a display name, normalized local username, and global roles. It creates an
+active account with a server-generated temporary password and `must_change_password=true`, then returns
+`201 Created` with the account and that password. The password is disclosed only in that response, which
+sets `Cache-Control: no-store`; it is never logged. A duplicate normalized username returns
+`409 username_conflict`. See
 [ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md).
 
 ## Branding surface

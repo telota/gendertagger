@@ -6,6 +6,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from gendertagger.db.rows.auth import UserCredentialRow, UserSessionRow
@@ -13,7 +14,12 @@ from gendertagger.db.rows.users import UserRoleRow, UserRow
 from gendertagger.models.auth import AdminUser, LocalCredential, UserSession
 from gendertagger.models.user import GlobalRole
 from gendertagger.services.ports.auth_repository import AdminUserCursor
-from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
+from gendertagger.services.ports.persistence_errors import (
+    DuplicateUsernameError,
+    ResourceNotFoundError,
+)
+
+_USERNAME_UNIQUE_CONSTRAINT = "uq_user_credentials_username"
 
 
 class SqlAlchemyAuthRepository:
@@ -33,7 +39,13 @@ class SqlAlchemyAuthRepository:
             must_change_password=True,
         )
         self._session.add(row)
-        self._session.flush()
+        try:
+            self._session.flush()
+        except IntegrityError as error:
+            constraint_name = getattr(getattr(error.orig, "diag", None), "constraint_name", None)
+            if constraint_name == _USERNAME_UNIQUE_CONSTRAINT:
+                raise DuplicateUsernameError(username) from error
+            raise
         return self._credential_from_row(row)
 
     def get_credential_by_username(self, username: str) -> LocalCredential | None:

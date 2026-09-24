@@ -52,6 +52,33 @@ class AdminUser(BaseModel):
     created_at: UtcDatetime
 
 
+class AdminUserCreate(BaseModel):
+    """Global-administrator command for provisioning one local account."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    display_name: str = Field(min_length=1, max_length=200)
+    username: Username
+    roles: set[GlobalRole] = Field(default_factory=set)
+
+    @field_validator("display_name")
+    @classmethod
+    def _validate_display_name(cls, value: str) -> str:
+        if not value.strip():
+            msg = "display_name must not be blank"
+            raise ValueError(msg)
+        return value
+
+
+class AdminUserCreateResult(BaseModel):
+    """Created account plus its once-returned temporary password."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    account: AdminUser
+    temporary_password: str = Field(min_length=MIN_LOCAL_PASSWORD_LENGTH, repr=False)
+
+
 class LoginRequest(BaseModel):
     """Public credentials submitted to establish a session."""
 
