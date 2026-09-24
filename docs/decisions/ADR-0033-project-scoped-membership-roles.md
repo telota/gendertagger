@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+The missing user-directory follow-up in this decision is resolved by
+[ADR-0039](ADR-0039-administer-local-accounts-over-http.md) and `GET /api/v1/admin/users`.
+
 ## Context
 
 [`13-auth-and-security.md`](../13-auth-and-security.md) defined four global, hierarchical roles —
@@ -107,7 +110,7 @@ but cannot restore the deleted role rows.
   exposed every project, which defeats team isolation.
 - Rejected: returning `403` for projects the caller cannot see. It would confirm that a resource exists in a
   project the caller does not belong to.
-- Follow-up: the admin membership endpoints address users by ID, and no endpoint lists users yet, so an
-  administrator screen would need a user directory. Membership changes are logged rather than kept as an
-  append-only history; a durable audit trail for user and role changes remains in
-  [`22-future-development.md`](../22-future-development.md).
+- The admin membership endpoints address users by ID. `GET /api/v1/admin/users` now supplies the searchable
+  directory an administrator screen needs ([ADR-0039](ADR-0039-administer-local-accounts-over-http.md)).
+  Membership changes are logged rather than kept as an append-only history; a durable audit trail for user
+  and role changes remains in [`22-future-development.md`](../22-future-development.md).

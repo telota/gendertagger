@@ -311,6 +311,7 @@ PROJECT_SCOPED_ROUTES = (
     ),
 )
 GLOBAL_ROUTES = {
+    ("GET", "/admin/users"),
     ("POST", "/projects"),
     ("GET", "/projects"),
     ("GET", "/projects/{project_id}/members"),
@@ -405,6 +406,15 @@ def test_member_administration_requires_a_global_admin() -> None:
     ]
 
     assert [response.status_code for response in responses] == [403, 403, 403]
+
+
+def test_user_directory_requires_a_global_admin() -> None:
+    client = _client(_FixedProjectAccess(), _user(GlobalRole.operator))
+
+    response = client.get("/api/v1/admin/users")
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "forbidden"
 
 
 def test_project_creation_requires_a_global_operator() -> None:

@@ -19,7 +19,7 @@ project:
 
 - `operator`: create projects; the creator becomes the new project's `operator`. It grants no access to
   any other project.
-- `admin`: `operator` capability in every project, plus project-membership administration
+- `admin`: `operator` capability in every project, plus local-account and project-membership administration
 
 A caller's effective role in a project is `operator` for a global `admin`, otherwise its membership role,
 otherwise none.
@@ -95,9 +95,13 @@ The production provider is a local, database-backed account system: admin-provis
 Argon2id password hashes, and server-side revocable sessions, with no external identity provider and
 no self-service registration or email-based password recovery. Administrators create accounts with
 `gendertagger users create` and force a new password with `gendertagger users reset-password`; both
-flag the account to change its password at next use. See
-[ADR-0031](decisions/ADR-0031-local-database-authentication.md) for the exact schema, endpoints, and
-cookie contract. Institutional SSO remains a later, additive `AuthenticationBackend` implementation.
+flag the account to change its password at next use. `GET /api/v1/admin/users` gives global administrators
+a searchable, cursor-paginated local-account directory without exposing credential or session secrets. The
+remaining administrative HTTP commands are specified by
+[ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md) and land incrementally; until then, the
+CLI remains the provisioning and reset path. See
+[ADR-0031](decisions/ADR-0031-local-database-authentication.md) for the exact credential, session, endpoint,
+and cookie contract. Institutional SSO remains a later, additive `AuthenticationBackend` implementation.
 The gateway throttles `POST /api/v1/auth/login` per client address: six attempts at once, then one every
 12 seconds, answering further attempts with `429 rate_limited` in the API's error envelope and a
 `Retry-After` header ([`deploy/proxy/nginx.conf`](../deploy/proxy/nginx.conf)). Every attempt costs an

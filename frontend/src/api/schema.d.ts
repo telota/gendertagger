@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/v1/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Admin Users
+         * @description List local accounts in normalized-username order for administration.
+         */
+        get: operations["list_admin_users_api_v1_admin_users_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/aggregations/{aggregation_id}": {
         parameters: {
             query?: never;
@@ -892,6 +912,32 @@ export interface components {
             working_aggregation_execution_id?: string | null;
         };
         /**
+         * AdminUser
+         * @description Administrator-facing read model for one local account (ADR-0039).
+         */
+        AdminUser: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Display Name */
+            display_name: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Must Change Password */
+            must_change_password: boolean;
+            /** Roles */
+            roles: components["schemas"]["GlobalRole"][];
+            /** Username */
+            username: string;
+        };
+        /**
          * AggregatedClassification
          * @description Aggregated decision and certainty rating derived from method predictions.
          */
@@ -1381,6 +1427,15 @@ export interface components {
             /** Next Cursor */
             next_cursor?: string | null;
         };
+        /** CursorPage[AdminUser] */
+        CursorPage_AdminUser_: {
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["AdminUser"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
         /** CursorPage[AggregatedResult] */
         CursorPage_AggregatedResult_: {
             /** Has More */
@@ -1674,7 +1729,7 @@ export interface components {
          * @description Hierarchical authorization role that applies outside any one project (ADR-0033).
          *
          *     ``operator`` may create projects and grants no access to existing ones. ``admin`` additionally
-         *     holds operator capability in every project and administers project memberships.
+         *     holds operator capability in every project and administers local accounts and project memberships.
          * @enum {string}
          */
         GlobalRole: "operator" | "admin";
@@ -2462,6 +2517,102 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list_admin_users_api_v1_admin_users_get: {
+        parameters: {
+            query?: {
+                query?: string | null;
+                limit?: number;
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CursorPage_AdminUser_"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     get_aggregation_api_v1_aggregations__aggregation_id__get: {
         parameters: {
             query?: never;

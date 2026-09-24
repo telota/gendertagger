@@ -592,8 +592,9 @@ roles remain — `operator`, which may create projects and becomes operator of e
   a member below a route's least role receives `403`. The client treats both as it already treats missing
   resources and forbidden actions.
 - Memberships are managed by administrators through admin-only `/projects/{project_id}/members` endpoints
-  and the `gendertagger projects` CLI. No v1 screen manages them; an administrator screen would first need a
-  user directory ([`22-future-development.md`](22-future-development.md)).
+  and the `gendertagger projects` CLI. `GET /admin/users` now provides the searchable user directory an
+  administrator screen needs ([ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md)); the
+  screen itself remains outside the current frontend milestones.
 - The upgrade drops the global viewer and reviewer roles and assigns no memberships, so every deployment
   must assign project memberships after migrating.
 

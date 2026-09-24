@@ -1,8 +1,8 @@
 """Global and project-scoped authorization dependencies for the versioned API (ADR-0033).
 
-Global roles gate the few operations that belong to no project: creating a project and
-administering memberships. Every project-scoped route instead asks a :class:`ProjectAccessGuard`
-for the caller's role in the project that owns the route's root identifier.
+Global roles gate the few operations that belong to no project: creating a project and administering
+local accounts or memberships. Every project-scoped route instead asks a :class:`ProjectAccessGuard` for
+the caller's role in the project that owns the route's root identifier.
 """
 
 from dataclasses import dataclass

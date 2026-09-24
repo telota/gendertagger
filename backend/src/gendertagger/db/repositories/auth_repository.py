@@ -1,13 +1,18 @@
 """SQLAlchemy repository for local-account credentials and sessions (ADR-0031)."""
 
+from collections import defaultdict
+from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from gendertagger.db.rows.auth import UserCredentialRow, UserSessionRow
-from gendertagger.models.auth import LocalCredential, UserSession
+from gendertagger.db.rows.users import UserRoleRow, UserRow
+from gendertagger.models.auth import AdminUser, LocalCredential, UserSession
+from gendertagger.models.user import GlobalRole
+from gendertagger.services.ports.auth_repository import AdminUserCursor
 from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
 
 
@@ -42,6 +47,60 @@ class SqlAlchemyAuthRepository:
         """Return the credential for a user ID, or ``None`` when the user has no local credential."""
         row = self._session.get(UserCredentialRow, user_id)
         return None if row is None else self._credential_from_row(row)
+
+    def list_admin_users(
+        self,
+        *,
+        search: str | None,
+        limit: int,
+        after: AdminUserCursor | None,
+    ) -> Sequence[AdminUser]:
+        """Return one username-ordered keyset slice of local accounts."""
+        statement = select(UserRow, UserCredentialRow).join(
+            UserCredentialRow,
+            UserCredentialRow.user_id == UserRow.id,
+        )
+        if search is not None:
+            statement = statement.where(
+                or_(
+                    UserCredentialRow.username.icontains(search, autoescape=True),
+                    UserRow.display_name.icontains(search, autoescape=True),
+                )
+            )
+        if after is not None:
+            statement = statement.where(
+                or_(
+                    UserCredentialRow.username > after.username,
+                    and_(
+                        UserCredentialRow.username == after.username,
+                        UserRow.id > after.user_id,
+                    ),
+                )
+            )
+        rows = self._session.execute(
+            statement.order_by(UserCredentialRow.username, UserRow.id).limit(limit)
+        ).all()
+        user_ids = [user_row.id for user_row, _ in rows]
+        roles_by_user_id: defaultdict[UUID, set[GlobalRole]] = defaultdict(set)
+        if user_ids:
+            for user_id, role in self._session.execute(
+                select(UserRoleRow.user_id, UserRoleRow.role).where(
+                    UserRoleRow.user_id.in_(user_ids)
+                )
+            ):
+                roles_by_user_id[user_id].add(role)
+        return tuple(
+            AdminUser(
+                id=user_row.id,
+                display_name=user_row.display_name,
+                username=credential_row.username,
+                roles=roles_by_user_id[user_row.id],
+                is_active=user_row.is_active,
+                must_change_password=credential_row.must_change_password,
+                created_at=user_row.created_at,
+            )
+            for user_row, credential_row in rows
+        )
 
     def set_password(
         self, *, user_id: UUID, password_hash: str, must_change_password: bool

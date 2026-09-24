@@ -163,6 +163,11 @@ Global and project roles are separate hierarchical vocabularies. CurrentUser rem
 neutral and carries global roles only; project access is resolved per request and returned with accessible
 project representations. See [ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md).
 
+`AdminUser` is the global-administrator projection for a local account. It combines provider-neutral user
+identity and roles with the non-secret local credential fields needed for administration. Password hashes and
+session state never enter the contract. See
+[ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md).
+
 Per-person method-result projections preserve the difference between an absent Prediction and a present
 abstain/error result. Annotation history is newest first and must agree with the current annotation and review
 revision.

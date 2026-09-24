@@ -1,10 +1,20 @@
-"""Application repository contract for local-account credentials and sessions (ADR-0031)."""
+"""Application repository contract for local-account credentials and sessions."""
 
+from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from gendertagger.models.auth import LocalCredential, UserSession
+from gendertagger.models.auth import AdminUser, LocalCredential, UserSession
+
+
+@dataclass(frozen=True, slots=True)
+class AdminUserCursor:
+    """Stable keyset position in the username-ordered local-account directory."""
+
+    username: str
+    user_id: UUID
 
 
 class AuthRepository(Protocol):
@@ -22,6 +32,16 @@ class AuthRepository(Protocol):
 
     def get_credential(self, user_id: UUID) -> LocalCredential | None:
         """Return the credential for a user ID, or ``None`` when the user has no local credential."""
+        ...
+
+    def list_admin_users(
+        self,
+        *,
+        search: str | None,
+        limit: int,
+        after: AdminUserCursor | None,
+    ) -> Sequence[AdminUser]:
+        """Return one username-ordered keyset slice of local accounts."""
         ...
 
     def set_password(

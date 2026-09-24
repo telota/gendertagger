@@ -153,6 +153,14 @@ change, session lifetime, provisioning, and project-role behavior are defined in
 Authorization is enforced by FastAPI dependencies and application services. UI visibility rules are a user
 experience aid, never the security boundary.
 
+## Administrative user directory
+
+`GET /admin/users` is restricted to global administrators and returns local accounts in normalized-username
+order. It supports server-side username/display-name search and opaque cursor pagination. The
+administrator-facing projection contains identity, global roles, activation state, forced-password-change
+state, and creation time; it never exposes password hashes or session data. See
+[ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md).
+
 ## Branding surface
 
 `GET /branding` and `GET /branding/logo` are unauthenticated, need no grant, and carry no scientific or project-scoped data ([ADR-0036](decisions/ADR-0036-institution-branding-configuration.md)). They exist so the client's footer, start page, and legal notice can be reachable without a session and configured per deployment instead of hard-coded.

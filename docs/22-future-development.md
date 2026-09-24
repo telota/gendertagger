@@ -195,9 +195,10 @@ already does.
 
 Project roles are held through memberships
 ([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)). The admin-only
-`PUT /api/v1/projects/{project_id}/members/{user_id}` addresses the member by user ID, but no endpoint lists
-users, so only the CLI, which addresses members by username, is practical today. An administrator screen
-would need an admin-only user directory with search, and a decision about how much of it viewers may see.
+`PUT /api/v1/projects/{project_id}/members/{user_id}` addresses the member by user ID.
+`GET /api/v1/admin/users` now supplies the missing admin-only, searchable, cursor-paginated local-account
+directory ([ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md)). The administrator screen
+that consumes it remains deferred, as does any less-privileged user-directory projection.
 
 ### Append-only history of role and membership changes
 

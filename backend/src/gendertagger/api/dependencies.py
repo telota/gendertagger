@@ -18,6 +18,7 @@ from gendertagger.services.project_access import ProjectAccessService
 from gendertagger.services.projects import ProjectService
 from gendertagger.services.review_items import ReviewItemService
 from gendertagger.services.runs import RunService
+from gendertagger.services.user_administration import UserAdministrationService
 
 
 def get_unit_of_work_factory(request: Request) -> UnitOfWorkFactory:
@@ -88,3 +89,8 @@ def get_classification_service(request: Request) -> DirectClassificationService:
 def get_authentication_service(request: Request) -> AuthenticationService:
     """Return the composed local-account authentication application service."""
     return cast(AuthenticationService, request.app.state.authentication_service)
+
+
+def get_user_administration_service(request: Request) -> UserAdministrationService:
+    """Return the composed local-account administration service."""
+    return cast(UserAdministrationService, request.app.state.user_administration_service)

@@ -13,7 +13,7 @@ class GlobalRole(StrEnum):
     """Hierarchical authorization role that applies outside any one project (ADR-0033).
 
     ``operator`` may create projects and grants no access to existing ones. ``admin`` additionally
-    holds operator capability in every project and administers project memberships.
+    holds operator capability in every project and administers local accounts and project memberships.
     """
 
     operator = "operator"

@@ -12,6 +12,7 @@ from uuid import UUID
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 from gendertagger.models.common import UtcDatetime
+from gendertagger.models.user import GlobalRole
 
 MIN_LOCAL_PASSWORD_LENGTH = 12
 _USERNAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{0,62}[a-z0-9]$")
@@ -35,6 +36,20 @@ def normalize_username(value: str) -> str:
 
 
 Username = Annotated[str, AfterValidator(normalize_username)]
+
+
+class AdminUser(BaseModel):
+    """Administrator-facing read model for one local account (ADR-0039)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    id: UUID
+    display_name: str = Field(min_length=1, max_length=200)
+    username: Username
+    roles: set[GlobalRole]
+    is_active: bool
+    must_change_password: bool
+    created_at: UtcDatetime
 
 
 class LoginRequest(BaseModel):

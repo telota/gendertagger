@@ -20,6 +20,7 @@ from typing import Any
 from fastapi import APIRouter, Depends
 
 from gendertagger.api.authentication import require_csrf_protection, require_password_current
+from gendertagger.api.routes.admin_users import router as admin_users_router
 from gendertagger.api.routes.aggregations import router as aggregations_router
 from gendertagger.api.routes.annotations import router as annotations_router
 from gendertagger.api.routes.authentication import router as authentication_router
@@ -54,6 +55,7 @@ def create_api_router() -> APIRouter:
         dependencies=[Depends(require_csrf_protection), Depends(require_password_current)],
         responses=_ERROR_RESPONSES,
     )
+    router.include_router(admin_users_router)
     router.include_router(annotations_router)
     router.include_router(aggregations_router)
     router.include_router(classify_router)
