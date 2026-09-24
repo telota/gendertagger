@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import type { ApiClient } from '@/api'
 import { routes } from '@/app/router'
-import { createUnauthorizedHandler } from '@/app/sessionGuard'
+import { createUnauthorizedHandler, shouldRetryAfterUnauthorized } from '@/app/sessionGuard'
 import { API_CLIENT_KEY } from '@/composables/useApiClient'
 import { useSessionRecovery } from '@/composables/useSessionRecovery'
 import { useSessionStore } from '@/stores/session'
@@ -46,6 +46,28 @@ afterEach(() => {
   useSessionRecovery().reject(new Error('test cleanup'))
 })
 
+describe('shouldRetryAfterUnauthorized', () => {
+  it('excludes only administrative account creation and updates from automatic replay', () => {
+    expect(
+      shouldRetryAfterUnauthorized(
+        new Request('https://example.test/api/v1/admin/users', { method: 'POST' }),
+      ),
+    ).toBe(false)
+    expect(
+      shouldRetryAfterUnauthorized(
+        new Request(
+          'https://example.test/api/v1/admin/users/6f9619ff-8b86-4011-b42d-00c04fc964ff',
+          { method: 'PATCH' },
+        ),
+      ),
+    ).toBe(false)
+    expect(
+      shouldRetryAfterUnauthorized(
+        new Request('https://example.test/api/v1/me/password', { method: 'POST' }),
+      ),
+    ).toBe(true)
+  })
+})
 describe('createUnauthorizedHandler', () => {
   it('never opens a prompt for the login endpoint', async () => {
     const handler = createUnauthorizedHandler(await router())

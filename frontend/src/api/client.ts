@@ -19,6 +19,11 @@ export interface ApiClientOptions {
    * propagate as an ordinary `ApiError`, exactly as before this option existed.
    */
   onUnauthorized?: (request: Request) => Promise<void>
+  /**
+   * Whether a request may replay after a recovered sign-in. Administrative account writes return
+   * `false`: their actor must deliberately resubmit after recovery, never run under a new principal.
+   */
+  shouldRetryAfterUnauthorized?: (request: Request) => boolean
 }
 
 function defaultCsrfToken(): string | null {
@@ -41,6 +46,7 @@ function applyCsrfHeader(request: Request, csrfToken: () => string | null): void
 export function createApiClient(options: ApiClientOptions = {}): ApiClient {
   const csrfToken = options.csrfToken ?? defaultCsrfToken
   const doFetch = options.fetch ?? ((request: Request) => window.fetch(request))
+  const shouldRetryAfterUnauthorized = options.shouldRetryAfterUnauthorized ?? (() => true)
   const client = createClient<paths>({
     // Every path in the generated schema already starts with `/api/v1`, and the deployment is
     // same-origin, so the base is the page's own origin, spelled out because a `Request` needs an
@@ -67,18 +73,19 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
     const clones = new Map<string, Request>()
     const recoverFromExpiredSession: Middleware = {
       onRequest({ request, id }) {
-        clones.set(id, request.clone())
+        if (shouldRetryAfterUnauthorized(request)) clones.set(id, request.clone())
         return request
       },
       async onResponse({ request, response, id }) {
         const retryRequest = clones.get(id)
         clones.delete(id)
-        if (response.status !== 401 || !retryRequest) return undefined
+        if (response.status !== 401) return undefined
         try {
           await onUnauthorized(request)
         } catch {
           return undefined
         }
+        if (!shouldRetryAfterUnauthorized(request) || !retryRequest) return undefined
         // The session that produced the original CSRF token is gone; the recovered one issues a new
         // one, so the retry needs its own header, not the stale value the clone still carries.
         applyCsrfHeader(retryRequest, csrfToken)

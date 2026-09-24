@@ -146,6 +146,34 @@ describe('createApiClient onUnauthorized', () => {
     expect(result.data).toEqual({ ok: true })
   })
 
+  it('recovers but never replays an administrative write without deliberate resubmission', async () => {
+    const onUnauthorized = vi.fn(() => Promise.resolve())
+    const requests: Request[] = []
+    const client = createApiClient({
+      fetch: (request) => {
+        requests.push(request.clone())
+        return Promise.resolve(
+          jsonResponse(
+            { error: { code: 'authentication_required', message: 'Session gone.' } },
+            { status: 401 },
+          ),
+        )
+      },
+      onUnauthorized,
+      shouldRetryAfterUnauthorized: () => false,
+    })
+
+    const failure = await unwrap(
+      client.POST('/api/v1/admin/users', {
+        body: { username: 'new.admin', display_name: 'New admin', roles: [] },
+      }),
+    ).catch((error: unknown) => error)
+
+    expect(onUnauthorized).toHaveBeenCalledTimes(1)
+    expect(requests).toHaveLength(1)
+    expect(failure).toMatchObject({ status: 401, code: 'authentication_required' })
+  })
+
   it('propagates the 401 when the caller declines recovery', async () => {
     const onUnauthorized = vi.fn(() => Promise.reject(new Error('declined')))
     const { client, requests } = setupWithRecovery(

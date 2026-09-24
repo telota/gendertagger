@@ -9,6 +9,17 @@ import { useSessionStore } from '@/stores/session'
 const PATHS_EXEMPT_FROM_RECOVERY = ['/api/v1/auth/login', '/api/v1/auth/logout']
 
 /**
+ * Administrative writes never replay after session recovery. A recovered session can belong to another
+ * administrator, so retrying would execute the old actor's action under a different principal.
+ */
+export function shouldRetryAfterUnauthorized(request: Request): boolean {
+  const { pathname } = new URL(request.url)
+  const isCreate = request.method === 'POST' && pathname.endsWith('/api/v1/admin/users')
+  const isUpdate = request.method === 'PATCH' && /\/api\/v1\/admin\/users\/[^/]+$/.test(pathname)
+  return !isCreate && !isUpdate
+}
+
+/**
  * Build the API client's `onUnauthorized` hook (decision D1): recover a session that expired mid-use
  * inline, without navigating away from the caller's page, and fall back to routing to `/login` —
  * preserving the page the user was on — if they decline.

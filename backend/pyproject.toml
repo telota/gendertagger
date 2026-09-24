@@ -70,12 +70,14 @@ lint = [
   "lxml-stubs==0.5.1",
   "mypy==2.3.0",
   "ruff==0.16.2",
+  "types-PyYAML==6.0.12.20260518",
 ]
 test = [
   "coverage[toml]==7.15.4",
   "hypothesis==6.165.5",
   "pytest==9.1.1",
   "pytest-cov==7.1.0",
+  "PyYAML==6.0.3",
 ]
 
 [tool.uv]

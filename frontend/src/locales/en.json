@@ -145,7 +145,8 @@
       "displayName": "Display name",
       "roles": "Global roles",
       "active": "Account state",
-      "passwordChange": "Password state"
+      "passwordChange": "Password state",
+      "actions": "Actions"
     },
     "roles": {
       "admin": "Administrator",
@@ -157,6 +158,65 @@
       "inactive": "Inactive",
       "passwordChangeRequired": "Change required",
       "passwordCurrent": "Current"
+    },
+    "creation": {
+      "title": "Create local account",
+      "description": "The new account receives a server-generated temporary password and must change it at first sign-in.",
+      "username": "Username",
+      "displayName": "Display name",
+      "roles": "Global roles",
+      "rolesHint": "No global role is valid. These roles are not project memberships.",
+      "submit": "Create account",
+      "submitting": "Creating account …",
+      "successTitle": "Account created",
+      "successDescription": "Record the temporary password now. It will not be shown again and the new account must change it at first sign-in.",
+      "temporaryPassword": "Temporary password",
+      "temporaryPasswordHelp": "Select this value and copy it through your browser or password manager.",
+      "dismissTemporaryPassword": "I have recorded the password",
+      "validation": {
+        "username": "Enter a username with 2–64 letters, digits, periods, underscores, or hyphens.",
+        "displayNameRequired": "Enter a display name.",
+        "displayNameLength": "Use no more than 200 characters for the display name."
+      }
+    },
+    "editing": {
+      "open": "Edit account",
+      "title": "Edit {username}",
+      "username": "Username",
+      "displayName": "Display name",
+      "roles": "Global roles",
+      "rolesHint": "Changing roles replaces the full global role set.",
+      "active": "Active account",
+      "selfAdminRoleLocked": "You cannot remove your own administrator role.",
+      "selfDeactivationLocked": "You cannot deactivate your own account.",
+      "save": "Save changes",
+      "submitting": "Saving changes …",
+      "cancel": "Cancel",
+      "validation": {
+        "displayNameRequired": "Enter a display name.",
+        "displayNameLength": "Use no more than 200 characters for the display name."
+      }
+    },
+    "deactivation": {
+      "title": "Deactivate account?",
+      "description": "This account will no longer be able to sign in.",
+      "sessions": "Existing sessions will be terminated. Reactivating the account does not restore them.",
+      "cancel": "Keep account active",
+      "confirm": "Deactivate account"
+    },
+    "errors": {
+      "usernameConflict": "This username is already in use. Choose another username.",
+      "selfDeactivationForbidden": "You cannot deactivate your own account.",
+      "selfAdminRoleRemovalForbidden": "You cannot remove your own administrator role.",
+      "lastActiveAdministratorForbidden": "At least one active administrator must remain.",
+      "actingUserNotActiveAdministrator": "Your administrative access is no longer active. Sign in again with an active administrator account.",
+      "resourceNotFound": "This account no longer exists. Refresh the directory.",
+      "passwordChangeRequired": "Change your password before administering local accounts.",
+      "forbidden": "You no longer have permission to administer local accounts.",
+      "validationError": "Review the entered account details and try again.",
+      "authenticationRequired": "Your session ended. Sign in again, then deliberately resubmit the change.",
+      "networkError": "The server could not be reached. The change may have been applied; refresh the directory before trying again.",
+      "unexpected": "The account change could not be completed. Refresh the directory before trying again."
     }
   },
   "projects": {

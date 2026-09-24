@@ -15,7 +15,7 @@ import {
 } from './i18n'
 import { createQueryClient } from './queryClient'
 import { createAppRouter } from './router'
-import { createUnauthorizedHandler } from './sessionGuard'
+import { createUnauthorizedHandler, shouldRetryAfterUnauthorized } from './sessionGuard'
 
 function readStoredLocale(storage: Storage): string | null {
   try {
@@ -45,7 +45,10 @@ export function createApplication(environment: {
   // Pinia is installed below, so the ordering here is safe despite the store not existing yet.
   application.provide(
     API_CLIENT_KEY,
-    createApiClient({ onUnauthorized: createUnauthorizedHandler(router) }),
+    createApiClient({
+      onUnauthorized: createUnauthorizedHandler(router),
+      shouldRetryAfterUnauthorized,
+    }),
   )
   return application
     .use(createPinia())

@@ -278,17 +278,26 @@ scope — so that part of the criterion is necessarily verified once M3 exists, 
 
 ### Administrative local-account directory — ADR-0039
 
-**Status.** Delivered as the first frontend administrative increment. `/admin/users` is a read-only,
-global-admin screen backed by the generated `GET /api/v1/admin/users` client. It presents server-ordered
-accounts with username/display-name search, opaque cursor pagination, account state, required-password-change
-state, global roles, and a current-account marker. The route and sidebar both wait for the session result;
-the screen retains its clear signed-in non-admin, signed-out, password-change, session-error, retry, empty,
-search-empty, initial-error, pagination-error, and refetch states. Private administrative query data is
-principal-scoped and removed on a principal or eligibility change and when the view unmounts.
+**Status.** The read-only directory is delivered. This branch implements the next administrative slice:
+global-admin account creation and mutable-account editing. It uses the generated `POST /api/v1/admin/users`
+and `PATCH /api/v1/admin/users/{user_id}` operations; keeps server-ordered, cursor-paginated directory data
+in its principal-scoped query cache; and deliberately does not replay either write after `401` recovery.
+Creation discloses the server-generated temporary password only in component-local state and removes it on
+dismissal, unmount, principal/access change, and logout. Editing permits only display name, global roles, and
+activation state, confirms deactivation, and prevents obvious self-lockout controls without treating the
+paginated client directory as an authority on the last active administrator. Manual browser verification of
+the new German/English, light/dark, keyboard, responsive, and recovery states remains pending review.
 
-Creation, updates, password resets, session revocation, project memberships, settings forms, and branding
-consumers are subsequent administrative slices. ADR-0040 permits frontend edits only for its six branding
-fields; this increment does not add those controls.
+The existing read path presents server-ordered accounts with username/display-name search, opaque cursor
+pagination, account state, required-password-change state, global roles, and a current-account marker. The
+route and sidebar wait for the session result; the screen retains its clear signed-in non-admin, signed-out,
+password-change, session-error, retry, empty, search-empty, initial-error, pagination-error, and refetch
+states. Private administrative query data is principal-scoped and removed on a principal or eligibility
+change and when the view unmounts.
+
+Password reset, session revocation, project memberships, settings forms, and branding consumers are
+subsequent administrative slices. ADR-0040 permits frontend edits only for its six branding fields; this
+increment does not add those controls.
 
 
 ### M3 — Projects and import

@@ -3,12 +3,15 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
-import { ApiError } from '@/api'
+import { ApiError, type components } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
 import AppTextField from '@/components/base/AppTextField.vue'
 import { useAdminAccess } from '@/composables/useAdminAccess'
 
+import AdminUserCreationForm from './AdminUserCreationForm.vue'
+import AdminUserEditForm from './AdminUserEditForm.vue'
 import { useAdminUserDirectory, type AdminUser } from './useAdminUserDirectory'
+import { useAdminUserMutations } from './useAdminUserMutations'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -19,6 +22,8 @@ const serverAccessError = ref<'forbidden' | 'passwordChangeRequired' | null>(nul
 const principalId = computed(() => session.user?.id ?? null)
 const canLoadDirectory = computed(() => canAccessAdmin.value && serverAccessError.value === null)
 const directory = useAdminUserDirectory(principalId, canLoadDirectory, searchInput)
+const mutations = useAdminUserMutations(principalId, canLoadDirectory)
+const editingAccount = ref<AdminUser | null>(null)
 const accounts = computed(
   () => directory.query.data.value?.pages.flatMap((page) => page.items) ?? [],
 )
@@ -38,6 +43,10 @@ watch(
   { immediate: true },
 )
 
+watch(accessState, (state) => {
+  if (state !== 'eligible') editingAccount.value = null
+})
+
 watch(
   () => directory.query.error.value,
   (error) => {
@@ -50,6 +59,18 @@ watch(
   },
 )
 
+watch([mutations.createError, mutations.updateError], ([createError, updateError]) => {
+  const error = createError ?? updateError
+  if (!mutations.isAdminAccessError(error)) return
+
+  serverAccessError.value =
+    error === 'password_change_required' ? 'passwordChangeRequired' : 'forbidden'
+  editingAccount.value = null
+  mutations.clearPrivateState()
+  void session.initialize()
+  directory.clearPrivateData()
+})
+
 function retrySession(): void {
   void session.initialize()
 }
@@ -60,6 +81,25 @@ function refetch(): void {
 
 function loadMore(): void {
   void directory.query.fetchNextPage()
+}
+
+async function createAccount(command: components['schemas']['AdminUserCreate']): Promise<void> {
+  await mutations.create(command)
+}
+
+function startEditing(account: AdminUser): void {
+  editingAccount.value = account
+}
+
+async function updateAccount(command: components['schemas']['AdminUserUpdate']): Promise<void> {
+  const account = editingAccount.value
+  if (account === null) return
+
+  const updated = await mutations.update(account.id, command)
+  if (updated === null) return
+
+  editingAccount.value = null
+  if (updated.id === principalId.value) await session.initialize()
 }
 
 function roleLabel(role: AdminUser['roles'][number]): string {
@@ -119,6 +159,15 @@ function rolesLabel(account: AdminUser): string {
         </AppButton>
       </header>
 
+      <AdminUserCreationForm
+        :key="principalId ?? 'anonymous'"
+        :is-submitting="mutations.isCreating.value"
+        :error="mutations.createError.value"
+        :temporary-password="mutations.temporaryPassword.value"
+        @create="createAccount"
+        @dismiss-temporary-password="mutations.clearTemporaryPassword"
+      />
+
       <AppTextField
         id="admin-user-search"
         v-model="searchInput"
@@ -152,6 +201,7 @@ function rolesLabel(account: AdminUser): string {
                 <th scope="col">{{ t('admin.table.roles') }}</th>
                 <th scope="col">{{ t('admin.table.active') }}</th>
                 <th scope="col">{{ t('admin.table.passwordChange') }}</th>
+                <th scope="col">{{ t('admin.table.actions') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -192,10 +242,26 @@ function rolesLabel(account: AdminUser): string {
                     }}
                   </span>
                 </td>
+                <td>
+                  <AppButton type="button" variant="text" @click="startEditing(account)">
+                    {{ t('admin.editing.open') }}
+                  </AppButton>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
+
+        <AdminUserEditForm
+          v-if="editingAccount !== null && principalId !== null"
+          :key="`${principalId}-${editingAccount.id}`"
+          :account="editingAccount"
+          :actor-user-id="principalId"
+          :is-submitting="mutations.isUpdating.value"
+          :error="mutations.updateError.value"
+          @cancel="editingAccount = null"
+          @save="updateAccount"
+        />
 
         <div
           v-if="directory.query.isFetchNextPageError.value"
@@ -265,8 +331,7 @@ function rolesLabel(account: AdminUser): string {
 }
 
 .admin-user-directory-table-scroll table {
-  width: 100%;
-  min-width: 52rem;
+  min-width: 60rem;
   border-collapse: collapse;
   font-size: var(--font-size-body);
 }

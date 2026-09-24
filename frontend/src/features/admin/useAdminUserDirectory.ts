@@ -20,6 +20,14 @@ function clearAdminUserQueries(queryClient: QueryClient, principalId: string): v
   queryClient.removeQueries({ queryKey })
 }
 
+/** Mark every search variant for one administrator stale and refetch active directory views. */
+export function invalidateAdminUserQueries(
+  queryClient: QueryClient,
+  principalId: string,
+): Promise<void> {
+  return queryClient.invalidateQueries({ queryKey: [...ADMIN_USERS_QUERY_ROOT, principalId] })
+}
+
 /**
  * `GET /admin/users`, scoped to one administrator and one server-side search tuple. Cursors stay
  * inside TanStack Query pages under that exact key; neither rows nor their order are transformed.

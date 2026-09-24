@@ -64,6 +64,21 @@ describe('AppTextField', () => {
     expect(input.attributes('required')).toBeDefined()
   })
 
+  it('forwards maxlength and readonly constraints for canonical form fields', () => {
+    const wrapper = mount(AppTextField, {
+      props: {
+        id: 'username',
+        label: 'Username',
+        modelValue: 'immutable-user',
+        maxlength: 200,
+        readonly: true,
+      },
+    })
+
+    expect(wrapper.get('input').attributes('maxlength')).toBe('200')
+    expect(wrapper.get('input').attributes('readonly')).toBeDefined()
+  })
+
   it('shows no error markup when unconfigured', () => {
     const wrapper = mount(AppTextField, {
       props: { id: 'username', label: 'Username', modelValue: '' },

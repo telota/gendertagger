@@ -14,7 +14,9 @@ const props = withDefaults(
     autocomplete?: string
     required?: boolean
     minlength?: number
-    errorMessage?: string
+    maxlength?: number
+    readonly?: boolean
+    errorMessage?: string | undefined
   }>(),
   {
     type: 'text',
@@ -38,6 +40,8 @@ const errorId = `${props.id}-error`
       :autocomplete="autocomplete"
       :required="required"
       :minlength="minlength"
+      :maxlength="maxlength"
+      :readonly="readonly"
       :aria-invalid="errorMessage ? true : undefined"
       :aria-describedby="errorMessage ? errorId : undefined"
     />

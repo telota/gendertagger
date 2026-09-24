@@ -145,7 +145,8 @@
       "displayName": "Anzeigename",
       "roles": "Globale Rollen",
       "active": "Kontostatus",
-      "passwordChange": "Passwortstatus"
+      "passwordChange": "Passwortstatus",
+      "actions": "Aktionen"
     },
     "roles": {
       "admin": "Administrator*in",
@@ -157,6 +158,65 @@
       "inactive": "Inaktiv",
       "passwordChangeRequired": "Änderung erforderlich",
       "passwordCurrent": "Aktuell"
+    },
+    "creation": {
+      "title": "Lokales Konto anlegen",
+      "description": "Das neue Konto erhält ein serverseitig erzeugtes temporäres Passwort und muss dieses bei der ersten Anmeldung ändern.",
+      "username": "Benutzername",
+      "displayName": "Anzeigename",
+      "roles": "Globale Rollen",
+      "rolesHint": "Keine globale Rolle ist zulässig. Diese Rollen sind keine Projektmitgliedschaften.",
+      "submit": "Konto anlegen",
+      "submitting": "Konto wird angelegt …",
+      "successTitle": "Konto angelegt",
+      "successDescription": "Halten Sie das temporäre Passwort jetzt fest. Es wird nicht erneut angezeigt und das neue Konto muss es bei der ersten Anmeldung ändern.",
+      "temporaryPassword": "Temporäres Passwort",
+      "temporaryPasswordHelp": "Markieren Sie diesen Wert und kopieren Sie ihn mit Ihrem Browser oder Passwortmanager.",
+      "dismissTemporaryPassword": "Passwort festgehalten",
+      "validation": {
+        "username": "Geben Sie einen Benutzernamen mit 2–64 Buchstaben, Ziffern, Punkten, Unterstrichen oder Bindestrichen ein.",
+        "displayNameRequired": "Geben Sie einen Anzeigenamen ein.",
+        "displayNameLength": "Der Anzeigename darf höchstens 200 Zeichen haben."
+      }
+    },
+    "editing": {
+      "open": "Konto bearbeiten",
+      "title": "{username} bearbeiten",
+      "username": "Benutzername",
+      "displayName": "Anzeigename",
+      "roles": "Globale Rollen",
+      "rolesHint": "Eine Rollenänderung ersetzt die gesamte Menge globaler Rollen.",
+      "active": "Konto aktiv",
+      "selfAdminRoleLocked": "Sie können Ihre eigene Administratorrolle nicht entfernen.",
+      "selfDeactivationLocked": "Sie können Ihr eigenes Konto nicht deaktivieren.",
+      "save": "Änderungen speichern",
+      "submitting": "Änderungen werden gespeichert …",
+      "cancel": "Abbrechen",
+      "validation": {
+        "displayNameRequired": "Geben Sie einen Anzeigenamen ein.",
+        "displayNameLength": "Der Anzeigename darf höchstens 200 Zeichen haben."
+      }
+    },
+    "deactivation": {
+      "title": "Konto deaktivieren?",
+      "description": "Dieses Konto kann sich danach nicht mehr anmelden.",
+      "sessions": "Bestehende Sitzungen werden beendet. Eine Reaktivierung stellt sie nicht wieder her.",
+      "cancel": "Konto aktiv lassen",
+      "confirm": "Konto deaktivieren"
+    },
+    "errors": {
+      "usernameConflict": "Dieser Benutzername wird bereits verwendet. Wählen Sie einen anderen Benutzernamen.",
+      "selfDeactivationForbidden": "Sie können Ihr eigenes Konto nicht deaktivieren.",
+      "selfAdminRoleRemovalForbidden": "Sie können Ihre eigene Administratorrolle nicht entfernen.",
+      "lastActiveAdministratorForbidden": "Mindestens ein aktives Administratorkonto muss erhalten bleiben.",
+      "actingUserNotActiveAdministrator": "Ihr administrativer Zugriff ist nicht mehr aktiv. Melden Sie sich mit einem aktiven Administratorkonto erneut an.",
+      "resourceNotFound": "Dieses Konto existiert nicht mehr. Aktualisieren Sie das Verzeichnis.",
+      "passwordChangeRequired": "Ändern Sie Ihr Passwort, bevor Sie lokale Konten verwalten.",
+      "forbidden": "Sie haben keine Berechtigung mehr, lokale Konten zu verwalten.",
+      "validationError": "Prüfen Sie die Kontodaten und versuchen Sie es erneut.",
+      "authenticationRequired": "Ihre Sitzung ist beendet. Melden Sie sich erneut an und senden Sie die Änderung dann bewusst erneut ab.",
+      "networkError": "Der Server ist nicht erreichbar. Die Änderung könnte erfolgt sein; aktualisieren Sie das Verzeichnis, bevor Sie es erneut versuchen.",
+      "unexpected": "Die Kontoänderung konnte nicht abgeschlossen werden. Aktualisieren Sie das Verzeichnis, bevor Sie es erneut versuchen."
     }
   },
   "projects": {
