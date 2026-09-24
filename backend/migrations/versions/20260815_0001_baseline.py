@@ -159,6 +159,33 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_users")),
     )
+    # ADR-0041 slice 1: direct administrator-managed teams, without project association.
+    op.create_table(
+        "teams",
+        sa.Column("slug", sa.String(length=100), nullable=False),
+        sa.Column("display_name", sa.String(length=200), nullable=False),
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.CheckConstraint(
+            "slug ~ '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'", name=op.f("ck_teams_slug_format")
+        ),
+        sa.CheckConstraint(
+            "btrim(display_name) <> ''", name=op.f("ck_teams_display_name_nonblank")
+        ),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_teams")),
+        sa.UniqueConstraint("slug", name=op.f("uq_teams_slug")),
+    )
     op.create_table(
         "dataset_snapshots",
         sa.Column("project_id", sa.UUID(), nullable=False),
@@ -3042,6 +3069,38 @@ def upgrade() -> None:
         unique=False,
     )
 
+    # ADR-0041 slice 1: direct team eligibility membership, independent of projects.
+    op.create_table(
+        "team_memberships",
+        sa.Column("team_id", sa.UUID(), nullable=False),
+        sa.Column("user_id", sa.UUID(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ["team_id"],
+            ["teams.id"],
+            name=op.f("fk_team_memberships_team_id_teams"),
+            ondelete="RESTRICT",
+        ),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+            name=op.f("fk_team_memberships_user_id_users"),
+            ondelete="RESTRICT",
+        ),
+        sa.PrimaryKeyConstraint("team_id", "user_id", name=op.f("pk_team_memberships")),
+    )
+    op.create_index(
+        "ix_team_memberships_user_id",
+        "team_memberships",
+        ["user_id"],
+        unique=False,
+    )
+
     # Squashed from 20260922_0005_project_working_aggregation.py (ADR-0035)
     op.add_column(
         "projects",
@@ -3168,6 +3227,10 @@ def downgrade() -> None:
     # Squashed from 20260921_0004_project_scoped_membership_roles.py
     op.drop_index("ix_project_memberships_user_id", table_name="project_memberships")
     op.drop_table("project_memberships")
+    # ADR-0041 slice 1
+    op.drop_index("ix_team_memberships_user_id", table_name="team_memberships")
+    op.drop_table("team_memberships")
+    op.drop_table("teams")
     # Squashed from 20260903_0002 and 20260921_0003
     op.drop_index("ix_user_sessions_user_id", table_name="user_sessions")
     op.drop_table("user_sessions")

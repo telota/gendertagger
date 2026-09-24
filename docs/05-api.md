@@ -53,25 +53,25 @@ Changing it is an explicit project operation; creating an aggregation never move
 Only the unversioned liveness endpoints `/health` and `/ready` are public without authentication. Readiness
 checks the database and artifact root.
 
-## Teams and delegated project membership — pending implementation
+## Teams and delegated project membership — slice 1 delivered
 
-[ADR-0041](decisions/ADR-0041-admin-managed-teams-and-delegated-project-membership.md) accepts a future
-team surface. `GET /teams` will return cursor-paginated caller-visible team summaries. Global-admin-only
-`/admin/teams` resources will create, list, rename, and, only when empty, delete teams; their member
-resources will manage direct active account membership. `/admin/users` remains global-admin-only.
+All paths below are relative to `/api/v1`. `GET /teams` returns a cursor-paginated, roster-free
+`TeamSummary` collection for the caller's direct teams; a global administrator sees all teams. It requires
+authentication and a current password, but grants no project access and never exposes a roster.
 
-For an assigned project, global administrators and its manager will use
-`GET /projects/{project_id}/members`, `GET /projects/{project_id}/eligible-users`, and the existing
-membership mutation paths. Managers will receive only server-filtered, paginated `{id, display_name}`
-candidates from that project's team. `PUT /projects/{project_id}/manager` will transfer management with an
-expected current manager ID. Project-create requests will require `team_id`; an administrator creating
-outside its team will name an eligible `initial_manager_user_id`.
+Global administrators use `GET, POST /admin/teams`, `PATCH, DELETE /admin/teams/{team_id}`,
+`GET, POST /admin/teams/{team_id}/members`, and
+`DELETE /admin/teams/{team_id}/members/{user_id}`. Team list pages are ordered by canonical slug then ID;
+roster pages by normalized display name then user ID. All support server-side optional search, opaque cursor
+pagination, and scope/filter-bound cursors. `POST /admin/teams` returns `201`; a duplicate canonical slug
+returns `409 team_slug_conflict`. Team patches rename only the display name and preserve an immutable slug.
+Empty deletion returns `204`; a nonempty team returns `409 team_not_empty`. Roster addition creates with
+`201`, repeats idempotently with `200`, and rejects an inactive target with `409 inactive_user`. Missing
+teams, accounts, or memberships return `404 resource_not_found`.
 
-Manager requests for inaccessible projects or unknown, inactive, or ineligible targets will return
-`404 resource_not_found` without directory disclosure. Pending target errors include
-`409 manager_replacement_required`, `409 project_manager_conflict`, and
-`409 team_membership_conflict`. All target routes retain the existing authentication, password-current, and
-CSRF dependencies; none exists in the current generated OpenAPI contract.
+These routes retain existing authentication, password-current, and unsafe-request CSRF protections.
+Project-team association, manager authority, project eligible-user lookup, derived-grant cleanup, manager
+replacement, and account-deactivation integration remain slice 2 work.
 
 ## Long-running commands
 

@@ -23,6 +23,8 @@ EXPECTED_TABLES = {
     "review_states",
     "runs",
     "snapshot_source_members",
+    "team_memberships",
+    "teams",
     "task_batches",
     "user_credentials",
     "user_roles",

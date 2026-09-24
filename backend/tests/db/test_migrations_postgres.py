@@ -32,6 +32,8 @@ EXPECTED_APPLICATION_TABLES = {
     "user_credentials",
     "user_roles",
     "user_sessions",
+    "team_memberships",
+    "teams",
     "users",
 }
 ALEMBIC_VERSION_TABLE = "alembic_version"

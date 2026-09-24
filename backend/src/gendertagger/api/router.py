@@ -35,6 +35,7 @@ from gendertagger.api.routes.project_members import router as project_members_ro
 from gendertagger.api.routes.projects import router as projects_router
 from gendertagger.api.routes.review_items import router as review_items_router
 from gendertagger.api.routes.runs import router as runs_router
+from gendertagger.api.routes.teams import router as teams_router
 from gendertagger.models.api import ApiErrorEnvelope
 
 _ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
@@ -58,6 +59,7 @@ def create_api_router() -> APIRouter:
     )
     router.include_router(admin_users_router)
     router.include_router(admin_settings_router)
+    router.include_router(teams_router)
     router.include_router(annotations_router)
     router.include_router(aggregations_router)
     router.include_router(classify_router)

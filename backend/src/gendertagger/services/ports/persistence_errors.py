@@ -9,6 +9,10 @@ class DuplicateUsernameError(ValueError):
     """Raised when local-account provisioning reuses an existing normalized username."""
 
 
+class DuplicateTeamSlugError(ValueError):
+    """Raised when team creation reuses an existing normalized slug."""
+
+
 class SettingsUnavailableError(RuntimeError):
     """Raised when the deployment settings singleton cannot be safely read or written."""
 

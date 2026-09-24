@@ -19,6 +19,7 @@ from gendertagger.services.project_access import ProjectAccessService
 from gendertagger.services.projects import ProjectService
 from gendertagger.services.review_items import ReviewItemService
 from gendertagger.services.runs import RunService
+from gendertagger.services.teams import TeamService
 from gendertagger.services.user_administration import UserAdministrationService
 
 
@@ -95,6 +96,11 @@ def get_authentication_service(request: Request) -> AuthenticationService:
 def get_user_administration_service(request: Request) -> UserAdministrationService:
     """Return the composed local-account administration service."""
     return cast(UserAdministrationService, request.app.state.user_administration_service)
+
+
+def get_team_service(request: Request) -> TeamService:
+    """Return the composed direct-team administration service."""
+    return cast(TeamService, request.app.state.team_service)
 
 
 def get_admin_settings_service(request: Request) -> AdminSettingsService:

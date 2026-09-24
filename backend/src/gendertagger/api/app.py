@@ -46,6 +46,7 @@ from gendertagger.services.project_access import ProjectAccessService
 from gendertagger.services.projects import ProjectService
 from gendertagger.services.review_items import ReviewItemService
 from gendertagger.services.runs import RunProvenance, RunService
+from gendertagger.services.teams import TeamService
 from gendertagger.services.user_administration import UserAdministrationService
 from gendertagger.storage.local import LocalArtifactStorage
 from gendertagger.utils.logging import configure_logging
@@ -99,6 +100,10 @@ def create_app(
         unit_of_work_factory=unit_of_work_factory,
         cursor_codec=cursor_codec,
         authentication_service=authentication_service,
+    )
+    team_service = TeamService(
+        unit_of_work_factory=unit_of_work_factory,
+        cursor_codec=cursor_codec,
     )
     branding_defaults = _branding_editable_values(resolved_settings)
     admin_settings_service = AdminSettingsService(
@@ -210,6 +215,7 @@ def create_app(
     application.state.authentication_backend = authentication_backend
     application.state.authentication_service = authentication_service
     application.state.user_administration_service = user_administration_service
+    application.state.team_service = team_service
     application.state.admin_settings_service = admin_settings_service
     application.state.project_service = project_service
     application.state.project_access_service = project_access_service

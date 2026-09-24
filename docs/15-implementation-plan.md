@@ -225,27 +225,29 @@ keyboard, `503`, and public-refresh-retry states. Do not treat the static checks
 ### Team and delegated project-membership increment (ADR-0041)
 
 [ADR-0041](decisions/ADR-0041-admin-managed-teams-and-delegated-project-membership.md) is accepted design
-work; its APIs, persistence, CLI support, and UI are pending. There is no production or legacy project/team
-data, so this increment changes the pre-deployment baseline without a backfill or temporary unassigned
-project state. Every slice stops for review and a manual commit.
+work. There is no production or legacy project/team data, so its pre-deployment schema changes amend the
+baseline without a backfill or temporary unassigned-project state. The baseline remains followed by
+`20260924_0006_administrative_settings.py`; that settings migration is preserved. Every slice stops for
+review and a manual commit.
 
-1. **Team persistence and administrative APIs.** Add canonical team contracts, baseline schema,
-   repositories/services, global-admin-only team and roster APIs, CLI parity, operational logging, generated
-   contract outputs, and focused tests. It must not change project creation, project visibility, or current
-   project-membership authorization.
-2. **Project/team association, manager authority, and membership APIs.** Add required project team,
+1. **Team persistence and administrative APIs — DELIVERED.** Canonical team contracts, baseline `teams` and
+   `team_memberships` schema, repositories/services, global-admin-only team and roster APIs, CLI parity,
+   advisory-lock-protected direct roster mutations, secret-free operational logs, generated contract outputs,
+   and focused tests are delivered. This slice does not change project creation, project visibility, or
+   current project-membership authorization.
+2. **Project/team association, manager authority, and membership APIs — PENDING.** Add required project team,
    manager, and creator relationships; team-aware project creation; scoped candidate lookup; delegated
-   membership and manager-transfer APIs; locking; account-deactivation integration; CLI parity; and focused
-   tests. The existing create UI will fail validation until its transport/types are regenerated and updated;
-   it must never create an unassigned project or bypass eligibility.
-3. **Team administration UI.** Deliver global-admin team/roster flows with principal-scoped caches,
+   membership and manager-transfer APIs; project-linked deletion guards; derived-grant cleanup; account-
+   deactivation integration; CLI parity; and focused tests. The existing create UI will fail validation until
+   its transport/types are regenerated and updated; it must never create an unassigned project or bypass
+   eligibility.
+3. **Team administration UI — PENDING.** Deliver global-admin team/roster flows with principal-scoped caches,
    cancellation/removal on access loss, localization, accessibility checks, and browser verification.
-4. **Project creation integration and project-membership UI.** Regenerate frontend transport types; deliver
-   eligible-team selection, administrator initial-manager selection, manager membership and transfer flows,
-   candidate search, stale-cache recovery, and browser verification.
+4. **Project creation integration and project-membership UI — PENDING.** Regenerate frontend transport types;
+   deliver eligible-team selection, administrator initial-manager selection, manager membership and transfer
+   flows, candidate search, stale-cache recovery, and browser verification.
 
-Verification covers global-role and manager boundaries, candidate-directory privacy, team-removal/grant races,
-manager replacement and administrator recovery, deactivation/rejoin non-restoration, fresh-schema creation,
-legacy-client fail-closed behavior, CLI parity, and stale principal-scoped frontend state. Run the applicable
-documentation, contract, type, lint, migration, backend, frontend, and browser checks only in their
-implementation slices.
+Verification still covers global-role and manager boundaries, candidate-directory privacy, team-removal/grant
+races, manager replacement and administrator recovery, deactivation/rejoin non-restoration, fresh-schema
+creation, legacy-client fail-closed behavior, CLI parity, and stale principal-scoped frontend state. Runtime
+suites and browser verification remain reserved for the user's manual testing stage in this workflow.

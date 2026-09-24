@@ -44,20 +44,24 @@ The project working-aggregation pointer may reference only a completed aggregati
 project's snapshots. The repository enforces the cross-resource ownership and lifecycle rule described in
 [ADR-0035](decisions/ADR-0035-project-working-aggregation.md).
 
-## Teams and delegated membership — pending implementation
+## Teams and delegated membership — slice 1 delivered
 
-[ADR-0041](decisions/ADR-0041-admin-managed-teams-and-delegated-project-membership.md) accepts `teams` and
-direct `team_memberships`, keyed by `(team_id, user_id)`. A future project row will carry non-null
-`team_id`, `manager_user_id`, and `created_by_user_id`; the manager will be constrained to the project's
-team membership, while the historical creator is not an authorization source. Existing
-`project_memberships` remain explicit project grants and must be eligible through active direct team
-membership.
+[ADR-0041](decisions/ADR-0041-admin-managed-teams-and-delegated-project-membership.md) slice 1 adds
+`teams` and direct `team_memberships`, keyed by `(team_id, user_id)`. A team has a UUID identity, unique
+canonical lowercase slug, display name, and timestamps; membership records its creation timestamp. The
+pre-deployment baseline contains this schema, while
+`20260924_0006_administrative_settings.py` remains the forward migration from that baseline and is not
+squashed or altered.
 
-The project has no production or legacy data. The pre-deployment baseline may therefore receive this schema
-without a backfill, inferred creator, default team, or temporary unassigned-project state. Team-dependent
-mutations will serialize with a transaction-scoped PostgreSQL advisory lock keyed by team ID, then lock and
-freshly validate the relevant project, target user, and team-membership rows. Team-member removal will delete
-affected project grants atomically after requiring replacements for every managed project.
+Team creation, rename, deletion, and roster mutations use application-owned transactions. Every roster
+mutation and empty-team deletion acquires a transaction-scoped PostgreSQL advisory lock derived from the
+team ID, then freshly locks and validates the team and, for additions, the target user. Repositories never
+commit. A nonempty team cannot be deleted; adding an inactive account is rejected inside the mutation
+transaction.
+
+Project-linked deletion guards, derived project-grant cleanup, manager replacement, project ownership
+columns, and account-deactivation integration remain slice 2 work. This slice deliberately leaves existing
+projects and project memberships unchanged.
 
 ## Immutable snapshots and import atomicity
 

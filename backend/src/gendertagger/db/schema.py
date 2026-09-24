@@ -23,6 +23,7 @@ from gendertagger.db.rows.projects import (
 )
 from gendertagger.db.rows.reviews import AnnotationRow, ReviewStateRow
 from gendertagger.db.rows.settings import DeploymentSettingsRow
+from gendertagger.db.rows.teams import TeamMembershipRow, TeamRow
 from gendertagger.db.rows.users import ProjectMembershipRow, UserRoleRow, UserRow
 
 ORM_ROW_TYPES: tuple[type[Base], ...] = (
@@ -46,6 +47,8 @@ ORM_ROW_TYPES: tuple[type[Base], ...] = (
     UserRoleRow,
     ProjectMembershipRow,
     UserCredentialRow,
+    TeamRow,
+    TeamMembershipRow,
     UserSessionRow,
     AnnotationRow,
     ReviewStateRow,
