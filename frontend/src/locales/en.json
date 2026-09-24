@@ -241,13 +241,15 @@
       "completed": "Completed",
       "completedWithErrors": "Completed with errors",
       "failed": "Failed",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "pending": "Pending"
     },
     "item": {
       "methods": "Methods",
       "progress": "Progress",
       "progressValue": "{completed} of {total} done, {failed} failed",
-      "configHash": "Configuration hash"
+      "configHash": "Configuration hash",
+      "open": "Open run"
     },
     "new": {
       "title": "Start a run",
@@ -267,6 +269,21 @@
         "generic": "The run could not be started."
       },
       "versionWithConfidence": "Version {version} · reports its own confidence, {min} to {max}"
+    },
+    "detail": {
+      "title": "Run",
+      "backToRuns": "Back to the runs",
+      "loadError": "The run could not be loaded.",
+      "executions": "Methods",
+      "executionsLoadError": "The method executions could not be loaded.",
+      "noExecutions": "No method has been scheduled for this run yet.",
+      "overallProgressLabel": "Overall progress of the run",
+      "executionProgressLabel": "Progress of {method}",
+      "connection": {
+        "connecting": "Connecting to live updates …",
+        "live": "Live updates on",
+        "reconnecting": "Connection lost, reconnecting …"
+      }
     }
   }
 }

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { RouterLink } from 'vue-router'
 
 import type { Run } from './useRuns'
 
-const props = defineProps<{ run: Run }>()
+const props = defineProps<{ run: Run; projectId: string }>()
 
 const { t, d, n } = useI18n()
 
@@ -64,6 +65,15 @@ const methodNames = computed(() => props.run.resolved_config.methods.map((m) => 
       </div>
     </dl>
     <p v-if="run.failure_diagnostic" class="run-failure">{{ run.failure_diagnostic }}</p>
+    <RouterLink
+      class="run-open"
+      :to="{
+        name: 'runDetail',
+        params: { projectId, snapshotId: run.dataset_snapshot_id, runId: run.id },
+      }"
+    >
+      {{ t('runs.item.open') }}
+    </RouterLink>
   </li>
 </template>
 
@@ -124,6 +134,13 @@ const methodNames = computed(() => props.run.resolved_config.methods.map((m) => 
 
 .run-hash {
   font-size: var(--font-size-small);
+}
+
+.run-open {
+  display: inline-block;
+  margin-top: var(--space-3);
+  color: var(--accent);
+  text-underline-offset: 0.2em;
 }
 
 .run-failure {

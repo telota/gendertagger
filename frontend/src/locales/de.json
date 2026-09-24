@@ -241,13 +241,15 @@
       "completed": "Abgeschlossen",
       "completedWithErrors": "Mit Fehlern abgeschlossen",
       "failed": "Fehlgeschlagen",
-      "cancelled": "Abgebrochen"
+      "cancelled": "Abgebrochen",
+      "pending": "Ausstehend"
     },
     "item": {
       "methods": "Methoden",
       "progress": "Fortschritt",
       "progressValue": "{completed} von {total} fertig, {failed} fehlgeschlagen",
-      "configHash": "Konfigurations-Hash"
+      "configHash": "Konfigurations-Hash",
+      "open": "Lauf öffnen"
     },
     "new": {
       "title": "Lauf starten",
@@ -267,6 +269,21 @@
         "generic": "Der Lauf konnte nicht gestartet werden."
       },
       "versionWithConfidence": "Version {version} · liefert eigene Konfidenz, {min} bis {max}"
+    },
+    "detail": {
+      "title": "Lauf",
+      "backToRuns": "Zurück zu den Läufen",
+      "loadError": "Der Lauf konnte nicht geladen werden.",
+      "executions": "Methoden",
+      "executionsLoadError": "Die Methodenausführungen konnten nicht geladen werden.",
+      "noExecutions": "Für diesen Lauf ist noch keine Methode eingeplant.",
+      "overallProgressLabel": "Gesamtfortschritt des Laufs",
+      "executionProgressLabel": "Fortschritt von {method}",
+      "connection": {
+        "connecting": "Verbindung zu Live-Updates wird aufgebaut …",
+        "live": "Live-Updates aktiv",
+        "reconnecting": "Verbindung unterbrochen, wird neu aufgebaut …"
+      }
     }
   }
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 
 import AppButton from '@/components/base/AppButton.vue'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
@@ -9,9 +9,10 @@ import { useProject } from '@/features/projects/useProjects'
 
 import NewRunForm from './NewRunForm.vue'
 import RunItem from './RunItem.vue'
-import { useRunList } from './useRuns'
+import { useRunList, type Run } from './useRuns'
 
 const { t } = useI18n()
+const router = useRouter()
 const { session, isSignedIn, retrySession } = useRequireSession()
 
 const projectId = useRouteParam('projectId')
@@ -23,6 +24,14 @@ const canRun = computed(() => project.data.value?.current_user_role === 'operato
 
 const runs = useRunList(snapshotId, isSignedIn)
 const items = computed(() => runs.data.value?.pages.flatMap((page) => page.items) ?? [])
+
+// A started run is watched live, so the operator lands on it rather than back on the list.
+function openRun(run: Run): void {
+  void router.push({
+    name: 'runDetail',
+    params: { projectId: projectId.value, snapshotId: snapshotId.value, runId: run.id },
+  })
+}
 
 function loadMore(): void {
   void runs.fetchNextPage()
@@ -44,7 +53,7 @@ function loadMore(): void {
         {{ t('runs.backToOverview') }}
       </RouterLink>
 
-      <NewRunForm v-if="canRun" class="run-list-new" :snapshot-id="snapshotId" />
+      <NewRunForm v-if="canRun" class="run-list-new" :snapshot-id="snapshotId" @created="openRun" />
       <p v-else-if="project.data.value" class="run-list-forbidden">{{ t('runs.forbidden') }}</p>
 
       <section class="run-list" aria-labelledby="run-list-heading">
@@ -59,7 +68,7 @@ function loadMore(): void {
         <template v-else>
           <p v-if="items.length === 0" class="run-list-empty">{{ t('runs.empty') }}</p>
           <ul v-else class="run-list-items">
-            <RunItem v-for="run in items" :key="run.id" :run="run" />
+            <RunItem v-for="run in items" :key="run.id" :run="run" :project-id="projectId" />
           </ul>
           <AppButton
             v-if="runs.hasNextPage.value"

@@ -361,8 +361,23 @@ default single-file delivery, see the upload-limits item) and showed that the re
 - **Gap (backend contract): no way to discover lookup artifacts.** Nothing lists the compiled lookup artifacts
   (or their digests) an operator could choose, so `lookup_sha256` has to be known out of band. A read-only
   listing, and `LLM_BASE_URL` as the default for `local_llm.base_url` (AGENTS.md rule 15), would remove this.
-- Still open in M4: live progress over SSE, the per-execution failure surface, run and method provenance display,
-  and aggregation as a first-class step.
+- Live progress and the per-execution failure surface. **Delivered.**
+  `/projects/:projectId/snapshots/:snapshotId/runs/:runId` (`RunDetailView`) shows the run's status, an overall
+  bar and each method execution with its own bar, counts, `failure_class` and `failure_diagnostic`. Starting a run
+  opens this screen. `features/runs/useRunProgress.ts` is the one SSE composable: it writes into the same query
+  cache the run and execution queries read, patching counts from `*.progress` events and refetching on state
+  changes and terminal events. The server keeps no event log (no `Last-Event-ID`), so **every re-connection
+  refetches**; a stream the server ends (terminal state, or its five-minute limit) is re-opened by the browser, and
+  a refused request (`CLOSED`, e.g. an expired session) is retried with backoff after a refetch through the API
+  client, which is where an expired session is recovered. A finished run opens no stream. Percentages are the
+  server's, never recomputed. The connection state ("live", "reconnecting") sits in a status region.
+- **Gap (backend contract): the event payloads are not in OpenAPI.** `GET /runs/{id}/events` is an untyped `200`,
+  so the six event types (`run.state_changed`, `run.progress`, `method_execution.state_changed`,
+  `method_execution.progress`, `run.completed`, `run.failed`) are declared by hand in `useRunProgress.ts` from
+  `api/routes/run_events.py`, against AGENTS.md rule 17. A `text/event-stream` response schema per event (or a
+  documented union) would let them be generated. Also: a `cancelled` run is not a terminal state for the stream,
+  so it would stream until the five-minute limit.
+- Still open in M4: run and method provenance display, and aggregation as a first-class step.
 
 **Exit criterion.** An operator starts a run, watches it complete live, produces an aggregation, and can
 read back the exact configuration hash and code provenance that produced it.

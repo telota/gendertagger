@@ -169,6 +169,8 @@ and is one click for two backend commands (`POST /runs`, then `POST /runs/{id}/e
 per-method configuration schema, so each selected method gets a JSON text field that the server validates; see
 `docs/24-frontend-delivery-plan.md` (M4) for the two backend gaps this exposes. `composables/useRequireSession.ts`
 is the shared signed-out rule for new screens; the older project views still carry their own copy.
+`useRunProgress.ts` is the SSE composable (reconnect, refetch after every re-connection); EventSource is not in
+jsdom, so its specs use a small fake with open/emit/fail.
 
 ## Branding
 
