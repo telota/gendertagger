@@ -742,9 +742,9 @@ closed; what is still open is one limit of the development seed (below).
 
 **Work.**
 
-- Spielmodus as a presentation layer over the annotation contract, scoring deferred per D14 — the
-  constraint from [`22-future-development.md`](22-future-development.md) holds: it must never influence
-  which records are shown.
+- ~~Spielmodus as a presentation layer over the annotation contract~~ — deferred out of v1 (D20). The
+  constraint from [`22-future-development.md`](22-future-development.md) holds for whenever it is built: it must
+  never influence which records are shown.
 - Einstellungen reduced to whatever persistence exists, or read-only deployment facts.
 - SPA routing fallback in the frontend image (D13), production build, same-origin smoke test through the
   gateway in both themes.
@@ -764,10 +764,9 @@ resolve, and the review path works end to end behind a real session.
   it belongs to, never a guess from recency (`app/useProjectNavigation.ts`). An entry with no target yet is shown
   disabled (`aria-disabled`, not focusable) with a reason, not as a dead link. Below 1080 px the sidebar is an
   icon rail; the labels stay available to assistive technology. Icons are Phosphor (`@phosphor-icons/vue`,
-  MIT, named imports so unused icons are tree-shaken), decorative and `aria-hidden`. The Spielmodus entry is not
-  part of it until that path is decided (D14). Tailwind is not used: styling stays on the semantic tokens of
-  [`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md); adopting it would replace that concept
-  and needs a decision with an ADR.
+  MIT, named imports so unused icons are tree-shaken), decorative and `aria-hidden`. There is no Spielmodus
+  entry (D20). Tailwind is not used (D21): styling stays on the semantic tokens of
+  [`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md).
 - **Accessibility pass, automated part. Delivered.** `tests/accessibility/screens.spec.ts` mounts every screen
   (projects, overview, import, runs, run, aggregation, review, people, evaluations, evaluation, exports, export) in
   both locales against one in-memory API (`tests/accessibility/mockApi.ts`, layered on the review fixture) and asserts
@@ -1036,10 +1035,21 @@ it.
 **D13 — History-mode routing.** The SPA fallback is added to the frontend nginx image. Hash routing is
 rejected because scholarly URLs are shared and cited.
 
-**D14 — The game mode ships in v1, without scoring.** It is a presentation layer over the same annotation
+**D14 — The game mode ships in v1, without scoring.** _(Shipping in v1 superseded by D20.)_ It is a presentation layer over the same annotation
 contract. Scores, combos, streaks, and the leaderboard are deferred, and the constraint from
 [`22-future-development.md`](22-future-development.md) holds regardless: nothing in the game path may
 influence which records are shown for review.
+
+**D20 — The game mode is deferred out of v1.** Decided 2026-09-24, superseding the shipping part of D14. The
+sidebar has no Spielmodus entry, no route and no screen exist for it, and D19 (the switchable timer) has nothing to
+apply to until the mode is built. The constraint from [`22-future-development.md`](22-future-development.md)
+still binds a later implementation: it is a presentation layer over the annotation contract and must never
+influence which records are shown.
+
+**D21 — No Tailwind; styling stays on the design tokens.** Decided 2026-09-24. The client keeps the semantic,
+theme-scoped tokens in `src/styles/tokens.css` with scoped component CSS, as
+[`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md) defines. Icons are the exception that
+was asked for: Phosphor (`@phosphor-icons/vue`).
 
 ### Accessibility decisions
 
@@ -1079,7 +1089,7 @@ At least one round of testing with people with disabilities takes place before M
 (D16), this is the only point at which the assessment is exposed to users who are not its authors, so it is
 scheduled rather than left to goodwill.
 
-**D19 — The game-mode timer is switchable off.** The countdown may exist, but the user can disable it, the
+**D19 — The game-mode timer is switchable off.** _(Applies once the game mode exists, D20.)_ The countdown may exist, but the user can disable it, the
 setting is reachable **before the first timed round begins**, and the choice persists. Disabling the timer
 must not degrade the annotation path: the same records, the same actions, the same writes. This satisfies
 WCAG 2.2.1 through its "turn off" provision.
@@ -1110,7 +1120,7 @@ expectations. Each is analysed in [`23-wireframe-ui-inventory.md`](23-wireframe-
 - Notifications and the activity feed
 - Autosave and "last saved" state, which contradict append-only annotations
 - Persisted user and project settings
-- Game scoring, combos, and the leaderboard
+- The game mode itself (D20), including its scoring, combos and leaderboard
 - A bulk annotation endpoint
 - Per-case review-time telemetry
 
