@@ -220,6 +220,69 @@
         "size": "Größe",
         "checksum": "SHA-256",
         "bytes": "{size} Byte"
+      },
+      "openRuns": "Läufe auf diesem Snapshot"
+    }
+  },
+  "runs": {
+    "loading": "Wird geladen …",
+    "retry": "Erneut versuchen",
+    "title": "Läufe",
+    "backToOverview": "Zurück zur Projektübersicht",
+    "forbidden": "Nur Projekt-Operatoren können Läufe starten.",
+    "history": "Laufhistorie",
+    "loadError": "Die Läufe konnten nicht geladen werden.",
+    "empty": "Auf diesem Snapshot wurde noch kein Lauf gestartet.",
+    "loadMore": "Mehr laden",
+    "status": {
+      "created": "Angelegt",
+      "queued": "In der Warteschlange",
+      "running": "Läuft",
+      "completed": "Abgeschlossen",
+      "completedWithErrors": "Mit Fehlern abgeschlossen",
+      "failed": "Fehlgeschlagen",
+      "cancelled": "Abgebrochen",
+      "pending": "Ausstehend"
+    },
+    "item": {
+      "methods": "Methoden",
+      "progress": "Fortschritt",
+      "progressValue": "{completed} von {total} fertig, {failed} fehlgeschlagen",
+      "configHash": "Konfigurations-Hash",
+      "open": "Lauf öffnen"
+    },
+    "new": {
+      "title": "Lauf starten",
+      "methods": "Methoden",
+      "methodsHint": "Jede Methode läuft unabhängig auf dem Snapshot. Konfidenzwerte gelten nur für ihre Methode und sind zwischen Methoden nicht vergleichbar.",
+      "methodsLoadError": "Die verfügbaren Methoden konnten nicht geladen werden.",
+      "version": "Version {version}",
+      "config": "Methodenkonfiguration (JSON)",
+      "configHint": "Leer lassen für die Standardwerte der Methode. Manche Methoden verlangen Werte wie eine Lookup-Prüfsumme oder eine Modelladresse; der Server weist eine Konfiguration ab, die er nicht auflösen kann.",
+      "failOnOptionalError": "Gesamten Lauf abbrechen, wenn eine optionale Methode fehlschlägt",
+      "submit": "Lauf starten",
+      "submitting": "Wird gestartet …",
+      "errors": {
+        "notJsonObject": "Die Konfiguration muss ein JSON-Objekt sein.",
+        "invalidConfig": "Der Server hat die Laufkonfiguration abgelehnt. Prüfe die gewählten Methoden und ihre Konfigurationswerte.",
+        "network": "Der Lauf konnte nicht gestartet werden: Der Server ist nicht erreichbar.",
+        "generic": "Der Lauf konnte nicht gestartet werden."
+      },
+      "versionWithConfidence": "Version {version} · liefert eigene Konfidenz, {min} bis {max}"
+    },
+    "detail": {
+      "title": "Lauf",
+      "backToRuns": "Zurück zu den Läufen",
+      "loadError": "Der Lauf konnte nicht geladen werden.",
+      "executions": "Methoden",
+      "executionsLoadError": "Die Methodenausführungen konnten nicht geladen werden.",
+      "noExecutions": "Für diesen Lauf ist noch keine Methode eingeplant.",
+      "overallProgressLabel": "Gesamtfortschritt des Laufs",
+      "executionProgressLabel": "Fortschritt von {method}",
+      "connection": {
+        "connecting": "Verbindung zu Live-Updates wird aufgebaut …",
+        "live": "Live-Updates aktiv",
+        "reconnecting": "Verbindung unterbrochen, wird neu aufgebaut …"
       }
     }
   }

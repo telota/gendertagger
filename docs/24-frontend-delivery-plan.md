@@ -339,6 +339,46 @@ default single-file delivery, see the upload-limits item) and showed that the re
   completion, an explicit advanced path, and a listing that makes re-aggregation without re-running
   methods a cheap, visible action.
 
+**Delivery status (2026-09-24).**
+
+- Method roster from `GET /methods`. **Delivered.** `features/runs/useMethods.ts`; the new-run form lists exactly
+  what the server returns, with each method's implementation version and, where the method reports one, its own
+  confidence range (stated as method-specific, never comparable across methods).
+- Run creation and scheduling. **Delivered.** `/projects/:projectId/snapshots/:snapshotId/runs` (`RunListView`)
+  lists the snapshot's runs newest first (`GET /snapshots/{id}/runs`, cursor-paginated) and, for project operators,
+  starts a run: `POST /runs` then `POST /runs/{id}/executions` as one action. If scheduling fails the run stays
+  `created` in the list. `execution.fail_run_on_optional_method_error` is exposed. Reached from every `ready`
+  snapshot on the project overview. Verified against the real API and worker: a two-method run over four persons
+  reached `completed` within seconds.
+- **Gap (backend contract): no configuration schema.** `RunConfig.methods[].config` is an opaque object that only the
+  server-side registry validates, and `MethodDescriptor` carries no schema. Seven of the ten methods reject an empty
+  configuration (probed on 2026-09-24: only `parenthetical_qualifier`, `gender_guesser` and `nomquamgender`
+  accept `{}`). Lookup methods (`gnd`, `wiki_gendersort`, `hivoto`, `hivoto_xgboost`, `hf_distilbert`,
+  `hf_genderize`) require `lookup_sha256`, the digest of a compiled lookup artifact, and `local_llm` requires
+  `model` and `base_url`. The form therefore offers a JSON text field per selected method, validated only as a JSON
+  object client-side; the server's `422` is shown. Typed per-method forms need the contract to expose each method's
+  configuration schema.
+- **Gap (backend contract): no way to discover lookup artifacts.** Nothing lists the compiled lookup artifacts
+  (or their digests) an operator could choose, so `lookup_sha256` has to be known out of band. A read-only
+  listing, and `LLM_BASE_URL` as the default for `local_llm.base_url` (AGENTS.md rule 15), would remove this.
+- Live progress and the per-execution failure surface. **Delivered.**
+  `/projects/:projectId/snapshots/:snapshotId/runs/:runId` (`RunDetailView`) shows the run's status, an overall
+  bar and each method execution with its own bar, counts, `failure_class` and `failure_diagnostic`. Starting a run
+  opens this screen. `features/runs/useRunProgress.ts` is the one SSE composable: it writes into the same query
+  cache the run and execution queries read, patching counts from `*.progress` events and refetching on state
+  changes and terminal events. The server keeps no event log (no `Last-Event-ID`), so **every re-connection
+  refetches**; a stream the server ends (terminal state, or its five-minute limit) is re-opened by the browser, and
+  a refused request (`CLOSED`, e.g. an expired session) is retried with backoff after a refetch through the API
+  client, which is where an expired session is recovered. A finished run opens no stream. Percentages are the
+  server's, never recomputed. The connection state ("live", "reconnecting") sits in a status region.
+- **Gap (backend contract): the event payloads are not in OpenAPI.** `GET /runs/{id}/events` is an untyped `200`,
+  so the six event types (`run.state_changed`, `run.progress`, `method_execution.state_changed`,
+  `method_execution.progress`, `run.completed`, `run.failed`) are declared by hand in `useRunProgress.ts` from
+  `api/routes/run_events.py`, against AGENTS.md rule 17. A `text/event-stream` response schema per event (or a
+  documented union) would let them be generated. Also: a `cancelled` run is not a terminal state for the stream,
+  so it would stream until the five-minute limit.
+- Still open in M4: run and method provenance display, and aggregation as a first-class step.
+
 **Exit criterion.** An operator starts a run, watches it complete live, produces an aggregation, and can
 read back the exact configuration hash and code provenance that produced it.
 
