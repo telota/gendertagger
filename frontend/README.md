@@ -223,6 +223,8 @@ controlled vocabulary as an untranslated token with an optional gloss (D3). Keyb
 labels, no letter shortcuts, `Tab`/`Enter` for everything else. A method's own confidence uses the
 `confidence` number format (two places), never the one-place `decimal`. Decisions (`ReviewDecision.vue`, `useAnnotate.ts`) are append-only `POST /annotations` writes against an
 `expected_revision`; a `409 annotation_conflict` opens a recovery block instead of retrying.
+The person browser (M6) is the same workbench in `mode="people"` (`PersonBrowserView.vue` and `ReviewView.vue` are
+two thin route components over `ReviewWorkbench.vue`); `PersonRecordDetails.vue` renders the source-preserving fields.
 Bulk decisions (`ReviewBulkBar.vue`, `useBulkDecision.ts`) are a client-side sequence of those same writes with a
 per-person report, because the backend has no batch endpoint. `tests/features/review/fixtures.ts` is the shared stateful test server (it extends its annotation chain on a write
 and records every non-read request).

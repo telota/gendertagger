@@ -11,6 +11,7 @@ import {
   type ReviewItem,
 } from './useReviewData'
 import { useVocabularyGloss, type CertaintyTier } from './useVocabulary'
+import PersonRecordDetails from './PersonRecordDetails.vue'
 import ReviewDecision from './ReviewDecision.vue'
 import { reviewItemName } from './reviewItemName'
 import VocabBadge from './VocabBadge.vue'
@@ -37,28 +38,6 @@ const toneOf = (tier: CertaintyTier): 'contested' | 'low' | 'thin' | 'neutral' =
 }
 
 const displayName = computed(() => reviewItemName(props.item))
-
-const personFacts = computed(() => {
-  const record = person.data.value
-  if (!record) return []
-  const facts: { key: string; label: string; value: string }[] = []
-  if (record.birth)
-    facts.push({ key: 'birth', label: t('review.detail.person.birth'), value: record.birth })
-  if (record.death)
-    facts.push({ key: 'death', label: t('review.detail.person.death'), value: record.death })
-  if (record.gnd_id)
-    facts.push({ key: 'gnd', label: t('review.detail.person.gnd'), value: record.gnd_id })
-  if (record.alt_names && record.alt_names.length > 0) {
-    facts.push({
-      key: 'altNames',
-      label: t('review.detail.person.altNames'),
-      value: record.alt_names.join('; '),
-    })
-  }
-  if (record.note)
-    facts.push({ key: 'note', label: t('review.detail.person.note'), value: record.note })
-  return facts
-})
 </script>
 
 <template>
@@ -146,13 +125,7 @@ const personFacts = computed(() => {
       <p v-else-if="person.isError.value" role="alert" class="detail-error">
         {{ t('review.detail.person.loadError') }}
       </p>
-      <dl v-else-if="personFacts.length > 0" class="detail-facts detail-facts--person">
-        <div v-for="fact in personFacts" :key="fact.key" class="detail-fact">
-          <dt>{{ fact.label }}</dt>
-          <dd>{{ fact.value }}</dd>
-        </div>
-      </dl>
-      <p v-else class="detail-muted">{{ t('review.detail.person.empty') }}</p>
+      <PersonRecordDetails v-else-if="person.data.value" :record="person.data.value" />
     </section>
 
     <section class="detail-section" aria-labelledby="detail-methods-heading">
@@ -253,12 +226,27 @@ const personFacts = computed(() => {
               :class="{ 'detail-history-entry--current': index === 0 }"
             >
               <p class="detail-history-head">
+                <span class="detail-revision-no">{{
+                  t('review.detail.history.entry', {
+                    revision: n(entry.resulting_revision, 'integer'),
+                  })
+                }}</span>
                 <span class="detail-token">{{ entry.action }}</span>
                 <VocabBadge v-if="entry.label" :value="entry.label" kind="label" />
-                <span class="detail-gloss">{{
+                <span v-if="index === 0" class="detail-current">{{
+                  t('review.detail.history.current')
+                }}</span>
+              </p>
+              <p class="detail-history-who">
+                <span>{{
                   t('review.detail.history.by', {
                     name: entry.reviewer_display_name,
                     when: d(new Date(entry.created_at), 'timestamp'),
+                  })
+                }}</span>
+                <span v-if="entry.supersedes_annotation_id" class="detail-gloss">{{
+                  t('review.detail.history.replaces', {
+                    revision: n(entry.resulting_revision - 1, 'integer'),
                   })
                 }}</span>
               </p>
@@ -407,6 +395,25 @@ const personFacts = computed(() => {
 
 .detail-history-entry--current .detail-token {
   color: var(--accent);
+}
+
+.detail-revision-no {
+  color: var(--text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.detail-current {
+  color: var(--accent);
+  font-size: var(--font-size-small);
+}
+
+.detail-history-who {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-small);
 }
 
 .detail-history-head {

@@ -16,7 +16,12 @@ import {
   type ReviewWorkflowState,
 } from './useVocabulary'
 
-const props = defineProps<{ filters: ReviewFilters; methodNames: readonly string[] }>()
+const props = defineProps<{
+  filters: ReviewFilters
+  methodNames: readonly string[]
+  /** The register's filters: search, order, review state and final label. The rest is for triage. */
+  simple?: boolean
+}>()
 const emit = defineEmits<{ update: [patch: Partial<ReviewFilters>] }>()
 
 const { t } = useI18n()
@@ -112,7 +117,7 @@ const PREDICTION_STATUSES: readonly PredictionStatus[] = ['success', 'abstain', 
       </select>
     </div>
 
-    <fieldset class="filter">
+    <fieldset v-if="!simple" class="filter">
       <legend>{{ t('review.filters.agreement') }}</legend>
       <div v-for="tier in AGREEMENT_TIERS" :key="tier" class="check">
         <input
@@ -136,7 +141,7 @@ const PREDICTION_STATUSES: readonly PredictionStatus[] = ['success', 'abstain', 
       </div>
     </fieldset>
 
-    <div class="filter">
+    <div v-if="!simple" class="filter">
       <label for="review-conflict">{{ t('review.filters.authorityConflict') }}</label>
       <select
         id="review-conflict"
@@ -153,7 +158,7 @@ const PREDICTION_STATUSES: readonly PredictionStatus[] = ['success', 'abstain', 
       </select>
     </div>
 
-    <div class="filter">
+    <div v-if="!simple" class="filter">
       <label for="review-error">{{ t('review.filters.predictionError') }}</label>
       <select
         id="review-error"
@@ -170,7 +175,7 @@ const PREDICTION_STATUSES: readonly PredictionStatus[] = ['success', 'abstain', 
       </select>
     </div>
 
-    <div class="filter">
+    <div v-if="!simple" class="filter">
       <label for="review-method">{{ t('review.filters.method') }}</label>
       <select
         id="review-method"
@@ -186,7 +191,7 @@ const PREDICTION_STATUSES: readonly PredictionStatus[] = ['success', 'abstain', 
       </select>
     </div>
 
-    <template v-if="filters.methodName">
+    <template v-if="!simple && filters.methodName">
       <div class="filter">
         <label for="review-method-label">{{ t('review.filters.methodLabel') }}</label>
         <select

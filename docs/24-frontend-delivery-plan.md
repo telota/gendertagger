@@ -544,6 +544,31 @@ mutation of `Prediction` or `AggregatedResult` rows — the Phase 8 criterion fr
 **Exit criterion.** Any person in the register is reachable by search, and every past decision on that
 person is visible with its author.
 
+**Delivery status (2026-09-24).** M6 is delivered.
+
+- **Person browser. Delivered.** `/projects/:projectId/runs/:runId/aggregations/:aggregationId/people`
+  (`PersonBrowserView`), reached from a completed aggregation. Per D5 it is the review workbench again, not a second
+  implementation: the same list, detail, decision block and bulk selection, in a second mode (`ReviewWorkbench` with
+  `mode="people"`) that always reads the whole register (`GET /review-items` without a certainty filter,
+  `sort=tei_id`) and offers only the register's filters: search, order, review state and final label. It is a separate
+  route component rather than a route flag on the review one, so moving between the two never reuses one instance for
+  two purposes. The search box says what the server matches.
+- **Search covers every way to name a person. Verified.** `q` is applied by the server to the TEI id, surname,
+  forenames, other names and the external identifiers, so a person is found by any of them; checked on the real API on
+  the seed (`demo-3`, `Okafor`, the authority id `1001-demo`, `Ada` each return exactly the right person). The
+  wireframe's search box was disabled; `q` was always server-side.
+- **Source-preserving detail. Delivered.** `PersonRecordDetails` renders what the source stored: every name form
+  with its type and subtype, dated events with their notes, every authority identifier with its scheme, other names,
+  dates, note, and the source file and record locator it came from.
+- **Audit chain. Delivered.** The history shows the complete chain newest first: revision number, action, label,
+  reviewer's display name, date and time, comment, whether it is the current decision and which revision it replaced.
+  It is readable with the viewer role. On the seed, `demo-1` reads `verify` → `correct` → `defer` with authors and
+  times. There is no project-wide activity or audit feed (no endpoint; recorded in docs/23), so the audit view is
+  per person.
+- Not done: a person browser over the raw register that is independent of any aggregation
+  (`GET /snapshots/{id}/people`). Every person is in every completed aggregation of their snapshot, so nothing is
+  unreachable; an aggregation-free entry would only matter before the first aggregation exists.
+
 ### M7 — Evaluation and statistics
 
 **Goal.** Replace the wireframe's invented metrics with the real report.

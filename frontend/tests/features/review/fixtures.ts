@@ -422,6 +422,24 @@ export function reviewClient(server: Server) {
           death: '1834',
           gnd_id: '118607626',
           note: 'A theologian.',
+          alt_names: ['Fritz S.'],
+          name_forms: [
+            { type: 'reg', subtype: null, name: null, surname: 'S', forenames: ['G'] },
+            {
+              type: 'alt',
+              subtype: 'birthname',
+              name: 'Gottfried Sturm',
+              surname: null,
+              forenames: [],
+            },
+          ],
+          events: [
+            { type: 'wedding', when: '1817-09-24', note: 'Berlin' },
+            { type: 'appointment', when: null, note: null },
+          ],
+          external_ids: { viaf: '98765', wikidata: 'Q42' },
+          source_member_name: 'persons-a.xml',
+          source_record_locator: '17',
           created_at: '2026-01-01T00:00:00Z',
         })
       }

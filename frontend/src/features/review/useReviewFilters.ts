@@ -66,13 +66,14 @@ const bool = (value: string | null): boolean | null =>
  * person can be bookmarked, shared and reached with the browser's back button (docs/23: stable deep
  * links). Unknown or malformed values are ignored rather than trusted.
  */
-export function useReviewFilters() {
+export function useReviewFilters(fixedQueue?: QueueId) {
   const route = useRoute()
   const router = useRouter()
 
   const filters = computed<ReviewFilters>(() => {
     const q = route.query
-    const queue = oneOf(one(q.queue), QUEUES) ?? 'contested'
+    // The register (people browser) is always the whole register: its queue is not a URL choice.
+    const queue = fixedQueue ?? oneOf(one(q.queue), QUEUES) ?? 'contested'
     return {
       queue,
       q: one(q.q) ?? '',
@@ -109,7 +110,7 @@ export function useReviewFilters() {
   function write(next: ReviewFilters, selected: string | null): void {
     pending = { filters: next, person: selected }
     const query: Record<string, string | string[]> = {}
-    if (next.queue !== 'contested') query.queue = next.queue
+    if (!fixedQueue && next.queue !== 'contested') query.queue = next.queue
     if (next.q.trim() !== '') query.q = next.q.trim()
     const defaultSort = next.queue === 'all' ? 'tei_id' : 'uncertainty'
     if (next.sort !== defaultSort) query.sort = next.sort

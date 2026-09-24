@@ -388,7 +388,8 @@
       "selection": "Gewählte Methodenausführungen",
       "selectionHint": "Genau die Ausführungen, die diese Aggregation verwendet hat, in der verwendeten Reihenfolge.",
       "provenanceHint": "Der Lauf, aus dem diese Aggregation berechnet wurde:",
-      "review": "Ergebnisse dieser Aggregation prüfen"
+      "review": "Ergebnisse dieser Aggregation prüfen",
+      "people": "Alle Personen dieser Aggregation durchsuchen"
     }
   },
   "review": {
@@ -419,7 +420,7 @@
     },
     "filters": {
       "title": "Filter",
-      "search": "Suche (Name oder TEI-ID)",
+      "search": "Suche (Name, weiterer Name, TEI-ID oder Normdaten-ID)",
       "sort": "Reihenfolge",
       "sortUncertainty": "Unsicherste zuerst (review_triage_v1)",
       "sortTei": "TEI-ID",
@@ -471,7 +472,11 @@
         "altNames": "Weitere Namen",
         "note": "Notiz",
         "empty": "Das Register enthält keine weiteren Angaben zu dieser Person.",
-        "loadError": "Der Registereintrag konnte nicht geladen werden."
+        "loadError": "Der Registereintrag konnte nicht geladen werden.",
+        "nameForms": "Namensformen in der Quelle",
+        "events": "Ereignisse",
+        "externalIds": "Normdaten-Kennungen",
+        "source": "Aus {file}, Datensatz {locator}"
       },
       "methods": {
         "title": "Ergebnis je Methode",
@@ -489,7 +494,10 @@
         "empty": "Diese Person hat noch niemand geprüft.",
         "revision": "Aktuelle Revision {revision}, neueste Entscheidung zuerst.",
         "by": "von {name}, {when}",
-        "loadError": "Der Verlauf konnte nicht geladen werden."
+        "loadError": "Der Verlauf konnte nicht geladen werden.",
+        "entry": "Revision {revision}",
+        "current": "aktuelle Entscheidung",
+        "replaces": "ersetzt Revision {revision}"
       }
     },
     "gloss": {
@@ -603,6 +611,10 @@
         "failed": "nicht gespeichert: die Anfrage ist fehlgeschlagen",
         "notAttempted": "nicht versucht: vor dieser Person angehalten"
       }
+    },
+    "people": {
+      "title": "Personen",
+      "hint": "Alle Personen des Registers in TEI-Reihenfolge, unabhängig davon, was die Automatik aus ihnen gemacht hat. Suche nach Name, weiterem Namen, TEI-ID oder einer Normdaten-ID wie einer GND-Nummer."
     }
   }
 }

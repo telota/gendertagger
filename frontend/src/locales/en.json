@@ -388,7 +388,8 @@
       "selection": "Selected method executions",
       "selectionHint": "Exactly the executions this aggregation used, in the order it used them.",
       "provenanceHint": "The run this aggregation was computed from:",
-      "review": "Review the results of this aggregation"
+      "review": "Review the results of this aggregation",
+      "people": "Browse all people in this aggregation"
     }
   },
   "review": {
@@ -419,7 +420,7 @@
     },
     "filters": {
       "title": "Filters",
-      "search": "Search (name or TEI id)",
+      "search": "Search (name, other name, TEI id or authority id)",
       "sort": "Order",
       "sortUncertainty": "Most uncertain first (review_triage_v1)",
       "sortTei": "TEI id",
@@ -471,7 +472,11 @@
         "altNames": "Other names",
         "note": "Note",
         "empty": "The register holds no further details for this person.",
-        "loadError": "The register entry could not be loaded."
+        "loadError": "The register entry could not be loaded.",
+        "nameForms": "Name forms in the source",
+        "events": "Events",
+        "externalIds": "Authority identifiers",
+        "source": "From {file}, record {locator}"
       },
       "methods": {
         "title": "Result of each method",
@@ -489,7 +494,10 @@
         "empty": "Nobody has reviewed this person yet.",
         "revision": "Current revision {revision}, newest decision first.",
         "by": "by {name}, {when}",
-        "loadError": "The history could not be loaded."
+        "loadError": "The history could not be loaded.",
+        "entry": "Revision {revision}",
+        "current": "current decision",
+        "replaces": "replaces revision {revision}"
       }
     },
     "gloss": {
@@ -603,6 +611,10 @@
         "failed": "not saved: the request failed",
         "notAttempted": "not attempted: stopped before this person"
       }
+    },
+    "people": {
+      "title": "People",
+      "hint": "Everyone in the register, in TEI order, whatever the automation made of them. Find a person by name, other name, TEI id or an authority id such as a GND number."
     }
   }
 }
