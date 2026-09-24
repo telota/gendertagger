@@ -140,9 +140,9 @@ conflict rather than an overwrite.
 
 ## Deployment branding overrides
 
-This section records accepted design under
-[ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md); its table, migration, and repository
-are not yet implemented.
+This section records the delivered persistence/read slice of
+[ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md). Its singleton table, migration, and
+read repository are implemented; mutation transactions remain pending.
 
 One deployment-wide settings row stores a fixed `id = 1`, a nonnegative `revision`, a non-null
 `branding_overrides` JSONB object, and UTC `updated_at`. Database constraints enforce the singleton identity,

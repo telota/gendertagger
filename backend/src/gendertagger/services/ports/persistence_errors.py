@@ -9,6 +9,10 @@ class DuplicateUsernameError(ValueError):
     """Raised when local-account provisioning reuses an existing normalized username."""
 
 
+class SettingsUnavailableError(RuntimeError):
+    """Raised when the deployment settings singleton cannot be safely read or written."""
+
+
 class InvalidResourceStateError(RuntimeError):
     """Raised when a resource cannot perform the requested state transition."""
 

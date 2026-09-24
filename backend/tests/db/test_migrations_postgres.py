@@ -14,6 +14,7 @@ EXPECTED_APPLICATION_TABLES = {
     "annotations",
     "artifacts",
     "dispatch_outbox",
+    "deployment_settings",
     "dataset_snapshots",
     "evaluation_executions",
     "evaluation_method_executions",
@@ -95,6 +96,14 @@ def test_initial_migration_upgrades_downgrades_and_has_no_drift(
                     )
                 ).scalars()
             )
+            settings_row = (
+                connection.execute(
+                    text("SELECT id, revision, branding_overrides FROM deployment_settings")
+                )
+                .mappings()
+                .one()
+            )
+        assert settings_row == {"id": 1, "revision": 0, "branding_overrides": {}}
         assert trigger_names == EXPECTED_IMMUTABILITY_TRIGGERS
         prediction_columns = {
             column["name"]: column for column in inspect(engine).get_columns("predictions")

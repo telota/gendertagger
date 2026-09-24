@@ -184,9 +184,10 @@ public request and response shapes remain generated OpenAPI concerns; see
 
 ## Administrative settings contracts
 
-The following contracts are accepted design, not yet implemented or present in generated OpenAPI. Their
-normative specification is
-[ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md).
+`BrandingSettingField`, `BrandingEditableValues`, `BrandingOverrides`, and `AdminSettings` are implemented
+and published through the administrative read endpoint. Their normative specification is
+[ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md). The write-only
+`AdminSettingsUpdate` and `AdminSettingsReset` contracts remain pending with the mutation slice.
 
 The editable allowlist contains exactly `institution_name`, `institution_url`, `contact_email`,
 `privacy_notice_url`, `editors`, and `published_since_year`. ADR-0040 defines their types, validation, and

@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/v1/admin/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Admin Settings
+         * @description Return effective deployment branding and the fallback values visible to administrators.
+         */
+        get: operations["get_admin_settings_api_v1_admin_settings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/users": {
         parameters: {
             query?: never;
@@ -976,6 +996,18 @@ export interface components {
             working_aggregation_execution_id?: string | null;
         };
         /**
+         * AdminSettings
+         * @description Administrator-visible effective branding, fallback values, and override metadata.
+         */
+        AdminSettings: {
+            branding: components["schemas"]["BrandingInfo"];
+            branding_defaults: components["schemas"]["BrandingEditableValues"];
+            /** Overridden Fields */
+            overridden_fields: components["schemas"]["BrandingSettingField"][];
+            /** Revision */
+            revision: number;
+        };
+        /**
          * AdminUser
          * @description Administrator-facing read model for one local account (ADR-0039).
          */
@@ -1374,6 +1406,27 @@ export interface components {
             source_format: components["schemas"]["SourceFormat"];
         };
         /**
+         * BrandingEditableValues
+         * @description The six editable branding values after deployment fallback resolution.
+         *
+         *     This contract deliberately mirrors existing environment value types. Administrative write validation is
+         *     introduced with the mutation slice, so read construction cannot tighten accepted environment settings.
+         */
+        BrandingEditableValues: {
+            /** Contact Email */
+            contact_email: string | null;
+            /** Editors */
+            editors: string[];
+            /** Institution Name */
+            institution_name: string | null;
+            /** Institution Url */
+            institution_url: string | null;
+            /** Privacy Notice Url */
+            privacy_notice_url: string | null;
+            /** Published Since Year */
+            published_since_year: number | null;
+        };
+        /**
          * BrandingInfo
          * @description Deployment branding as the browser client receives it from `GET /api/v1/branding`.
          *
@@ -1434,6 +1487,12 @@ export interface components {
             /** Vat Id */
             vat_id?: string | null;
         };
+        /**
+         * BrandingSettingField
+         * @description One branding property administrators may override.
+         * @enum {string}
+         */
+        BrandingSettingField: "institution_name" | "institution_url" | "contact_email" | "privacy_notice_url" | "editors" | "published_since_year";
         /**
          * CanonicalLabel
          * @description Normalized labels shared by every classification method.
@@ -2622,6 +2681,107 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_admin_settings_api_v1_admin_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSettings"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Settings storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     list_admin_users_api_v1_admin_users_get: {
         parameters: {
             query?: {

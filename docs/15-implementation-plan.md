@@ -184,16 +184,15 @@ Exit criterion: a reviewer can correct a machine result and the final-decision v
 ### Administrative settings increment (ADR-0040)
 
 [ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md) accepts administrative overrides for
-six branding fields as a separate extension to the review-client scope. The design is accepted; none
-of the implementation slices below is delivered yet. Current branding remains environment-backed.
-Keep each slice independently reviewable and stop for architect/user review and a manual commit before
-starting the next one. Frontend editing comes last.
+six branding fields as a separate extension to the review-client scope. Slice 1, persistence and the
+administrative read API, is delivered. Public branding remains environment-backed until Slice 2. Stop for
+architect/user review and a manual commit before starting the next slice.
 
-1. **Persistence and administrative read API.** Add the closed Pydantic contracts, singleton migration,
-   repository/application-service boundaries, default/override resolution, and `GET /api/v1/admin/settings`.
-   Initialize revision `0` with an empty override document; preserve absent keys versus explicit nulls.
-   Update OpenAPI, generated transport, and focused coverage. Keep public branding behavior unchanged
-   in this slice.
+1. **Persistence and administrative read API — DELIVERED.** Adds the closed Pydantic contracts, singleton
+   migration, repository/application-service boundaries, default/override resolution, and
+   `GET /api/v1/admin/settings`. It initializes revision `0` with an empty override document and preserves
+   absent keys versus explicit nulls. OpenAPI, generated transport, and focused coverage are updated. Public
+   branding behavior remains unchanged in this slice.
 2. **Writes and public branding integration.** Add `PATCH /api/v1/admin/settings` and
    `POST /api/v1/admin/settings/reset` with the shared revision-checked transaction, field validation,
    and safe operational attribution. Integrate the shared resolver into public branding while retaining

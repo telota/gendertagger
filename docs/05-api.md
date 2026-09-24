@@ -192,29 +192,30 @@ response completes but the next authenticated request must sign in again.
 
 ## Administrative settings
 
-The following surface is accepted design under
-[ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md), not yet implemented or listed in the
-generated OpenAPI contract. All paths are relative to `/api/v1`.
+The persistence and administrative-read slice of
+[ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md) is implemented and listed in generated
+OpenAPI. The write endpoints remain accepted design pending the next slice. All paths are relative to
+`/api/v1`.
 
-| Endpoint | Request | Success |
-|---|---|---|
-| `GET /admin/settings` | None | `200 AdminSettings` |
-| `PATCH /admin/settings` | `AdminSettingsUpdate` with `expected_revision` and nonempty partial `branding` | `200 AdminSettings` |
-| `POST /admin/settings/reset` | `AdminSettingsReset` with `expected_revision` and nonempty distinct `fields` | `200 AdminSettings` |
+| Endpoint | Request | Success | Status |
+|---|---|---|---|
+| `GET /admin/settings` | None | `200 AdminSettings` | Delivered |
+| `PATCH /admin/settings` | `AdminSettingsUpdate` with `expected_revision` and nonempty partial `branding` | `200 AdminSettings` | Pending |
+| `POST /admin/settings/reset` | `AdminSettingsReset` with `expected_revision` and nonempty distinct `fields` | `200 AdminSettings` | Pending |
 
-All operations require a global administrator who has completed any forced password change; unsafe
-methods additionally require existing CSRF protection. Responses use `Cache-Control: no-store`.
+The delivered read requires a global administrator who has completed any forced password change and returns
+`Cache-Control: no-store`. Pending mutations will additionally use existing CSRF protection.
 `AdminSettings` exposes the revision, effective `BrandingInfo`, current deployment fallbacks for the six
 editable fields, and overridden field names. It never serializes `AppSettings` wholesale. See the
 [canonical contracts](03-pydantic-contracts.md#administrative-settings-contracts).
 
-Updates preserve omitted overrides. Explicit `null` clears nullable values, and `editors: []` clears the
-editor list; these remain overrides. Reset removes overrides for explicitly selected allowlisted fields,
-revealing the current environment/application fallback. There are no arbitrary keys, paths, or wildcard
-resets. Both commands validate and apply all requested changes atomically under the same revision check.
-A matching-revision no-op retains its revision; a stale command still conflicts even if its requested values
-match. Setting a previously inherited value as an explicit override is a change even when the value equals
-the fallback.
+The pending update/reset operations preserve omitted overrides. Explicit `null` clears nullable values, and
+`editors: []` clears the editor list; these remain overrides. Reset removes overrides for explicitly selected
+allowlisted fields, revealing the current environment/application fallback. There are no arbitrary keys,
+paths, or wildcard resets. Both commands will validate and apply all requested changes atomically under the
+same revision check. A matching-revision no-op retains its revision; a stale command still conflicts even if
+its requested values match. Setting a previously inherited value as an explicit override is a change even
+when the value equals the fallback.
 
 Errors use the shared envelope: `401 authentication_required`, existing `403 forbidden` or
 `403 password_change_required` gates, `422 validation_error` for invalid values or commands,

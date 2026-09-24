@@ -14,6 +14,7 @@ from gendertagger.services.ports.project_access_repository import ProjectAccessR
 from gendertagger.services.ports.project_repository import ProjectRepository
 from gendertagger.services.ports.review_repository import ReviewRepository
 from gendertagger.services.ports.run_repository import RunRepository
+from gendertagger.services.ports.settings_repository import SettingsRepository
 from gendertagger.services.ports.user_repository import UserRepository
 
 
@@ -86,6 +87,11 @@ class UnitOfWork(Protocol):
     @property
     def reviews(self) -> ReviewRepository:
         """Return review persistence bound to the current transaction."""
+        ...
+
+    @property
+    def settings(self) -> SettingsRepository:
+        """Return deployment settings persistence bound to the current transaction."""
         ...
 
     def commit(self) -> None:

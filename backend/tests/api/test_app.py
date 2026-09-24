@@ -7,7 +7,7 @@ from pydantic import SecretStr, ValidationError
 
 from gendertagger.api.app import create_app
 from gendertagger.api.dependencies import get_unit_of_work_factory
-from gendertagger.api.settings import AppSettings, load_settings
+from gendertagger.api.settings import AppSettings, BrandingSettings, load_settings
 from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 DATABASE_URL = "postgresql+psycopg://api:secret@localhost/gendertagger"
@@ -76,6 +76,29 @@ def test_settings_default_branding_is_fully_unconfigured() -> None:
     assert settings.branding.institution_name is None
     assert settings.branding.legal_entity is None
     assert settings.branding.editors == []
+
+
+def test_application_preserves_existing_environment_branding_validation() -> None:
+    settings = AppSettings(
+        database_url=SecretStr(DATABASE_URL),
+        code_git_commit=CODE_GIT_COMMIT,
+        dependency_lock_sha256=DEPENDENCY_LOCK_SHA256,
+        branding=BrandingSettings(
+            institution_name="  Existing value  ",
+            institution_url="not-an-administrative-url",
+            contact_email="not-an-administrative-email",
+            privacy_notice_url="not-an-administrative-url",
+            editors=["", "duplicate", "duplicate"],
+            published_since_year=0,
+        ),
+    )
+
+    application = create_app(
+        settings=settings,
+        unit_of_work_factory=_unused_unit_of_work_factory,
+    )
+
+    assert application.state.settings.branding == settings.branding
 
 
 def test_settings_require_supported_postgresql_driver() -> None:

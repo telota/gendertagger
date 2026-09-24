@@ -25,7 +25,10 @@ from gendertagger.api.settings import AppSettings, load_settings
 from gendertagger.db.session import create_database_engine, create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.ingestion.tei import TeiPersonParser
+from gendertagger.models.admin_settings import BrandingEditableValues
+from gendertagger.models.branding import BrandingInfo
 from gendertagger.models.project import SnapshotImportLimits
+from gendertagger.services.admin_settings import AdminSettingsService
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.annotations import AnnotationService
 from gendertagger.services.authentication import AuthenticationService, SessionLifetimePolicy
@@ -96,6 +99,12 @@ def create_app(
         unit_of_work_factory=unit_of_work_factory,
         cursor_codec=cursor_codec,
         authentication_service=authentication_service,
+    )
+    branding_defaults = _branding_editable_values(resolved_settings)
+    admin_settings_service = AdminSettingsService(
+        unit_of_work_factory=unit_of_work_factory,
+        branding_defaults=branding_defaults,
+        deployment_branding=_deployment_branding(resolved_settings),
     )
     artifact_storage = LocalArtifactStorage(resolved_settings.artifact_root)
     project_access_service = ProjectAccessService(
@@ -201,6 +210,7 @@ def create_app(
     application.state.authentication_backend = authentication_backend
     application.state.authentication_service = authentication_service
     application.state.user_administration_service = user_administration_service
+    application.state.admin_settings_service = admin_settings_service
     application.state.project_service = project_service
     application.state.project_access_service = project_access_service
     application.state.aggregation_service = aggregation_service
@@ -213,3 +223,37 @@ def create_app(
     application.state.run_scheduler = run_scheduler
     application.state.classification_service = classification_service
     return application
+
+
+def _branding_editable_values(settings: AppSettings) -> BrandingEditableValues:
+    """Extract editable deployment fallback values without applying new validation rules."""
+    branding = settings.branding
+    return BrandingEditableValues(
+        institution_name=branding.institution_name,
+        institution_url=branding.institution_url,
+        contact_email=branding.contact_email,
+        privacy_notice_url=branding.privacy_notice_url,
+        editors=list(branding.editors),
+        published_since_year=branding.published_since_year,
+    )
+
+
+def _deployment_branding(settings: AppSettings) -> BrandingInfo:
+    """Build the deployment-owned read-only branding projection for administrative reads."""
+    branding = settings.branding
+    logo_url = (
+        "/api/v1/branding/logo"
+        if branding.logo_path is not None and branding.logo_path.is_file()
+        else None
+    )
+    return BrandingInfo(
+        institution_name=branding.institution_name,
+        institution_url=branding.institution_url,
+        logo_url=logo_url,
+        editors=list(branding.editors),
+        published_since_year=branding.published_since_year,
+        initiatives=list(branding.initiatives),
+        contact_email=branding.contact_email,
+        privacy_notice_url=branding.privacy_notice_url,
+        legal_entity=branding.legal_entity,
+    )

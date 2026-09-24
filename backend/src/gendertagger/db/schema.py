@@ -22,6 +22,7 @@ from gendertagger.db.rows.projects import (
     SnapshotSourceMemberRow,
 )
 from gendertagger.db.rows.reviews import AnnotationRow, ReviewStateRow
+from gendertagger.db.rows.settings import DeploymentSettingsRow
 from gendertagger.db.rows.users import ProjectMembershipRow, UserRoleRow, UserRow
 
 ORM_ROW_TYPES: tuple[type[Base], ...] = (
@@ -49,6 +50,7 @@ ORM_ROW_TYPES: tuple[type[Base], ...] = (
     AnnotationRow,
     ReviewStateRow,
     ArtifactRow,
+    DeploymentSettingsRow,
 )
 
 metadata: MetaData = Base.metadata

@@ -5,6 +5,7 @@ from typing import cast
 from fastapi import Request
 
 from gendertagger.api.settings import AppSettings
+from gendertagger.services.admin_settings import AdminSettingsService
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.annotations import AnnotationService
 from gendertagger.services.authentication import AuthenticationService
@@ -94,3 +95,8 @@ def get_authentication_service(request: Request) -> AuthenticationService:
 def get_user_administration_service(request: Request) -> UserAdministrationService:
     """Return the composed local-account administration service."""
     return cast(UserAdministrationService, request.app.state.user_administration_service)
+
+
+def get_admin_settings_service(request: Request) -> AdminSettingsService:
+    """Return the composed administrative deployment-settings service."""
+    return cast(AdminSettingsService, request.app.state.admin_settings_service)
