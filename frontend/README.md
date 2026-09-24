@@ -237,6 +237,14 @@ is a real backend report used as a contract fixture). Rates and coefficients use
 as stored). Two backend gaps are recorded in `docs/24` (M7): the report is not in OpenAPI, and the worker does not register
 the evaluation task, so a newly created evaluation stays queued.
 
+## Export (M8)
+
+`features/export/` lists and starts exports of a run and downloads them. `exportDownload.ts` hashes the downloaded bytes
+in the browser (SHA-256) so the reader can compare them with the manifest's checksum; the manifest is only returned by the
+API for a multi-output export, and the seeded one is kept as a fixture (`tests/features/export/fixtures/seed-manifest.json`).
+Two backend gaps are recorded in `docs/24` (M8): the manifest of a single-output export is unreadable, and the worker does
+not register the export task.
+
 ## Branding
 
 The footer, the start page, and `/impressum` render `GET /api/v1/branding` ([ADR-0036](../docs/decisions/ADR-0036-institution-branding-configuration.md))

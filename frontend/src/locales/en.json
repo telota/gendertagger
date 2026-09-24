@@ -323,7 +323,8 @@
         "live": "Live updates on",
         "reconnecting": "Connection lost, reconnecting …"
       },
-      "evaluations": "Evaluations of this run"
+      "evaluations": "Evaluations of this run",
+      "exports": "Exports of this run"
     },
     "provenance": {
       "title": "Provenance",
@@ -390,7 +391,8 @@
       "selectionHint": "Exactly the executions this aggregation used, in the order it used them.",
       "provenanceHint": "The run this aggregation was computed from:",
       "review": "Review the results of this aggregation",
-      "people": "Browse all people in this aggregation"
+      "people": "Browse all people in this aggregation",
+      "export": "Export this aggregation"
     }
   },
   "review": {
@@ -719,6 +721,81 @@
         "agreement": "Agreement",
         "certainty": "Certainty",
         "review": "{reviewed} people were reviewed by a human, {corrected} of them were corrected."
+      }
+    }
+  },
+  "export": {
+    "title": "Exports",
+    "intro": "An export writes the result of one completed aggregation out of the system: the source TEI files with the labels written back, a JSON result bundle or a CSV report. It is a stored, reproducible result, and a manifest records the checksums of what it produced and the source it started from.",
+    "backToRun": "Back to the run",
+    "forbidden": "Only project operators can start an export. You can read and download the exports below.",
+    "history": "Exports of this run",
+    "empty": "No export has been started on this run yet.",
+    "loadError": "The exports could not be loaded.",
+    "item": {
+      "format": "Format",
+      "policy": "Exported label",
+      "profile": "TEI profile",
+      "open": "Open export"
+    },
+    "new": {
+      "title": "Start an export",
+      "noAggregation": "An export needs a completed aggregation. Create one on the run first.",
+      "aggregation": "Aggregation to export",
+      "aggregationOption": "{strategy} · {hash}",
+      "format": "Format",
+      "formats": {
+        "tei": "TEI: the source files with the labels written back",
+        "json": "JSON result bundle",
+        "csv": "CSV analysis report"
+      },
+      "teiNotPossible": "A TEI export needs a snapshot that is still TEI files, imported as a single file or as loose files. This run’s snapshot is not, so the server would refuse it.",
+      "policy": "Which label is exported",
+      "policies": {
+        "machine": "the machine’s aggregated decision for everybody",
+        "human": "the human decision where somebody reviewed a person, the machine’s otherwise"
+      },
+      "policyHint": "Neither choice changes a stored prediction or aggregated result; it only picks which decision is written out.",
+      "profile": "TEI profile",
+      "resp": "Responsibility for human decisions ({'@'}resp)",
+      "respHint": "The TEI {'@'}resp value attributed to human decisions. It must start with # and contain no spaces.",
+      "respInvalid": "The value must start with # and contain no spaces.",
+      "submit": "Start export",
+      "submitting": "Starting …",
+      "errors": {
+        "conflict": "The server refused this export. It needs a completed aggregation of this run, and a TEI export needs a TEI snapshot.",
+        "network": "The export could not be started: the server is not reachable.",
+        "generic": "The export could not be started."
+      }
+    },
+    "detail": {
+      "title": "Export",
+      "backToList": "Back to the exports",
+      "loadError": "The export could not be loaded.",
+      "parameters": "What this export is",
+      "resp": "Responsibility ({'@'}resp)",
+      "waiting": "The export is being produced. The download appears here as soon as it is finished.",
+      "download": "Download and verify",
+      "downloadNote": "Downloading also computes the SHA-256 checksum of the bytes that arrived. Compare it with the checksum recorded for this output in the export’s manifest.json.",
+      "downloadButton": "Download",
+      "downloading": "Downloading …",
+      "file": "File",
+      "size": "Size",
+      "bytes": "{size} bytes",
+      "checksum": "SHA-256",
+      "manifestReceived": "This export produced several outputs, so the server answered with its manifest. Its outputs are listed below; the individual outputs are not downloadable separately.",
+      "manifestNotExposed": "The server does not expose the manifest of a single-output export. Compare the checksum above with the sha256 of this output in manifest.json.",
+      "sourceSnapshot": "Source snapshot SHA-256",
+      "outputs": "Outputs recorded in the manifest",
+      "verifyLabel": "Checksum from the manifest (paste it to compare)",
+      "verdict": {
+        "match": "The checksums match.",
+        "mismatch": "The checksums do not match. Do not rely on this file.",
+        "malformed": "That is not a SHA-256 checksum (64 hexadecimal characters)."
+      },
+      "errors": {
+        "notFound": "This export has no output to download.",
+        "generic": "The download failed."
       }
     }
   }

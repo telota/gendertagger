@@ -640,6 +640,44 @@ evaluations (below).
 **Exit criterion.** An operator produces a TEI export with human overrides applied and can verify its
 checksum against the manifest.
 
+**Delivery status (2026-09-24).** M8 is delivered in the frontend. It cannot be completed end to end on the development
+stack because of one backend defect and one missing endpoint (below).
+
+- **Exports as executions. Delivered.** `/projects/:projectId/runs/:runId/exports` lists a run's exports newest first
+  (polled while one is live) and, for project operators, starts one: `POST /exports` over one completed aggregation
+  with the format (`tei`, `json`, `csv`), the `label_source_policy` (`machine_aggregation`, the server's default, or
+  `human_overrides`; both stated as only choosing which decision is written out, never changing a stored result),
+  and, for TEI only, the profile (`tei_p5_gender_v1`) and `human_resp_id` (the TEI `@resp`, validated as the server
+  does: `#` and no whitespace). TEI is refused up front, with the reason, when the run's snapshot is not TEI files
+  imported as a single file or as loose files (docs/08). A started export is opened and polled to an end state; a
+  failure shows `failure_class` and `failure_diagnostic`. The run and the aggregation screens link to it.
+- **Download and verification. Delivered.** `/projects/:projectId/runs/:runId/exports/:exportId` downloads the output
+  and hashes exactly the bytes that arrived (Web Crypto SHA-256). The reader can paste the checksum recorded in the
+  export's `manifest.json` and is told whether it matches, does not match, or is not a checksum at all. When an export
+  produced several outputs the server answers with the manifest instead (docs/08), and the screen then lists its
+  outputs and the source snapshot's SHA-256.
+- **Verified on the real stack.** The seeded JSON export was downloaded through the API: the SHA-256 of the returned
+  bytes (`f9c5d652…`, 2,323 bytes) is exactly the `sha256` its manifest records for `export.json`, read from the artifact
+  store. The manifest itself is kept as a contract fixture (`tests/features/export/fixtures/seed-manifest.json`) and
+  parsed in the tests.
+- **Gap (backend contract): the manifest is not readable for a single-output export.** `ExportExecution` carries only
+  `manifest_artifact_id`, there is no manifest or artifact endpoint, and `/download` returns the output alone (with no
+  checksum or file-name header). The manifest can therefore not be shown in the browser for `json`, `csv` or a TEI
+  export of one source file, and "verify against the manifest" needs the reader to fetch `manifest.json` some other
+  way. A `GET /exports/{id}/manifest` (or the output checksums on `ExportExecution`), and `Content-Disposition` /
+  `Digest` headers on the download, would close it.
+- **Defect (backend): new exports never run.** `gendertagger.tasks.export` is missing from the `include` list in
+  `tasks/celery_app.py` (the defect found for evaluations in M7), so the worker does not register the export task and
+  an export created on the development stack stays `queued`. The seeded export was created directly.
+- **Gap (backend contract): the request type makes `human_resp_id` required** although the model defaults it to
+  `#editor`, so the client always sends one (the default outside TEI). The download and the manifest are untyped in
+  OpenAPI.
+- **Not built.** "Als Commit ins Repository schreiben" (no backend; a v1 exclusion with GitLab) and the wireframe's
+  "only reviewed cases" item, which `label_source_policy=human_overrides` covers.
+- **Exit criterion.** The screens let an operator start a TEI export with human overrides and verify its checksum
+  against the manifest's. Verified: the checksum path on the seeded export (above), and the form, request and polling
+  against a mock. Not verified: a freshly produced TEI export, which needs a worker that registers the export task.
+
 ### M9 — Optional paths and production build
 
 **Goal.** Ship.

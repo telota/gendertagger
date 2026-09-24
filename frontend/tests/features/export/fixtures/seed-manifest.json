@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "export_execution_id": "59d5c091-6c96-45e1-8da0-7efcc9b2ec17",
+  "dataset_snapshot_id": "93d855ac-2636-4641-9a03-ba72c73f03c3",
+  "source_snapshot_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "run_id": "d32792cf-8bb0-4270-a8e1-69ea47bf9fcb",
+  "aggregation_execution_id": "e20b81ea-2d52-4b68-8aec-e74f182819f0",
+  "format": "json",
+  "label_source_policy": "human_overrides",
+  "tei_profile": null,
+  "outputs": [
+    {
+      "logical_name": "export.json",
+      "sha256": "f9c5d652d14b8e205b845e0d0c8b815b3ef85a7eb0934cbfa285ec6f0438167e",
+      "byte_size": 2323,
+      "media_type": "application/json"
+    }
+  ],
+  "generated_at": "2026-09-23T19:36:12.640837Z"
+}

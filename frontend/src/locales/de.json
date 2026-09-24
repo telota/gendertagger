@@ -323,7 +323,8 @@
         "live": "Live-Updates aktiv",
         "reconnecting": "Verbindung unterbrochen, wird neu aufgebaut …"
       },
-      "evaluations": "Auswertungen dieses Laufs"
+      "evaluations": "Auswertungen dieses Laufs",
+      "exports": "Exporte dieses Laufs"
     },
     "provenance": {
       "title": "Provenienz",
@@ -390,7 +391,8 @@
       "selectionHint": "Genau die Ausführungen, die diese Aggregation verwendet hat, in der verwendeten Reihenfolge.",
       "provenanceHint": "Der Lauf, aus dem diese Aggregation berechnet wurde:",
       "review": "Ergebnisse dieser Aggregation prüfen",
-      "people": "Alle Personen dieser Aggregation durchsuchen"
+      "people": "Alle Personen dieser Aggregation durchsuchen",
+      "export": "Diese Aggregation exportieren"
     }
   },
   "review": {
@@ -719,6 +721,81 @@
         "agreement": "Übereinstimmung",
         "certainty": "Sicherheit",
         "review": "{reviewed} Personen wurden von Menschen geprüft, {corrected} davon wurden korrigiert."
+      }
+    }
+  },
+  "export": {
+    "title": "Exporte",
+    "intro": "Ein Export schreibt das Ergebnis einer abgeschlossenen Aggregation aus dem System heraus: die TEI-Quelldateien mit zurückgeschriebenen Labels, ein JSON-Ergebnisbündel oder einen CSV-Bericht. Er ist ein gespeichertes, reproduzierbares Ergebnis, und ein Manifest hält die Prüfsummen des Erzeugten und der Quelle fest, von der er ausging.",
+    "backToRun": "Zurück zum Lauf",
+    "forbidden": "Nur Projekt-Operatoren können einen Export starten. Die Exporte unten kannst du lesen und herunterladen.",
+    "history": "Exporte dieses Laufs",
+    "empty": "Auf diesem Lauf wurde noch kein Export gestartet.",
+    "loadError": "Die Exporte konnten nicht geladen werden.",
+    "item": {
+      "format": "Format",
+      "policy": "Exportiertes Label",
+      "profile": "TEI-Profil",
+      "open": "Export öffnen"
+    },
+    "new": {
+      "title": "Export starten",
+      "noAggregation": "Ein Export braucht eine abgeschlossene Aggregation. Lege zuerst auf dem Lauf eine an.",
+      "aggregation": "Zu exportierende Aggregation",
+      "aggregationOption": "{strategy} · {hash}",
+      "format": "Format",
+      "formats": {
+        "tei": "TEI: die Quelldateien mit zurückgeschriebenen Labels",
+        "json": "JSON-Ergebnisbündel",
+        "csv": "CSV-Analysebericht"
+      },
+      "teiNotPossible": "Ein TEI-Export braucht einen Snapshot, der noch aus TEI-Dateien besteht, als einzelne Datei oder als lose Dateien importiert. Der Snapshot dieses Laufs ist das nicht, der Server würde ablehnen.",
+      "policy": "Welches Label exportiert wird",
+      "policies": {
+        "machine": "die aggregierte Entscheidung der Maschine für alle",
+        "human": "die menschliche Entscheidung, wo jemand eine Person geprüft hat, sonst die der Maschine"
+      },
+      "policyHint": "Keine der beiden Wahlen ändert eine gespeicherte Vorhersage oder ein aggregiertes Ergebnis; sie wählt nur, welche Entscheidung herausgeschrieben wird.",
+      "profile": "TEI-Profil",
+      "resp": "Verantwortung für menschliche Entscheidungen ({'@'}resp)",
+      "respHint": "Der TEI-{'@'}resp-Wert für menschliche Entscheidungen. Er muss mit # beginnen und darf keine Leerzeichen enthalten.",
+      "respInvalid": "Der Wert muss mit # beginnen und darf keine Leerzeichen enthalten.",
+      "submit": "Export starten",
+      "submitting": "Wird gestartet …",
+      "errors": {
+        "conflict": "Der Server hat diesen Export abgelehnt. Er braucht eine abgeschlossene Aggregation dieses Laufs, und ein TEI-Export braucht einen TEI-Snapshot.",
+        "network": "Der Export konnte nicht gestartet werden: Der Server ist nicht erreichbar.",
+        "generic": "Der Export konnte nicht gestartet werden."
+      }
+    },
+    "detail": {
+      "title": "Export",
+      "backToList": "Zurück zu den Exporten",
+      "loadError": "Der Export konnte nicht geladen werden.",
+      "parameters": "Was dieser Export ist",
+      "resp": "Verantwortung ({'@'}resp)",
+      "waiting": "Der Export wird erzeugt. Der Download erscheint hier, sobald er fertig ist.",
+      "download": "Herunterladen und prüfen",
+      "downloadNote": "Beim Herunterladen wird auch die SHA-256-Prüfsumme der angekommenen Bytes berechnet. Vergleiche sie mit der Prüfsumme dieser Ausgabe in der manifest.json des Exports.",
+      "downloadButton": "Herunterladen",
+      "downloading": "Wird heruntergeladen …",
+      "file": "Datei",
+      "size": "Größe",
+      "bytes": "{size} Bytes",
+      "checksum": "SHA-256",
+      "manifestReceived": "Dieser Export hat mehrere Ausgaben erzeugt, deshalb hat der Server sein Manifest geliefert. Die Ausgaben stehen unten; die einzelnen Ausgaben lassen sich nicht getrennt herunterladen.",
+      "manifestNotExposed": "Der Server gibt das Manifest eines Exports mit einer einzigen Ausgabe nicht heraus. Vergleiche die Prüfsumme oben mit dem sha256 dieser Ausgabe in der manifest.json.",
+      "sourceSnapshot": "SHA-256 des Quell-Snapshots",
+      "outputs": "Im Manifest festgehaltene Ausgaben",
+      "verifyLabel": "Prüfsumme aus dem Manifest (zum Vergleichen einfügen)",
+      "verdict": {
+        "match": "Die Prüfsummen stimmen überein.",
+        "mismatch": "Die Prüfsummen stimmen nicht überein. Verlass dich nicht auf diese Datei.",
+        "malformed": "Das ist keine SHA-256-Prüfsumme (64 Hexadezimalzeichen)."
+      },
+      "errors": {
+        "notFound": "Dieser Export hat keine Ausgabe zum Herunterladen.",
+        "generic": "Der Download ist fehlgeschlagen."
       }
     }
   }

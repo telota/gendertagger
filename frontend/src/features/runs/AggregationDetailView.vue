@@ -102,6 +102,13 @@ const resolvedConfig = computed(() =>
         >
           {{ t('aggregations.detail.people') }}
         </RouterLink>
+        <RouterLink
+          v-if="aggregation.data.value.status === 'completed'"
+          class="aggregation-detail-review aggregation-detail-export"
+          :to="{ name: 'exports', params: { projectId, runId } }"
+        >
+          {{ t('aggregations.detail.export') }}
+        </RouterLink>
 
         <dl class="aggregation-detail-facts">
           <div class="aggregation-detail-fact">
