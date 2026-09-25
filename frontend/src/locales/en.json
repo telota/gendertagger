@@ -1,7 +1,28 @@
 {
   "app": {
-    "title": "Gendertagger",
-    "scaffoldNotice": "The application shell is under construction."
+    "title": "Gendertagger"
+  },
+  "home": {
+    "guest": {
+      "lede": "Gender annotation for TEI/XML person registers: proposed by independent methods, decided by your editors.",
+      "intro": "Many person registers in digital editions record no gender at all, so the gender data gap in the sources stays invisible. Gendertagger proposes annotations from several independent methods and keeps each method's answer, confidence and disagreement in view, so your team makes the call on every uncertain case.",
+      "signIn": "Sign in",
+      "accountHint": "Accounts are issued by the administrators of this installation.",
+      "stepsLabel": "How it works",
+      "steps": {
+        "importTitle": "Import the register",
+        "importText": "Upload a TEI/XML person register. Every import becomes an unchangeable snapshot.",
+        "classifyTitle": "Classify with several methods",
+        "classifyText": "Authority data (GND), name-based classifiers, transformer models and, optionally, a locally hosted language model each answer on their own.",
+        "reviewTitle": "Review and export",
+        "reviewText": "Editors resolve open cases with the evidence in view. The enriched register goes back into your edition as TEI/XML."
+      },
+      "scopeNote": "The labels are male, female, unknown and institution. They make the gender data gap measurable; they say nothing about how a historical person understood their own gender."
+    },
+    "signedIn": {
+      "welcomeBack": "Welcome back, {name}.",
+      "goToProjects": "Go to your projects"
+    }
   },
   "publication": {
     "heading": "Publication details",

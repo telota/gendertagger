@@ -347,6 +347,8 @@ GLOBAL_ROUTES = {
     ("GET", "/snapshot-upload-limits"),
     ("POST", "/classify"),
     ("GET", "/me"),
+    ("GET", "/me/preferences"),
+    ("PATCH", "/me/preferences"),
     ("POST", "/me/password"),
     ("GET", "/auth/session"),
     ("POST", "/auth/login"),

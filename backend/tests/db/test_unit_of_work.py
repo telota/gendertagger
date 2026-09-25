@@ -6,6 +6,9 @@ from gendertagger.db.repositories.artifact_repository import SqlAlchemyArtifactR
 from gendertagger.db.repositories.project_repository import SqlAlchemyProjectRepository
 from gendertagger.db.repositories.review_repository import SqlAlchemyReviewRepository
 from gendertagger.db.repositories.run_repository import SqlAlchemyRunRepository
+from gendertagger.db.repositories.user_preferences_repository import (
+    SqlAlchemyUserPreferencesRepository,
+)
 from gendertagger.db.repositories.user_repository import SqlAlchemyUserRepository
 from gendertagger.db.session import create_database_engine, create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork, UnitOfWorkNotActiveError
@@ -94,7 +97,10 @@ def test_unit_of_work_binds_repositories_to_active_session() -> None:
         _ = unit_of_work.users
     with pytest.raises(UnitOfWorkNotActiveError, match="not active"):
         _ = unit_of_work.reviews
+    with pytest.raises(UnitOfWorkNotActiveError, match="not active"):
+        _ = unit_of_work.user_preferences
     with unit_of_work:
+        assert isinstance(unit_of_work.user_preferences, SqlAlchemyUserPreferencesRepository)
         assert isinstance(unit_of_work.projects, SqlAlchemyProjectRepository)
         assert isinstance(unit_of_work.runs, SqlAlchemyRunRepository)
         assert isinstance(unit_of_work.aggregations, SqlAlchemyAggregationRepository)

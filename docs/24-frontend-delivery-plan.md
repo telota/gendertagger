@@ -310,6 +310,29 @@ project-scoped workflow is delivered. Focused frontend tests are added; runtime 
 verification remain pending. ADR-0040 still permits frontend edits only for its six branding fields; the
 implementation does not expose any other deployment settings.
 
+### Account presentation preferences — ADR-0043
+
+[ADR-0043](decisions/ADR-0043-account-level-user-preferences.md) adds account-owned locale, theme, and
+explicit desktop-sidebar collapse preferences. The current increment delivers backend contracts,
+persistence, migration, `GET`/`PATCH /api/v1/me/preferences`, tests, and generated OpenAPI/TypeScript
+transport. It does not build a personal settings page or wire the existing `useLocale`/`useTheme` controls
+to persistence. Administrative branding remains at `/admin/settings` and project/scientific settings are
+outside this resource.
+
+Later client integration must use a resolved password-current session, fetch preferences as
+principal-scoped server state, and clear private cached state on logout or an account switch. Account
+choices take precedence once loaded; unsigned browser choices must never silently overwrite them.
+`locale: null` is browser default and remains null on the server, while `theme: system` follows the
+browser's color-scheme preference. Only explicit desktop-collapse actions save
+`desktop_sidebar_collapsed`; viewport/breakpoint changes and temporary mobile state never do.
+
+Partial saves carry the last canonical revision and preserve omitted fields. Adopt the canonical saved
+resource after success; on `409 preferences_revision_conflict`, read fresh state and require explicit
+reconciliation instead of silently retrying a mutation. Backend acceptance covers defaults without
+read-side initialization, account isolation, persistence across sessions, strict validation, locale
+clearing, auth/forced-password/CSRF behavior, stale no-ops, and concurrent first writes on PostgreSQL. The
+[implementation plan](15-implementation-plan.md#account-preferences-increment-adr-0043) owns sequencing.
+
 ### Administrative branding settings — ADR-0040
 
 **Status.** The administrative settings screen is delivered at `/admin/settings` for eligible global
@@ -786,12 +809,12 @@ resolve, and the review path works end to end behind a real session.
   list. Shown only with a resolved, password-current session. The wireframe's completion percentages and
   its "new project" action are not part of it: no backend data exists for the former, and creating a
   project stays on the project list.
-- **Einstellungen: not built as a separate screen. Open for confirmation.** The wireframe's eight settings are
-  unsupported by design ([`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md)); the only persisted
-  settings are the six branding fields of ADR-0040, which `/admin/settings` already edits (sidebar: Admin,
-  "Branding-Einstellungen"). A read-only page of deployment facts (version, environment, `LLM_BASE_URL`) would need a
-  backend endpoint that does not exist, and the client does not invent one; if it is wanted, the endpoint comes first,
-  with its own contract and ADR.
+- **Einstellungen: no separate personal settings screen in this increment.** The wireframe's eight settings
+  remain unsupported ([`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md)). ADR-0043 adds only the
+  backend and generated transport for account locale, theme, and explicit desktop-sidebar collapse; a
+  personal settings page and existing-control integration follow later. The six branding fields of ADR-0040
+  remain separate at `/admin/settings` (sidebar: Admin, "Branding-Einstellungen"). A read-only page of
+  deployment facts would still require its own explicit endpoint contract and ADR.
 - **Accessibility pass, automated part. Delivered.** `tests/accessibility/screens.spec.ts` mounts every screen
   (projects, overview, import, runs, run, aggregation, review, people, evaluations, evaluation, exports, export) in
   both locales against one in-memory API (`tests/accessibility/mockApi.ts`, layered on the review fixture) and asserts
@@ -933,6 +956,9 @@ The interface chrome is internationalised in **German and English from M1**, not
 
 Recorded as [ADR-0030](decisions/ADR-0030-bilingual-client-with-untranslated-canonical-vocabulary.md), since it
 fixes a durable client-boundary rule alongside [ADR-0006](decisions/ADR-0006-vue-browser-client-boundary.md).
+[ADR-0043](decisions/ADR-0043-account-level-user-preferences.md) partially supersedes only the browser-only
+locale restriction for authenticated local accounts; browser-default locale stays unresolved in storage
+and all canonical-vocabulary rules remain unchanged. ADR-0030 itself remains immutable.
 
 ### D4 — Aggregation is created automatically, with an explicit advanced path
 
@@ -1144,7 +1170,8 @@ expectations. Each is analysed in [`23-wireframe-ui-inventory.md`](23-wireframe-
 - GitLab repository binding, synchronisation, and commit export
 - Notifications and the activity feed
 - Autosave and "last saved" state, which contradict append-only annotations
-- Persisted user and project settings
+- Project settings and personal settings beyond the three presentation fields accepted in ADR-0043;
+  that increment delivers only backend persistence and generated transport, with its settings UI deferred
 - The game mode itself (D20), including its scoring, combos and leaderboard
 - A bulk annotation endpoint
 - Per-case review-time telemetry

@@ -120,8 +120,11 @@ Rules specific to the dark theme:
   charts, and label colours all break under that approach.
 
 Theme selection follows `prefers-color-scheme` by default, with an explicit three-state user override
-(system, light, dark) persisted per user. The choice must not flash on load. Charts, focus rings, and the
-label palette are all theme-aware; screenshots in documentation state which theme they show.
+(system, light, dark) persisted per account under
+[ADR-0043](decisions/ADR-0043-account-level-user-preferences.md). Keep `system` as the saved choice and derive
+the effective palette in the browser. Account persistence and generated transport ship before the later
+client integration. The choice must not flash on load. Charts, focus rings, and the label palette are all
+theme-aware; screenshots in documentation state which theme they show.
 
 ### Contrast
 
@@ -306,6 +309,10 @@ artefact they describe.
 The shell is a fixed sidebar plus a content region. One page title per screen. The single breakpoint at
 1080 px collapses the sidebar to an icon rail, stacks the workbench columns, and halves the KPI and card
 grids; below 720 px the workbench becomes a single column with list and detail as separate views.
+`desktop_sidebar_collapsed` records an explicit desktop choice only, defaulting to false. Breakpoint
+transitions and temporary mobile/drawer state never change that preference; returning to desktop restores
+the saved desktop choice. Its backend persistence is defined by
+[ADR-0043](decisions/ADR-0043-account-level-user-preferences.md); control integration is a later increment.
 
 The review workbench is the application's primary working surface: a filter column, a list column, and a
 detail column. Its geometry is stable — filters do not reflow, and the action bar stays pinned at the bottom
@@ -471,6 +478,13 @@ German and English from the first milestone (decision D3).
   traces, request IDs excepted, and does not invent a cause.
 - Terminology is fixed per locale in a glossary shipped with the message catalogues, so that "Lauf"/"run",
   "Aggregation", "Redigieren"/"review" stay consistent across screens.
+
+Authenticated locale selection is account-owned under
+[ADR-0043](decisions/ADR-0043-account-level-user-preferences.md): German, English, or browser default.
+Browser default remains null in the resource and is resolved by the browser to the first supported primary
+language subtag, then German. This changes persistence only; untranslated scientific vocabulary and
+catalogue rules from ADR-0030 remain unchanged. The personal settings page and existing-control integration
+are outside the backend increment.
 
 ## Design review checklist
 

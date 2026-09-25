@@ -100,6 +100,21 @@ Record security-relevant and scholarly changes such as:
 
 Do not log secrets or unnecessarily duplicate sensitive source content.
 
+## Personal presentation preferences
+
+`GET` and `PATCH /api/v1/me/preferences` belong to the password-current API surface under
+[ADR-0043](decisions/ADR-0043-account-level-user-preferences.md). They derive the owner solely from the
+resolved `CurrentUser.id`, require that it identifies an active local account, and accept no client-selected
+owner. An unresolved or non-local principal receives `401 authentication_required`. Any eligible account
+may manage its own preferences without global roles, team membership, or project grants; an administrator
+has no route here to manage another account's choices.
+
+The existing forced-password gate applies to reads and writes. PATCH also requires ordinary session CSRF
+validation. Its transaction locks the owning user and freshly checks local-account eligibility and the
+password-change flag before saving, so an administrative password reset cannot be bypassed with stale
+principal state. Preferences responses use `Cache-Control: no-store`. Logout, expiry, password change, and
+session revocation do not reset saved personal preferences.
+
 ## Administrative settings
 
 [ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md) delivers a global-admin-only settings

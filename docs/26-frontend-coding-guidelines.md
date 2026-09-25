@@ -153,7 +153,10 @@ and CSRF attachment.
 - **Server state** lives in the query/cache layer, keyed by resource and query. It is never copied into a
   store "so components can reach it".
 - **Pinia** holds only genuinely shared client state: the session and roles, the active
-  project/snapshot/run/aggregation selection, and UI preferences such as locale and collapsed sections.
+  project/snapshot/run/aggregation selection, effective locale/theme, and transient collapsed sections.
+  Saved account preferences from `/me/preferences` are principal-scoped server state, governed by
+  [ADR-0043](decisions/ADR-0043-account-level-user-preferences.md). Do not mirror their canonical resource
+  into an independent browser settings store or persist breakpoint-derived layout as desktop preference.
 - **Component state** holds everything local: open/closed, hovered, draft input.
 - Route parameters are the source of truth for resource context. A store never holds an identifier that the
   URL should carry — a review queue must be shareable by link.

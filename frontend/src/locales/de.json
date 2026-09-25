@@ -1,7 +1,28 @@
 {
   "app": {
-    "title": "Gendertagger",
-    "scaffoldNotice": "Die Anwendungsoberfläche ist im Aufbau."
+    "title": "Gendertagger"
+  },
+  "home": {
+    "guest": {
+      "lede": "Genderannotation für TEI/XML-Personenregister: vorgeschlagen von unabhängigen Verfahren, entschieden von Ihrer Redaktion.",
+      "intro": "Viele Personenregister digitaler Editionen erfassen kein Gender – der Gender-Data-Gap in den Quellen bleibt so unsichtbar. Der Gendertagger schlägt Annotationen aus mehreren unabhängigen Verfahren vor und hält Antwort, Konfidenz und Abweichung jedes Verfahrens sichtbar. Über jeden unsicheren Fall entscheidet Ihr Team.",
+      "signIn": "Anmelden",
+      "accountHint": "Zugänge vergeben die Administrator*innen dieser Installation.",
+      "stepsLabel": "So funktioniert es",
+      "steps": {
+        "importTitle": "Register importieren",
+        "importText": "Laden Sie ein TEI/XML-Personenregister hoch. Jeder Import wird zu einem unveränderlichen Snapshot.",
+        "classifyTitle": "Mit mehreren Verfahren klassifizieren",
+        "classifyText": "Normdaten (GND), namensbasierte Klassifikatoren, Transformer-Modelle und optional ein lokal betriebenes Sprachmodell antworten jeweils für sich.",
+        "reviewTitle": "Redigieren und exportieren",
+        "reviewText": "Die Redaktion klärt offene Fälle mit Blick auf die Evidenz. Das angereicherte Register geht als TEI/XML zurück in Ihre Edition."
+      },
+      "scopeNote": "Die Labels sind male, female, unknown und institution. Sie machen den Gender-Data-Gap messbar – über das Selbstverständnis einer historischen Person sagen sie nichts aus."
+    },
+    "signedIn": {
+      "welcomeBack": "Willkommen zurück, {name}.",
+      "goToProjects": "Zu Ihren Projekten"
+    }
   },
   "publication": {
     "heading": "Publikationsangaben",

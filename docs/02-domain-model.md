@@ -70,6 +70,13 @@ aggregation, evaluation, and export beneath it, and a user reaches them only thr
 project or the global `admin` role
 ([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)).
 
+### UserPreferences
+One local account's personal presentation choices: unresolved locale preference, theme preference, and an
+explicit desktop-sidebar collapse preference. Defaults exist at revision zero before a row is saved; changed
+saves advance the revision under optimistic concurrency. These choices are account-owned, independent of
+project membership, administrative branding, and scientific configuration. See
+[ADR-0043](decisions/ADR-0043-account-level-user-preferences.md).
+
 ### DatasetSnapshot
 Immutable imported state of source data. Stores the primary source or manifest hash, importer/config version,
 artifact reference, import timestamp, and record count. Ordered SnapshotSourceMember records preserve each

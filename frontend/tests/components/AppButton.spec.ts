@@ -1,4 +1,5 @@
 import { mount } from '@vue/test-utils'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import { describe, expect, it, vi } from 'vitest'
 
 import AppButton from '@/components/base/AppButton.vue'
@@ -51,5 +52,26 @@ describe('AppButton', () => {
     await wrapper.trigger('click')
 
     expect(onClick).toHaveBeenCalledOnce()
+  })
+
+  it('renders a navigation target as a link with the button styling', async () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/', component: { template: '<div />' } },
+        { path: '/login', name: 'login', component: { template: '<div />' } },
+      ],
+    })
+    await router.push('/')
+    const wrapper = mount(AppButton, {
+      props: { to: { name: 'login' } },
+      slots: { default: 'Sign in' },
+      global: { plugins: [router] },
+    })
+
+    expect(wrapper.element.tagName).toBe('A')
+    expect(wrapper.attributes('href')).toBe('/login')
+    expect(wrapper.attributes('type')).toBeUndefined()
+    expect(wrapper.classes()).toContain('app-button--solid')
   })
 })

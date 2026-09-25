@@ -181,6 +181,30 @@ definition of done.
 
 Exit criterion: a reviewer can correct a machine result and the final-decision view changes without mutating Predictions/AggregatedResults.
 
+### Account preferences increment (ADR-0043)
+
+[ADR-0043](decisions/ADR-0043-account-level-user-preferences.md) defines a bounded personal-presentation
+extension: locale (`de`, `en`, browser default), theme (`system`, `light`, `dark`), and explicit desktop
+sidebar collapse. It partially supersedes ADR-0030's browser-only locale restriction for authenticated
+local accounts while preserving its scientific vocabulary rules and immutable decision history.
+
+1. **Architecture and backend persistence — DELIVERED.** The ADR and governing documentation precede
+   closed Pydantic contracts, typed per-account persistence, forward migration `20260925_0008`, and
+   application-service/repository behavior. Absent rows return defaults at revision zero without writes.
+2. **Self-service API and verification — DELIVERED.** Password-current `GET` and CSRF-protected `PATCH` at
+   `/api/v1/me/preferences` derive ownership exclusively from the principal and enforce revision checks
+   with safe concurrent first writes. The OpenAPI snapshot and frontend transport are regenerated.
+   Run the locked quality gates and PostgreSQL migration/integration checks, including account isolation,
+   persistence across sessions, partial updates, explicit locale clearing, auth/CSRF failures, conflicts,
+   and concurrent initialization.
+3. **Later frontend integration.** Connect presentation controls and any personal settings page to the
+   account resource in a separate increment. Keep browser-default locale unresolved, scope private state
+   to the principal, reconcile conflicts explicitly, and never save responsive changes as desktop choices.
+
+This increment stops after the backend and generated transport; no settings page or client preference
+integration is included. Personal preferences do not extend `/admin/settings`, project settings, or
+scientific configuration.
+
 ### Administrative settings increment (ADR-0040)
 
 [ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md) accepts administrative overrides for

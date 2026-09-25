@@ -14,11 +14,13 @@ This document records persistence boundaries and invariants rather than duplicat
 
 ## Migration policy
 
-No database outside development runs these migrations yet, so the schema is a single baseline revision,
-`20260815_0001`, and pre-release schema changes edit that baseline instead of stacking revisions. Every such
-edit is verified by comparing `pg_dump --schema-only` output, and a local development database is re-created
-or moved onto the baseline with `alembic stamp --purge 20260815_0001` when its schema is unchanged. Once any
-deployment exists, the baseline is frozen and every change becomes an ordinary forward migration.
+The original pre-release schema was consolidated into baseline revision `20260815_0001`; historical
+pre-deployment amendments to that baseline are recorded in their ADRs. Existing forward migrations and the
+baseline are preserved. Account preferences under
+[ADR-0043](decisions/ADR-0043-account-level-user-preferences.md) use an ordinary forward migration after the
+current head, without a default-row backfill or a rewrite of migration history. Verify a clean upgrade,
+an upgrade from the preceding head, and model-versus-migration agreement on PostgreSQL. Once any deployment
+exists, all schema changes must use forward migrations.
 
 ## Transactions and repositories
 
@@ -32,7 +34,7 @@ and tests share the same transaction semantics.
 
 ## Ownership and identity
 
-Every persisted resource has one unambiguous owner chain back to a project. Dataset snapshots belong to
+Every persisted scientific resource has one unambiguous owner chain back to a project. Dataset snapshots belong to
 projects; people belong to snapshots; runs belong to snapshots; executions and Predictions belong to runs;
 aggregations, evaluations, and exports identify their exact run inputs.
 
@@ -156,6 +158,30 @@ state. The projection is rebuildable from Annotation history and does not replac
 Creating an annotation locks the person and review-state row, compares `expected_revision`, inserts the next
 immutable annotation, advances the projection, and commits once. A stale revision becomes an application-level
 conflict rather than an overwrite.
+
+## Account presentation preferences
+
+[ADR-0043](decisions/ADR-0043-account-level-user-preferences.md) adds an optional one-to-one preferences
+row owned by the existing local account, keyed by `user_id` referencing `users.id`. Locale, theme,
+`desktop_sidebar_collapsed`, and revision are explicit typed columns. Database constraints enforce the
+allowed locale/theme values, non-null theme and collapse flag, and nonnegative revision. The row has no
+project relationship and stores no scientific or administrative settings.
+
+Absence means the canonical defaults at revision zero: locale null, theme `system`, and desktop sidebar
+expanded. Reads validate the active local owner but never insert defaults. They distinguish an absent
+preferences row from an unavailable store or an unresolved/non-local account.
+
+Mutation transactions first lock the existing user row, freshly validate the local credential and current
+password requirement, then read the preferences or virtual defaults and compare `expected_revision`.
+Locking the parent serializes both initial inserts and subsequent updates. Only changed values cause an
+insert/update and revision increment; matching no-ops preserve the revision and do not initialize an absent
+row. Revision comparison occurs before the no-op check. Restoring defaults on a persisted row advances its
+revision rather than deleting it. Repositories never commit independently.
+
+Concurrent changed first writes at revision zero produce one successful save and one revision conflict,
+not duplicate rows or a silent overwrite. Saved values remain independent of sessions and survive logout,
+expiry, password changes, and session revocation. Browser-default locale remains null in storage, and
+responsive layout cannot alter the explicit desktop preference. No process-local preferences cache is added.
 
 ## Deployment branding overrides
 

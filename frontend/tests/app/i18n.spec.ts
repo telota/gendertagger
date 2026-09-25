@@ -45,7 +45,7 @@ describe('createAppI18n', () => {
   ] as const)('translates the interface chrome in %s', (locale, catalogue) => {
     const i18n = createAppI18n(locale)
 
-    expect(i18n.global.t('app.scaffoldNotice')).toBe(catalogue.app.scaffoldNotice)
+    expect(i18n.global.t('app.title')).toBe(catalogue.app.title)
   })
 
   it('formats numbers and dates for the active locale', () => {

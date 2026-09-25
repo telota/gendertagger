@@ -86,8 +86,17 @@ credentials.
 
 Generated OpenAPI types and the typed client own transport shapes. A server-state query/cache layer owns
 resource fetching, invalidation, polling, and query-scoped cursors. Pinia is reserved for genuinely shared
-client state such as session presentation, current route context, locale, and theme—not copies of backend
-resources.
+client state such as session presentation, current route context, and effective presentation—not copies
+of backend resources. Under [ADR-0043](decisions/ADR-0043-account-level-user-preferences.md), saved account
+preferences are server state: fetch and cache them by principal, clear private state on logout/account
+changes, and use canonical PATCH responses with their revision. Existing browser controls are not connected
+to that resource in the backend increment.
+
+A saved locale of null means browser default: the browser resolves its effective language without writing
+that result back. Theme `system` similarly follows the browser. Only explicit desktop-collapse actions may
+save `desktop_sidebar_collapsed`; responsive layout and temporary mobile navigation never do. Later client
+integration must reconcile a preferences `409` using a fresh read and the user's explicit choice, not silently
+replay the write. An unsigned browser preference must not overwrite an account preference at sign-in.
 
 Optimistic presentation is permitted only when failure remains visible and cannot obscure an unsuccessful
 annotation or other scholarly write.

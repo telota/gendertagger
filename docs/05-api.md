@@ -216,6 +216,34 @@ non-local target returns `404 resource_not_found`; a target with no active sessi
 administrator may target their own account: the current session is revoked after authentication, so the `204`
 response completes but the next authenticated request must sign in again.
 
+## Personal presentation preferences
+
+[ADR-0043](decisions/ADR-0043-account-level-user-preferences.md) adds self-service account preferences.
+Paths below are relative to `/api/v1`.
+
+| Endpoint | Request | Response |
+|---|---|---|
+| `GET /me/preferences` | None | `200 UserPreferences` |
+| `PATCH /me/preferences` | `UserPreferencesUpdate`: required `expected_revision` plus nonempty partial preference fields | `200 UserPreferences` |
+
+Ownership is exclusively the authenticated principal's existing active local account. Neither route accepts
+an owner ID or requires a global/project role. Both require a resolved password-current session and return
+`Cache-Control: no-store`; PATCH also uses the shared CSRF mechanism. Unresolved or non-local accounts use
+`401 authentication_required`, forced-password accounts use `403 password_change_required`, and invalid CSRF
+uses the existing `403 forbidden` envelope.
+
+The default resource for an account without a preferences row is
+`{"locale": null, "theme": "system", "desktop_sidebar_collapsed": false, "revision": 0}`.
+GET does not initialize storage. PATCH preserves omitted fields, and explicit `locale: null` clears an
+explicit locale without resolving the browser's effective language. Null theme/collapse, unknown fields,
+invalid values, and empty updates receive `422 validation_error`.
+
+A changed save increments the revision and returns the canonical committed resource. A matching-revision
+no-op returns the existing revision and does not create an absent row. Stale requests, including stale
+no-ops, receive `409 preferences_revision_conflict` with expected/current revisions in the established error
+details. Parent-account locking makes concurrent initial writes follow the same conflict semantics.
+Personal presentation preferences never use `/admin/settings` or project/scientific configuration.
+
 ## Administrative settings
 
 The two backend slices of [ADR-0040](decisions/ADR-0040-administrative-branding-overrides.md) are

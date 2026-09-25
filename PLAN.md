@@ -21,6 +21,14 @@ endpoints and collections the screens need are delivered; see
 [`docs/24-frontend-delivery-plan.md`](docs/24-frontend-delivery-plan.md). The second active track is
 operating the stack in production following [`docs/21-production-promotion.md`](docs/21-production-promotion.md).
 
+Account-level presentation preferences are delivered as a bounded backend increment under
+[ADR-0043](docs/decisions/ADR-0043-account-level-user-preferences.md): locale, theme, and explicit desktop
+sidebar collapse, owned by the existing local account with revision-checked updates. The implementation includes the
+forward migration, `/api/v1/me/preferences` reads/writes, meaningful PostgreSQL/API tests, and generated
+transport updates. The personal settings page and integration of existing browser controls are deferred to
+a later increment; see the
+[delivery sequence](docs/15-implementation-plan.md#account-preferences-increment-adr-0043).
+
 Administrative branding settings are a separate accepted extension under
 [ADR-0040](docs/decisions/ADR-0040-administrative-branding-overrides.md). Its backend persistence, reads,
 writes, and public-branding integration are delivered; the permitted frontend settings work remains pending.

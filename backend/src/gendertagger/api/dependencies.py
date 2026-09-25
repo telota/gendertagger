@@ -21,6 +21,7 @@ from gendertagger.services.review_items import ReviewItemService
 from gendertagger.services.runs import RunService
 from gendertagger.services.teams import TeamService
 from gendertagger.services.user_administration import UserAdministrationService
+from gendertagger.services.user_preferences import UserPreferencesService
 
 
 def get_unit_of_work_factory(request: Request) -> UnitOfWorkFactory:
@@ -106,3 +107,8 @@ def get_team_service(request: Request) -> TeamService:
 def get_admin_settings_service(request: Request) -> AdminSettingsService:
     """Return the composed administrative deployment-settings service."""
     return cast(AdminSettingsService, request.app.state.admin_settings_service)
+
+
+def get_user_preferences_service(request: Request) -> UserPreferencesService:
+    """Return the composed account-owned presentation preferences service."""
+    return cast(UserPreferencesService, request.app.state.user_preferences_service)

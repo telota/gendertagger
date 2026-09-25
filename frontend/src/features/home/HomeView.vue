@@ -3,10 +3,20 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useBranding } from '@/composables/useBranding'
+import { useSessionStore } from '@/stores/session'
+
+import GuestHomeView from './GuestHomeView.vue'
+import SignedInHomeView from './SignedInHomeView.vue'
 
 const { t } = useI18n()
+const session = useSessionStore()
 const { state } = useBranding()
 const data = computed(() => (state.value.status === 'ready' ? state.value.data : null))
+
+// Anything short of a confirmed session (idle, loading, error, or ready-but-signed-out) gets the
+// public guest content: it is harmless to show and avoids a loading flash for the common case of an
+// anonymous first visit.
+const isSignedIn = computed(() => session.status === 'ready' && session.isSignedIn)
 
 // The BBAW guideline asks for a publication period; nothing is invented while it is unconfigured.
 const hasAnyPublicationFact = computed(
@@ -22,7 +32,9 @@ const hasAnyPublicationFact = computed(
 <template>
   <main class="home">
     <h1 class="home-title">{{ t('app.title') }}</h1>
-    <p class="home-notice">{{ t('app.scaffoldNotice') }}</p>
+
+    <SignedInHomeView v-if="isSignedIn" />
+    <GuestHomeView v-else />
 
     <!-- The BBAW guideline requires title, editors, publisher and date on the start page. -->
     <section class="home-publication" aria-labelledby="publication-heading">
@@ -83,11 +95,6 @@ const hasAnyPublicationFact = computed(
   font-size: var(--font-size-page);
   font-weight: var(--weight-semibold);
   line-height: var(--line-height-page);
-}
-
-.home-notice {
-  margin: 0 0 var(--space-8);
-  color: var(--text-secondary);
 }
 
 .home-publication {

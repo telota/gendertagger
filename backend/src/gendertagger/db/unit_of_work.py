@@ -17,6 +17,9 @@ from gendertagger.db.repositories.review_repository import SqlAlchemyReviewRepos
 from gendertagger.db.repositories.run_repository import SqlAlchemyRunRepository
 from gendertagger.db.repositories.settings_repository import SqlAlchemySettingsRepository
 from gendertagger.db.repositories.team_repository import SqlAlchemyTeamRepository
+from gendertagger.db.repositories.user_preferences_repository import (
+    SqlAlchemyUserPreferencesRepository,
+)
 from gendertagger.db.repositories.user_repository import SqlAlchemyUserRepository
 from gendertagger.db.session import SessionFactory
 from gendertagger.services.ports.unit_of_work import UnitOfWork
@@ -117,6 +120,11 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
     def teams(self) -> SqlAlchemyTeamRepository:
         """Return team persistence bound to the active session."""
         return SqlAlchemyTeamRepository(self._require_session())
+
+    @property
+    def user_preferences(self) -> SqlAlchemyUserPreferencesRepository:
+        """Return account preferences persistence bound to the active session."""
+        return SqlAlchemyUserPreferencesRepository(self._require_session())
 
     def commit(self) -> None:
         """Commit every repository write made through the active session."""

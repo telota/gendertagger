@@ -41,6 +41,7 @@ duplicate class bodies or field inventories.
 | `models/api.py` | Error envelopes and cursor pages |
 | `models/user.py` | Global/project roles and provider-neutral user identity |
 | `models/auth.py` | Local credentials, sessions, login, and password changes |
+| `models/user_preferences.py` | Account-owned presentation preferences and revision-checked updates |
 | `models/common.py` | UTC timestamps and canonical JSON hashing |
 | `models/queues.py` | Internal queue-routing vocabulary |
 
@@ -197,6 +198,19 @@ not the scholarly history.
 API errors use a stable envelope and client-facing codes even when internal exception classes change. Exact
 public request and response shapes remain generated OpenAPI concerns; see
 [`05-api.md`](05-api.md).
+
+## Personal preferences contracts
+
+[ADR-0043](decisions/ADR-0043-account-level-user-preferences.md) defines closed, frozen `UserPreferences`
+and `UserPreferencesUpdate` contracts. The read resource has `locale` (`de`, `en`, or null), `theme`
+(`system`, `light`, or `dark`), strict boolean `desktop_sidebar_collapsed`, and a strict nonnegative
+`revision`. Defaults are null, `system`, false, and zero respectively.
+
+The update requires strict nonnegative `expected_revision` and at least one supplied preference. Omitted
+fields remain unchanged, explicit `locale: null` restores browser-default selection, and null is invalid
+for the other preferences. Unknown fields, user/project identifiers, coerced booleans, and coerced revisions
+are rejected. Browser-default locale remains unresolved in the saved resource. The public contract contains
+no arbitrary settings map or administrative branding fields.
 
 ## Administrative settings contracts
 

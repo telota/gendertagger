@@ -34,6 +34,23 @@ Run against PostgreSQL, not SQLite, for SQL behavior that matters.
 ### API integration tests
 FastAPI TestClient/httpx tests for authentication, lifecycle, validation, pagination, and error envelopes.
 
+### Account preferences tests
+
+Verify [ADR-0043](decisions/ADR-0043-account-level-user-preferences.md) at the narrowest relevant layer:
+
+- closed contracts and strict locale/theme/boolean/revision validation, rejected unknown fields, and nonempty
+  partial updates;
+- default revision zero without a read-side insert, omitted-field preservation, explicit locale clearing,
+  matching no-ops, and monotonic revisions when resetting saved values to defaults;
+- persistence across separate sessions and isolation between accounts, including accounts with no roles;
+- unauthenticated, unresolved/non-local, forced-password, and CSRF failures through the existing envelopes;
+- stale updates and stale no-ops returning `409 preferences_revision_conflict`; and
+- real PostgreSQL transactions proving concurrent first writes cannot both succeed at revision zero,
+  forward migration from the preceding head, fresh-schema upgrade, and Alembic metadata agreement.
+
+The OpenAPI snapshot and generated frontend transport remain part of the public-contract checks. This
+backend increment does not require a new settings screen or browser interaction tests.
+
 ### Celery integration tests
 Test idempotent retries, batch completion, partial failure, and run completion logic. Avoid eager-mode-only confidence; include at least one real broker integration test in CI or a dedicated profile.
 

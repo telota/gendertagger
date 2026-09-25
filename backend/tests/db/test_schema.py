@@ -29,6 +29,7 @@ EXPECTED_TABLES = {
     "task_batches",
     "user_credentials",
     "user_roles",
+    "user_preferences",
     "user_sessions",
     "users",
 }

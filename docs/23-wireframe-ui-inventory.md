@@ -430,10 +430,11 @@ toggle, interval); gamification (visibility toggle, collapsed-by-default toggle)
 
 **Gaps.**
 
-- The wireframe's eight settings are still unsupported. ADR-0040 now permits persistence only for six
-  deployment-wide branding fields; its backend contracts are delivered, but their frontend forms and active
-  branding-consumer refresh remain deferred. No project, scientific, session-policy, or arbitrary deployment
-  setting is made editable.
+- The wireframe's eight settings remain unsupported. ADR-0040 permits six deployment-wide branding fields
+  through its separate administrative surface. Account locale, theme, and explicit desktop-sidebar collapse
+  are independently specified by [ADR-0043](decisions/ADR-0043-account-level-user-preferences.md), with backend
+  persistence and generated transport in this increment and personal settings UI deferred. Neither decision
+  makes project, scientific, session-policy, or arbitrary deployment settings editable.
 - The `/admin/users` directory delivered under
   [ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md) is a separate administration route,
   not an implementation of this wireframe settings screen.
@@ -542,7 +543,7 @@ Grouped by whether they need a backend decision before or after v1.
 | Activity feed | Übersicht | Defer. |
 | Notifications | shell | Defer. |
 | Autosave and "last saved" | shell | Drop — contradicts append-only annotations. |
-| User/project settings persistence | Einstellungen | Defer or make read-only. |
+| User/project settings persistence | Einstellungen | ADR-0043 adds account locale/theme/desktop-sidebar persistence; its UI and project settings remain deferred. |
 | Game scoring, combos, timer, hints, leaderboard | Spielmodus, Statistik | Defer scoring; the annotation path itself is buildable now. |
 | Ø review time per case | Statistik | Defer; needs client timing telemetry. |
 
@@ -702,8 +703,10 @@ Ordered by whether the Vue port is blocked without them.
 
 ### Deferred but design-relevant
 
-Batch annotation, activity feed, notifications, settings persistence, game scoring, VCS integration. Each
-needs an ADR before it enters the API surface, per [`22-future-development.md`](22-future-development.md).
+Batch annotation, activity feed, notifications, project settings, further personal settings, game scoring,
+and VCS integration remain deferred. Each needs an ADR before it enters the API surface, per
+[`22-future-development.md`](22-future-development.md). ADR-0043 admits only account locale, theme, and
+explicit desktop-sidebar collapse; the personal settings page and client integration remain later work.
 
 ## Implementation sequence
 

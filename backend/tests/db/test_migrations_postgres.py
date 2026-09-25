@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from uuid import uuid4
 
 import pytest
 from alembic import command
@@ -31,6 +32,7 @@ EXPECTED_APPLICATION_TABLES = {
     "task_batches",
     "user_credentials",
     "user_roles",
+    "user_preferences",
     "user_sessions",
     "team_memberships",
     "teams",
@@ -134,3 +136,64 @@ def test_initial_migration_upgrades_downgrades_and_has_no_drift(
 
     command.upgrade(config, "head")
     command.check(config)
+
+
+def test_preferences_forward_migration_preserves_accounts_without_backfilling_defaults(
+    postgres_database_factory: Callable[[], str],
+) -> None:
+    database_url = postgres_database_factory()
+    config = alembic_config(database_url)
+    command.upgrade(config, "20260925_0007")
+    engine = create_engine(database_url)
+    user_id = uuid4()
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text("INSERT INTO users (id, display_name) VALUES (:id, 'Existing account')"),
+                {"id": user_id},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO user_credentials (user_id, username, password_hash) "
+                    "VALUES (:id, 'existing_account', 'preserved-password-hash')"
+                ),
+                {"id": user_id},
+            )
+        command.upgrade(config, "head")
+        command.check(config)
+        with engine.connect() as connection:
+            assert connection.scalar(text("SELECT count(*) FROM user_preferences")) == 0
+            assert connection.scalar(text("SELECT id FROM users")) == user_id
+            assert connection.scalar(text("SELECT password_hash FROM user_credentials")) == (
+                "preserved-password-hash"
+            )
+        with engine.begin() as connection:
+            connection.execute(
+                text("INSERT INTO user_preferences (user_id) VALUES (:id)"), {"id": user_id}
+            )
+            defaults = (
+                connection.execute(
+                    text(
+                        "SELECT locale, theme, desktop_sidebar_collapsed, revision FROM user_preferences"
+                    )
+                )
+                .mappings()
+                .one()
+            )
+            assert defaults == {
+                "locale": None,
+                "theme": "system",
+                "desktop_sidebar_collapsed": False,
+                "revision": 0,
+            }
+        command.downgrade(config, "20260925_0007")
+        assert "user_preferences" not in inspect(engine).get_table_names()
+        with engine.connect() as connection:
+            assert connection.scalar(text("SELECT id FROM users")) == user_id
+            assert connection.scalar(text("SELECT password_hash FROM user_credentials")) == (
+                "preserved-password-hash"
+            )
+        command.upgrade(config, "head")
+        command.check(config)
+    finally:
+        engine.dispose()

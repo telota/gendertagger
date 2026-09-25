@@ -46,7 +46,10 @@ flowchart LR
 Pydantic models define application-facing data structures, configuration, task envelopes, and API schemas.
 
 ### Application services
-Use-case orchestration: import snapshot, create run, schedule executions, aggregate, annotate, evaluate, export.
+Use-case orchestration: import snapshot, create run, schedule executions, aggregate, annotate, evaluate, export,
+and manage account-owned presentation preferences. Personal preferences are separate from project settings,
+deployment branding, and scientific configuration; see
+[ADR-0043](decisions/ADR-0043-account-level-user-preferences.md).
 
 ### Domain/scientific logic
 Normalization, classifier adapters, aggregation, certainty assignment, agreement calculations, TEI mapping.

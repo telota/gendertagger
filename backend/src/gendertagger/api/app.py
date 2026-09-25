@@ -48,6 +48,7 @@ from gendertagger.services.review_items import ReviewItemService
 from gendertagger.services.runs import RunProvenance, RunService
 from gendertagger.services.teams import TeamService
 from gendertagger.services.user_administration import UserAdministrationService
+from gendertagger.services.user_preferences import UserPreferencesService
 from gendertagger.storage.local import LocalArtifactStorage
 from gendertagger.utils.logging import configure_logging
 
@@ -96,6 +97,7 @@ def create_app(
     if authentication_backend is None:
         authentication_backend = DatabaseAuthenticationBackend(authentication_service)
     cursor_codec = CursorCodec()
+    user_preferences_service = UserPreferencesService(unit_of_work_factory=unit_of_work_factory)
     user_administration_service = UserAdministrationService(
         unit_of_work_factory=unit_of_work_factory,
         cursor_codec=cursor_codec,
@@ -217,6 +219,7 @@ def create_app(
     application.state.user_administration_service = user_administration_service
     application.state.team_service = team_service
     application.state.admin_settings_service = admin_settings_service
+    application.state.user_preferences_service = user_preferences_service
     application.state.project_service = project_service
     application.state.project_access_service = project_access_service
     application.state.aggregation_service = aggregation_service
