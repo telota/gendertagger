@@ -31,6 +31,12 @@ const USER: CurrentUser = {
   display_name: 'Sidebar user',
   roles: [],
 }
+const DEFAULT_PREFERENCES = {
+  locale: null,
+  theme: 'system',
+  desktop_sidebar_collapsed: false,
+  revision: 0,
+}
 const AGGREGATION_PATH = `/projects/${PROJECT_A}/runs/${RUN}/aggregations/${AGGREGATION}`
 type ProjectRole = AccessibleProject['current_user_role']
 type SessionStore = ReturnType<typeof useSessionStore>
@@ -334,7 +340,14 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
     const response = deferredResponse()
     let projectRequests = 0
     const client = createApiClient({
-      fetch: () => {
+      fetch: (request) => {
+        const path = new URL(request.url).pathname
+        if (path === '/api/v1/me/preferences') {
+          return Promise.resolve(Response.json(DEFAULT_PREFERENCES))
+        }
+        if (path !== `/api/v1/projects/${PROJECT_A}`) {
+          return Promise.resolve(Response.json({}, { status: 404 }))
+        }
         projectRequests += 1
         return projectRequests > 1
           ? response.promise
@@ -366,7 +379,14 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
     const messages = catalogues[locale].projectSwitcher
     let projectRequests = 0
     const client = createApiClient({
-      fetch: () => {
+      fetch: (request) => {
+        const path = new URL(request.url).pathname
+        if (path === '/api/v1/me/preferences') {
+          return Promise.resolve(Response.json(DEFAULT_PREFERENCES))
+        }
+        if (path !== '/api/v1/projects') {
+          return Promise.resolve(Response.json({}, { status: 404 }))
+        }
         projectRequests += 1
         return projectRequests > 1
           ? response.promise

@@ -3221,11 +3221,8 @@ export interface components {
          * @description Nonempty partial update preserving omitted fields and checking the saved revision.
          */
         UserPreferencesUpdate: {
-            /**
-             * Desktop Sidebar Collapsed
-             * @default false
-             */
-            desktop_sidebar_collapsed: boolean;
+            /** Desktop Sidebar Collapsed */
+            desktop_sidebar_collapsed?: boolean;
             /** Expected Revision */
             expected_revision: number;
             /**
@@ -3235,10 +3232,9 @@ export interface components {
             locale?: ("de" | "en") | null;
             /**
              * Theme
-             * @default system
              * @enum {string}
              */
-            theme: "system" | "light" | "dark";
+            theme?: "system" | "light" | "dark";
         };
         /**
          * VoteCounts

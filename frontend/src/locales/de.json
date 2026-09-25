@@ -94,6 +94,15 @@
   },
   "nav": {
     "label": "Hauptnavigation",
+    "openNavigation": "Navigation öffnen",
+    "closeNavigation": "Navigation schließen",
+    "collapseSidebar": "Seitenleiste einklappen",
+    "expandSidebar": "Seitenleiste ausklappen",
+    "collapseSaveError": "Die Änderung der Seitenleiste konnte nicht gespeichert werden. Versuchen Sie es erneut.",
+    "dismiss": "Schließen",
+    "requiresSnapshot": "Zuerst einen Datenstand auswählen.",
+    "requiresAggregation": "Zuerst eine Aggregation in diesem Lauf auswählen.",
+    "requiresRun": "Zuerst einen Klassifikationslauf auswählen.",
     "projects": "Projekte",
     "administration": "Administration",
     "teams": "Teams",
@@ -112,6 +121,13 @@
   },
   "locale": {
     "label": "Sprache"
+  },
+  "sidebarPreferences": {
+    "title": "Darstellung",
+    "temporary": "Diese Änderungen gelten vorübergehend, bis Ihre Kontoeinstellungen verfügbar sind.",
+    "saveError": "Die Änderung konnte nicht gespeichert werden. Versuchen Sie es erneut oder laden Sie Ihre gespeicherten Einstellungen.",
+    "conflict": "Ihre Einstellungen wurden anderweitig geändert. Laden Sie die gespeicherten Werte, bevor Sie erneut wählen.",
+    "reloadError": "Die gespeicherten Einstellungen konnten nicht neu geladen werden. Versuchen Sie es erneut."
   },
   "theme": {
     "label": "Erscheinungsbild",

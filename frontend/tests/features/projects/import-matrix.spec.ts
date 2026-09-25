@@ -293,7 +293,7 @@ describe.each(['de', 'en'] as const)('import formats and limits in %s', (locale:
     selectFiles(wrapper, [testFile('longer than four bytes', 'big.xml')])
     await flushPromises()
 
-    expect(wrapper.get('[role="alert"]').text()).toBe(messages.errors.partTooLarge)
+    expect(wrapper.get('main [role="alert"]').text()).toBe(messages.errors.partTooLarge)
     expect(wrapper.get('.import-submit').attributes('disabled')).toBeDefined()
     await wrapper.get('form').trigger('submit')
     expect(sent).toHaveLength(0)
@@ -306,6 +306,6 @@ describe.each(['de', 'en'] as const)('import formats and limits in %s', (locale:
     selectFiles(wrapper, [testFile('1234', 'a.xml'), testFile('5678', 'b.xml')])
     await flushPromises()
 
-    expect(wrapper.get('[role="alert"]').text()).toBe(messages.errors.totalTooLarge)
+    expect(wrapper.get('main [role="alert"]').text()).toBe(messages.errors.totalTooLarge)
   })
 })

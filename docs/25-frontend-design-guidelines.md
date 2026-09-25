@@ -310,16 +310,27 @@ artefact they describe.
 
 ## Layout
 
-The shell is a fixed sidebar plus a content region. One page title per screen. The single breakpoint at
-1080 px collapses the sidebar to an icon rail, stacks the workbench columns, and halves the KPI and card
-grids; below 720 px the workbench becomes a single column with list and detail as separate views.
+The shell is a persistent sidebar plus a content region, with one page title per screen. At 1080 CSS px
+and above, the sidebar follows the saved expanded/collapsed choice; from 720 to 1079 px it is a compact
+rail. Below 720 px a title-bar trigger opens a modal navigation drawer instead of a persistent rail.
+The 1080 px breakpoint also stacks the workbench columns and halves the KPI and card grids; below 720 px
+the workbench becomes a single column with list and detail as separate views.
 `desktop_sidebar_collapsed` records an explicit desktop choice only, defaulting to false. Breakpoint
 transitions and temporary mobile/drawer state never change that preference; returning to desktop restores
 the saved desktop choice at widths of at least 1080 CSS pixels. The explicit collapsed choice uses the
 same icon rail while retaining accessible link names. The expanded choice does not override the narrow
-layout. Saving this choice in the personal settings form is defined by
-[ADR-0043](decisions/ADR-0043-account-level-user-preferences.md); wider sidebar redesign is outside this
-increment.
+layout. Both the desktop collapse button and personal settings form use
+[ADR-0043](decisions/ADR-0043-account-level-user-preferences.md); no separate browser collapse key exists.
+The shared navigation model and exact route ownership are specified in
+[the delivery plan](24-frontend-delivery-plan.md#contextual-sidebar-completion).
+
+The shell uses `--sidebar-width` (15rem), `--sidebar-rail-width` (3.75rem), `--shell-header-height`
+(3.5rem minimum), and `--sidebar-transition` (the existing reduced-motion-aware `--motion-state`).
+Navigation scrolls independently of the brand and the footer containing language, theme, and the desktop
+collapse button. The collapse button is last; its failure/conflict feedback opens upward. Rail destinations and
+controls retain accessible names and expose hover/focus tooltips. Footer menus open upward. Modal
+navigation keeps labels visible, traps focus, and restores it on dismissal; leaving the mobile
+breakpoint moves focus to the visible current destination or brand because the title-bar trigger hides.
 
 The review workbench is the application's primary working surface: a filter column, a list column, and a
 detail column. Its geometry is stable — filters do not reflow, and the action bar stays pinned at the bottom
@@ -491,8 +502,8 @@ Authenticated locale selection is account-owned under
 Browser default remains null in the resource and is resolved by the browser to the first supported primary
 language subtag, then German. This changes persistence only; untranslated scientific vocabulary and
 catalogue rules from ADR-0030 remain unchanged. Anonymous browser language and theme choices remain
-available in the title bar when signed out and are restored after logout without copying account choices
-into browser storage.
+available in the sidebar footer (inside the navigation drawer on mobile) when signed out and are restored
+after logout without copying account choices into browser storage.
 
 ## Personal settings
 

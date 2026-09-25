@@ -122,7 +122,7 @@ describe.each(['de', 'en'] as const)('AdminTeamsView in %s', (locale: AppLocale)
     )
     await flushPromises()
     expect(operator.find('aside a[href="/admin/teams"]').exists()).toBe(false)
-    expect(operator.get('[role="alert"]').text()).toBe(messages.forbidden)
+    expect(operator.get('main [role="alert"]').text()).toBe(messages.forbidden)
   })
 
   it('debounces server-side team and roster search and resets cursor pagination', async () => {

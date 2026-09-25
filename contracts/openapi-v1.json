@@ -4777,7 +4777,6 @@
         "description": "Nonempty partial update preserving omitted fields and checking the saved revision.",
         "properties": {
           "desktop_sidebar_collapsed": {
-            "default": false,
             "title": "Desktop Sidebar Collapsed",
             "type": "boolean"
           },
@@ -4803,7 +4802,6 @@
             "title": "Locale"
           },
           "theme": {
-            "default": "system",
             "enum": [
               "system",
               "light",

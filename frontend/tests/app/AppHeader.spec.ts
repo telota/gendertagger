@@ -98,33 +98,12 @@ describe.each(['de', 'en'] as const)('AppHeader in %s', (locale: AppLocale) => {
     expect(wrapper.get('header a[href="/login"]').text()).toBe(messages.signIn)
   })
 
-  it('switches the interface language when a different option is picked', async () => {
+  it('keeps account actions in the header and presentation controls in the sidebar', async () => {
     const wrapper = await mountApplicationAt('/', locale, apiClientWithRoutes(NOT_SIGNED_IN))
     await flushPromises()
-    const other: AppLocale = locale === 'de' ? 'en' : 'de'
-    const otherLabel = other === 'de' ? 'Deutsch' : 'English'
-
-    const localeSwitcher = wrapper.get('.app-header-switcher--locale')
-    await localeSwitcher.get('button').trigger('click')
-    const option = localeSwitcher.findAll('li').find((item) => item.text() === otherLabel)
-    await option?.trigger('click')
-    await flushPromises()
-
-    expect(wrapper.get('header a[href="/login"]').text()).toBe(catalogues[other].header.signIn)
-  })
-
-  it('switches the document theme when a different option is picked', async () => {
-    const wrapper = await mountApplicationAt('/', locale, apiClientWithRoutes(NOT_SIGNED_IN))
-    await flushPromises()
-    const darkLabel = catalogues[locale].theme.dark
-
-    const themeSwitcher = wrapper.get('.app-header-switcher--theme')
-    await themeSwitcher.get('button').trigger('click')
-    const option = themeSwitcher.findAll('li').find((item) => item.text() === darkLabel)
-    await option?.trigger('click')
-    await flushPromises()
-
-    expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(wrapper.get('header a[href="/login"]').text()).toBe(messages.signIn)
+    expect(wrapper.find('header [aria-haspopup="listbox"]').exists()).toBe(false)
+    expect(wrapper.findAll('aside [aria-haspopup="listbox"]')).toHaveLength(2)
   })
 
   it('shows a server-error state, distinct from signed-out, when the session cannot be checked', async () => {

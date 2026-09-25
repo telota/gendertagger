@@ -1,209 +1,114 @@
 <script setup lang="ts">
-// The shell's one navigation surface (decision D7); the wireframe's second, redundant tab row is
-// dropped. Layout per docs/25-frontend-design-guidelines.md: "a fixed sidebar plus a content region";
-// groups per docs/23-wireframe-ui-inventory.md. The optional game path is not part of it (D14).
-import {
-  PhChartBar,
-  PhExport,
-  PhFolders,
-  PhGearSix,
-  PhGenderIntersex,
-  PhPencilSimpleLine,
-  PhSquaresFour,
-  PhTreeStructure,
-  PhUploadSimple,
-  PhUserList,
-  PhUsers,
-  PhUsersThree,
-} from '@phosphor-icons/vue'
-import { computed } from 'vue'
+import { PhGenderIntersex } from '@phosphor-icons/vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, type RouteLocationRaw } from 'vue-router'
-
-import { useAdminAccess } from '@/composables/useAdminAccess'
-import { hasProjectRole } from '@/features/projects/projectRoles'
+import { RouterLink } from 'vue-router'
 
 import NavItem from './NavItem.vue'
-import { useProjectNavigation } from './useProjectNavigation'
+import SidebarCollapseButton from './SidebarCollapseButton.vue'
+import SidebarPreferences from './SidebarPreferences.vue'
+import { useSidebarNavigation } from './useSidebarNavigation'
 
-defineProps<{ desktopSidebarCollapsed?: boolean }>()
+defineProps<{ desktopSidebarCollapsed?: boolean; mobile?: boolean }>()
 
 const { t } = useI18n()
-const { canAccessAdmin, session } = useAdminAccess()
-const project = useProjectNavigation()
-const canImport = computed(() => hasProjectRole(project.value?.currentUserRole, 'operator'))
-const canReview = computed(() => hasProjectRole(project.value?.currentUserRole, 'reviewer'))
-
-// A target is `null` while the project has nothing to point at yet (no run, no aggregation).
-function link(name: string, params: Record<string, string | null>): RouteLocationRaw | null {
-  const complete = Object.values(params).every((value) => value !== null)
-  return complete ? { name, params: params as Record<string, string> } : null
-}
-
-const projectLinks = computed(() => {
-  const current = project.value
-  if (current === null) {
-    return null
-  }
-  const { projectId, runId, aggregationId, snapshotId } = current
-  return {
-    overview: link('projectOverview', { projectId }),
-    import: link('projectImport', { projectId }),
-    classification: link('snapshotRuns', { projectId, snapshotId }),
-    review: link('review', { projectId, runId, aggregationId }),
-    people: link('people', { projectId, runId, aggregationId }),
-    evaluations: link('evaluations', { projectId, runId }),
-    exports: link('exports', { projectId, runId }),
-  }
-})
+const groups = useSidebarNavigation()
 </script>
 
 <template>
-  <aside class="app-sidebar" :class="{ 'app-sidebar--desktop-collapsed': desktopSidebarCollapsed }">
+  <aside
+    class="app-sidebar"
+    :class="{
+      'app-sidebar--desktop-collapsed': desktopSidebarCollapsed && !mobile,
+      'app-sidebar--mobile': mobile,
+    }"
+  >
     <RouterLink :to="{ name: 'home' }" class="app-sidebar-brand">
       <PhGenderIntersex :size="24" aria-hidden="true" />
       <span class="app-sidebar-brand-label">{{ t('app.title') }}</span>
     </RouterLink>
-    <nav
-      v-if="session.canUsePrivateNavigation"
-      class="app-sidebar-nav"
-      :aria-label="t('nav.label')"
-    >
-      <ul class="app-sidebar-nav-list">
-        <li>
-          <NavItem
-            :desktop-collapsed="desktopSidebarCollapsed"
-            :to="{ name: 'projects' }"
-            :icon="PhFolders"
-            :label="t('nav.projects')"
-          />
-        </li>
-      </ul>
-      <template v-if="projectLinks">
-        <h2 class="app-sidebar-group">{{ t('nav.currentProject') }}</h2>
+    <nav v-if="groups.length" class="app-sidebar-nav" :aria-label="t('nav.label')">
+      <div v-for="group in groups" :key="group.id" class="app-sidebar-section">
+        <h2 v-if="group.label" class="app-sidebar-group">{{ group.label }}</h2>
         <ul class="app-sidebar-nav-list">
-          <li>
+          <li v-for="item in group.items" :key="item.id">
             <NavItem
               :desktop-collapsed="desktopSidebarCollapsed"
-              :to="projectLinks.overview"
-              :icon="PhSquaresFour"
-              :label="t('nav.overview')"
-            />
-          </li>
-          <li v-if="canImport">
-            <NavItem
-              :desktop-collapsed="desktopSidebarCollapsed"
-              :to="projectLinks.import"
-              :icon="PhUploadSimple"
-              :label="t('nav.import')"
-            />
-          </li>
-          <li>
-            <NavItem
-              :desktop-collapsed="desktopSidebarCollapsed"
-              :to="projectLinks.classification"
-              :icon="PhTreeStructure"
-              :label="t('nav.classification')"
-            />
-          </li>
-          <li v-if="canReview">
-            <NavItem
-              :desktop-collapsed="desktopSidebarCollapsed"
-              :to="projectLinks.review"
-              :icon="PhPencilSimpleLine"
-              :label="t('nav.review')"
-            />
-          </li>
-          <li>
-            <NavItem
-              :desktop-collapsed="desktopSidebarCollapsed"
-              :to="projectLinks.people"
-              :icon="PhUserList"
-              :label="t('nav.annotate')"
+              :mobile="mobile"
+              :to="item.to"
+              :icon="item.icon"
+              :label="item.label"
+              :current="item.current"
+              :unavailable-reason="item.unavailableReason"
             />
           </li>
         </ul>
-        <h2 class="app-sidebar-group">{{ t('nav.evaluationGroup') }}</h2>
-        <ul class="app-sidebar-nav-list">
-          <li>
-            <NavItem
-              :desktop-collapsed="desktopSidebarCollapsed"
-              :to="projectLinks.evaluations"
-              :icon="PhChartBar"
-              :label="t('nav.evaluations')"
-            />
-          </li>
-          <li>
-            <NavItem
-              :desktop-collapsed="desktopSidebarCollapsed"
-              :to="projectLinks.exports"
-              :icon="PhExport"
-              :label="t('nav.exports')"
-            />
-          </li>
-        </ul>
-      </template>
-      <template v-if="canAccessAdmin">
-        <h2 class="app-sidebar-group">{{ t('nav.administrationGroup') }}</h2>
-        <ul class="app-sidebar-nav-list">
-          <li>
-            <NavItem
-              :desktop-collapsed="desktopSidebarCollapsed"
-              :to="{ name: 'adminUsers' }"
-              :icon="PhUsers"
-              :label="t('nav.administration')"
-            />
-          </li>
-          <li>
-            <NavItem
-              :desktop-collapsed="desktopSidebarCollapsed"
-              :to="{ name: 'adminTeams' }"
-              :icon="PhUsersThree"
-              :label="t('nav.teams')"
-            />
-          </li>
-          <li>
-            <NavItem
-              :desktop-collapsed="desktopSidebarCollapsed"
-              :to="{ name: 'adminSettings' }"
-              :icon="PhGearSix"
-              :label="t('nav.settings')"
-            />
-          </li>
-        </ul>
-      </template>
+      </div>
     </nav>
+    <footer class="app-sidebar-footer">
+      <SidebarPreferences :desktop-collapsed="desktopSidebarCollapsed" :mobile="mobile" />
+      <SidebarCollapseButton v-if="!mobile" />
+    </footer>
   </aside>
 </template>
 
 <style scoped>
 .app-sidebar {
+  position: sticky;
+  top: 0;
   display: flex;
   flex-direction: column;
-  width: 15rem;
+  width: var(--sidebar-width);
+  height: 100dvh;
   flex-shrink: 0;
   padding: var(--space-4);
   border-right: 1px solid var(--border);
   background: var(--panel);
+  transition: width var(--sidebar-transition) ease-out;
 }
 
 .app-sidebar-brand {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: var(--space-2);
-  margin-bottom: var(--space-6);
+  min-height: var(--space-10);
+  margin-bottom: var(--space-4);
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
   text-decoration: none;
 }
 
+.app-sidebar-brand svg {
+  flex-shrink: 0;
+}
+
+.app-sidebar-nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-1);
+  margin: calc(-1 * var(--space-1));
+  scrollbar-width: thin;
+}
+
+.app-sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: var(--space-2);
+  margin-top: auto;
+}
+
+.app-sidebar-section + .app-sidebar-section {
+  margin-top: var(--space-5);
+}
+
 .app-sidebar-group {
-  margin: var(--space-6) 0 var(--space-2);
+  margin: 0 0 var(--space-2);
   padding: 0 var(--space-3);
   color: var(--text-secondary);
   font-size: var(--font-size-body);
   font-weight: var(--weight-semibold);
-  text-transform: uppercase;
 }
 
 .app-sidebar-nav-list {
@@ -215,10 +120,9 @@ const projectLinks = computed(() => {
   list-style: none;
 }
 
-/* The desktop choice is independent of the responsive rail below 1080 CSS px. */
 @media (min-width: 1080px) {
   .app-sidebar--desktop-collapsed {
-    width: 3.75rem;
+    width: var(--sidebar-rail-width);
     padding: var(--space-4) var(--space-2);
   }
 
@@ -237,9 +141,9 @@ const projectLinks = computed(() => {
   }
 }
 
-@media (width < 1080px) {
+@media (720px <= width < 1080px) {
   .app-sidebar {
-    width: 3.75rem;
+    width: var(--sidebar-rail-width);
     padding: var(--space-4) var(--space-2);
   }
 
@@ -256,5 +160,21 @@ const projectLinks = computed(() => {
     clip-path: inset(50%);
     white-space: nowrap;
   }
+}
+
+@media (width < 720px) {
+  .app-sidebar:not(.app-sidebar--mobile) {
+    display: none;
+  }
+}
+
+.app-sidebar--mobile {
+  position: static;
+  width: 100%;
+  height: auto;
+  flex: 1;
+  min-height: 0;
+  border: 0;
+  padding-top: 0;
 }
 </style>

@@ -32,18 +32,27 @@ def test_preferences_accept_only_documented_language_and_theme_choices(
     assert command.model_dump(exclude={"expected_revision"}, exclude_unset=True) == payload
 
 
-def test_preferences_update_distinguishes_omission_from_explicit_locale_clearing() -> None:
-    theme_only = UserPreferencesUpdate(expected_revision=2, theme="dark")
-    clear_locale = UserPreferencesUpdate(expected_revision=2, locale=None)
+@pytest.mark.parametrize(
+    "preference",
+    [{"theme": "dark"}, {"desktop_sidebar_collapsed": True}, {"locale": None}],
+)
+def test_preferences_update_distinguishes_omission_from_explicit_values(
+    preference: dict[str, object],
+) -> None:
+    payload = {"expected_revision": 2, **preference}
 
-    assert theme_only.model_dump(exclude_unset=True) == {
-        "expected_revision": 2,
-        "theme": "dark",
-    }
-    assert clear_locale.model_dump(exclude_unset=True) == {
-        "expected_revision": 2,
-        "locale": None,
-    }
+    command = UserPreferencesUpdate.model_validate(payload)
+
+    assert command.model_fields_set == set(payload)
+    assert command.model_dump(exclude_unset=True) == payload
+
+
+def test_preferences_update_schema_requires_revision_without_preference_defaults() -> None:
+    schema = UserPreferencesUpdate.model_json_schema()
+
+    assert schema["required"] == ["expected_revision"]
+    for field_name in ("locale", "theme", "desktop_sidebar_collapsed"):
+        assert "default" not in schema["properties"][field_name]
 
 
 @pytest.mark.parametrize(

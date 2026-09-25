@@ -110,7 +110,7 @@ function buttonWithText(
   },
   text: string,
 ) {
-  const button = wrapper.findAll('button').find((candidate) => candidate.text() === text)
+  const button = wrapper.findAll('main button').find((candidate) => candidate.text() === text)
   if (!button) throw new Error(`Button ${text} was not rendered.`)
   return button
 }
@@ -147,7 +147,7 @@ describe.each(['de', 'en'] as const)('AdminSettingsView in %s', (locale: AppLoca
       ),
     )
     await flushPromises()
-    expect(operator.get('[role="alert"]').text()).toBe(messages.forbidden)
+    expect(operator.get('main [role="alert"]').text()).toBe(messages.forbidden)
   })
 
   it('routes a password-change-required administrator and an unauthenticated visitor away from settings', async () => {
@@ -257,7 +257,7 @@ describe.each(['de', 'en'] as const)('AdminSettingsView in %s', (locale: AppLoca
     )
     const wrapper = await mountApplicationAt('/admin/settings', locale, client)
     await waitFor(() =>
-      expect(wrapper.get('[role="alert"]').text()).toBe(messages.settingsUnavailable),
+      expect(wrapper.get('main [role="alert"]').text()).toBe(messages.settingsUnavailable),
     )
 
     await buttonWithText(wrapper, messages.retry).trigger('click')
@@ -282,7 +282,7 @@ describe.each(['de', 'en'] as const)('AdminSettingsView in %s', (locale: AppLoca
         () => ADMIN_A,
       ),
     )
-    await waitFor(() => expect(wrapper.get('[role="alert"]').text()).toBe(messages.loadError))
+    await waitFor(() => expect(wrapper.get('main [role="alert"]').text()).toBe(messages.loadError))
     expect(wrapper.find('table').exists()).toBe(false)
   })
 

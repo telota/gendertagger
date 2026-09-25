@@ -94,6 +94,15 @@
   },
   "nav": {
     "label": "Main navigation",
+    "openNavigation": "Open navigation",
+    "closeNavigation": "Close navigation",
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar",
+    "collapseSaveError": "The sidebar change could not be saved. Try again.",
+    "dismiss": "Dismiss",
+    "requiresSnapshot": "Select a dataset snapshot first.",
+    "requiresAggregation": "Select an aggregation in this run first.",
+    "requiresRun": "Select a classification run first.",
     "projects": "Projects",
     "administration": "Administration",
     "teams": "Teams",
@@ -112,6 +121,13 @@
   },
   "locale": {
     "label": "Language"
+  },
+  "sidebarPreferences": {
+    "title": "Appearance",
+    "temporary": "These changes apply temporarily until your account settings are available.",
+    "saveError": "The change could not be saved. Try again or reload your saved settings.",
+    "conflict": "Your settings changed elsewhere. Reload the saved values before choosing again.",
+    "reloadError": "Saved settings could not be reloaded. Try again."
   },
   "theme": {
     "label": "Theme",

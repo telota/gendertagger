@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { RouterView } from 'vue-router'
 
 import { usePreferencePresentation } from '@/composables/usePreferencePresentation'
@@ -9,9 +9,11 @@ import { useSessionStore } from '@/stores/session'
 import AppFooter from './AppFooter.vue'
 import AppHeader from './AppHeader.vue'
 import AppSidebar from './AppSidebar.vue'
+import MobileNavigationDrawer from './MobileNavigationDrawer.vue'
 
 const session = useSessionStore()
 const { desktopSidebarCollapsed } = usePreferencePresentation()
+const mobileNavigationOpen = ref(false)
 
 onMounted(() => {
   void session.initialize()
@@ -22,10 +24,14 @@ onMounted(() => {
   <div class="app-shell">
     <AppSidebar :desktop-sidebar-collapsed="desktopSidebarCollapsed" />
     <div class="app-shell-content">
-      <AppHeader />
+      <AppHeader
+        :mobile-navigation-open="mobileNavigationOpen"
+        @open-navigation="mobileNavigationOpen = true"
+      />
       <RouterView />
       <AppFooter />
     </div>
+    <MobileNavigationDrawer v-model="mobileNavigationOpen" />
     <SessionRecoveryDialog />
   </div>
 </template>

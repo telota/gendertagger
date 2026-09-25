@@ -74,7 +74,7 @@ function buttonWithText(
     ? dialog.findAll('button').find((candidate) => candidate.text() === text)
     : undefined
   const button =
-    dialogButton ?? wrapper.findAll('button').find((candidate) => candidate.text() === text)
+    dialogButton ?? wrapper.findAll('main button').find((candidate) => candidate.text() === text)
   if (!button) throw new Error(`Button ${text} was not rendered.`)
   return button
 }
@@ -216,7 +216,7 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
       jsonResponse({ error: { code: 'username_conflict', message: 'Taken.' } }, { status: 409 }),
     )
     await waitFor(() =>
-      expect(wrapper.get('[role="alert"]').text()).toBe(messages.errors.usernameConflict),
+      expect(wrapper.get('main [role="alert"]').text()).toBe(messages.errors.usernameConflict),
     )
   })
 

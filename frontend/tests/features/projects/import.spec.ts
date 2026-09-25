@@ -259,7 +259,7 @@ describe.each(['de', 'en'] as const)('ImportView in %s', (locale: AppLocale) => 
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.get('[role="alert"]').text()).toBe(messages.errors.tooLarge)
+    expect(wrapper.get('main [role="alert"]').text()).toBe(messages.errors.tooLarge)
     expect(wrapper.find('#import-file').exists()).toBe(true)
   })
 

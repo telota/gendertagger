@@ -1,6 +1,7 @@
 node_modules/
 dist/
 coverage/
+.impeccable/
 package-lock.json
 src/api/schema.d.ts
 gendertagger.html

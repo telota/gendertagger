@@ -161,6 +161,9 @@ and CSRF attachment.
   installs the canonical response only for the initiating principal. Retain drafts after failures;
   `409 preferences_revision_conflict` blocks replay until an explicit saved-value reload. Invalidate
   pending read and write ownership on logout or an account change as well as clearing private query state.
+  Sidebar controls send only their changed field and revision; they never submit another view's draft.
+  Independent controls may race and must retain the same explicit conflict recovery. The mobile drawer's
+  open state stays local to the shell and never writes the saved desktop preference.
 - **Anonymous presentation storage** owns the existing `gendertagger.locale` and `gendertagger.theme`
   keys. Never migrate them into an account or write account choices back to them. There is no account
   startup cache; the precedence and pending/error defaults are defined in

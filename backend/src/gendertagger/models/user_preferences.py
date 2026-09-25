@@ -2,10 +2,15 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, model_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, StrictBool, StrictInt, model_validator
 
 InterfaceLocale = Literal["de", "en"]
 InterfaceTheme = Literal["system", "light", "dark"]
+
+
+def _omit_patch_default(schema: dict[str, JsonValue]) -> None:
+    """Keep omission-preserving PATCH fields free of advertised replacement values."""
+    schema.pop("default", None)
 
 
 class UserPreferences(BaseModel):
@@ -33,10 +38,14 @@ class UserPreferencesUpdate(BaseModel):
 
     expected_revision: StrictInt = Field(ge=0)
     locale: InterfaceLocale | None = Field(
-        default=None, description="Omit to preserve; null clears the explicit language choice."
+        default=None,
+        description="Omit to preserve; null clears the explicit language choice.",
+        json_schema_extra=_omit_patch_default,
     )
-    theme: InterfaceTheme = "system"
-    desktop_sidebar_collapsed: StrictBool = False
+    theme: InterfaceTheme = Field(default="system", json_schema_extra=_omit_patch_default)
+    desktop_sidebar_collapsed: StrictBool = Field(
+        default=False, json_schema_extra=_omit_patch_default
+    )
 
     @model_validator(mode="after")
     def _require_preference_field(self) -> "UserPreferencesUpdate":

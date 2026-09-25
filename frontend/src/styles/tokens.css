@@ -129,6 +129,12 @@
   /* Motion: state transitions stay under 150 ms; base.css zeroes this for reduced motion */
   --motion-state: 120ms;
 
+  /* Application shell: responsive layout never changes the saved desktop preference. */
+  --sidebar-width: 15rem;
+  --sidebar-rail-width: 3.75rem;
+  --shell-header-height: 3.5rem;
+  --sidebar-transition: var(--motion-state);
+
   /* Radii */
   --radius-control: 4px;
   --radius-input: 8px;

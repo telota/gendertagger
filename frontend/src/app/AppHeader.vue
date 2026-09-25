@@ -1,26 +1,18 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { PhList } from '@phosphor-icons/vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 
-import AppListbox from '@/components/base/AppListbox.vue'
-import { useLocale } from '@/composables/useLocale'
-import { useTheme, type ThemePreference } from '@/composables/useTheme'
 import { useSessionStore } from '@/stores/session'
 
 import ProjectSwitcher from './ProjectSwitcher.vue'
 
+defineProps<{ mobileNavigationOpen?: boolean }>()
+defineEmits<{ openNavigation: [] }>()
+
 const { t } = useI18n()
 const router = useRouter()
 const session = useSessionStore()
-const locale = useLocale()
-const theme = useTheme()
-
-const themeOptions = computed<{ value: ThemePreference; label: string }[]>(() => [
-  { value: 'system', label: t('theme.system') },
-  { value: 'light', label: t('theme.light') },
-  { value: 'dark', label: t('theme.dark') },
-])
 
 async function signOut(): Promise<void> {
   await session.logout()
@@ -34,24 +26,18 @@ function retry(): void {
 
 <template>
   <header class="app-header">
+    <button
+      type="button"
+      class="app-header-navigation"
+      :aria-label="t('nav.openNavigation')"
+      :aria-expanded="mobileNavigationOpen ?? false"
+      aria-haspopup="dialog"
+      @click="$emit('openNavigation')"
+    >
+      <PhList :size="24" aria-hidden="true" />
+    </button>
     <ProjectSwitcher />
     <div class="app-header-controls">
-      <AppListbox
-        v-if="session.status === 'ready' && !session.isSignedIn"
-        class="app-header-switcher app-header-switcher--locale"
-        :label="t('locale.label')"
-        :options="locale.options"
-        :model-value="locale.current.value"
-        @update:model-value="locale.setLocale"
-      />
-      <AppListbox
-        v-if="session.status === 'ready' && !session.isSignedIn"
-        class="app-header-switcher app-header-switcher--theme"
-        :label="t('theme.label')"
-        :options="themeOptions"
-        :model-value="theme.preference.value"
-        @update:model-value="theme.setPreference"
-      />
       <div v-if="session.status === 'ready'" class="app-header-session">
         <template v-if="session.isSignedIn">
           <span class="app-header-user">{{
@@ -89,6 +75,7 @@ function retry(): void {
   display: flex;
   flex-wrap: wrap;
   min-width: 0;
+  min-height: var(--shell-header-height);
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-4);
@@ -105,8 +92,30 @@ function retry(): void {
   gap: var(--space-4);
 }
 
-.app-header-switcher {
-  width: 8rem;
+.app-header-navigation {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--space-10);
+  height: var(--space-10);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--panel);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+@media (width < 720px) {
+  .app-header-navigation {
+    display: flex;
+    margin-right: auto;
+  }
+
+  .app-header {
+    gap: var(--space-2);
+  }
 }
 
 .app-header-session {

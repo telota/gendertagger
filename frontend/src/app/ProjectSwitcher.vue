@@ -72,6 +72,8 @@ const buttonLabel = computed(() => current.data.value?.display_name ?? t('projec
 <style scoped>
 .project-switcher {
   position: relative;
+  min-width: 0;
+  max-width: 100%;
   margin-right: auto;
 }
 
@@ -79,7 +81,7 @@ const buttonLabel = computed(() => current.data.value?.display_name ?? t('projec
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  max-width: 20rem;
+  max-width: min(20rem, 100%);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
@@ -100,6 +102,8 @@ const buttonLabel = computed(() => current.data.value?.display_name ?? t('projec
   z-index: 10;
   left: 0;
   min-width: 16rem;
+  width: max-content;
+  max-width: calc(100vw - var(--space-8));
   max-height: 24rem;
   overflow-y: auto;
   margin-top: var(--space-1);
@@ -115,6 +119,7 @@ const buttonLabel = computed(() => current.data.value?.display_name ?? t('projec
   border-radius: var(--radius-control);
   color: var(--text-primary);
   text-decoration: none;
+  overflow-wrap: anywhere;
 }
 
 .project-switcher-item--active {

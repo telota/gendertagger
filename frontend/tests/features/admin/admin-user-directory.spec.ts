@@ -84,7 +84,7 @@ function buttonWithText(
   },
   text: string,
 ) {
-  const button = wrapper.findAll('button').find((candidate) => candidate.text() === text)
+  const button = wrapper.findAll('main button').find((candidate) => candidate.text() === text)
   if (!button) throw new Error(`Button ${text} was not rendered.`)
   return button
 }
@@ -169,7 +169,7 @@ describe.each(['de', 'en'] as const)('AdminUserDirectoryView in %s', (locale: Ap
     )
 
     await flushPromises()
-    expect(wrapper.get('[role="alert"]').text()).toBe(messages.forbidden)
+    expect(wrapper.get('main [role="alert"]').text()).toBe(messages.forbidden)
     expect(wrapper.find('table').exists()).toBe(false)
   })
 
@@ -279,7 +279,7 @@ describe.each(['de', 'en'] as const)('AdminUserDirectoryView in %s', (locale: Ap
     })
     const wrapper = await mountApplicationAt('/admin/users', locale, client)
     await waitFor(() => {
-      expect(wrapper.get('[role="alert"]').text()).toBe(messages.loadError)
+      expect(wrapper.get('main [role="alert"]').text()).toBe(messages.loadError)
     })
 
     await buttonWithText(wrapper, messages.retry).trigger('click')

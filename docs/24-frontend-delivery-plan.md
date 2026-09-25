@@ -354,6 +354,61 @@ separation, keyboard and accessible status behavior, both locales/themes, contra
 build. The
 [implementation plan](15-implementation-plan.md#account-preferences-increment-adr-0043) owns sequencing.
 
+### Contextual sidebar completion
+
+**Status. Delivered (2026-09-25).**
+
+The remaining shell work in `IDEAS.md` follows the delivered route and account-preference contracts.
+Review, People, Evaluation, Export, Users, Teams, and Branding settings retain their implemented routes;
+no placeholder replaces a functioning screen. Evaluation and Export remain run-scoped destinations as
+delivered in M7/M8. Game mode remains a separate, deferred increment (D20).
+
+- A desktop collapse button sits below language and theme in the sidebar footer and saves only
+  `desktop_sidebar_collapsed` and `expected_revision` through
+  ADR-0043. It waits for eligible, loaded account preferences, adopts the confirmed response, and leaves
+  the saved layout unchanged after a failed write. Conflicts require explicit reload before another
+  attempt. It does not introduce a localStorage key or mirror canonical preferences in Pinia.
+- At least 1080 CSS px uses the saved expanded/rail choice; 720–1079 px always uses a compact rail.
+  Below 720 px the persistent sidebar is hidden and the title-bar navigation button opens a Headless UI
+  Dialog drawer. The drawer traps focus, makes background content inert, closes on Escape, backdrop
+  activation, successful navigation, or leaving the mobile breakpoint, and restores trigger focus.
+  Its open state is local to the shell; resizing and opening/closing never write account preferences.
+- One typed navigation model supplies both presentations with visibility, targets, missing-context
+  explanations, icons, and exact route-name ownership. Detail routes mark their owning destination
+  current. Disabled destinations expose their prerequisite on focus and hover without navigating.
+  Rail labels use the in-house D9 tooltip pattern, including Escape dismissal and hoverable content.
+  Activating a trigger dismisses its tooltip before saving or layout changes; the expanded collapse
+  button uses its visible label without a redundant tooltip.
+- Language and theme controls move from the title bar into the sidebar footer. Expanded and drawer
+  presentations show labels; rail presentations retain named icon triggers. Choice panels open upward
+  without being clipped. Signed-in choices save only the changed field with its revision; conflicts
+  require explicit reload and failures remain visible. Anonymous choices retain the existing browser
+  storage. While identity is unresolved or account access is unavailable, temporary presentation changes
+  write neither account preferences nor anonymous storage. New canonical account values replace these
+  temporary changes. Account identity, settings access, and session actions remain in the title bar.
+- Navigation scrolls independently so brand, controls, and preference footer remain reachable. Shell
+  dimensions use semantic tokens; transitions honor reduced motion. The drawer and menus must reflow
+  at 320 CSS px and retain long German labels without horizontal page scrolling.
+
+Acceptance includes bilingual role/context and exact-current tests, canonical partial saves, failures and
+conflicts, account transitions, breakpoint separation, tooltip keyboard behavior, drawer dismissal and
+focus restoration, and automated accessibility checks. Real-browser layout/focus verification complements
+jsdom; the assistive-technology/user-testing requirements of D17/D18 remain release gates.
+
+Verification includes the full frontend regression and coverage gate, lint/format/type/message/transport
+checks, production build, and locked repository checks. A bounded Chrome pass with intercepted local
+fixtures covered German/light and English/dark at 1440, 800, 320, and 1080 CSS px: keyboard collapse and
+reload, hover/focus tooltips, upward footer menus, modal focus trapping, Escape/backdrop dismissal,
+trigger restoration, visible focus after a breakpoint change, no responsive preference writes, and
+reduced motion. These browser fixtures did not modify persisted account or project data. Manual NVDA/
+Firefox, VoiceOver/Safari, text-spacing overrides, and the D18 user round remain unverified here.
+
+The first partial shell save also exposed misleading OpenAPI default metadata on
+`UserPreferencesUpdate`: the backend already preserved omitted fields, but generation made two optional
+fields required in TypeScript. The canonical PATCH schema now omits advertised replacement defaults;
+regenerated transport permits a changed field plus `expected_revision`. Validation and runtime semantics
+are unchanged, with focused contract/API coverage for the correction.
+
 ### Administrative branding settings — ADR-0040
 
 **Status.** The administrative settings screen is delivered at `/admin/settings` for eligible global
@@ -820,8 +875,9 @@ resolve, and the review path works end to end behind a real session.
   fallback applies only when the URL selects no snapshot, run, or aggregation. Inside a selected run or
   snapshot, Review and People require an aggregation in the URL; cached project context must never
   combine that selection with another run's aggregation. An entry with no target yet is shown
-  disabled (`aria-disabled`, not focusable) with a reason, not as a dead link. Below 1080 px the sidebar is an
-  icon rail; the labels stay available to assistive technology. Icons are Phosphor (`@phosphor-icons/vue`,
+  disabled (`aria-disabled`, keyboard-focusable for its prerequisite explanation) without a dead URL.
+  Desktop collapse, the medium-width rail, and the mobile drawer follow the contextual sidebar
+  specification above; labels stay available to assistive technology. Icons are Phosphor (`@phosphor-icons/vue`,
   MIT, named imports so unused icons are tree-shaken), decorative and `aria-hidden`. There is no Spielmodus
   entry (D20). Tailwind is not used (D21): styling stays on the semantic tokens of
   [`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md).

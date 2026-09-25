@@ -26,7 +26,7 @@ describe.each(['de', 'en'] as const)('application shell in %s', (locale) => {
   it.each(PAGES)('shows the footer on %s', async (path) => {
     const wrapper = await mountApplicationAt(path, locale, apiClientWithJsonResponse({}))
 
-    const footer = wrapper.get('footer')
+    const footer = wrapper.get('.app-footer')
     expect(footer.text()).toContain(catalogues[locale].footer.legalNotice)
   })
 

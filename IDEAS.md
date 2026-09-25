@@ -12,6 +12,13 @@ administrative-panel increment is complete. This is a future implementation stra
 delivered design. Before implementation, reconcile it with `docs/23-wireframe-ui-inventory.md`,
 `docs/24-frontend-delivery-plan.md`, and `docs/25-frontend-design-guidelines.md`.
 
+**Implementation reconciliation (2026-09-25).** The accepted
+[contextual sidebar specification](docs/24-frontend-delivery-plan.md#contextual-sidebar-completion)
+supersedes this proposal's browser-only collapse storage, separate preference store, and placeholder
+routes. ADR-0043 owns account preferences. Existing Review, People, Evaluation, Export, and administrative
+screens remain authoritative, including run-scoped Evaluation/Export navigation. Game mode remains a
+separate future increment. The proposal below is retained as its planning history.
+
 ### Goals and navigation model
 
 - Give global, project, evaluation, and administrative destinations a stable hierarchy.
