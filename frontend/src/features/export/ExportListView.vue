@@ -125,7 +125,7 @@ const items = computed(() => list.data.value?.pages.flatMap((page) => page.items
 
 .export-list-load-error p {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .export-list-new,

@@ -1,5 +1,6 @@
-import { flushPromises } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { DOMWrapper, flushPromises } from '@vue/test-utils'
+import axe from 'axe-core'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { AppLocale } from '@/app/i18n'
 
@@ -18,6 +19,7 @@ import {
 } from './fixtures'
 
 afterEach(() => {
+  vi.restoreAllMocks()
   document.body.replaceChildren()
 })
 
@@ -69,6 +71,85 @@ describe.each(['de', 'en'] as const)('review decisions in %s', (locale: AppLocal
     const facts = wrapper.get('.detail-facts').text()
     expect(facts).toContain('male')
   })
+
+  it('retains newer input and its focus when an earlier decision finishes saving', async () => {
+    let resolveSave!: () => void
+    const gate = new Promise<void>((resolve) => {
+      resolveSave = resolve
+    })
+    const server = newServer({ gate })
+    const wrapper = await mountDecision(server)
+    await wrapper.get('#decision-correct-female').setValue(true)
+    await wrapper.get('#decision-comment').setValue('Submitted reasoning')
+    await wrapper.get('.decision-form').trigger('submit')
+    await waitFor(() => expect(server.posts).toHaveLength(1))
+    await wrapper.get('#decision-correct-unknown').setValue(true)
+    const comment = wrapper.get<HTMLTextAreaElement>('#decision-comment')
+    await comment.setValue('A newer unsaved thought')
+    comment.element.focus()
+
+    resolveSave()
+    await waitFor(() => expect(wrapper.get('.decision-saved').text()).toContain('female'))
+    expect(wrapper.get<HTMLInputElement>('#decision-correct-unknown').element.checked).toBe(true)
+    expect(comment.element.value).toBe('A newer unsaved thought')
+    expect(document.activeElement).toBe(comment.element)
+    expect(server.posts).toHaveLength(1)
+    expect(server.posts[0]).toMatchObject({ label: 'female', comment: 'Submitted reasoning' })
+
+    const leaving = wrapper.vm.$router.push('/')
+    await waitFor(() =>
+      expect(new DOMWrapper(document.body).find('[role="dialog"]').exists()).toBe(true),
+    )
+    const stay = new DOMWrapper(document.body)
+      .get('[role="dialog"]')
+      .findAll('button')
+      .find((button) => button.text() === catalogues[locale].draftNavigation.stay)
+    await stay?.trigger('click')
+    await leaving
+    expect(comment.element.value).toBe('A newer unsaved thought')
+    wrapper.unmount()
+  })
+
+  it.each(['ok', 'conflict'] as const)(
+    'keeps the leave dialog in control of focus after a pending %s response',
+    async (postOutcome) => {
+      let resolveSave!: () => void
+      const gate = new Promise<void>((resolve) => {
+        resolveSave = resolve
+      })
+      const server = newServer({ gate, postOutcome })
+      const wrapper = await mountDecision(server)
+      await wrapper.get('#decision-correct-female').setValue(true)
+      await wrapper.get('#decision-comment').setValue('Submitted reasoning')
+      await wrapper.get('.decision-form').trigger('submit')
+      await waitFor(() => expect(server.posts).toHaveLength(1))
+
+      const leaving = wrapper.vm.$router.push('/')
+      await waitFor(() =>
+        expect(new DOMWrapper(document.body).find('[role="dialog"]').exists()).toBe(true),
+      )
+      const dialog = new DOMWrapper(document.body).get('[role="dialog"]')
+      await waitFor(() => expect(dialog.element.contains(document.activeElement)).toBe(true))
+      const focused = document.activeElement
+      const focus = vi.spyOn(HTMLElement.prototype, 'focus')
+      resolveSave()
+      await waitFor(() => {
+        if (postOutcome === 'ok') expect(wrapper.get('.decision-saved').text()).toContain('female')
+        else expect(wrapper.find('.decision-conflict').exists()).toBe(true)
+      })
+      expect(document.activeElement).toBe(focused)
+      expect(focus.mock.contexts).not.toContain(
+        wrapper.get(postOutcome === 'ok' ? '.decision-saved' : '.decision-conflict').element,
+      )
+      expect(wrapper.vm.$router.currentRoute.value.path).toBe(base)
+      const stay = dialog
+        .findAll('button')
+        .find((button) => button.text() === catalogues[locale].draftNavigation.stay)
+      await stay?.trigger('click')
+      await leaving
+      wrapper.unmount()
+    },
+  )
 
   it('only ever writes annotations: nothing else is created, changed or removed', async () => {
     const server = newServer()
@@ -162,6 +243,20 @@ describe.each(['de', 'en'] as const)('review decisions in %s', (locale: AppLocal
 
     const keys = wrapper.findAll('.decision-key').map((k) => k.text())
     expect(keys).toEqual(['1', '2', '3', '4'])
+    for (const [index, key] of wrapper.findAll('kbd').entries()) {
+      const label = key.element.closest('label')
+      expect(label?.textContent).toContain(
+        messages.decision.key.replace('{key}', String(index + 1)),
+      )
+      expect(key.attributes('aria-label')).toBeUndefined()
+      expect(key.attributes('aria-hidden')).toBe('true')
+    }
+    // Axe reported this defect as incomplete rather than a violation in the original audit.
+    const result = await axe.run(wrapper.get('.decision').element, {
+      runOnly: { type: 'rule', values: ['aria-prohibited-attr'] },
+    })
+    expect(result.violations).toEqual([])
+    expect(result.incomplete).toEqual([])
     expect(wrapper.text()).toContain(messages.decision.keyboardHint)
     expect(wrapper.text()).toContain(messages.decision.appendOnly)
   })

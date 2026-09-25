@@ -167,6 +167,12 @@ Milestone sequencing, open decisions, and delivery risks for this phase are expa
 is [`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md). The checklist below remains the
 definition of done.
 
+The existing client's improvement sequence is proposed in
+[`27-frontend-improvement-plan.md`](27-frontend-improvement-plan.md): shared accessibility and responsive
+foundations, the agreed global header and sidebar project switcher, individual views, then broader
+sidebar refinement. The accepted [header brief](frontend-header-proposal.md) records these responsibilities.
+It preserves this phase's scope and the verification requirements of the increments below.
+
 - stabilize review-items/query API [DONE]
 - add review-stream revision conflict handling (`409`) [DONE]
 - scaffold Vue 3 + TypeScript + Vite in `frontend/` [DONE]
@@ -198,7 +204,7 @@ local accounts while preserving its scientific vocabulary rules and immutable de
    persistence across sessions, partial updates, explicit locale clearing, auth/CSRF failures, conflicts,
    and concurrent initialization.
 3. **Personal settings and presentation integration — DELIVERED.** The lazy `/settings` route
-   (`userSettings`) is discoverable in the sidebar footer and available to every signed-in,
+   (`userSettings`) is discoverable through the header account menu and available to every signed-in,
    password-current account independently of its roles. The focused locale/theme/desktop-sidebar form
    keeps drafts local, restores defaults in the draft, and saves explicitly with the canonical revision.
    Principal-scoped query state supplies saved presentation choices; failures retain drafts and a `409`

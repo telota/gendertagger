@@ -130,7 +130,7 @@ const resolvedConfig = computed(() => JSON.stringify(props.execution.resolved_co
 
 .execution-status--failed,
 .execution-status--completed_with_errors {
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .execution-counts {
@@ -180,7 +180,7 @@ const resolvedConfig = computed(() => JSON.stringify(props.execution.resolved_co
 }
 
 .execution-failure {
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .execution-failure p {

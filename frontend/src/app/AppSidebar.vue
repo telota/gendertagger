@@ -1,20 +1,20 @@
 <script setup lang="ts">
-import { PhGearSix, PhGenderIntersex } from '@phosphor-icons/vue'
+import { PhGenderIntersex } from '@phosphor-icons/vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
-import { useSessionStore } from '@/stores/session'
-
 import NavItem from './NavItem.vue'
+import ProjectSwitcher from './ProjectSwitcher.vue'
 import SidebarCollapseButton from './SidebarCollapseButton.vue'
 import SidebarPreferences from './SidebarPreferences.vue'
 import { useSidebarNavigation } from './useSidebarNavigation'
+import { useProjectIdentity } from './useProjectIdentity'
 
 defineProps<{ desktopSidebarCollapsed?: boolean; mobile?: boolean }>()
 
 const { t } = useI18n()
 const groups = useSidebarNavigation()
-const session = useSessionStore()
+const { project } = useProjectIdentity()
 </script>
 
 <template>
@@ -31,6 +31,12 @@ const session = useSessionStore()
     </RouterLink>
     <nav v-if="groups.length" class="app-sidebar-nav" :aria-label="t('nav.label')">
       <div v-for="group in groups" :key="group.id" class="app-sidebar-section">
+        <ProjectSwitcher
+          v-if="group.id === 'project' && project"
+          :project="project"
+          :desktop-collapsed="desktopSidebarCollapsed"
+          :mobile="mobile"
+        />
         <h2 v-if="group.label" class="app-sidebar-group">{{ group.label }}</h2>
         <ul class="app-sidebar-nav-list">
           <li v-for="item in group.items" :key="item.id">
@@ -49,14 +55,6 @@ const session = useSessionStore()
     </nav>
     <footer class="app-sidebar-footer">
       <SidebarPreferences :desktop-collapsed="desktopSidebarCollapsed" :mobile="mobile" />
-      <NavItem
-        v-if="session.canUsePrivateNavigation"
-        :to="{ name: 'userSettings' }"
-        :icon="PhGearSix"
-        :label="t('header.settings')"
-        :desktop-collapsed="desktopSidebarCollapsed"
-        :mobile="mobile"
-      />
       <SidebarCollapseButton v-if="!mobile" />
     </footer>
   </aside>

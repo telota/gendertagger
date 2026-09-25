@@ -86,7 +86,7 @@ const statusLabel = computed(() => label(props.evaluation.status))
 }
 
 .evaluation-status--failed {
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .evaluation-created {
@@ -121,7 +121,7 @@ const statusLabel = computed(() => label(props.evaluation.status))
 
 .evaluation-failure {
   margin: var(--space-3) 0 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .evaluation-open {

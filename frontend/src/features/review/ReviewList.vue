@@ -208,7 +208,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .review-list-error p {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .review-list-empty {

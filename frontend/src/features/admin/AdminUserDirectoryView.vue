@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { ApiError, type components } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
+import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
 import AppTextField from '@/components/base/AppTextField.vue'
 import { useAdminAccess } from '@/composables/useAdminAccess'
 
@@ -213,7 +214,10 @@ function rolesLabel(account: AdminUser): string {
       </p>
 
       <template v-else>
-        <div class="admin-user-directory-table-scroll">
+        <AppScrollRegion
+          class="admin-user-directory-table-scroll"
+          :label="t('layout.tableRegion', { label: t('admin.title') })"
+        >
           <table>
             <thead>
               <tr>
@@ -286,7 +290,7 @@ function rolesLabel(account: AdminUser): string {
               </tr>
             </tbody>
           </table>
-        </div>
+        </AppScrollRegion>
 
         <AdminUserEditForm
           v-if="editingAccount !== null && principalId !== null"
@@ -326,11 +330,13 @@ function rolesLabel(account: AdminUser): string {
 
 <style scoped>
 .admin-user-directory {
+  min-width: 0;
+  overflow-wrap: anywhere;
   flex: 1;
   width: 100%;
   max-width: 76rem;
   margin: 0 auto;
-  padding: var(--space-8) var(--space-4);
+  padding: var(--space-8) var(--page-gutter);
 }
 
 .admin-user-directory-heading {
@@ -344,7 +350,7 @@ function rolesLabel(account: AdminUser): string {
 .admin-user-directory-actions {
   display: grid;
   gap: var(--space-2);
-  min-width: 13rem;
+  min-width: 0;
 }
 .admin-user-directory-heading h1 {
   margin: 0 0 var(--space-2);
@@ -365,7 +371,6 @@ function rolesLabel(account: AdminUser): string {
 }
 
 .admin-user-directory-table-scroll {
-  overflow-x: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background: var(--panel);
@@ -423,12 +428,13 @@ function rolesLabel(account: AdminUser): string {
 
 .admin-user-directory-state--inactive,
 .admin-user-directory-state--required {
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .admin-user-directory-error,
 .admin-user-directory-page-error {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--space-4);
 }
@@ -436,7 +442,7 @@ function rolesLabel(account: AdminUser): string {
 .admin-user-directory-error p,
 .admin-user-directory-page-error p {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .admin-user-directory-page-error {

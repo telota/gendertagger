@@ -361,7 +361,7 @@ const verdict = computed<Verdict>(() => {
 }
 
 .export-detail-status--failed {
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .export-detail-load-error {
@@ -375,7 +375,7 @@ const verdict = computed<Verdict>(() => {
 .export-detail-failure,
 .export-detail-error {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .export-detail-failure p {
@@ -498,6 +498,6 @@ const verdict = computed<Verdict>(() => {
 }
 
 .export-detail-verdict--mismatch {
-  color: var(--critical);
+  color: var(--critical-text);
 }
 </style>

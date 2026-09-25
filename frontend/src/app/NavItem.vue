@@ -36,7 +36,13 @@ const itemClasses = computed(() => ({
 </script>
 
 <template>
-  <SidebarTooltip v-slot="{ triggerProps }" :text="tooltipText" :disabled="mobile && to !== null">
+  <SidebarTooltip
+    v-slot="{ triggerProps }"
+    :text="tooltipText"
+    :rail-only="to !== null"
+    :desktop-collapsed="desktopCollapsed"
+    :mobile="mobile"
+  >
     <RouterLink v-if="to" v-slot="{ href, navigate }" :to="to" custom>
       <a
         v-bind="triggerProps"

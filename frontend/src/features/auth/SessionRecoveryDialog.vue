@@ -123,7 +123,7 @@ function cancel(): void {
 
 .session-recovery-error {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .session-recovery-actions {

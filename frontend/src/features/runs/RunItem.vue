@@ -87,7 +87,7 @@ const methodNames = computed(() => props.run.resolved_config.methods.map((m) => 
 
 .run-status--failed,
 .run-status--completed_with_errors {
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .run-created {
@@ -129,6 +129,6 @@ const methodNames = computed(() => props.run.resolved_config.methods.map((m) => 
 
 .run-failure {
   margin: var(--space-3) 0 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 </style>

@@ -3,6 +3,8 @@ import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
+import AppButton from '@/components/base/AppButton.vue'
+import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useSessionStore } from '@/stores/session'
 import ProjectCreationForm from './ProjectCreationForm.vue'
 
@@ -65,13 +67,18 @@ function loadMore(): void {
   <main class="project-list">
     <h1 class="project-list-title">{{ t('projects.title') }}</h1>
 
-    <p v-if="session.status === 'idle' || session.status === 'loading'" role="status">
+    <AppFeedback
+      v-if="session.status === 'idle' || session.status === 'loading'"
+      announcement="polite"
+    >
       {{ t('projects.loading') }}
-    </p>
-    <div v-else-if="session.status === 'error'" class="project-list-load-error">
-      <p role="alert">{{ t('projects.sessionLoadError') }}</p>
-      <AppButton type="button" @click="retrySession">{{ t('projects.retry') }}</AppButton>
-    </div>
+    </AppFeedback>
+    <AppFeedback v-else-if="session.status === 'error'" announcement="assertive" tone="critical">
+      {{ t('projects.sessionLoadError') }}
+      <template #actions>
+        <AppButton type="button" @click="retrySession">{{ t('projects.retry') }}</AppButton>
+      </template>
+    </AppFeedback>
     <template v-else-if="isSignedIn">
       <ProjectCreationForm
         v-if="canCreateProject && session.user"
@@ -89,13 +96,17 @@ function loadMore(): void {
           </li>
         </ul>
       </section>
-      <p v-if="query.isPending.value" role="status">{{ t('projects.loading') }}</p>
-      <div v-else-if="query.isError.value" class="project-list-load-error">
-        <p role="alert">{{ t('projects.loadError') }}</p>
-        <AppButton class="project-list-retry" type="button" @click="() => query.refetch()">
-          {{ t('projects.retry') }}
-        </AppButton>
-      </div>
+      <AppFeedback v-if="query.isPending.value" announcement="polite">{{
+        t('projects.loading')
+      }}</AppFeedback>
+      <AppFeedback v-else-if="query.isError.value" announcement="assertive" tone="critical">
+        {{ t('projects.loadError') }}
+        <template #actions>
+          <AppButton class="project-list-retry" type="button" @click="() => query.refetch()">
+            {{ t('projects.retry') }}
+          </AppButton>
+        </template>
+      </AppFeedback>
       <template v-else>
         <p v-if="projects.length === 0" class="project-list-empty">{{ t('projects.empty') }}</p>
         <ul v-else class="project-list-items">
@@ -141,18 +152,6 @@ function loadMore(): void {
   font-size: var(--font-size-page);
   font-weight: var(--weight-semibold);
   line-height: var(--line-height-page);
-}
-
-.project-list-load-error {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-4);
-}
-
-.project-list-load-error p {
-  margin: 0;
-  color: var(--critical);
 }
 
 .project-list-empty {

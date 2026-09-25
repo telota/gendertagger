@@ -8,6 +8,7 @@ import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
 import AppTextField from '@/components/base/AppTextField.vue'
 import { useAdminAccess } from '@/composables/useAdminAccess'
+import { useDraftRegistration } from '@/composables/useDraftNavigation'
 
 import { useAdminUserDirectory, type AdminUser } from './useAdminUserDirectory'
 import {
@@ -62,6 +63,21 @@ const hasRosterSearch = computed(() => teams.rosterSearch.value.trim() !== '')
 const hasAccountSearch = computed(() => accountDirectory.search.value.trim() !== '')
 const activeTeam = computed(() => selectedTeam.value)
 const isDeletingTeam = computed(() => mutations.isMutating.value)
+
+useDraftRegistration(
+  () =>
+    createSlug.value !== '' ||
+    createDisplayName.value !== '' ||
+    (activeTeam.value !== null && renameDisplayName.value !== activeTeam.value.display_name),
+  () => {
+    createSlug.value = ''
+    createDisplayName.value = ''
+    renameDisplayName.value = ''
+    selectedTeam.value = null
+    confirmation.value = null
+    memberToRemove.value = null
+  },
+)
 
 watch(
   accessState,
@@ -168,8 +184,13 @@ async function renameTeam(): Promise<void> {
   const team = activeTeam.value
   if (team === null) return
 
-  const result = await mutations.rename(team.id, { display_name: renameDisplayName.value })
-  if (result !== null) selectedTeam.value = result
+  const submittedName = renameDisplayName.value
+  const result = await mutations.rename(team.id, { display_name: submittedName })
+  if (result !== null) {
+    selectedTeam.value = result
+    // A saved canonical name is the new baseline; preserve any newer input entered during the request.
+    if (renameDisplayName.value === submittedName) renameDisplayName.value = result.display_name
+  }
 }
 
 function openTeamDeletion(): void {
@@ -844,7 +865,7 @@ function successMessage(operation: TeamMutationOperation): string {
 .admin-teams-error,
 .admin-teams-page-error,
 .admin-teams-refresh-warning {
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .admin-teams-success {

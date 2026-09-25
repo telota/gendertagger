@@ -212,4 +212,109 @@ describe.each(['de', 'en'] as const)('bulk decisions in %s', (locale: AppLocale)
     await wrapper.findAll('.queue')[1]?.trigger('click')
     await waitFor(() => expect(wrapper.get('.bulk-count').text()).toBe(''))
   })
+
+  it('protects an unsubmitted choice and comment while Stay preserves the selection', async () => {
+    const server = fourPeople()
+    const wrapper = await mountBulk(server)
+    await tick(wrapper, 0, 1)
+    await wrapper.get('#bulk-action').setValue('defer')
+    await wrapper.get('#bulk-comment').setValue('Check these sources first')
+    const attempt = wrapper.vm.$router.push('/')
+    await waitFor(() => expect(document.querySelector('.draft-leave-panel')).not.toBeNull())
+    document.querySelector<HTMLButtonElement>('.draft-leave-actions button')!.click()
+    await attempt
+    expect(wrapper.vm.$route.path).toBe(base)
+    expect((wrapper.get('#bulk-comment').element as HTMLTextAreaElement).value).toBe(
+      'Check these sources first',
+    )
+    expect((wrapper.get('#bulk-action').element as HTMLSelectElement).value).toBe('defer')
+    expect(wrapper.get('.bulk-count').text()).toMatch(/2/)
+    expect(server.posts).toHaveLength(0)
+    wrapper.unmount()
+  })
+
+  it('keeps a running sequence intact when the reviewer stays', async () => {
+    let release!: () => void
+    const server = fourPeople({
+      gate: new Promise<void>((resolve) => {
+        release = resolve
+      }),
+    })
+    const wrapper = await mountBulk(server)
+    await tick(wrapper, 0, 1)
+    await wrapper.get('#bulk-action').setValue('defer')
+    await wrapper.get('.bulk-form').trigger('submit')
+    await wrapper.get('.bulk-apply').trigger('click')
+    await waitFor(() => expect(server.posts).toHaveLength(1))
+    const attempt = wrapper.vm.$router.push('/')
+    await waitFor(() => expect(document.querySelector('.draft-leave-panel')).not.toBeNull())
+    document.querySelector<HTMLButtonElement>('.draft-leave-actions button')!.click()
+    await attempt
+    expect(wrapper.vm.$route.path).toBe(base)
+    release()
+    await waitFor(() => expect(wrapper.findAll('.bulk-report-item--saved')).toHaveLength(2))
+    expect(server.posts).toHaveLength(2)
+    await wrapper.vm.$router.push('/')
+    expect(document.querySelector('.draft-leave-panel')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('finishes only the in-flight person after confirmed leave and never steals destination focus', async () => {
+    let release!: () => void
+    const server = fourPeople({
+      gate: new Promise<void>((resolve) => {
+        release = resolve
+      }),
+    })
+    const wrapper = await mountBulk(server)
+    await tick(wrapper, 0, 1, 3)
+    await wrapper.get('#bulk-action').setValue('defer')
+    await wrapper.get('.bulk-form').trigger('submit')
+    await wrapper.get('.bulk-apply').trigger('click')
+    await waitFor(() => expect(server.posts).toHaveLength(1))
+    const attempt = wrapper.vm.$router.push('/')
+    await waitFor(() => expect(document.querySelector('.draft-leave-panel')).not.toBeNull())
+    document.querySelectorAll<HTMLButtonElement>('.draft-leave-actions button')[1]!.click()
+    await attempt
+    await waitFor(() => expect(document.activeElement).toBe(wrapper.get('#main-content').element))
+    release()
+    await flushPromises()
+    await flushPromises()
+    expect(server.posts.map((post) => post.tei_id)).toEqual(['demo-1'])
+    expect(wrapper.vm.$route.path).toBe('/')
+    expect(wrapper.find('.bulk-report').exists()).toBe(false)
+    expect(document.activeElement).toBe(wrapper.get('#main-content').element)
+    wrapper.unmount()
+  })
+
+  it('keeps focus in a pending leave dialog when submitted decisions finish', async () => {
+    let release!: () => void
+    const server = fourPeople({
+      gate: new Promise<void>((resolve) => {
+        release = resolve
+      }),
+    })
+    const wrapper = await mountBulk(server)
+    await tick(wrapper, 0, 1)
+    await wrapper.get('#bulk-action').setValue('defer')
+    await wrapper.get('.bulk-form').trigger('submit')
+    await wrapper.get('.bulk-apply').trigger('click')
+    await waitFor(() => expect(server.posts).toHaveLength(1))
+    const attempt = wrapper.vm.$router.push('/')
+    await waitFor(() =>
+      expect(document.querySelector('.draft-leave-panel')?.contains(document.activeElement)).toBe(
+        true,
+      ),
+    )
+    release()
+    await waitFor(() => expect(wrapper.findAll('.bulk-report-item--saved')).toHaveLength(2))
+    expect(document.querySelector('.draft-leave-panel')?.contains(document.activeElement)).toBe(
+      true,
+    )
+    document.querySelector<HTMLButtonElement>('.draft-leave-actions button')!.click()
+    await attempt
+    expect(wrapper.vm.$route.path).toBe(base)
+    expect(wrapper.findAll('.bulk-report-item--saved')).toHaveLength(2)
+    wrapper.unmount()
+  })
 })

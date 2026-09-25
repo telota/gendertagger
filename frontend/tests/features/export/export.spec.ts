@@ -94,6 +94,7 @@ interface Server {
   exports: ReturnType<typeof exportItem>[]
   detail: ReturnType<typeof exportItem>
   createStatus: 202 | 409
+  createResponse?: Promise<Response>
   posts: Record<string, unknown>[]
   snapshotConfig: { source_format: string; packaging: string }
   download: { status: number; body: string; type: string }
@@ -200,6 +201,7 @@ function exportClient(server: Server) {
       }
       if (pathname === '/api/v1/exports' && request.method === 'POST') {
         server.posts.push((await request.json()) as Record<string, unknown>)
+        if (server.createResponse) return server.createResponse
         if (server.createStatus === 409) {
           return jsonResponse(
             { error: { code: 'resource_conflict', message: 'no', details: {}, request_id: 'r' } },
@@ -280,6 +282,34 @@ describe.each(['de', 'en'] as const)('exports in %s', (locale: AppLocale) => {
     await waitFor(() => expect(wrapper.find('.export-detail-title').exists()).toBe(true))
     return wrapper
   }
+
+  it('retains a newer responsibility statement when a completed submission tries to navigate', async () => {
+    let finish!: (response: Response) => void
+    const createResponse = new Promise<Response>((resolve) => {
+      finish = resolve
+    })
+    const server = newServer({ createResponse })
+    const wrapper = await mountList(server)
+    try {
+      await waitFor(() => expect(wrapper.find('#export-resp').exists()).toBe(true))
+      await wrapper.get('#export-resp').setValue('#submitted')
+      await wrapper.get('.new-export').trigger('submit')
+      await waitFor(() => expect(server.posts).toHaveLength(1))
+      await wrapper.get('#export-resp').setValue('#next-draft')
+      finish(jsonResponse(exportItem('queued', { id: NEW_EXPORT_ID }), { status: 202 }))
+      await waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull())
+      const stay = Array.from(
+        document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
+      ).find((button) => button.textContent?.trim() === catalogues[locale].draftNavigation.stay)
+      expect(stay).toBeDefined()
+      stay?.click()
+      await flushPromises()
+      expect(wrapper.vm.$router.currentRoute.value.path).toBe(list)
+      expect(wrapper.get<HTMLInputElement>('#export-resp').element.value).toBe('#next-draft')
+    } finally {
+      wrapper.unmount()
+    }
+  })
 
   it('lists a run’s exports with format, exported label and a link', async () => {
     const wrapper = await mountList(newServer({ exports: [exportItem('completed')] }))

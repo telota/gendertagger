@@ -210,6 +210,144 @@ describe('useSessionStore.login', () => {
 })
 
 describe('useSessionStore.logout', () => {
+  it.each([204, 401, 500])(
+    'ignores a late HTTP %s logout response after another account signs in',
+    async (status) => {
+      let resolveLogout!: (response: Response) => void
+      const pendingLogout = new Promise<Response>((resolve) => {
+        resolveLogout = resolve
+      })
+      const replacementUser = { ...USER, id: 'a0000000-0000-0000-0000-000000000002' }
+      const store = mountSession(
+        createApiClient({
+          fetch: async (request) => {
+            const { pathname } = new URL(request.url)
+            if (pathname === '/api/v1/auth/logout') return pendingLogout
+            if (pathname === '/api/v1/auth/login') return Response.json(replacementUser)
+            return Response.json({ must_change_password: true, keep_signed_in: false })
+          },
+        }),
+      )
+      store.user = USER
+      store.status = 'ready'
+      const loggingOut = store.logout()
+      await store.login({ username: 'replacement', password: 'correct', keepSignedIn: false })
+      resolveLogout(
+        status === 204
+          ? new Response(null, { status })
+          : Response.json({ error: { code: 'old_session', message: 'Old request.' } }, { status }),
+      )
+
+      await expect(loggingOut).resolves.toBe(false)
+      expect(store.user).toEqual(replacementUser)
+      expect(store.mustChangePassword).toBe(true)
+      expect(store.status).toBe('ready')
+    },
+  )
+
+  it('preserves a renewed session for the same account when an older logout resolves', async () => {
+    let resolveLogout!: (response: Response) => void
+    const pendingLogout = new Promise<Response>((resolve) => {
+      resolveLogout = resolve
+    })
+    const store = mountSession(
+      createApiClient({
+        fetch: async (request) => {
+          const { pathname } = new URL(request.url)
+          if (pathname === '/api/v1/auth/logout') return pendingLogout
+          if (pathname === '/api/v1/auth/login') return Response.json(USER)
+          return Response.json({ must_change_password: false, keep_signed_in: false })
+        },
+      }),
+    )
+    store.user = USER
+    store.status = 'ready'
+    const loggingOut = store.logout()
+    await store.login({ username: 'reviewer', password: 'correct', keepSignedIn: false })
+    resolveLogout(new Response(null, { status: 204 }))
+
+    await expect(loggingOut).resolves.toBe(false)
+    expect(store.user).toEqual(USER)
+    expect(store.isSignedIn).toBe(true)
+  })
+
+  it('still applies logout after an ordinary refresh of the same account', async () => {
+    let resolveLogout!: (response: Response) => void
+    const pendingLogout = new Promise<Response>((resolve) => {
+      resolveLogout = resolve
+    })
+    const store = mountSession(
+      createApiClient({
+        fetch: async (request) => {
+          const { pathname } = new URL(request.url)
+          if (pathname === '/api/v1/auth/logout') return pendingLogout
+          if (pathname === '/api/v1/me') return Response.json(USER)
+          return Response.json({ must_change_password: false, keep_signed_in: false })
+        },
+      }),
+    )
+    store.user = USER
+    store.status = 'ready'
+    const loggingOut = store.logout()
+    await store.initialize()
+    resolveLogout(new Response(null, { status: 204 }))
+
+    await expect(loggingOut).resolves.toBe(true)
+    expect(store.user).toBeNull()
+    expect(store.status).toBe('ready')
+  })
+
+  it.each([403, 500])('retains the principal when logout fails with HTTP %s', async (status) => {
+    const store = mountSession(
+      apiClientWithRoutes({
+        '/api/v1/auth/logout': {
+          body: { error: { code: 'logout_failed', message: 'Unavailable.' } },
+          init: { status },
+        },
+      }),
+    )
+    store.user = USER
+    store.mustChangePassword = true
+    store.status = 'ready'
+
+    await expect(store.logout()).rejects.toMatchObject({ status })
+
+    expect(store.user).toEqual(USER)
+    expect(store.mustChangePassword).toBe(true)
+    expect(store.status).toBe('ready')
+  })
+
+  it('retains the principal when the logout response is lost', async () => {
+    const store = mountSession(apiClientWithNetworkError())
+    store.user = USER
+    store.status = 'ready'
+
+    await expect(store.logout()).rejects.toMatchObject({ code: 'network_error' })
+
+    expect(store.user).toEqual(USER)
+    expect(store.isSignedIn).toBe(true)
+  })
+
+  it('treats logout 401 as confirmation that the old session is gone', async () => {
+    const store = mountSession(
+      apiClientWithRoutes({
+        '/api/v1/auth/logout': {
+          body: { error: { code: 'authentication_required', message: 'Gone.' } },
+          init: { status: 401 },
+        },
+      }),
+    )
+    store.user = USER
+    store.mustChangePassword = true
+    store.status = 'ready'
+
+    await store.logout()
+
+    expect(store.user).toBeNull()
+    expect(store.mustChangePassword).toBe(false)
+    expect(store.status).toBe('ready')
+  })
+
   it('clears the session even though the store never verified it was signed in', async () => {
     const store = mountSession(
       apiClientWithRoutes({ '/api/v1/auth/logout': { body: null, init: { status: 204 } } }),

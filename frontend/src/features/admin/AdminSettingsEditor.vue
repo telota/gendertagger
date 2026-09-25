@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { components } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
+import { useDraftRegistration } from '@/composables/useDraftNavigation'
 
 import type { AdminSettings } from './useAdminSettings'
 import type { AdminSettingsMutationError } from './useAdminSettingsMutations'
@@ -61,6 +62,15 @@ const isResetConfirmationOpen = ref(false)
 
 const hasChanges = computed(() =>
   EDITABLE_BRANDING_FIELDS.some((field) => modes.value[field] !== 'unchanged'),
+)
+useDraftRegistration(
+  () => hasChanges.value || resetFields.value.length > 0,
+  () => {
+    for (const field of EDITABLE_BRANDING_FIELDS) modes.value[field] = 'unchanged'
+    resetFields.value = []
+    isResetConfirmationOpen.value = false
+    discardDraft()
+  },
 )
 const hasValidationErrors = computed(() =>
   EDITABLE_BRANDING_FIELDS.some((field) => fieldError(field) !== undefined),
@@ -506,7 +516,7 @@ function errorMessage(error: AdminSettingsMutationError | null): string | null {
 .admin-settings-editor-conflict,
 .admin-settings-reset-dirty {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .admin-settings-editor-conflict {

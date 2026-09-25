@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
+import { useDraftRegistration } from '@/composables/useDraftNavigation'
 import { useSnapshotStatus } from '@/features/projects/useSnapshotImport'
 import { useAggregationList } from '@/features/runs/useAggregations'
 import { useRun } from '@/features/runs/useRunDetail'
@@ -59,6 +60,35 @@ const teiPossible = computed(() => {
   return sourceFormat === 'tei' && (packaging === 'single' || packaging === 'loose')
 })
 
+const draftFingerprint = computed(() =>
+  JSON.stringify([aggregationId.value, format.value, policy.value, respId.value]),
+)
+const acceptedDraft = ref<string | null>(null)
+let draftGeneration = 0
+function resetDraft(): void {
+  draftGeneration += 1
+  create.reset()
+  pickedAggregation.value = null
+  format.value = 'tei'
+  policy.value = POLICY_MACHINE
+  respId.value = DEFAULT_RESP
+  acceptedDraft.value = null
+}
+useDraftRegistration(
+  () =>
+    create.isPending.value ||
+    (draftFingerprint.value !== acceptedDraft.value &&
+      ((pickedAggregation.value !== null && pickedAggregation.value !== completed.value[0]?.id) ||
+        format.value !== 'tei' ||
+        policy.value !== POLICY_MACHINE ||
+        respId.value !== DEFAULT_RESP)),
+  resetDraft,
+)
+watch(() => props.runId, resetDraft)
+onScopeDispose(() => {
+  draftGeneration += 1
+})
+
 const canSubmit = computed(
   () =>
     aggregationId.value !== '' &&
@@ -80,6 +110,8 @@ const errorText = computed(() => {
 
 async function submit(): Promise<void> {
   if (!canSubmit.value) return
+  const owner = draftGeneration
+  const submittedDraft = draftFingerprint.value
   try {
     const created = await create.mutateAsync({
       run_id: props.runId,
@@ -91,6 +123,8 @@ async function submit(): Promise<void> {
       human_resp_id: format.value === 'tei' ? respId.value : DEFAULT_RESP,
       ...(format.value === 'tei' ? { tei_profile: TEI_PROFILE } : {}),
     })
+    if (owner !== draftGeneration) return
+    acceptedDraft.value = submittedDraft
     void router.push({
       name: 'exportDetail',
       params: { projectId: props.projectId, runId: props.runId, exportId: created.id },
@@ -252,6 +286,6 @@ async function submit(): Promise<void> {
 
 .new-export-error {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 </style>

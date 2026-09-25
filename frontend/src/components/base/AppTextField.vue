@@ -54,6 +54,8 @@ const errorId = `${props.id}-error`
 <style scoped>
 .app-text-field {
   display: flex;
+  min-width: 0;
+  overflow-wrap: anywhere;
   flex-direction: column;
   gap: var(--space-1);
 }
@@ -64,6 +66,9 @@ const errorId = `${props.id}-error`
 }
 
 .app-text-field input {
+  min-width: 0;
+  min-height: var(--control-min-size);
+  max-width: 100%;
   border: 1px solid var(--border);
   border-radius: var(--radius-input);
   background: var(--panel);
@@ -78,7 +83,7 @@ const errorId = `${props.id}-error`
 
 .app-text-field-error {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
   font-size: var(--font-size-small);
 }
 </style>

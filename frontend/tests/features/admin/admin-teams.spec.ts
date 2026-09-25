@@ -1,12 +1,14 @@
 import { DOMWrapper, flushPromises } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createMemoryHistory } from 'vue-router'
 
 import { createApiClient } from '@/api'
 import type { AppLocale } from '@/app/i18n'
+import { createAppRouter } from '@/app/router'
 import de from '@/locales/de.json'
 import en from '@/locales/en.json'
 
-import { apiClientWithRoutes } from '../../helpers/api'
+import { apiClientWithRoutes, type RouteResponse } from '../../helpers/api'
 import { expectNoAxeViolations } from '../../helpers/axe'
 import { mountApplicationAt } from '../../helpers/render'
 import { waitFor } from '../../helpers/wait'
@@ -101,6 +103,86 @@ afterEach(() => {
 
 describe.each(['de', 'en'] as const)('AdminTeamsView in %s', (locale: AppLocale) => {
   const messages = catalogues[locale].adminTeams
+
+  it.each(['create', 'rename'] as const)(
+    'retains a failed %s draft when departure is cancelled',
+    async (operation) => {
+      const responses: Record<string, RouteResponse> = signedInRoutes(ADMIN)
+      const client = createApiClient({
+        fetch: (request) => {
+          const response = responses[new URL(request.url).pathname]
+          if (request.method === 'GET' && response) {
+            return Promise.resolve(jsonResponse(response.body, response.init))
+          }
+          return Promise.resolve(
+            jsonResponse(
+              { error: { code: 'validation_error', message: 'Cannot save.' } },
+              { status: 422 },
+            ),
+          )
+        },
+      })
+      const router = createAppRouter(createMemoryHistory())
+      const wrapper = await mountApplicationAt('/admin/teams', locale, client, router)
+      await waitFor(() => expect(wrapper.find('#admin-team-slug').exists()).toBe(true))
+      if (operation === 'rename') await selectTeam(wrapper)
+      const field =
+        operation === 'create' ? '#admin-team-display-name' : '#admin-team-rename-display-name'
+      if (operation === 'create') await wrapper.get('#admin-team-slug').setValue('new-team')
+      await wrapper.get(field).setValue('Unsaved team name')
+      await wrapper
+        .get(operation === 'create' ? '.admin-teams-create form' : '.admin-teams-detail form')
+        .trigger('submit')
+      await waitFor(() =>
+        expect(wrapper.get('main [role="alert"]').text()).toBe(messages.errors.validationError),
+      )
+
+      const cancelled = router.push('/')
+      await waitFor(() =>
+        expect(new DOMWrapper(document.body).find('[role="dialog"]').exists()).toBe(true),
+      )
+      const stay = new DOMWrapper(document.body)
+        .get('[role="dialog"]')
+        .findAll('button')
+        .find((button) => button.text() === catalogues[locale].draftNavigation.stay)
+      await stay?.trigger('click')
+      await cancelled
+      expect(router.currentRoute.value.path).toBe('/admin/teams')
+      expect(wrapper.get<HTMLInputElement>(field).element.value).toBe('Unsaved team name')
+
+      const leaving = router.push('/')
+      await waitFor(() =>
+        expect(new DOMWrapper(document.body).find('[role="dialog"]').exists()).toBe(true),
+      )
+      const discard = new DOMWrapper(document.body)
+        .get('[role="dialog"]')
+        .findAll('button')
+        .find((button) => button.text() === catalogues[locale].draftNavigation.discard)
+      await discard?.trigger('click')
+      await leaving
+      expect(router.currentRoute.value.path).toBe('/')
+      wrapper.unmount()
+    },
+  )
+
+  it('does not treat account or roster searches as unsaved membership edits', async () => {
+    const router = createAppRouter(createMemoryHistory())
+    const wrapper = await mountApplicationAt(
+      '/admin/teams',
+      locale,
+      apiClientWithRoutes(signedInRoutes(ADMIN)),
+      router,
+    )
+    await waitFor(() => expect(wrapper.text()).toContain(TEAM.display_name))
+    await selectTeam(wrapper)
+    await wrapper.get('#admin-team-roster-search').setValue('member')
+    await wrapper.get('#admin-team-account-search').setValue('account')
+
+    await router.push('/')
+    expect(new DOMWrapper(document.body).find('[role="dialog"]').exists()).toBe(false)
+    expect(router.currentRoute.value.path).toBe('/')
+    wrapper.unmount()
+  })
 
   it('gates navigation and direct routes to password-current global administrators', async () => {
     const administrator = await mountApplicationAt(
@@ -214,16 +296,23 @@ describe.each(['de', 'en'] as const)('AdminTeamsView in %s', (locale: AppLocale)
     await wrapper.get('#admin-team-display-name').setValue(TEAM_TWO.display_name)
     await wrapper.get('form').trigger('submit')
     await waitFor(() => expect(wrapper.text()).toContain(TEAM_TWO.display_name))
-    await wrapper.get('#admin-team-rename-display-name').setValue('Renamed Beta')
+    await wrapper.get('#admin-team-rename-display-name').setValue(' Renamed Beta ')
     const forms = wrapper.findAll('form')
     await forms[1]?.trigger('submit')
     await waitFor(() => expect(requestBodies).toHaveLength(2))
 
     expect(requestBodies).toEqual([
       { slug: 'edition-beta', display_name: TEAM_TWO.display_name },
-      { display_name: 'Renamed Beta' },
+      { display_name: ' Renamed Beta ' },
     ])
     expect(wrapper.text()).toContain(messages.rename.slugImmutable)
+    await waitFor(() =>
+      expect(wrapper.get<HTMLInputElement>('#admin-team-rename-display-name').element.value).toBe(
+        'Renamed Beta',
+      ),
+    )
+    await wrapper.vm.$router.push('/')
+    expect(new DOMWrapper(document.body).find('[role="dialog"]').exists()).toBe(false)
   })
 
   it('disables inactive accounts and accepts the idempotent 200 roster-add response', async () => {

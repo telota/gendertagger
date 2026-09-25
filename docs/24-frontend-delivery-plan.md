@@ -318,7 +318,7 @@ implementation does not expose any other deployment settings.
 explicit desktop-sidebar collapse preferences. The first increment delivered backend contracts,
 persistence, migration, `GET`/`PATCH /api/v1/me/preferences`, tests, and generated OpenAPI/TypeScript
 transport. The subsequent frontend increment supplies the lazy `/settings` route named `userSettings`
-and a translated Settings link in the sidebar footer. Every resolved, signed-in,
+and a translated Personal settings item in the header account menu. Every resolved, signed-in,
 password-current user has access without any project or global role. Administrative branding remains at
 `/admin/settings`, and project/scientific settings are outside this resource.
 
@@ -368,6 +368,9 @@ delivered in M7/M8. Game mode remains a separate, deferred increment (D20).
   ADR-0043. It waits for eligible, loaded account preferences, adopts the confirmed response, and leaves
   the saved layout unchanged after a failed write. Conflicts require explicit reload before another
   attempt. It does not introduce a localStorage key or mirror canonical preferences in Pinia.
+- Only eligible signed-in sessions mount the sidebar and mobile drawer. Signed-out, unresolved,
+  failed-session and password-change-required states use a compact public header with home branding,
+  account/session controls, and language/theme choices; legal links stay in the footer.
 - At least 1080 CSS px uses the saved expanded/rail choice; 720–1079 px always uses a compact rail.
   Below 720 px the persistent sidebar is hidden and the title-bar navigation button opens a Headless UI
   Dialog drawer. The drawer traps focus, makes background content inert, closes on Escape, backdrop
@@ -379,14 +382,19 @@ delivered in M7/M8. Game mode remains a separate, deferred increment (D20).
   Rail labels use the in-house D9 tooltip pattern, including Escape dismissal and hoverable content.
   Activating a trigger dismisses its tooltip before saving or layout changes; the expanded collapse
   button uses its visible label without a redundant tooltip.
-- Language and theme controls move from the title bar into the sidebar footer. Expanded and drawer
+- Language and theme controls use the sidebar footer for eligible sessions and a compact header variant
+  otherwise. The same component preserves preference persistence and recovery. Expanded and drawer
   presentations show labels; rail presentations retain named icon triggers. Choice panels open upward
   without being clipped. Signed-in choices save only the changed field with its revision; conflicts
   require explicit reload and failures remain visible. Anonymous choices retain the existing browser
   storage. While identity is unresolved or account access is unavailable, temporary presentation changes
   write neither account preferences nor anonymous storage. New canonical account values replace these
-  temporary changes. Personal Settings is linked from this footer, including the mobile drawer;
-  account identity and session actions remain in the title bar.
+  temporary changes. Personal settings now lives in the header account menu with Sign out;
+  the menu trigger shows account identity. The [accepted header brief](frontend-header-proposal.md)
+  supersedes the earlier footer placement.
+- Project switching sits above readable project destinations, including an accessible rail control and
+  the mobile drawer. The header supplies short breadcrumbs. Global routes use Projects without an
+  implied current project; draft path departures and sign-out use the shared leave dialog.
 - Navigation scrolls independently so brand, controls, and preference footer remain reachable. Shell
   dimensions use semantic tokens; transitions honor reduced motion. The drawer and menus must reflow
   at 320 CSS px and retain long German labels without horizontal page scrolling.
@@ -882,13 +890,14 @@ resolve, and the review path works end to end behind a real session.
   MIT, named imports so unused icons are tree-shaken), decorative and `aria-hidden`. There is no Spielmodus
   entry (D20). Tailwind is not used (D21): styling stays on the semantic tokens of
   [`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md).
-- **Project switcher. Delivered.** `ProjectSwitcher` in the header (docs/23, topbar) is a menu of the caller's
-  projects (first page of `GET /projects`, server order), names and marks the current one, and links to the full
-  list. Shown only with a resolved, password-current session. The wireframe's completion percentages and
+- **Project switcher. Delivered.** `ProjectSwitcher`, above project destinations in the sidebar, lists the
+  caller's projects (first page of `GET /projects`, server order) and names/marks the current one. The
+  Projects destination directly above it opens the full list; the quick menu has no duplicate link.
+  Shown only with a resolved, password-current session. The wireframe's completion percentages and
   its "new project" action are not part of it: no backend data exists for the former, and creating a
   project stays on the project list.
 - **Personal settings. Delivered as the ADR-0043 frontend increment.** The lazy `/settings` page and
-  translated sidebar-footer link expose only account locale, theme, and explicit desktop-sidebar collapse,
+  translated header account-menu item expose only account locale, theme, and explicit desktop-sidebar collapse,
   with explicit saving and conflict recovery. They are available to every password-current account.
   The wireframe's other settings remain unsupported
   ([`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md)). The six branding fields of ADR-0040
@@ -1279,5 +1288,9 @@ expectations. Each is analysed in [`23-wireframe-ui-inventory.md`](23-wireframe-
    against the accepted wireframe.
 2. Appoint the accessibility owner and confirm whether an accessibility statement is legally required.
    Both are organisational, both gate M0, and neither is resolvable from inside the repository.
-3. Begin M2 in parallel with items 1–2. Its hard dependencies, M1 and a working authentication backend, are
-   both in place; its overlay primitives still need the headless accessibility library chosen (D9).
+3. Continue improvements to the delivered client using
+   [`27-frontend-improvement-plan.md`](27-frontend-improvement-plan.md). Begin with the global header's
+   purpose/content brief and shared accessibility/responsive foundations. The accepted header and sidebar
+   project-switcher move are now implemented; improve individual views next and refine the remaining
+   sidebar last. Recheck dated findings against current
+   code and keep the verification still pending in each delivered increment explicit.

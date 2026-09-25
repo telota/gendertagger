@@ -71,7 +71,7 @@ function loadMore(): void {
 
 .snapshot-list-error p {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .snapshot-list-empty {

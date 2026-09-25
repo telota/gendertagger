@@ -157,7 +157,7 @@ async function submit(): Promise<void> {
 
 .change-password-load-error p {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .change-password-form {
@@ -169,6 +169,6 @@ async function submit(): Promise<void> {
 
 .change-password-error {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 </style>

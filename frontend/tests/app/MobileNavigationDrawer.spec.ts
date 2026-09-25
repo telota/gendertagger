@@ -7,8 +7,10 @@ import type { AppLocale } from '@/app/i18n'
 import { createAppRouter } from '@/app/router'
 import de from '@/locales/de.json'
 import en from '@/locales/en.json'
+import { useSessionStore } from '@/stores/session'
 
 import { mountApplicationAt } from '../helpers/render'
+import { AGG_ID, RUN_ID, newServer, reviewFetch } from '../features/review/fixtures'
 import { waitFor } from '../helpers/wait'
 
 const catalogues = { de, en } as const
@@ -53,7 +55,11 @@ function dialog(): HTMLElement | null {
 
 async function application(
   locale: AppLocale,
-  options: { path?: string; state?: 'ready' | 'signedOut' | 'passwordChange' } = {},
+  options: {
+    path?: string
+    state?: 'ready' | 'signedOut' | 'passwordChange'
+    fetch?: (request: Request) => Promise<Response>
+  } = {},
 ) {
   const media = new Map<string, ResponsiveQuery>()
   vi.stubGlobal('matchMedia', (query: string) => {
@@ -74,6 +80,7 @@ async function application(
         )
       }
       if (path === '/api/v1/me/preferences') preferenceRequests.push(request.method)
+      if (options.fetch) return options.fetch(request)
       const responses: Record<string, unknown> = {
         '/api/v1/branding': {},
         '/api/v1/me': USER,
@@ -111,7 +118,7 @@ async function application(
       expect(preferenceRequests).toContain('GET')
     }
   })
-  const trigger = wrapper.get<HTMLButtonElement>('.app-header-navigation')
+  const trigger = wrapper.find<HTMLButtonElement>('.app-header-navigation')
   async function open() {
     trigger.element.focus()
     await trigger.trigger('click')
@@ -173,19 +180,36 @@ describe.each(['de', 'en'] as const)('mobile navigation in %s', (locale: AppLoca
     },
   )
 
-  it('opens personal settings from the drawer footer and closes after navigation', async () => {
-    const { router, trigger, open } = await application(locale)
+  it('keeps personal settings out of the drawer and closes after project-list navigation', async () => {
+    const { wrapper, router, trigger, open } = await application(locale, {
+      path: `/projects/${PROJECT}/overview`,
+    })
     const drawer = await open()
-    const settings = drawer.get('footer a[href="/settings"]')
-    expect(settings.text()).toBe(messages.header.settings)
-    expect(settings.classes()).toContain('nav-item--mobile')
-    await settings.trigger('click')
-    await waitFor(() => expect(router.currentRoute.value.name).toBe('userSettings'))
-    expect(
-      bodyGet('.app-shell > aside footer a[href="/settings"]').attributes('aria-current'),
-    ).toBe('page')
+    expect(drawer.find('a[href="/settings"]').exists()).toBe(false)
+    await drawer.get('a[href="/projects"]').trigger('click')
+    await waitFor(() => expect(router.currentRoute.value.name).toBe('projects'))
     await waitFor(() => expect(dialog()).toBeNull())
     expect(trigger.attributes('aria-expanded')).toBe('false')
+    await waitFor(() => expect(document.activeElement).toBe(wrapper.get('#main-content').element))
+  })
+
+  it('opens project switching inside the drawer and returns focus without dismissing navigation', async () => {
+    const { open } = await application(locale, { path: `/projects/${PROJECT}/overview` })
+    const drawer = await open()
+    await waitFor(() => expect(drawer.find('.project-switcher').exists()).toBe(true))
+    expect(drawer.get('.project-switcher').classes()).toContain('project-switcher--mobile')
+    expect(drawer.get('.project-switcher-current').text()).toBe('Project A')
+    const switcher = drawer.get<HTMLButtonElement>('.project-switcher-button')
+    switcher.element.focus()
+    await switcher.trigger('keydown', { key: 'ArrowDown' })
+    await waitFor(() => expect(drawer.find('[role="menu"]').exists()).toBe(true))
+    const menu = drawer.get<HTMLElement>('[role="menu"]')
+    await waitFor(() => expect(document.activeElement).toBe(menu.element))
+    expect(drawer.element.contains(menu.element)).toBe(true)
+    await menu.trigger('keydown', { key: 'Escape' })
+    await waitFor(() => expect(drawer.find('[role="menu"]').exists()).toBe(false))
+    expect(dialog()).not.toBeNull()
+    await waitFor(() => expect(document.activeElement).toBe(switcher.element))
   })
 
   it('keeps the drawer open when a route guard cancels navigation', async () => {
@@ -216,10 +240,9 @@ describe.each(['de', 'en'] as const)('mobile navigation in %s', (locale: AppLoca
     expect(preferenceRequests.every((method) => method === 'GET')).toBe(true)
   })
 
-  it('moves focus to the persistent brand when leaving mobile navigation on a public page', async () => {
+  it('moves focus to the persistent brand on a signed-in public page', async () => {
     const { wrapper, open, media, preferenceRequests } = await application(locale, {
       path: '/',
-      state: 'signedOut',
     })
     const brand = wrapper.get('aside a.app-sidebar-brand')
     await open()
@@ -228,7 +251,7 @@ describe.each(['de', 'en'] as const)('mobile navigation in %s', (locale: AppLoca
     media.get('(width < 720px)')!.setMatches(false)
     await waitFor(() => expect(dialog()).toBeNull())
     await waitFor(() => expect(document.activeElement).toBe(brand.element))
-    expect(preferenceRequests).toEqual([])
+    expect(preferenceRequests.every((method) => method === 'GET')).toBe(true)
   })
 
   it('shows the same viewer destinations as the persistent navigation', async () => {
@@ -243,14 +266,107 @@ describe.each(['de', 'en'] as const)('mobile navigation in %s', (locale: AppLoca
   })
 
   it.each(['signedOut', 'passwordChange'] as const)(
-    'keeps the brand and preferences but hides private links for %s',
+    'offers the public header without a drawer or sidebar for %s',
     async (state) => {
-      const { open, preferenceRequests } = await application(locale, { path: '/', state })
-      const drawer = await open()
-      expect(drawer.get('.app-sidebar-brand').text()).toBe(messages.app.title)
-      expect(drawer.find('.sidebar-preferences').exists()).toBe(true)
-      expect(drawer.find('nav').exists()).toBe(false)
+      const { wrapper, trigger, preferenceRequests } = await application(locale, {
+        path: '/',
+        state,
+      })
+      expect(trigger.exists()).toBe(false)
+      expect(wrapper.find('aside').exists()).toBe(false)
+      expect(dialog()).toBeNull()
+      expect(wrapper.get('.app-header-brand').text()).toBe(messages.app.title)
+      expect(wrapper.findAll('header [aria-haspopup="listbox"]')).toHaveLength(2)
       expect(preferenceRequests).toEqual([])
     },
   )
+
+  it('removes an open drawer on session loss and restores private navigation closed', async () => {
+    const { wrapper, open } = await application(locale, { path: '/' })
+    await open()
+    const session = useSessionStore()
+    session.forgetSession()
+    await waitFor(() => expect(dialog()).toBeNull())
+    expect(wrapper.find('aside').exists()).toBe(false)
+    expect(wrapper.find('.app-header-navigation').exists()).toBe(false)
+    expect(wrapper.get('.app-header-brand').text()).toBe(messages.app.title)
+    session.user = USER
+    await waitFor(() => expect(wrapper.find('aside').exists()).toBe(true))
+    expect(wrapper.get('.app-header-navigation').attributes('aria-expanded')).toBe('false')
+    expect(dialog()).toBeNull()
+  })
+
+  it('protects a real review draft when switching projects from the drawer', async () => {
+    const nextProject = 'b0000000-0000-0000-0000-000000000002'
+    const target = `/projects/${nextProject}/overview`
+    const reviewPath = `/projects/${PROJECT}/runs/${RUN_ID}/aggregations/${AGG_ID}/review`
+    const server = newServer()
+    const fetchReview = reviewFetch(server)
+    const projectB = {
+      id: nextProject,
+      slug: 'project-b',
+      display_name: 'Project B',
+      current_user_role: 'viewer',
+      working_aggregation_execution_id: null,
+      created_at: '2026-01-01T00:00:00Z',
+    }
+    const { wrapper, router, open } = await application(locale, {
+      path: reviewPath,
+      fetch: (request) => {
+        const path = new URL(request.url).pathname
+        if (path === '/api/v1/me/preferences')
+          return Promise.resolve(
+            Response.json({
+              locale,
+              theme: 'system',
+              desktop_sidebar_collapsed: true,
+              revision: 1,
+            }),
+          )
+        if (path === '/api/v1/projects')
+          return Promise.resolve(
+            Response.json({
+              items: [projectB],
+              next_cursor: null,
+              has_more: false,
+            }),
+          )
+        if (path === `/api/v1/projects/${nextProject}`)
+          return Promise.resolve(Response.json(projectB))
+        return fetchReview(request)
+      },
+    })
+    await waitFor(() => expect(wrapper.find('#decision-comment').exists()).toBe(true))
+    await wrapper.get('#decision-correct-female').setValue(true)
+    await wrapper.get('#decision-comment').setValue('Evidence remains in this project')
+    const drawer = await open()
+    await drawer.get('.project-switcher-button').trigger('click')
+    await drawer.get(`.project-switcher a[href="${target}"]`).trigger('click')
+    await waitFor(() =>
+      expect(document.querySelector('.draft-leave-panel')?.contains(document.activeElement)).toBe(
+        true,
+      ),
+    )
+    expect(dialog()).not.toBeNull()
+    document.querySelector<HTMLButtonElement>('.draft-leave-actions button')!.click()
+    await waitFor(() => expect(document.querySelector('.draft-leave-panel')).toBeNull())
+    expect(router.currentRoute.value.path).toBe(reviewPath)
+    expect((wrapper.get('#decision-comment').element as HTMLTextAreaElement).value).toBe(
+      'Evidence remains in this project',
+    )
+    await waitFor(() =>
+      expect(document.activeElement).toBe(drawer.get('.project-switcher-button').element),
+    )
+    expect(drawer.find('[role="menu"]').exists()).toBe(false)
+
+    await drawer.get('.project-switcher-button').trigger('click')
+    await drawer.get(`.project-switcher a[href="${target}"]`).trigger('click')
+    await waitFor(() => expect(document.querySelector('.draft-leave-panel')).not.toBeNull())
+    document.querySelectorAll<HTMLButtonElement>('.draft-leave-actions button')[1]!.click()
+    await waitFor(() => expect(router.currentRoute.value.path).toBe(target))
+    await waitFor(() => expect(dialog()).toBeNull())
+    expect(document.querySelector('.draft-leave-panel')).toBeNull()
+    await waitFor(() => expect(document.activeElement).toBe(wrapper.get('#main-content').element))
+    expect(server.posts).toHaveLength(0)
+  })
 })

@@ -58,6 +58,7 @@ interface Setup {
   runs?: unknown[]
   createStatus?: number
   methodsFail?: boolean
+  createResponse?: Promise<Response>
 }
 
 interface Sent {
@@ -101,6 +102,7 @@ function runsClient(setup: Setup, sent: Sent) {
           )
         }
         sent.runBodies.push(await request.json())
+        if (setup.createResponse) return setup.createResponse
         return jsonResponse(run(RUN_ID, 'created'), { status: 202 })
       }
       if (pathname === `/api/v1/runs/${RUN_ID}/executions` && request.method === 'POST') {
@@ -137,6 +139,80 @@ describe.each(['de', 'en'] as const)('run list and new run in %s', (locale: AppL
   async function pick(wrapper: VueWrapper, name: string): Promise<void> {
     await wrapper.get(`#method-${name}`).setValue(true)
   }
+
+  it('does not report a draft after toggling a method and empty configuration back off', async () => {
+    const { wrapper } = await mountRuns()
+    try {
+      await pick(wrapper, 'local_llm')
+      await wrapper.get('#config-local_llm').setValue('{}')
+      await wrapper.get('#config-local_llm').setValue('')
+      await wrapper.get('#method-local_llm').setValue(false)
+      const navigation = wrapper.vm.$router.push('/projects')
+      await tick()
+      expect(document.querySelector('[role="dialog"]')).toBeNull()
+      await navigation
+      expect(wrapper.vm.$router.currentRoute.value.path).toBe('/projects')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('keeps configuration edited while run creation is pending when the operator stays', async () => {
+    let finish!: (response: Response) => void
+    const createResponse = new Promise<Response>((resolve) => {
+      finish = resolve
+    })
+    const { wrapper, sent } = await mountRuns({ createResponse })
+    try {
+      await pick(wrapper, 'local_llm')
+      await wrapper.get('#config-local_llm').setValue('{"model":"submitted"}')
+      await wrapper.get('.new-run').trigger('submit')
+      await waitFor(() => expect(sent.runBodies).toHaveLength(1))
+      await wrapper.get('#config-local_llm').setValue('{"model":"next-draft"}')
+      finish(jsonResponse(run(RUN_ID, 'created'), { status: 202 }))
+      await waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull())
+      const stay = Array.from(
+        document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
+      ).find((button) => button.textContent?.trim() === catalogues[locale].draftNavigation.stay)
+      expect(stay).toBeDefined()
+      stay?.click()
+      await tick()
+      expect(wrapper.vm.$router.currentRoute.value.path).toBe(path)
+      expect(wrapper.get<HTMLTextAreaElement>('#config-local_llm').element.value).toBe(
+        '{"model":"next-draft"}',
+      )
+      expect(sent.scheduled).toEqual([RUN_ID])
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('does not return to a late-created run after the operator discards and leaves', async () => {
+    let finish!: (response: Response) => void
+    const createResponse = new Promise<Response>((resolve) => {
+      finish = resolve
+    })
+    const { wrapper, sent } = await mountRuns({ createResponse })
+    try {
+      await pick(wrapper, 'local_llm')
+      await wrapper.get('.new-run').trigger('submit')
+      await waitFor(() => expect(sent.runBodies).toHaveLength(1))
+      const navigation = wrapper.vm.$router.push('/projects')
+      await waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull())
+      const discard = Array.from(
+        document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
+      ).find((button) => button.textContent?.trim() === catalogues[locale].draftNavigation.discard)
+      expect(discard).toBeDefined()
+      discard?.click()
+      await navigation
+      finish(jsonResponse(run(RUN_ID, 'created'), { status: 202 }))
+      await tick()
+      expect(wrapper.vm.$router.currentRoute.value.path).toBe('/projects')
+      expect(document.querySelector('[role="dialog"]')).toBeNull()
+    } finally {
+      wrapper.unmount()
+    }
+  })
 
   it('lists the snapshot runs with status, progress and configuration hash', async () => {
     const { wrapper } = await mountRuns({

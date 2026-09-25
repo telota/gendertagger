@@ -153,6 +153,7 @@ const connectionLabel = computed(() => {
 
         <AggregationSection
           v-if="executions.data.value"
+          :key="runId"
           :project-id="projectId"
           :run="run.data.value"
           :executions="executions.data.value"
@@ -203,7 +204,7 @@ const connectionLabel = computed(() => {
 .run-detail-load-error p,
 .run-detail-failure {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .run-detail-failure p {
@@ -231,7 +232,7 @@ const connectionLabel = computed(() => {
 
 .run-detail-status--failed,
 .run-detail-status--completed_with_errors {
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .run-detail-created,

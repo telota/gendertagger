@@ -156,7 +156,7 @@ function toggleMembers(): void {
 }
 
 .snapshot-status--failed {
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .snapshot-created {
@@ -193,7 +193,7 @@ function toggleMembers(): void {
 
 .snapshot-failure {
   margin: 0 0 var(--space-3);
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .snapshot-toggle {
@@ -221,7 +221,7 @@ function toggleMembers(): void {
 
 .snapshot-members-error p {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .snapshot-members-table {

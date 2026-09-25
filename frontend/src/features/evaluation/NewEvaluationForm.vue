@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
+import { useDraftRegistration } from '@/composables/useDraftNavigation'
 import {
   AGGREGATABLE_EXECUTION_STATUSES,
   useAggregationList,
@@ -45,8 +46,8 @@ const previous = computed(() => props.earlier[0] ?? null)
 const preselected = computed(
   () => new Set(previous.value?.method_execution_ids ?? eligible.value.map((e) => e.id)),
 )
-const chosen = reactive<Record<string, boolean>>({})
-const isChosen = (id: string): boolean => chosen[id] ?? preselected.value.has(id)
+const chosen = ref<Record<string, boolean>>({})
+const isChosen = (id: string): boolean => chosen.value[id] ?? preselected.value.has(id)
 const selectedIds = computed(() => eligible.value.filter((e) => isChosen(e.id)).map((e) => e.id))
 
 const picked = ref<string | null>(null)
@@ -58,6 +59,31 @@ const aggregationChoice = computed({
   set: (value: string) => {
     picked.value = value
   },
+})
+
+const draftFingerprint = computed(() =>
+  JSON.stringify([[...selectedIds.value].sort(), aggregationChoice.value]),
+)
+const acceptedDraft = ref<string | null>(null)
+let draftGeneration = 0
+function resetDraft(): void {
+  draftGeneration += 1
+  create.reset()
+  chosen.value = {}
+  picked.value = null
+  acceptedDraft.value = null
+}
+useDraftRegistration(
+  () =>
+    create.isPending.value ||
+    (draftFingerprint.value !== acceptedDraft.value &&
+      (eligible.value.some(({ id }) => isChosen(id) !== preselected.value.has(id)) ||
+        (picked.value !== null && picked.value !== defaultAggregation.value))),
+  resetDraft,
+)
+watch(() => props.runId, resetDraft)
+onScopeDispose(() => {
+  draftGeneration += 1
 })
 
 const canSubmit = computed(() => selectedIds.value.length > 0 && !create.isPending.value)
@@ -76,6 +102,8 @@ const errorText = computed(() => {
 
 async function submit(): Promise<void> {
   if (!canSubmit.value) return
+  const owner = draftGeneration
+  const submittedDraft = draftFingerprint.value
   try {
     const evaluation = await create.mutateAsync({
       run_id: props.runId,
@@ -83,6 +111,8 @@ async function submit(): Promise<void> {
       method_execution_ids: selectedIds.value,
       ...(aggregationChoice.value ? { aggregation_execution_id: aggregationChoice.value } : {}),
     })
+    if (owner !== draftGeneration) return
+    acceptedDraft.value = submittedDraft
     // A started evaluation is watched, so the operator lands on it rather than back on the list.
     void router.push({
       name: 'evaluationDetail',
@@ -216,6 +246,6 @@ async function submit(): Promise<void> {
 .new-evaluation-load-error p,
 .new-evaluation-error {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 </style>

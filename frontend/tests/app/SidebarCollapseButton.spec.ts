@@ -1,9 +1,14 @@
+import { useQueryClient } from '@tanstack/vue-query'
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { createApiClient } from '@/api'
-import type { UserPreferences, UserPreferencesUpdate } from '@/composables/useUserPreferences'
+import {
+  userPreferencesQueryKey,
+  type UserPreferences,
+  type UserPreferencesUpdate,
+} from '@/composables/useUserPreferences'
 import de from '@/locales/de.json'
 import en from '@/locales/en.json'
 import { useSessionStore } from '@/stores/session'
@@ -237,6 +242,7 @@ describe.each(['de', 'en'] as const)('desktop sidebar collapse in %s', (locale) 
   })
 
   it('discards a late save after the initiating account signs out', async () => {
+    localStorage.setItem('gendertagger.theme', 'dark')
     const { state, client } = fixture(locale)
     let finish!: () => void
     state.beforeWrite = () =>
@@ -244,14 +250,29 @@ describe.each(['de', 'en'] as const)('desktop sidebar collapse in %s', (locale) 
         finish = resolve
       })
     wrapper = await mountApplicationAt('/projects', locale, client)
+    const queryClient = wrapper.vm.$.appContext.app.runWithContext(() => useQueryClient())
     await wrapper.get('.sidebar-collapse-button').trigger('click')
     await waitFor(() => expect(state.patches).toHaveLength(1))
     useSessionStore().user = null
     await flushPromises()
+    expect(wrapper.find('aside').exists()).toBe(false)
+    expect(queryClient.getQueryData(userPreferencesQueryKey(USER.id))).toBeUndefined()
+
     finish()
     await flushPromises()
+
+    expect(wrapper.find('aside').exists()).toBe(false)
     expect(wrapper.find('.sidebar-collapse-button').exists()).toBe(false)
-    expect(wrapper.get('aside').classes()).not.toContain('app-sidebar--desktop-collapsed')
     expect(wrapper.find('.sidebar-collapse-error').exists()).toBe(false)
+    expect(wrapper.find('.app-header-navigation').exists()).toBe(false)
+    expect(wrapper.find('.app-header-brand').exists()).toBe(true)
+    expect(wrapper.get('header [data-preference="theme"]').text()).toContain(
+      messages[locale].theme.dark,
+    )
+    expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(queryClient.getQueryData(userPreferencesQueryKey(USER.id))).toBeUndefined()
+    expect(localStorage.getItem('gendertagger.theme')).toBe('dark')
+    expect(localStorage.getItem('gendertagger.sidebar.collapsed')).toBeNull()
+    expect(state.patches).toEqual([{ expected_revision: 3, desktop_sidebar_collapsed: true }])
   })
 })

@@ -124,8 +124,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--space-10);
-  height: var(--space-10);
+  min-width: var(--control-touch-size);
+  min-height: var(--control-touch-size);
   flex-shrink: 0;
   padding: var(--space-2);
   border: 1px solid var(--border);

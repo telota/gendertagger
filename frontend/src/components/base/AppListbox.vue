@@ -52,6 +52,8 @@ const currentLabel = computed(
 <style scoped>
 .app-listbox {
   position: relative;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .app-listbox-label {
@@ -67,6 +69,10 @@ const currentLabel = computed(
 }
 
 .app-listbox-button {
+  min-width: var(--control-min-size);
+  min-height: var(--control-min-size);
+  max-width: 100%;
+  overflow-wrap: anywhere;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   background: var(--panel);
@@ -83,6 +89,8 @@ const currentLabel = computed(
   margin: var(--space-1) 0 0;
   padding: var(--space-1);
   min-width: 100%;
+  width: max-content;
+  max-width: min(24rem, calc(100vw - var(--space-8)));
   list-style: none;
   border: 1px solid var(--border);
   border-radius: var(--radius-input);
@@ -91,10 +99,14 @@ const currentLabel = computed(
 }
 
 .app-listbox-option {
+  display: flex;
+  align-items: center;
+  min-width: var(--control-min-size);
+  min-height: var(--control-min-size);
+  overflow-wrap: anywhere;
   border-radius: var(--radius-control);
   padding: var(--space-1) var(--space-2);
   font-size: var(--font-size-small);
-  white-space: nowrap;
   cursor: pointer;
 }
 

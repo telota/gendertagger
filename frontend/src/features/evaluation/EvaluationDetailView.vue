@@ -274,7 +274,7 @@ const downloadUrl = computed(() => `/api/v1/evaluations/${evaluationId.value}/re
 }
 
 .evaluation-detail-status--failed {
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .evaluation-detail-load-error {
@@ -287,7 +287,7 @@ const downloadUrl = computed(() => `/api/v1/evaluations/${evaluationId.value}/re
 .evaluation-detail-load-error p,
 .evaluation-detail-failure {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .evaluation-detail-failure p {

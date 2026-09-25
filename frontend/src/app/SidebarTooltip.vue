@@ -1,9 +1,33 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue'
 
-const props = defineProps<{ text: string; disabled?: boolean }>()
+const props = defineProps<{
+  text: string
+  disabled?: boolean
+  /** Label-only help belongs on the icon rail; explanations can remain available everywhere. */
+  railOnly?: boolean
+  desktopCollapsed?: boolean
+  mobile?: boolean
+}>()
 const id = useId()
 const open = ref(false)
+const belowDesktop = ref(false)
+const belowMobile = ref(false)
+const enabled = computed(
+  () =>
+    !props.disabled &&
+    (!props.railOnly ||
+      (!props.mobile &&
+        !belowMobile.value &&
+        (belowDesktop.value || props.desktopCollapsed === true))),
+)
+let desktopBreakpoint: MediaQueryList | undefined
+let mobileBreakpoint: MediaQueryList | undefined
+
+function updateViewport(): void {
+  belowDesktop.value = desktopBreakpoint?.matches ?? false
+  belowMobile.value = mobileBreakpoint?.matches ?? false
+}
 const tooltip = ref<HTMLElement | null>(null)
 const position = ref({ left: '0px', top: '0px' })
 let trigger: HTMLElement | null = null
@@ -34,7 +58,7 @@ function reposition(): void {
 
 async function show(event: Event): Promise<void> {
   clearCloseTimer()
-  if (props.disabled || dismissed) return
+  if (!enabled.value || dismissed) return
   if (event.currentTarget instanceof HTMLElement) trigger = event.currentTarget
   open.value = true
   await nextTick()
@@ -102,12 +126,9 @@ function leaveTooltip(): void {
   scheduleClose()
 }
 
-watch(
-  () => props.disabled,
-  (disabled) => {
-    if (disabled) dismiss()
-  },
-)
+watch(enabled, (canShow) => {
+  if (!canShow) dismiss()
+})
 watch(
   () => props.text,
   async () => {
@@ -117,12 +138,19 @@ watch(
 )
 
 onMounted(() => {
+  desktopBreakpoint = window.matchMedia('(width < 1080px)')
+  mobileBreakpoint = window.matchMedia('(width < 720px)')
+  updateViewport()
+  desktopBreakpoint.addEventListener('change', updateViewport)
+  mobileBreakpoint.addEventListener('change', updateViewport)
   document.addEventListener('keydown', escape, true)
   window.addEventListener('resize', reposition)
   window.addEventListener('scroll', reposition, true)
 })
 onUnmounted(() => {
   clearCloseTimer()
+  desktopBreakpoint?.removeEventListener('change', updateViewport)
+  mobileBreakpoint?.removeEventListener('change', updateViewport)
   document.removeEventListener('keydown', escape, true)
   window.removeEventListener('resize', reposition)
   window.removeEventListener('scroll', reposition, true)

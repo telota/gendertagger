@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import type { components } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
 import AppTextField from '@/components/base/AppTextField.vue'
+import { useDraftRegistration } from '@/composables/useDraftNavigation'
 
 import type { AdminUserMutationError } from './useAdminUserMutations'
 
@@ -28,6 +29,18 @@ const displayName = ref('')
 const roles = ref<GlobalRole[]>([])
 const hasSubmitted = ref(false)
 const usernamePattern = /^[a-z0-9][a-z0-9._-]{0,62}[a-z0-9]$/
+
+function resetDraft(): void {
+  username.value = ''
+  displayName.value = ''
+  roles.value = []
+  hasSubmitted.value = false
+}
+
+useDraftRegistration(
+  () => username.value !== '' || displayName.value !== '' || roles.value.length > 0,
+  resetDraft,
+)
 
 const normalizedUsername = computed(() => username.value.trim().toLowerCase())
 const usernameError = computed(() => {
@@ -93,10 +106,7 @@ watch(
   () => props.temporaryPassword,
   (password) => {
     if (password === null) return
-    username.value = ''
-    displayName.value = ''
-    roles.value = []
-    hasSubmitted.value = false
+    resetDraft()
   },
 )
 </script>
@@ -176,9 +186,11 @@ watch(
 
 <style scoped>
 .admin-user-creation {
+  min-width: 0;
+  overflow-wrap: anywhere;
   max-width: 44rem;
   margin-bottom: var(--space-8);
-  padding: var(--space-6);
+  padding: var(--space-6) var(--page-gutter);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background: var(--panel);
@@ -230,7 +242,7 @@ watch(
 
 .admin-user-creation-error {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .admin-user-temporary-password {

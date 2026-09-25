@@ -5,6 +5,8 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
+import AppFeedback from '@/components/base/AppFeedback.vue'
+import { useDraftRegistration } from '@/composables/useDraftNavigation'
 import { useUserPreferences, type UserPreferences } from '@/composables/useUserPreferences'
 
 type PreferencesDraft = Omit<UserPreferences, 'revision'>
@@ -63,6 +65,15 @@ function adoptSaved(values: UserPreferences): void {
     desktop_sidebar_collapsed: values.desktop_sidebar_collapsed,
   }
 }
+
+useDraftRegistration(
+  () => hasChanges.value,
+  () => {
+    if (baseline.value !== null) adoptSaved(baseline.value)
+    saveState.value = 'idle'
+    hasReloadError.value = false
+  },
+)
 
 watch(
   [principalId, canAccess],
@@ -176,18 +187,34 @@ async function loadSaved(replaceDraft: boolean): Promise<void> {
       <p>{{ t('userSettings.description') }}</p>
     </header>
 
-    <p class="user-settings-status" role="status" aria-live="polite" aria-atomic="true">
+    <AppFeedback class="user-settings-status" announcement="polite">
       {{ statusMessage }}
-    </p>
-    <p class="user-settings-error" role="alert" aria-atomic="true">{{ errorMessage }}</p>
-
-    <AppButton
-      v-if="accessState === 'sessionError'"
-      variant="ghost"
-      @click="preferences.session.initialize()"
+    </AppFeedback>
+    <AppFeedback
+      class="user-settings-error"
+      :class="{ 'user-settings-error--present': errorMessage }"
+      announcement="assertive"
+      tone="critical"
     >
-      {{ t('userSettings.retry') }}
-    </AppButton>
+      {{ errorMessage }}
+      <template
+        v-if="
+          accessState === 'sessionError' || (canAccess && hasReadError && saveState !== 'conflict')
+        "
+        #actions
+      >
+        <AppButton
+          v-if="accessState === 'sessionError'"
+          variant="ghost"
+          @click="preferences.session.initialize()"
+        >
+          {{ t('userSettings.retry') }}
+        </AppButton>
+        <AppButton v-else variant="ghost" :disabled="isBusy" @click="retryRead">
+          {{ t('userSettings.retry') }}
+        </AppButton>
+      </template>
+    </AppFeedback>
 
     <template v-if="canAccess">
       <div
@@ -199,15 +226,6 @@ async function loadSaved(replaceDraft: boolean): Promise<void> {
         <div></div>
         <div></div>
       </div>
-
-      <AppButton
-        v-if="hasReadError && saveState !== 'conflict'"
-        variant="ghost"
-        :disabled="isBusy"
-        @click="retryRead"
-      >
-        {{ t('userSettings.retry') }}
-      </AppButton>
 
       <form v-if="draft !== null" :aria-busy="isBusy" @submit.prevent="save">
         <fieldset :disabled="isBusy" :aria-label="t('userSettings.title')">
@@ -253,12 +271,14 @@ async function loadSaved(replaceDraft: boolean): Promise<void> {
           </div>
         </fieldset>
 
-        <div v-if="saveState === 'conflict'" class="user-settings-conflict">
-          <p>{{ t('userSettings.conflictReloadHint') }}</p>
-          <AppButton variant="ghost" :disabled="isBusy" @click="reloadSaved">
-            {{ t('userSettings.reloadSaved') }}
-          </AppButton>
-        </div>
+        <AppFeedback v-if="saveState === 'conflict'" class="user-settings-conflict">
+          {{ t('userSettings.conflictReloadHint') }}
+          <template #actions>
+            <AppButton variant="ghost" :disabled="isBusy" @click="reloadSaved">
+              {{ t('userSettings.reloadSaved') }}
+            </AppButton>
+          </template>
+        </AppFeedback>
 
         <footer class="user-settings-actions">
           <p>{{ t('userSettings.saveHint') }}</p>
@@ -302,13 +322,8 @@ async function loadSaved(replaceDraft: boolean): Promise<void> {
   color: var(--text-secondary);
 }
 
-.user-settings-error {
+.user-settings-error--present {
   margin: 0 0 var(--space-4);
-  color: var(--critical);
-}
-
-.user-settings-error:empty {
-  margin: 0;
 }
 
 .user-settings fieldset {
@@ -338,7 +353,7 @@ async function loadSaved(replaceDraft: boolean): Promise<void> {
 .user-settings-field select {
   width: 100%;
   max-width: 22rem;
-  min-height: var(--space-10);
+  min-height: var(--control-min-size);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border);
   border-radius: var(--radius-input);
@@ -368,10 +383,6 @@ async function loadSaved(replaceDraft: boolean): Promise<void> {
   border: 1px solid var(--border);
   border-radius: var(--radius-input);
   background: var(--surface-1);
-}
-
-.user-settings-conflict p {
-  margin: 0 0 var(--space-3);
   color: var(--text-secondary);
 }
 

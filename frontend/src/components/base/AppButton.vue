@@ -2,9 +2,8 @@
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
 
 // Three variants only (docs/25-frontend-design-guidelines.md): solid is the one primary action per
-// view, ghost is secondary, text is tertiary/inline. Destructive actions use --critical; the
-// guideline also asks for a confirmation step, which belongs to the call site once a destructive
-// action actually exists (none does yet) rather than to this component.
+// view, ghost is secondary, text is tertiary/inline. Destructive actions use --critical for fills
+// and borders, --critical-text for unfilled text. Confirmation belongs to the call site.
 // With `to`, the control navigates, so it renders as a link that only looks like a button.
 withDefaults(
   defineProps<{
@@ -46,6 +45,10 @@ withDefaults(
 <style scoped>
 .app-button {
   display: inline-flex;
+  min-width: var(--control-min-size);
+  min-height: var(--control-min-size);
+  max-width: 100%;
+  overflow-wrap: anywhere;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
@@ -88,7 +91,7 @@ withDefaults(
 
 .app-button--ghost.app-button--destructive {
   border-color: var(--critical);
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .app-button--text {
@@ -104,6 +107,6 @@ withDefaults(
 }
 
 .app-button--text.app-button--destructive {
-  color: var(--critical);
+  color: var(--critical-text);
 }
 </style>

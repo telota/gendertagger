@@ -234,6 +234,8 @@ const PREDICTION_STATUSES: readonly PredictionStatus[] = ['success', 'abstain', 
 
 <style scoped>
 .filters {
+  min-width: 0;
+  overflow-wrap: anywhere;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -246,6 +248,7 @@ const PREDICTION_STATUSES: readonly PredictionStatus[] = ['success', 'abstain', 
 }
 
 .filter {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);

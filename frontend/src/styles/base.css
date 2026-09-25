@@ -23,6 +23,42 @@ body {
   line-height: var(--line-height-body);
 }
 
+/* Fieldsets must shrink with their form column; their native min-content width can force the page
+ * wider than the viewport when labels grow or the reader enlarges text. */
+fieldset {
+  min-inline-size: 0;
+}
+
+legend {
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* Single-line fields share sizing with the base controls. Checks, radios, file pickers, and
+ * multiline/list controls retain their own interaction targets and native behavior. */
+:where(
+  input:not([type]),
+  input[type='text'],
+  input[type='password'],
+  input[type='email'],
+  input[type='search'],
+  input[type='number'],
+  input[type='tel'],
+  input[type='url'],
+  select:not([multiple]):not([size]),
+  select:not([multiple])[size='1']
+) {
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--control-min-size);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  background: var(--panel);
+  color: var(--text-primary);
+  font: inherit;
+}
+
 /* Focus is always visible and never removed (WCAG 2.4.7, 2.4.11). */
 :focus-visible {
   outline: 2px solid var(--focus-ring);

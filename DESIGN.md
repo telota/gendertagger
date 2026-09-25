@@ -17,6 +17,7 @@ colors:
   verified-green: "#088a08"
   caution-gold: "#fab219"
   critical-red: "#d03b3b"
+  critical-red-text: "#bf3333"
   overlay-backdrop: "rgba(11, 11, 11, 0.4)"
   male-blue: "#2a78d6"
   male-blue-text: "#1f5aa0"
@@ -44,6 +45,7 @@ colors:
   night-verified-green: "#4fc94f"
   night-caution-gold: "#f0b843"
   night-critical-red: "#f0736f"
+  night-critical-red-text: "#f0736f"
   night-overlay-backdrop: "rgba(0, 0, 0, 0.6)"
   night-male-blue: "#5a9ee8"
   night-male-blue-text: "#8fbdf0"
@@ -202,7 +204,7 @@ The light theme places **Quiet Parchment** behind white paper panels and the nea
 
 **Vocabulary Is Data.** Male blue, female coral, institution green, and unknown amber are fixed semantic families. Each family has a border, readable text tone, and quiet tint; use all three together. Always print the canonical token or an explicit state alongside color. Certainty tiers reuse these families deliberately: `contested` uses coral, `low` uses amber, and `thin` uses blue.
 
-Verified green, caution gold, and critical red communicate status. Put them beside literal status or error text. Status colors are not suitable as white-text filled badges unless contrast is independently rechecked for the exact theme.
+Verified green, caution gold, and critical red communicate status. Put them beside literal status or error text. Use `--critical-text` for error and destructive-action text on page, panel, and raised surfaces; reserve `--critical` for fills and borders. Filled destructive buttons keep `--panel` text, verified in both themes. Status colors are not suitable as white-text filled badges unless contrast is independently rechecked for the exact theme.
 
 ## Typography
 
@@ -216,13 +218,17 @@ The scale is intentionally compact: `page` for the single page heading, `title` 
 
 ## Layout
 
-The desktop shell uses a fixed 15rem sidebar and a flexible content region. Below 1079px the sidebar becomes a 3.75rem icon rail while labels remain available to assistive technology. Pages use their own purposeful maximum width rather than stretching every form, table, or paragraph to the viewport edge.
+Eligible signed-in sessions use the working shell. Signed-out, unresolved, session-error and required-password-change states have a compact header with the home brand, session controls and language/theme choices, with no sidebar or drawer trigger. Legal links remain in the footer.
 
-The review workbench is the signature composition: a 15rem filter column, a flexible list with an 18rem minimum, and an evidence-and-decision column with a 22rem minimum and greater share of available width. It stacks at 68rem. Other incumbent feature layouts adapt around 56rem, 48rem, and 40rem according to their content.
+The desktop working shell uses a 15rem sidebar, or a saved 3.75rem collapsed rail, and a flexible content region. From 720 to 1079 CSS px it uses the rail; below 720px navigation moves to a modal drawer. Labels remain available to assistive technology. Pages use their own purposeful maximum width rather than stretching every form, table, or paragraph to the viewport edge.
+
+The review workbench is the signature composition: a 15rem filter column, a flexible list with an 18rem minimum, and an evidence-and-decision column with a 22rem minimum and greater share of available width. It stacks when its available content width falls below 57rem, accounting for the sidebar and padding. Shared fact lists stack labels above values below a 24rem container width. The shared page gutter is the smaller of four spacing steps and 4vw. Other incumbent feature layouts adapt around 56rem, 48rem, and 40rem according to their content.
 
 **Four-Pixel Cadence.** Space follows the 4px-based scale. Dense rows use one or two steps internally; cards and panels usually use four; major regions use six to twelve. Prefer `gap` between siblings over compensating margins, and do not introduce off-scale spacing for isolated alignment fixes.
 
 Keep reading and keyboard order aligned with the visual order. At narrow widths, reflow columns rather than creating page-level horizontal scrolling. Preserve a stable evidence context when controls move; compactness must not separate a decision from its provenance.
+
+**Page entry.** The skip link and successful page navigation focus the stable content wrapper. Initial loading, in-page query/hash updates, background refreshes, and open modals preserve their existing focus ownership. Each view owns its H1, task actions, and meaningful content width; route operations stay beside the data or form they affect.
 
 ## Elevation & Depth
 
@@ -244,9 +250,17 @@ Structural borders are 1px. Keyboard focus is a 2px focus-blue outline with a 2p
 
 **Buttons.** There are exactly three variants: solid for the one primary action, ghost for secondary actions, and text for tertiary or inline actions. Solid buttons use Registry Teal; destructive actions switch border and fill to critical red and require confirmation at the call site. Text buttons underline on hover. Disabled controls reduce opacity and retain an explicit not-allowed cursor.
 
+**Control sizing.** Shared buttons, text fields, native single-line fields, and listbox options use a 2rem minimum, rising to 2.75rem below 720 CSS px or with any coarse pointer. Compact styling keeps this minimum. Checkbox/radio geometry and noninteractive badges remain separate; verify label hit areas in each view. Long labels wrap, and fieldsets and fields can shrink within their container.
+
+**Scrollable tables.** Use the named `AppScrollRegion` wrapper to contain wide tables. A tab stop and associated visible hint appear only when scrolling is needed. Keep readable columns and semantic table markup; view-specific stacked records remain a separate design choice.
+
+**Inline feedback.** Use `AppFeedback` for concise messages and adjacent recovery actions. Choose static, polite, or assertive announcements explicitly; critical foreground colour is a separate choice. Keep controls outside the live message. Conflict reconciliation, intentional focus targets, and individual bulk outcomes remain under the view's control.
+
 **Text fields.** Every field has a visible label. Inputs use paper panels, hairline borders, the input radius, and two-by-three-step padding. Field-level errors sit next to the field, use critical text and border color, and connect through `aria-describedby`; do not assign an ambiguous form error to an arbitrary field.
 
 **Compact listboxes.** The trigger uses small type and control geometry. The option popup uses the input radius, one-step internal spacing, the overlay shadow, tonal hover, and Annotation Ink for the selected option. Accessible naming and keyboard behavior come from the headless control, not custom pointer-only behavior.
+
+**Header.** Short breadcrumbs identify the authorized project and current destination. The account name opens Personal settings and Sign out. Project switching sits above project destinations in the sidebar, including its rail and mobile drawer. Names wrap, scientific context and actions stay in their view, and registered unsaved input requires Stay or Discard and leave before path changes or sign-out. See [the accepted header brief](docs/frontend-header-proposal.md).
 
 **Navigation.** Sidebar entries pair a 20px icon with a text label. Hover uses the raised surface; the active route adds Annotation Ink and semibold weight. Disabled destinations are non-links, unfocusable, and visibly subdued. On the icon rail, labels become visually hidden rather than removed.
 

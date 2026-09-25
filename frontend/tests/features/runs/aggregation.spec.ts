@@ -68,6 +68,7 @@ interface Server {
   /** What `POST /runs/{id}/aggregations` answers. */
   postStatus: 200 | 202 | 409
   posts: { method_execution_ids: string[]; strategy: string }[]
+  postGate?: Promise<void>
 }
 
 function newServer(overrides: Partial<Server> = {}): Server {
@@ -123,6 +124,7 @@ function aggregationClient(server: Server) {
       if (pathname === `/api/v1/runs/${RUN_ID}/aggregations`) {
         if (request.method === 'POST') {
           server.posts.push((await request.json()) as Server['posts'][number])
+          if (server.postGate) await server.postGate
           if (server.postStatus === 409) {
             return jsonResponse(
               { error: { code: 'resource_conflict', message: 'no', details: {}, request_id: 'r' } },
@@ -272,5 +274,64 @@ describe.each(['de', 'en'] as const)('aggregation in %s', (locale: AppLocale) =>
     // The exit criterion: the code that produced the aggregation's run is readable from here.
     expect(wrapper.get('.provenance-fact[data-key="codeCommit"] dd').text()).toBe('abc')
     expect(wrapper.get('.provenance-fact[data-key="configHash"] dd').text()).toBe('e'.repeat(64))
+  })
+
+  it('protects a changed manual selection and keeps failed creation dirty', async () => {
+    const server = newServer({ aggregations: [aggregation('completed')], postStatus: 409 })
+    const wrapper = await mountRun(server)
+    await wrapper.get(`#aggregate-${EXEC_C}`).setValue(false)
+    await wrapper.get('.aggregations-form').trigger('submit')
+    await waitFor(() =>
+      expect(wrapper.get('.aggregations-error').text()).toBe(messages.errors.notAggregatable),
+    )
+    const attempt = wrapper.vm.$router.push('/')
+    await waitFor(() => expect(document.querySelector('.draft-leave-panel')).not.toBeNull())
+    document.querySelector<HTMLButtonElement>('.draft-leave-actions button')!.click()
+    await attempt
+    expect(wrapper.vm.$route.path).toBe(runPath)
+    expect((wrapper.get(`#aggregate-${EXEC_C}`).element as HTMLInputElement).checked).toBe(false)
+    expect(server.posts).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('marks a successfully submitted manual selection clean without resetting it', async () => {
+    const server = newServer({ aggregations: [aggregation('completed')], postStatus: 200 })
+    const wrapper = await mountRun(server)
+    await wrapper.get(`#aggregate-${EXEC_C}`).setValue(false)
+    await wrapper.get('.aggregations-form').trigger('submit')
+    await waitFor(() => expect(wrapper.find('.aggregations-reused').exists()).toBe(true))
+    expect((wrapper.get(`#aggregate-${EXEC_C}`).element as HTMLInputElement).checked).toBe(false)
+    const attempt = wrapper.vm.$router.push('/')
+    await flushPromises()
+    expect(document.querySelector('.draft-leave-panel')).toBeNull()
+    await attempt
+    expect(server.posts).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('keeps a selection changed during the request dirty after its earlier submission succeeds', async () => {
+    let release!: () => void
+    const server = newServer({
+      aggregations: [aggregation('completed')],
+      postStatus: 200,
+      postGate: new Promise<void>((resolve) => {
+        release = resolve
+      }),
+    })
+    const wrapper = await mountRun(server)
+    await wrapper.get(`#aggregate-${EXEC_C}`).setValue(false)
+    await wrapper.get('.aggregations-form').trigger('submit')
+    await waitFor(() => expect(server.posts).toHaveLength(1))
+    await wrapper.get(`#aggregate-${EXEC_B}`).setValue(false)
+    release()
+    await waitFor(() => expect(wrapper.find('.aggregations-reused').exists()).toBe(true))
+    const attempt = wrapper.vm.$router.push('/')
+    await waitFor(() => expect(document.querySelector('.draft-leave-panel')).not.toBeNull())
+    document.querySelector<HTMLButtonElement>('.draft-leave-actions button')!.click()
+    await attempt
+    expect(wrapper.vm.$route.path).toBe(runPath)
+    expect((wrapper.get(`#aggregate-${EXEC_B}`).element as HTMLInputElement).checked).toBe(false)
+    expect(server.posts[0]?.method_execution_ids).toEqual([EXEC_A, EXEC_B])
+    wrapper.unmount()
   })
 })

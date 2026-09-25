@@ -53,7 +53,8 @@ appear in the application.
 | Focus ring | `--focus-ring` | `#1f5aa0` |
 | Success | `--good` | `#088a08` |
 | Warning | `--warning` | `#fab219` |
-| Critical | `--critical` | `#d03b3b` |
+| Critical fill / border | `--critical` | `#d03b3b` |
+| Critical text | `--critical-text` | `#bf3333` |
 
 Each canonical label carries three tokens — a solid, a text colour, and a tint:
 
@@ -90,6 +91,7 @@ re-verified before it lands.
 | `--good` | `#088a08` | `#4fc94f` |
 | `--warning` | `#fab219` | `#f0b843` |
 | `--critical` | `#d03b3b` | `#f0736f` |
+| `--critical-text` | `#bf3333` | `#f0736f` |
 
 Label tokens invert their relationship: the tint becomes a dark, desaturated ground and the text colour
 becomes light.
@@ -102,9 +104,10 @@ becomes light.
 | `unknown` | `#e8b53c` | `#e8bd5e` | `#332813` |
 
 Measured dark-theme ratios: label text on its own tint 7.37–8.28; `--text-primary` on panel 14.32;
-`--text-secondary` 8.66; `--muted` 5.53; `--accent` 6.54; `--accent-b` 7.12; `--critical` 5.59;
+`--text-secondary` 8.66; `--muted` 5.53; `--accent` 6.54; `--accent-b` 7.12; `--critical-text` 5.59;
 `--warning` 8.81; `--good` 7.42; focus ring on page 8.96. Label solids as borders on the dark panel measure
-5.67–8.41.
+5.67–8.41. Critical text also measures 6.18 on page and 5.03 on `--surface-1`; the inverse
+`--panel` foreground on a `--critical` destructive button measures 5.59.
 
 Rules specific to the dark theme:
 
@@ -146,7 +149,11 @@ verified independently** — passing in one proves nothing about the other.
 | `--text-secondary` on `--panel` | 7.94 | passes |
 | `--accent` on `--panel` | 8.56 | passes |
 | `--accent-b` on `--panel` | 5.27 | passes |
-| `--critical` on `--panel` | 4.80 | passes |
+| `--critical-text` on `--page` | 4.98 | passes |
+| `--critical-text` on `--panel` | 5.62 | passes |
+| `--critical-text` on `--surface-1` | 5.47 | passes |
+| `--panel` text on `--critical` fill | 4.80 | passes |
+| `--critical` as text on `--page` | 4.25 | **fails AA text** |
 | `--focus-ring` on `--page` | 6.14 | passes |
 | label **solid** as text on `--panel` | 2.17–4.42 | **fails** |
 | `--muted` `#898781` on `--panel` | 3.59 | **fails AA text** |
@@ -164,6 +171,10 @@ binding:
    is wanted for decoration, introduce a separate non-text token rather than relaxing this one.
 3. **Status colours never carry text at their nominal value.** `--warning` takes dark text (`#3a2c00` on
    amber measures 7.43). `--good` is `#088a08`, darkened from `#0ca30c` so white glyphs on it reach 4.52.
+4. **Critical text uses `--critical-text` on page, panel, and raised surfaces.** The original `--critical`
+   passes on the light panel but fails on the page; checking only the panel misses that error. Keep
+   `--critical` for fills and borders, including filled destructive buttons with `--panel` foreground.
+   The text token has its own role in both themes even where the dark values currently match.
 
 ### Colour usage rules
 
@@ -310,11 +321,16 @@ artefact they describe.
 
 ## Layout
 
-The shell is a persistent sidebar plus a content region, with one page title per screen. At 1080 CSS px
-and above, the sidebar follows the saved expanded/collapsed choice; from 720 to 1079 px it is a compact
+Eligible signed-in sessions use a persistent sidebar plus a content region, with one page title per
+screen. Signed-out, unresolved, session-error and password-change-required states use a compact header
+with the home brand, account/session controls, and language/theme choices, without an empty sidebar or
+drawer trigger. Public legal links remain in the footer. At 1080 CSS px and above, the sidebar follows
+the saved expanded/collapsed choice; from 720 to 1079 px it is a compact
 rail. Below 720 px a title-bar trigger opens a modal navigation drawer instead of a persistent rail.
-The 1080 px breakpoint also stacks the workbench columns and halves the KPI and card grids; below 720 px
-the workbench becomes a single column with list and detail as separate views.
+The review workbench uses its available content width after the sidebar and page padding, rather than
+the viewport breakpoint: three columns need at least 57rem; below that the columns stack in reading order.
+Separate mobile list/detail navigation remains part of the V1 view work in the
+[improvement plan](27-frontend-improvement-plan.md#v--individual-view-improvements).
 `desktop_sidebar_collapsed` records an explicit desktop choice only, defaulting to false. Breakpoint
 transitions and temporary mobile/drawer state never change that preference; returning to desktop restores
 the saved desktop choice at widths of at least 1080 CSS pixels. The explicit collapsed choice uses the
@@ -324,18 +340,43 @@ layout. Both the desktop collapse button and personal settings form use
 The shared navigation model and exact route ownership are specified in
 [the delivery plan](24-frontend-delivery-plan.md#contextual-sidebar-completion).
 
+The private header contains short breadcrumbs and an account-name menu for Personal settings and Sign out.
+Project switching sits above readable project destinations in the sidebar, including the mobile drawer;
+global pages use Projects. The [accepted header brief](frontend-header-proposal.md) defines ancestry,
+loading/access states and draft protection. Scientific context and task actions remain in each view.
+Names wrap; mobile navigation, breadcrumbs, and account controls retain DOM reading order.
+
 The shell uses `--sidebar-width` (15rem), `--sidebar-rail-width` (3.75rem), `--shell-header-height`
 (3.5rem minimum), and `--sidebar-transition` (the existing reduced-motion-aware `--motion-state`).
 Navigation scrolls independently of the brand and the footer containing language, theme, and the desktop
 collapse button. The collapse button is last; its failure/conflict feedback opens upward. Rail destinations and
-controls retain accessible names and expose hover/focus tooltips. Footer menus open upward. Modal
+controls retain accessible names and expose hover/focus tooltips. Expanded desktop and drawer labels
+do not repeat in tooltips; unavailable destinations retain their prerequisite explanations. Opening a
+menu or changing to a labelled layout dismisses redundant label help. Footer menus open upward. Modal
 navigation keeps labels visible, traps focus, and restores it on dismissal; leaving the mobile
 breakpoint moves focus to the visible current destination or brand because the title-bar trigger hides.
 
 The review workbench is the application's primary working surface: a filter column, a list column, and a
-detail column. Its geometry is stable — filters do not reflow, and the action bar stays pinned at the bottom
-of the detail column so its position never depends on content length. Selecting a row must not shift the
-list.
+detail column. Keep selection from shifting the list. The shared containment foundation uses shrinkable
+grid/flex children and wrapping identifiers. `--page-gutter` caps horizontal padding at 4vw on narrow
+screens while retaining the normal four-step inset on wider screens. Shared fact lists use `.app-facts`
+and `.app-fact`: labels stack above values below a 24rem container width; wider lists use a 9rem label
+track and a shrinkable value track. Review-specific navigation and decision placement are resolved in V1.
+
+**Page conventions.** Each route owns one H1; panels use subordinate headings. Keep the route's heading
+available during loading and errors when its identity is already known. API-derived titles must not
+invent an unresolved resource name. Existing views that omit their heading while loading are tracked
+in their V-family pass; shell focus does not depend on a heading being ready.
+
+Keep the primary task action beside the page heading or the form/record it affects; row and bulk actions
+stay with their targets. On narrow screens, actions wrap after the heading or form in the same reading
+and keyboard order. Do not move a route-specific command into the global header to save page space.
+Use one solid primary action per task context, with secondary recovery/navigation actions subordinate.
+
+Choose content width by task: ordinary forms and reading content keep their existing bounded measure;
+comparison tables and workbenches use available width with shrinkable tracks and local table scrolling.
+Do not impose a single maximum width across all route families. Use shared gutters and containment
+patterns before adding a local breakpoint, and preserve the user's entered data and selection on reflow.
 
 Long collections are cursor-paginated on the server. Never render an unbounded list, and never re-sort or
 re-filter a fetched page in the browser.
@@ -343,7 +384,14 @@ re-filter a fetched page in the browser.
 ## Component patterns
 
 **Buttons.** Three variants only — solid (primary action, one per view), ghost (secondary), and plain text
-(tertiary/inline). Destructive actions use `--critical` and require confirmation.
+(tertiary/inline). Destructive actions use `--critical` fills and borders, `--critical-text` for ghost
+and text variants, and require confirmation. Filled variants keep `--panel` text in both themes.
+Shared buttons, text fields, single-line native inputs/selects, and listbox/project-switcher triggers and
+options use `--control-min-size`: 2rem normally, increasing to `--control-touch-size` (2.75rem) below
+720 CSS px or when any pointer is coarse. At the default root size these are 32px and 44px. Compact
+variants retain that minimum. Standalone drawer/menu buttons use the touch minimum. Checkboxes, radios,
+file inputs, multiline controls, and noninteractive badges retain their own geometry; their surrounding
+labels and spacing remain part of each view's accessibility check.
 
 **Chips.** Filter chips are toggles and must communicate selected state without relying on colour alone.
 A disabled chip states why it is disabled.
@@ -352,20 +400,49 @@ A disabled chip states why it is disabled.
 
 **Tables.** One component covers the wireframe's four bespoke tables. Headers are `caption` size, uppercase,
 `--muted`. Rows use a `--grid` hairline. Wide tables scroll inside their own container; the page never
-scrolls horizontally.
+scrolls horizontally. Use `AppScrollRegion` with a localized name distinct from enclosing landmarks.
+It adds a keyboard tab stop and a visible, associated horizontal-scroll hint only while content overflows,
+remeasures when the region or its slotted content changes size, and preserves the table's semantics.
+The current consumers are review method evidence, the account directory, and the branding-value table.
+Keep an intentional table minimum width where shrinking would make columns unreadable; a future stacked
+record presentation is a view decision rather than a global overflow workaround.
 
 **Cards.** Border and background, no shadow. A card has at most one title and does not nest.
 
 **Menus and modals.** Built on the headless accessibility library chosen in decision D9 — menus, modals,
 listboxes, and tooltips take their behaviour and focus management from it and their appearance from the
-project tokens. Dismiss on outside click and Escape, trap focus while open, restore focus to the trigger on
-close. Do not hand-roll these; do not accept the library's visual defaults.
+project tokens. Clamp popup minimum widths to their available width as well as setting maximum widths;
+enlarged text must not force a minimum wider than the screen. The sidebar project menu is bounded by the
+viewport and repositions on scrolling/resizing. Desktop portals the popup outside the sticky sidebar
+stacking context; mobile keeps it inside the dialog. Crossing into mobile closes the desktop popup.
+The account menu opens below the wrapping header. Dismiss menus on outside click and Escape and
+restore trigger focus;
+modal dialogs trap focus. Use the library behavior; do not accept its visual defaults.
 
 **Forms.** Every control has a visible label. Validation messages sit next to the field, state what to do,
 and never rely on colour alone. Server-side validation errors from the shared envelope map onto the
-originating field where the envelope identifies one.
+originating field where the envelope identifies one. Shared single-line controls may shrink to their
+container; fieldsets have no intrinsic minimum inline size and legends wrap. These rules prevent a long
+label or translated legend from forcing the document wider than the screen.
 
 ## Interface states
+
+Use `AppFeedback` for reusable inline feedback layout: wrapping message content and a separate actions
+slot for retry/recovery controls. The caller supplies translated copy, decides state and recovery, and
+retains any intentional focus target. The primitive neither fetches nor retries, infers permission,
+aggregates partial outcomes, nor owns scientific status vocabulary.
+
+Choose announcement urgency explicitly: `off` for static explanations such as view-only permission,
+`polite` for loading/progress/saved summaries, and `assertive` for failures requiring attention. Visual
+critical tone is independent of urgency and uses `--critical-text`; do not encode meaning through colour
+alone. Keep changing status/error regions mounted where possible so updates use the same live region.
+Put recovery controls in the actions slot, outside the announced message, and avoid nested live regions.
+Loading announcements complement a view's skeleton or retained data rather than replacing that layout.
+
+Conflict reconciliation keeps its resource-specific comparison, revision, explicit reload, and focus
+behavior. Bulk summaries retain individual saved/skipped/conflict/failure outcomes. Adopt the shared
+presentation in remaining view families when it improves consistency; do not erase those distinctions
+or wrap existing purpose-built focus targets merely to make all markup identical.
 
 Every data-bearing view specifies all of these before it is considered designed:
 
@@ -389,10 +466,16 @@ EN 301 549, which in turn references WCAG, so building to the current 2.2 level 
 
 - Semantic elements. Interactive things are `<button>` or `<a>`. The wireframe's `div role="button"` pattern
   and its global Enter/Space shim are not carried over.
+- A localized skip link is the shell's first keyboard stop and becomes visible on focus. It focuses a
+  stable routed-content wrapper without changing the URL; individual views retain their main landmark.
+- After a confirmed pathname change, focus that same wrapper once after rendering and navigation-drawer
+  dismissal. Initial application loading, query/hash changes, cancelled navigation, and background data
+  updates preserve focus. An open modal retains focus ownership. Do not wait for async headings and
+  then move focus a second time; loading/error content must also have a usable destination.
 - Visible focus on every interactive element, using `--focus-ring` at 2 px with a 2 px offset.
 - Full keyboard operability, including the review action bar. Single-key shortcuts (1–4) are disabled while
   a text input has focus and are discoverable in the interface, not only in documentation.
-- Non-text UI boundaries meet 3:1; text meets 4.5:1. See [Contrast](#contrast) for the three corrections.
+- Non-text UI boundaries meet 3:1; text meets 4.5:1. See [Contrast](#contrast) for the token corrections.
 - Every status dot, badge, and chart mark has a text alternative. Charts have an accessible table equivalent.
 - Live regions announce asynchronous state changes — run progress, save results, conflicts.
 - Respect `prefers-reduced-motion`.
@@ -509,13 +592,15 @@ Authenticated locale selection is account-owned under
 Browser default remains null in the resource and is resolved by the browser to the first supported primary
 language subtag, then German. This changes persistence only; untranslated scientific vocabulary and
 catalogue rules from ADR-0030 remain unchanged. Anonymous browser language and theme choices remain
-available in the sidebar footer (inside the navigation drawer on mobile) when signed out and are restored
-after logout without copying account choices into browser storage.
+available in the compact header when signed out and are restored after logout without copying account
+choices into browser storage. Eligible signed-in sessions keep those controls in the sidebar footer
+(inside the navigation drawer on mobile). Both presentations use the same preference component and
+preserve temporary nonpersistent choices while session access is unresolved.
 
 ## Personal settings
 
-The lazy `/settings` page is named `userSettings` and is discoverable through a translated Settings link
-in the sidebar footer, including the mobile navigation drawer. Every signed-in, password-current user
+The lazy `/settings` page is named `userSettings` and is discoverable through the translated Personal
+settings item in the header account menu. Every signed-in, password-current user
 can open it independently of project or global role. Signed-out and forced-password states follow the
 existing authentication flow. Administrative branding remains a separate screen at `/admin/settings`.
 

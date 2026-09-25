@@ -67,6 +67,7 @@ async function mountPreferences(
     session?: Partial<SessionState>
     desktopCollapsed?: boolean
     mobile?: boolean
+    presentation?: 'sidebar' | 'header'
     settings?: boolean
   } = {},
 ) {
@@ -92,6 +93,7 @@ async function mountPreferences(
             h(SidebarPreferences, {
               desktopCollapsed: options.desktopCollapsed ?? false,
               mobile: options.mobile ?? false,
+              presentation: options.presentation ?? 'sidebar',
             }),
             ...(options.settings ? [h(UserSettingsView)] : []),
           ])
@@ -143,17 +145,41 @@ describe.each(['de', 'en'] as const)('sidebar preferences in %s', (locale) => {
   const messages = catalogues[locale]
 
   it.each([
-    { label: 'expanded', desktopCollapsed: false, mobile: false },
-    { label: 'rail', desktopCollapsed: true, mobile: false },
-    { label: 'mobile drawer', desktopCollapsed: true, mobile: true },
+    { label: 'expanded', desktopCollapsed: false, mobile: false, presentation: 'sidebar' as const },
+    { label: 'rail', desktopCollapsed: true, mobile: false, presentation: 'sidebar' as const },
+    {
+      label: 'mobile drawer',
+      desktopCollapsed: true,
+      mobile: true,
+      presentation: 'sidebar' as const,
+    },
+    {
+      label: 'public header',
+      desktopCollapsed: true,
+      mobile: false,
+      presentation: 'header' as const,
+    },
   ])('keeps anonymous language and theme choices usable in the $label', async (presentation) => {
     const fetch = vi.fn(() => failure())
     const { wrapper } = await mountPreferences(locale, fetch, presentation)
     expect(control(wrapper, 'locale').attributes('aria-label')).toBe(messages.locale.label)
     expect(control(wrapper, 'theme').attributes('aria-label')).toBe(messages.theme.label)
     expect(wrapper.get('section').classes().includes('sidebar-preferences--collapsed')).toBe(
-      presentation.desktopCollapsed && !presentation.mobile,
+      presentation.presentation === 'sidebar' &&
+        presentation.desktopCollapsed &&
+        !presentation.mobile,
     )
+
+    if (presentation.presentation === 'header') {
+      expect(wrapper.get('section').classes()).toContain('sidebar-preferences--header')
+      const button = control(wrapper, 'theme')
+      expect(button.text()).toContain(messages.theme.label)
+      expect(button.text()).toContain(messages.theme.system)
+      await button.trigger('mouseenter')
+      button.element.focus()
+      await flushPromises()
+      expect(document.querySelector('[role="tooltip"]')).toBeNull()
+    }
 
     await choose(wrapper, 'theme', messages.theme.dark)
     expect(document.documentElement.dataset.theme).toBe('dark')
@@ -188,6 +214,38 @@ describe.each(['de', 'en'] as const)('sidebar preferences in %s', (locale) => {
       expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBe(locale)
       expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('light')
       expect(fetch).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each([
+    { label: 'loading', state: { status: 'loading' } },
+    { label: 'session error', state: { status: 'error', user: USER } },
+    { label: 'forced password change', state: { mustChangePassword: true, user: USER } },
+  ] satisfies { label: string; state: Partial<SessionState> }[])(
+    'keeps header choices temporary during $label',
+    async ({ state }) => {
+      localStorage.setItem(LOCALE_STORAGE_KEY, locale)
+      localStorage.setItem(THEME_STORAGE_KEY, 'light')
+      const fetch = vi.fn(() => failure())
+      const { wrapper } = await mountPreferences(locale, fetch, {
+        session: state,
+        presentation: 'header',
+        desktopCollapsed: true,
+      })
+      const help = wrapper.get('.sidebar-preferences-help')
+      expect(help.text()).toBe(messages.sidebarPreferences.temporary)
+      expect(control(wrapper, 'theme').attributes('aria-describedby')).toBe(help.attributes('id'))
+      expect(wrapper.get('section').classes()).not.toContain('sidebar-preferences--collapsed')
+
+      await choose(wrapper, 'theme', messages.theme.dark)
+      await choose(wrapper, 'locale', locale === 'en' ? 'Deutsch' : 'English')
+
+      expect(document.documentElement.dataset.theme).toBe('dark')
+      expect(document.documentElement.lang).toBe(locale === 'en' ? 'de' : 'en')
+      expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBe(locale)
+      expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('light')
+      expect(fetch).not.toHaveBeenCalled()
+      await expectNoAxeViolations(wrapper.get('section').element)
     },
   )
 
@@ -414,19 +472,25 @@ describe.each(['de', 'en'] as const)('sidebar preferences in %s', (locale) => {
     expect(wrapper.get('.user-settings-status').text()).toBe(messages.userSettings.states.unsaved)
   })
 
-  it('supports keyboard selection and Escape returns focus to the trigger', async () => {
-    const { wrapper } = await mountPreferences(locale, () => failure(), { desktopCollapsed: true })
-    const button = control(wrapper, 'theme')
-    button.element.focus()
-    await button.trigger('keydown', { key: 'ArrowDown' })
-    await waitFor(() => expect(wrapper.find('[role="listbox"]').exists()).toBe(true))
-    await wrapper.get('[role="listbox"]').trigger('keydown', { key: 'End' })
-    await wrapper.get('[role="listbox"]').trigger('keydown', { key: 'Enter' })
-    await waitFor(() => expect(document.documentElement.dataset.theme).toBe('dark'))
+  it.each(['sidebar', 'header'] as const)(
+    'supports %s keyboard selection and Escape returns focus to the trigger',
+    async (presentation) => {
+      const { wrapper } = await mountPreferences(locale, () => failure(), {
+        desktopCollapsed: true,
+        presentation,
+      })
+      const button = control(wrapper, 'theme')
+      button.element.focus()
+      await button.trigger('keydown', { key: 'ArrowDown' })
+      await waitFor(() => expect(wrapper.find('[role="listbox"]').exists()).toBe(true))
+      await wrapper.get('[role="listbox"]').trigger('keydown', { key: 'End' })
+      await wrapper.get('[role="listbox"]').trigger('keydown', { key: 'Enter' })
+      await waitFor(() => expect(document.documentElement.dataset.theme).toBe('dark'))
 
-    await button.trigger('click')
-    await wrapper.get('[role="listbox"]').trigger('keydown', { key: 'Escape' })
-    await waitFor(() => expect(wrapper.find('[role="listbox"]').exists()).toBe(false))
-    await waitFor(() => expect(document.activeElement).toBe(button.element))
-  })
+      await button.trigger('click')
+      await wrapper.get('[role="listbox"]').trigger('keydown', { key: 'Escape' })
+      await waitFor(() => expect(wrapper.find('[role="listbox"]').exists()).toBe(false))
+      await waitFor(() => expect(document.activeElement).toBe(button.element))
+    },
+  )
 })

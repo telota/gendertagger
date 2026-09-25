@@ -32,10 +32,12 @@ afterEach(() => {
 })
 
 describe.each(['de', 'en'] as const)('AppSidebar in %s', (locale: AppLocale) => {
-  it('always links the brand to the start page', async () => {
+  it('moves the home brand to the header when signed out', async () => {
     const wrapper = await mountApplicationAt('/', locale, apiClientWithRoutes(NOT_SIGNED_IN))
 
-    const brand = wrapper.get('aside a[href="/"]')
+    expect(wrapper.find('aside').exists()).toBe(false)
+    const brand = wrapper.get('.app-header-brand')
+    expect(brand.attributes('href')).toBe('/')
     expect(brand.text()).toBe(catalogues[locale].app.title)
   })
 

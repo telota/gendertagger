@@ -1,32 +1,25 @@
 <script setup lang="ts">
-import { PhList } from '@phosphor-icons/vue'
+import { PhGenderIntersex, PhList } from '@phosphor-icons/vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink } from 'vue-router'
 
 import { useSessionStore } from '@/stores/session'
 
-import ProjectSwitcher from './ProjectSwitcher.vue'
+import AccountMenu from './AccountMenu.vue'
+import AppBreadcrumbs from './AppBreadcrumbs.vue'
+import SidebarPreferences from './SidebarPreferences.vue'
 
 defineProps<{ mobileNavigationOpen?: boolean }>()
 defineEmits<{ openNavigation: [] }>()
 
 const { t } = useI18n()
-const router = useRouter()
 const session = useSessionStore()
-
-async function signOut(): Promise<void> {
-  await session.logout()
-  await router.push({ name: 'home' })
-}
-
-function retry(): void {
-  void session.initialize()
-}
 </script>
 
 <template>
-  <header class="app-header">
+  <header class="app-header" :class="{ 'app-header--public': !session.canUsePrivateNavigation }">
     <button
+      v-if="session.canUsePrivateNavigation"
       type="button"
       class="app-header-navigation"
       :aria-label="t('nav.openNavigation')"
@@ -36,54 +29,67 @@ function retry(): void {
     >
       <PhList :size="24" aria-hidden="true" />
     </button>
-    <ProjectSwitcher />
-    <div class="app-header-controls">
-      <div v-if="session.status === 'ready'" class="app-header-session">
-        <template v-if="session.isSignedIn">
-          <span class="app-header-user">{{
-            t('header.signedInAs', { name: session.user?.display_name })
-          }}</span>
-          <button type="button" class="app-header-signout" @click="signOut">
-            {{ t('header.signOut') }}
-          </button>
-        </template>
-        <RouterLink v-else :to="{ name: 'login' }" class="app-header-signin">{{
-          t('header.signIn')
-        }}</RouterLink>
-      </div>
-      <div
-        v-else-if="session.status === 'error'"
-        class="app-header-session app-header-session-error"
-      >
-        <span role="alert" class="app-header-error">{{ t('header.serverError') }}</span>
-        <button type="button" class="app-header-retry" @click="retry">
-          {{ t('header.retry') }}
-        </button>
-      </div>
-    </div>
+    <AppBreadcrumbs v-if="session.canUsePrivateNavigation" class="app-header-location" />
+    <RouterLink v-else :to="{ name: 'home' }" class="app-header-brand">
+      <PhGenderIntersex :size="24" aria-hidden="true" />
+      <span>{{ t('app.title') }}</span>
+    </RouterLink>
+    <AccountMenu class="app-header-account" />
+    <SidebarPreferences
+      v-if="!session.canUsePrivateNavigation"
+      presentation="header"
+      class="app-header-preferences"
+    />
   </header>
 </template>
 
 <style scoped>
 .app-header {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   min-width: 0;
   min-height: var(--shell-header-height);
   align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-4);
-  padding: var(--space-3) var(--space-4);
+  gap: var(--space-3) var(--space-6);
+  padding: var(--space-3) var(--page-gutter);
   border-bottom: 1px solid var(--border);
   background: var(--panel);
 }
 
-.app-header-controls {
-  display: flex;
-  flex-wrap: wrap;
-  min-width: 0;
+.app-header-location {
+  flex: 1 1 16rem;
+}
+
+.app-header-brand {
+  display: inline-flex;
+  flex: 1 1 auto;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-2);
+  min-inline-size: 0;
+  min-height: var(--control-min-size);
+  color: var(--text-primary);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+
+.app-header-brand svg {
+  flex-shrink: 0;
+}
+
+.app-header-brand span {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.app-header-preferences {
+  flex: 0 1 auto;
+  max-inline-size: 100%;
+}
+
+.app-header-account {
+  max-inline-size: 100%;
+  margin-inline-start: auto;
 }
 
 .app-header-navigation {
@@ -91,8 +97,8 @@ function retry(): void {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: var(--space-10);
-  height: var(--space-10);
+  min-width: var(--control-touch-size);
+  min-height: var(--control-touch-size);
   padding: var(--space-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
@@ -102,55 +108,38 @@ function retry(): void {
 }
 
 @media (width < 720px) {
+  .app-header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--space-2) var(--space-3);
+  }
+
   .app-header-navigation {
     display: flex;
-    margin-right: auto;
+    grid-column: 1;
+    grid-row: 1;
   }
 
-  .app-header {
-    gap: var(--space-2);
+  .app-header-location {
+    grid-column: 2;
+    grid-row: 1;
   }
-}
 
-.app-header-session {
-  display: flex;
-  flex-wrap: wrap;
-  min-width: 0;
-  align-items: center;
-  gap: var(--space-3);
-  font-size: var(--font-size-small);
-}
+  .app-header-account {
+    grid-column: 2;
+    grid-row: 2;
+  }
 
-.app-header-user {
-  overflow-wrap: anywhere;
-  color: var(--text-secondary);
-}
+  .app-header--public {
+    display: flex;
+  }
 
-.app-header-signin,
-.app-header-signout {
-  color: var(--accent);
-  text-underline-offset: 0.2em;
-}
+  .app-header--public .app-header-brand {
+    flex: 1 1 8rem;
+  }
 
-.app-header-signout {
-  border: none;
-  background: none;
-  font: inherit;
-  padding: 0;
-  cursor: pointer;
-}
-
-.app-header-error {
-  color: var(--critical);
-}
-
-.app-header-retry {
-  border: none;
-  background: none;
-  font: inherit;
-  color: var(--accent);
-  text-underline-offset: 0.2em;
-  padding: 0;
-  cursor: pointer;
+  .app-header--public .app-header-preferences {
+    flex: 1 1 100%;
+  }
 }
 </style>

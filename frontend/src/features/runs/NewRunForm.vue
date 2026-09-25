@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onScopeDispose, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
+import { useDraftRegistration } from '@/composables/useDraftNavigation'
 
 import { useMethodList } from './useMethods'
 import { useCreateRun, type MethodRunConfig, type Run } from './useRuns'
@@ -21,6 +22,36 @@ const selected = reactive<Record<string, boolean>>({})
 // server-side registry knows it), so the form cannot offer typed fields; the server validates.
 const configText = reactive<Record<string, string>>({})
 const failOnOptionalError = ref(false)
+const draftFingerprint = computed(() =>
+  JSON.stringify([
+    Object.keys(selected)
+      .filter((name) => selected[name])
+      .sort(),
+    Object.entries(configText)
+      .filter(([, text]) => text.trim() !== '')
+      .sort(([a], [b]) => a.localeCompare(b)),
+    failOnOptionalError.value,
+  ]),
+)
+const savedDraft = ref(draftFingerprint.value)
+let draftGeneration = 0
+
+function resetDraft(): void {
+  draftGeneration += 1
+  createRun.reset()
+  for (const key of Object.keys(selected)) selected[key] = false
+  for (const key of Object.keys(configText)) configText[key] = ''
+  failOnOptionalError.value = false
+  savedDraft.value = draftFingerprint.value
+}
+useDraftRegistration(
+  () => draftFingerprint.value !== savedDraft.value || createRun.isPending.value,
+  resetDraft,
+)
+watch(() => props.snapshotId, resetDraft)
+onScopeDispose(() => {
+  draftGeneration += 1
+})
 
 type ConfigParse = { ok: true; value: Record<string, unknown> } | { ok: false }
 
@@ -56,7 +87,7 @@ function errorMessage(error: unknown): string {
 }
 
 async function submit(): Promise<void> {
-  if (!canSubmit.value) return
+  if (!canSubmit.value || createRun.isPending.value) return
   const methodConfigs: MethodRunConfig[] = chosen.value.map((method) => {
     const parsed = parseConfig(configText[method.name])
     return {
@@ -66,6 +97,8 @@ async function submit(): Promise<void> {
       config: (parsed.ok ? parsed.value : {}) as NonNullable<MethodRunConfig['config']>,
     }
   })
+  const owner = draftGeneration
+  const submittedDraft = draftFingerprint.value
   try {
     const run = await createRun.mutateAsync({
       snapshotId: props.snapshotId,
@@ -74,9 +107,16 @@ async function submit(): Promise<void> {
         execution: { fail_run_on_optional_method_error: failOnOptionalError.value },
       },
     })
+    if (owner !== draftGeneration) return
+    if (draftFingerprint.value === submittedDraft) {
+      for (const key of Object.keys(selected)) selected[key] = false
+      for (const key of Object.keys(configText)) configText[key] = ''
+      savedDraft.value = draftFingerprint.value
+    } else {
+      // Input added while this request was pending belongs to the next run.
+      savedDraft.value = submittedDraft
+    }
     emit('created', run)
-    for (const key of Object.keys(selected)) selected[key] = false
-    for (const key of Object.keys(configText)) configText[key] = ''
   } catch {
     // createRun.isError/.error already reflect this; the form stays filled to be corrected.
   }
@@ -187,7 +227,7 @@ async function submit(): Promise<void> {
 .new-run-load-error p,
 .new-run-error {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .new-run-methods {

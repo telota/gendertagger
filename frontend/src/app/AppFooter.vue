@@ -165,7 +165,7 @@ const hasAnyPublicationFact = computed(
 
 .app-footer-branding-error {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .app-footer-publisher {

@@ -113,7 +113,7 @@ function loadMore(): void {
 
 .run-list-load-error p {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .run-list-forbidden,

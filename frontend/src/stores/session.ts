@@ -31,6 +31,7 @@ export const useSessionStore = defineStore('session', () => {
   const mustChangePassword = ref(false)
   // Navigation waits for both login responses without unmounting a recovery caller's unsaved form.
   const isAuthenticating = ref(false)
+  let authenticationGeneration = 0
   /**
    * `idle` before the first `initialize()`, `loading` while it runs, `ready` once it resolves
    * either signed in or ordinarily signed out, `error` if the server itself could not be reached
@@ -85,6 +86,7 @@ export const useSessionStore = defineStore('session', () => {
           },
         }),
       )
+      authenticationGeneration += 1
       try {
         await refreshSessionFlags()
       } catch (error) {
@@ -104,12 +106,28 @@ export const useSessionStore = defineStore('session', () => {
     mustChangePassword.value = false
   }
 
-  async function logout(): Promise<void> {
+  /** Return true only when the response ends the session that began this logout request. */
+  async function logout(): Promise<boolean> {
+    // Reauthentication can replace a session without changing its account ID. A read-only refresh
+    // of the same account, however, still belongs to this logout request.
+    const principalId = user.value?.id ?? null
+    const generation = authenticationGeneration
+    const stillOwnsSession = () =>
+      (user.value?.id ?? null) === principalId &&
+      authenticationGeneration === generation &&
+      !isAuthenticating.value
     try {
       await unwrap(client.POST('/api/v1/auth/logout'))
-    } finally {
-      forgetSession()
+    } catch (error) {
+      if (!stillOwnsSession()) return false
+      // The endpoint requires an authenticated session, so 401 already means signed out.
+      // Network/server failures leave the outcome unknown and must remain visible to the caller.
+      if (!(error instanceof ApiError && error.status === 401)) throw error
     }
+    if (!stillOwnsSession()) return false
+    forgetSession()
+    status.value = 'ready'
+    return true
   }
 
   /** Throws `ApiError` (e.g. `invalid_current_password`) for the caller to display. */

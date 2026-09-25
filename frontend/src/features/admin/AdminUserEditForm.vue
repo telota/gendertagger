@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 import type { components } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
 import AppTextField from '@/components/base/AppTextField.vue'
+import { useDraftRegistration } from '@/composables/useDraftNavigation'
 
 import type { AdminUserMutationError } from './useAdminUserMutations'
 
@@ -53,6 +54,16 @@ const updateCommand = computed<AdminUserUpdate>(() => {
 })
 const hasChanges = computed(() => Object.keys(updateCommand.value).length > 0)
 const isDeactivation = computed(() => props.account.is_active && !isActive.value)
+
+function resetDraft(): void {
+  displayName.value = props.account.display_name
+  roles.value = [...props.account.roles]
+  isActive.value = props.account.is_active
+  hasSubmitted.value = false
+  isDeactivationConfirmationOpen.value = false
+}
+
+useDraftRegistration(() => hasChanges.value, resetDraft)
 
 function errorMessage(error: AdminUserMutationError | null): string | null {
   switch (error) {
@@ -102,16 +113,7 @@ function confirmDeactivation(): void {
   emit('save', updateCommand.value)
 }
 
-watch(
-  () => props.account,
-  (account) => {
-    displayName.value = account.display_name
-    roles.value = [...account.roles]
-    isActive.value = account.is_active
-    hasSubmitted.value = false
-    isDeactivationConfirmationOpen.value = false
-  },
-)
+watch(() => props.account, resetDraft)
 </script>
 
 <template>
@@ -226,7 +228,9 @@ watch(
 
 <style scoped>
 .admin-user-edit {
-  padding: var(--space-4);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: var(--space-4) var(--page-gutter);
   background: var(--surface-1);
 }
 
@@ -291,7 +295,7 @@ watch(
 .admin-user-edit-error {
   grid-column: 1 / -1;
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .admin-user-edit-actions {
@@ -313,13 +317,13 @@ watch(
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-4);
+  padding: var(--space-4) var(--page-gutter);
 }
 
 .admin-user-deactivation-panel {
   width: 100%;
   max-width: 28rem;
-  padding: var(--space-6);
+  padding: var(--space-6) var(--page-gutter);
   border-radius: var(--radius-modal);
   background: var(--panel);
   box-shadow: var(--shadow-menu);

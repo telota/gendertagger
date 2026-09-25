@@ -105,6 +105,6 @@ async function submit(): Promise<void> {
 
 .login-error {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 </style>

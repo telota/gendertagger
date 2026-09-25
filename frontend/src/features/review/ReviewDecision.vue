@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 
 import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
+import AppFeedback from '@/components/base/AppFeedback.vue'
+import { useDraftNavigation, useDraftRegistration } from '@/composables/useDraftNavigation'
 
 import { useCreateAnnotation } from './useAnnotate'
 import type { AnnotationHistory, ReviewItem } from './useReviewData'
@@ -21,6 +23,7 @@ const props = defineProps<{
 const { t, n } = useI18n()
 const gloss = useVocabularyGloss()
 const create = useCreateAnnotation()
+const draftNavigation = useDraftNavigation()
 
 // One choice among: confirm the machine label, correct to one of the four labels, or defer.
 type Choice = '' | 'verify' | 'defer' | `correct:${CanonicalLabel}`
@@ -28,6 +31,7 @@ const choice = ref<Choice>('')
 const comment = ref('')
 const saved = ref('')
 const conflict = ref(false)
+let draftGeneration = 0
 
 const conflictBox = ref<HTMLElement | null>(null)
 const savedBox = ref<HTMLElement | null>(null)
@@ -36,6 +40,7 @@ const savedBox = ref<HTMLElement | null>(null)
 watch(
   () => props.item.tei_id,
   () => {
+    draftGeneration += 1
     choice.value = ''
     comment.value = ''
     saved.value = ''
@@ -76,6 +81,11 @@ async function save(): Promise<void> {
   const decision = decoded()
   const revision = props.history?.revision
   if (!canSave.value || !decision || revision === undefined) return
+  const generation = draftGeneration
+  const submittedChoice = choice.value
+  const submittedComment = comment.value
+  const matchesSubmittedDraft = () =>
+    choice.value === submittedChoice && comment.value === submittedComment
   saved.value = ''
   conflict.value = false
   try {
@@ -83,9 +93,10 @@ async function save(): Promise<void> {
       item: props.item,
       action: decision.action,
       label: decision.label,
-      comment: comment.value,
+      comment: submittedComment,
       expectedRevision: revision,
     })
+    if (generation !== draftGeneration) return
     const revisionText = n(annotation.resulting_revision, 'integer')
     saved.value = annotation.label
       ? t('review.decision.savedWithLabel', {
@@ -97,16 +108,28 @@ async function save(): Promise<void> {
           action: gloss.action(annotation.action),
           revision: revisionText,
         })
-    choice.value = ''
-    comment.value = ''
+    const draftUnchanged = matchesSubmittedDraft()
+    if (draftUnchanged) {
+      choice.value = ''
+      comment.value = ''
+    }
     await nextTick()
-    savedBox.value?.focus()
+    if (generation === draftGeneration && draftUnchanged && !draftNavigation.isOpen.value) {
+      savedBox.value?.focus()
+    }
   } catch (error) {
+    if (generation !== draftGeneration) return
     if (error instanceof ApiError && error.code === 'annotation_conflict') {
       // Nothing was written. The chain is being re-read; the reviewer decides again on that.
       conflict.value = true
       await nextTick()
-      conflictBox.value?.focus()
+      if (
+        generation === draftGeneration &&
+        matchesSubmittedDraft() &&
+        !draftNavigation.isOpen.value
+      ) {
+        conflictBox.value?.focus()
+      }
     }
   }
 }
@@ -119,11 +142,14 @@ function decideAgain(): void {
 }
 
 function discard(): void {
+  draftGeneration += 1
   choice.value = ''
   comment.value = ''
   conflict.value = false
   create.reset()
 }
+
+useDraftRegistration(() => choice.value !== '' || comment.value !== '', discard)
 
 const errorText = computed(() => {
   const error = create.error.value
@@ -148,6 +174,7 @@ function isTextEntry(target: EventTarget | null): boolean {
 }
 
 function onKeydown(event: KeyboardEvent): void {
+  if (draftNavigation.isOpen.value) return
   if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return
   if (!props.canReview || !ready.value || isTextEntry(event.target)) return
   const index = ['1', '2', '3', '4'].indexOf(event.key)
@@ -161,14 +188,19 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 onMounted(() => window.addEventListener('keydown', onKeydown))
-onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
+onBeforeUnmount(() => {
+  draftGeneration += 1
+  window.removeEventListener('keydown', onKeydown)
+})
 </script>
 
 <template>
   <section class="decision" aria-labelledby="decision-heading">
     <h3 id="decision-heading" class="decision-heading">{{ t('review.decision.title') }}</h3>
 
-    <p v-if="!canReview" class="decision-muted">{{ t('review.decision.viewerNote') }}</p>
+    <AppFeedback v-if="!canReview" class="decision-muted">{{
+      t('review.decision.viewerNote')
+    }}</AppFeedback>
     <form v-else class="decision-form" novalidate @submit.prevent="save">
       <div v-if="conflict" ref="conflictBox" class="decision-conflict" role="alert" tabindex="-1">
         <p class="decision-conflict-title">{{ t('review.decision.conflict.title') }}</p>
@@ -222,9 +254,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           />
           <label :for="`decision-correct-${label}`">
             <VocabBadge :value="label" :gloss="gloss.label(label)" kind="label" />
-            <kbd class="decision-key" :aria-label="t('review.decision.key', { key: index + 1 })">{{
-              index + 1
-            }}</kbd>
+            <span class="decision-key-announcement">{{
+              t('review.decision.key', { key: index + 1 })
+            }}</span>
+            <kbd class="decision-key" aria-hidden="true">{{ index + 1 }}</kbd>
           </label>
         </div>
 
@@ -242,7 +275,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
       <p class="decision-muted">{{ t('review.decision.keyboardHint') }}</p>
       <p class="decision-muted">{{ t('review.decision.appendOnly') }}</p>
 
-      <p v-if="errorText" role="alert" class="decision-error">{{ errorText }}</p>
+      <AppFeedback
+        v-if="errorText"
+        class="decision-error"
+        announcement="assertive"
+        tone="critical"
+        >{{ errorText }}</AppFeedback
+      >
       <AppButton id="decision-save" class="decision-save" type="submit" :disabled="!canSave">
         {{ create.isPending.value ? t('review.decision.saving') : t('review.decision.save') }}
       </AppButton>
@@ -253,10 +292,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 <style scoped>
 .decision {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-4);
+  padding: var(--page-gutter);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background: var(--surface-1);
@@ -269,6 +309,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 }
 
 .decision-form {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -302,10 +343,21 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 }
 
 .choice label {
+  min-width: 0;
+  overflow-wrap: anywhere;
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+}
+
+.decision-key-announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .decision-key {
@@ -335,11 +387,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   font-size: var(--font-size-small);
 }
 
-.decision-error {
-  margin: 0;
-  color: var(--critical);
-}
-
 .decision-saved {
   margin: 0;
   color: var(--good);
@@ -358,7 +405,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 }
 
 .decision-conflict-title {
-  color: var(--critical);
+  color: var(--critical-text);
   font-weight: var(--weight-semibold);
 }
 

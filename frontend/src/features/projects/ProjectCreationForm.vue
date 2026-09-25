@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/base/AppButton.vue'
+import { useDraftRegistration } from '@/composables/useDraftNavigation'
 import AppTextField from '@/components/base/AppTextField.vue'
 
 import { useProjectCreation } from './useProjectCreation'
@@ -40,9 +41,43 @@ watch(selectedTeamId, () => {
   selectedManagerId.value = null
 })
 
+const draftFingerprint = computed(() =>
+  JSON.stringify([
+    slug.value,
+    displayName.value,
+    description.value,
+    selectedTeamId.value,
+    selectedManagerId.value,
+  ]),
+)
+const acceptedDraft = ref<string | null>(null)
+
+function resetDraft(): void {
+  creation.clear()
+  acceptedDraft.value = null
+  teamSearchInput.value = ''
+  slug.value = ''
+  displayName.value = ''
+  description.value = ''
+  selectedTeamId.value = null
+  selectedManagerId.value = null
+}
+
+useDraftRegistration(
+  () =>
+    creation.isSubmitting.value ||
+    (draftFingerprint.value !== acceptedDraft.value &&
+      (slug.value !== '' ||
+        displayName.value !== '' ||
+        description.value !== '' ||
+        selectedTeamId.value !== null)),
+  resetDraft,
+)
+
 async function submit(): Promise<void> {
   const teamId = selectedTeamId.value
   if (teamId === null) return
+  const submittedDraft = draftFingerprint.value
   const project = await creation.create({
     slug: slug.value,
     display_name: displayName.value,
@@ -52,7 +87,11 @@ async function submit(): Promise<void> {
       ? {}
       : { initial_manager_user_id: selectedManagerId.value }),
   })
-  if (project !== null) emit('created', project.id)
+  if (project !== null) {
+    if (draftFingerprint.value === submittedDraft) resetDraft()
+    else acceptedDraft.value = submittedDraft
+    emit('created', project.id)
+  }
 }
 </script>
 

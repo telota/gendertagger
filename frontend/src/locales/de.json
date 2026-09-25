@@ -1,11 +1,11 @@
 {
   "app": {
-    "title": "Gendertagger"
+    "title": "gendertagger"
   },
   "home": {
     "guest": {
       "lede": "Ein Tool, um Geschlechtsangaben in Personenregistern zu ergänzen.",
-      "intro": "Der Gendertagger nutzt Normdaten und verschiedene Modelle, um Geschlechtsangaben für Personenregister digitaler Editionen vorzuschlagen. Dabei geht es um historisch und kulturell geprägte Geschlechtszuschreibungen, nicht um die individuelle Geschlechtsidentität. Die Ergebnisse der einzelnen Verfahren können Sie vergleichen und durch eigene Annotationen ergänzen.",
+      "intro": "Der gendertagger nutzt Normdaten und verschiedene Modelle, um Geschlechtsangaben für Personenregister digitaler Editionen vorzuschlagen. Dabei geht es um historisch und kulturell geprägte Geschlechtszuschreibungen, nicht um die individuelle Geschlechtsidentität. Die Ergebnisse der einzelnen Verfahren können Sie vergleichen und durch eigene Annotationen ergänzen.",
       "signIn": "Anmelden",
       "accountHint": "Für einen Zugang wenden Sie sich an die Administration.",
       "stepsLabel": "So funktioniert es",
@@ -81,14 +81,22 @@
     "backToStart": "Zur Startseite"
   },
   "header": {
-    "signedInAs": "Angemeldet als {name}",
     "signOut": "Abmelden",
     "signIn": "Anmelden",
     "serverError": "Der Server ist nicht erreichbar.",
     "retry": "Erneut versuchen",
-    "settings": "Einstellungen"
+    "settings": "Persönliche Einstellungen",
+    "accountMenu": "Kontomenü: {name}",
+    "loading": "Sitzung wird geprüft …",
+    "signingOut": "Abmeldung läuft …",
+    "signOutError": "Die Abmeldung konnte nicht bestätigt werden. Versuchen Sie es erneut."
+  },
+  "layout": {
+    "tableRegion": "Tabelle: {label}",
+    "horizontalScrollHint": "Horizontal scrollen, um alle Spalten zu sehen."
   },
   "nav": {
+    "skipToContent": "Zum Hauptinhalt springen",
     "label": "Hauptnavigation",
     "openNavigation": "Navigation öffnen",
     "closeNavigation": "Navigation schließen",
@@ -1205,11 +1213,11 @@
     }
   },
   "projectSwitcher": {
-    "label": "Projekt wechseln",
-    "choose": "Projekt wählen",
-    "all": "Alle Projekte ansehen",
     "empty": "Noch keine Projekte.",
-    "loadError": "Die Projekte konnten nicht geladen werden."
+    "loadError": "Die Projekte konnten nicht geladen werden.",
+    "action": "Projekt wechseln",
+    "currentLabel": "Projekt wechseln. Aktuelles Projekt: {project}",
+    "loading": "Projekte werden geladen…"
   },
   "userSettings": {
     "title": "Einstellungen",
@@ -1254,5 +1262,18 @@
       "expanded": "Ausgeklappt",
       "collapsed": "Eingeklappt"
     }
+  },
+  "breadcrumbs": {
+    "label": "Brotkrumennavigation",
+    "projectLoading": "Projekt wird geladen …",
+    "projectUnavailable": "Projekt nicht verfügbar",
+    "projectLoadError": "Der Projektname konnte nicht geladen werden.",
+    "projectAccessUnavailable": "Der Projektkontext ist nicht verfügbar."
+  },
+  "draftNavigation": {
+    "title": "Seite mit ungespeicherten Änderungen verlassen?",
+    "body": "Bleiben Sie, um weiterzuarbeiten, oder verwerfen Sie Ihre ungespeicherten Eingaben und verlassen Sie die Seite. Bereits übermittelte Aufträge und gespeicherte Entscheidungen bleiben bestehen. Ausstehende Sammelentscheidungen werden nach der aktuellen Übermittlung gestoppt.",
+    "stay": "Bleiben",
+    "discard": "Verwerfen und verlassen"
   }
 }

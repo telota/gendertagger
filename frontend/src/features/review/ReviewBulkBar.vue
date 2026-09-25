@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/base/AppButton.vue'
+import AppFeedback from '@/components/base/AppFeedback.vue'
+import { useDraftNavigation, useDraftRegistration } from '@/composables/useDraftNavigation'
 
 import { reviewItemName } from './reviewItemName'
 import type { ReviewItem } from './useReviewData'
@@ -25,6 +27,8 @@ const emit = defineEmits<{
 const { t, n } = useI18n()
 const gloss = useVocabularyGloss()
 const bulk = useBulkDecision()
+const navigation = useDraftNavigation()
+let generation = 0
 
 type Choice = '' | 'verify' | 'defer' | `correct:${CanonicalLabel}`
 const choice = ref<Choice>('')
@@ -32,6 +36,27 @@ const comment = ref('')
 const step = ref<'choose' | 'confirm'>('choose')
 // The people as they were when the run started: the report must stay readable after the selection moves.
 const names = ref<Record<string, string>>({})
+
+function discardDraft(): void {
+  generation += 1
+  // A submitted annotation remains an append-only write. Stop prevents the next person only;
+  // the request already in flight is allowed to finish and retains its server outcome.
+  if (bulk.phase.value === 'running') bulk.stop()
+  else bulk.reset()
+  choice.value = ''
+  comment.value = ''
+  step.value = 'choose'
+  names.value = {}
+}
+
+useDraftRegistration(
+  () => choice.value !== '' || comment.value !== '' || bulk.phase.value === 'running',
+  discardDraft,
+)
+onScopeDispose(() => {
+  generation += 1
+  bulk.stop()
+})
 
 const count = computed(() => props.items.length)
 const allSelected = computed(() => props.loadedCount > 0 && count.value === props.loadedCount)
@@ -71,17 +96,20 @@ const actionText = computed(() => {
 
 async function toConfirm(): Promise<void> {
   if (!spec.value || count.value === 0) return
+  const requestGeneration = generation
   step.value = 'confirm'
   await nextTick()
-  confirmBox.value?.focus()
+  if (requestGeneration === generation && !navigation.isOpen.value) confirmBox.value?.focus()
 }
 
 async function apply(): Promise<void> {
   const current = spec.value
-  if (!current) return
+  if (!current || bulk.phase.value === 'running') return
+  const requestGeneration = generation
   names.value = Object.fromEntries(props.items.map((item) => [item.tei_id, reviewItemName(item)]))
   step.value = 'choose'
   const results = await bulk.run(props.items, current)
+  if (requestGeneration !== generation) return
   emit(
     'finished',
     results.filter((r) => r.outcome.kind === 'saved').map((r) => r.teiId),
@@ -89,7 +117,7 @@ async function apply(): Promise<void> {
   choice.value = ''
   comment.value = ''
   await nextTick()
-  reportBox.value?.focus()
+  if (requestGeneration === generation && !navigation.isOpen.value) reportBox.value?.focus()
 }
 
 function closeReport(): void {
@@ -224,35 +252,35 @@ const preview = computed(() => props.items.slice(0, PREVIEW_LIMIT).map(reviewIte
       </div>
     </div>
 
-    <div v-if="bulk.phase.value === 'running'" class="bulk-progress">
-      <p role="status">
-        {{
-          t('review.bulk.progress', {
-            done: n(bulk.done.value, 'integer'),
-            total: n(bulk.total.value, 'integer'),
-          })
-        }}
-      </p>
-      <AppButton
-        class="bulk-stop"
-        type="button"
-        variant="ghost"
-        :disabled="bulk.stopRequested.value"
-        @click="bulk.stop()"
-      >
-        {{ bulk.stopRequested.value ? t('review.bulk.stopping') : t('review.bulk.stop') }}
-      </AppButton>
-    </div>
+    <AppFeedback v-if="bulk.phase.value === 'running'" class="bulk-progress" announcement="polite">
+      {{
+        t('review.bulk.progress', {
+          done: n(bulk.done.value, 'integer'),
+          total: n(bulk.total.value, 'integer'),
+        })
+      }}
+      <template #actions>
+        <AppButton
+          class="bulk-stop"
+          type="button"
+          variant="ghost"
+          :disabled="bulk.stopRequested.value"
+          @click="bulk.stop()"
+        >
+          {{ bulk.stopRequested.value ? t('review.bulk.stopping') : t('review.bulk.stop') }}
+        </AppButton>
+      </template>
+    </AppFeedback>
 
     <div v-if="bulk.phase.value === 'done'" ref="reportBox" class="bulk-report" tabindex="-1">
-      <p class="bulk-report-title" role="status">
+      <AppFeedback class="bulk-report-title" announcement="polite">
         {{
           t('review.bulk.summary', {
             saved: n(counts.saved, 'integer'),
             total: n(bulk.results.value.length, 'integer'),
           })
         }}
-      </p>
+      </AppFeedback>
       <p v-if="counts.conflict + counts.skipped + counts.other > 0" class="bulk-note">
         {{ t('review.bulk.notSaved') }}
       </p>
@@ -298,7 +326,6 @@ const preview = computed(() => props.items.slice(0, PREVIEW_LIMIT).map(reviewIte
 
 .bulk-form,
 .bulk-confirm,
-.bulk-progress,
 .bulk-report {
   display: flex;
   flex-direction: column;
@@ -373,7 +400,7 @@ const preview = computed(() => props.items.slice(0, PREVIEW_LIMIT).map(reviewIte
 .bulk-report-item--conflict .bulk-report-outcome,
 .bulk-report-item--forbidden .bulk-report-outcome,
 .bulk-report-item--failed .bulk-report-outcome {
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .bulk-report-name {

@@ -182,9 +182,16 @@ and CSRF attachment.
 - Guards handle authentication and role requirements; they never duplicate authorization, which the server
   owns. A guard failing closed on the client is a convenience, not a control.
 - The lazy `userSettings` route at `/settings` requires a resolved, signed-in, password-current session
-  without a project or global role requirement. Keep its sidebar-footer link separate from administrative
-  branding settings.
+  without a project or global role requirement. Its header account-menu entry remains separate from
+  administrative branding settings.
 - Filter and sort state that a reviewer would want to share or revisit lives in the query string.
+- `provideDraftNavigation` installs one application registry of view-owned dirty checks/discard callbacks.
+  Keep actual draft values in their view. Path/parameter changes and sign-out confirm Stay or Discard and
+  leave; only committed navigation or successful logout discards. Failed writes remain dirty; successful
+  writes update their baseline. Guard late responses after discard/unmount and session replacement.
+  Ordinary query/hash navigation retains existing semantics. Submitted work is never rolled back;
+  bulk departure stops later submissions after the current one. The accepted
+  [header brief](frontend-header-proposal.md) records coverage and limits.
 
 ## Error handling
 
@@ -237,7 +244,15 @@ toggles, sliders, or checkboxes would have been fully caught by them.
 - Interactive elements are `<button>` or `<a href>`. `role="button"` on a `div` is forbidden.
 - Every form control has an associated `<label>`; icon-only controls carry an accessible name.
 - Focus is visible, never removed. Modals trap focus and restore it on close.
-- Dynamic status changes are announced through a live region.
+- The shell's `useRouteFocus` owns page-entry focus on successful pathname changes. It skips initial
+  router resolution, failed navigation, and in-page query/hash changes, and cancels stale scheduled work.
+  Views retain ownership of field validation, saved-decision, and conflict focus; data refreshes never
+  trigger another page-entry transfer. Use the stable content wrapper while headings/data are pending.
+- Dynamic status changes are announced through a live region. `AppFeedback` provides an explicit
+  `announcement` (`off`, `polite`, or `assertive`) and a separate actions slot. Keep changing regions
+  mounted, keep retry controls outside their live message, and avoid nested live regions. Its visual
+  tone does not select urgency. Domain state, mutations, partial results, and conflict resolution stay
+  in their existing feature code; the component only provides presentation.
 - Images and icons that carry meaning have text alternatives; decorative ones are hidden from assistive
   technology.
 - Keyboard shortcuts are suppressed while a text input has focus.

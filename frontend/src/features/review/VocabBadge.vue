@@ -41,6 +41,9 @@ const labelClass = computed(() =>
 
 <style scoped>
 .vocab {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   display: inline-flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -49,14 +52,17 @@ const labelClass = computed(() =>
   border: 1px solid var(--border);
   border-radius: 999px;
   font-size: var(--font-size-small);
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .vocab-token {
+  min-width: 0;
+  max-width: 100%;
   font-family: var(--font-mono, ui-monospace, monospace);
 }
 
 .vocab-gloss {
+  min-width: 0;
   color: var(--text-secondary);
 }
 

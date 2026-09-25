@@ -1,0 +1,25 @@
+/* Opt-in definition-list layout shared by evidence and source-record facts. */
+.app-facts {
+  container: app-facts / inline-size;
+  min-inline-size: 0;
+}
+
+.app-fact {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+.app-fact > dt,
+.app-fact > dd {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+@container app-facts (min-width: 24rem) {
+  .app-fact {
+    grid-template-columns: 9rem minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+}

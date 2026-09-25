@@ -14,7 +14,12 @@ import ReviewBulkBar from './ReviewBulkBar.vue'
 import ReviewFilterPanel from './ReviewFilterPanel.vue'
 import ReviewList from './ReviewList.vue'
 import ReviewQueueTabs from './ReviewQueueTabs.vue'
-import { useReviewItemByPerson, useReviewItems, useReviewSummary } from './useReviewData'
+import {
+  useReviewItemByPerson,
+  useReviewItems,
+  useReviewSummary,
+  type ReviewItem,
+} from './useReviewData'
 import {
   QUEUE_TIERS,
   QUEUES,
@@ -116,7 +121,20 @@ const fetched = useReviewItemByPerson(
   person,
   computed(() => isCompleted.value && person.value !== null && listed.value === null),
 )
-const selectedItem = computed(() => listed.value ?? fetched.data.value ?? null)
+// A filter refetch briefly removes the list's item before its direct lookup resolves. Keep the
+// same person's mounted detail during that gap, so a query-only filter cannot erase their draft.
+const selectedItem = computed<ReviewItem | null>((previous) => {
+  const current = listed.value ?? fetched.data.value
+  if (current) return current
+  if (
+    fetched.isPending.value &&
+    previous &&
+    previous.tei_id === person.value &&
+    previous.aggregation_execution_id === aggregationId.value
+  )
+    return previous
+  return null
+})
 
 // With nothing selected, start on the first entry, so the detail column is never an empty stage.
 watch(
@@ -196,6 +214,7 @@ const announce = computed(() =>
             </h2>
             <ReviewBulkBar
               v-if="canReview"
+              :key="aggregationId"
               :items="tickedItems"
               :loaded-count="items.length"
               @toggle-all="toggleAll"
@@ -237,7 +256,10 @@ const announce = computed(() =>
 
 <style scoped>
 .review {
-  padding: var(--space-8) var(--space-4);
+  container: review-workbench / inline-size;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: var(--space-8) var(--page-gutter);
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -272,26 +294,26 @@ const announce = computed(() =>
 
 .review-load-error p {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 /* Filters | queue | detail on wide windows; stacked when there is no room for three columns. */
 .review-grid {
   display: grid;
-  grid-template-columns: 15rem minmax(18rem, 1fr) minmax(22rem, 1.4fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
   align-items: start;
 }
 
-@media (max-width: 68rem) {
+@container review-workbench (min-width: 57rem) {
   .review-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 15rem minmax(18rem, 1fr) minmax(22rem, 1.4fr);
   }
 }
 
 .review-column {
   min-width: 0;
-  padding: var(--space-4);
+  padding: var(--page-gutter);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background: var(--panel);

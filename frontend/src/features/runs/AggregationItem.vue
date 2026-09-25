@@ -86,7 +86,7 @@ const statusLabel = computed(() => label(props.aggregation.status))
 }
 
 .aggregation-status--failed {
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .aggregation-created {
@@ -121,7 +121,7 @@ const statusLabel = computed(() => label(props.aggregation.status))
 
 .aggregation-failure {
   margin: var(--space-3) 0 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .aggregation-open {

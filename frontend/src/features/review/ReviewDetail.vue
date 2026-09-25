@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/base/AppButton.vue'
+import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
 
 import {
   useAnnotationHistory,
@@ -46,8 +47,8 @@ const displayName = computed(() => reviewItemName(props.item))
       {{ displayName }} <span class="detail-tei">{{ item.tei_id }}</span>
     </h2>
 
-    <dl class="detail-facts">
-      <div class="detail-fact">
+    <dl class="detail-facts app-facts">
+      <div class="detail-fact app-fact">
         <dt>{{ t('review.detail.certainty') }}</dt>
         <dd>
           <VocabBadge
@@ -58,13 +59,13 @@ const displayName = computed(() => reviewItemName(props.item))
           />
         </dd>
       </div>
-      <div class="detail-fact">
+      <div class="detail-fact app-fact">
         <dt>{{ t('review.detail.agreement') }}</dt>
         <dd>
           <VocabBadge :value="item.agreement_tier" :gloss="gloss.agreement(item.agreement_tier)" />
         </dd>
       </div>
-      <div class="detail-fact">
+      <div class="detail-fact app-fact">
         <dt>{{ t('review.detail.outcome') }}</dt>
         <dd>
           <VocabBadge
@@ -73,7 +74,7 @@ const displayName = computed(() => reviewItemName(props.item))
           />
         </dd>
       </div>
-      <div class="detail-fact">
+      <div class="detail-fact app-fact">
         <dt>{{ t('review.detail.machineLabel') }}</dt>
         <dd>
           <VocabBadge
@@ -83,7 +84,7 @@ const displayName = computed(() => reviewItemName(props.item))
           />
         </dd>
       </div>
-      <div class="detail-fact">
+      <div class="detail-fact app-fact">
         <dt>{{ t('review.detail.finalLabel') }}</dt>
         <dd>
           <VocabBadge
@@ -93,7 +94,7 @@ const displayName = computed(() => reviewItemName(props.item))
           />
         </dd>
       </div>
-      <div class="detail-fact">
+      <div class="detail-fact app-fact">
         <dt>{{ t('review.detail.state') }}</dt>
         <dd>
           <VocabBadge :value="item.workflow_state" :gloss="gloss.workflow(item.workflow_state)" />
@@ -140,50 +141,56 @@ const displayName = computed(() => reviewItemName(props.item))
         }}</AppButton>
       </div>
       <template v-else-if="predictions.data.value">
-        <table class="detail-table">
-          <thead>
-            <tr>
-              <th scope="col">{{ t('review.detail.methods.method') }}</th>
-              <th scope="col">{{ t('review.detail.methods.label') }}</th>
-              <th scope="col">{{ t('review.detail.methods.status') }}</th>
-              <th scope="col">{{ t('review.detail.methods.confidence') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="entry in predictions.data.value" :key="entry.method_execution_id">
-              <th scope="row">{{ entry.method_name }}</th>
-              <template v-if="entry.prediction">
-                <td>
-                  <VocabBadge
-                    :value="entry.prediction.label"
-                    :gloss="entry.prediction.label ? gloss.label(entry.prediction.label) : ''"
-                    kind="label"
-                  />
-                  <span v-if="entry.prediction.raw_label" class="detail-raw">{{
-                    t('review.detail.methods.raw', { raw: entry.prediction.raw_label })
-                  }}</span>
+        <AppScrollRegion
+          :label="t('layout.tableRegion', { label: t('review.detail.methods.title') })"
+        >
+          <table class="detail-table">
+            <thead>
+              <tr>
+                <th scope="col">{{ t('review.detail.methods.method') }}</th>
+                <th scope="col">{{ t('review.detail.methods.label') }}</th>
+                <th scope="col">{{ t('review.detail.methods.status') }}</th>
+                <th scope="col">{{ t('review.detail.methods.confidence') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="entry in predictions.data.value" :key="entry.method_execution_id">
+                <th scope="row">{{ entry.method_name }}</th>
+                <template v-if="entry.prediction">
+                  <td>
+                    <VocabBadge
+                      :value="entry.prediction.label"
+                      :gloss="entry.prediction.label ? gloss.label(entry.prediction.label) : ''"
+                      kind="label"
+                    />
+                    <span v-if="entry.prediction.raw_label" class="detail-raw">{{
+                      t('review.detail.methods.raw', { raw: entry.prediction.raw_label })
+                    }}</span>
+                  </td>
+                  <td>
+                    <span
+                      class="detail-status"
+                      :class="`detail-status--${entry.prediction.status}`"
+                      >{{ entry.prediction.status }}</span
+                    >
+                    <span class="detail-gloss">{{
+                      gloss.prediction(entry.prediction.status)
+                    }}</span>
+                  </td>
+                  <td>
+                    <template v-if="entry.prediction.method_confidence != null">
+                      {{ n(entry.prediction.method_confidence, 'confidence') }}
+                    </template>
+                    <span v-else class="detail-muted">{{ t('review.none') }}</span>
+                  </td>
+                </template>
+                <td v-else colspan="3" class="detail-muted">
+                  {{ t('review.detail.methods.noPrediction') }}
                 </td>
-                <td>
-                  <span
-                    class="detail-status"
-                    :class="`detail-status--${entry.prediction.status}`"
-                    >{{ entry.prediction.status }}</span
-                  >
-                  <span class="detail-gloss">{{ gloss.prediction(entry.prediction.status) }}</span>
-                </td>
-                <td>
-                  <template v-if="entry.prediction.method_confidence != null">
-                    {{ n(entry.prediction.method_confidence, 'confidence') }}
-                  </template>
-                  <span v-else class="detail-muted">{{ t('review.none') }}</span>
-                </td>
-              </template>
-              <td v-else colspan="3" class="detail-muted">
-                {{ t('review.detail.methods.noPrediction') }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              </tr>
+            </tbody>
+          </table>
+        </AppScrollRegion>
         <p class="detail-note">{{ t('review.detail.methods.confidenceNote') }}</p>
       </template>
     </section>
@@ -261,6 +268,8 @@ const displayName = computed(() => reviewItemName(props.item))
 
 <style scoped>
 .detail {
+  min-width: 0;
+  overflow-wrap: anywhere;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -284,9 +293,6 @@ const displayName = computed(() => reviewItemName(props.item))
 }
 
 .detail-fact {
-  display: grid;
-  grid-template-columns: 9rem 1fr;
-  gap: var(--space-3);
   align-items: baseline;
 }
 
@@ -315,6 +321,7 @@ const displayName = computed(() => reviewItemName(props.item))
 }
 
 .detail-section {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -328,6 +335,7 @@ const displayName = computed(() => reviewItemName(props.item))
 
 .detail-table {
   width: 100%;
+  min-width: 30rem;
   border-collapse: collapse;
   font-size: var(--font-size-small);
 }
@@ -360,7 +368,7 @@ const displayName = computed(() => reviewItemName(props.item))
 }
 
 .detail-status--error {
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .detail-muted,
@@ -373,7 +381,7 @@ const displayName = computed(() => reviewItemName(props.item))
 .detail-error,
 .detail-load-error p {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .detail-load-error {

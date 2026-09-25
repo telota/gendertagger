@@ -201,7 +201,7 @@ function confirm(): void {
 .admin-user-security-refresh-error {
   width: 100%;
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
   font-size: var(--font-size-small);
 }
 

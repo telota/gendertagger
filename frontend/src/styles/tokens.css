@@ -30,6 +30,7 @@
   --good: #088a08;
   --warning: #fab219;
   --critical: #d03b3b;
+  --critical-text: #bf3333;
 
   /* Elevation: reserved for menus and modals, the only layers that genuinely float (docs/25) */
   --shadow-menu: 0 4px 12px rgba(11, 11, 11, 0.16);
@@ -68,6 +69,7 @@
   --good: #4fc94f;
   --warning: #f0b843;
   --critical: #f0736f;
+  --critical-text: #f0736f;
 
   /* Weaker than the light theme's, per docs/25: elevation reads through surface lightness here. */
   --shadow-menu: 0 4px 12px rgba(0, 0, 0, 0.4);
@@ -126,6 +128,11 @@
   --space-10: 2.5rem;
   --space-12: 3rem;
 
+  /* Minimum standalone targets grow on narrow screens and touch-capable devices. */
+  --control-min-size: 2rem;
+  --control-touch-size: 2.75rem;
+  --page-gutter: min(var(--space-4), 4vw);
+
   /* Motion: state transitions stay under 150 ms; base.css zeroes this for reduced motion */
   --motion-state: 120ms;
 
@@ -141,4 +148,10 @@
   --radius-card: 12px;
   --radius-modal: 16px;
   --radius-full: 9999px;
+}
+
+@media (width < 720px), (any-pointer: coarse) {
+  :root {
+    --control-min-size: var(--control-touch-size);
+  }
 }

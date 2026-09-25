@@ -116,7 +116,7 @@ const query = useProject(projectId, isSignedIn)
 
 .project-overview-load-error p {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .project-overview-facts {

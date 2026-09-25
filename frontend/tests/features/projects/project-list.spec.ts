@@ -334,6 +334,56 @@ describe.each(['de', 'en'] as const)('ProjectListView in %s', (locale: AppLocale
     })
   })
 
+  it('preserves a project name edited while creation is pending when navigation is cancelled', async () => {
+    let finish!: (response: Response) => void
+    const response = new Promise<Response>((resolve) => {
+      finish = resolve
+    })
+    let posted = false
+    const client = createApiClient({
+      fetch: async (request) => {
+        const { pathname } = new URL(request.url)
+        if (pathname === '/api/v1/projects' && request.method === 'POST') {
+          posted = true
+          return response
+        }
+        if (pathname === '/api/v1/branding') return jsonResponse({})
+        if (pathname === '/api/v1/me') return jsonResponse(OPERATOR)
+        if (pathname === '/api/v1/auth/session')
+          return jsonResponse({ must_change_password: false, keep_signed_in: false })
+        if (pathname === '/api/v1/teams')
+          return jsonResponse({ items: [PROJECT_A.team], has_more: false, next_cursor: null })
+        if (pathname === '/api/v1/projects' || pathname === '/api/v1/projects/managed')
+          return jsonResponse({ items: [], has_more: false, next_cursor: null })
+        return jsonResponse({}, { status: 404 })
+      },
+    })
+    const wrapper = await mountApplicationAt('/projects', locale, client)
+    try {
+      await waitFor(() => expect(wrapper.find('#project-create-team').exists()).toBe(true))
+      await wrapper.get('#project-create-team').setValue(PROJECT_A.team.id)
+      await wrapper.get('#project-create-slug').setValue('edition')
+      await wrapper.get('#project-create-name').setValue('Submitted name')
+      await wrapper.get('.project-creation form').trigger('submit')
+      await waitFor(() => expect(posted).toBe(true))
+      await wrapper.get('#project-create-name').setValue('Next draft name')
+      finish(jsonResponse({ ...PROJECT_A, current_user_role: 'operator' }, { status: 201 }))
+      await waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull())
+      const stay = Array.from(
+        document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
+      ).find((button) => button.textContent?.trim() === catalogues[locale].draftNavigation.stay)
+      expect(stay).toBeDefined()
+      stay?.click()
+      await flushPromises()
+      expect(wrapper.vm.$router.currentRoute.value.path).toBe('/projects')
+      expect(wrapper.get<HTMLInputElement>('#project-create-name').element.value).toBe(
+        'Next draft name',
+      )
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('lets an operator create in a direct team without optional fields or manager discovery', async () => {
     let body: unknown
     const team = PROJECT_A.team

@@ -98,7 +98,7 @@ describe('sidebar navigation items', () => {
         ? new DOMRect(0, 0, 120, 40)
         : new DOMRect(280, 210, 32, 28)
     })
-    const { wrapper } = await item()
+    const { wrapper } = await item({ desktopCollapsed: true })
     await wrapper.get('a').trigger('mouseenter')
     await flushPromises()
     const tooltip = document.querySelector<HTMLElement>('[role="tooltip"]')!

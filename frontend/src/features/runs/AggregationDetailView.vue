@@ -209,7 +209,7 @@ const resolvedConfig = computed(() =>
 .aggregation-detail-load-error p,
 .aggregation-detail-failure {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .aggregation-detail-failure p {
@@ -230,7 +230,7 @@ const resolvedConfig = computed(() =>
 }
 
 .aggregation-detail-status--failed {
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .aggregation-detail-facts {

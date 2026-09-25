@@ -102,6 +102,75 @@ afterEach(() => {
 
 describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => {
   const messages = catalogues[locale].admin
+  it.each(['create', 'edit'] as const)(
+    'protects a failed %s draft when cancelling sign-out or route departure',
+    async (mode) => {
+      let logoutRequests = 0
+      const client = signedInClient(
+        (request) => {
+          const { pathname } = new URL(request.url)
+          if (pathname === '/api/v1/admin/users' && request.method === 'GET') {
+            return jsonResponse({ items: [ACCOUNT], has_more: false, next_cursor: null })
+          }
+          if (pathname === '/api/v1/auth/logout') {
+            logoutRequests += 1
+            return new Response(null, { status: 204 })
+          }
+          return jsonResponse(
+            { error: { code: 'validation_error', message: 'Cannot save.' } },
+            { status: 422 },
+          )
+        },
+        () => ADMIN_A,
+      )
+      const router = createAppRouter(createMemoryHistory())
+      const wrapper = await mountApplicationAt('/admin/users', locale, client, router)
+      await waitFor(() => expect(wrapper.find('#admin-user-create-username').exists()).toBe(true))
+      if (mode === 'edit') await buttonWithText(wrapper, messages.editing.open).trigger('click')
+      const field =
+        mode === 'create'
+          ? '#admin-user-create-display-name'
+          : `#admin-user-edit-display-name-${ACCOUNT.id}`
+      if (mode === 'create') await wrapper.get('#admin-user-create-username').setValue('new.person')
+      await wrapper.get(field).setValue('Unsaved account name')
+      await buttonWithText(
+        wrapper,
+        mode === 'create' ? messages.creation.submit : messages.editing.save,
+      ).trigger('click')
+      await waitFor(() =>
+        expect(wrapper.get('main [role="alert"]').text()).toBe(messages.errors.validationError),
+      )
+
+      await wrapper.get('header .account-menu-button').trigger('click')
+      await wrapper.get('header button[role="menuitem"]').trigger('click')
+      await waitFor(() =>
+        expect(new DOMWrapper(document.body).find('[role="dialog"]').exists()).toBe(true),
+      )
+      await buttonWithText(wrapper, catalogues[locale].draftNavigation.stay).trigger('click')
+      await flushPromises()
+      expect(logoutRequests).toBe(0)
+      expect(wrapper.get<HTMLInputElement>(field).element.value).toBe('Unsaved account name')
+
+      const cancelled = router.push('/')
+      await waitFor(() =>
+        expect(new DOMWrapper(document.body).find('[role="dialog"]').exists()).toBe(true),
+      )
+      await buttonWithText(wrapper, catalogues[locale].draftNavigation.stay).trigger('click')
+      await cancelled
+      expect(router.currentRoute.value.path).toBe('/admin/users')
+      expect(wrapper.get<HTMLInputElement>(field).element.value).toBe('Unsaved account name')
+
+      const leaving = router.push('/')
+      await waitFor(() =>
+        expect(new DOMWrapper(document.body).find('[role="dialog"]').exists()).toBe(true),
+      )
+      await buttonWithText(wrapper, catalogues[locale].draftNavigation.discard).trigger('click')
+      await leaving
+      expect(router.currentRoute.value.path).toBe('/')
+      wrapper.unmount()
+    },
+  )
+
   it(CREATE_ACCOUNT_TEST, async () => {
     const requests: { pathname: string; body: unknown }[] = []
     let directoryRequests = 0
@@ -151,6 +220,8 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
     expect(currentSession().user?.display_name).not.toContain('temporary-password-only-once')
     expect(document.cookie).not.toContain('temporary-password-only-once')
     await expectNoAxeViolations(wrapper.element)
+    await wrapper.vm.$router.push('/')
+    expect(new DOMWrapper(document.body).find('[role="dialog"]').exists()).toBe(false)
   })
 
   it(UPDATE_ACCOUNT_TEST, async () => {
@@ -181,6 +252,11 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
     await buttonWithText(wrapper, messages.editing.save).trigger('click')
 
     await waitFor(() => expect(patchBodies).toEqual([{ roles: [] }]))
+    await waitFor(() =>
+      expect(wrapper.find(`#admin-user-edit-display-name-${ACCOUNT.id}`).exists()).toBe(false),
+    )
+    await wrapper.vm.$router.push('/')
+    expect(new DOMWrapper(document.body).find('[role="dialog"]').exists()).toBe(false)
   })
 
   it(DUPLICATE_SUBMISSION_TEST, async () => {
@@ -337,7 +413,12 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
     await wrapper.get('#admin-user-create-display-name').setValue('New administrator')
     await buttonWithText(wrapper, messages.creation.submit).trigger('click')
 
-    await router.push('/')
+    const leaving = router.push('/')
+    await waitFor(() =>
+      expect(new DOMWrapper(document.body).find('[role="dialog"]').exists()).toBe(true),
+    )
+    await buttonWithText(wrapper, catalogues[locale].draftNavigation.discard).trigger('click')
+    await leaving
     await flushPromises()
     resolveCreate?.(
       jsonResponse(

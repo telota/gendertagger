@@ -7,7 +7,6 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { createApiClient, type ApiClient } from '@/api'
 import AppSidebar from '@/app/AppSidebar.vue'
-import ProjectSwitcher from '@/app/ProjectSwitcher.vue'
 import { createAppI18n, type AppLocale } from '@/app/i18n'
 import { createQueryClient } from '@/app/queryClient'
 import { createAppRouter } from '@/app/router'
@@ -130,7 +129,6 @@ async function mountSidebar(
   locale: AppLocale,
   client: ApiClient = clientForRole('operator'),
   state: Partial<SessionState> = {},
-  withProjectSwitcher = false,
 ) {
   const router = createAppRouter(createMemoryHistory())
   const queryClient = createQueryClient()
@@ -143,8 +141,7 @@ async function mountSidebar(
       setup() {
         session = useSessionStore()
         session.$patch({ status: 'ready', user: { ...USER }, mustChangePassword: false, ...state })
-        return () =>
-          withProjectSwitcher ? h('div', [h(AppSidebar), h(ProjectSwitcher)]) : h(AppSidebar)
+        return () => h(AppSidebar)
       },
     }),
     {
@@ -274,7 +271,12 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
 
   it('waits for the project response before showing its navigation', async () => {
     const response = deferredResponse()
-    const client = createApiClient({ fetch: () => response.promise })
+    const client = createApiClient({
+      fetch: (request) =>
+        new URL(request.url).pathname === `/api/v1/projects/${PROJECT_A}`
+          ? response.promise
+          : Promise.resolve(Response.json({}, { status: 404 })),
+    })
     const { wrapper } = await mountSidebar(`/projects/${PROJECT_A}/overview`, locale, client)
 
     expectItems(wrapper, locale, ['projects'])
@@ -381,39 +383,49 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
     const client = createApiClient({
       fetch: (request) => {
         const path = new URL(request.url).pathname
-        if (path === '/api/v1/me/preferences') {
+        if (path === '/api/v1/me/preferences')
           return Promise.resolve(Response.json(DEFAULT_PREFERENCES))
-        }
-        if (path !== '/api/v1/projects') {
-          return Promise.resolve(Response.json({}, { status: 404 }))
-        }
+        if (path === `/api/v1/projects/${PROJECT_A}`)
+          return Promise.resolve(Response.json(project(PROJECT_A, 'viewer')))
+        if (path !== '/api/v1/projects') return Promise.resolve(Response.json({}, { status: 404 }))
         projectRequests += 1
         return projectRequests > 1
           ? response.promise
           : Promise.resolve(
-              new Response(
-                JSON.stringify({
-                  items: [project(PROJECT_A, 'operator')],
-                  has_more: false,
-                  next_cursor: null,
-                }),
-                { headers: { 'content-type': 'application/json' } },
-              ),
+              Response.json({
+                items: [project(PROJECT_B, 'operator')],
+                has_more: false,
+                next_cursor: null,
+              }),
             )
       },
     })
-    const { wrapper, session } = await mountSidebar('/projects', locale, client, {}, true)
-    await wrapper.get('button[aria-haspopup="menu"]').trigger('click')
-    const menuNames = () => wrapper.findAll('[role="menuitem"]').map((item) => item.text())
-    await waitFor(() => expect(menuNames()).toEqual(['Project A', messages.all]))
+    const { wrapper, session } = await mountSidebar(
+      `/projects/${PROJECT_A}/overview`,
+      locale,
+      client,
+    )
+    await waitFor(() => expect(wrapper.find('.project-switcher-button').exists()).toBe(true))
+    await wrapper.get('.project-switcher-button').trigger('click')
+    const menuNames = () =>
+      Array.from(document.querySelectorAll('.project-switcher-items [role="menuitem"]'), (item) =>
+        item.textContent?.trim(),
+      )
+    await waitFor(() => expect(menuNames()).toEqual(['Project B']))
 
     session.user = { ...USER, id: 'a0000000-0000-0000-0000-000000000002' }
     await flushPromises()
-    expect(menuNames()).toEqual([messages.all])
-    expect(wrapper.text()).not.toContain('Project A')
+    await waitFor(() => expect(wrapper.find('.project-switcher-button').exists()).toBe(true))
+    expect(document.querySelector('.project-switcher-items')).toBeNull()
+    await wrapper.get('.project-switcher-button').trigger('click')
+    expect(menuNames()).toEqual([])
+    expect(
+      document.querySelector('.project-switcher-items [role="status"]')?.textContent?.trim(),
+    ).toBe(messages.loading)
+    expect(document.body.textContent).not.toContain('Project B')
 
-    response.respond({ items: [project(PROJECT_B, 'viewer')], has_more: false, next_cursor: null })
-    await waitFor(() => expect(menuNames()).toEqual(['Project B', messages.all]))
+    response.respond({ items: [project(PROJECT_A, 'viewer')], has_more: false, next_cursor: null })
+    await waitFor(() => expect(menuNames()).toEqual(['Project A']))
     expect(projectRequests).toBe(2)
   })
 
@@ -425,13 +437,9 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
         return Promise.resolve(new Response(null, { status: 204 }))
       },
     })
-    const { wrapper } = await mountSidebar(
-      `/projects/${PROJECT_A}/overview`,
-      locale,
-      client,
-      { mustChangePassword: true },
-      true,
-    )
+    const { wrapper } = await mountSidebar(`/projects/${PROJECT_A}/overview`, locale, client, {
+      mustChangePassword: true,
+    })
 
     expect(wrapper.find('button[aria-haspopup="menu"]').exists()).toBe(false)
     expectItems(wrapper, locale, [])

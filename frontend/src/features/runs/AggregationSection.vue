@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
 import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
+import { useDraftRegistration } from '@/composables/useDraftNavigation'
 import { useProject } from '@/features/projects/useProjects'
 
 import AggregationItem from './AggregationItem.vue'
@@ -44,16 +45,26 @@ const runSucceeded = computed(
 const create = useCreateAggregation()
 const attempt = ref<'auto' | 'manual' | null>(null)
 const lastResult = ref<AggregationCreated | null>(null)
+const selected = ref<Record<string, boolean>>({})
+const savedSelection = ref<Record<string, boolean>>({})
+let generation = 0
 
 async function createFor(ids: readonly string[], kind: 'auto' | 'manual'): Promise<void> {
+  const requestGeneration = generation
+  const submittedSelection = Object.fromEntries(
+    aggregatable.value.map((execution) => [execution.id, ids.includes(execution.id)]),
+  )
   attempt.value = kind
   lastResult.value = null
   try {
-    lastResult.value = await create.mutateAsync({
+    const result = await create.mutateAsync({
       runId: props.run.id,
       methodExecutionIds: ids,
       strategy: 'reference_v1',
     })
+    if (requestGeneration !== generation) return
+    lastResult.value = result
+    if (kind === 'manual') Object.assign(savedSelection.value, submittedSelection)
   } catch {
     // create.isError/.error already reflect this; the section shows it beside the list.
   }
@@ -91,13 +102,30 @@ watch(
 
 // The advanced path: an explicit selection, which is what makes re-aggregating without re-running
 // any method cheap. Everything aggregatable starts selected.
-const selected = reactive<Record<string, boolean>>({})
 const selectedIds = computed(() =>
   aggregatable.value
-    .filter((execution) => selected[execution.id] ?? true)
+    .filter((execution) => selected.value[execution.id] ?? true)
     .map((execution) => execution.id),
 )
 const canSubmit = computed(() => selectedIds.value.length > 0 && !create.isPending.value)
+
+useDraftRegistration(
+  () =>
+    aggregatable.value.some(
+      (execution) =>
+        (selected.value[execution.id] ?? true) !== (savedSelection.value[execution.id] ?? true),
+    ),
+  () => {
+    generation += 1
+    selected.value = {}
+    savedSelection.value = {}
+    attempt.value = null
+    lastResult.value = null
+  },
+)
+onScopeDispose(() => {
+  generation += 1
+})
 
 function submitManual(): void {
   if (!canSubmit.value) return
@@ -106,7 +134,7 @@ function submitManual(): void {
 
 const errorText = computed(() => {
   const error = create.error.value
-  if (!create.isError.value || error === null) return ''
+  if (attempt.value === null || !create.isError.value || error === null) return ''
   if (error instanceof ApiError && error.code === 'resource_conflict') {
     return attempt.value === 'auto'
       ? t('aggregations.errors.autoNotAggregatable')
@@ -251,7 +279,7 @@ function loadMore(): void {
 .aggregations-load-error p,
 .aggregations-error {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .aggregations-items {

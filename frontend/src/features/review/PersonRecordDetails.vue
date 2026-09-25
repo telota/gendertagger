@@ -81,8 +81,8 @@ const isEmpty = computed(
   <div class="record">
     <p v-if="isEmpty" class="record-muted">{{ t('review.detail.person.empty') }}</p>
 
-    <dl v-if="facts.length > 0" class="record-facts">
-      <div v-for="fact in facts" :key="fact.key" class="record-fact">
+    <dl v-if="facts.length > 0" class="record-facts app-facts">
+      <div v-for="fact in facts" :key="fact.key" class="record-fact app-fact">
         <dt>{{ fact.label }}</dt>
         <dd>{{ fact.value }}</dd>
       </div>
@@ -133,6 +133,8 @@ const isEmpty = computed(
 
 <style scoped>
 .record {
+  min-width: 0;
+  overflow-wrap: anywhere;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -142,12 +144,6 @@ const isEmpty = computed(
   display: grid;
   gap: var(--space-2);
   margin: 0;
-}
-
-.record-fact {
-  display: grid;
-  grid-template-columns: 9rem 1fr;
-  gap: var(--space-3);
 }
 
 .record-fact dt {
@@ -183,6 +179,8 @@ const isEmpty = computed(
 }
 
 .record-token {
+  min-width: 0;
+  max-width: 100%;
   padding: 0 var(--space-2);
   border: 1px solid var(--border);
   border-radius: 999px;

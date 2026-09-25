@@ -27,4 +27,5 @@
 | [`24-frontend-delivery-plan.md`](24-frontend-delivery-plan.md) | Phase 8 milestones, open decisions, and frontend delivery risks |
 | [`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md) | Visual system, scientific-vocabulary rendering, states, and accessibility |
 | [`26-frontend-coding-guidelines.md`](26-frontend-coding-guidelines.md) | Vue 3 + TypeScript conventions, boundaries, testing, and validation |
+| [`27-frontend-improvement-plan.md`](27-frontend-improvement-plan.md) | Shared foundations, per-view improvements, header content design, sidebar sequencing, and verification |
 | [Architecture Decision Records](decisions/) | Accepted decisions and ADR template |

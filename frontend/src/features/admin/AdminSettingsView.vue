@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { ApiError, type components } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
+import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
 import { useAdminAccess } from '@/composables/useAdminAccess'
 
 import AdminSettingsEditor from './AdminSettingsEditor.vue'
@@ -295,7 +296,10 @@ function legalEntityAddress(values: string[] | undefined): string {
               {{ t('adminSettings.revision', { revision: data.revision }) }}
             </p>
           </div>
-          <div class="admin-settings-table-scroll">
+          <AppScrollRegion
+            class="admin-settings-table-scroll"
+            :label="t('layout.tableRegion', { label: t('adminSettings.branding.title') })"
+          >
             <table>
               <thead>
                 <tr>
@@ -323,7 +327,7 @@ function legalEntityAddress(values: string[] | undefined): string {
                 </tr>
               </tbody>
             </table>
-          </div>
+          </AppScrollRegion>
         </section>
 
         <AdminSettingsEditor
@@ -496,7 +500,6 @@ function legalEntityAddress(values: string[] | undefined): string {
 }
 
 .admin-settings-table-scroll {
-  overflow-x: auto;
   margin-bottom: var(--space-8);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
@@ -638,7 +641,7 @@ function legalEntityAddress(values: string[] | undefined): string {
 
 .admin-settings-error p {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .admin-settings-public-refresh-error {
@@ -646,7 +649,7 @@ function legalEntityAddress(values: string[] | undefined): string {
   justify-items: start;
   gap: var(--space-3);
   margin-top: var(--space-4);
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .admin-settings-public-refresh-error p {

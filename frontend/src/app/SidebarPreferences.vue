@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from '@headlessui/vue'
-import { PhCaretUp, PhCheck, PhMoon, PhTranslate } from '@phosphor-icons/vue'
+import { PhCaretDown, PhCaretUp, PhCheck, PhMoon, PhTranslate } from '@phosphor-icons/vue'
 import { computed, ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -11,7 +11,14 @@ import { useUserPreferences, type UserPreferencesUpdate } from '@/composables/us
 
 import SidebarTooltip from './SidebarTooltip.vue'
 
-defineProps<{ desktopCollapsed?: boolean; mobile?: boolean }>()
+withDefaults(
+  defineProps<{
+    desktopCollapsed?: boolean
+    mobile?: boolean
+    presentation?: 'sidebar' | 'header'
+  }>(),
+  { presentation: 'sidebar' },
+)
 
 const { t } = useI18n()
 const locale = useLocale()
@@ -165,8 +172,9 @@ async function reload(): Promise<void> {
   <section
     class="sidebar-preferences"
     :class="{
-      'sidebar-preferences--collapsed': desktopCollapsed && !mobile,
-      'sidebar-preferences--mobile': mobile,
+      'sidebar-preferences--collapsed': presentation === 'sidebar' && desktopCollapsed && !mobile,
+      'sidebar-preferences--mobile': presentation === 'sidebar' && mobile,
+      'sidebar-preferences--header': presentation === 'header',
     }"
     :aria-label="t('sidebarPreferences.title')"
     :aria-busy="isBusy"
@@ -182,7 +190,14 @@ async function reload(): Promise<void> {
       :disabled="disabled"
       @update:model-value="control.change"
     >
-      <SidebarTooltip v-slot="{ triggerProps }" :text="control.label" :disabled="mobile || open">
+      <SidebarTooltip
+        v-slot="{ triggerProps }"
+        :text="control.label"
+        rail-only
+        :desktop-collapsed="desktopCollapsed"
+        :mobile="mobile"
+        :disabled="open || presentation === 'header'"
+      >
         <ListboxButton
           v-bind="triggerProps"
           class="sidebar-preferences-button"
@@ -200,7 +215,12 @@ async function reload(): Promise<void> {
               control.options.find((option) => option.value === control.value)?.label
             }}</span>
           </span>
-          <PhCaretUp class="sidebar-preferences-caret" :size="14" aria-hidden="true" />
+          <component
+            :is="presentation === 'header' ? PhCaretDown : PhCaretUp"
+            class="sidebar-preferences-caret"
+            :size="14"
+            aria-hidden="true"
+          />
         </ListboxButton>
       </SidebarTooltip>
       <ListboxOptions class="sidebar-preferences-options" :aria-label="control.label">
@@ -311,7 +331,7 @@ async function reload(): Promise<void> {
   inset-inline-start: 0;
   bottom: calc(100% + var(--space-1));
   width: max-content;
-  min-width: max(100%, 12rem);
+  min-width: min(max(100%, 12rem), calc(100vw - 2 * var(--space-4)));
   max-width: calc(100vw - 2 * var(--space-4));
   max-height: min(18rem, 60dvh);
   overflow-y: auto;
@@ -404,10 +424,83 @@ async function reload(): Promise<void> {
   box-shadow: var(--shadow-menu);
 }
 
+.sidebar-preferences--header {
+  flex-direction: row;
+  flex-wrap: wrap;
+  flex-shrink: 1;
+  align-items: center;
+  max-width: 100%;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.sidebar-preferences--header .sidebar-preferences-field {
+  position: static;
+  max-width: 100%;
+}
+
+.sidebar-preferences--header .sidebar-preferences-button {
+  width: auto;
+  min-width: var(--control-min-size);
+  min-height: var(--control-min-size);
+  max-width: 100%;
+}
+
+.sidebar-preferences--header .sidebar-preferences-copy {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-2);
+}
+
+.sidebar-preferences--header .sidebar-preferences-label {
+  overflow-wrap: anywhere;
+}
+
+.sidebar-preferences--header .sidebar-preferences-value {
+  font-size: var(--font-size-small);
+}
+
+.sidebar-preferences--header .sidebar-preferences-options {
+  /* Bound both popups to the wrapping preference group, wherever it sits in the header. */
+  top: calc(100% + var(--space-1));
+  bottom: auto;
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+  min-width: min(12rem, 100%);
+  max-width: min(24rem, 100%);
+}
+
+.sidebar-preferences--header .sidebar-preferences-help,
+.sidebar-preferences--header .sidebar-preferences-status,
+.sidebar-preferences--header .sidebar-preferences-feedback {
+  flex-basis: 100%;
+  min-width: 0;
+}
+
+@media (width < 720px) {
+  .sidebar-preferences--header .sidebar-preferences-field {
+    flex: 1 1 0;
+  }
+
+  .sidebar-preferences--header .sidebar-preferences-button {
+    width: 100%;
+  }
+
+  .sidebar-preferences--header .sidebar-preferences-copy {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
 @media (720px <= width < 1080px) {
-  .sidebar-preferences:not(.sidebar-preferences--mobile) .sidebar-preferences-copy,
-  .sidebar-preferences:not(.sidebar-preferences--mobile) .sidebar-preferences-help,
-  .sidebar-preferences:not(.sidebar-preferences--mobile) .sidebar-preferences-status {
+  .sidebar-preferences:not(.sidebar-preferences--mobile, .sidebar-preferences--header)
+    .sidebar-preferences-copy,
+  .sidebar-preferences:not(.sidebar-preferences--mobile, .sidebar-preferences--header)
+    .sidebar-preferences-help,
+  .sidebar-preferences:not(.sidebar-preferences--mobile, .sidebar-preferences--header)
+    .sidebar-preferences-status {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -415,13 +508,16 @@ async function reload(): Promise<void> {
     clip-path: inset(50%);
     white-space: nowrap;
   }
-  .sidebar-preferences:not(.sidebar-preferences--mobile) .sidebar-preferences-caret {
+  .sidebar-preferences:not(.sidebar-preferences--mobile, .sidebar-preferences--header)
+    .sidebar-preferences-caret {
     display: none;
   }
-  .sidebar-preferences:not(.sidebar-preferences--mobile) .sidebar-preferences-button {
+  .sidebar-preferences:not(.sidebar-preferences--mobile, .sidebar-preferences--header)
+    .sidebar-preferences-button {
     justify-content: center;
   }
-  .sidebar-preferences:not(.sidebar-preferences--mobile) .sidebar-preferences-feedback {
+  .sidebar-preferences:not(.sidebar-preferences--mobile, .sidebar-preferences--header)
+    .sidebar-preferences-feedback {
     position: absolute;
     z-index: 20;
     inset-inline-start: calc(100% + var(--space-3));

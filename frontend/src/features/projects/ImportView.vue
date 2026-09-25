@@ -6,6 +6,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
 import AppListbox from '@/components/base/AppListbox.vue'
+import { useDraftRegistration } from '@/composables/useDraftNavigation'
 import { useSessionStore } from '@/stores/session'
 
 import {
@@ -156,7 +157,23 @@ const canSubmit = computed(
 
 const importMutation = useImportSnapshot()
 const snapshotId = ref<string | null>(null)
+let draftGeneration = 0
 const status = useSnapshotStatus(snapshotId)
+
+useDraftRegistration(
+  () =>
+    snapshotId.value === null &&
+    (files.value.length > 0 || sourceFormat.value !== 'tei' || packaging.value !== 'single'),
+  () => {
+    draftGeneration += 1
+    files.value = []
+    fileInputKey.value += 1
+    sourceFormat.value = 'tei'
+    packaging.value = 'single'
+    snapshotId.value = null
+    importMutation.reset()
+  },
+)
 
 function importErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -174,6 +191,7 @@ function importErrorMessage(error: unknown): string {
 
 async function submit(): Promise<void> {
   if (!canSubmit.value) return
+  const generation = draftGeneration
   try {
     const snapshot = await importMutation.mutateAsync({
       projectId: projectId.value,
@@ -181,6 +199,7 @@ async function submit(): Promise<void> {
       packaging: packaging.value,
       files: files.value,
     })
+    if (generation !== draftGeneration) return
     snapshotId.value = snapshot.id
   } catch {
     // importMutation.isError/.error already reflect this; the form stays open to show it.
@@ -381,7 +400,7 @@ async function submit(): Promise<void> {
 .import-error,
 .import-status-failed {
   margin: 0;
-  color: var(--critical);
+  color: var(--critical-text);
 }
 
 .import-forbidden {
