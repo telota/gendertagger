@@ -21,13 +21,16 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
 
 import { useAdminAccess } from '@/composables/useAdminAccess'
+import { hasProjectRole } from '@/features/projects/projectRoles'
 
 import NavItem from './NavItem.vue'
 import { useProjectNavigation } from './useProjectNavigation'
 
 const { t } = useI18n()
-const { canAccessAdmin } = useAdminAccess()
+const { canAccessAdmin, session } = useAdminAccess()
 const project = useProjectNavigation()
+const canImport = computed(() => hasProjectRole(project.value?.currentUserRole, 'operator'))
+const canReview = computed(() => hasProjectRole(project.value?.currentUserRole, 'reviewer'))
 
 // A target is `null` while the project has nothing to point at yet (no run, no aggregation).
 function link(name: string, params: Record<string, string | null>): RouteLocationRaw | null {
@@ -59,7 +62,11 @@ const projectLinks = computed(() => {
       <PhGenderIntersex :size="24" aria-hidden="true" />
       <span class="app-sidebar-brand-label">{{ t('app.title') }}</span>
     </RouterLink>
-    <nav class="app-sidebar-nav" :aria-label="t('nav.label')">
+    <nav
+      v-if="session.canUsePrivateNavigation"
+      class="app-sidebar-nav"
+      :aria-label="t('nav.label')"
+    >
       <ul class="app-sidebar-nav-list">
         <li>
           <NavItem :to="{ name: 'projects' }" :icon="PhFolders" :label="t('nav.projects')" />
@@ -71,7 +78,7 @@ const projectLinks = computed(() => {
           <li>
             <NavItem :to="projectLinks.overview" :icon="PhSquaresFour" :label="t('nav.overview')" />
           </li>
-          <li>
+          <li v-if="canImport">
             <NavItem :to="projectLinks.import" :icon="PhUploadSimple" :label="t('nav.import')" />
           </li>
           <li>
@@ -81,7 +88,7 @@ const projectLinks = computed(() => {
               :label="t('nav.classification')"
             />
           </li>
-          <li>
+          <li v-if="canReview">
             <NavItem
               :to="projectLinks.review"
               :icon="PhPencilSimpleLine"

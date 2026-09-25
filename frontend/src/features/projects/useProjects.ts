@@ -3,11 +3,9 @@ import { computed, ref, type Ref } from 'vue'
 
 import { unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
+import { useSessionStore } from '@/stores/session'
 
 export type AccessibleProject = components['schemas']['AccessibleProject']
-
-/** One query key for the whole list — server-side sort is fixed (slug order), so there is no filter tuple yet. */
-const PROJECTS_QUERY_KEY = ['projects'] as const
 
 /**
  * `GET /projects`, cursor-paginated (docs/23-wireframe-ui-inventory.md: server state through
@@ -16,15 +14,21 @@ const PROJECTS_QUERY_KEY = ['projects'] as const
  */
 export function useProjectList(enabled: Ref<boolean>) {
   const client = useApiClient()
+  const session = useSessionStore()
 
   return useInfiniteQuery({
-    queryKey: PROJECTS_QUERY_KEY,
-    queryFn: ({ pageParam }) =>
-      unwrap(client.GET('/api/v1/projects', { params: { query: { cursor: pageParam ?? null } } })),
+    queryKey: computed(() => ['projects', 'list', session.user?.id ?? 'anonymous'] as const),
+    queryFn: ({ pageParam, signal }) =>
+      unwrap(
+        client.GET('/api/v1/projects', {
+          params: { query: { cursor: pageParam ?? null } },
+          signal,
+        }),
+      ),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) =>
       lastPage.has_more ? (lastPage.next_cursor ?? null) : undefined,
-    enabled,
+    enabled: computed(() => enabled.value && session.canUsePrivateNavigation),
   })
 }
 
@@ -35,15 +39,20 @@ export function useProjectList(enabled: Ref<boolean>) {
  */
 export function useProject(projectId: Ref<string>, enabled: Ref<boolean> = ref(true)) {
   const client = useApiClient()
+  const session = useSessionStore()
 
   return useQuery({
-    queryKey: computed(() => ['projects', projectId.value] as const),
-    queryFn: () =>
+    // AccessibleProject includes caller-specific roles and must never be shared across accounts.
+    queryKey: computed(
+      () => ['projects', projectId.value, session.user?.id ?? 'anonymous'] as const,
+    ),
+    queryFn: ({ queryKey, signal }) =>
       unwrap(
         client.GET('/api/v1/projects/{project_id}', {
-          params: { path: { project_id: projectId.value } },
+          params: { path: { project_id: queryKey[1] } },
+          signal,
         }),
       ),
-    enabled,
+    enabled: computed(() => enabled.value && session.canUsePrivateNavigation),
   })
 }

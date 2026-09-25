@@ -760,9 +760,22 @@ resolve, and the review path works end to end behind a real session.
 - **Sidebar navigation and icons. Delivered.** `AppSidebar` now carries the groups of the wireframe
   ([`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md)): Projekte; Aktuelles Projekt (Übersicht,
   Import, Klassifikation, Redigieren, Manuell annotieren); Auswertung (Statistik & Methoden, Export); Admin. The
-  project group appears only inside a project. Run-level entries follow the run, aggregation or snapshot in the
-  URL; elsewhere in the project they follow the project's working aggregation (ADR-0035) and the run and snapshot
-  it belongs to, never a guess from recency (`app/useProjectNavigation.ts`). An entry with no target yet is shown
+  private navigation and project switcher wait for a resolved, signed-in, password-current session,
+  including completion of login's session-flags request. The project group appears only after the current
+  project's effective `current_user_role` is resolved successfully. Viewers see Overview, Classification,
+  People, Statistics and existing Exports; reviewers additionally see Review; operators additionally see
+  Import. Export creation remains operator-only in its screen. Global operator status never substitutes
+  for project membership; administrators use the effective operator role returned by the backend.
+  Users, Teams and Branding settings require a global administrator. Project query caches are scoped
+  to the signed-in principal so a different account cannot inherit cached project roles or names.
+  Missing roles, loading and failed project reads hide the project group; missing resource context only
+  disables destinations already permitted by the resolved role. Run-level entries follow the run,
+  aggregation or snapshot in the URL; elsewhere in the project they follow the project's working
+  aggregation (ADR-0035) and the run and snapshot
+  it belongs to, never a guess from recency (`app/useProjectNavigation.ts`). The working-aggregation
+  fallback applies only when the URL selects no snapshot, run, or aggregation. Inside a selected run or
+  snapshot, Review and People require an aggregation in the URL; cached project context must never
+  combine that selection with another run's aggregation. An entry with no target yet is shown
   disabled (`aria-disabled`, not focusable) with a reason, not as a dead link. Below 1080 px the sidebar is an
   icon rail; the labels stay available to assistive technology. Icons are Phosphor (`@phosphor-icons/vue`,
   MIT, named imports so unused icons are tree-shaken), decorative and `aria-hidden`. There is no Spielmodus
@@ -770,8 +783,9 @@ resolve, and the review path works end to end behind a real session.
   [`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md).
 - **Project switcher. Delivered.** `ProjectSwitcher` in the header (docs/23, topbar) is a menu of the caller's
   projects (first page of `GET /projects`, server order), names and marks the current one, and links to the full
-  list. Shown only with a session. The wireframe's completion percentages and its "new project" action are not
-  part of it: no backend data exists for the former, and creating a project stays on the project list.
+  list. Shown only with a resolved, password-current session. The wireframe's completion percentages and
+  its "new project" action are not part of it: no backend data exists for the former, and creating a
+  project stays on the project list.
 - **Einstellungen: not built as a separate screen. Open for confirmation.** The wireframe's eight settings are
   unsupported by design ([`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md)); the only persisted
   settings are the six branding fields of ADR-0040, which `/admin/settings` already edits (sidebar: Admin,

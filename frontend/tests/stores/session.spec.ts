@@ -1,9 +1,9 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import { defineComponent } from 'vue'
 import { describe, expect, it } from 'vitest'
 
-import type { ApiClient } from '@/api'
+import { createApiClient, type ApiClient } from '@/api'
 import { API_CLIENT_KEY } from '@/composables/useApiClient'
 import { useSessionStore } from '@/stores/session'
 
@@ -110,6 +110,69 @@ describe('useSessionStore.initialize', () => {
 })
 
 describe('useSessionStore.login', () => {
+  it.each([false, true])(
+    'waits for password-change flags before exposing navigation (required: %s)',
+    async (mustChangePassword) => {
+      let resolveFlags!: (response: Response) => void
+      const flags = new Promise<Response>((resolve) => {
+        resolveFlags = resolve
+      })
+      const store = mountSession(
+        createApiClient({
+          fetch: async (request) =>
+            new URL(request.url).pathname === '/api/v1/auth/login' ? Response.json(USER) : flags,
+        }),
+      )
+      store.status = 'ready'
+
+      const signingIn = store.login({
+        username: 'reviewer.one',
+        password: 'correct',
+        keepSignedIn: false,
+      })
+      await flushPromises()
+
+      expect(store.isAuthenticating).toBe(true)
+      expect(store.canUsePrivateNavigation).toBe(false)
+      expect(store.user).toBeNull()
+      // Recovery callers keep their form mounted while authentication resolves.
+      expect(store.status).toBe('ready')
+
+      resolveFlags(
+        Response.json({ must_change_password: mustChangePassword, keep_signed_in: false }),
+      )
+      await signingIn
+
+      expect(store.isAuthenticating).toBe(false)
+      expect(store.user).toEqual(USER)
+      expect(store.canUsePrivateNavigation).toBe(!mustChangePassword)
+    },
+  )
+
+  it('keeps navigation hidden if credentials succeed but session flags fail', async () => {
+    const store = mountSession(
+      apiClientWithRoutes({
+        '/api/v1/auth/login': { body: USER },
+        '/api/v1/auth/session': {
+          body: { error: { code: 'internal_error', message: 'Unavailable.' } },
+          init: { status: 500 },
+        },
+      }),
+    )
+    store.status = 'ready'
+    const previousUser = { ...USER, id: 'a0000000-0000-0000-0000-000000000002' }
+    store.user = previousUser
+
+    await expect(
+      store.login({ username: 'reviewer.one', password: 'correct', keepSignedIn: false }),
+    ).rejects.toMatchObject({ code: 'internal_error' })
+
+    expect(store.status).toBe('error')
+    expect(store.canUsePrivateNavigation).toBe(false)
+    expect(store.isAuthenticating).toBe(false)
+    expect(store.user).toEqual(previousUser)
+  })
+
   it('sets the signed-in user and its session flags on success', async () => {
     const store = mountSession(
       apiClientWithRoutes({

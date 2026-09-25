@@ -29,6 +29,8 @@ export const useSessionStore = defineStore('session', () => {
 
   const user = ref<CurrentUser | null>(null)
   const mustChangePassword = ref(false)
+  // Navigation waits for both login responses without unmounting a recovery caller's unsaved form.
+  const isAuthenticating = ref(false)
   /**
    * `idle` before the first `initialize()`, `loading` while it runs, `ready` once it resolves
    * either signed in or ordinarily signed out, `error` if the server itself could not be reached
@@ -38,6 +40,13 @@ export const useSessionStore = defineStore('session', () => {
   const status = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
 
   const isSignedIn = computed(() => user.value !== null)
+  const canUsePrivateNavigation = computed(
+    () =>
+      status.value === 'ready' &&
+      isSignedIn.value &&
+      !mustChangePassword.value &&
+      !isAuthenticating.value,
+  )
 
   /** Resolve the current session from the browser's cookie, if any. Call once at app start. */
   async function initialize(): Promise<void> {
@@ -65,16 +74,28 @@ export const useSessionStore = defineStore('session', () => {
 
   /** Throws `ApiError` (e.g. `invalid_credentials`) for the caller to display. */
   async function login(credentials: LoginCredentials): Promise<void> {
-    user.value = await unwrap(
-      client.POST('/api/v1/auth/login', {
-        body: {
-          username: credentials.username,
-          password: credentials.password,
-          keep_signed_in: credentials.keepSignedIn,
-        },
-      }),
-    )
-    await refreshSessionFlags()
+    isAuthenticating.value = true
+    try {
+      const authenticatedUser = await unwrap(
+        client.POST('/api/v1/auth/login', {
+          body: {
+            username: credentials.username,
+            password: credentials.password,
+            keep_signed_in: credentials.keepSignedIn,
+          },
+        }),
+      )
+      try {
+        await refreshSessionFlags()
+      } catch (error) {
+        status.value = 'error'
+        throw error
+      }
+      user.value = authenticatedUser
+      status.value = 'ready'
+    } finally {
+      isAuthenticating.value = false
+    }
   }
 
   /** Clear the local session state only, without a server round trip. */
@@ -107,8 +128,10 @@ export const useSessionStore = defineStore('session', () => {
   return {
     user,
     mustChangePassword,
+    isAuthenticating,
     status,
     isSignedIn,
+    canUsePrivateNavigation,
     initialize,
     login,
     logout,

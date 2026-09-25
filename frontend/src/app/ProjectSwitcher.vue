@@ -16,7 +16,7 @@ const { t } = useI18n()
 const route = useRoute()
 const session = useSessionStore()
 
-const signedIn = computed(() => session.status === 'ready' && session.isSignedIn)
+const signedIn = computed(() => session.canUsePrivateNavigation)
 const currentId = computed(() => {
   const raw = route.params.projectId
   const value = Array.isArray(raw) ? raw[0] : raw
