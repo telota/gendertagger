@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { PhGenderIntersex } from '@phosphor-icons/vue'
+import { PhGearSix, PhGenderIntersex } from '@phosphor-icons/vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
+
+import { useSessionStore } from '@/stores/session'
 
 import NavItem from './NavItem.vue'
 import SidebarCollapseButton from './SidebarCollapseButton.vue'
@@ -12,6 +14,7 @@ defineProps<{ desktopSidebarCollapsed?: boolean; mobile?: boolean }>()
 
 const { t } = useI18n()
 const groups = useSidebarNavigation()
+const session = useSessionStore()
 </script>
 
 <template>
@@ -46,6 +49,14 @@ const groups = useSidebarNavigation()
     </nav>
     <footer class="app-sidebar-footer">
       <SidebarPreferences :desktop-collapsed="desktopSidebarCollapsed" :mobile="mobile" />
+      <NavItem
+        v-if="session.canUsePrivateNavigation"
+        :to="{ name: 'userSettings' }"
+        :icon="PhGearSix"
+        :label="t('header.settings')"
+        :desktop-collapsed="desktopSidebarCollapsed"
+        :mobile="mobile"
+      />
       <SidebarCollapseButton v-if="!mobile" />
     </footer>
   </aside>

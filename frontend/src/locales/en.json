@@ -4,20 +4,19 @@
   },
   "home": {
     "guest": {
-      "lede": "Gender annotation for TEI/XML person registers: proposed by independent methods, decided by your editors.",
-      "intro": "Many person registers in digital editions record no gender at all, so the gender data gap in the sources stays invisible. Gendertagger proposes annotations from several independent methods and keeps each method's answer, confidence and disagreement in view, so your team makes the call on every uncertain case.",
+      "lede": "Add gender annotations to person registers.",
+      "intro": "Gendertagger uses authority data and various models to suggest gender annotations for person registers in digital editions. These concern historically and culturally shaped gender attributions, not individual gender identity. You can compare the results of individual methods and add your own annotations.",
       "signIn": "Sign in",
-      "accountHint": "Accounts are issued by the administrators of this installation.",
+      "accountHint": "Contact the administrator for an account.",
       "stepsLabel": "How it works",
       "steps": {
-        "importTitle": "Import the register",
-        "importText": "Upload a TEI/XML person register. Every import becomes an unchangeable snapshot.",
-        "classifyTitle": "Classify with several methods",
-        "classifyText": "Authority data (GND), name-based classifiers, transformer models and, optionally, a locally hosted language model each answer on their own.",
+        "importTitle": "Import a register",
+        "importText": "Upload your edition’s person register.",
+        "classifyTitle": "Generate and compare suggestions",
+        "classifyText": "Choose which methods to run and compare the suggested gender annotations.",
         "reviewTitle": "Review and export",
-        "reviewText": "Editors resolve open cases with the evidence in view. The enriched register goes back into your edition as TEI/XML."
-      },
-      "scopeNote": "The labels are male, female, unknown and institution. They make the gender data gap measurable; they say nothing about how a historical person understood their own gender."
+        "reviewText": "Correct or add annotations, then export the updated register."
+      }
     },
     "signedIn": {
       "welcomeBack": "Welcome back, {name}.",
@@ -27,8 +26,6 @@
   "publication": {
     "heading": "Publication details",
     "editors": "Editors",
-    "publisher": "Publisher",
-    "initiatives": "Developed within",
     "published": "Published",
     "publishedSince": "since {year}",
     "notConfigured": "This installation has not configured publication details yet.",
@@ -42,8 +39,7 @@
     "sourceCodeLicense": "Source code under the {license} licence",
     "legalNavigation": "Legal information",
     "legalNotice": "Legal notice",
-    "privacyNotice": "Privacy notice",
-    "brandingUnavailable": "Publication branding could not be loaded."
+    "privacyNotice": "Privacy notice"
   },
   "legal": {
     "title": "Legal notice",

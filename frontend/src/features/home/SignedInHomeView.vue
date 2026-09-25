@@ -29,7 +29,6 @@ const displayName = computed(() => session.user?.display_name ?? '')
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-5);
-  margin-bottom: var(--space-12);
 }
 
 .home-signed-in-welcome {

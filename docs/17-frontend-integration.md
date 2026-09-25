@@ -91,9 +91,10 @@ of backend resources. Under [ADR-0043](decisions/ADR-0043-account-level-user-pre
 preferences are server state: fetch and cache them by principal, clear private state on logout/account
 changes, and use canonical PATCH responses with their revision. The lazy `/settings` route, named
 `userSettings`, is available to every resolved, password-current account regardless of project or global
-role. Its translated link belongs to the title-bar account controls. The form keeps its editable draft in
-component state; changing a control or restoring defaults does not save or change the shell. Explicit Save
-sends `expected_revision`, and only the canonical successful response replaces saved query state.
+role. Its translated link belongs to the sidebar footer, including the mobile navigation drawer. The
+form keeps its editable draft in component state; changing a control or restoring defaults does not save
+or change the shell. Explicit Save sends `expected_revision`, and only the canonical successful response
+replaces saved query state.
 
 A saved locale of null means browser default: the browser resolves its effective language without writing
 that result back: first supported browser-language primary subtag, then German. Theme `system` similarly

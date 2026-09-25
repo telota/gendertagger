@@ -318,7 +318,7 @@ implementation does not expose any other deployment settings.
 explicit desktop-sidebar collapse preferences. The first increment delivered backend contracts,
 persistence, migration, `GET`/`PATCH /api/v1/me/preferences`, tests, and generated OpenAPI/TypeScript
 transport. The subsequent frontend increment supplies the lazy `/settings` route named `userSettings`
-and a translated Settings link in the title-bar account controls. Every resolved, signed-in,
+and a translated Settings link in the sidebar footer. Every resolved, signed-in,
 password-current user has access without any project or global role. Administrative branding remains at
 `/admin/settings`, and project/scientific settings are outside this resource.
 
@@ -385,7 +385,8 @@ delivered in M7/M8. Game mode remains a separate, deferred increment (D20).
   require explicit reload and failures remain visible. Anonymous choices retain the existing browser
   storage. While identity is unresolved or account access is unavailable, temporary presentation changes
   write neither account preferences nor anonymous storage. New canonical account values replace these
-  temporary changes. Account identity, settings access, and session actions remain in the title bar.
+  temporary changes. Personal Settings is linked from this footer, including the mobile drawer;
+  account identity and session actions remain in the title bar.
 - Navigation scrolls independently so brand, controls, and preference footer remain reachable. Shell
   dimensions use semantic tokens; transitions honor reduced motion. The drawer and menus must reflow
   at 320 CSS px and retain long German labels without horizontal page scrolling.
@@ -432,14 +433,14 @@ failure, and an uncertain post-submit outcome have distinct visible errors; none
 fallback data, or automatically replay the write after reauthentication.
 
 `useBranding` now reads the single shared public TanStack query. Successful administrative mutations cancel
-stale public reads and refresh that query so already-mounted footer, home, and legal-notice consumers update
+stale public reads and refresh that query so already-mounted footer and legal-notice consumers update
 without navigation. Private administrative settings and public branding remain separate caches. If that
 follow-up read fails, saved administrative state remains confirmed, the public failure is visible, and Retry
 performs only the public read.
 
 **Manual verification pending.** Verify German and English light/dark, keyboard, and responsive editing;
 an equal-valued pinned override after changing deployment fallback; dirty-form reset blocking; two tabs
-conflicting then explicitly reconciling; `503` and lost-response messaging; and mounted footer, home, and
+conflicting then explicitly reconciling; `503` and lost-response messaging; and mounted footer and
 legal notice updating after save without navigation. Runtime/browser suites were intentionally not run for
 this delivery.
 
@@ -887,7 +888,7 @@ resolve, and the review path works end to end behind a real session.
   its "new project" action are not part of it: no backend data exists for the former, and creating a
   project stays on the project list.
 - **Personal settings. Delivered as the ADR-0043 frontend increment.** The lazy `/settings` page and
-  translated title-bar link expose only account locale, theme, and explicit desktop-sidebar collapse,
+  translated sidebar-footer link expose only account locale, theme, and explicit desktop-sidebar collapse,
   with explicit saving and conflict recovery. They are available to every password-current account.
   The wireframe's other settings remain unsupported
   ([`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md)). The six branding fields of ADR-0040

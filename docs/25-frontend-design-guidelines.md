@@ -439,15 +439,22 @@ values **this deployment** configures; another deployment sets its own.
 
 | Guideline item | Where | This deployment's configured value |
 |---|---|---|
-| Title, editors, publisher, and publication period, clearly visible | Start page | Editors: Frederike Neuber, Lou Klappenbach, Tim Westphal, taken from the published paper and still to be confirmed. Period: "since 2026", to be confirmed. |
+| Title, editors, publisher, and publication period, clearly visible | Title in the start-page content; publication details in the shared footer | Editors: Frederike Neuber, Lou Klappenbach, Tim Westphal, taken from the published paper and still to be confirmed. Period: "since 2026", to be confirmed. |
 | Citation hint, DOI or URN | Start page | Omitted until the resource has an identifier and a stable public address |
 | Publisher, by logo or name, on every page | Footer | The BBAW as text, plus its logo once the team supplies the official file to mount at `branding.logo_path` |
 | Funders | Footer | None: the application has no external funding. If that changes, the guideline's funder block is added. |
-| Institutional context | Start page and footer | Linked by name via `branding.initiatives`: "KI-Lab bei TELOTA" (`https://www.bbaw.de/bbaw-digital/ki`) and "Gender & Data" (`https://gender-data.bbaw.de/`), labelled "Entstanden im Rahmen von" and "Developed within". Initiative names are proper names and stay untranslated. |
+| Institutional context | Shared footer, including the start page | Linked by name via `branding.initiatives`: "KI-Lab bei TELOTA" (`https://www.bbaw.de/bbaw-digital/ki`) and "Gender & Data" (`https://gender-data.bbaw.de/`), labelled "Entstanden im Rahmen von" and "Developed within". Initiative names are proper names and stay untranslated. |
 | Contact, and technical notes | Footer | One address, `telota@bbaw.de`, serves both |
 | Licence, with a link to its text | Footer | Source-code licence (MIT), which has no version. This is a fact about the software, not deployment configuration, and stays a frontend constant. |
 | Privacy notice of the operating institution | Footer link | `https://www.bbaw.de/datenschutz` |
 | Legal notice | Footer link to `/impressum` | Modelled on `https://www.bbaw.de/impressum/`; see below |
+
+**Publication section.** The shared footer groups editors, publisher, initiatives, and publication period
+under one heading. These facts appear once on each page, with contact, source-code licence, and legal
+links in a separate row beneath them. The layout uses flat surfaces, existing type and spacing tokens,
+and wrapping columns that stack on narrow screens. A successful empty response shows the unconfigured
+message; a failed read shows a distinct error. Loading does not imply missing configuration. Licence and
+legal navigation remain available in every state.
 
 **Legal notice.** It is a public route, reachable without a session, so it is exempt from the authentication
 requirement. Its sections follow the BBAW notice: provider and legal form, address, telephone, representative,
@@ -508,9 +515,9 @@ after logout without copying account choices into browser storage.
 ## Personal settings
 
 The lazy `/settings` page is named `userSettings` and is discoverable through a translated Settings link
-in the title-bar account controls. Every signed-in, password-current user can open it independently of
-project or global role. Signed-out and forced-password states follow the existing authentication flow.
-Administrative branding remains a separate screen at `/admin/settings`.
+in the sidebar footer, including the mobile navigation drawer. Every signed-in, password-current user
+can open it independently of project or global role. Signed-out and forced-password states follow the
+existing authentication flow. Administrative branding remains a separate screen at `/admin/settings`.
 
 Keep the form focused on three labelled controls: Interface language (Browser default, Deutsch, English),
 Theme (System, Light, Dark), and Desktop sidebar (Expanded, Collapsed). Use the existing native/headless

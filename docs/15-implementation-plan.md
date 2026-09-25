@@ -198,7 +198,7 @@ local accounts while preserving its scientific vocabulary rules and immutable de
    persistence across sessions, partial updates, explicit locale clearing, auth/CSRF failures, conflicts,
    and concurrent initialization.
 3. **Personal settings and presentation integration — DELIVERED.** The lazy `/settings` route
-   (`userSettings`) is discoverable in the title-bar account controls and available to every signed-in,
+   (`userSettings`) is discoverable in the sidebar footer and available to every signed-in,
    password-current account independently of its roles. The focused locale/theme/desktop-sidebar form
    keeps drafts local, restores defaults in the draft, and saves explicitly with the canonical revision.
    Principal-scoped query state supplies saved presentation choices; failures retain drafts and a `409`

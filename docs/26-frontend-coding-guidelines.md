@@ -182,7 +182,7 @@ and CSRF attachment.
 - Guards handle authentication and role requirements; they never duplicate authorization, which the server
   owns. A guard failing closed on the client is a convenience, not a control.
 - The lazy `userSettings` route at `/settings` requires a resolved, signed-in, password-current session
-  without a project or global role requirement. Keep its account-control link separate from administrative
+  without a project or global role requirement. Keep its sidebar-footer link separate from administrative
   branding settings.
 - Filter and sort state that a reviewer would want to share or revisit lives in the query string.
 

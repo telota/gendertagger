@@ -173,11 +173,17 @@ describe.each(['de', 'en'] as const)('mobile navigation in %s', (locale: AppLoca
     },
   )
 
-  it('closes after a successful sidebar navigation', async () => {
+  it('opens personal settings from the drawer footer and closes after navigation', async () => {
     const { router, trigger, open } = await application(locale)
     const drawer = await open()
-    await drawer.get('a.app-sidebar-brand').trigger('click')
-    await waitFor(() => expect(router.currentRoute.value.name).toBe('home'))
+    const settings = drawer.get('footer a[href="/settings"]')
+    expect(settings.text()).toBe(messages.header.settings)
+    expect(settings.classes()).toContain('nav-item--mobile')
+    await settings.trigger('click')
+    await waitFor(() => expect(router.currentRoute.value.name).toBe('userSettings'))
+    expect(
+      bodyGet('.app-shell > aside footer a[href="/settings"]').attributes('aria-current'),
+    ).toBe('page')
     await waitFor(() => expect(dialog()).toBeNull())
     expect(trigger.attributes('aria-expanded')).toBe('false')
   })

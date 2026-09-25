@@ -25,7 +25,7 @@ Account-level presentation preferences are delivered under
 [ADR-0043](docs/decisions/ADR-0043-account-level-user-preferences.md): locale, theme, and explicit desktop
 sidebar collapse, owned by the existing local account with revision-checked updates. The backend increment
 includes the forward migration, `/api/v1/me/preferences` reads/writes, PostgreSQL/API tests, and generated
-transport. The separate frontend increment adds the lazy `/settings` page, a translated account-control
+transport. The separate frontend increment adds the lazy `/settings` page, a translated sidebar-footer
 link, explicit saving and conflict recovery, and saved locale/theme/sidebar application. Private query
 state is scoped to the principal; anonymous browser choices remain independent. See the
 [delivery sequence](docs/15-implementation-plan.md#account-preferences-increment-adr-0043).

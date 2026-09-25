@@ -4,20 +4,19 @@
   },
   "home": {
     "guest": {
-      "lede": "Genderannotation für TEI/XML-Personenregister: vorgeschlagen von unabhängigen Verfahren, entschieden von Ihrer Redaktion.",
-      "intro": "Viele Personenregister digitaler Editionen erfassen kein Gender – der Gender-Data-Gap in den Quellen bleibt so unsichtbar. Der Gendertagger schlägt Annotationen aus mehreren unabhängigen Verfahren vor und hält Antwort, Konfidenz und Abweichung jedes Verfahrens sichtbar. Über jeden unsicheren Fall entscheidet Ihr Team.",
+      "lede": "Ein Tool, um Geschlechtsangaben in Personenregistern zu ergänzen.",
+      "intro": "Der Gendertagger nutzt Normdaten und verschiedene Modelle, um Geschlechtsangaben für Personenregister digitaler Editionen vorzuschlagen. Dabei geht es um historisch und kulturell geprägte Geschlechtszuschreibungen, nicht um die individuelle Geschlechtsidentität. Die Ergebnisse der einzelnen Verfahren können Sie vergleichen und durch eigene Annotationen ergänzen.",
       "signIn": "Anmelden",
-      "accountHint": "Zugänge vergeben die Administrator*innen dieser Installation.",
+      "accountHint": "Für einen Zugang wenden Sie sich an die Administration.",
       "stepsLabel": "So funktioniert es",
       "steps": {
         "importTitle": "Register importieren",
-        "importText": "Laden Sie ein TEI/XML-Personenregister hoch. Jeder Import wird zu einem unveränderlichen Snapshot.",
-        "classifyTitle": "Mit mehreren Verfahren klassifizieren",
-        "classifyText": "Normdaten (GND), namensbasierte Klassifikatoren, Transformer-Modelle und optional ein lokal betriebenes Sprachmodell antworten jeweils für sich.",
-        "reviewTitle": "Redigieren und exportieren",
-        "reviewText": "Die Redaktion klärt offene Fälle mit Blick auf die Evidenz. Das angereicherte Register geht als TEI/XML zurück in Ihre Edition."
-      },
-      "scopeNote": "Die Labels sind male, female, unknown und institution. Sie machen den Gender-Data-Gap messbar – über das Selbstverständnis einer historischen Person sagen sie nichts aus."
+        "importText": "Laden Sie das Personenregister Ihrer Edition hoch.",
+        "classifyTitle": "Vorschläge erstellen und vergleichen",
+        "classifyText": "Wählen Sie die Verfahren aus und vergleichen Sie die vorgeschlagenen Geschlechtsangaben.",
+        "reviewTitle": "Prüfen und exportieren",
+        "reviewText": "Korrigieren oder ergänzen Sie die Annotationen und exportieren Sie das bearbeitete Register."
+      }
     },
     "signedIn": {
       "welcomeBack": "Willkommen zurück, {name}.",
@@ -27,8 +26,6 @@
   "publication": {
     "heading": "Publikationsangaben",
     "editors": "Bearbeiter*innen",
-    "publisher": "Herausgeber",
-    "initiatives": "Entstanden im Rahmen von",
     "published": "Veröffentlichung",
     "publishedSince": "seit {year}",
     "notConfigured": "Für diese Installation sind noch keine Publikationsangaben hinterlegt.",
@@ -42,8 +39,7 @@
     "sourceCodeLicense": "Quellcode unter der {license}-Lizenz",
     "legalNavigation": "Rechtliche Angaben",
     "legalNotice": "Impressum",
-    "privacyNotice": "Datenschutzhinweis",
-    "brandingUnavailable": "Das Publikations-Branding konnte nicht geladen werden."
+    "privacyNotice": "Datenschutzhinweis"
   },
   "legal": {
     "title": "Impressum",

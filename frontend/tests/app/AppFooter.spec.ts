@@ -3,7 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory } from 'vue-router'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import type { ApiClient } from '@/api'
+import { createApiClient, type ApiClient } from '@/api'
 import AppFooter from '@/app/AppFooter.vue'
 import { createAppI18n, type AppLocale } from '@/app/i18n'
 import { SOURCE_CODE_LICENSE } from '@/app/publication'
@@ -41,19 +41,51 @@ afterEach(() => {
 
 describe.each(['de', 'en'] as const)('AppFooter in %s', (locale) => {
   const messages = catalogues[locale].footer
+  const publicationMessages = catalogues[locale].publication
 
-  it('names the configured publisher and links to it', async () => {
+  it('shows configured publication metadata and an ungrouped publication year', async () => {
     const footer = await renderFooter(
       locale,
       apiClientWithJsonResponse({
+        editors: ['Frederike Neuber', 'Lou Klappenbach', 'Tim Westphal'],
         institution_name: 'Berlin-Brandenburgische Akademie der Wissenschaften',
         institution_url: 'https://www.bbaw.de/',
+        initiatives: [{ name: 'Gender & Data', url: 'https://gender-data.bbaw.de/' }],
+        published_since_year: 2026,
       }),
     )
 
-    const link = footer.get('a[href="https://www.bbaw.de/"]')
+    const publication = footer.get('section[aria-labelledby="publication-heading"]')
+    const facts = publication.get('dl').text()
+    expect(publication.get('h2#publication-heading').text()).toBe(publicationMessages.heading)
+    expect(facts).toContain(publicationMessages.editors)
+    expect(facts).toContain('Frederike Neuber')
+    expect(facts).toContain(messages.publisher)
+    expect(facts).toContain(messages.initiatives)
+    expect(facts).toContain(publicationMessages.published)
+    expect(facts).toContain(publicationMessages.publishedSince.replace('{year}', '2026'))
+    expect(publication.text()).not.toContain('2.026')
+    expect(publication.text()).not.toContain('2,026')
+    expect(publication.text()).not.toContain(publicationMessages.notConfigured)
+
+    const link = publication.get('a[href="https://www.bbaw.de/"]')
     expect(link.text()).toBe('Berlin-Brandenburgische Akademie der Wissenschaften')
-    expect(footer.text()).toContain(messages.publisher)
+    expect(footer.findAll('a[href="https://www.bbaw.de/"]')).toHaveLength(1)
+    expect(publication.get('a[href="https://gender-data.bbaw.de/"]').text()).toBe('Gender & Data')
+    expect(footer.findAll('a[href="https://gender-data.bbaw.de/"]')).toHaveLength(1)
+  })
+
+  it('lists every editor as a separate item', async () => {
+    const footer = await renderFooter(
+      locale,
+      apiClientWithJsonResponse({ editors: ['Editor One', 'Editor Two'] }),
+    )
+
+    const publication = footer.get('section[aria-labelledby="publication-heading"]')
+    expect(publication.findAll('dl li').map((item) => item.text())).toEqual([
+      'Editor One',
+      'Editor Two',
+    ])
   })
 
   it('shows the publisher name as plain text when no URL is configured', async () => {
@@ -89,8 +121,9 @@ describe.each(['de', 'en'] as const)('AppFooter in %s', (locale) => {
       }),
     )
 
-    expect(footer.text()).toContain(messages.initiatives)
-    expect(footer.get('a[href="https://gender-data.bbaw.de/"]').text()).toBe('Gender & Data')
+    const publication = footer.get('section[aria-labelledby="publication-heading"]')
+    expect(publication.text()).toContain(messages.initiatives)
+    expect(publication.get('a[href="https://gender-data.bbaw.de/"]').text()).toBe('Gender & Data')
   })
 
   it('offers the configured contact address', async () => {
@@ -129,18 +162,42 @@ describe.each(['de', 'en'] as const)('AppFooter in %s', (locale) => {
     )
   })
 
-  it('omits every configurable row when nothing is configured', async () => {
+  it('reports unconfigured publication details while retaining licence and legal navigation', async () => {
     const footer = await renderFooter(locale, apiClientWithJsonResponse({}))
 
+    const publication = footer.get('section[aria-labelledby="publication-heading"]')
+    expect(publication.text()).toContain(publicationMessages.notConfigured)
+    expect(publication.find('dl').exists()).toBe(false)
     expect(footer.findAll('.app-footer-fact')).toHaveLength(1) // licence only
     expect(
       footer.find(`nav[aria-label="${messages.legalNavigation}"] a[href^="mailto:"]`).exists(),
     ).toBe(false)
   })
 
-  it('degrades to the licence and legal-notice link alone on a fetch error', async () => {
+  it('waits for a successful response before reporting unconfigured publication details', async () => {
+    let resolveResponse!: (response: Response) => void
+    const response = new Promise<Response>((resolve) => {
+      resolveResponse = resolve
+    })
+    const footer = await renderFooter(locale, createApiClient({ fetch: () => response }))
+    const publication = footer.get('section[aria-labelledby="publication-heading"]')
+
+    expect(publication.text()).not.toContain(publicationMessages.notConfigured)
+    expect(publication.find('[role="alert"]').exists()).toBe(false)
+
+    resolveResponse(new Response('{}', { headers: { 'content-type': 'application/json' } }))
+    await flushPromises()
+
+    expect(publication.text()).toContain(publicationMessages.notConfigured)
+  })
+
+  it('distinguishes failed publication details from unconfigured details and retains legal links', async () => {
     const footer = await renderFooter(locale, apiClientWithNetworkError())
 
+    const publication = footer.get('section[aria-labelledby="publication-heading"]')
+    expect(publication.get('[role="alert"]').text()).toBe(publicationMessages.loadError)
+    expect(publication.text()).not.toContain(publicationMessages.notConfigured)
+    expect(publication.find('dl').exists()).toBe(false)
     expect(footer.findAll('.app-footer-fact')).toHaveLength(1)
     expect(footer.get('a[href="/impressum"]')).toBeTruthy()
   })

@@ -43,12 +43,6 @@ function retry(): void {
           <span class="app-header-user">{{
             t('header.signedInAs', { name: session.user?.display_name })
           }}</span>
-          <RouterLink
-            v-if="session.canUsePrivateNavigation"
-            :to="{ name: 'userSettings' }"
-            class="app-header-settings"
-            >{{ t('header.settings') }}</RouterLink
-          >
           <button type="button" class="app-header-signout" @click="signOut">
             {{ t('header.signOut') }}
           </button>
@@ -132,7 +126,6 @@ function retry(): void {
   color: var(--text-secondary);
 }
 
-.app-header-settings,
 .app-header-signin,
 .app-header-signout {
   color: var(--accent);

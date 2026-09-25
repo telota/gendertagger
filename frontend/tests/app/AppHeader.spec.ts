@@ -41,6 +41,7 @@ describe.each(['de', 'en'] as const)('AppHeader in %s', (locale: AppLocale) => {
     await flushPromises()
 
     expect(wrapper.get('header a[href="/login"]').text()).toBe(messages.signIn)
+    expect(wrapper.find('aside footer a[href="/settings"]').exists()).toBe(false)
   })
 
   it('names the signed-in user and offers to sign out', async () => {
@@ -59,7 +60,8 @@ describe.each(['de', 'en'] as const)('AppHeader in %s', (locale: AppLocale) => {
       messages.signedInAs.replace('{name}', 'Reviewer One'),
     )
     expect(wrapper.get('header .app-header-signout').text()).toBe(messages.signOut)
-    expect(wrapper.get('header a[href="/settings"]').text()).toBe(messages.settings)
+    expect(wrapper.find('header a[href="/settings"]').exists()).toBe(false)
+    expect(wrapper.get('aside footer a[href="/settings"]').text()).toBe(messages.settings)
     expect(wrapper.find('.app-header-switcher--locale').exists()).toBe(false)
     expect(wrapper.find('.app-header-switcher--theme').exists()).toBe(false)
   })
@@ -75,7 +77,7 @@ describe.each(['de', 'en'] as const)('AppHeader in %s', (locale: AppLocale) => {
       }),
     )
     await flushPromises()
-    expect(wrapper.find('header a[href="/settings"]').exists()).toBe(false)
+    expect(wrapper.find('a[href="/settings"]').exists()).toBe(false)
     expect(wrapper.find('.app-header-switcher--locale').exists()).toBe(false)
   })
 
@@ -96,12 +98,14 @@ describe.each(['de', 'en'] as const)('AppHeader in %s', (locale: AppLocale) => {
     await flushPromises()
 
     expect(wrapper.get('header a[href="/login"]').text()).toBe(messages.signIn)
+    expect(wrapper.find('aside footer a[href="/settings"]').exists()).toBe(false)
   })
 
   it('keeps account actions in the header and presentation controls in the sidebar', async () => {
     const wrapper = await mountApplicationAt('/', locale, apiClientWithRoutes(NOT_SIGNED_IN))
     await flushPromises()
     expect(wrapper.get('header a[href="/login"]').text()).toBe(messages.signIn)
+    expect(wrapper.find('aside footer a[href="/settings"]').exists()).toBe(false)
     expect(wrapper.find('header [aria-haspopup="listbox"]').exists()).toBe(false)
     expect(wrapper.findAll('aside [aria-haspopup="listbox"]')).toHaveLength(2)
   })
@@ -155,5 +159,6 @@ describe.each(['de', 'en'] as const)('AppHeader in %s', (locale: AppLocale) => {
     await flushPromises()
 
     expect(wrapper.get('header a[href="/login"]').text()).toBe(messages.signIn)
+    expect(wrapper.find('aside footer a[href="/settings"]').exists()).toBe(false)
   })
 })
