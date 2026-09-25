@@ -34,6 +34,8 @@ export function createApplication(environment: {
   /** Defaults to browser history; tests pass an in-memory history. */
   history?: RouterHistory
 }): VueApp {
+  // Legacy storage is anonymous presentation only. Account choices come from the API once
+  // authentication resolves; bootstrap never migrates browser choices into an account.
   const locale = resolveInitialLocale({
     stored: readStoredLocale(environment.storage),
     languages: environment.languages,

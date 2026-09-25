@@ -89,14 +89,31 @@ resource fetching, invalidation, polling, and query-scoped cursors. Pinia is res
 client state such as session presentation, current route context, and effective presentation—not copies
 of backend resources. Under [ADR-0043](decisions/ADR-0043-account-level-user-preferences.md), saved account
 preferences are server state: fetch and cache them by principal, clear private state on logout/account
-changes, and use canonical PATCH responses with their revision. Existing browser controls are not connected
-to that resource in the backend increment.
+changes, and use canonical PATCH responses with their revision. The lazy `/settings` route, named
+`userSettings`, is available to every resolved, password-current account regardless of project or global
+role. Its translated link belongs to the title-bar account controls. The form keeps its editable draft in
+component state; changing a control or restoring defaults does not save or change the shell. Explicit Save
+sends `expected_revision`, and only the canonical successful response replaces saved query state.
 
 A saved locale of null means browser default: the browser resolves its effective language without writing
-that result back. Theme `system` similarly follows the browser. Only explicit desktop-collapse actions may
-save `desktop_sidebar_collapsed`; responsive layout and temporary mobile navigation never do. Later client
-integration must reconcile a preferences `409` using a fresh read and the user's explicit choice, not silently
-replay the write. An unsigned browser preference must not overwrite an account preference at sign-in.
+that result back: first supported browser-language primary subtag, then German. Theme `system` similarly
+follows the browser. The saved desktop-collapse choice applies at widths of at least 1080 CSS pixels;
+responsive layout and temporary mobile navigation never save `desktop_sidebar_collapsed`.
+
+Read errors offer retry, and save errors retain the draft without presenting a successful save. A
+`409 preferences_revision_conflict` retains the draft and requires a deliberate reload of saved values
+before another save; never silently replay it with a fresh revision. A principal change invalidates
+private preferences and outstanding request ownership, so a late result cannot alter another account's
+cache, draft, or effective presentation.
+
+The existing `gendertagger.locale` and `gendertagger.theme` localStorage keys belong only to anonymous
+browser presentation. Preserve existing values as anonymous choices without migrating them into accounts.
+Before identity resolution, startup rendering may use these choices; after resolving an authenticated
+account, its API preferences are authoritative. While its initial preferences read is pending or fails,
+use the account defaults (browser-default locale, system theme, expanded desktop sidebar), never another
+account's or the anonymous browser's choices. Do not maintain an account preferences startup cache in
+localStorage. Logout restores the unchanged anonymous language/theme choices. These effective fallback
+values are presentation only and must never masquerade as a successful API read or save.
 
 Optimistic presentation is permitted only when failure remains visible and cannot obscure an unsuccessful
 annotation or other scholarly write.

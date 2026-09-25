@@ -28,22 +28,21 @@ function stubMatchMedia(initialMatches: boolean) {
   }
 }
 
-// `preference` is module-scoped shared state, read from storage exactly once when the module is
-// first evaluated (see the comment in useTheme.ts). Each test needs its own fresh module instance
-// so it can control what that one-time read sees, hence `resetModules` + a dynamic import here
-// rather than a single static import shared across the file.
+// Every mount creates its own application-owned effective presentation state.
 async function mountTheme() {
   const { useTheme } = await import('@/composables/useTheme')
   let hook!: ReturnType<typeof useTheme>
+  let second!: ReturnType<typeof useTheme>
   const wrapper = mount(
     defineComponent({
       setup() {
         hook = useTheme()
+        second = useTheme()
         return () => null
       },
     }),
   )
-  return { wrapper, hook: () => hook }
+  return { wrapper, hook: () => hook, second: () => second }
 }
 
 function currentTheme(): string | undefined {
@@ -116,6 +115,43 @@ describe('useTheme', () => {
     expect(hook().preference.value).toBe('dark')
     expect(currentTheme()).toBe('dark')
     expect(localStorage.getItem(STORAGE_KEY)).toBe('dark')
+  })
+
+  it('applies saved account values without replacing anonymous persistence', async () => {
+    localStorage.setItem(STORAGE_KEY, 'dark')
+    stubMatchMedia(false)
+    const { hook } = await mountTheme()
+
+    hook().applyPreference('light')
+
+    expect(currentTheme()).toBe('light')
+    expect(localStorage.getItem(STORAGE_KEY)).toBe('dark')
+    hook().restoreAnonymousPreference()
+    expect(currentTheme()).toBe('dark')
+  })
+
+  it('restores the anonymous choice in memory when storage is blocked', async () => {
+    stubMatchMedia(false)
+    const { hook } = await mountTheme()
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Storage is disabled.', 'SecurityError')
+    })
+    hook().setPreference('dark')
+    hook().applyPreference('light')
+    hook().restoreAnonymousPreference()
+    expect(currentTheme()).toBe('dark')
+    vi.restoreAllMocks()
+  })
+
+  it('shares one media listener and effective value across callers in the same application', async () => {
+    const media = stubMatchMedia(false)
+    const { wrapper, hook, second } = await mountTheme()
+
+    hook().applyPreference('dark')
+    expect(second().preference.value).toBe('dark')
+    expect(media.listenerCount()).toBe(1)
+    wrapper.unmount()
+    expect(media.listenerCount()).toBe(0)
   })
 
   it('setPreference still applies the theme when storage is blocked', async () => {

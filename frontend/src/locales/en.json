@@ -89,7 +89,8 @@
     "signOut": "Sign out",
     "signIn": "Sign in",
     "serverError": "The server could not be reached.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "settings": "Settings"
   },
   "nav": {
     "label": "Main navigation",
@@ -1197,5 +1198,49 @@
     "all": "View all projects",
     "empty": "No projects yet.",
     "loadError": "The projects could not be loaded."
+  },
+  "userSettings": {
+    "title": "Settings",
+    "description": "Personal preferences for your account, across sessions and devices.",
+    "loadingAccess": "Checking your session …",
+    "sessionLoadError": "Your session could not be checked. Try again.",
+    "loading": "Loading your settings …",
+    "loadError": "Your settings could not be loaded. Try again.",
+    "retry": "Try again",
+    "save": "Save changes",
+    "restoreDefaults": "Restore defaults in draft",
+    "saveHint": "Changes apply after you save.",
+    "saveError": "Your settings could not be saved. Your changes are still here; try saving again.",
+    "conflict": "Your saved settings changed in another session. Your draft has been kept.",
+    "conflictReloadHint": "Reload the saved values to continue. This replaces your unsaved draft.",
+    "reloadSaved": "Reload saved values",
+    "reloadError": "Saved settings could not be reloaded. Your draft is unchanged; try again.",
+    "states": {
+      "unsaved": "Unsaved changes",
+      "saving": "Saving settings …",
+      "saved": "Settings saved.",
+      "unchanged": "No unsaved changes",
+      "reloading": "Reloading saved settings …"
+    },
+    "language": {
+      "label": "Interface language",
+      "description": "Browser default follows your browser’s supported language, with German as the fallback.",
+      "browserDefault": "Browser default",
+      "de": "Deutsch",
+      "en": "English"
+    },
+    "theme": {
+      "label": "Theme",
+      "description": "System follows your device’s light or dark appearance.",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "sidebar": {
+      "label": "Desktop sidebar",
+      "description": "Used on screens at least 1080 pixels wide. Smaller screens adapt automatically.",
+      "expanded": "Expanded",
+      "collapsed": "Collapsed"
+    }
   }
 }

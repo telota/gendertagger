@@ -89,7 +89,8 @@
     "signOut": "Abmelden",
     "signIn": "Anmelden",
     "serverError": "Der Server ist nicht erreichbar.",
-    "retry": "Erneut versuchen"
+    "retry": "Erneut versuchen",
+    "settings": "Einstellungen"
   },
   "nav": {
     "label": "Hauptnavigation",
@@ -1197,5 +1198,49 @@
     "all": "Alle Projekte ansehen",
     "empty": "Noch keine Projekte.",
     "loadError": "Die Projekte konnten nicht geladen werden."
+  },
+  "userSettings": {
+    "title": "Einstellungen",
+    "description": "Persönliche Einstellungen für Ihr Konto, über Sitzungen und Geräte hinweg.",
+    "loadingAccess": "Sitzung wird geprüft …",
+    "sessionLoadError": "Ihre Sitzung konnte nicht geprüft werden. Versuchen Sie es erneut.",
+    "loading": "Ihre Einstellungen werden geladen …",
+    "loadError": "Ihre Einstellungen konnten nicht geladen werden. Versuchen Sie es erneut.",
+    "retry": "Erneut versuchen",
+    "save": "Änderungen speichern",
+    "restoreDefaults": "Standardwerte im Entwurf wiederherstellen",
+    "saveHint": "Änderungen werden erst nach dem Speichern angewendet.",
+    "saveError": "Ihre Einstellungen konnten nicht gespeichert werden. Ihre Änderungen bleiben erhalten; versuchen Sie es erneut.",
+    "conflict": "Ihre gespeicherten Einstellungen wurden in einer anderen Sitzung geändert. Ihr Entwurf bleibt erhalten.",
+    "conflictReloadHint": "Laden Sie die gespeicherten Werte, um fortzufahren. Dabei wird Ihr ungespeicherter Entwurf ersetzt.",
+    "reloadSaved": "Gespeicherte Werte neu laden",
+    "reloadError": "Gespeicherte Einstellungen konnten nicht neu geladen werden. Ihr Entwurf bleibt unverändert; versuchen Sie es erneut.",
+    "states": {
+      "unsaved": "Ungespeicherte Änderungen",
+      "saving": "Einstellungen werden gespeichert …",
+      "saved": "Einstellungen gespeichert.",
+      "unchanged": "Keine ungespeicherten Änderungen",
+      "reloading": "Gespeicherte Einstellungen werden neu geladen …"
+    },
+    "language": {
+      "label": "Sprache der Oberfläche",
+      "description": "Der Browserstandard folgt einer unterstützten Browsersprache. Ohne Übereinstimmung wird Deutsch verwendet.",
+      "browserDefault": "Browserstandard",
+      "de": "Deutsch",
+      "en": "English"
+    },
+    "theme": {
+      "label": "Farbschema",
+      "description": "System folgt der hellen oder dunklen Darstellung Ihres Geräts.",
+      "system": "System",
+      "light": "Hell",
+      "dark": "Dunkel"
+    },
+    "sidebar": {
+      "label": "Seitenleiste auf dem Desktop",
+      "description": "Gilt ab einer Bildschirmbreite von 1080 Pixeln. Kleinere Bildschirme passen sich automatisch an.",
+      "expanded": "Ausgeklappt",
+      "collapsed": "Eingeklappt"
+    }
   }
 }

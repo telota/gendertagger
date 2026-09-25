@@ -2,6 +2,7 @@
 import { onMounted } from 'vue'
 import { RouterView } from 'vue-router'
 
+import { usePreferencePresentation } from '@/composables/usePreferencePresentation'
 import SessionRecoveryDialog from '@/features/auth/SessionRecoveryDialog.vue'
 import { useSessionStore } from '@/stores/session'
 
@@ -10,6 +11,7 @@ import AppHeader from './AppHeader.vue'
 import AppSidebar from './AppSidebar.vue'
 
 const session = useSessionStore()
+const { desktopSidebarCollapsed } = usePreferencePresentation()
 
 onMounted(() => {
   void session.initialize()
@@ -18,7 +20,7 @@ onMounted(() => {
 
 <template>
   <div class="app-shell">
-    <AppSidebar />
+    <AppSidebar :desktop-sidebar-collapsed="desktopSidebarCollapsed" />
     <div class="app-shell-content">
       <AppHeader />
       <RouterView />

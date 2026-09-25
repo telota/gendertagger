@@ -59,6 +59,24 @@ describe.each(['de', 'en'] as const)('AppHeader in %s', (locale: AppLocale) => {
       messages.signedInAs.replace('{name}', 'Reviewer One'),
     )
     expect(wrapper.get('header .app-header-signout').text()).toBe(messages.signOut)
+    expect(wrapper.get('header a[href="/settings"]').text()).toBe(messages.settings)
+    expect(wrapper.find('.app-header-switcher--locale').exists()).toBe(false)
+    expect(wrapper.find('.app-header-switcher--theme').exists()).toBe(false)
+  })
+
+  it('withholds account settings while a password change is required', async () => {
+    const wrapper = await mountApplicationAt(
+      '/',
+      locale,
+      apiClientWithRoutes({
+        '/api/v1/branding': { body: {} },
+        '/api/v1/me': { body: USER },
+        '/api/v1/auth/session': { body: { must_change_password: true, keep_signed_in: false } },
+      }),
+    )
+    await flushPromises()
+    expect(wrapper.find('header a[href="/settings"]').exists()).toBe(false)
+    expect(wrapper.find('.app-header-switcher--locale').exists()).toBe(false)
   })
 
   it('signs out and returns to a signed-out header', async () => {

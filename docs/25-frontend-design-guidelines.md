@@ -122,9 +122,13 @@ Rules specific to the dark theme:
 Theme selection follows `prefers-color-scheme` by default, with an explicit three-state user override
 (system, light, dark) persisted per account under
 [ADR-0043](decisions/ADR-0043-account-level-user-preferences.md). Keep `system` as the saved choice and derive
-the effective palette in the browser. Account persistence and generated transport ship before the later
-client integration. The choice must not flash on load. Charts, focus rings, and the label palette are all
-theme-aware; screenshots in documentation state which theme they show.
+the effective palette in the browser. The settings form applies a changed choice only after a confirmed
+save. Anonymous browser choices remain separate, including the startup theme applied before the session
+is known. There is no account startup cache: a resolved account uses system theme while its first
+preferences read is pending or unavailable, then applies its canonical saved choice. This can cause a
+palette transition after session resolution; it must never reveal another account's saved choice.
+Charts, focus rings, and the label palette are all theme-aware; screenshots in documentation state which
+theme they show.
 
 ### Contrast
 
@@ -311,8 +315,11 @@ The shell is a fixed sidebar plus a content region. One page title per screen. T
 grids; below 720 px the workbench becomes a single column with list and detail as separate views.
 `desktop_sidebar_collapsed` records an explicit desktop choice only, defaulting to false. Breakpoint
 transitions and temporary mobile/drawer state never change that preference; returning to desktop restores
-the saved desktop choice. Its backend persistence is defined by
-[ADR-0043](decisions/ADR-0043-account-level-user-preferences.md); control integration is a later increment.
+the saved desktop choice at widths of at least 1080 CSS pixels. The explicit collapsed choice uses the
+same icon rail while retaining accessible link names. The expanded choice does not override the narrow
+layout. Saving this choice in the personal settings form is defined by
+[ADR-0043](decisions/ADR-0043-account-level-user-preferences.md); wider sidebar redesign is outside this
+increment.
 
 The review workbench is the application's primary working surface: a filter column, a list column, and a
 detail column. Its geometry is stable — filters do not reflow, and the action bar stays pinned at the bottom
@@ -483,8 +490,28 @@ Authenticated locale selection is account-owned under
 [ADR-0043](decisions/ADR-0043-account-level-user-preferences.md): German, English, or browser default.
 Browser default remains null in the resource and is resolved by the browser to the first supported primary
 language subtag, then German. This changes persistence only; untranslated scientific vocabulary and
-catalogue rules from ADR-0030 remain unchanged. The personal settings page and existing-control integration
-are outside the backend increment.
+catalogue rules from ADR-0030 remain unchanged. Anonymous browser language and theme choices remain
+available in the title bar when signed out and are restored after logout without copying account choices
+into browser storage.
+
+## Personal settings
+
+The lazy `/settings` page is named `userSettings` and is discoverable through a translated Settings link
+in the title-bar account controls. Every signed-in, password-current user can open it independently of
+project or global role. Signed-out and forced-password states follow the existing authentication flow.
+Administrative branding remains a separate screen at `/admin/settings`.
+
+Keep the form focused on three labelled controls: Interface language (Browser default, Deutsch, English),
+Theme (System, Light, Dark), and Desktop sidebar (Expanded, Collapsed). Use the existing native/headless
+control patterns, semantic tokens, and German/English catalogues. A short description distinguishes the
+saved desktop choice from responsive layout. Keep controls and actions usable with German expansion and
+at narrow widths; hidden sidebar labels remain available to assistive technology.
+
+Save is explicit. Draft edits and Restore defaults change only local form state until saving succeeds.
+Provide clear unsaved, saving, and saved states with accessible status announcements. Loading and read
+failure/retry precede the form; save failures retain entered values. A conflict clearly explains that
+saved values changed elsewhere and offers a deliberate reload of saved values; never silently overwrite
+or replay the draft. Apply locale, theme, and desktop collapse from the canonical server response only.
 
 ## Design review checklist
 

@@ -25,6 +25,11 @@ export const routes: readonly RouteRecordRaw[] = [
     component: () => import('@/features/auth/ChangePasswordView.vue'),
   },
   {
+    path: '/settings',
+    name: 'userSettings',
+    component: () => import('@/features/settings/UserSettingsView.vue'),
+  },
+  {
     path: '/admin/users',
     name: 'adminUsers',
     component: () => import('@/features/admin/AdminUserDirectoryView.vue'),

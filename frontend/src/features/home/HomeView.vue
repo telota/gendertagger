@@ -91,7 +91,7 @@ const hasAnyPublicationFact = computed(
 }
 
 .home-title {
-  margin: 0 0 var(--space-2);
+  margin: 0 0 var(--space-3);
   font-size: var(--font-size-page);
   font-weight: var(--weight-semibold);
   line-height: var(--line-height-page);

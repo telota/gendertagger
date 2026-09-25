@@ -9,19 +9,27 @@ defineProps<{
   to: RouteLocationRaw | null
   icon: Component
   label: string
+  desktopCollapsed?: boolean | undefined
 }>()
 
 const { t } = useI18n()
 </script>
 
 <template>
-  <RouterLink v-if="to" :to="to" class="nav-item">
+  <RouterLink
+    v-if="to"
+    :to="to"
+    class="nav-item"
+    :class="{ 'nav-item--desktop-collapsed': desktopCollapsed }"
+    :title="label"
+  >
     <component :is="icon" class="nav-item-icon" :size="20" aria-hidden="true" />
     <span class="nav-item-label">{{ label }}</span>
   </RouterLink>
   <span
     v-else
     class="nav-item nav-item-disabled"
+    :class="{ 'nav-item--desktop-collapsed': desktopCollapsed }"
     aria-disabled="true"
     :title="t('nav.unavailable')"
   >
@@ -61,8 +69,24 @@ a.nav-item.router-link-active {
   cursor: not-allowed;
 }
 
+@media (min-width: 1080px) {
+  .nav-item--desktop-collapsed {
+    justify-content: center;
+    padding: var(--space-2);
+  }
+
+  .nav-item--desktop-collapsed .nav-item-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
 /* Below 1080 px the sidebar is an icon rail (docs/23); the label stays available to assistive tech. */
-@media (max-width: 1079px) {
+@media (width < 1080px) {
   .nav-item {
     justify-content: center;
     padding: var(--space-2);

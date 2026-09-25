@@ -2,6 +2,7 @@ import { VueQueryPlugin } from '@tanstack/vue-query'
 import { createPinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, type Router } from 'vue-router'
+import { afterEach, vi } from 'vitest'
 
 import type { ApiClient } from '@/api'
 import App from '@/app/App.vue'
@@ -9,6 +10,13 @@ import { createAppI18n, type AppLocale } from '@/app/i18n'
 import { createQueryClient } from '@/app/queryClient'
 import { createAppRouter } from '@/app/router'
 import { API_CLIENT_KEY } from '@/composables/useApiClient'
+
+// The fixture locale also establishes browser fallback for account locale null and anonymous visitors.
+let restoreBrowserLanguages: (() => void) | undefined
+afterEach(() => {
+  restoreBrowserLanguages?.()
+  restoreBrowserLanguages = undefined
+})
 
 /**
  * Mount the whole application at `path`, with the real router on an in-memory history.
@@ -22,6 +30,9 @@ export async function mountApplicationAt(
   client: ApiClient,
   router: Router = createAppRouter(createMemoryHistory()),
 ) {
+  restoreBrowserLanguages?.()
+  const languageSpy = vi.spyOn(navigator, 'languages', 'get').mockReturnValue([locale])
+  restoreBrowserLanguages = () => languageSpy.mockRestore()
   await router.push(path)
   await router.isReady()
   const wrapper = mount(App, {

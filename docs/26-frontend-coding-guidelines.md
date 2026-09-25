@@ -157,6 +157,14 @@ and CSRF attachment.
   Saved account preferences from `/me/preferences` are principal-scoped server state, governed by
   [ADR-0043](decisions/ADR-0043-account-level-user-preferences.md). Do not mirror their canonical resource
   into an independent browser settings store or persist breakpoint-derived layout as desktop preference.
+- **Personal preference drafts** remain local to `/settings`. Save sends the last canonical revision and
+  installs the canonical response only for the initiating principal. Retain drafts after failures;
+  `409 preferences_revision_conflict` blocks replay until an explicit saved-value reload. Invalidate
+  pending read and write ownership on logout or an account change as well as clearing private query state.
+- **Anonymous presentation storage** owns the existing `gendertagger.locale` and `gendertagger.theme`
+  keys. Never migrate them into an account or write account choices back to them. There is no account
+  startup cache; the precedence and pending/error defaults are defined in
+  [`17-frontend-integration.md`](17-frontend-integration.md#state-ownership).
 - **Component state** holds everything local: open/closed, hovered, draft input.
 - Route parameters are the source of truth for resource context. A store never holds an identifier that the
   URL should carry — a review queue must be shareable by link.
@@ -170,6 +178,9 @@ and CSRF attachment.
   aggregation identifier explicitly.
 - Guards handle authentication and role requirements; they never duplicate authorization, which the server
   owns. A guard failing closed on the client is a convenience, not a control.
+- The lazy `userSettings` route at `/settings` requires a resolved, signed-in, password-current session
+  without a project or global role requirement. Keep its account-control link separate from administrative
+  branding settings.
 - Filter and sort state that a reviewer would want to share or revisit lives in the query string.
 
 ## Error handling

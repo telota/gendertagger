@@ -37,6 +37,7 @@ function retry(): void {
     <ProjectSwitcher />
     <div class="app-header-controls">
       <AppListbox
+        v-if="session.status === 'ready' && !session.isSignedIn"
         class="app-header-switcher app-header-switcher--locale"
         :label="t('locale.label')"
         :options="locale.options"
@@ -44,6 +45,7 @@ function retry(): void {
         @update:model-value="locale.setLocale"
       />
       <AppListbox
+        v-if="session.status === 'ready' && !session.isSignedIn"
         class="app-header-switcher app-header-switcher--theme"
         :label="t('theme.label')"
         :options="themeOptions"
@@ -55,6 +57,12 @@ function retry(): void {
           <span class="app-header-user">{{
             t('header.signedInAs', { name: session.user?.display_name })
           }}</span>
+          <RouterLink
+            v-if="session.canUsePrivateNavigation"
+            :to="{ name: 'userSettings' }"
+            class="app-header-settings"
+            >{{ t('header.settings') }}</RouterLink
+          >
           <button type="button" class="app-header-signout" @click="signOut">
             {{ t('header.signOut') }}
           </button>
@@ -79,6 +87,8 @@ function retry(): void {
 <style scoped>
 .app-header {
   display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-4);
@@ -89,6 +99,8 @@ function retry(): void {
 
 .app-header-controls {
   display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
   align-items: center;
   gap: var(--space-4);
 }
@@ -99,15 +111,19 @@ function retry(): void {
 
 .app-header-session {
   display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
   align-items: center;
   gap: var(--space-3);
   font-size: var(--font-size-small);
 }
 
 .app-header-user {
+  overflow-wrap: anywhere;
   color: var(--text-secondary);
 }
 
+.app-header-settings,
 .app-header-signin,
 .app-header-signout {
   color: var(--accent);

@@ -1,18 +1,33 @@
-import { onMounted, onUnmounted, ref, type Ref } from 'vue'
+import { getCurrentInstance, onMounted, onUnmounted, ref, type App, type Ref } from 'vue'
 
-// Keep in step with public/theme-init.js, which resolves the same storage key before first paint
-// so the page never flashes the wrong palette; this composable takes over for a live switch
-// afterwards (decision D8: system, light, dark, persisted per user).
+// This legacy key belongs exclusively to anonymous browser presentation. Account preferences
+// are never written here, and the prepaint script uses it only until authentication resolves.
 const THEME_STORAGE_KEY = 'gendertagger.theme'
 
 export type ThemePreference = 'system' | 'light' | 'dark'
 
 export interface UseTheme {
   preference: Ref<ThemePreference>
+  /** Change and persist only the anonymous browser choice. */
   setPreference: (value: ThemePreference) => void
+  /** Apply a confirmed account choice without writing anonymous browser storage. */
+  applyPreference: (value: ThemePreference) => void
+  restoreAnonymousPreference: () => void
 }
 
-function readStoredPreference(): ThemePreference {
+interface ThemeState {
+  preference: Ref<ThemePreference>
+  anonymousPreference: ThemePreference
+  media: MediaQueryList
+  subscribers: number
+  sync: () => void
+}
+
+// Effective presentation is shared within one Vue application, without module-time browser reads
+// or a second copy of the server resource. Separate app instances cannot inherit each other's theme.
+const states = new WeakMap<App, ThemeState>()
+
+function readAnonymousPreference(): ThemePreference {
   try {
     const stored = localStorage.getItem(THEME_STORAGE_KEY)
     return stored === 'light' || stored === 'dark' ? stored : 'system'
@@ -21,44 +36,61 @@ function readStoredPreference(): ThemePreference {
   }
 }
 
-function applyTheme(preference: ThemePreference, prefersDark: boolean): void {
-  const isDark = preference === 'dark' || (preference === 'system' && prefersDark)
-  document.documentElement.dataset.theme = isDark ? 'dark' : 'light'
+function createThemeState(): ThemeState {
+  const anonymousPreference = readAnonymousPreference()
+  const preference = ref<ThemePreference>(anonymousPreference)
+  const media = window.matchMedia('(prefers-color-scheme: dark)')
+  function sync(): void {
+    const isDark = preference.value === 'dark' || (preference.value === 'system' && media.matches)
+    document.documentElement.dataset.theme = isDark ? 'dark' : 'light'
+  }
+  return { preference, anonymousPreference, media, subscribers: 0, sync }
 }
 
-// Preference itself is shared app-wide state; only one component (the header's switcher) is
-// expected to call this composable today, so the media-query listener below is set up once in
-// practice even though it is not de-duplicated across calls.
-const preference = ref<ThemePreference>(readStoredPreference())
-
 export function useTheme(): UseTheme {
-  const media = window.matchMedia('(prefers-color-scheme: dark)')
-
-  function sync(): void {
-    applyTheme(preference.value, media.matches)
+  const instance = getCurrentInstance()
+  if (!instance) throw new Error('useTheme requires a component setup scope.')
+  const app = instance.appContext.app
+  let existing = states.get(app)
+  if (!existing) {
+    existing = createThemeState()
+    states.set(app, existing)
   }
-
-  function handleSystemChange(): void {
-    if (preference.value === 'system') sync()
-  }
+  const state = existing
 
   onMounted(() => {
-    sync()
-    media.addEventListener('change', handleSystemChange)
+    state.sync()
+    if (state.subscribers === 0) state.media.addEventListener('change', state.sync)
+    state.subscribers += 1
   })
   onUnmounted(() => {
-    media.removeEventListener('change', handleSystemChange)
+    state.subscribers -= 1
+    if (state.subscribers === 0) state.media.removeEventListener('change', state.sync)
   })
 
+  function applyPreference(value: ThemePreference): void {
+    state.preference.value = value
+    state.sync()
+  }
+
   function setPreference(value: ThemePreference): void {
-    preference.value = value
+    state.anonymousPreference = value
+    applyPreference(value)
     try {
       localStorage.setItem(THEME_STORAGE_KEY, value)
     } catch {
-      // Storage can be blocked; the choice still applies for the rest of this page's life.
+      // Retain the anonymous choice in memory even when browser storage is blocked.
     }
-    sync()
   }
 
-  return { preference, setPreference }
+  function restoreAnonymousPreference(): void {
+    applyPreference(state.anonymousPreference)
+  }
+
+  return {
+    preference: state.preference,
+    setPreference,
+    applyPreference,
+    restoreAnonymousPreference,
+  }
 }

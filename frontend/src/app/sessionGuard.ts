@@ -14,6 +14,8 @@ const PATHS_EXEMPT_FROM_RECOVERY = ['/api/v1/auth/login', '/api/v1/auth/logout']
  */
 export function shouldRetryAfterUnauthorized(request: Request): boolean {
   const { pathname } = new URL(request.url)
+  // Even GET must not replay into a query owned by the principal before recovery.
+  const isUserPreferences = pathname.endsWith('/api/v1/me/preferences')
   const isAccountCreate = request.method === 'POST' && pathname.endsWith('/api/v1/admin/users')
   const isAccountUpdate =
     request.method === 'PATCH' && /\/api\/v1\/admin\/users\/[^/]+$/.test(pathname)
@@ -40,6 +42,7 @@ export function shouldRetryAfterUnauthorized(request: Request): boolean {
   const isManagerTransfer =
     request.method === 'PUT' && /\/api\/v1\/projects\/[^/]+\/manager$/.test(pathname)
   return !(
+    isUserPreferences ||
     isAccountCreate ||
     isAccountUpdate ||
     isPasswordReset ||

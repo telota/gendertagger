@@ -2,7 +2,9 @@
 //
 // Loaded synchronously from <head>. It is a separate same-origin file rather than an inline script so a
 // strict Content-Security-Policy stays possible. The stored value is a three-state preference
-// (system, light, dark); "system" follows prefers-color-scheme.
+// (system, light, dark); "system" follows prefers-color-scheme. This legacy key belongs only to
+// anonymous visitors. Once the session resolves, the application applies API-owned account preferences;
+// no account identity or account preference cache is persisted in the browser.
 ;(() => {
   const STORAGE_KEY = 'gendertagger.theme'
   let stored = null

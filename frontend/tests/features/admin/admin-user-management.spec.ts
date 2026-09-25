@@ -524,6 +524,14 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
         const { pathname } = new URL(request.url)
         // The header's project switcher reads the project list; that is not part of this flow.
         if (pathname !== '/api/v1/projects') requests.push(pathname)
+        if (pathname === '/api/v1/me/preferences' && request.method === 'GET') {
+          return jsonResponse({
+            locale,
+            theme: 'system',
+            desktop_sidebar_collapsed: false,
+            revision: 0,
+          })
+        }
         if (pathname === '/api/v1/admin/users' && request.method === 'GET') {
           return jsonResponse({ items: [currentAccount], has_more: false, next_cursor: null })
         }
@@ -557,6 +565,7 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
 
     expect(currentSession().isSignedIn).toBe(false)
     expect(requests).toEqual([
+      '/api/v1/me/preferences',
       '/api/v1/admin/users',
       '/api/v1/admin/users',
       `/api/v1/admin/users/${ADMIN_A.id}/revoke-sessions`,

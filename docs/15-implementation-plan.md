@@ -197,13 +197,21 @@ local accounts while preserving its scientific vocabulary rules and immutable de
    Run the locked quality gates and PostgreSQL migration/integration checks, including account isolation,
    persistence across sessions, partial updates, explicit locale clearing, auth/CSRF failures, conflicts,
    and concurrent initialization.
-3. **Later frontend integration.** Connect presentation controls and any personal settings page to the
-   account resource in a separate increment. Keep browser-default locale unresolved, scope private state
-   to the principal, reconcile conflicts explicitly, and never save responsive changes as desktop choices.
+3. **Personal settings and presentation integration — DELIVERED.** The lazy `/settings` route
+   (`userSettings`) is discoverable in the title-bar account controls and available to every signed-in,
+   password-current account independently of its roles. The focused locale/theme/desktop-sidebar form
+   keeps drafts local, restores defaults in the draft, and saves explicitly with the canonical revision.
+   Principal-scoped query state supplies saved presentation choices; failures retain drafts and a `409`
+   requires deliberate reloading of saved values before another save. Pending responses cannot cross
+   account boundaries. Anonymous browser choices remain separate and are never migrated to accounts.
+   Browser-default locale stays unresolved in storage. Only the saved desktop choice controls collapse
+   at widths of at least 1080 CSS pixels; responsive changes never persist preference updates.
 
-This increment stops after the backend and generated transport; no settings page or client preference
-integration is included. Personal preferences do not extend `/admin/settings`, project settings, or
-scientific configuration.
+The backend and frontend increments remain separately reviewable. Personal preferences do not extend
+`/admin/settings`, project settings, or scientific configuration; a wider sidebar redesign is outside
+this increment. Frontend verification covers request states, conflicts, account transitions, real
+presentation effects, responsive separation, generated-contract consistency, bilingual accessibility,
+and the production build.
 
 ### Administrative settings increment (ADR-0040)
 

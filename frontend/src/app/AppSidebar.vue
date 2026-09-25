@@ -26,6 +26,8 @@ import { hasProjectRole } from '@/features/projects/projectRoles'
 import NavItem from './NavItem.vue'
 import { useProjectNavigation } from './useProjectNavigation'
 
+defineProps<{ desktopSidebarCollapsed?: boolean }>()
+
 const { t } = useI18n()
 const { canAccessAdmin, session } = useAdminAccess()
 const project = useProjectNavigation()
@@ -57,7 +59,7 @@ const projectLinks = computed(() => {
 </script>
 
 <template>
-  <aside class="app-sidebar">
+  <aside class="app-sidebar" :class="{ 'app-sidebar--desktop-collapsed': desktopSidebarCollapsed }">
     <RouterLink :to="{ name: 'home' }" class="app-sidebar-brand">
       <PhGenderIntersex :size="24" aria-hidden="true" />
       <span class="app-sidebar-brand-label">{{ t('app.title') }}</span>
@@ -69,20 +71,36 @@ const projectLinks = computed(() => {
     >
       <ul class="app-sidebar-nav-list">
         <li>
-          <NavItem :to="{ name: 'projects' }" :icon="PhFolders" :label="t('nav.projects')" />
+          <NavItem
+            :desktop-collapsed="desktopSidebarCollapsed"
+            :to="{ name: 'projects' }"
+            :icon="PhFolders"
+            :label="t('nav.projects')"
+          />
         </li>
       </ul>
       <template v-if="projectLinks">
         <h2 class="app-sidebar-group">{{ t('nav.currentProject') }}</h2>
         <ul class="app-sidebar-nav-list">
           <li>
-            <NavItem :to="projectLinks.overview" :icon="PhSquaresFour" :label="t('nav.overview')" />
+            <NavItem
+              :desktop-collapsed="desktopSidebarCollapsed"
+              :to="projectLinks.overview"
+              :icon="PhSquaresFour"
+              :label="t('nav.overview')"
+            />
           </li>
           <li v-if="canImport">
-            <NavItem :to="projectLinks.import" :icon="PhUploadSimple" :label="t('nav.import')" />
+            <NavItem
+              :desktop-collapsed="desktopSidebarCollapsed"
+              :to="projectLinks.import"
+              :icon="PhUploadSimple"
+              :label="t('nav.import')"
+            />
           </li>
           <li>
             <NavItem
+              :desktop-collapsed="desktopSidebarCollapsed"
               :to="projectLinks.classification"
               :icon="PhTreeStructure"
               :label="t('nav.classification')"
@@ -90,26 +108,38 @@ const projectLinks = computed(() => {
           </li>
           <li v-if="canReview">
             <NavItem
+              :desktop-collapsed="desktopSidebarCollapsed"
               :to="projectLinks.review"
               :icon="PhPencilSimpleLine"
               :label="t('nav.review')"
             />
           </li>
           <li>
-            <NavItem :to="projectLinks.people" :icon="PhUserList" :label="t('nav.annotate')" />
+            <NavItem
+              :desktop-collapsed="desktopSidebarCollapsed"
+              :to="projectLinks.people"
+              :icon="PhUserList"
+              :label="t('nav.annotate')"
+            />
           </li>
         </ul>
         <h2 class="app-sidebar-group">{{ t('nav.evaluationGroup') }}</h2>
         <ul class="app-sidebar-nav-list">
           <li>
             <NavItem
+              :desktop-collapsed="desktopSidebarCollapsed"
               :to="projectLinks.evaluations"
               :icon="PhChartBar"
               :label="t('nav.evaluations')"
             />
           </li>
           <li>
-            <NavItem :to="projectLinks.exports" :icon="PhExport" :label="t('nav.exports')" />
+            <NavItem
+              :desktop-collapsed="desktopSidebarCollapsed"
+              :to="projectLinks.exports"
+              :icon="PhExport"
+              :label="t('nav.exports')"
+            />
           </li>
         </ul>
       </template>
@@ -118,16 +148,27 @@ const projectLinks = computed(() => {
         <ul class="app-sidebar-nav-list">
           <li>
             <NavItem
+              :desktop-collapsed="desktopSidebarCollapsed"
               :to="{ name: 'adminUsers' }"
               :icon="PhUsers"
               :label="t('nav.administration')"
             />
           </li>
           <li>
-            <NavItem :to="{ name: 'adminTeams' }" :icon="PhUsersThree" :label="t('nav.teams')" />
+            <NavItem
+              :desktop-collapsed="desktopSidebarCollapsed"
+              :to="{ name: 'adminTeams' }"
+              :icon="PhUsersThree"
+              :label="t('nav.teams')"
+            />
           </li>
           <li>
-            <NavItem :to="{ name: 'adminSettings' }" :icon="PhGearSix" :label="t('nav.settings')" />
+            <NavItem
+              :desktop-collapsed="desktopSidebarCollapsed"
+              :to="{ name: 'adminSettings' }"
+              :icon="PhGearSix"
+              :label="t('nav.settings')"
+            />
           </li>
         </ul>
       </template>
@@ -174,7 +215,29 @@ const projectLinks = computed(() => {
   list-style: none;
 }
 
-@media (max-width: 1079px) {
+/* The desktop choice is independent of the responsive rail below 1080 CSS px. */
+@media (min-width: 1080px) {
+  .app-sidebar--desktop-collapsed {
+    width: 3.75rem;
+    padding: var(--space-4) var(--space-2);
+  }
+
+  .app-sidebar--desktop-collapsed .app-sidebar-brand {
+    justify-content: center;
+  }
+
+  .app-sidebar--desktop-collapsed .app-sidebar-brand-label,
+  .app-sidebar--desktop-collapsed .app-sidebar-group {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@media (width < 1080px) {
   .app-sidebar {
     width: 3.75rem;
     padding: var(--space-4) var(--space-2);

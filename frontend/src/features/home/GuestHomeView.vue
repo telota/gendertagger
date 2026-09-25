@@ -61,13 +61,13 @@ const steps = computed(() => [
 }
 
 .home-guest-lede {
-  max-width: 52ch;
+  max-width: 60ch;
   margin: 0 0 var(--space-3);
   font-size: var(--font-size-title);
   font-weight: var(--weight-regular);
   line-height: var(--line-height-title);
   color: var(--text-primary);
-  text-wrap: balance;
+  text-wrap: pretty;
 }
 
 .home-guest-intro {

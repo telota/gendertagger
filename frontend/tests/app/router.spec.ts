@@ -17,10 +17,15 @@ describe('routes', () => {
     ['/login', 'login'],
     ['/change-password', 'changePassword'],
     ['/admin/users', 'adminUsers'],
+    ['/settings', 'userSettings'],
     ['/irgendwas', 'notFound'],
     ['/impressum/zu-viel', 'notFound'],
   ])('resolves %s to %s', async (path, name) => {
     expect((await resolve(path)).name).toBe(name)
+  })
+
+  it('keeps account settings lazy loaded', () => {
+    expect(typeof routes.find((route) => route.name === 'userSettings')?.component).toBe('function')
   })
 
   it('names every route so links never depend on a path string', () => {

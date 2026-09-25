@@ -245,9 +245,10 @@ contract change fails CI.
   (`SessionRecoveryDialog`) with a real focus trap exist; no other modal has needed one yet.
 - Locale switch and theme switch (system, light, dark), and the shared vocabulary components that render
   `CanonicalLabel`, `CertaintyTier`, and `AgreementTier` as canonical token plus translated gloss (D2, D3).
-  **Partly delivered.** The locale and theme switches are live in `AppHeader` on every screen
-  (`useLocale`, `useTheme`, both built on `AppListbox`); the vocabulary components remain open until a
-  screen exists that renders canonical labels or tiers.
+  **Partly delivered in M2.** Anonymous locale and theme switches are live in `AppHeader`
+  (`useLocale`, `useTheme`, both built on `AppListbox`); signed-in choices now live in the separate personal
+  settings increment below. The vocabulary components remained open until a screen rendered canonical
+  labels or tiers.
 - Overlay primitives on the chosen headless accessibility library (D9); everything else in-house.
   **Partly delivered.** `AppListbox` (the header's switchers) and `Dialog` (`SessionRecoveryDialog`, see
   the `401` recovery item below) are built; a Menu remains open until something needs one.
@@ -312,25 +313,45 @@ implementation does not expose any other deployment settings.
 
 ### Account presentation preferences — ADR-0043
 
-[ADR-0043](decisions/ADR-0043-account-level-user-preferences.md) adds account-owned locale, theme, and
-explicit desktop-sidebar collapse preferences. The current increment delivers backend contracts,
+**Status. Delivered in two increments.**
+[ADR-0043](decisions/ADR-0043-account-level-user-preferences.md) defines account-owned locale, theme, and
+explicit desktop-sidebar collapse preferences. The first increment delivered backend contracts,
 persistence, migration, `GET`/`PATCH /api/v1/me/preferences`, tests, and generated OpenAPI/TypeScript
-transport. It does not build a personal settings page or wire the existing `useLocale`/`useTheme` controls
-to persistence. Administrative branding remains at `/admin/settings` and project/scientific settings are
-outside this resource.
+transport. The subsequent frontend increment supplies the lazy `/settings` route named `userSettings`
+and a translated Settings link in the title-bar account controls. Every resolved, signed-in,
+password-current user has access without any project or global role. Administrative branding remains at
+`/admin/settings`, and project/scientific settings are outside this resource.
 
-Later client integration must use a resolved password-current session, fetch preferences as
-principal-scoped server state, and clear private cached state on logout or an account switch. Account
-choices take precedence once loaded; unsigned browser choices must never silently overwrite them.
-`locale: null` is browser default and remains null on the server, while `theme: system` follows the
-browser's color-scheme preference. Only explicit desktop-collapse actions save
-`desktop_sidebar_collapsed`; viewport/breakpoint changes and temporary mobile state never do.
+The form contains Interface language (Browser default, Deutsch, English), Theme (System, Light, Dark), and
+Desktop sidebar (Expanded, Collapsed). Drafts remain local component state, including restored defaults;
+Save is explicit and exposes unsaved, saving, and saved states. Loading and read-error/retry states are
+separate from the editable form. Failed saves retain the draft. Saves carry `expected_revision`, preserve
+omitted fields, and update the principal-scoped query cache only from the canonical response. A
+`409 preferences_revision_conflict` retains the draft and requires deliberately reloading saved values
+before another save; no silent replay or overwrite is allowed.
 
-Partial saves carry the last canonical revision and preserve omitted fields. Adopt the canonical saved
-resource after success; on `409 preferences_revision_conflict`, read fresh state and require explicit
-reconciliation instead of silently retrying a mutation. Backend acceptance covers defaults without
-read-side initialization, account isolation, persistence across sessions, strict validation, locale
-clearing, auth/forced-password/CSRF behavior, stale no-ops, and concurrent first writes on PostgreSQL. The
+Saved preferences apply through the existing locale/theme mechanisms and the shell. `locale: null`
+remains null on the server and resolves to the first supported browser-language primary subtag, then
+German. `theme: system` follows the browser's color-scheme preference. At widths of at least 1080 CSS
+pixels, the saved desktop choice selects the expanded sidebar or accessible icon rail; below that width,
+responsive layout remains independent. Viewport changes and temporary mobile state never save
+`desktop_sidebar_collapsed`. Wider sidebar redesign is outside this increment.
+
+Private cache state and outstanding request ownership are invalidated on logout or account changes;
+a late result cannot alter another account's cache, draft, or presentation. Existing
+`gendertagger.locale`/`gendertagger.theme` localStorage values remain anonymous-only and are never migrated
+to accounts or overwritten by account choices. Startup may use anonymous values before identity resolves.
+A resolved account uses browser-default locale, system theme, and an expanded desktop sidebar while its
+first preferences read is pending or unavailable, then uses its canonical API preferences. There is no
+account startup cache. Logout restores the untouched anonymous choices. A failed read or save is always
+shown as failure, even while fallback presentation is usable.
+
+Backend acceptance covers defaults without read-side initialization, account isolation, persistence
+across sessions, strict validation, locale clearing, auth/forced-password/CSRF behavior, stale no-ops, and
+concurrent first writes on PostgreSQL. Frontend acceptance covers loading/saving, defaults, read and write
+failures, conflicts, account switching and anonymous transitions, saved presentation effects, responsive
+separation, keyboard and accessible status behavior, both locales/themes, contract drift, and production
+build. The
 [implementation plan](15-implementation-plan.md#account-preferences-increment-adr-0043) owns sequencing.
 
 ### Administrative branding settings — ADR-0040
@@ -809,10 +830,11 @@ resolve, and the review path works end to end behind a real session.
   list. Shown only with a resolved, password-current session. The wireframe's completion percentages and
   its "new project" action are not part of it: no backend data exists for the former, and creating a
   project stays on the project list.
-- **Einstellungen: no separate personal settings screen in this increment.** The wireframe's eight settings
-  remain unsupported ([`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md)). ADR-0043 adds only the
-  backend and generated transport for account locale, theme, and explicit desktop-sidebar collapse; a
-  personal settings page and existing-control integration follow later. The six branding fields of ADR-0040
+- **Personal settings. Delivered as the ADR-0043 frontend increment.** The lazy `/settings` page and
+  translated title-bar link expose only account locale, theme, and explicit desktop-sidebar collapse,
+  with explicit saving and conflict recovery. They are available to every password-current account.
+  The wireframe's other settings remain unsupported
+  ([`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md)). The six branding fields of ADR-0040
   remain separate at `/admin/settings` (sidebar: Admin, "Branding-Einstellungen"). A read-only page of
   deployment facts would still require its own explicit endpoint contract and ADR.
 - **Accessibility pass, automated part. Delivered.** `tests/accessibility/screens.spec.ts` mounts every screen
@@ -1171,7 +1193,7 @@ expectations. Each is analysed in [`23-wireframe-ui-inventory.md`](23-wireframe-
 - Notifications and the activity feed
 - Autosave and "last saved" state, which contradict append-only annotations
 - Project settings and personal settings beyond the three presentation fields accepted in ADR-0043;
-  that increment delivers only backend persistence and generated transport, with its settings UI deferred
+  the personal settings UI exposes only those fields
 - The game mode itself (D20), including its scoring, combos and leaderboard
 - A bulk annotation endpoint
 - Per-case review-time telemetry

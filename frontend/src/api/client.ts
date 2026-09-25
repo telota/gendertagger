@@ -79,7 +79,9 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
       async onResponse({ request, response, id }) {
         const retryRequest = clones.get(id)
         clones.delete(id)
-        if (response.status !== 401) return undefined
+        // A cancelled query/write can still resolve in a custom transport. It must not recover
+        // authentication for a principal that no longer owns that request.
+        if (request.signal.aborted || response.status !== 401) return undefined
         try {
           await onUnauthorized(request)
         } catch {
