@@ -47,7 +47,7 @@ const excludedMethods = computed(() => {
 </script>
 
 <template>
-  <li class="aggregation" :class="{ 'aggregation--featured': featured }">
+  <li class="aggregation app-resource-card" :class="{ 'aggregation--featured': featured }">
     <div class="aggregation-head">
       <h3 class="aggregation-title">{{ title }}</h3>
       <span class="aggregation-status" :class="`aggregation-status--${aggregation.status}`">
@@ -59,12 +59,12 @@ const excludedMethods = computed(() => {
       {{ t('aggregations.item.ready') }}
     </p>
 
-    <dl class="aggregation-facts">
-      <div class="aggregation-fact">
+    <dl class="aggregation-facts app-fact-list">
+      <div class="aggregation-fact app-fact-list__item">
         <dt>{{ t('aggregations.item.strategy') }}</dt>
         <dd>{{ strategyLabel }}</dd>
       </div>
-      <div class="aggregation-fact">
+      <div class="aggregation-fact app-fact-list__item">
         <dt>{{ t('aggregations.detail.created') }}</dt>
         <dd>
           <time :datetime="aggregation.created_at">
@@ -72,7 +72,7 @@ const excludedMethods = computed(() => {
           </time>
         </dd>
       </div>
-      <div v-if="!featured" class="aggregation-fact">
+      <div v-if="!featured" class="aggregation-fact app-fact-list__item">
         <dt>{{ t('aggregations.item.selection') }}</dt>
         <dd>
           {{
@@ -156,10 +156,6 @@ const excludedMethods = computed(() => {
 .aggregation {
   display: grid;
   gap: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
 }
 
 .aggregation--featured {
@@ -200,25 +196,11 @@ const excludedMethods = computed(() => {
 }
 
 .aggregation-facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3) var(--space-8);
-  margin: 0;
-}
-
-.aggregation-fact {
-  display: grid;
-  gap: var(--space-1);
+  --app-fact-list-label-width: 8rem;
 }
 
 .aggregation-fact dt {
-  color: var(--text-secondary);
   font-size: var(--font-size-small);
-}
-
-.aggregation-fact dd {
-  margin: 0;
-  overflow-wrap: anywhere;
 }
 
 .aggregation-selection summary {

@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/vue-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref, type Ref } from 'vue'
 
 import { unwrap, type components } from '@/api'
@@ -66,5 +66,22 @@ export function useProject(projectId: Ref<string>, enabled: Ref<boolean> = ref(t
         }),
       ),
     enabled: computed(() => enabled.value && session.canUsePrivateNavigation),
+  })
+}
+
+/** Project-operator switch for the optional game path. The server remains authoritative. */
+export function useSetProjectGameMode(projectId: Ref<string>) {
+  const client = useApiClient()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (enabled: boolean) =>
+      unwrap(
+        client.PUT('/api/v1/projects/{project_id}/game-mode', {
+          params: { path: { project_id: projectId.value } },
+          body: { enabled },
+        }),
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['projects'] }),
   })
 }

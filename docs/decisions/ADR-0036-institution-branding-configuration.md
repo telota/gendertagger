@@ -25,7 +25,7 @@ name on its own legal notice or fork the frontend to change it.
 
 The deployment model rules out a build-time fix. [`21-production-promotion.md`](../21-production-promotion.md)
 pulls one immutable tagged image through every environment; CI builds that image once per commit
-([`.gitlab-ci.yml`](../../.gitlab-ci.yml) `build_and_publish_frontend`). A second operator deploying the same
+([`.gitlab-ci.yml`](../../.gitlab-ci.yml) `frontend_publish_image`). A second operator deploying the same
 tag cannot rebuild it with their own institutional facts baked in, so those facts cannot live in the built
 JavaScript.
 

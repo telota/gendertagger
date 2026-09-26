@@ -294,6 +294,13 @@ class Project(BaseModel):
             "PUT /projects/{project_id}/working-aggregation; never inferred from recency."
         ),
     )
+    game_mode_enabled: bool = Field(
+        default=False,
+        description=(
+            "Whether this project permits the optional scored game interface. Project operators "
+            "change it through PUT /projects/{project_id}/game-mode."
+        ),
+    )
 
 
 class AccessibleProject(Project):
@@ -337,6 +344,14 @@ class ProjectWorkingAggregationUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     aggregation_execution_id: UUID | None = None
+
+
+class ProjectGameModeUpdate(BaseModel):
+    """Command enabling or disabling the optional game interface for one project."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    enabled: bool
 
 
 class ProjectMemberUpdate(BaseModel):

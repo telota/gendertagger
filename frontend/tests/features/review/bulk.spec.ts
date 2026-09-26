@@ -76,6 +76,17 @@ describe.each(['de', 'en'] as const)('bulk decisions in %s', (locale: AppLocale)
     expect(wrapper.find('.bulk-form').exists()).toBe(false)
   })
 
+  it('gives each row checkbox an associated label target', async () => {
+    const wrapper = await mountBulk(fourPeople())
+    const checkbox = wrapper.get('.row-check')
+    const id = checkbox.attributes('id')
+    const target = wrapper.get(`label.row-check-target[for="${id}"]`)
+
+    expect(target.text()).toContain('Surname-demo-1')
+    await target.trigger('click')
+    expect((checkbox.element as HTMLInputElement).checked).toBe(true)
+  })
+
   it('asks for confirmation first and writes nothing until it is given', async () => {
     const server = fourPeople()
     const wrapper = await mountBulk(server)

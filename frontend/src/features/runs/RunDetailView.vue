@@ -94,10 +94,10 @@ function retryContext(): void {
 </script>
 
 <template>
-  <main class="run-detail">
-    <div class="run-detail-heading-row">
-      <div>
-        <h1 class="run-detail-title">
+  <main class="run-detail app-page-frame">
+    <header class="run-detail-heading-row app-page-heading">
+      <div class="run-detail-heading-copy app-page-heading__copy">
+        <h1 class="run-detail-title app-page-heading__title">
           {{
             selectedRun
               ? t('runs.detail.titleWithDate', {
@@ -118,89 +118,102 @@ function retryContext(): void {
           }}
         </RouterLink>
       </div>
-      <AppButton
-        v-if="selectedRun"
-        variant="ghost"
-        :to="{ name: 'projectClassification', params: { projectId } }"
-      >
-        {{ t('runs.changeSelection') }}
-      </AppButton>
-    </div>
-    <p v-if="session.status === 'idle' || session.status === 'loading'" role="status">
+      <div v-if="selectedRun" class="app-page-heading__actions">
+        <AppButton variant="ghost" :to="{ name: 'projectClassification', params: { projectId } }">
+          {{ t('runs.changeSelection') }}
+        </AppButton>
+      </div>
+    </header>
+    <p
+      v-if="session.status === 'idle' || session.status === 'loading'"
+      class="app-card"
+      role="status"
+    >
       {{ t('runs.loading') }}
     </p>
-    <div v-else-if="session.status === 'error'" class="run-detail-load-error">
+    <div v-else-if="session.status === 'error'" class="run-detail-load-error app-card">
       <p role="alert">{{ t('projects.sessionLoadError') }}</p>
       <AppButton type="button" @click="retrySession">{{ t('runs.retry') }}</AppButton>
     </div>
     <template v-else-if="isSignedIn">
-      <div v-if="project.isError.value || snapshot.isError.value" class="run-detail-load-error">
+      <div
+        v-if="project.isError.value || snapshot.isError.value"
+        class="run-detail-load-error app-card"
+      >
         <p role="alert">{{ t('runs.contextLoadError') }}</p>
         <AppButton variant="ghost" @click="retryContext">{{ t('runs.retry') }}</AppButton>
       </div>
-      <p v-else-if="project.isPending.value || snapshot.isPending.value" role="status">
+      <p
+        v-else-if="project.isPending.value || snapshot.isPending.value"
+        class="app-card"
+        role="status"
+      >
         {{ t('runs.loading') }}
       </p>
-      <div v-else-if="!canRead" class="run-detail-unavailable">
+      <div v-else-if="!canRead" class="run-detail-unavailable app-card">
         <p>{{ t('runs.contextUnavailable') }}</p>
         <RouterLink :to="{ name: 'projectClassification', params: { projectId } }">{{
           t('runs.changeSelection')
         }}</RouterLink>
       </div>
-      <p v-else-if="run.isPending.value" role="status">{{ t('runs.loading') }}</p>
-      <div v-else-if="run.isError.value" class="run-detail-load-error">
+      <p v-else-if="run.isPending.value" class="app-card" role="status">
+        {{ t('runs.loading') }}
+      </p>
+      <div v-else-if="run.isError.value" class="run-detail-load-error app-card">
         <p role="alert">{{ t('runs.detail.loadError') }}</p>
         <AppButton class="run-detail-retry" type="button" @click="() => run.refetch()">
           {{ t('runs.retry') }}
         </AppButton>
       </div>
       <template v-else-if="selectedRun">
-        <dl class="run-detail-summary">
+        <div class="run-detail-overview app-card">
+          <dl class="run-detail-summary">
+            <div
+              class="run-detail-summary-fact run-detail-summary-status"
+              :class="`run-detail-summary-status--${selectedRun.status}`"
+            >
+              <dt>{{ t('runs.detail.status') }}</dt>
+              <dd class="run-detail-status">{{ statusLabel }}</dd>
+            </div>
+            <div class="run-detail-summary-fact">
+              <dt>{{ t('runs.detail.created') }}</dt>
+              <dd>
+                <time :datetime="selectedRun.created_at" class="run-detail-created">
+                  {{ d(new Date(selectedRun.created_at), 'timestamp') }}
+                </time>
+              </dd>
+            </div>
+            <div v-if="selectedRun.progress.total != null" class="run-detail-summary-fact">
+              <dt>{{ t('runs.detail.progress') }}</dt>
+              <dd class="run-detail-counts">
+                {{
+                  t('runs.item.progressValue', {
+                    completed: n(selectedRun.progress.completed, 'integer'),
+                    total: n(selectedRun.progress.total, 'integer'),
+                    failed: n(selectedRun.progress.failed, 'integer'),
+                  })
+                }}
+              </dd>
+            </div>
+          </dl>
+          <!-- Always in the DOM so assistive technology announces the change, not the mount. -->
+          <span class="run-detail-connection" role="status">{{ connectionLabel }}</span>
+          <AppProgress
+            v-if="!isTerminalRun"
+            :percentage="selectedRun.progress.percentage ?? null"
+            :label="t('runs.detail.overallProgressLabel')"
+          />
           <div
-            class="run-detail-summary-fact run-detail-summary-status"
-            :class="`run-detail-summary-status--${selectedRun.status}`"
+            v-if="selectedRun.failure_class || selectedRun.failure_diagnostic"
+            class="run-detail-failure"
           >
-            <dt>{{ t('runs.detail.status') }}</dt>
-            <dd class="run-detail-status">{{ statusLabel }}</dd>
+            <p v-if="selectedRun.failure_class" class="run-detail-failure-class">
+              {{ selectedRun.failure_class }}
+            </p>
+            <p v-if="selectedRun.failure_diagnostic">
+              {{ selectedRun.failure_diagnostic }}
+            </p>
           </div>
-          <div class="run-detail-summary-fact">
-            <dt>{{ t('runs.detail.created') }}</dt>
-            <dd>
-              <time :datetime="selectedRun.created_at" class="run-detail-created">
-                {{ d(new Date(selectedRun.created_at), 'timestamp') }}
-              </time>
-            </dd>
-          </div>
-          <div v-if="selectedRun.progress.total != null" class="run-detail-summary-fact">
-            <dt>{{ t('runs.detail.progress') }}</dt>
-            <dd class="run-detail-counts">
-              {{
-                t('runs.item.progressValue', {
-                  completed: n(selectedRun.progress.completed, 'integer'),
-                  total: n(selectedRun.progress.total, 'integer'),
-                  failed: n(selectedRun.progress.failed, 'integer'),
-                })
-              }}
-            </dd>
-          </div>
-        </dl>
-        <!-- Always in the DOM so assistive technology announces the change, not the mount. -->
-        <span class="run-detail-connection" role="status">{{ connectionLabel }}</span>
-        <AppProgress
-          v-if="!isTerminalRun"
-          :percentage="selectedRun.progress.percentage ?? null"
-          :label="t('runs.detail.overallProgressLabel')"
-        />
-        <div
-          v-if="selectedRun.failure_class || selectedRun.failure_diagnostic"
-          class="run-detail-failure"
-        >
-          <p v-if="selectedRun.failure_class" class="run-detail-failure-class">
-            {{ selectedRun.failure_class }}
-          </p>
-          <p v-if="selectedRun.failure_diagnostic">
-            {{ selectedRun.failure_diagnostic }}
-          </p>
         </div>
 
         <AggregationSection
@@ -211,7 +224,7 @@ function retryContext(): void {
           :executions="executions.data.value"
         />
 
-        <div class="run-detail-actions">
+        <div class="run-detail-actions app-card">
           <RouterLink
             class="run-detail-evaluations"
             :to="{ name: 'evaluations', params: { projectId, runId } }"
@@ -234,20 +247,21 @@ function retryContext(): void {
             </h2>
             <p v-if="isTerminalRun && executions.data.value" class="run-detail-execution-summary">
               {{
-                t(
-                  executionIssueCount
-                    ? 'runs.detail.methodCountWithIssues'
-                    : 'runs.detail.methodCount',
-                  {
-                    count: n(executions.data.value.length, 'integer'),
-                    issues: n(executionIssueCount, 'integer'),
-                  },
-                )
+                executionIssueCount
+                  ? t('runs.detail.methodCountWithIssues', {
+                      count: n(executions.data.value.length, 'integer'),
+                      issues: n(executionIssueCount, 'integer'),
+                    })
+                  : t('runs.detail.methodCount', {
+                      count: n(executions.data.value.length, 'integer'),
+                    })
               }}
             </p>
           </div>
-          <p v-if="executions.isPending.value" role="status">{{ t('runs.loading') }}</p>
-          <div v-else-if="executions.isError.value" class="run-detail-load-error">
+          <p v-if="executions.isPending.value" class="app-card" role="status">
+            {{ t('runs.loading') }}
+          </p>
+          <div v-else-if="executions.isError.value" class="run-detail-load-error app-card">
             <p role="alert">{{ t('runs.detail.executionsLoadError') }}</p>
             <AppButton
               class="run-detail-executions-retry"
@@ -257,7 +271,10 @@ function retryContext(): void {
               {{ t('runs.retry') }}
             </AppButton>
           </div>
-          <p v-else-if="(executions.data.value ?? []).length === 0" class="run-detail-empty">
+          <p
+            v-else-if="(executions.data.value ?? []).length === 0"
+            class="run-detail-empty app-card"
+          >
             {{ t('runs.detail.noExecutions') }}
           </p>
           <ul v-else class="run-detail-execution-list">
@@ -283,7 +300,7 @@ function retryContext(): void {
         />
         <RunProvenance :run="selectedRun" />
       </template>
-      <div v-else class="run-detail-unavailable">
+      <div v-else class="run-detail-unavailable app-card">
         <p>{{ t('runs.contextUnavailable') }}</p>
         <RouterLink :to="{ name: 'projectClassification', params: { projectId } }">{{
           t('runs.changeSelection')
@@ -295,12 +312,6 @@ function retryContext(): void {
 
 <style scoped>
 .run-detail {
-  flex: 1;
-  min-inline-size: 0;
-  inline-size: 100%;
-  max-inline-size: 60rem;
-  margin-inline: auto;
-  padding: var(--space-8) var(--page-gutter);
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
@@ -310,7 +321,6 @@ function retryContext(): void {
   max-width: 100%;
 }
 
-.run-detail-heading-row,
 .run-detail-actions,
 .run-detail-section-heading {
   display: flex;
@@ -320,7 +330,12 @@ function retryContext(): void {
   gap: var(--space-3) var(--space-6);
 }
 
-.run-detail-heading-row > div {
+.run-detail-heading-row {
+  inline-size: 100%;
+  margin-block-end: 0;
+}
+
+.run-detail-heading-copy {
   display: grid;
   gap: var(--space-1);
 }
@@ -338,13 +353,6 @@ function retryContext(): void {
   color: var(--text-secondary);
   font-size: var(--font-size-small);
   font-weight: var(--weight-regular);
-}
-
-.run-detail-title {
-  margin: 0;
-  font-size: var(--font-size-page);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-height-page);
 }
 
 .run-detail-load-error {
@@ -366,6 +374,12 @@ function retryContext(): void {
 
 .run-detail-failure-class {
   font-weight: var(--weight-semibold);
+}
+
+.run-detail-overview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
 .run-detail-summary {

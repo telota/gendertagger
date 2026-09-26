@@ -29,7 +29,7 @@ specification.
 
 ## Implementation order
 
-Follow the current phase in `PLAN.md` and the sequencing in `docs/15-implementation-plan.md`. Preserve the
+Follow the current phase and sequencing in `docs/15-implementation-plan.md`. Preserve the
 established contract-first architecture when extending later phases.
 
 ## Expected stack

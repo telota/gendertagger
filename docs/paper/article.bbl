@@ -20,6 +20,12 @@ S.~Bargioni.
 \emph{Information Technology and Libraries} 44(4), 2025.
 \\\doi{10.5860/ital.v44i4.17384}
 
+\bibitem[BBF{\etalchar{+}}25]{baum_technical_2025}
+R.~Baum, S.~Bouazzouni, J.~Fillies, N.~Karam, O.~Koepler, P.~Oladazimi, J.~Sasse.
+Technical Architecture of Terminology Services 4 {NFDI} ({TS4NFDI}).
+2025.
+\\\doi{10.5281/zenodo.15176099}
+
 \bibitem[BCL23]{buskirk_open-source_2023}
 I.~V. Buskirk, A.~Clauset, D.~B. Larremore.
 An {Open}-{Source} {Cultural} {Consensus} {Approach} to {Name}-{Based} {Gender} {Classification}.
@@ -132,10 +138,18 @@ Deutsche Nationalbibliothek, 2026.
 STA-Dokumentationsplattform. Version 2023/1. Stand: Juni 2026. Accessed 23 September 2026.
 \\\url{https://sta.dnb.de/wiki/Property:P300}
 
-\bibitem[{TEI}25]{tei_consortium_tei_2025}
+\bibitem[{TEI}26]{tei_consortium_tei_2026}
 {TEI Consortium}.
-{TEI} element gender (gender).
-2025.
-\\\url{https://www.tei-c.org/release/doc/tei-p5-doc/de/html/ref-gender.html}
+{TEI} {P5}: Guidelines for Electronic Text Encoding and Interchange.
+2026.
+Version 4.12.0. Accessed 26 September 2026.
+\\\url{https://www.tei-c.org/release/doc/tei-p5-doc/en/html/}
+
+\bibitem[{TEL}24]{telota_ediarum_2024}
+{TELOTA}.
+Unsichere {Lesarten}.
+Berlin-Brandenburgische Akademie der Wissenschaften, 2024.
+ediarum.BASE manual, version 0.7. Stand: 17.01.2024. Accessed 26 September 2026.
+\\\url{https://www.ediarum.org/docs/ediarum.BASE.manual/ediarum.BASE/DE/text/unsichere_lesart.html}
 
 \end{thebibliography}

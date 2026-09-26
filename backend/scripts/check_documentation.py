@@ -14,7 +14,6 @@ _REQUIRED_DOCUMENTS = (
     Path("README.md"),
     Path("QUICKSTART.md"),
     Path("CONTRIBUTING.md"),
-    Path("PLAN.md"),
     Path("SPEC.md"),
     Path("AGENTS.md"),
     Path("docs/00-design-index.md"),

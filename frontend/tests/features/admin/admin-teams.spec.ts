@@ -185,6 +185,45 @@ describe.each(['de', 'en'] as const)('AdminTeamsView in %s', (locale: AppLocale)
     wrapper.unmount()
   })
 
+  it('uses one shared card boundary for creation and the team table', async () => {
+    const wrapper = await mountApplicationAt(
+      '/admin/teams',
+      locale,
+      apiClientWithRoutes(signedInRoutes(ADMIN)),
+    )
+    await waitFor(() => expect(wrapper.text()).toContain(TEAM.display_name))
+
+    expect(wrapper.get('.admin-teams-create').classes()).toContain('app-card')
+    expect(
+      wrapper.findAll('.admin-teams-create .app-card, .admin-teams-create .app-resource-card'),
+    ).toHaveLength(0)
+    expect(wrapper.get('.admin-teams-table-scroll').classes()).toEqual(
+      expect.arrayContaining(['app-card', 'app-card--sectioned']),
+    )
+
+    await selectTeam(wrapper)
+    await waitFor(() => expect(wrapper.find('.admin-teams-detail').exists()).toBe(true))
+    expect(wrapper.get('.admin-teams-detail').classes()).not.toContain('app-resource-card')
+    expect(
+      wrapper.findAll(
+        '.admin-teams-table-scroll .app-card, .admin-teams-table-scroll .app-resource-card',
+      ),
+    ).toHaveLength(0)
+  })
+
+  it('uses the shared feedback card for the empty team directory', async () => {
+    const wrapper = await mountApplicationAt(
+      '/admin/teams',
+      locale,
+      apiClientWithRoutes(signedInRoutes(ADMIN, [])),
+    )
+    await waitFor(() => expect(wrapper.text()).toContain(messages.list.empty))
+
+    expect(wrapper.get('.admin-teams-empty').classes()).toEqual(
+      expect.arrayContaining(['app-feedback', 'app-card']),
+    )
+  })
+
   it('gates navigation and direct routes to password-current global administrators', async () => {
     const administrator = await mountApplicationAt(
       '/',
@@ -205,7 +244,12 @@ describe.each(['de', 'en'] as const)('AdminTeamsView in %s', (locale: AppLocale)
     )
     await flushPromises()
     expect(operator.find('aside a[href="/admin/teams"]').exists()).toBe(false)
+    expect(operator.findAll('main h1')).toHaveLength(1)
+    expect(operator.get('main h1').text()).toBe(messages.title)
     expect(operator.get('main [role="alert"]').text()).toBe(messages.forbidden)
+    expect(operator.get('.admin-teams-error').classes()).toEqual(
+      expect.arrayContaining(['app-feedback', 'app-feedback--critical', 'app-card']),
+    )
   })
 
   it('debounces server-side team and roster search and resets cursor pagination', async () => {
@@ -312,6 +356,12 @@ describe.each(['de', 'en'] as const)('AdminTeamsView in %s', (locale: AppLocale)
         'Renamed Beta',
       ),
     )
+    expect(wrapper.get('.admin-teams-success').classes()).toEqual(
+      expect.arrayContaining(['app-feedback', 'app-card']),
+    )
+    const nestedFeedback = wrapper.findAll('.admin-teams-detail .app-feedback')
+    expect(nestedFeedback.length).toBeGreaterThan(0)
+    expect(nestedFeedback.every((feedback) => !feedback.classes().includes('app-card'))).toBe(true)
     await wrapper.vm.$router.push('/')
     expect(new DOMWrapper(document.body).find('[role="dialog"]').exists()).toBe(false)
   })

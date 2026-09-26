@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
+
 import './metric.css'
 import type { BenchmarkSummary, MethodAccuracy } from './reportSchema'
 
@@ -31,7 +33,7 @@ const level = computed(() =>
 </script>
 
 <template>
-  <section class="metric" aria-labelledby="accuracy-heading">
+  <section class="metric app-card" aria-labelledby="accuracy-heading">
     <h3 id="accuracy-heading" class="metric-title">{{ t('evaluation.report.accuracy.title') }}</h3>
     <p class="metric-note">{{ t('evaluation.report.accuracy.note') }}</p>
     <p class="metric-note">{{ t('evaluation.report.accuracy.effectiveNote') }}</p>
@@ -42,7 +44,7 @@ const level = computed(() =>
           : t('evaluation.report.accuracy.recallNote', { level })
       }}
     </p>
-    <div class="metric-scroll">
+    <AppScrollRegion :label="t('evaluation.report.accuracy.caption')">
       <table class="metric-table">
         <caption class="metric-caption">
           {{
@@ -85,6 +87,6 @@ const level = computed(() =>
           </tr>
         </tbody>
       </table>
-    </div>
+    </AppScrollRegion>
   </section>
 </template>

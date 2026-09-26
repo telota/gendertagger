@@ -173,7 +173,7 @@ async function submit(): Promise<void> {
                 <textarea
                   :id="`config-${method.name}`"
                   v-model="configText[method.name]"
-                  class="new-run-config-input"
+                  class="new-run-config-input app-multiline-field"
                   rows="4"
                   spellcheck="false"
                   :aria-invalid="invalidConfigFor(method.name)"
@@ -207,13 +207,15 @@ async function submit(): Promise<void> {
       <p v-if="createRun.isError.value" role="alert" class="new-run-error">
         {{ errorMessage(createRun.error.value) }}
       </p>
-      <AppButton
-        class="new-run-submit"
-        type="submit"
-        :disabled="!canSubmit || createRun.isPending.value"
-      >
-        {{ createRun.isPending.value ? t('runs.new.submitting') : t('runs.new.submit') }}
-      </AppButton>
+      <div class="app-form-actions">
+        <AppButton
+          class="new-run-submit"
+          type="submit"
+          :disabled="!canSubmit || createRun.isPending.value"
+        >
+          {{ createRun.isPending.value ? t('runs.new.submitting') : t('runs.new.submit') }}
+        </AppButton>
+      </div>
     </template>
   </form>
 </template>
@@ -315,7 +317,6 @@ async function submit(): Promise<void> {
 }
 
 .new-run-config-input {
-  width: 100%;
   font-family: var(--font-mono, monospace);
   font-size: var(--font-size-small);
 }

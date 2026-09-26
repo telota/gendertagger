@@ -30,6 +30,7 @@ from gendertagger.api.routes.branding import router as branding_router
 from gendertagger.api.routes.classify import router as classify_router
 from gendertagger.api.routes.evaluations import router as evaluations_router
 from gendertagger.api.routes.exports import router as exports_router
+from gendertagger.api.routes.game_rounds import router as game_rounds_router
 from gendertagger.api.routes.methods import router as methods_router
 from gendertagger.api.routes.project_members import router as project_members_router
 from gendertagger.api.routes.projects import router as projects_router
@@ -67,6 +68,7 @@ def create_api_router() -> APIRouter:
     router.include_router(classify_router)
     router.include_router(evaluations_router)
     router.include_router(exports_router)
+    router.include_router(game_rounds_router)
     router.include_router(methods_router)
     router.include_router(projects_router)
     router.include_router(project_members_router)

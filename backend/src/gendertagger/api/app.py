@@ -36,6 +36,7 @@ from gendertagger.services.classification import DirectClassificationService
 from gendertagger.services.evaluations import EvaluationService
 from gendertagger.services.execution import RunScheduler
 from gendertagger.services.exports import ExportService
+from gendertagger.services.game_rounds import GameRoundService
 from gendertagger.services.lookup_assets import RegisteredLookupAssetResolver
 from gendertagger.services.method_registry import default_method_registry
 from gendertagger.services.model_assets import RegisteredModelDirectoryResolver
@@ -175,6 +176,7 @@ def create_app(
         cursor_codec=cursor_codec,
         clock=partial(datetime.now, UTC),
     )
+    game_round_service = GameRoundService(unit_of_work_factory)
     annotation_service = AnnotationService(unit_of_work_factory)
     review_item_service = ReviewItemService(
         unit_of_work_factory=unit_of_work_factory,
@@ -226,6 +228,7 @@ def create_app(
     application.state.evaluation_service = evaluation_service
     application.state.export_service = export_service
     application.state.annotation_service = annotation_service
+    application.state.game_round_service = game_round_service
     application.state.method_registry = method_registry
     application.state.run_service = run_service
     application.state.review_item_service = review_item_service

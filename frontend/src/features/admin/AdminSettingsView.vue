@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { ApiError, type components } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
+import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useAdminAccess } from '@/composables/useAdminAccess'
 
 import AdminSettingsEditor from './AdminSettingsEditor.vue'
@@ -154,33 +155,15 @@ function legalEntityAddress(values: string[] | undefined): string {
 </script>
 
 <template>
-  <main class="admin-settings">
-    <p v-if="accessState === 'loading'" role="status">{{ t('adminSettings.loadingAccess') }}</p>
-
-    <div v-else-if="accessState === 'sessionError'" class="admin-settings-error">
-      <p role="alert">{{ t('adminSettings.sessionLoadError') }}</p>
-      <AppButton type="button" @click="retrySession">{{ t('adminSettings.retry') }}</AppButton>
-    </div>
-
-    <div
-      v-else-if="accessState === 'forbidden' || serverAccessError === 'forbidden'"
-      class="admin-settings-error"
-    >
-      <h1>{{ t('adminSettings.title') }}</h1>
-      <p role="alert">{{ t('adminSettings.forbidden') }}</p>
-    </div>
-
-    <div v-else-if="serverAccessError === 'passwordChangeRequired'" class="admin-settings-error">
-      <h1>{{ t('adminSettings.title') }}</h1>
-      <p role="alert">{{ t('adminSettings.passwordChangeRequired') }}</p>
-    </div>
-
-    <template v-else-if="canLoadSettings">
-      <header class="admin-settings-heading">
-        <div>
-          <h1>{{ t('adminSettings.title') }}</h1>
-          <p>{{ t('adminSettings.description') }}</p>
-        </div>
+  <main class="admin-settings app-page-frame">
+    <header class="admin-settings-heading app-page-heading">
+      <div class="app-page-heading__copy">
+        <h1 class="app-page-heading__title">{{ t('adminSettings.title') }}</h1>
+        <p v-if="canLoadSettings" class="app-page-heading__description">
+          {{ t('adminSettings.description') }}
+        </p>
+      </div>
+      <div v-if="canLoadSettings" class="app-page-heading__actions">
         <AppButton
           type="button"
           variant="ghost"
@@ -189,20 +172,71 @@ function legalEntityAddress(values: string[] | undefined): string {
         >
           {{ t('adminSettings.refetch') }}
         </AppButton>
-      </header>
-
-      <p v-if="settings.query.isPending.value" role="status">{{ t('adminSettings.loading') }}</p>
-
-      <div v-else-if="settings.query.isError.value" class="admin-settings-error">
-        <p role="alert">
-          {{
-            isSettingsUnavailable
-              ? t('adminSettings.settingsUnavailable')
-              : t('adminSettings.loadError')
-          }}
-        </p>
-        <AppButton type="button" @click="refetch">{{ t('adminSettings.retry') }}</AppButton>
       </div>
+    </header>
+
+    <AppFeedback
+      v-if="accessState === 'loading'"
+      class="admin-settings-state app-card"
+      announcement="polite"
+    >
+      {{ t('adminSettings.loadingAccess') }}
+    </AppFeedback>
+
+    <AppFeedback
+      v-else-if="accessState === 'sessionError'"
+      class="admin-settings-error app-card"
+      announcement="assertive"
+      tone="critical"
+    >
+      {{ t('adminSettings.sessionLoadError') }}
+      <template #actions>
+        <AppButton type="button" @click="retrySession">{{ t('adminSettings.retry') }}</AppButton>
+      </template>
+    </AppFeedback>
+
+    <AppFeedback
+      v-else-if="accessState === 'forbidden' || serverAccessError === 'forbidden'"
+      class="admin-settings-error app-card"
+      announcement="assertive"
+      tone="critical"
+    >
+      {{ t('adminSettings.forbidden') }}
+    </AppFeedback>
+
+    <AppFeedback
+      v-else-if="serverAccessError === 'passwordChangeRequired'"
+      class="admin-settings-error app-card"
+      announcement="assertive"
+      tone="critical"
+    >
+      {{ t('adminSettings.passwordChangeRequired') }}
+    </AppFeedback>
+
+    <template v-else-if="canLoadSettings">
+      <AppFeedback
+        v-if="settings.query.isPending.value"
+        class="admin-settings-state app-card"
+        announcement="polite"
+      >
+        {{ t('adminSettings.loading') }}
+      </AppFeedback>
+
+      <AppFeedback
+        v-else-if="settings.query.isError.value"
+        class="admin-settings-error app-card"
+        announcement="assertive"
+        tone="critical"
+      >
+        {{
+          isSettingsUnavailable
+            ? t('adminSettings.settingsUnavailable')
+            : t('adminSettings.loadError')
+        }}
+        <template #actions>
+          <AppButton type="button" @click="refetch">{{ t('adminSettings.retry') }}</AppButton>
+        </template>
+      </AppFeedback>
 
       <template v-else-if="data !== null">
         <AdminSettingsEditor
@@ -218,12 +252,19 @@ function legalEntityAddress(values: string[] | undefined): string {
           @reconcile-conflict="reconcileConflict"
         />
 
-        <div v-if="hasPublicRefreshFailure" class="admin-settings-public-refresh-error">
-          <p role="alert">{{ t('adminSettings.editing.publicRefreshFailed') }}</p>
-          <AppButton type="button" variant="ghost" @click="retryPublicBrandingRefresh">
-            {{ t('adminSettings.editing.retryPublicRefresh') }}
-          </AppButton>
-        </div>
+        <AppFeedback
+          v-if="hasPublicRefreshFailure"
+          class="admin-settings-public-refresh-error app-card"
+          announcement="assertive"
+          tone="critical"
+        >
+          {{ t('adminSettings.editing.publicRefreshFailed') }}
+          <template #actions>
+            <AppButton type="button" variant="ghost" @click="retryPublicBrandingRefresh">
+              {{ t('adminSettings.editing.retryPublicRefresh') }}
+            </AppButton>
+          </template>
+        </AppFeedback>
 
         <section
           class="admin-settings-deployment"
@@ -238,7 +279,7 @@ function legalEntityAddress(values: string[] | undefined): string {
             </div>
           </div>
 
-          <div class="admin-settings-deployment-card">
+          <div class="admin-settings-deployment-card app-card app-card--sectioned">
             <section aria-labelledby="admin-settings-logo-heading">
               <div>
                 <h3 id="admin-settings-logo-heading">
@@ -275,28 +316,31 @@ function legalEntityAddress(values: string[] | undefined): string {
                 </h3>
                 <p>{{ t('adminSettings.deployment.legalEntity.description') }}</p>
               </div>
-              <dl v-if="data.branding.legal_entity" class="admin-settings-legal-entity">
-                <div>
+              <dl
+                v-if="data.branding.legal_entity"
+                class="admin-settings-legal-entity app-fact-list"
+              >
+                <div class="app-fact-list__item">
                   <dt>{{ t('adminSettings.deployment.legalEntity.name') }}</dt>
                   <dd>{{ data.branding.legal_entity.name }}</dd>
                 </div>
-                <div>
+                <div class="app-fact-list__item">
                   <dt>{{ t('adminSettings.deployment.legalEntity.legalForm') }}</dt>
                   <dd>{{ legalEntityValue(data.branding.legal_entity.legal_form) }}</dd>
                 </div>
-                <div>
+                <div class="app-fact-list__item">
                   <dt>{{ t('adminSettings.deployment.legalEntity.address') }}</dt>
                   <dd>{{ legalEntityAddress(data.branding.legal_entity.address_lines) }}</dd>
                 </div>
-                <div>
+                <div class="app-fact-list__item">
                   <dt>{{ t('adminSettings.deployment.legalEntity.telephone') }}</dt>
                   <dd>{{ legalEntityValue(data.branding.legal_entity.telephone) }}</dd>
                 </div>
-                <div>
+                <div class="app-fact-list__item">
                   <dt>{{ t('adminSettings.deployment.legalEntity.representative') }}</dt>
                   <dd>{{ legalEntityValue(data.branding.legal_entity.representative) }}</dd>
                 </div>
-                <div>
+                <div class="app-fact-list__item">
                   <dt>{{ t('adminSettings.deployment.legalEntity.vatId') }}</dt>
                   <dd>{{ legalEntityValue(data.branding.legal_entity.vat_id) }}</dd>
                 </div>
@@ -315,15 +359,8 @@ function legalEntityAddress(values: string[] | undefined): string {
 <style scoped>
 .admin-settings {
   container: admin-settings / inline-size;
-  flex: 1;
-  min-inline-size: 0;
-  inline-size: 100%;
-  max-inline-size: 60rem;
-  margin-inline: auto;
-  padding: var(--space-8) var(--page-gutter);
 }
 
-.admin-settings-heading,
 .admin-settings-section-heading {
   display: flex;
   align-items: flex-start;
@@ -331,21 +368,11 @@ function legalEntityAddress(values: string[] | undefined): string {
   gap: var(--space-4);
 }
 
-.admin-settings-heading {
-  margin-block-end: var(--space-6);
-}
-
-.admin-settings h1,
 .admin-settings h2,
 .admin-settings h3 {
   margin: 0;
   color: var(--text-primary);
   font-weight: var(--weight-semibold);
-}
-
-.admin-settings h1 {
-  font-size: var(--font-size-page);
-  line-height: var(--line-height-page);
 }
 
 .admin-settings h2 {
@@ -356,7 +383,6 @@ function legalEntityAddress(values: string[] | undefined): string {
   font-size: var(--font-size-body-strong);
 }
 
-.admin-settings-heading p,
 .admin-settings-section-heading p,
 .admin-settings-deployment-card section > div > p {
   max-inline-size: 65ch;
@@ -372,17 +398,11 @@ function legalEntityAddress(values: string[] | undefined): string {
   margin-block-end: var(--space-4);
 }
 
-.admin-settings-deployment-card {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
-}
-
 .admin-settings-deployment-card > section {
   display: grid;
   gap: var(--space-4);
   min-inline-size: 0;
-  padding: var(--space-5);
+  padding: var(--space-4);
 }
 
 .admin-settings-deployment-card > section + section {
@@ -409,48 +429,14 @@ function legalEntityAddress(values: string[] | undefined): string {
   text-underline-offset: 0.2em;
 }
 
-.admin-settings-legal-entity {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.admin-settings-legal-entity div {
-  display: grid;
-  gap: var(--space-1);
-}
-
 .admin-settings-legal-entity dt {
   color: var(--muted);
   font-size: var(--font-size-caption);
   font-weight: var(--weight-semibold);
 }
 
-.admin-settings-legal-entity dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-.admin-settings-error {
-  display: grid;
-  justify-items: start;
-  gap: var(--space-4);
-}
-
-.admin-settings-error p {
-  margin: 0;
-  color: var(--critical-text);
-}
-
 .admin-settings-public-refresh-error {
-  display: grid;
-  justify-items: start;
-  gap: var(--space-3);
-  margin-block: calc(-1 * var(--space-4)) var(--space-8);
-  color: var(--critical-text);
-}
-
-.admin-settings-public-refresh-error p {
-  margin: 0;
+  margin-block-end: var(--space-8);
 }
 
 @container admin-settings (min-width: 40rem) {
@@ -458,14 +444,9 @@ function legalEntityAddress(values: string[] | undefined): string {
     grid-template-columns: minmax(0, 1fr) minmax(16rem, 1fr);
     align-items: start;
   }
-
-  .admin-settings-legal-entity {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 40rem) {
-  .admin-settings-heading,
   .admin-settings-section-heading {
     flex-direction: column;
   }

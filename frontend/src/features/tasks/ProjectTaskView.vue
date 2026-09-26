@@ -28,28 +28,32 @@ const router = useRouter()
 const statusLabel = useStatusLabel()
 const { session, isSignedIn, retrySession } = useRequireSession()
 const { projectId, project, query: projectQuery } = useProjectIdentity()
+const gameDisabled = computed(
+  () => props.mode === 'game' && project.value !== null && project.value.game_mode_enabled !== true,
+)
 const canEnter = computed(
   () =>
     project.value !== null &&
+    !gameDisabled.value &&
     (props.mode === 'classification' ||
       hasProjectRole(project.value.current_user_role, 'reviewer')),
 )
-const title = computed(() =>
-  props.mode === 'classification'
-    ? t('runs.title')
-    : props.mode === 'review'
-      ? t('review.title')
-      : t('review.people.title'),
-)
-const description = computed(() =>
-  props.mode === 'classification'
-    ? t('taskEntry.classificationHint')
-    : props.mode === 'review'
-      ? t('taskEntry.reviewHint')
-      : t('taskEntry.annotationHint'),
-)
+const title = computed(() => {
+  if (props.mode === 'classification') return t('runs.title')
+  if (props.mode === 'review') return t('review.title')
+  if (props.mode === 'game') return t('game.title')
+  return t('review.people.title')
+})
+const description = computed(() => {
+  if (props.mode === 'classification') return t('taskEntry.classificationHint')
+  if (props.mode === 'review') return t('taskEntry.reviewHint')
+  if (props.mode === 'game') return t('taskEntry.gameHint')
+  return t('taskEntry.annotationHint')
+})
 const selectedSnapshotId = computed(() =>
-  props.mode !== 'classification' && typeof route.query.snapshot === 'string'
+  props.mode !== 'classification' &&
+  props.mode !== 'game' &&
+  typeof route.query.snapshot === 'string'
     ? route.query.snapshot
     : '',
 )
@@ -70,8 +74,14 @@ const snapshot = computed(() => {
 })
 const snapshotsQuery = useTaskSnapshots(
   projectId,
-  computed(() => props.mode === 'review'),
-  computed(() => canEnter.value && props.mode !== 'review' && !selectedSnapshotId.value),
+  computed(() => props.mode === 'review' || props.mode === 'game'),
+  computed(
+    () =>
+      canEnter.value &&
+      props.mode !== 'review' &&
+      props.mode !== 'game' &&
+      !selectedSnapshotId.value,
+  ),
 )
 const snapshots = computed(
   () =>
@@ -117,7 +127,12 @@ const results = computed(
 )
 const reviewResultsQuery = useProjectReviewResults(
   projectId,
-  computed(() => canEnter.value && props.mode === 'review' && !selectedSnapshotId.value),
+  computed(
+    () =>
+      canEnter.value &&
+      (props.mode === 'review' || props.mode === 'game') &&
+      !selectedSnapshotId.value,
+  ),
 )
 const reviewResults = computed(
   () =>
@@ -169,17 +184,25 @@ watch(activeHeading, focusStep, { flush: 'post' })
 </script>
 
 <template>
-  <main class="task-entry">
-    <header class="task-heading">
-      <h1>{{ title }}</h1>
-      <p>{{ description }}</p>
+  <main class="task-entry app-page-frame">
+    <header class="task-heading app-page-heading">
+      <div class="app-page-heading__copy">
+        <h1 class="app-page-heading__title">{{ title }}</h1>
+        <p class="app-page-heading__description">{{ description }}</p>
+      </div>
     </header>
     <AppFeedback
       v-if="session.status === 'idle' || session.status === 'loading'"
+      class="app-card"
       announcement="polite"
       >{{ t('review.loading') }}</AppFeedback
     >
-    <AppFeedback v-else-if="session.status === 'error'" tone="critical" announcement="assertive">
+    <AppFeedback
+      v-else-if="session.status === 'error'"
+      class="app-card"
+      tone="critical"
+      announcement="assertive"
+    >
       {{ t('projects.sessionLoadError') }}
       <template #actions
         ><AppButton variant="ghost" @click="retrySession">{{
@@ -188,10 +211,15 @@ watch(activeHeading, focusStep, { flush: 'post' })
       >
     </AppFeedback>
     <template v-else-if="isSignedIn">
-      <AppFeedback v-if="projectQuery.isPending.value" announcement="polite">{{
-        t('projects.loading')
-      }}</AppFeedback>
-      <AppFeedback v-else-if="projectQuery.isError.value" tone="critical" announcement="assertive">
+      <AppFeedback v-if="projectQuery.isPending.value" class="app-card" announcement="polite">
+        {{ t('projects.loading') }}
+      </AppFeedback>
+      <AppFeedback
+        v-else-if="projectQuery.isError.value"
+        class="app-card"
+        tone="critical"
+        announcement="assertive"
+      >
         {{ t('data.projectLoadError') }}
         <template #actions
           ><AppButton variant="ghost" @click="projectQuery.refetch()">{{
@@ -199,10 +227,14 @@ watch(activeHeading, focusStep, { flush: 'post' })
           }}</AppButton></template
         >
       </AppFeedback>
-      <AppFeedback v-else-if="!canEnter">{{ t('taskEntry.noPermission') }}</AppFeedback>
+      <AppFeedback v-else-if="gameDisabled" class="app-card">{{ t('game.disabled') }}</AppFeedback>
+      <AppFeedback v-else-if="!canEnter" class="app-card">{{
+        t('taskEntry.noPermission')
+      }}</AppFeedback>
       <template v-else>
         <AppFeedback
           v-if="workingId && workingQuery.isError.value"
+          class="app-card"
           tone="critical"
           announcement="polite"
         >
@@ -214,17 +246,22 @@ watch(activeHeading, focusStep, { flush: 'post' })
           >
         </AppFeedback>
         <section
-          v-if="mode === 'review' && !selectedSnapshotId"
+          v-if="(mode === 'review' || mode === 'game') && !selectedSnapshotId"
           aria-labelledby="task-review-results-title"
         >
           <h2 id="task-review-results-title" ref="stepHeading" tabindex="-1">
-            {{ t('taskEntry.reviewResultsTitle') }}
+            {{ mode === 'game' ? t('game.selectResult') : t('taskEntry.reviewResultsTitle') }}
           </h2>
-          <AppFeedback v-if="reviewResultsQuery.isPending.value" announcement="polite">{{
-            t('review.loading')
-          }}</AppFeedback>
+          <AppFeedback
+            v-if="reviewResultsQuery.isPending.value"
+            class="app-card"
+            announcement="polite"
+          >
+            {{ t('review.loading') }}
+          </AppFeedback>
           <AppFeedback
             v-if="reviewResultsQuery.isError.value"
+            class="app-card"
             tone="critical"
             announcement="assertive"
           >
@@ -235,7 +272,10 @@ watch(activeHeading, focusStep, { flush: 'post' })
               }}</AppButton></template
             >
           </AppFeedback>
-          <AppFeedback v-else-if="reviewResultsQuery.isSuccess.value && !reviewResults.length">
+          <AppFeedback
+            v-else-if="reviewResultsQuery.isSuccess.value && !reviewResults.length"
+            class="app-card"
+          >
             {{ t('taskEntry.noReviewSnapshots') }}
             <template #actions
               ><AppButton
@@ -246,7 +286,11 @@ watch(activeHeading, focusStep, { flush: 'post' })
             >
           </AppFeedback>
           <ul class="task-options task-options--cards">
-            <li v-for="entry in reviewResults" :key="entry.aggregation.id" class="task-option">
+            <li
+              v-for="entry in reviewResults"
+              :key="entry.aggregation.id"
+              class="task-option app-resource-card"
+            >
               <div>
                 <h3>
                   {{
@@ -300,7 +344,7 @@ watch(activeHeading, focusStep, { flush: 'post' })
               <AppButton
                 variant="ghost"
                 :to="{
-                  name: 'review',
+                  name: mode === 'game' ? 'game' : 'review',
                   params: { projectId, runId: entry.run.id, aggregationId: entry.aggregation.id },
                 }"
                 :aria-label="
@@ -308,7 +352,9 @@ watch(activeHeading, focusStep, { flush: 'post' })
                     date: d(new Date(entry.aggregation.created_at), 'timestamp'),
                   })
                 "
-                >{{ t('taskEntry.openReview') }}</AppButton
+                >{{
+                  mode === 'game' ? t('taskEntry.openGame') : t('taskEntry.openReview')
+                }}</AppButton
               >
             </li>
           </ul>
@@ -324,10 +370,15 @@ watch(activeHeading, focusStep, { flush: 'post' })
           <h2 id="task-snapshots-title" ref="stepHeading" tabindex="-1">
             {{ t('taskEntry.selectSnapshot') }}
           </h2>
-          <AppFeedback v-if="snapshotsQuery.isPending.value" announcement="polite">{{
-            t('data.loading')
-          }}</AppFeedback>
-          <AppFeedback v-if="snapshotsQuery.isError.value" tone="critical" announcement="assertive">
+          <AppFeedback v-if="snapshotsQuery.isPending.value" class="app-card" announcement="polite">
+            {{ t('data.loading') }}
+          </AppFeedback>
+          <AppFeedback
+            v-if="snapshotsQuery.isError.value"
+            class="app-card"
+            tone="critical"
+            announcement="assertive"
+          >
             {{ t('taskEntry.snapshotError') }}
             <template #actions
               ><AppButton variant="ghost" @click="snapshotsQuery.refetch()">{{
@@ -335,7 +386,10 @@ watch(activeHeading, focusStep, { flush: 'post' })
               }}</AppButton></template
             >
           </AppFeedback>
-          <AppFeedback v-else-if="snapshotsQuery.isSuccess.value && !snapshots.length">
+          <AppFeedback
+            v-else-if="snapshotsQuery.isSuccess.value && !snapshots.length"
+            class="app-card"
+          >
             {{ mode === 'review' ? t('taskEntry.noReviewSnapshots') : t('taskEntry.noSnapshots') }}
             <template #actions
               ><AppButton
@@ -349,7 +403,7 @@ watch(activeHeading, focusStep, { flush: 'post' })
             >
           </AppFeedback>
           <ul class="task-options">
-            <li v-for="entry in snapshots" :key="entry.id" class="task-option">
+            <li v-for="entry in snapshots" :key="entry.id" class="task-option app-resource-card">
               <div>
                 <h3>
                   {{
@@ -391,10 +445,15 @@ watch(activeHeading, focusStep, { flush: 'post' })
           >
         </section>
         <template v-else>
-          <AppFeedback v-if="snapshotQuery.isPending.value" announcement="polite">{{
-            t('data.loading')
-          }}</AppFeedback>
-          <AppFeedback v-else-if="!snapshot" tone="critical" announcement="assertive">
+          <AppFeedback v-if="snapshotQuery.isPending.value" class="app-card" announcement="polite">
+            {{ t('data.loading') }}
+          </AppFeedback>
+          <AppFeedback
+            v-else-if="!snapshot"
+            class="app-card"
+            tone="critical"
+            announcement="assertive"
+          >
             {{ t('taskEntry.selectionUnavailable') }}
             <template #actions
               ><AppButton variant="ghost" @click="snapshotQuery.refetch()">{{
@@ -406,7 +465,7 @@ watch(activeHeading, focusStep, { flush: 'post' })
             >
           </AppFeedback>
           <template v-else>
-            <div class="task-context">
+            <div class="task-context app-resource-card">
               <p>
                 {{
                   t('data.snapshotTitle', { date: d(new Date(snapshot.created_at), 'timestamp') })
@@ -416,7 +475,7 @@ watch(activeHeading, focusStep, { flush: 'post' })
                 t('taskEntry.changeSnapshot')
               }}</AppButton>
             </div>
-            <div v-if="mode === 'annotation'" class="task-annotation-choice">
+            <div v-if="mode === 'annotation'" class="task-annotation-choice app-card">
               <h2 ref="annotationHeading" tabindex="-1">{{ t('taskEntry.annotationStart') }}</h2>
               <p>{{ t('taskEntry.optionalEvidence') }}</p>
               <div class="task-actions">
@@ -439,10 +498,14 @@ watch(activeHeading, focusStep, { flush: 'post' })
               <h2 id="task-runs-title" ref="stepHeading" tabindex="-1">
                 {{ t('taskEntry.selectRun') }}
               </h2>
-              <AppFeedback v-if="runsQuery.isPending.value" announcement="polite">{{
-                t('review.loading')
-              }}</AppFeedback>
-              <AppFeedback v-if="runsQuery.isError.value" tone="critical" announcement="assertive"
+              <AppFeedback v-if="runsQuery.isPending.value" class="app-card" announcement="polite">
+                {{ t('review.loading') }}
+              </AppFeedback>
+              <AppFeedback
+                v-if="runsQuery.isError.value"
+                class="app-card"
+                tone="critical"
+                announcement="assertive"
                 >{{ t('taskEntry.runError')
                 }}<template #actions
                   ><AppButton variant="ghost" @click="runsQuery.refetch()">{{
@@ -450,7 +513,7 @@ watch(activeHeading, focusStep, { flush: 'post' })
                   }}</AppButton></template
                 ></AppFeedback
               >
-              <AppFeedback v-else-if="runsQuery.isSuccess.value && !runs.length"
+              <AppFeedback v-else-if="runsQuery.isSuccess.value && !runs.length" class="app-card"
                 >{{ t('taskEntry.noResults')
                 }}<template #actions
                   ><AppButton
@@ -461,7 +524,7 @@ watch(activeHeading, focusStep, { flush: 'post' })
                 ></AppFeedback
               >
               <ul class="task-options">
-                <li v-for="entry in runs" :key="entry.id" class="task-option">
+                <li v-for="entry in runs" :key="entry.id" class="task-option app-resource-card">
                   <div>
                     <h3>
                       {{
@@ -501,7 +564,7 @@ watch(activeHeading, focusStep, { flush: 'post' })
               >
             </section>
             <section v-else-if="selectedRunId" aria-labelledby="task-results-title">
-              <div class="task-context">
+              <div class="task-context app-resource-card">
                 <h2 id="task-results-title" ref="stepHeading" tabindex="-1">
                   {{ t('taskEntry.selectResult') }}
                 </h2>
@@ -513,10 +576,15 @@ watch(activeHeading, focusStep, { flush: 'post' })
               </div>
               <AppFeedback
                 v-if="runQuery.isPending.value || (run && resultsQuery.isPending.value)"
+                class="app-card"
                 announcement="polite"
                 >{{ t('review.loading') }}</AppFeedback
               >
-              <AppFeedback v-else-if="!run" tone="critical" announcement="assertive"
+              <AppFeedback
+                v-else-if="!run"
+                class="app-card"
+                tone="critical"
+                announcement="assertive"
                 >{{ t('taskEntry.selectionUnavailable')
                 }}<template #actions
                   ><AppButton variant="ghost" @click="runQuery.refetch()">{{
@@ -533,6 +601,7 @@ watch(activeHeading, focusStep, { flush: 'post' })
                 </p>
                 <AppFeedback
                   v-if="resultsQuery.isError.value"
+                  class="app-card"
                   tone="critical"
                   announcement="assertive"
                   >{{ t('taskEntry.resultError')
@@ -542,11 +611,18 @@ watch(activeHeading, focusStep, { flush: 'post' })
                     }}</AppButton></template
                   ></AppFeedback
                 >
-                <AppFeedback v-else-if="resultsQuery.isSuccess.value && !results.length">{{
-                  t('taskEntry.noResults')
-                }}</AppFeedback>
+                <AppFeedback
+                  v-else-if="resultsQuery.isSuccess.value && !results.length"
+                  class="app-card"
+                >
+                  {{ t('taskEntry.noResults') }}
+                </AppFeedback>
                 <ul class="task-options">
-                  <li v-for="entry in results" :key="entry.id" class="task-option">
+                  <li
+                    v-for="entry in results"
+                    :key="entry.id"
+                    class="task-option app-resource-card"
+                  >
                     <div>
                       <h3>
                         {{
@@ -570,7 +646,7 @@ watch(activeHeading, focusStep, { flush: 'post' })
                     <AppButton
                       variant="ghost"
                       :to="{
-                        name: mode === 'review' ? 'review' : 'people',
+                        name: mode === 'review' ? 'review' : mode === 'game' ? 'game' : 'people',
                         params: { projectId, runId: run.id, aggregationId: entry.id },
                       }"
                       :aria-label="
@@ -581,7 +657,9 @@ watch(activeHeading, focusStep, { flush: 'post' })
                       >{{
                         mode === 'review'
                           ? t('taskEntry.openReview')
-                          : t('taskEntry.openAnnotation')
+                          : mode === 'game'
+                            ? t('taskEntry.openGame')
+                            : t('taskEntry.openAnnotation')
                       }}</AppButton
                     >
                   </li>
@@ -609,23 +687,7 @@ watch(activeHeading, focusStep, { flush: 'post' })
 }
 .task-entry {
   container: task-entry / inline-size;
-  flex: 1;
-  inline-size: 100%;
-  min-inline-size: 0;
-  max-inline-size: 60rem;
-  margin-inline: auto;
-  padding: var(--space-8) var(--page-gutter);
 }
-.task-heading {
-  margin-block-end: var(--space-8);
-}
-.task-heading h1 {
-  margin: 0;
-  font-size: var(--font-size-page);
-  line-height: var(--line-height-page);
-  font-weight: var(--weight-semibold);
-}
-.task-heading p,
 .task-option p,
 .task-annotation-choice p {
   color: var(--text-secondary);
@@ -651,10 +713,6 @@ watch(activeHeading, focusStep, { flush: 'post' })
   justify-content: space-between;
   align-items: center;
   gap: var(--space-3) var(--space-6);
-  padding: var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
 }
 .task-option > div {
   min-inline-size: 0;
@@ -702,8 +760,6 @@ watch(activeHeading, focusStep, { flush: 'post' })
   gap: var(--space-3);
 }
 .task-context {
-  border-block-end: 1px solid var(--border);
-  padding-block-end: var(--space-3);
   margin-block-end: var(--space-6);
 }
 .task-context p,

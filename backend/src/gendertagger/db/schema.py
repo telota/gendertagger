@@ -14,6 +14,7 @@ from gendertagger.db.rows.dispatches import DispatchOutboxRow
 from gendertagger.db.rows.evaluations import EvaluationExecutionRow, EvaluationMethodExecutionRow
 from gendertagger.db.rows.executions import MethodExecutionRow, PredictionRow, RunRow, TaskBatchRow
 from gendertagger.db.rows.exports import ExportExecutionRow
+from gendertagger.db.rows.games import GameRoundEventRow, GameRoundRow
 from gendertagger.db.rows.projects import (
     DatasetSnapshotRow,
     PersonExternalIdRow,
@@ -44,6 +45,8 @@ ORM_ROW_TYPES: tuple[type[Base], ...] = (
     EvaluationExecutionRow,
     EvaluationMethodExecutionRow,
     ExportExecutionRow,
+    GameRoundRow,
+    GameRoundEventRow,
     UserRow,
     UserRoleRow,
     ProjectMembershipRow,

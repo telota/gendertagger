@@ -67,19 +67,27 @@ watch(
 </script>
 
 <template>
-  <main class="import-view">
-    <h1 class="import-view-title">
-      {{
-        project ? t('projects.import.title', { project: project.display_name }) : t('nav.import')
-      }}
-    </h1>
+  <main class="import-view app-page-frame">
+    <header class="import-view-heading app-page-heading">
+      <h1 class="import-view-title app-page-heading__title">
+        {{
+          project ? t('projects.import.title', { project: project.display_name }) : t('nav.import')
+        }}
+      </h1>
+    </header>
     <AppFeedback
       v-if="session.status === 'idle' || session.status === 'loading'"
+      class="app-card"
       announcement="polite"
     >
       {{ t('projects.loading') }}
     </AppFeedback>
-    <AppFeedback v-else-if="session.status === 'error'" announcement="assertive" tone="critical">
+    <AppFeedback
+      v-else-if="session.status === 'error'"
+      class="app-card"
+      announcement="assertive"
+      tone="critical"
+    >
       {{ t('projects.sessionLoadError') }}
       <template #actions>
         <AppButton variant="ghost" @click="session.initialize()">{{
@@ -88,10 +96,15 @@ watch(
       </template>
     </AppFeedback>
     <template v-else-if="canUseImport">
-      <AppFeedback v-if="query.isPending.value" announcement="polite">{{
+      <AppFeedback v-if="query.isPending.value" class="app-card" announcement="polite">{{
         t('projects.loading')
       }}</AppFeedback>
-      <AppFeedback v-else-if="query.isError.value" announcement="assertive" tone="critical">
+      <AppFeedback
+        v-else-if="query.isError.value"
+        class="app-card"
+        announcement="assertive"
+        tone="critical"
+      >
         {{ accessUnavailable ? t('data.accessUnavailable') : t('projects.overview.loadError') }}
         <template #actions>
           <AppButton v-if="accessUnavailable" :to="{ name: 'projects' }" variant="ghost">{{
@@ -107,7 +120,7 @@ watch(
           </AppButton>
         </template>
       </AppFeedback>
-      <p v-else-if="project && !hasImportRole" class="import-view-forbidden">
+      <p v-else-if="project && !hasImportRole" class="import-view-forbidden app-card">
         {{ t('projects.import.forbidden') }}
       </p>
     </template>
@@ -122,23 +135,6 @@ watch(
 </template>
 
 <style scoped>
-.import-view {
-  flex: 1;
-  min-inline-size: 0;
-  inline-size: 100%;
-  max-inline-size: 60rem;
-  margin-inline: auto;
-  padding: var(--space-8) var(--page-gutter);
-}
-
-.import-view-title {
-  margin: 0 0 var(--space-6);
-  font-size: var(--font-size-page);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-height-page);
-  overflow-wrap: anywhere;
-}
-
 .import-view-forbidden {
   margin: 0;
   color: var(--text-secondary);

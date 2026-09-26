@@ -1,25 +1,163 @@
-/* Opt-in definition-list layout shared by evidence and source-record facts. */
-.app-facts {
-  container: app-facts / inline-size;
+/* Shared page containment; route owners select a named modifier only when the task requires it. */
+.app-page-frame {
+  flex: 1;
+  min-inline-size: 0;
+  inline-size: 100%;
+  max-inline-size: 60rem;
+  margin-inline: auto;
+  padding: var(--space-8) var(--page-gutter);
+}
+
+/* Named task-width exceptions; ordinary project and administration routes use the 60rem default. */
+.app-page-frame--reading {
+  max-inline-size: 40rem;
+}
+
+.app-page-frame--auth {
+  max-inline-size: 24rem;
+}
+
+.app-page-frame--form {
+  max-inline-size: 48rem;
+}
+
+.app-page-frame--wide {
+  max-inline-size: 76rem;
+}
+
+/* Workbench routes keep the shared horizontal gutter while using a compact vertical edge. */
+.app-page-frame--dense {
+  max-inline-size: none;
+  padding-block: var(--space-4);
+}
+
+/* Page identity, optional supporting copy, and local task actions in DOM order. */
+.app-page-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+  min-inline-size: 0;
+  margin-block-end: var(--space-6);
+}
+
+.app-page-heading__copy {
+  flex: 1 1 24rem;
   min-inline-size: 0;
 }
 
-.app-fact {
+.app-page-heading__title {
+  min-inline-size: 0;
+  margin: 0;
+  font-size: var(--font-size-page);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-height-page);
+  overflow-wrap: anywhere;
+}
+
+.app-page-heading > .app-page-heading__title {
+  flex: 1 1 auto;
+}
+
+.app-page-heading__description {
+  max-inline-size: 65ch;
+  margin: var(--space-2) 0 0;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.app-page-heading__actions {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+
+/* Commit actions end each creation flow consistently and wrap without changing DOM order. */
+.app-form-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  min-inline-size: 0;
+  inline-size: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* Definition-list facts stack before their label/value tracks become cramped. */
+.app-fact-list {
+  container: app-fact-list / inline-size;
+  display: grid;
+  gap: var(--space-2);
+  min-inline-size: 0;
+  margin: 0;
+}
+
+.app-fact-list__item {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-1);
   min-inline-size: 0;
 }
 
-.app-fact > dt,
-.app-fact > dd {
+.app-fact-list__item > dt,
+.app-fact-list__item > dd {
   min-inline-size: 0;
   overflow-wrap: anywhere;
 }
 
-@container app-facts (min-width: 24rem) {
-  .app-fact {
-    grid-template-columns: 9rem minmax(0, 1fr);
+.app-fact-list__item > dt {
+  color: var(--text-secondary);
+}
+
+.app-fact-list__item > dd {
+  margin: 0;
+}
+
+@container app-fact-list (min-width: 24rem) {
+  .app-fact-list__item {
+    grid-template-columns: var(--app-fact-list-label-width, 9rem) minmax(0, 1fr);
     gap: var(--space-3);
   }
+}
+
+/* One flat structural boundary; content and action topology remain feature-owned. */
+:is(.app-card, .app-resource-card) {
+  min-inline-size: 0;
+  padding: var(--app-card-padding, var(--space-4));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+  overflow-wrap: anywhere;
+}
+
+/* A sectioned card delegates its inset to full-width child sections. */
+.app-card--sectioned {
+  --app-card-padding: 0;
+  overflow: hidden;
+}
+
+/* Native multiline behavior with the same visual contract as single-line fields. */
+.app-multiline-field {
+  display: block;
+  min-inline-size: 0;
+  inline-size: 100%;
+  max-inline-size: 100%;
+  min-block-size: var(--control-min-size);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  background: var(--panel);
+  color: var(--text-primary);
+  font: inherit;
+  resize: vertical;
+}
+
+.app-multiline-field[aria-invalid='true'] {
+  border-color: var(--critical);
 }

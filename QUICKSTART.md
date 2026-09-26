@@ -1,7 +1,7 @@
 # Set up a gendertagger instance
 
 This guide installs a local instance or a shared server using Docker Compose. The backend is
-implemented; the browser interface is still being built. See [project status](PLAN.md) for scope.
+implemented; the browser interface is still being built. See the [implementation plan](docs/15-implementation-plan.md) for scope.
 
 ## 1. Prepare the host
 

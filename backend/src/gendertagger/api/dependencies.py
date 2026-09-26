@@ -13,6 +13,7 @@ from gendertagger.services.classification import DirectClassificationService
 from gendertagger.services.evaluations import EvaluationService
 from gendertagger.services.execution import RunScheduler
 from gendertagger.services.exports import ExportService
+from gendertagger.services.game_rounds import GameRoundService
 from gendertagger.services.method_registry import MethodRegistry
 from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.services.project_access import ProjectAccessService
@@ -62,6 +63,11 @@ def get_export_service(request: Request) -> ExportService:
 def get_annotation_service(request: Request) -> AnnotationService:
     """Return the composed annotation application service."""
     return cast(AnnotationService, request.app.state.annotation_service)
+
+
+def get_game_round_service(request: Request) -> GameRoundService:
+    """Return the composed game-round application service."""
+    return cast(GameRoundService, request.app.state.game_round_service)
 
 
 def get_method_registry(request: Request) -> MethodRegistry:

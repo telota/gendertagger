@@ -87,6 +87,12 @@ export const routes: readonly RouteRecordRaw[] = [
     props: { mode: 'review' },
   },
   {
+    path: '/projects/:projectId/game',
+    name: 'projectGame',
+    component: () => import('@/features/tasks/ProjectTaskView.vue'),
+    props: { mode: 'game' },
+  },
+  {
     path: '/projects/:projectId/annotation',
     name: 'projectAnnotation',
     component: () => import('@/features/tasks/ProjectTaskView.vue'),
@@ -121,6 +127,11 @@ export const routes: readonly RouteRecordRaw[] = [
     path: '/projects/:projectId/runs/:runId/aggregations/:aggregationId/review',
     name: 'review',
     component: () => import('@/features/review/ReviewView.vue'),
+  },
+  {
+    path: '/projects/:projectId/runs/:runId/aggregations/:aggregationId/game',
+    name: 'game',
+    component: () => import('@/features/game/GameModeView.vue'),
   },
   {
     path: '/projects/:projectId/runs/:runId/aggregations/:aggregationId/people',

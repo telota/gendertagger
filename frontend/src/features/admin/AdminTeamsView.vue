@@ -7,6 +7,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
+import AppFeedback from '@/components/base/AppFeedback.vue'
 import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
 import AppTextField from '@/components/base/AppTextField.vue'
 import { useAdminAccess } from '@/composables/useAdminAccess'
@@ -304,71 +305,96 @@ function successMessage(operation: TeamMutationOperation): string {
 </script>
 
 <template>
-  <main class="admin-teams">
-    <p v-if="accessState === 'loading'" role="status">{{ t('adminTeams.loadingAccess') }}</p>
+  <main class="admin-teams app-page-frame">
+    <header class="admin-teams-heading app-page-heading">
+      <div class="app-page-heading__copy">
+        <h1 class="app-page-heading__title">{{ t('adminTeams.title') }}</h1>
+        <p v-if="canLoadTeams" class="app-page-heading__description">
+          {{ t('adminTeams.description') }}
+        </p>
+      </div>
+      <div v-if="canLoadTeams" class="admin-teams-heading-actions app-page-heading__actions">
+        <AppButton
+          type="button"
+          variant="ghost"
+          :disabled="teams.teamsQuery.isFetching.value || mutations.isMutating.value"
+          @click="refetchTeams"
+        >
+          {{ t('adminTeams.refetch') }}
+        </AppButton>
+        <AppButton
+          type="button"
+          :variant="creationOpen ? 'ghost' : 'solid'"
+          :aria-expanded="creationOpen"
+          aria-controls="admin-team-creation-panel"
+          @click="toggleCreation"
+        >
+          <PhMinus v-if="creationOpen" :size="18" aria-hidden="true" />
+          <PhPlus v-else :size="18" aria-hidden="true" />
+          {{ creationOpen ? t('adminTeams.creation.hide') : t('adminTeams.creation.open') }}
+        </AppButton>
+      </div>
+    </header>
 
-    <div v-else-if="accessState === 'sessionError'" class="admin-teams-error">
-      <p role="alert">{{ t('adminTeams.sessionLoadError') }}</p>
-      <AppButton type="button" @click="retrySession">{{ t('adminTeams.retry') }}</AppButton>
-    </div>
-
-    <div
-      v-else-if="accessState === 'forbidden' || serverAccessError === 'forbidden'"
-      class="admin-teams-error"
+    <AppFeedback
+      v-if="accessState === 'loading'"
+      class="admin-teams-state app-card"
+      announcement="polite"
     >
-      <h1>{{ t('adminTeams.title') }}</h1>
-      <p role="alert">{{ t('adminTeams.forbidden') }}</p>
-    </div>
+      {{ t('adminTeams.loadingAccess') }}
+    </AppFeedback>
 
-    <div v-else-if="serverAccessError === 'passwordChangeRequired'" class="admin-teams-error">
-      <h1>{{ t('adminTeams.title') }}</h1>
-      <p role="alert">{{ t('adminTeams.passwordChangeRequired') }}</p>
-    </div>
+    <AppFeedback
+      v-else-if="accessState === 'sessionError'"
+      class="admin-teams-error app-card"
+      announcement="assertive"
+      tone="critical"
+    >
+      {{ t('adminTeams.sessionLoadError') }}
+      <template #actions>
+        <AppButton type="button" @click="retrySession">{{ t('adminTeams.retry') }}</AppButton>
+      </template>
+    </AppFeedback>
+
+    <AppFeedback
+      v-else-if="accessState === 'forbidden' || serverAccessError === 'forbidden'"
+      class="admin-teams-error app-card"
+      announcement="assertive"
+      tone="critical"
+    >
+      {{ t('adminTeams.forbidden') }}
+    </AppFeedback>
+
+    <AppFeedback
+      v-else-if="serverAccessError === 'passwordChangeRequired'"
+      class="admin-teams-error app-card"
+      announcement="assertive"
+      tone="critical"
+    >
+      {{ t('adminTeams.passwordChangeRequired') }}
+    </AppFeedback>
 
     <template v-else-if="canLoadTeams">
-      <header class="admin-teams-heading">
-        <div>
-          <h1>{{ t('adminTeams.title') }}</h1>
-          <p>{{ t('adminTeams.description') }}</p>
-        </div>
-        <div class="admin-teams-heading-actions">
-          <AppButton
-            type="button"
-            variant="ghost"
-            :disabled="teams.teamsQuery.isFetching.value || mutations.isMutating.value"
-            @click="refetchTeams"
-          >
-            {{ t('adminTeams.refetch') }}
-          </AppButton>
-          <AppButton
-            type="button"
-            variant="ghost"
-            :aria-expanded="creationOpen"
-            aria-controls="admin-team-creation-panel"
-            @click="toggleCreation"
-          >
-            <PhMinus v-if="creationOpen" :size="18" aria-hidden="true" />
-            <PhPlus v-else :size="18" aria-hidden="true" />
-            {{ creationOpen ? t('adminTeams.creation.hide') : t('adminTeams.creation.open') }}
-          </AppButton>
-        </div>
-      </header>
-
-      <p v-if="mutations.successNotice.value" class="admin-teams-success" role="status">
+      <AppFeedback
+        v-if="mutations.successNotice.value"
+        class="admin-teams-success app-card"
+        announcement="polite"
+      >
         {{ successMessage(mutations.successNotice.value.operation) }}
-      </p>
-      <p
+      </AppFeedback>
+      <AppFeedback
         v-if="mutations.refreshFailedNotice.value"
-        class="admin-teams-refresh-warning"
-        role="alert"
+        class="admin-teams-refresh-warning app-card"
+        announcement="assertive"
+        tone="critical"
       >
         {{ t('adminTeams.refreshFailed') }}
-      </p>
+      </AppFeedback>
 
       <section
         v-show="creationOpen"
         id="admin-team-creation-panel"
-        class="admin-teams-create"
+        class="admin-teams-create app-card"
         :aria-labelledby="'admin-team-create-title'"
       >
         <h2 id="admin-team-create-title">{{ t('adminTeams.creation.title') }}</h2>
@@ -392,16 +418,22 @@ function successMessage(operation: TeamMutationOperation): string {
             :maxlength="200"
             required
           />
-          <p v-if="isNoticeFor('create') && errorMessage(mutations.error.value)" role="alert">
+          <AppFeedback
+            v-if="isNoticeFor('create') && errorMessage(mutations.error.value)"
+            announcement="assertive"
+            tone="critical"
+          >
             {{ errorMessage(mutations.error.value) }}
-          </p>
-          <AppButton type="submit" :disabled="mutations.isMutating.value">
-            {{
-              mutations.isMutating.value
-                ? t('adminTeams.creating')
-                : t('adminTeams.creation.submit')
-            }}
-          </AppButton>
+          </AppFeedback>
+          <div class="app-form-actions">
+            <AppButton type="submit" :disabled="mutations.isMutating.value">
+              {{
+                mutations.isMutating.value
+                  ? t('adminTeams.creating')
+                  : t('adminTeams.creation.submit')
+              }}
+            </AppButton>
+          </div>
         </form>
       </section>
 
@@ -415,17 +447,30 @@ function successMessage(operation: TeamMutationOperation): string {
             :name="'query'"
             :autocomplete="'off'"
           />
-          <p v-if="teams.teamsQuery.isPending.value" role="status">{{ t('adminTeams.loading') }}</p>
-          <div v-else-if="teams.teamsQuery.isError.value && !hasTeams" class="admin-teams-error">
-            <p role="alert">{{ t('adminTeams.list.loadError') }}</p>
-            <AppButton type="button" @click="refetchTeams">{{ t('adminTeams.retry') }}</AppButton>
-          </div>
-          <p v-else-if="!hasTeams" class="admin-teams-empty">
+          <AppFeedback
+            v-if="teams.teamsQuery.isPending.value"
+            class="admin-teams-state app-card"
+            announcement="polite"
+          >
+            {{ t('adminTeams.loading') }}
+          </AppFeedback>
+          <AppFeedback
+            v-else-if="teams.teamsQuery.isError.value && !hasTeams"
+            class="admin-teams-error app-card"
+            announcement="assertive"
+            tone="critical"
+          >
+            {{ t('adminTeams.list.loadError') }}
+            <template #actions>
+              <AppButton type="button" @click="refetchTeams">{{ t('adminTeams.retry') }}</AppButton>
+            </template>
+          </AppFeedback>
+          <AppFeedback v-else-if="!hasTeams" class="admin-teams-empty app-card">
             {{ hasTeamSearch ? t('adminTeams.list.searchEmpty') : t('adminTeams.list.empty') }}
-          </p>
+          </AppFeedback>
           <template v-else>
             <AppScrollRegion
-              class="admin-teams-table-scroll"
+              class="admin-teams-table-scroll app-card app-card--sectioned"
               :label="t('layout.tableRegion', { label: t('adminTeams.title') })"
             >
               <table>
@@ -468,12 +513,19 @@ function successMessage(operation: TeamMutationOperation): string {
                 </tbody>
               </table>
             </AppScrollRegion>
-            <div v-if="teams.teamsQuery.isFetchNextPageError.value" class="admin-teams-page-error">
-              <p role="alert">{{ t('adminTeams.list.paginationError') }}</p>
-              <AppButton type="button" variant="ghost" @click="loadMoreTeams">{{
-                t('adminTeams.retry')
-              }}</AppButton>
-            </div>
+            <AppFeedback
+              v-if="teams.teamsQuery.isFetchNextPageError.value"
+              class="admin-teams-page-error app-card"
+              announcement="assertive"
+              tone="critical"
+            >
+              {{ t('adminTeams.list.paginationError') }}
+              <template #actions>
+                <AppButton type="button" variant="ghost" @click="loadMoreTeams">{{
+                  t('adminTeams.retry')
+                }}</AppButton>
+              </template>
+            </AppFeedback>
             <div v-if="activeTeam && !selectedListed" id="admin-team-detail-fallback"></div>
             <Teleport
               v-if="activeTeam"
@@ -483,6 +535,7 @@ function successMessage(operation: TeamMutationOperation): string {
               <section
                 v-if="activeTeam"
                 class="admin-teams-detail"
+                :class="{ 'app-resource-card': !selectedListed }"
                 :aria-labelledby="'admin-team-detail-title'"
               >
                 <header class="admin-teams-section-heading">
@@ -506,12 +559,13 @@ function successMessage(operation: TeamMutationOperation): string {
                     <p class="admin-teams-field-note">
                       {{ t('adminTeams.rename.slugImmutable') }}
                     </p>
-                    <p
+                    <AppFeedback
                       v-if="isNoticeFor('rename') && errorMessage(mutations.error.value)"
-                      role="alert"
+                      announcement="assertive"
+                      tone="critical"
                     >
                       {{ errorMessage(mutations.error.value) }}
-                    </p>
+                    </AppFeedback>
                     <AppButton type="submit" :disabled="mutations.isMutating.value">{{
                       t('adminTeams.rename.submit')
                     }}</AppButton>
@@ -537,25 +591,29 @@ function successMessage(operation: TeamMutationOperation): string {
                     :name="'roster_query'"
                     :autocomplete="'off'"
                   />
-                  <p v-if="teams.rosterQuery.isPending.value" role="status">
+                  <AppFeedback v-if="teams.rosterQuery.isPending.value" announcement="polite">
                     {{ t('adminTeams.loading') }}
-                  </p>
-                  <div
+                  </AppFeedback>
+                  <AppFeedback
                     v-else-if="teams.rosterQuery.isError.value && !hasRosterMembers"
                     class="admin-teams-error"
+                    announcement="assertive"
+                    tone="critical"
                   >
-                    <p role="alert">{{ t('adminTeams.roster.loadError') }}</p>
-                    <AppButton type="button" @click="refetchRoster">{{
-                      t('adminTeams.retry')
-                    }}</AppButton>
-                  </div>
-                  <p v-else-if="!hasRosterMembers" class="admin-teams-empty">
+                    {{ t('adminTeams.roster.loadError') }}
+                    <template #actions>
+                      <AppButton type="button" @click="refetchRoster">{{
+                        t('adminTeams.retry')
+                      }}</AppButton>
+                    </template>
+                  </AppFeedback>
+                  <AppFeedback v-else-if="!hasRosterMembers" class="admin-teams-empty">
                     {{
                       hasRosterSearch
                         ? t('adminTeams.roster.searchEmpty')
                         : t('adminTeams.roster.empty')
                     }}
-                  </p>
+                  </AppFeedback>
                   <template v-else>
                     <ul class="admin-teams-roster-list">
                       <li v-for="member in rosterRows" :key="member.user_id">
@@ -570,15 +628,19 @@ function successMessage(operation: TeamMutationOperation): string {
                         </AppButton>
                       </li>
                     </ul>
-                    <div
+                    <AppFeedback
                       v-if="teams.rosterQuery.isFetchNextPageError.value"
                       class="admin-teams-page-error"
+                      announcement="assertive"
+                      tone="critical"
                     >
-                      <p role="alert">{{ t('adminTeams.roster.paginationError') }}</p>
-                      <AppButton type="button" variant="ghost" @click="loadMoreRoster">{{
-                        t('adminTeams.retry')
-                      }}</AppButton>
-                    </div>
+                      {{ t('adminTeams.roster.paginationError') }}
+                      <template #actions>
+                        <AppButton type="button" variant="ghost" @click="loadMoreRoster">{{
+                          t('adminTeams.retry')
+                        }}</AppButton>
+                      </template>
+                    </AppFeedback>
                     <AppButton
                       v-else-if="teams.rosterQuery.hasNextPage.value"
                       type="button"
@@ -595,12 +657,13 @@ function successMessage(operation: TeamMutationOperation): string {
                       }}
                     </AppButton>
                   </template>
-                  <p
+                  <AppFeedback
                     v-if="isNoticeFor('removeMember') && errorMessage(mutations.error.value)"
-                    role="alert"
+                    announcement="assertive"
+                    tone="critical"
                   >
                     {{ errorMessage(mutations.error.value) }}
-                  </p>
+                  </AppFeedback>
                 </section>
 
                 <section :aria-labelledby="'admin-team-add-member-title'">
@@ -613,25 +676,29 @@ function successMessage(operation: TeamMutationOperation): string {
                     :name="'account_query'"
                     :autocomplete="'off'"
                   />
-                  <p v-if="accountDirectory.query.isPending.value" role="status">
+                  <AppFeedback v-if="accountDirectory.query.isPending.value" announcement="polite">
                     {{ t('adminTeams.loading') }}
-                  </p>
-                  <div
+                  </AppFeedback>
+                  <AppFeedback
                     v-else-if="accountDirectory.query.isError.value && !hasAccounts"
                     class="admin-teams-error"
+                    announcement="assertive"
+                    tone="critical"
                   >
-                    <p role="alert">{{ t('adminTeams.addMember.loadError') }}</p>
-                    <AppButton type="button" @click="accountDirectory.query.refetch()">{{
-                      t('adminTeams.retry')
-                    }}</AppButton>
-                  </div>
-                  <p v-else-if="!hasAccounts" class="admin-teams-empty">
+                    {{ t('adminTeams.addMember.loadError') }}
+                    <template #actions>
+                      <AppButton type="button" @click="accountDirectory.query.refetch()">{{
+                        t('adminTeams.retry')
+                      }}</AppButton>
+                    </template>
+                  </AppFeedback>
+                  <AppFeedback v-else-if="!hasAccounts" class="admin-teams-empty">
                     {{
                       hasAccountSearch
                         ? t('adminTeams.addMember.searchEmpty')
                         : t('adminTeams.addMember.empty')
                     }}
-                  </p>
+                  </AppFeedback>
                   <template v-else>
                     <ul class="admin-teams-account-list">
                       <li v-for="account in accountRows" :key="account.id">
@@ -654,15 +721,19 @@ function successMessage(operation: TeamMutationOperation): string {
                         </span>
                       </li>
                     </ul>
-                    <div
+                    <AppFeedback
                       v-if="accountDirectory.query.isFetchNextPageError.value"
                       class="admin-teams-page-error"
+                      announcement="assertive"
+                      tone="critical"
                     >
-                      <p role="alert">{{ t('adminTeams.addMember.paginationError') }}</p>
-                      <AppButton type="button" variant="ghost" @click="loadMoreAccounts">{{
-                        t('adminTeams.retry')
-                      }}</AppButton>
-                    </div>
+                      {{ t('adminTeams.addMember.paginationError') }}
+                      <template #actions>
+                        <AppButton type="button" variant="ghost" @click="loadMoreAccounts">{{
+                          t('adminTeams.retry')
+                        }}</AppButton>
+                      </template>
+                    </AppFeedback>
                     <AppButton
                       v-else-if="accountDirectory.query.hasNextPage.value"
                       type="button"
@@ -680,23 +751,25 @@ function successMessage(operation: TeamMutationOperation): string {
                       }}
                     </AppButton>
                   </template>
-                  <p
+                  <AppFeedback
                     v-if="isNoticeFor('addMember') && errorMessage(mutations.error.value)"
-                    role="alert"
+                    announcement="assertive"
+                    tone="critical"
                   >
                     {{ errorMessage(mutations.error.value) }}
-                  </p>
+                  </AppFeedback>
                 </section>
 
                 <section class="admin-teams-delete" :aria-labelledby="'admin-team-delete-title'">
                   <h3 id="admin-team-delete-title">{{ t('adminTeams.deletion.title') }}</h3>
                   <p>{{ t('adminTeams.deletion.description') }}</p>
-                  <p
+                  <AppFeedback
                     v-if="isNoticeFor('delete') && errorMessage(mutations.error.value)"
-                    role="alert"
+                    announcement="assertive"
+                    tone="critical"
                   >
                     {{ errorMessage(mutations.error.value) }}
-                  </p>
+                  </AppFeedback>
                   <AppButton
                     type="button"
                     variant="ghost"
@@ -775,9 +848,13 @@ function successMessage(operation: TeamMutationOperation): string {
           }}</DialogTitle>
           <p>{{ t('adminTeams.roster.confirm.description') }}</p>
           <p>{{ t('adminTeams.roster.confirm.managerRequirement') }}</p>
-          <p v-if="isNoticeFor('removeMember') && errorMessage(mutations.error.value)" role="alert">
+          <AppFeedback
+            v-if="isNoticeFor('removeMember') && errorMessage(mutations.error.value)"
+            announcement="assertive"
+            tone="critical"
+          >
             {{ errorMessage(mutations.error.value) }}
-          </p>
+          </AppFeedback>
           <div class="admin-teams-dialog-actions">
             <AppButton
               type="button"
@@ -799,24 +876,11 @@ function successMessage(operation: TeamMutationOperation): string {
 
 <style scoped>
 .admin-teams {
-  padding: var(--space-8) var(--page-gutter);
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
-  width: 100%;
-  min-width: 0;
-  max-width: 60rem;
-  margin-inline: auto;
 }
 
-.admin-teams-heading-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--space-2);
-}
-
-.admin-teams-heading,
 .admin-teams-section-heading,
 .admin-teams-roster-list li,
 .admin-teams-account-list li,
@@ -829,14 +893,7 @@ function successMessage(operation: TeamMutationOperation): string {
 
 .admin-teams-heading {
   align-items: flex-start;
-  gap: var(--space-4);
-}
-
-.admin-teams-heading h1 {
-  margin: 0 0 var(--space-2);
-  font-size: var(--font-size-page);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-height-page);
+  margin-block-end: 0;
 }
 
 .admin-teams-section-heading h2,
@@ -856,23 +913,10 @@ function successMessage(operation: TeamMutationOperation): string {
   line-height: var(--line-height-body-strong);
 }
 
-.admin-teams-heading p,
 .admin-teams-create p,
 .admin-teams-detail p,
 .admin-teams-dialog-panel p {
   color: var(--text-secondary);
-}
-
-.admin-teams-heading p {
-  max-width: 65ch;
-  margin: 0;
-}
-
-.admin-teams-create,
-.admin-teams-detail {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  padding: var(--space-5);
 }
 
 .admin-teams-create {
@@ -897,18 +941,8 @@ function successMessage(operation: TeamMutationOperation): string {
   display: block;
 }
 
-/* The selected team's detail opens in a row beneath it, as on the Users page. */
-.admin-teams-edit-frame .admin-teams-detail {
-  padding: var(--space-4) var(--space-3) var(--space-5);
-  border: 0;
-  border-radius: 0;
-}
-
 .admin-teams-table-scroll {
   container: admin-teams / inline-size;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
 }
 
 .admin-teams-table-scroll table {
@@ -969,6 +1003,7 @@ function successMessage(operation: TeamMutationOperation): string {
   inset-inline-start: 0;
   box-sizing: border-box;
   inline-size: min(100%, 100cqw);
+  padding: var(--space-4);
 }
 
 .admin-teams-list-items,
@@ -1006,29 +1041,8 @@ function successMessage(operation: TeamMutationOperation): string {
   display: block;
 }
 
-.admin-teams-empty,
-.admin-teams-error,
-.admin-teams-page-error,
-.admin-teams-success,
-.admin-teams-refresh-warning {
-  margin: 0;
-  padding: var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  background: var(--surface-1);
-}
-
-.admin-teams-error p,
-.admin-teams-page-error p,
-.admin-teams-success,
-.admin-teams-refresh-warning {
-  margin: 0;
-}
-
-.admin-teams-error,
-.admin-teams-page-error,
-.admin-teams-refresh-warning {
-  color: var(--critical-text);
+.admin-teams-empty {
+  color: var(--text-secondary);
 }
 
 .admin-teams-success {
@@ -1091,16 +1105,11 @@ function successMessage(operation: TeamMutationOperation): string {
 }
 
 @media (max-width: 48rem) {
-  .admin-teams-heading,
   .admin-teams-section-heading,
   .admin-teams-roster-list li,
   .admin-teams-account-list li {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .admin-teams-heading-actions {
-    justify-content: flex-start;
   }
 
   .admin-teams-detail .app-button {

@@ -96,6 +96,7 @@ export function person(tei = 'demo-1', extra: Partial<Person> = {}): Person {
 export interface TaskServer {
   role: 'operator' | 'reviewer' | 'viewer'
   workingId: string | null
+  gameEnabled: boolean
   snapshotPages: Snapshot[][]
   runPages: Run[][]
   resultPages: Result[][]
@@ -115,6 +116,7 @@ export function taskServer(overrides: Partial<TaskServer> = {}): TaskServer {
   return {
     role: 'reviewer',
     workingId: null,
+    gameEnabled: true,
     snapshotPages: [[snapshot()]],
     runPages: [[run()]],
     resultPages: [[result()]],
@@ -167,6 +169,7 @@ export function taskClient(server: TaskServer) {
         current_user_role: server.role,
         current_user_can_manage_members: false,
         working_aggregation_execution_id: server.workingId,
+        game_mode_enabled: server.gameEnabled,
       }
       if (path === '/api/v1/projects') return json(page([[project]], null))
       if (path === `/api/v1/projects/${PROJECT}`) return json(project)

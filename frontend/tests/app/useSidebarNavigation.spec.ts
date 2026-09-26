@@ -33,6 +33,7 @@ async function navigationAt(
     aggregationId: 'aggregation-a',
     currentUserRole: role,
     currentUserCanManageMembers: true,
+    gameModeEnabled: true,
   })
   const session = reactive({ canUsePrivateNavigation: true })
   state.project = project
@@ -90,6 +91,8 @@ describe('sidebar route ownership', () => {
     ['aggregationDetail', 'classification'],
     ['review', 'review'],
     ['projectReview', 'review'],
+    ['projectGame', 'game'],
+    ['game', 'game'],
     ['people', 'people'],
     ['projectAnnotation', 'people'],
     ['snapshotAnnotations', 'people'],
@@ -143,15 +146,24 @@ describe('sidebar route ownership', () => {
     project.value = { ...project.value!, snapshotId: null, runId: null, aggregationId: null }
     const taskItems = groups.value
       .flatMap((group) => group.items)
-      .filter((item) => ['classification', 'review', 'people'].includes(item.id))
+      .filter((item) => ['classification', 'review', 'game', 'people'].includes(item.id))
     expect(taskItems.map((item) => [item.id, item.to])).toEqual([
       ['classification', { name: 'projectClassification', params: { projectId: 'project-a' } }],
       ['review', { name: 'projectReview', params: { projectId: 'project-a' } }],
       ['people', { name: 'projectAnnotation', params: { projectId: 'project-a' } }],
+      ['game', { name: 'projectGame', params: { projectId: 'project-a' } }],
     ])
     expect(groups.value.some((group) => group.id === 'evaluation')).toBe(false)
     expect(groups.value.flatMap((group) => group.items).every((item) => item.to !== null)).toBe(
       true,
+    )
+  })
+
+  it('hides game mode when the project has not enabled it', async () => {
+    const { groups, project } = await navigationAt('projectOverview')
+    project.value = { ...project.value!, gameModeEnabled: false }
+    expect(groups.value.flatMap((group) => group.items).map((item) => item.id)).not.toContain(
+      'game',
     )
   })
 
@@ -182,6 +194,7 @@ describe('sidebar route ownership', () => {
     expect(ids).not.toContain('import')
     expect(ids).not.toContain('review')
     expect(ids).not.toContain('people')
+    expect(ids).not.toContain('game')
     expect(ids).toContain('exports')
     session.canUsePrivateNavigation = false
     expect(groups.value).toEqual([])

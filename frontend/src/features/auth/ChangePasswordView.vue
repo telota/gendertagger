@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
+import AppFeedback from '@/components/base/AppFeedback.vue'
 import AppTextField from '@/components/base/AppTextField.vue'
 import { useSessionStore } from '@/stores/session'
 
@@ -79,18 +80,42 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <main class="change-password">
-    <h1 class="change-password-title">{{ t('changePassword.title') }}</h1>
-    <p v-if="session.status === 'idle' || session.status === 'loading'" role="status">
+  <main class="change-password app-page-frame app-page-frame--auth">
+    <header class="change-password-heading app-page-heading">
+      <div class="app-page-heading__copy">
+        <h1 class="change-password-title app-page-heading__title">
+          {{ t('changePassword.title') }}
+        </h1>
+        <p
+          v-if="session.status === 'ready' && session.isSignedIn"
+          class="change-password-notice app-page-heading__description"
+        >
+          {{ t('changePassword.notice') }}
+        </p>
+      </div>
+    </header>
+    <AppFeedback
+      v-if="session.status === 'idle' || session.status === 'loading'"
+      class="app-card"
+      announcement="polite"
+    >
       {{ t('changePassword.loading') }}
-    </p>
-    <div v-else-if="session.status === 'error'" class="change-password-load-error">
-      <p role="alert">{{ t('changePassword.loadError') }}</p>
-      <AppButton type="button" @click="retry">{{ t('changePassword.retry') }}</AppButton>
-    </div>
+    </AppFeedback>
+    <AppFeedback
+      v-else-if="session.status === 'error'"
+      class="change-password-load-error app-card"
+      announcement="assertive"
+      tone="critical"
+    >
+      {{ t('changePassword.loadError') }}
+      <template #actions>
+        <AppButton type="button" variant="ghost" @click="retry">
+          {{ t('changePassword.retry') }}
+        </AppButton>
+      </template>
+    </AppFeedback>
     <template v-else-if="session.isSignedIn">
-      <p class="change-password-notice">{{ t('changePassword.notice') }}</p>
-      <form class="change-password-form" novalidate @submit.prevent="submit">
+      <form class="change-password-form app-card" novalidate @submit.prevent="submit">
         <AppTextField
           id="change-password-current"
           v-model="currentPassword"
@@ -128,38 +153,6 @@ async function submit(): Promise<void> {
 </template>
 
 <style scoped>
-.change-password {
-  flex: 1;
-  width: 100%;
-  max-width: 24rem;
-  margin: 0 auto;
-  padding: var(--space-12) var(--space-4);
-}
-
-.change-password-title {
-  margin: 0 0 var(--space-2);
-  font-size: var(--font-size-page);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-height-page);
-}
-
-.change-password-notice {
-  margin: 0 0 var(--space-6);
-  color: var(--text-secondary);
-}
-
-.change-password-load-error {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-4);
-}
-
-.change-password-load-error p {
-  margin: 0;
-  color: var(--critical-text);
-}
-
 .change-password-form {
   display: flex;
   flex-direction: column;

@@ -6,6 +6,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { ApiError, type components } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
+import AppFeedback from '@/components/base/AppFeedback.vue'
 import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
 import AppTextField from '@/components/base/AppTextField.vue'
 import { useAdminAccess } from '@/composables/useAdminAccess'
@@ -183,60 +184,80 @@ function rolesLabel(account: AdminUser): string {
 </script>
 
 <template>
-  <main class="admin-user-directory">
-    <p v-if="accessState === 'loading'" role="status">{{ t('admin.loadingAccess') }}</p>
+  <main class="admin-user-directory app-page-frame">
+    <header class="admin-user-directory-heading app-page-heading">
+      <div class="app-page-heading__copy">
+        <h1 class="app-page-heading__title">{{ t('admin.title') }}</h1>
+        <p v-if="canLoadDirectory" class="app-page-heading__description">
+          {{ t('admin.description') }}
+        </p>
+      </div>
+      <div
+        v-if="canLoadDirectory"
+        class="admin-user-directory-heading-actions app-page-heading__actions"
+      >
+        <AppButton
+          type="button"
+          variant="ghost"
+          :disabled="directory.query.isFetching.value"
+          @click="refetch"
+        >
+          {{ t('admin.refetch') }}
+        </AppButton>
+        <AppButton
+          type="button"
+          :variant="creationOpen ? 'ghost' : 'solid'"
+          class="admin-user-directory-add"
+          :aria-expanded="creationOpen"
+          aria-controls="admin-user-creation-panel"
+          @click="toggleCreation"
+        >
+          <PhMinus v-if="creationOpen" :size="18" aria-hidden="true" />
+          <PhPlus v-else :size="18" aria-hidden="true" />
+          {{ creationOpen ? t('admin.creation.hide') : t('admin.creation.open') }}
+        </AppButton>
+      </div>
+    </header>
 
-    <div v-else-if="accessState === 'sessionError'" class="admin-user-directory-error">
-      <p role="alert">{{ t('admin.sessionLoadError') }}</p>
-      <AppButton type="button" @click="retrySession">{{ t('admin.retry') }}</AppButton>
-    </div>
+    <AppFeedback
+      v-if="accessState === 'loading'"
+      class="admin-user-directory-state-card app-card"
+      announcement="polite"
+    >
+      {{ t('admin.loadingAccess') }}
+    </AppFeedback>
 
-    <div
+    <AppFeedback
+      v-else-if="accessState === 'sessionError'"
+      class="admin-user-directory-error app-card"
+      announcement="assertive"
+      tone="critical"
+    >
+      {{ t('admin.sessionLoadError') }}
+      <template #actions>
+        <AppButton type="button" @click="retrySession">{{ t('admin.retry') }}</AppButton>
+      </template>
+    </AppFeedback>
+
+    <AppFeedback
       v-else-if="accessState === 'forbidden' || serverAccessError === 'forbidden'"
-      class="admin-user-directory-error"
+      class="admin-user-directory-error app-card"
+      announcement="assertive"
+      tone="critical"
     >
-      <h1>{{ t('admin.title') }}</h1>
-      <p role="alert">{{ t('admin.forbidden') }}</p>
-    </div>
+      {{ t('admin.forbidden') }}
+    </AppFeedback>
 
-    <div
+    <AppFeedback
       v-else-if="serverAccessError === 'passwordChangeRequired'"
-      class="admin-user-directory-error"
+      class="admin-user-directory-error app-card"
+      announcement="assertive"
+      tone="critical"
     >
-      <h1>{{ t('admin.title') }}</h1>
-      <p role="alert">{{ t('admin.passwordChangeRequired') }}</p>
-    </div>
+      {{ t('admin.passwordChangeRequired') }}
+    </AppFeedback>
 
     <template v-else-if="canLoadDirectory">
-      <header class="admin-user-directory-heading">
-        <div>
-          <h1>{{ t('admin.title') }}</h1>
-          <p>{{ t('admin.description') }}</p>
-        </div>
-        <div class="admin-user-directory-heading-actions">
-          <AppButton
-            type="button"
-            variant="ghost"
-            :disabled="directory.query.isFetching.value"
-            @click="refetch"
-          >
-            {{ t('admin.refetch') }}
-          </AppButton>
-          <AppButton
-            type="button"
-            variant="ghost"
-            class="admin-user-directory-add"
-            :aria-expanded="creationOpen"
-            aria-controls="admin-user-creation-panel"
-            @click="toggleCreation"
-          >
-            <PhMinus v-if="creationOpen" :size="18" aria-hidden="true" />
-            <PhPlus v-else :size="18" aria-hidden="true" />
-            {{ creationOpen ? t('admin.creation.hide') : t('admin.creation.open') }}
-          </AppButton>
-        </div>
-      </header>
-
       <!-- Mounted on first open and then kept, so a draft or a one-time temporary password survives
            hiding the form. Closed only when the administrator identity changes. -->
       <div
@@ -264,23 +285,33 @@ function rolesLabel(account: AdminUser): string {
         :autocomplete="'off'"
       />
 
-      <p v-if="directory.query.isPending.value" role="status">{{ t('admin.loading') }}</p>
-
-      <div
-        v-else-if="directory.query.isError.value && !hasAccounts"
-        class="admin-user-directory-error"
+      <AppFeedback
+        v-if="directory.query.isPending.value"
+        class="admin-user-directory-state-card app-card"
+        announcement="polite"
       >
-        <p role="alert">{{ t('admin.loadError') }}</p>
-        <AppButton type="button" @click="refetch">{{ t('admin.retry') }}</AppButton>
-      </div>
+        {{ t('admin.loading') }}
+      </AppFeedback>
 
-      <p v-else-if="!hasAccounts" class="admin-user-directory-empty">
+      <AppFeedback
+        v-else-if="directory.query.isError.value && !hasAccounts"
+        class="admin-user-directory-error app-card"
+        announcement="assertive"
+        tone="critical"
+      >
+        {{ t('admin.loadError') }}
+        <template #actions>
+          <AppButton type="button" @click="refetch">{{ t('admin.retry') }}</AppButton>
+        </template>
+      </AppFeedback>
+
+      <AppFeedback v-else-if="!hasAccounts" class="admin-user-directory-empty app-card">
         {{ hasSearch ? t('admin.search.empty') : t('admin.empty') }}
-      </p>
+      </AppFeedback>
 
       <template v-else>
         <AppScrollRegion
-          class="admin-user-directory-table-scroll"
+          class="admin-user-directory-table-scroll app-card app-card--sectioned"
           :label="t('layout.tableRegion', { label: t('admin.title') })"
         >
           <table>
@@ -393,15 +424,19 @@ function rolesLabel(account: AdminUser): string {
           </table>
         </AppScrollRegion>
 
-        <div
+        <AppFeedback
           v-if="directory.query.isFetchNextPageError.value"
-          class="admin-user-directory-page-error"
+          class="admin-user-directory-page-error app-card"
+          announcement="assertive"
+          tone="critical"
         >
-          <p role="alert">{{ t('admin.paginationError') }}</p>
-          <AppButton type="button" variant="ghost" @click="loadMore">{{
-            t('admin.retry')
-          }}</AppButton>
-        </div>
+          {{ t('admin.paginationError') }}
+          <template #actions>
+            <AppButton type="button" variant="ghost" @click="loadMore">{{
+              t('admin.retry')
+            }}</AppButton>
+          </template>
+        </AppFeedback>
 
         <AppButton
           v-else-if="directory.query.hasNextPage.value"
@@ -420,28 +455,7 @@ function rolesLabel(account: AdminUser): string {
 
 <style scoped>
 .admin-user-directory {
-  min-width: 0;
   overflow-wrap: anywhere;
-  flex: 1;
-  width: 100%;
-  max-width: 60rem;
-  margin: 0 auto;
-  padding: var(--space-8) var(--page-gutter);
-}
-
-.admin-user-directory-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-6);
-}
-
-.admin-user-directory-heading-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--space-2);
 }
 
 .admin-user-directory-add svg {
@@ -457,19 +471,6 @@ function rolesLabel(account: AdminUser): string {
   gap: var(--space-2);
   min-width: 0;
 }
-.admin-user-directory-heading h1 {
-  margin: 0 0 var(--space-2);
-  font-size: var(--font-size-page);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-height-page);
-}
-
-.admin-user-directory-heading p,
-.admin-user-directory-empty {
-  margin: 0;
-  color: var(--text-secondary);
-}
-
 .admin-user-directory-search {
   max-width: 28rem;
   margin-bottom: var(--space-6);
@@ -477,9 +478,6 @@ function rolesLabel(account: AdminUser): string {
 
 .admin-user-directory-table-scroll {
   container: admin-users / inline-size;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
 }
 
 .admin-user-directory-table-scroll table {
@@ -547,7 +545,7 @@ function rolesLabel(account: AdminUser): string {
   margin-top: var(--space-1);
   padding: var(--space-1) var(--space-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-full);
   font-size: var(--font-size-caption);
   font-weight: var(--weight-semibold);
   margin-left: var(--space-2);
@@ -570,35 +568,11 @@ function rolesLabel(account: AdminUser): string {
   color: var(--critical-text);
 }
 
-.admin-user-directory-error,
-.admin-user-directory-page-error {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--space-4);
-}
-
-.admin-user-directory-error p,
-.admin-user-directory-page-error p {
-  margin: 0;
-  color: var(--critical-text);
-}
-
 .admin-user-directory-page-error {
   margin-top: var(--space-4);
 }
 
 .admin-user-directory-load-more {
   margin-top: var(--space-4);
-}
-
-@media (max-width: 40rem) {
-  .admin-user-directory-heading {
-    flex-direction: column;
-  }
-
-  .admin-user-directory-heading-actions {
-    justify-content: flex-start;
-  }
 }
 </style>

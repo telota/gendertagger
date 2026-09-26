@@ -160,6 +160,14 @@ the phased plan that resumes application code.
   and aggregate upload byte bounds that produce `413`, and the `SnapshotImportLimits` a newly accepted
   snapshot records. The values come from the service that enforces them, so a client can check a selection
   before uploading.
+- Optional Vue game mode for reviewers on completed aggregations: 10-, 20-, or 50-question rounds use the
+  ordinary annotation command, expose optional personal timer and streak feedback, and reveal machine evidence
+  only after each saved answer. The default pool contains open decisions in server triage order; an
+  entire-dataset variant includes previously reviewed entries and advances through cursor pages in stable
+  source-ID order. Idempotent `POST /projects/{project_id}/game-rounds` accepts only saved annotation IDs and
+  derives a server-verifiable score of ten points per accepted annotation; browser timing, skips, and streaks
+  cannot affect the persistent project leaderboard. New projects default to disabled game mode; project
+  operators can enable or disable it from the overview without deleting rounds or affecting scientific results.
 
 ### Changed
 
@@ -171,7 +179,7 @@ the phased plan that resumes application code.
 - The OpenAPI snapshot moved from `tests/fixtures/openapi-v1.json` to [`contracts/`](contracts/), a neutral
   folder for artifacts both apps depend on, so the frontend no longer reads a backend test fixture.
 - The five Alembic revisions are squashed into the single baseline `20260815_0001`; a `pg_dump
-  --schema-only` of the squashed baseline is identical to the old chain. The data steps of `20260921_0003`
+--schema-only` of the squashed baseline is identical to the old chain. The data steps of `20260921_0003`
   and `20260921_0004` and their migration tests are gone, since no deployed database needs them. A local
   database migrated to `20260922_0005` moves over with `alembic stamp --purge 20260815_0001`. See the
   migration policy in [`docs/04-persistence.md`](docs/04-persistence.md).

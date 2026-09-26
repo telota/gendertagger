@@ -37,7 +37,7 @@ const statusLabel = computed(() => {
 </script>
 
 <template>
-  <li class="snapshot">
+  <li class="snapshot app-resource-card">
     <div class="snapshot-content">
       <h2 class="snapshot-title">
         <RouterLink :to="destination" class="snapshot-title-link">
@@ -77,12 +77,6 @@ const statusLabel = computed(() => {
 .snapshot {
   display: grid;
   gap: var(--space-4) var(--space-6);
-  min-inline-size: 0;
-  padding: var(--space-5);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
-  overflow-wrap: anywhere;
 }
 .snapshot-content {
   min-inline-size: 0;

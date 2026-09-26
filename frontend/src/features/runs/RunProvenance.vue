@@ -45,14 +45,19 @@ const resolvedConfig = computed(() => JSON.stringify(props.run.resolved_config, 
 </script>
 
 <template>
-  <details class="provenance">
+  <details class="provenance app-card">
     <summary class="provenance-summary">
       <h2 class="provenance-title">{{ t('runs.provenance.title') }}</h2>
     </summary>
     <div class="provenance-content">
       <p class="provenance-hint">{{ t('runs.provenance.hint') }}</p>
-      <dl class="provenance-facts">
-        <div v-for="row in rows" :key="row.key" class="provenance-fact" :data-key="row.key">
+      <dl class="provenance-facts app-fact-list">
+        <div
+          v-for="row in rows"
+          :key="row.key"
+          class="provenance-fact app-fact-list__item"
+          :data-key="row.key"
+        >
           <dt>{{ row.label }}</dt>
           <dd>
             <code v-if="row.value" class="provenance-value">{{ row.value }}</code>
@@ -71,8 +76,6 @@ const resolvedConfig = computed(() => JSON.stringify(props.run.resolved_config, 
 <style scoped>
 .provenance {
   width: 100%;
-  border-block-start: 1px solid var(--border);
-  padding-block: var(--space-3);
   container: provenance / inline-size;
 }
 .provenance-summary {
@@ -97,24 +100,8 @@ const resolvedConfig = computed(() => JSON.stringify(props.run.resolved_config, 
 }
 
 .provenance-facts {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0 0 var(--space-3);
-}
-
-.provenance-fact {
-  display: grid;
-  grid-template-columns: 12rem 1fr;
-  gap: var(--space-3);
-}
-
-.provenance-fact dt {
-  color: var(--text-secondary);
-}
-
-.provenance-fact dd {
-  margin: 0;
-  overflow-wrap: anywhere;
+  --app-fact-list-label-width: 12rem;
+  margin-block-end: var(--space-3);
 }
 
 .provenance-value {
@@ -134,15 +121,8 @@ const resolvedConfig = computed(() => JSON.stringify(props.run.resolved_config, 
   margin: var(--space-2) 0 0;
   padding: var(--space-3);
   overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
+  border-radius: var(--radius-input);
+  background: var(--surface-1);
   font-size: var(--font-size-small);
-}
-@container provenance (max-width: 32rem) {
-  .provenance-fact {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-1);
-  }
 }
 </style>

@@ -142,6 +142,7 @@ describe.each(['de', 'en'] as const)('ProjectListView in %s', (locale: AppLocale
     await flushPromises()
 
     expect(wrapper.get('main').text()).toContain(messages.sessionLoadError)
+    expect(wrapper.get('.project-list > .app-feedback').classes()).toContain('app-card')
   })
 
   it('shows the empty state when there are no projects', async () => {
@@ -155,6 +156,7 @@ describe.each(['de', 'en'] as const)('ProjectListView in %s', (locale: AppLocale
     await flushPromises()
 
     expect(wrapper.get('main').text()).toContain(messages.empty)
+    expect(wrapper.get('.project-list-empty').classes()).toContain('app-card')
   })
 
   it('lists a project with its role, and offers no creation action to a viewer', async () => {
@@ -311,6 +313,7 @@ describe.each(['de', 'en'] as const)('ProjectListView in %s', (locale: AppLocale
     const wrapper = await mountApplicationAt('/projects', locale, client)
     await flushPromises()
     expect(wrapper.get('main').text()).toContain(messages.loadError)
+    expect(wrapper.get('.project-list-readable > .app-feedback').classes()).toContain('app-card')
 
     await wrapper.get('.project-list-retry').trigger('click')
     await flushPromises()
@@ -373,6 +376,7 @@ describe.each(['de', 'en'] as const)('ProjectListView in %s', (locale: AppLocale
     await waitFor(() => expect(cursors).toHaveLength(2))
     expect(loadMore.element.disabled).toBe(true)
     expect(section.get('[role="status"]').text()).toBe(messages.loadingMore)
+    expect(section.get('.project-list-feedback').classes()).toContain('app-card')
     expect(section.text()).toContain('Project A')
     await loadMore.trigger('click')
     expect(cursors).toHaveLength(2)
@@ -384,6 +388,7 @@ describe.each(['de', 'en'] as const)('ProjectListView in %s', (locale: AppLocale
       ),
     )
     await waitFor(() => expect(section.get('[role="alert"]').text()).toBe(messages.loadMoreError))
+    expect(section.get('.project-list-feedback').classes()).toContain('app-card')
     expect(section.get('.project-card-link').text()).toBe('Project A')
     expect(wrapper.find('.project-list-retry').exists()).toBe(false)
     expect(loadMore.element.disabled).toBe(false)
@@ -500,6 +505,7 @@ describe.each(['de', 'en'] as const)('ProjectListView in %s', (locale: AppLocale
     const wrapper = await mountApplicationAt('/projects', locale, client)
     const managed = wrapper.get('.project-list-managed')
     expect(managed.get('[role="status"]').text()).toBe(messages.managedLoading)
+    expect(managed.get('.app-feedback').classes()).toContain('app-card')
     expect(wrapper.get('.project-list-readable .project-card-link').text()).toBe('Project A')
     pending.resolve(
       jsonResponse({ error: { code: 'internal_error', message: 'Unavailable.' } }, { status: 500 }),
@@ -507,6 +513,7 @@ describe.each(['de', 'en'] as const)('ProjectListView in %s', (locale: AppLocale
     await waitFor(() =>
       expect(managed.get('[role="alert"]').text()).toBe(messages.managedLoadError),
     )
+    expect(managed.get('.project-list-feedback').classes()).toContain('app-card')
     expect(wrapper.find('.project-list-retry').exists()).toBe(false)
     expect(wrapper.get('.project-list-readable .project-card-link').text()).toBe('Project A')
     await managed.get('.project-list-managed-retry').trigger('click')
@@ -565,6 +572,7 @@ describe.each(['de', 'en'] as const)('ProjectListView in %s', (locale: AppLocale
     await waitFor(() =>
       expect(managed.get('[role="alert"]').text()).toBe(messages.managedLoadMoreError),
     )
+    expect(managed.get('.project-list-feedback').classes()).toContain('app-card')
     expect(wrapper.get('.project-list-readable .project-card-link').text()).toBe('Project A')
     expect(loadMore.element.disabled).toBe(false)
     await loadMore.trigger('click')
@@ -649,6 +657,7 @@ describe.each(['de', 'en'] as const)('ProjectListView in %s', (locale: AppLocale
     await managerLoadMore!.trigger('click')
     await waitFor(() => expect(managerPageRequests).toBe(2))
     expect(wrapper.find(`#project-create-manager option[value="${ADMIN.id}"]`).exists()).toBe(false)
+    expect(wrapper.get('#project-create-description').classes()).toContain('app-multiline-field')
     await wrapper.get('#project-create-slug').setValue('new-edition')
     await wrapper.get('#project-create-name').setValue('New edition')
     await wrapper.get('#project-create-description').setValue('Project description')

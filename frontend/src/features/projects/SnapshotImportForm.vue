@@ -416,7 +416,7 @@ async function resetImport(): Promise<void> {
 </script>
 
 <template>
-  <section class="snapshot-import-form" :aria-labelledby="titleId">
+  <section class="snapshot-import-form app-card" :aria-labelledby="titleId">
     <h2 :id="titleId" class="import-title">{{ t('projects.import.formTitle') }}</h2>
     <p
       class="import-visually-hidden import-completion-announcement"
@@ -653,17 +653,19 @@ async function resetImport(): Promise<void> {
         {{ importErrorMessage(importMutation.error.value) }}
       </p>
 
-      <AppButton
-        class="import-submit"
-        type="submit"
-        :disabled="!canSubmit || importMutation.isPending.value"
-      >
-        {{
-          importMutation.isPending.value
-            ? t('projects.import.submitting')
-            : t('projects.import.submit')
-        }}
-      </AppButton>
+      <div class="import-actions app-form-actions">
+        <AppButton
+          class="import-submit"
+          type="submit"
+          :disabled="!canSubmit || importMutation.isPending.value"
+        >
+          {{
+            importMutation.isPending.value
+              ? t('projects.import.submitting')
+              : t('projects.import.submit')
+          }}
+        </AppButton>
+      </div>
     </form>
 
     <div v-else class="import-status">
@@ -729,11 +731,6 @@ async function resetImport(): Promise<void> {
   min-inline-size: 0;
   flex-direction: column;
   gap: var(--space-4);
-  padding: var(--space-5) var(--page-gutter);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
-  overflow-wrap: anywhere;
 }
 
 .import-title,
@@ -972,8 +969,7 @@ async function resetImport(): Promise<void> {
   color: var(--critical-text);
 }
 
-.import-submit {
-  justify-self: end;
+.import-actions {
   margin-block-start: var(--space-1);
 }
 

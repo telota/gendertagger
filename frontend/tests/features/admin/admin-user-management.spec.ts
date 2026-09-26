@@ -211,6 +211,10 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
     )
     const wrapper = await mountApplicationAt('/admin/users', locale, client)
     await openCreation(wrapper, messages.creation.open)
+    expect(wrapper.get('.admin-user-creation').classes()).toContain('app-card')
+    expect(
+      wrapper.findAll('.admin-user-creation .app-card, .admin-user-creation .app-resource-card'),
+    ).toHaveLength(0)
     await wrapper.get('#admin-user-create-username').setValue('New.Admin')
     await wrapper.get('#admin-user-create-display-name').setValue('New administrator')
     await buttonWithText(wrapper, messages.creation.submit).trigger('click')

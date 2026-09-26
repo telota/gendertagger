@@ -20,6 +20,8 @@ EXPECTED_APPLICATION_TABLES = {
     "evaluation_executions",
     "evaluation_method_executions",
     "export_executions",
+    "game_round_events",
+    "game_rounds",
     "method_executions",
     "person_external_ids",
     "person_records",
@@ -136,6 +138,59 @@ def test_initial_migration_upgrades_downgrades_and_has_no_drift(
 
     command.upgrade(config, "head")
     command.check(config)
+
+
+def test_game_mode_forward_migration_preserves_projects_and_defaults_disabled(
+    postgres_database_factory: Callable[[], str],
+) -> None:
+    database_url = postgres_database_factory()
+    config = alembic_config(database_url)
+    command.upgrade(config, "20260926_0010")
+    engine = create_engine(database_url)
+    user_id = uuid4()
+    team_id = uuid4()
+    project_id = uuid4()
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text("INSERT INTO users (id, display_name) VALUES (:user_id, 'Existing operator')"),
+                {"user_id": user_id},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO teams (id, slug, display_name) "
+                    "VALUES (:team_id, 'existing-team', 'Existing team')"
+                ),
+                {"team_id": team_id},
+            )
+            connection.execute(
+                text("INSERT INTO team_memberships (team_id, user_id) VALUES (:team_id, :user_id)"),
+                {"team_id": team_id, "user_id": user_id},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO projects "
+                    "(id, slug, display_name, team_id, manager_user_id, created_by_user_id) "
+                    "VALUES (:project_id, 'existing-project', 'Existing project', "
+                    ":team_id, :user_id, :user_id)"
+                ),
+                {
+                    "project_id": project_id,
+                    "team_id": team_id,
+                    "user_id": user_id,
+                },
+            )
+
+        command.upgrade(config, "head")
+        command.check(config)
+        with engine.connect() as connection:
+            enabled = connection.scalar(
+                text("SELECT game_mode_enabled FROM projects WHERE id = :project_id"),
+                {"project_id": project_id},
+            )
+        assert enabled is False
+    finally:
+        engine.dispose()
 
 
 def test_preferences_forward_migration_preserves_accounts_without_backfilling_defaults(

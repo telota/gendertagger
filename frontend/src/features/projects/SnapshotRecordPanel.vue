@@ -30,7 +30,10 @@ const { t } = useI18n()
   <section
     id="snapshot-record-detail-panel"
     class="snapshot-record-detail"
-    :class="{ 'snapshot-record-detail--embedded': embedded }"
+    :class="{
+      'app-resource-card': !embedded,
+      'snapshot-record-detail--embedded': embedded,
+    }"
     aria-labelledby="snapshot-record-detail-title"
     tabindex="-1"
   >
@@ -64,21 +67,6 @@ const { t } = useI18n()
 </template>
 
 <style scoped>
-.snapshot-record-detail {
-  min-inline-size: 0;
-  padding: var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
-  overflow-wrap: anywhere;
-}
-
-.snapshot-record-detail--embedded {
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
 .snapshot-record-detail-heading {
   display: flex;
   flex-wrap: wrap;

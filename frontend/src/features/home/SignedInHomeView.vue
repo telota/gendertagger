@@ -91,12 +91,14 @@ function retryProjects(): void {
 
 <template>
   <div class="home-dashboard">
-    <header class="home-dashboard-header">
-      <div>
-        <h1 class="home-dashboard-title">
+    <header class="home-dashboard-header app-page-heading">
+      <div class="app-page-heading__copy">
+        <h1 class="home-dashboard-title app-page-heading__title">
           {{ t('home.signedIn.welcomeBack', { name: displayName }) }}
         </h1>
-        <p class="home-dashboard-introduction">{{ t('home.signedIn.introduction') }}</p>
+        <p class="home-dashboard-introduction app-page-heading__description">
+          {{ t('home.signedIn.introduction') }}
+        </p>
       </div>
     </header>
 
@@ -113,7 +115,7 @@ function retryProjects(): void {
           </AppButton>
         </div>
 
-        <div class="home-project-panel">
+        <div class="home-project-panel app-card app-card--sectioned">
           <AppFeedback
             v-if="projectQuery.isPending.value"
             class="home-project-feedback"
@@ -206,7 +208,7 @@ function retryProjects(): void {
         </div>
       </section>
 
-      <aside class="home-workspace" aria-labelledby="home-workspace-title">
+      <aside class="home-workspace app-card" aria-labelledby="home-workspace-title">
         <h2 id="home-workspace-title">{{ t('home.signedIn.workspace.title') }}</h2>
         <p class="home-workspace-description">
           {{ t('home.signedIn.workspace.description') }}
@@ -238,7 +240,6 @@ function retryProjects(): void {
   min-inline-size: 0;
 }
 
-.home-dashboard-header,
 .home-dashboard-section-heading {
   display: flex;
   flex-wrap: wrap;
@@ -247,25 +248,23 @@ function retryProjects(): void {
   gap: var(--space-3) var(--space-6);
 }
 
-.home-dashboard-header > div,
 .home-dashboard-section-heading > div {
   min-inline-size: 0;
 }
 
-.home-dashboard-title {
-  margin: 0 0 var(--space-2);
-  font-size: var(--font-size-page);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-height-page);
-  overflow-wrap: anywhere;
+.home-dashboard-header {
+  margin-block-end: 0;
 }
 
-.home-dashboard-introduction,
 .home-dashboard-section-heading p,
 .home-workspace-description {
   max-inline-size: 65ch;
   margin: 0;
   color: var(--text-secondary);
+  text-wrap: pretty;
+}
+
+.home-dashboard-introduction {
   text-wrap: pretty;
 }
 
@@ -290,17 +289,14 @@ function retryProjects(): void {
 
 .home-project-panel {
   min-inline-size: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
 }
 
 .home-project-feedback {
-  margin: var(--space-5);
+  margin: var(--space-4);
 }
 
 .home-project-empty {
-  padding: var(--space-5);
+  padding: var(--space-4);
   color: var(--text-secondary);
 }
 
@@ -323,7 +319,7 @@ function retryProjects(): void {
   display: grid;
   gap: var(--space-4);
   min-inline-size: 0;
-  padding: var(--space-5);
+  padding: var(--space-4);
 }
 
 .home-project-row + .home-project-row {
@@ -396,8 +392,6 @@ function retryProjects(): void {
 
 .home-workspace {
   min-inline-size: 0;
-  padding-block-start: var(--space-6);
-  border-block-start: 1px solid var(--border);
 }
 
 .home-workspace-access {
@@ -452,13 +446,6 @@ function retryProjects(): void {
   .home-dashboard-layout {
     grid-template-columns: minmax(0, 1fr) minmax(15rem, 18rem);
     gap: var(--space-8);
-  }
-
-  .home-workspace {
-    padding-block-start: 0;
-    padding-inline-start: var(--space-6);
-    border-block-start: 0;
-    border-inline-start: 1px solid var(--border);
   }
 }
 </style>

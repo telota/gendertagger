@@ -26,13 +26,52 @@ function styleText(path: string): string {
   return ''
 }
 
-const styled = sourceFiles(SOURCE_ROOT)
-  .filter((path) => path !== TOKENS_FILE)
+const styleSources = sourceFiles(SOURCE_ROOT)
   .map((path) => ({
     file: relative(SOURCE_ROOT, path).replaceAll('\\', '/'),
     css: styleText(path).replace(/\/\*[\s\S]*?\*\//g, ''),
   }))
   .filter(({ css }) => css.trim() !== '')
+
+const styled = styleSources.filter(({ file }) => file !== 'styles/tokens.css')
+
+function defaultRootCustomProperties(css: string): Set<string> {
+  const properties = new Set<string>()
+  let depth = 0
+  let selectorStart = 0
+  let rootBodyStart: number | undefined
+
+  for (let index = 0; index < css.length; index += 1) {
+    if (css[index] === '{') {
+      if (depth === 0 && css.slice(selectorStart, index).trim() === ':root') {
+        rootBodyStart = index + 1
+      }
+      depth += 1
+      continue
+    }
+    if (css[index] !== '}') continue
+
+    depth -= 1
+    if (depth !== 0) continue
+    if (rootBodyStart !== undefined) {
+      const body = css.slice(rootBodyStart, index)
+      for (const match of body.matchAll(/(?:^|;)\s*(--[\w-]+)\s*:/g)) {
+        if (match[1] !== undefined) properties.add(match[1])
+      }
+      rootBodyStart = undefined
+    }
+    selectorStart = index + 1
+  }
+
+  return properties
+}
+
+function unguardedCustomPropertyReferences(css: string): string[] {
+  return [...css.matchAll(/var\(\s*(--[\w-]+)\s*(,|\))/g)]
+    .filter((match) => match[2] === ')')
+    .map((match) => match[1])
+    .filter((name): name is string => name !== undefined)
+}
 
 const RULES: readonly (readonly [string, RegExp])[] = [
   ['a raw hex colour', /#[0-9a-f]{3,8}\b/i],
@@ -50,5 +89,30 @@ describe('style policy', () => {
   it.each(RULES)('no component or stylesheet uses %s outside the token layer', (_name, pattern) => {
     const offenders = styled.filter(({ css }) => pattern.test(css)).map(({ file }) => file)
     expect(offenders).toEqual([])
+  })
+
+  it('uses a default root token for every custom property reference without a fallback', () => {
+    const tokenCss = styleText(TOKENS_FILE).replace(/\/\*[\s\S]*?\*\//g, '')
+    const globalTokens = defaultRootCustomProperties(tokenCss)
+    const offenders = styleSources.flatMap(({ file, css }) => {
+      return unguardedCustomPropertyReferences(css)
+        .filter((name) => !globalTokens.has(name))
+        .map((name) => `${file}: ${name}`)
+    })
+
+    expect([...new Set(offenders)].sort()).toEqual([])
+  })
+
+  it('does not mistake conditional declarations or guarded extension properties for root tokens', () => {
+    const tokens = defaultRootCustomProperties(`
+      :root { --always: 1; }
+      @media (width < 10px) { :root { --conditional: 1; } }
+    `)
+
+    expect([...tokens]).toEqual(['--always'])
+    expect(unguardedCustomPropertyReferences('color: var(--missing)')).toEqual(['--missing'])
+    expect(unguardedCustomPropertyReferences('color: var(--extension, var(--always))')).toEqual([
+      '--always',
+    ])
   })
 })

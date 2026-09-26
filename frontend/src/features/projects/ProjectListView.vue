@@ -93,30 +93,37 @@ function loadMoreManaged(): void {
 </script>
 
 <template>
-  <main class="project-list">
-    <div class="project-list-heading">
-      <h1 class="project-list-title">{{ t('projects.title') }}</h1>
-      <AppButton
-        v-if="canCreateProject"
-        class="project-list-new-project"
-        variant="ghost"
-        :aria-expanded="creationOpen"
-        aria-controls="project-creation-panel"
-        @click="toggleCreation"
-      >
-        <PhMinus v-if="creationOpen" :size="18" aria-hidden="true" />
-        <PhPlus v-else :size="18" aria-hidden="true" />
-        {{ creationOpen ? t('projects.hideCreation') : t('projects.newProject') }}
-      </AppButton>
-    </div>
+  <main class="project-list app-page-frame">
+    <header class="project-list-heading app-page-heading">
+      <h1 class="project-list-title app-page-heading__title">{{ t('projects.title') }}</h1>
+      <div v-if="canCreateProject" class="app-page-heading__actions">
+        <AppButton
+          class="project-list-new-project"
+          :variant="creationOpen ? 'ghost' : 'solid'"
+          :aria-expanded="creationOpen"
+          aria-controls="project-creation-panel"
+          @click="toggleCreation"
+        >
+          <PhMinus v-if="creationOpen" :size="18" aria-hidden="true" />
+          <PhPlus v-else :size="18" aria-hidden="true" />
+          {{ creationOpen ? t('projects.hideCreation') : t('projects.newProject') }}
+        </AppButton>
+      </div>
+    </header>
 
     <AppFeedback
       v-if="session.status === 'idle' || session.status === 'loading'"
+      class="app-card"
       announcement="polite"
     >
       {{ t('projects.loading') }}
     </AppFeedback>
-    <AppFeedback v-else-if="session.status === 'error'" announcement="assertive" tone="critical">
+    <AppFeedback
+      v-else-if="session.status === 'error'"
+      class="app-card"
+      announcement="assertive"
+      tone="critical"
+    >
       {{ t('projects.sessionLoadError') }}
       <template #actions>
         <AppButton variant="ghost" @click="retrySession">{{ t('projects.retry') }}</AppButton>
@@ -139,11 +146,12 @@ function loadMoreManaged(): void {
       </div>
 
       <div class="project-list-readable">
-        <AppFeedback v-if="query.isPending.value" announcement="polite">{{
+        <AppFeedback v-if="query.isPending.value" class="app-card" announcement="polite">{{
           t('projects.loading')
         }}</AppFeedback>
         <AppFeedback
           v-else-if="query.isError.value && !query.data.value"
+          class="app-card"
           announcement="assertive"
           tone="critical"
         >
@@ -160,13 +168,17 @@ function loadMoreManaged(): void {
           </template>
         </AppFeedback>
         <template v-else>
-          <div v-if="projects.length === 0" class="project-list-empty">
+          <div v-if="projects.length === 0" class="project-list-empty app-card">
             <p>{{ t('projects.empty') }}</p>
             <p v-if="canCreateProject">{{ t('projects.emptyCreateHint') }}</p>
             <p v-else>{{ t('projects.emptyHint') }}</p>
           </div>
           <ul v-else class="project-list-items">
-            <li v-for="project in projects" :key="project.id" class="project-card">
+            <li
+              v-for="project in projects"
+              :key="project.id"
+              class="project-card app-resource-card"
+            >
               <div class="project-card-content">
                 <h2 class="project-card-title">
                   <RouterLink
@@ -216,7 +228,7 @@ function loadMoreManaged(): void {
             v-if="query.isError.value"
             announcement="assertive"
             tone="critical"
-            class="project-list-feedback"
+            class="project-list-feedback app-card"
           >
             {{
               query.isFetchNextPageError.value
@@ -236,7 +248,7 @@ function loadMoreManaged(): void {
           <AppFeedback
             v-if="query.isFetchingNextPage.value"
             announcement="polite"
-            class="project-list-feedback"
+            class="project-list-feedback app-card"
           >
             {{ t('projects.loadingMore') }}
           </AppFeedback>
@@ -259,11 +271,15 @@ function loadMoreManaged(): void {
       >
         <h2 id="project-list-managed-title">{{ t('projects.managedTitle') }}</h2>
         <p class="project-list-managed-description">{{ t('projects.managedDescription') }}</p>
-        <AppFeedback v-if="managedQuery.isPending.value" announcement="polite">{{
-          t('projects.managedLoading')
-        }}</AppFeedback>
+        <AppFeedback v-if="managedQuery.isPending.value" class="app-card" announcement="polite">
+          {{ t('projects.managedLoading') }}
+        </AppFeedback>
         <ul v-if="additionalManagedProjects.length" class="project-list-items">
-          <li v-for="project in additionalManagedProjects" :key="project.id" class="project-card">
+          <li
+            v-for="project in additionalManagedProjects"
+            :key="project.id"
+            class="project-card app-resource-card"
+          >
             <div class="project-card-content">
               <h3 class="project-card-title">{{ project.display_name }}</h3>
               <dl class="project-card-facts">
@@ -288,7 +304,7 @@ function loadMoreManaged(): void {
           v-if="managedQuery.isError.value"
           announcement="assertive"
           tone="critical"
-          class="project-list-feedback"
+          class="project-list-feedback app-card"
         >
           {{
             managedQuery.isFetchNextPageError.value
@@ -308,7 +324,7 @@ function loadMoreManaged(): void {
         <AppFeedback
           v-if="managedQuery.isFetchingNextPage.value"
           announcement="polite"
-          class="project-list-feedback"
+          class="project-list-feedback app-card"
         >
           {{ t('projects.managedLoading') }}
         </AppFeedback>
@@ -333,28 +349,6 @@ function loadMoreManaged(): void {
 <style scoped>
 .project-list {
   container: project-index / inline-size;
-  flex: 1;
-  min-inline-size: 0;
-  inline-size: 100%;
-  max-inline-size: 60rem;
-  margin-inline: auto;
-  padding: var(--space-8) var(--page-gutter);
-}
-
-.project-list-heading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3) var(--space-6);
-  margin-block-end: var(--space-6);
-}
-
-.project-list-title {
-  margin: 0;
-  font-size: var(--font-size-page);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-height-page);
 }
 
 .project-list-creation {
@@ -362,7 +356,6 @@ function loadMoreManaged(): void {
 }
 
 .project-list-empty {
-  padding-block: var(--space-6);
   color: var(--text-secondary);
 }
 
@@ -383,11 +376,6 @@ function loadMoreManaged(): void {
 .project-card {
   display: grid;
   gap: var(--space-4) var(--space-6);
-  min-inline-size: 0;
-  padding: var(--space-5);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
 }
 
 .project-card-content,

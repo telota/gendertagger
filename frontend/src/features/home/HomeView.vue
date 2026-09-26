@@ -15,23 +15,8 @@ const isSignedIn = computed(() => session.status === 'ready' && session.isSigned
 </script>
 
 <template>
-  <main class="home" :class="{ 'home--signed-in': isSignedIn }">
+  <main class="home app-page-frame" :class="{ 'app-page-frame--reading': !isSignedIn }">
     <SignedInHomeView v-if="isSignedIn" />
     <GuestHomeView v-else />
   </main>
 </template>
-
-<style scoped>
-.home {
-  flex: 1;
-  width: 100%;
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: var(--space-12) var(--space-4);
-}
-
-.home--signed-in {
-  max-width: 60rem;
-  padding-block: var(--space-8);
-}
-</style>

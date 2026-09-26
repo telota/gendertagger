@@ -1,5 +1,7 @@
 # The base image is pinned by version and multi-platform manifest digest. Update
 # both together after reviewing the supported Python floor.
+# First-party visible jobs use `<component>_<purpose>` so frontend and backend
+# work line up in the pipeline. GitLab template jobs retain their canonical names.
 stages:
   - validate
   - test
@@ -31,14 +33,14 @@ default:
 
 # Python jobs run from the backend project root; before_script and script share one shell, so the
 # `cd backend` below applies to every script line.
-.uv_job:
+.backend_uv_job:
   image: python:3.11.9-slim-bookworm@sha256:8fb099199b9f2d70342674bd9dbccd3ed03a258f26bbd1d556822c6dfc60c317
   before_script:
     - python -m pip install --no-cache-dir "uv==0.12.5"
     - cd backend
 
-.python_job:
-  extends: .uv_job
+.backend_python_job:
+  extends: .backend_uv_job
   before_script:
     - python -m pip install --no-cache-dir "uv==0.12.5"
     - cd backend
@@ -46,7 +48,7 @@ default:
 
 # Node is pinned by version and multi-platform index digest, and must satisfy the `engines` range in
 # frontend/package.json (decision D12). deploy/docker/frontend.Dockerfile pins the same image.
-.frontend_job:
+.frontend_node_job:
   image: node:26.9.0-alpine@sha256:dbaa92e5758cbbcf85d65d5403fdb530fe3442cbe8c6dbfb7ef23365450d5070
   cache:
     key:
@@ -58,15 +60,15 @@ default:
     - cd frontend
     - npm ci --cache .npm --prefer-offline --ignore-scripts --no-audit --no-fund
 
-lockfile:
-  extends: .uv_job
+backend_lockfile:
+  extends: .backend_uv_job
   stage: validate
   timeout: 5 minutes
   script:
     - uv lock --check
 
-repository_policy:
-  extends: .python_job
+backend_repository_policy:
+  extends: .backend_python_job
   stage: validate
   timeout: 10 minutes
   script:
@@ -75,8 +77,8 @@ repository_policy:
     - uv run --locked python scripts/check_package_initializers.py
     - uv run --locked python scripts/check_dead_code.py
 
-lint_and_type:
-  extends: .python_job
+backend_quality:
+  extends: .backend_python_job
   stage: validate
   timeout: 15 minutes
   script:
@@ -85,8 +87,8 @@ lint_and_type:
     - uv run --locked mypy
     - uv run --locked lint-imports
 
-pyright:
-  extends: .python_job
+backend_pyright:
+  extends: .backend_python_job
   stage: validate
   timeout: 15 minutes
   before_script:
@@ -100,15 +102,15 @@ pyright:
     - npm audit --audit-level=high
     - npm run typecheck:pyright
 
-dependency_audit:
-  extends: .uv_job
+backend_dependency_audit:
+  extends: .backend_uv_job
   stage: validate
   timeout: 10 minutes
   script:
     - uv audit --locked
 
 frontend_quality:
-  extends: .frontend_job
+  extends: .frontend_node_job
   stage: validate
   timeout: 15 minutes
   script:
@@ -122,20 +124,20 @@ frontend_quality:
     - npm run api:check
 
 frontend_dependency_audit:
-  extends: .frontend_job
+  extends: .frontend_node_job
   stage: validate
   timeout: 10 minutes
   script:
     - npm audit --audit-level=high
 
-fast_coverage:
-  extends: .python_job
+backend_fast_test:
+  extends: .backend_python_job
   stage: test
   timeout: 20 minutes
   variables:
     COVERAGE_FILE: .coverage.fast
   # The fast suite has a 70% non-regression floor. Service-specific jobs publish
-  # partial data; the combined coverage_gate enforces the authoritative 85% project floor.
+  # partial data; the combined backend_coverage enforces the authoritative 85% project floor.
   script:
     - uv run --locked python scripts/check_asyncio_runner.py --timeout-seconds 5
     - >-
@@ -155,7 +157,7 @@ fast_coverage:
       - backend/coverage-fast.xml
 
 frontend_test:
-  extends: .frontend_job
+  extends: .frontend_node_job
   stage: test
   timeout: 15 minutes
   # Vitest enforces the 80 % branch-coverage floor itself (decision D11) and fails the job below it.
@@ -171,14 +173,14 @@ frontend_test:
         path: frontend/coverage/cobertura-coverage.xml
 
 frontend_build:
-  extends: .frontend_job
+  extends: .frontend_node_job
   stage: package
   timeout: 10 minutes
   script:
     - npm run build
 
-postgres_persistence:
-  extends: .python_job
+backend_postgres_test:
+  extends: .backend_python_job
   stage: test
   timeout: 30 minutes
   services:
@@ -211,8 +213,8 @@ postgres_persistence:
       - backend/.coverage.postgres
       - backend/coverage-postgres.xml
 
-celery_execution:
-  extends: .python_job
+backend_celery_test:
+  extends: .backend_python_job
   stage: test
   timeout: 30 minutes
   services:
@@ -250,16 +252,16 @@ celery_execution:
       - backend/.coverage.redis
       - backend/coverage-redis.xml
 
-coverage_gate:
-  extends: .python_job
+backend_coverage:
+  extends: .backend_python_job
   stage: coverage
   timeout: 10 minutes
   needs:
-    - job: fast_coverage
+    - job: backend_fast_test
       artifacts: true
-    - job: postgres_persistence
+    - job: backend_postgres_test
       artifacts: true
-    - job: celery_execution
+    - job: backend_celery_test
       artifacts: true
   script:
     - >-
@@ -284,8 +286,8 @@ coverage_gate:
         coverage_format: cobertura
         path: backend/coverage.xml
 
-package_distribution:
-  extends: .python_job
+backend_build:
+  extends: .backend_python_job
   stage: package
   timeout: 10 minutes
   script:
@@ -363,14 +365,14 @@ secret_detection:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-build_and_publish_backend:
+backend_publish_image:
   extends: .kaniko_build
   variables:
     IMAGE_NAME: backend
     IMAGE_DOCKERFILE: deploy/docker/backend.Dockerfile
     IMAGE_CONTEXT: backend
 
-build_and_publish_frontend:
+frontend_publish_image:
   extends: .kaniko_build
   variables:
     IMAGE_NAME: frontend
@@ -380,7 +382,7 @@ build_and_publish_frontend:
 backend_sbom:
   extends: .sbom
   needs:
-    - job: build_and_publish_backend
+    - job: backend_publish_image
       artifacts: true
   variables:
     IMAGE_NAME: backend
@@ -388,7 +390,7 @@ backend_sbom:
 frontend_sbom:
   extends: .sbom
   needs:
-    - job: build_and_publish_frontend
+    - job: frontend_publish_image
       artifacts: true
   variables:
     IMAGE_NAME: frontend

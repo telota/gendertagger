@@ -226,6 +226,8 @@
     "classification": "Automatische Vorschläge",
     "review": "Redigieren",
     "annotate": "Manuell annotieren",
+    "game": "Spielmodus",
+    "additionalGroup": "Zusätzlich",
     "evaluationGroup": "Auswertung",
     "evaluations": "Statistik & Methoden",
     "exports": "Export",
@@ -711,6 +713,16 @@
         "lastActivity": "Letzte Prüfaktivität: {when}",
         "openReview": "Prüf-Warteschlangen öffnen",
         "browsePeople": "Alle Personen durchsuchen"
+      },
+      "gameMode": {
+        "title": "Spielmodus",
+        "hint": "Erlaubt der Redaktion dieses Projekts den optionalen Annotationsweg mit Punktwertung.",
+        "retention": "Beim Ausschalten wird der Spielmodus ausgeblendet und gesperrt. Bestehende Runden bleiben gespeichert.",
+        "enabled": "Aktiviert",
+        "disabled": "Deaktiviert",
+        "saving": "Verfügbarkeit des Spielmodus wird gespeichert …",
+        "saved": "Verfügbarkeit des Spielmodus wurde gespeichert.",
+        "saveError": "Die Verfügbarkeit des Spielmodus konnte nicht gespeichert werden. Die vorherige Einstellung bleibt aktiv."
       }
     },
     "import": {
@@ -984,7 +996,6 @@
     "currentWorking": "Aktuelles Arbeitsergebnis",
     "latestResult": "Neuestes kombiniertes Ergebnis",
     "latestAttempt": "Letzter Aggregationsversuch",
-    "history": "Aggregationsverlauf",
     "historyWithCount": "Aggregationsverlauf ({count})",
     "waitingForRun": "Ein kombiniertes Ergebnis kann berechnet werden, sobald der Lauf erfolgreich beendet ist.",
     "empty": "Für diesen Lauf gibt es noch kein kombiniertes Ergebnis.",
@@ -1280,6 +1291,120 @@
       "hint": "Alle Personen des Registers in TEI-Reihenfolge, unabhängig davon, was die Automatik aus ihnen gemacht hat. Suche nach Name, weiterem Namen, TEI-ID oder einer Normdaten-ID wie einer GND-Nummer."
     }
   },
+  "game": {
+    "title": "Spielmodus",
+    "retry": "Erneut versuchen",
+    "optional": "Optional",
+    "intro": "Redigieren Sie Personen in konzentrierten Runden. Jede Antwort wird als dieselbe nachvollziehbare Annotation gespeichert wie bei der regulären Redaktion.",
+    "disabled": "Der Spielmodus ist für dieses Projekt deaktiviert. Eine Projektverwaltung kann ihn in der Projektübersicht aktivieren.",
+    "selectResult": "Abgeschlossenes Ergebnis auswählen",
+    "reviewerRequired": "Die Bestenliste ist für Projektmitglieder sichtbar. Zum Spielen und Speichern von Entscheidungen ist die Rolle Redaktion oder Projektverwaltung erforderlich.",
+    "loading": "Spielmodus wird geladen …",
+    "scoringPrinciple": "Jede gespeicherte Annotation zählt 10 geprüfte Punkte. Zeitmessung und Serie sind persönliche Orientierungshilfen; beide beeinflussen weder Bestenliste noch wissenschaftliche Ergebnisse.",
+    "start": "Runde mit {count} Personen starten",
+    "backToReview": "Reguläre Redaktion öffnen",
+    "setup": {
+      "title": "Runde konfigurieren",
+      "hint": "Offene Entscheidungen folgen der serverseitigen Triage. Der gesamte Datensatz nutzt die stabile Quellen-ID-Reihenfolge, damit spätere Runden an der letzten Stelle fortfahren.",
+      "availableOpen": "{available} offene Personen verfügbar. Diese Runde verwendet {count}.",
+      "availableAll": "{available} Personen des Datensatzes kommen infrage. Diese Runde verwendet {count}.",
+      "preparing": "Nächste Datensatzeinträge werden vorbereitet …"
+    },
+    "pool": {
+      "legend": "Fragenpool",
+      "open": "Offene Entscheidungen",
+      "openHint": "Nur Personen, für die noch eine redaktionelle Entscheidung aussteht.",
+      "all": "Gesamter Datensatz",
+      "allHint": "Bezieht bereits redigierte Personen ein. Jede Antwort fügt eine neue nachvollziehbare Entscheidung hinzu."
+    },
+    "rounds": {
+      "legend": "Rundenlänge",
+      "short": "Kurz",
+      "shortHint": "{count} Personen · kurze Runde",
+      "standard": "Standard",
+      "standardHint": "{count} Personen · ausgewogene Runde",
+      "long": "Lang",
+      "longHint": "{count} Personen · ausgedehnte Runde"
+    },
+    "timer": {
+      "label": "Persönliche Zeit anzeigen",
+      "hint": "Misst in dieser Sitzung die Zeit pro Person. Die Zeitmessung verändert die geprüfte Punktzahl nicht."
+    },
+    "queue": {
+      "loading": "Fragenpool wird geladen …",
+      "loadError": "Der Fragenpool konnte nicht geladen werden. Versuchen Sie es erneut, bevor Sie eine Runde starten.",
+      "emptyOpen": "In diesem Ergebnis gibt es keine offenen Personen. Alle verfügbaren Entscheidungen wurden redigiert.",
+      "emptyAll": "Dieses Ergebnis enthält keine Personen."
+    },
+    "round": {
+      "statusLabel": "Status der Spielrunde",
+      "progress": "Person {current} von {total}",
+      "progressLabel": "{complete} von {total} Personen abgeschlossen",
+      "score": "Rundenpunkte",
+      "streak": "Serie",
+      "timer": "Diese Person",
+      "question": "Person {current} von {total}"
+    },
+    "record": {
+      "title": "Quelldatensatz",
+      "loading": "Quelldatensatz wird geladen …",
+      "loadError": "Der Quelldatensatz konnte nicht geladen werden. Versuchen Sie es vor der Entscheidung erneut oder überspringen Sie diese Person."
+    },
+    "decision": {
+      "title": "Menschliches Label wählen",
+      "hint": "Die Tasten 1–4 wählen das jeweilige Label. Die gespeicherte Entscheidung ist unveränderlich protokolliert und bleibt im Annotationsverlauf verfügbar.",
+      "loading": "Aktueller Stand der Annotation wird geprüft …",
+      "loadError": "Der aktuelle Annotationsverlauf konnte nicht geladen werden. Versuchen Sie es vor dem Speichern erneut.",
+      "changed": "Diese Person wurde nach dem Laden der Runde geändert. Laden Sie den Fragenpool neu, damit Sie keine neuere Arbeit überschreiben.",
+      "refreshRound": "Fragenpool neu laden",
+      "saveError": "Die Annotation konnte nicht gespeichert werden. Es wurden keine Punkte hinzugefügt; versuchen Sie die Antwort erneut oder überspringen Sie die Person.",
+      "skip": "Person überspringen",
+      "saving": "Annotation wird gespeichert …"
+    },
+    "feedback": {
+      "earnedPoints": "+{points}",
+      "stamp": "Gespeichert",
+      "saved": "Annotation gespeichert · +{points} Punkte",
+      "explanation": "Jede gespeicherte Annotation zählt 10 geprüfte Punkte – unabhängig von Label oder Tempo.",
+      "machineLabel": "Maschinelles Label",
+      "evidenceTitle": "Methodenevidenz",
+      "evidenceHint": "Schreibgeschützte Vorhersagen aus der abgeschlossenen Aggregation. Sie werden erst nach der gespeicherten menschlichen Entscheidung angezeigt.",
+      "loading": "Methodenevidenz wird geladen …",
+      "loadError": "Die Methodenevidenz konnte nicht geladen werden. Sie können die Runde ohne sie fortsetzen.",
+      "noEvidence": "Für diese Person liegt keine Methodenvorhersage vor.",
+      "evidenceTable": "Methodenevidenz zur gespeicherten Antwort",
+      "next": "Nächste Person",
+      "finish": "Runde abschließen"
+    },
+    "complete": {
+      "title": "Runde abgeschlossen",
+      "hint": "Ihre Annotationen sind bereits im Projektverlauf gespeichert. Der Server bestätigt die gespeicherten Antworten, bevor ihre festen Punkte in die Bestenliste eingehen.",
+      "score": "Punktzahl",
+      "time": "Entscheidungszeit",
+      "answered": "Beantwortet",
+      "skipped": "Übersprungen",
+      "longestStreak": "Längste Serie",
+      "saving": "Runde wird geprüft und gespeichert …",
+      "saveError": "Die Punktzahl der Runde konnte nicht gespeichert werden. Ihre Annotationen sind sicher; versuchen Sie es mit derselben Runde erneut.",
+      "retrySave": "Punktzahl erneut speichern",
+      "saved": "Der Server hat die gespeicherten Antworten geprüft und die Projektbestenliste aktualisiert.",
+      "playAgain": "Weitere Runde spielen"
+    },
+    "leaderboard": {
+      "title": "Projektbestenliste",
+      "hint": "Beste serverseitig geprüfte Runde pro Projektmitglied für die gewählte Länge. Bei Gleichstand zählt die früher gespeicherte Runde.",
+      "playerCount": "Spielende: {count}",
+      "loading": "Bestenliste wird geladen …",
+      "loadError": "Die Bestenliste konnte nicht geladen werden.",
+      "empty": "Für diese Rundenlänge wurde noch keine geprüfte Runde gespeichert.",
+      "tableLabel": "Projektbestenliste des Spielmodus",
+      "rank": "Rang",
+      "member": "Mitglied",
+      "score": "Punkte",
+      "answered": "Beantwortet",
+      "you": "(Sie)"
+    }
+  },
   "evaluation": {
     "title": "Auswertungen",
     "intro": "Eine Auswertung misst die Methoden eines Laufs an einem Benchmark: den Entscheidungen der GND-Autorität, nur Einträge mit Geschlecht. Sie ist ein gespeichertes, reproduzierbares Ergebnis mit eigenem Konfigurations-Hash.",
@@ -1297,9 +1422,12 @@
     },
     "new": {
       "title": "Auswertung starten",
+      "show": "Auswertung starten",
+      "hide": "Formular schließen",
       "hint": "Wähle die abgeschlossenen Methodenausführungen, die bewertet werden. Der Server akzeptiert nur die Auswahl, die seine Definition vorschreibt: die Benchmark-Methode, die bewerteten Methoden und die Methoden, die nur in die Übereinstimmungsmatrix eingehen, jede genau einmal.",
       "executionsLoadError": "Die Methodenausführungen dieses Laufs konnten nicht geladen werden.",
       "definition": "Definition: {definition}",
+      "options": "Methoden- und Ensemble-Optionen ({count} ausgewählt)",
       "methods": "Methodenausführungen",
       "fromEarlier": "Vorausgewählt: die Auswahl, die der Server für die letzte Auswertung dieses Laufs akzeptiert hat.",
       "fromAll": "Vorausgewählt: jede abgeschlossene Ausführung. Lehnt der Server diese Auswahl ab, nimm die Methoden heraus, die die Definition nicht verwendet.",
@@ -1400,6 +1528,9 @@
     },
     "new": {
       "title": "Export starten",
+      "show": "Export starten",
+      "hide": "Formular schließen",
+      "advanced": "Label- und TEI-Optionen",
       "noAggregation": "Ein Export braucht eine abgeschlossene Aggregation. Lege zuerst auf dem Lauf eine an.",
       "aggregation": "Zu exportierende Aggregation",
       "aggregationOption": "{strategy} · {hash}",
@@ -1537,6 +1668,7 @@
     "classificationHint": "Wählen Sie einen Datenstand, um automatische Vorschläge zu erstellen oder vorhandene Ergebnisse anzusehen.",
     "reviewHint": "Öffnen Sie ein abgeschlossenes Ergebnis zum Redigieren. Der zugehörige Datenstand und Lauf stehen auf der Karte.",
     "annotationHint": "Wählen Sie einen Datenstand zum Annotieren. Automatische Vorschläge können Sie optional hinzunehmen.",
+    "gameHint": "Öffnen Sie ein abgeschlossenes Ergebnis und redigieren Sie dessen unannotierte Personen in einer Runde mit Punktwertung.",
     "selectSnapshot": "Datenstand auswählen",
     "selectRun": "Lauf auswählen",
     "selectResult": "Ergebnis auswählen",
@@ -1544,6 +1676,7 @@
     "openClassification": "Auswählen",
     "openReview": "Öffnen",
     "openAnnotation": "Annotieren starten",
+    "openGame": "Spielen",
     "selectSnapshotNamed": "Datenstand vom {date} auswählen",
     "selectRunNamed": "Lauf vom {date} auswählen",
     "openResultNamed": "Ergebnis vom {date} öffnen",

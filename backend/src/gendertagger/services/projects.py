@@ -243,6 +243,13 @@ class ProjectService:
             unit_of_work.commit()
         return project
 
+    def set_game_mode_enabled(self, project_id: UUID, *, enabled: bool) -> Project:
+        """Set the project-owned availability of the optional game interface."""
+        with self._unit_of_work_factory() as unit_of_work:
+            project = unit_of_work.projects.set_game_mode_enabled(project_id, enabled=enabled)
+            unit_of_work.commit()
+        return project
+
     def get_snapshot(self, snapshot_id: UUID) -> DatasetSnapshot:
         """Return one dataset snapshot or raise a resource-level not-found failure."""
         with self._unit_of_work_factory() as unit_of_work:

@@ -15,6 +15,8 @@ EXPECTED_TABLES = {
     "evaluation_executions",
     "evaluation_method_executions",
     "export_executions",
+    "game_round_events",
+    "game_rounds",
     "method_executions",
     "person_external_ids",
     "person_records",

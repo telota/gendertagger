@@ -70,7 +70,9 @@ describe.each(['de', 'en'] as const)('legal notice in %s', (locale: AppLocale) =
     const client = { GET: () => pending } as never
     const page = (await mountApplicationAt('/impressum', locale, client)).get('main')
 
-    expect(page.text()).toContain(messages.loading)
+    const status = page.get('[role="status"]')
+    expect(status.text()).toBe(messages.loading)
+    expect(status.attributes('aria-atomic')).toBe('true')
     expect(page.find('section').exists()).toBe(false)
   })
 
@@ -159,8 +161,12 @@ describe.each(['de', 'en'] as const)('legal notice in %s', (locale: AppLocale) =
       'main',
     )
 
-    expect(page.text()).toContain(messages.loadError)
-    expect(page.get('button').text()).toBe(messages.retry)
+    const alert = page.get('[role="alert"]')
+    expect(alert.text()).toBe(messages.loadError)
+    expect(alert.attributes('aria-atomic')).toBe('true')
+    expect(alert.find('button').exists()).toBe(false)
+    expect(page.get('.legal-error').classes()).toContain('app-feedback--critical')
+    expect(page.get('.legal-retry').text()).toBe(messages.retry)
     expect(page.find('section').exists()).toBe(false)
   })
 
@@ -172,12 +178,13 @@ describe.each(['de', 'en'] as const)('legal notice in %s', (locale: AppLocale) =
         apiClientFailingOnce({ legal_entity: FULL_LEGAL_ENTITY }),
       )
     ).get('main')
-    expect(page.text()).toContain(messages.loadError)
+    expect(page.get('[role="alert"]').text()).toBe(messages.loadError)
 
-    await page.get('button').trigger('click')
+    await page.get('.legal-retry').trigger('click')
     await flushPromises()
 
-    expect(page.find('button').exists()).toBe(false)
+    expect(page.find('[role="alert"]').exists()).toBe(false)
+    expect(page.find('.legal-retry').exists()).toBe(false)
     expect(page.text()).toContain(FULL_LEGAL_ENTITY.name)
   })
 })

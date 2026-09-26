@@ -169,9 +169,9 @@ definition of done.
 
 The existing client's improvement sequence is proposed in
 [`27-frontend-improvement-plan.md`](27-frontend-improvement-plan.md): shared accessibility and responsive
-foundations, the agreed global header and sidebar project switcher, individual views, then broader
-sidebar refinement. The accepted [header brief](frontend-header-proposal.md) records these responsibilities.
-It preserves this phase's scope and the verification requirements of the increments below.
+foundations, the agreed global header and sidebar project switcher, individual views, then broader sidebar
+refinement. The [global header guidelines](25-frontend-design-guidelines.md#global-header) record these
+responsibilities. It preserves this phase's scope and the verification requirements of the increments below.
 
 - stabilize review-items/query API [DONE]
 - add review-stream revision conflict handling (`409`) [DONE]
@@ -189,11 +189,11 @@ Exit criterion: a reviewer can correct a machine result and the final-decision v
 
 ### Classification and independent annotation entry increment
 
-The accepted [classification and review entry brief](frontend-classification-proposal.md) separates
-project task entry from the previously selected run. Preparation and correctness fixes were delivered
-first: project-wide data availability, validated navigation ownership, and snapshot-scoped annotation
-state. The 2026-09-26 increment delivers server-filtered cursor collections, independent task pickers,
-the aligned classification list/form/detail and snapshot-only manual annotation with optional evidence.
+Decision [D5](24-frontend-delivery-plan.md#d5--manual-annotation-has-independent-snapshot-entry) separates
+project task entry from the previously selected run. Preparation and correctness fixes were delivered first:
+project-wide data availability, validated navigation ownership, and snapshot-scoped annotation state. The
+2026-09-26 increment delivers server-filtered cursor collections, independent task pickers, the aligned
+classification list/form/detail and snapshot-only manual annotation with optional evidence.
 
 Sidebar task links use project availability and role permissions; unavailable tasks and empty groups
 are hidden, while failed checks offer retry. The working aggregation is a recommendation, never an

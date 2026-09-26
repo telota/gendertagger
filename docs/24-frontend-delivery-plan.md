@@ -41,7 +41,7 @@ Deployment and CI already anticipate the client. Reusing it correctly is cheaper
 - `client_max_body_size 500M` matches `GENDERTAGGER_MAX_SNAPSHOT_UPLOAD_BYTES`.
 - `compose.yaml`, `compose.dev.yaml`, and `compose.prod.yaml` all declare a `frontend` service with
   resource limits.
-- `.gitlab-ci.yml` already has `build_and_publish_frontend` and `frontend_sbom` jobs.
+- `.gitlab-ci.yml` already has `frontend_publish_image` and `frontend_sbom` jobs.
 
 **Delivered by M1.**
 
@@ -365,10 +365,9 @@ build. The
 
 **Status. Delivered (2026-09-25).**
 
-The remaining shell work in `IDEAS.md` follows the delivered route and account-preference contracts.
 Review, People, Evaluation, Export, Users, Teams, and Branding settings retain their implemented routes;
 no placeholder replaces a functioning screen. Evaluation and Export remain run-scoped destinations as
-delivered in M7/M8. Game mode remains a separate, deferred increment (D20).
+delivered in M7/M8. Game mode is a separate optional path, delivered under D22.
 
 - A desktop collapse button sits below language and theme in the sidebar footer and saves only
   `desktop_sidebar_collapsed` and `expected_revision` through
@@ -397,8 +396,9 @@ delivered in M7/M8. Game mode remains a separate, deferred increment (D20).
   storage. While identity is unresolved or account access is unavailable, temporary presentation changes
   write neither account preferences nor anonymous storage. New canonical account values replace these
   temporary changes. Personal settings now lives in the header account menu with Sign out;
-  the menu trigger shows account identity. The [accepted header brief](frontend-header-proposal.md)
-  supersedes the earlier footer placement.
+  the menu trigger shows account identity. The
+  [global header guidelines](25-frontend-design-guidelines.md#global-header) supersede the earlier
+  footer placement.
 - Project switching sits above readable project destinations, including an accessible rail control and
   the mobile drawer. The header supplies short breadcrumbs. Global routes use Projects without an
   implied current project; draft path departures and sign-out use the shared leave dialog.
@@ -874,9 +874,10 @@ closed; what is still open is one limit of the development seed (below).
 
 **Work.**
 
-- ~~Spielmodus as a presentation layer over the annotation contract~~ — deferred out of v1 (D20). The
-  constraint from [`22-future-development.md`](22-future-development.md) holds for whenever it is built: it must
-  never influence which records are shown.
+- **Spielmodus. Delivered (2026-09-26).** It uses the ordinary annotation contract and server-side ordering:
+  open decisions use review triage, while the entire-dataset pool uses stable source-ID order. A separate round
+  resource owns validated scoring and the per-project leaderboard. Neither the score nor game progress
+  reorders either pool or changes the regular review queue.
 - ~~Einstellungen reduced to whatever persistence exists, or read-only deployment facts~~ — covered by the
   existing administration screens for now, see the Einstellungen bullet below.
 - SPA routing fallback in the frontend image (D13), production build, same-origin smoke test through the
@@ -914,8 +915,10 @@ resolve, and the review path works end to end behind a real session.
   require a completed aggregation before opening an evidence workbench.
   Desktop collapse, the medium-width rail, and the mobile drawer follow the contextual sidebar
   specification above; labels stay available to assistive technology. Icons are Phosphor (`@phosphor-icons/vue`,
-  MIT, named imports so unused icons are tree-shaken), decorative and `aria-hidden`. There is no Spielmodus
-  entry (D20). Tailwind is not used (D21): styling stays on the semantic tokens of
+  MIT, named imports so unused icons are tree-shaken), decorative and `aria-hidden`. Spielmodus appears in a
+  separate optional group for reviewers and operators only when the project enables it and has a completed
+  aggregation (D22).
+  Tailwind is not used (D21): styling stays on the semantic tokens of
   [`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md).
 - **Project switcher. Delivered.** `ProjectSwitcher`, above project destinations in the sidebar, lists the
   caller's projects (first page of `GET /projects`, server order) and names/marks the current one. The
@@ -1108,8 +1111,69 @@ on run completion. Opening the upcoming read-only task picker must not trigger t
 
 **Implemented, 2026-09-26.** “Manuell annotieren” starts from a ready snapshot and permits decisions
 before classification. The shared picker optionally adds a run and its exact completed aggregation.
-“Redigieren” independently selects a snapshot with results, then a run/result. Sidebar entry always
-opens the picker; the working result is marked as recommended without automatic selection or writes.
+“Redigieren” lists completed reviewable results directly. Sidebar entry always opens the project-level
+picker; the working result is marked as recommended without automatic selection or writes. Presentation
+names follow the [interface terminology](../PRODUCT.md#interface-terminology).
+
+| Destination             | Entry and outcome                                                                                                                         |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Automatische Vorschläge | Choose a ready dataset, inspect its existing runs, or generate suggestions. Open a run to inspect progress, methods and its results.      |
+| Redigieren              | List completed reviewable results directly. Each card opens its exact result and shows the owning dataset and run.                        |
+| Manuell annotieren      | Step 1 chooses a ready snapshot. Step 2 starts annotation immediately or adds a run and completed result as optional supporting evidence. |
+
+**Entry and selection.** Entry surfaces are inline, not modals. Headings, the selected context and
+Change dataset/Change run actions provide orientation; there is no visual stepper. Redigieren reads the
+paginated `GET /projects/{project_id}/review-results` collection, so the browser does not crawl
+snapshots and runs to find eligible results; each card still shows its dataset/run provenance. Snapshot
+options show import time, available record count and source context. Run options show creation time,
+methods and status. Where evidence is optional, selecting a run reveals its completed results, each with
+an explicit Open action. Never infer a default from recency or from an incomplete cursor page.
+
+The exact working snapshot/run/result is marked as the project's recommended selection. Choosing a
+different result for a task does not change the project's working pointer. A picker never changes that
+pointer, starts classification, or creates an aggregation merely by opening. After entry, a compact
+context row shows the snapshot and optional run/result plus a Change selection action. URL selection,
+refresh, browser history, existing exact deep links and draft-leave protection remain meaningful.
+Existing direct workbench links open their named resources directly; sidebar task links always lead to
+the project-level picker.
+
+**Automatic suggestions composition.**
+
+- Match the other project pages' width, heading row, gutters, cards and ghost actions. Use one page
+  heading and the shared breadcrumb instead of redundant local back links.
+- Put dataset selection above the run list. Existing runs are the primary content; Generate suggestions
+  is a heading-row action for operators and opens a collapsed inline form spanning the list width.
+- The form exposes method selection first. Method-specific JSON configuration and execution policy
+  belong in clearly labelled advanced disclosures. Preserve the real API configuration and validation.
+- Each run has a clear Open run action, date, methods and lifecycle state. Show progress or failure
+  where relevant; move configuration hashes and other provenance into detail disclosures.
+- Run detail orders status/progress, method outcomes and available results before technical provenance.
+  A completed result offers explicit actions to review or annotate using that exact context. Preserve
+  multiple aggregations, partial method failures and the distinction between a finished run and usable
+  aggregated results. Any change to the run-detail default-aggregation command must be specified
+  explicitly, not made as an incidental picker side effect.
+
+**Availability.** An unselected snapshot/run is normal picker state, not a reason to disable or hide an
+otherwise usable project task. Hide a destination when its project prerequisites or permissions are
+absent, and hide groups with no visible entries:
+
+- Automatic suggestions needs a ready snapshot; only operators can start a run.
+- Manual annotation needs a ready snapshot and annotation permission, regardless of run availability.
+- Redigieren needs a completed aggregation and review permission.
+- Management-only access continues to expose Members without scientific data. Viewers keep read-only
+  access to records/results with an accurate label, rather than an advertised manual write capability.
+- Statistics and Export use their own valid source prerequisites. Their sidebar links must not borrow
+  an unrelated run because the user visited Members.
+
+Availability is server-authoritative: `GET /projects/{project_id}/data-availability` returns the
+canonical `ProjectDataAvailability` fields `project_id`, `has_ready_snapshots`, and
+`has_completed_aggregations`. Its project-scoped existence queries cover the full stored collection,
+require viewer access, and expose no page-specific navigation rules. Picker collections are filtered and
+cursor-paginated; filters apply before pagination and cursors bind to the complete query. A null working
+pointer, a failed request or the absence of matches on the first page proves nothing about other eligible
+data. Loading and failed availability checks need explicit recovery; they must not claim the project has
+no results. Refresh availability after import, run and aggregation lifecycle changes, and isolate it by
+principal/project as with other private queries.
 
 Raw manual browsing uses `GET /snapshots/{snapshot_id}/annotation-items`, a canonical projection of
 person identity and the current human decision/revision. Search, workflow-state and human-label filters
@@ -1117,18 +1181,31 @@ are server-side and cursor-bound. Exact person reads and snapshot/person URLs su
 the loaded page. The existing `POST /annotations` accepts the selected snapshot/person without result
 evidence; history provides revision zero for unannotated records and the full append-only chain.
 Source details remain available through the raw person endpoint. No machine labels, certainty, agreement
-or verification action are fabricated when classification is absent.
+or verification action are fabricated when classification is absent; lack of classification is not a
+machine `unknown`, `abstain` or `error` outcome.
 
 With real result evidence, the existing `GET /review-items` workbench remains the source for machine
 outcomes, final decisions, evidence filters and uncertainty ordering. Exact run/aggregation links remain
 valid. Both workbenches expose Change selection and preserve draft-leave protection. Decisions share
 snapshot/person history across runs; a new import never inherits it. Saves and revision conflicts refresh
-raw annotation projections and all affected cached aggregation review projections.
+raw annotation projections and all affected cached aggregation review projections. Drafts and selections
+are scoped to snapshot and person, not TEI ID alone, so identical identifiers in two imports cannot share
+edits.
 
 The Data area remains dedicated to import and read-only source inspection. Viewers can inspect raw data,
 completed results and read-only decisions; sidebar labels do not advertise annotation writes to them.
 Picker reads do not create default aggregations, move the working pointer, or infer eligibility from a
-partial page. See the [entry brief](frontend-classification-proposal.md) for composition and validation.
+partial page. ADR-0035's explicit working pointer remains the source for summaries and recommendations.
+This decision changes client entry paths only; any change to scientific annotation or evaluation
+semantics requires its own design update and ADR.
+
+Verification covers projects with no import, only a ready snapshot, running/failed classification, one
+completed result, several results per run and several snapshots. It includes eligible results outside the
+first page, working pointers absent or pointing elsewhere, account/role changes, stale responses,
+annotation conflicts, draft cancellation and refresh/back/deep-link behavior, in both locales, with
+keyboard use, mobile reflow and accessible picker announcements. Direct navigation from Members must
+behave like navigation from Overview or Data. Automated results and the pending live browser review are
+recorded in the [improvement plan](27-frontend-improvement-plan.md).
 
 ### D6 — Project visibility and role scope
 
@@ -1199,7 +1276,8 @@ upward, never gamed, matching the backend policy in
 
 **D12 — Node 26, pinned; client dependencies in `frontend/`.** `frontend/package.json` and
 `frontend/package-lock.json` own the client tree; the root `package.json` stays the Pyright-only manifest.
-CI installs with `npm ci`, and the existing `lockfile` and `dependency_audit` jobs extend to cover it.
+CI installs with `npm ci`, and the existing `backend_lockfile` and
+`backend_dependency_audit` jobs extend to cover it.
 Node 26 replaced the original Node 22 pin: Node 22 is in maintenance and reaches end of life in April 2027,
 while Node 26 enters LTS in October 2026 and is supported until April 2029. Every locked dependency supports
 it.
@@ -1207,21 +1285,30 @@ it.
 **D13 — History-mode routing.** The SPA fallback is added to the frontend nginx image. Hash routing is
 rejected because scholarly URLs are shared and cited.
 
-**D14 — The game mode ships in v1, without scoring.** _(Shipping in v1 superseded by D20.)_ It is a presentation layer over the same annotation
-contract. Scores, combos, streaks, and the leaderboard are deferred, and the constraint from
-[`22-future-development.md`](22-future-development.md) holds regardless: nothing in the game path may
-influence which records are shown for review.
+**D14 — The game mode ships in v1, without scoring.** _(Superseded by D20 and then D22.)_ Its lasting
+constraint is that it remains a presentation layer over the same annotation contract and never influences
+which records are shown for review.
 
-**D20 — The game mode is deferred out of v1.** Decided 2026-09-24, superseding the shipping part of D14. The
-sidebar has no Spielmodus entry, no route and no screen exist for it, and D19 (the switchable timer) has nothing to
-apply to until the mode is built. The constraint from [`22-future-development.md`](22-future-development.md)
-still binds a later implementation: it is a presentation layer over the annotation contract and must never
-influence which records are shown.
+**D20 — The game mode is deferred out of v1.** _(Superseded by D22.)_ Decided 2026-09-24 when no route,
+screen, or scoring contract existed.
 
 **D21 — No Tailwind; styling stays on the design tokens.** Decided 2026-09-24. The client keeps the semantic,
 theme-scoped tokens in `src/styles/tokens.css` with scoped component CSS, as
 [`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md) defines. Icons are the exception that
 was asked for: Phosphor (`@phosphor-icons/vue`).
+
+**D22 — The game mode ships with server-owned scoring.** Decided 2026-09-26. Reviewers choose rounds of 10,
+20, or 50 records from either open decisions or the entire aggregation. Open decisions retain
+`review_triage_v1`; the entire-dataset pool removes the workflow-state filter, includes previously reviewed
+records, and uses stable `tei_id` order so new annotation revisions do not disrupt cursor progression. Direct
+labels write ordinary `verify` or `correct` annotations; skips write no annotation.
+`POST /projects/{project_id}/game-rounds` validates those annotation identifiers and computes a fixed ten
+points per accepted annotation. Timing, skips, and streaks remain local session feedback.
+`GET /projects/{project_id}/game-leaderboard` exposes each reviewer's best round for one target size. The
+leaderboard is persistent engagement metadata and cannot affect annotation
+semantics, queue order, exports, or evaluation. New projects default to disabled; an operator opts in from the
+project overview. Turning it off hides the optional sidebar group and blocks direct game API access while
+retaining completed rounds.
 
 ### Accessibility decisions
 
@@ -1261,10 +1348,9 @@ At least one round of testing with people with disabilities takes place before M
 (D16), this is the only point at which the assessment is exposed to users who are not its authors, so it is
 scheduled rather than left to goodwill.
 
-**D19 — The game-mode timer is switchable off.** _(Applies once the game mode exists, D20.)_ The countdown may exist, but the user can disable it, the
-setting is reachable **before the first timed round begins**, and the choice persists. Disabling the timer
-must not degrade the annotation path: the same records, the same actions, the same writes. This satisfies
-WCAG 2.2.1 through its "turn off" provision.
+**D19 — The game-mode timer is switchable off.** The control is reachable **before the first timed round
+begins**, and its per-account browser choice persists. The timer is a personal pacing aid, imposes no time
+limit, and contributes nothing to the official score. Disabling it does not change records, actions, or writes.
 
 ## Outstanding assignments
 
@@ -1293,7 +1379,6 @@ expectations. Each is analysed in [`23-wireframe-ui-inventory.md`](23-wireframe-
 - Autosave and "last saved" state, which contradict append-only annotations
 - Project settings and personal settings beyond the three presentation fields accepted in ADR-0043;
   the personal settings UI exposes only those fields
-- The game mode itself (D20), including its scoring, combos and leaderboard
 - A bulk annotation endpoint
 - Per-case review-time telemetry
 

@@ -5,6 +5,7 @@ import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import AppButton from '@/components/base/AppButton.vue'
+import AppFeedback from '@/components/base/AppFeedback.vue'
 import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
 import { useSessionStore } from '@/stores/session'
 import { useProjectMembership } from './useProjectMembership'
@@ -59,35 +60,54 @@ async function removeMember(): Promise<void> {
 }
 </script>
 <template>
-  <main class="project-members">
-    <header class="project-members-heading">
-      <div>
-        <h1>{{ t('projectMembers.title') }}</h1>
-        <p>{{ t('projectMembers.description') }}</p>
+  <main class="project-members app-page-frame">
+    <header class="project-members-heading app-page-heading">
+      <div class="app-page-heading__copy">
+        <h1 class="app-page-heading__title">{{ t('projectMembers.title') }}</h1>
+        <p class="app-page-heading__description">{{ t('projectMembers.description') }}</p>
       </div>
-      <AppButton
-        type="button"
-        variant="ghost"
-        :aria-expanded="addMemberOpen"
-        aria-controls="project-member-add-panel"
-        @click="toggleAddMember"
-      >
-        <PhMinus v-if="addMemberOpen" :size="18" aria-hidden="true" />
-        <PhPlus v-else :size="18" aria-hidden="true" />
-        {{ addMemberOpen ? t('projectMembers.addHide') : t('projectMembers.addOpen') }}
-      </AppButton>
+      <div class="app-page-heading__actions">
+        <AppButton
+          type="button"
+          :variant="addMemberOpen ? 'ghost' : 'solid'"
+          :aria-expanded="addMemberOpen"
+          aria-controls="project-member-add-panel"
+          @click="toggleAddMember"
+        >
+          <PhMinus v-if="addMemberOpen" :size="18" aria-hidden="true" />
+          <PhPlus v-else :size="18" aria-hidden="true" />
+          {{ addMemberOpen ? t('projectMembers.addHide') : t('projectMembers.addOpen') }}
+        </AppButton>
+      </div>
     </header>
 
-    <p v-if="management.state.isPending.value" role="status">{{ t('projects.loading') }}</p>
-    <p v-else-if="management.state.isError.value" class="project-members-error" role="alert">
+    <AppFeedback v-if="management.state.isPending.value" class="app-card" announcement="polite">
+      {{ t('projects.loading') }}
+    </AppFeedback>
+    <AppFeedback
+      v-else-if="management.state.isError.value"
+      class="project-members-load-error app-card"
+      announcement="assertive"
+      tone="critical"
+    >
       {{ t('projectMembers.loadError') }}
-    </p>
+      <template #actions>
+        <AppButton
+          type="button"
+          variant="ghost"
+          :disabled="management.state.isFetching.value"
+          @click="management.state.refetch()"
+        >
+          {{ t('projects.retry') }}
+        </AppButton>
+      </template>
+    </AppFeedback>
 
     <template v-else-if="management.state.data.value">
       <section
         v-show="addMemberOpen"
         id="project-member-add-panel"
-        class="project-members-add"
+        class="project-members-add app-card"
         aria-labelledby="project-members-add-title"
       >
         <h2 id="project-members-add-title">{{ t('projectMembers.add') }}</h2>
@@ -120,13 +140,7 @@ async function removeMember(): Promise<void> {
             </select>
           </div>
         </div>
-        <div class="project-members-add-actions">
-          <AppButton
-            type="button"
-            :disabled="selectedCandidate === null || management.pending.value"
-            @click="addMember"
-            >{{ t('projectMembers.add') }}</AppButton
-          >
+        <div class="project-members-add-actions app-form-actions">
           <AppButton
             v-if="management.candidates.hasNextPage.value"
             type="button"
@@ -139,10 +153,19 @@ async function removeMember(): Promise<void> {
                 : t('projects.loadMore')
             }}</AppButton
           >
+          <AppButton
+            type="button"
+            :disabled="selectedCandidate === null || management.pending.value"
+            @click="addMember"
+            >{{ t('projectMembers.add') }}</AppButton
+          >
         </div>
       </section>
 
-      <section class="project-members-manager" aria-labelledby="project-members-manager-title">
+      <section
+        class="project-members-manager app-card"
+        aria-labelledby="project-members-manager-title"
+      >
         <div>
           <h2 id="project-members-manager-title">{{ t('projectMembers.manager') }}</h2>
           <dl class="project-members-manager-summary">
@@ -187,7 +210,7 @@ async function removeMember(): Promise<void> {
 
       <div class="project-members-roster">
         <AppScrollRegion
-          class="project-members-table-scroll"
+          class="project-members-table-scroll app-card app-card--sectioned"
           :label="t('layout.tableRegion', { label: t('projectMembers.members') })"
         >
           <table>
@@ -235,13 +258,14 @@ async function removeMember(): Promise<void> {
         </AppScrollRegion>
       </div>
 
-      <p
+      <AppFeedback
         v-if="management.error.value && memberToRemove === null"
-        class="project-members-error"
-        role="alert"
+        class="project-members-error app-card"
+        announcement="assertive"
+        tone="critical"
       >
         {{ t('projectMembers.error') }}
-      </p>
+      </AppFeedback>
     </template>
   </main>
 
@@ -261,9 +285,14 @@ async function removeMember(): Promise<void> {
             t('projectMembers.removeConfirm.description', { name: memberToRemove?.display_name })
           }}
         </p>
-        <p v-if="management.error.value" class="project-members-error" role="alert">
+        <AppFeedback
+          v-if="management.error.value"
+          class="project-members-error"
+          announcement="assertive"
+          tone="critical"
+        >
           {{ t('projectMembers.error') }}
-        </p>
+        </AppFeedback>
         <div class="project-members-dialog-actions">
           <AppButton
             type="button"
@@ -289,51 +318,18 @@ async function removeMember(): Promise<void> {
 
 <style scoped>
 .project-members {
-  width: 100%;
-  min-width: 0;
-  max-width: 60rem;
-  margin: 0 auto;
-  padding: var(--space-8) var(--page-gutter);
   overflow-wrap: anywhere;
 }
 
-.project-members-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-6);
-}
-
-.project-members-heading h1,
 .project-members h2,
 .project-members p {
   margin: 0;
-}
-
-.project-members-heading h1 {
-  margin-bottom: var(--space-2);
-  font-size: var(--font-size-page);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-height-page);
-}
-
-.project-members-heading p {
-  color: var(--text-secondary);
-}
-
-.project-members-heading > .app-button {
-  flex-shrink: 0;
 }
 
 .project-members-manager,
 .project-members-add {
   display: grid;
   gap: var(--space-5);
-  padding: var(--space-5);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
 }
 
 .project-members-manager {
@@ -366,15 +362,13 @@ async function removeMember(): Promise<void> {
 }
 
 .project-members-transfer,
-.project-members-add > div,
 .project-members-add-fields > div {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
 }
 
-.project-members-transfer-controls,
-.project-members-add-actions {
+.project-members-transfer-controls {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
@@ -387,12 +381,6 @@ async function removeMember(): Promise<void> {
 
 .project-members-roster {
   margin-top: var(--space-6);
-}
-
-.project-members-table-scroll {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
 }
 
 .project-members-table-scroll table {
@@ -441,10 +429,6 @@ async function removeMember(): Promise<void> {
   gap: var(--space-4);
 }
 
-.project-members-add-actions {
-  justify-content: flex-end;
-}
-
 .project-members select {
   min-width: 0;
   border: 1px solid var(--border);
@@ -460,9 +444,8 @@ async function removeMember(): Promise<void> {
   opacity: 0.65;
 }
 
-p.project-members-error {
+.project-members-error {
   margin-top: var(--space-4);
-  color: var(--critical-text);
 }
 
 .project-members-dialog {
@@ -510,17 +493,9 @@ p.project-members-error {
 }
 
 @media (max-width: 40rem) {
-  .project-members-heading {
-    flex-direction: column;
-  }
-
   .project-members-manager,
   .project-members-add-fields {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .project-members-add-actions {
-    justify-content: flex-start;
   }
 }
 </style>

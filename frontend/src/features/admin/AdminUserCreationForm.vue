@@ -112,7 +112,7 @@ watch(
 </script>
 
 <template>
-  <section class="admin-user-creation" aria-labelledby="admin-user-creation-heading">
+  <section class="admin-user-creation app-card" aria-labelledby="admin-user-creation-heading">
     <h2 id="admin-user-creation-heading">{{ t('admin.creation.title') }}</h2>
     <p>{{ t('admin.creation.description') }}</p>
 
@@ -154,7 +154,7 @@ watch(
       <p v-if="errorMessage(error)" role="alert" class="admin-user-creation-error">
         {{ errorMessage(error) }}
       </p>
-      <div class="admin-user-creation-actions">
+      <div class="admin-user-creation-actions app-form-actions">
         <AppButton type="submit" :disabled="isSubmitting">
           {{ isSubmitting ? t('admin.creation.submitting') : t('admin.creation.submit') }}
         </AppButton>
@@ -193,10 +193,6 @@ watch(
   container: admin-user-creation / inline-size;
   min-width: 0;
   overflow-wrap: anywhere;
-  padding: var(--space-5) var(--page-gutter);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
 }
 
 .admin-user-creation h2,
@@ -227,15 +223,9 @@ watch(
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .admin-user-creation-roles,
-  .admin-user-creation-error,
-  .admin-user-creation-actions {
+  .admin-user-creation-error {
     grid-column: 1 / -1;
   }
-}
-
-.admin-user-creation-actions {
-  display: flex;
-  justify-content: flex-end;
 }
 
 .admin-user-creation-roles {

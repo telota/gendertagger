@@ -151,9 +151,11 @@ onUnmounted(() => {
   clearCloseTimer()
   desktopBreakpoint?.removeEventListener('change', updateViewport)
   mobileBreakpoint?.removeEventListener('change', updateViewport)
-  document.removeEventListener('keydown', escape, true)
-  window.removeEventListener('resize', reposition)
-  window.removeEventListener('scroll', reposition, true)
+  if (typeof document !== 'undefined') document.removeEventListener('keydown', escape, true)
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', reposition)
+    window.removeEventListener('scroll', reposition, true)
+  }
 })
 </script>
 

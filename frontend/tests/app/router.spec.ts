@@ -22,6 +22,8 @@ describe('routes', () => {
     ['/projects/project-a/snapshots/snapshot-a', 'snapshotDetail'],
     ['/projects/project-a/snapshots/snapshot-a/runs', 'snapshotRuns'],
     ['/projects/project-a/snapshots/snapshot-a/runs/run-a', 'runDetail'],
+    ['/projects/project-a/game', 'projectGame'],
+    ['/projects/project-a/runs/run-a/aggregations/aggregation-a/game', 'game'],
     [
       '/projects/project-a/snapshots/snapshot-a/runs/run-a/executions/execution-a/results',
       'methodExecutionResults',
@@ -32,7 +34,7 @@ describe('routes', () => {
     expect((await resolve(path)).name).toBe(name)
   })
 
-  it.each(['userSettings', 'projectSnapshots', 'snapshotDetail'])(
+  it.each(['userSettings', 'projectSnapshots', 'snapshotDetail', 'projectGame', 'game'])(
     'keeps %s lazy loaded',
     (name) => {
       expect(typeof routes.find((route) => route.name === name)?.component).toBe('function')

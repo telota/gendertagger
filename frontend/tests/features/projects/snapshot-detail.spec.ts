@@ -191,6 +191,14 @@ describe.each(['de', 'en'] as const)('snapshot detail in %s', (locale) => {
     const metadataCards = wrapper.get('.snapshot-secondary')
     const sources = wrapper.get('details.snapshot-sources')
     const provenance = wrapper.get('details.snapshot-provenance')
+    const summary = wrapper.get('.snapshot-summary')
+    expect(summary.classes()).toEqual(expect.arrayContaining(['app-card', 'app-fact-list']))
+    expect(summary.findAll('.app-fact-list__item')).toHaveLength(2)
+    expect(provenance.classes()).toEqual(
+      expect.arrayContaining(['app-card', 'app-card--sectioned']),
+    )
+    expect(provenance.findAll('.app-fact-list__item')).toHaveLength(3)
+    expect(provenance.find('.app-card').exists()).toBe(false)
     expect(sources.attributes('open')).toBeUndefined()
     expect(provenance.attributes('open')).toBeUndefined()
     expect(
@@ -217,6 +225,16 @@ describe.each(['de', 'en'] as const)('snapshot detail in %s', (locale) => {
     expect(detailRow.get('td').attributes('colspan')).toBe('4')
     expect(document.activeElement).toBe(wrapper.get('#snapshot-record-detail-panel').element)
     expect(wrapper.find('.snapshot-record-detail-heading').exists()).toBe(false)
+    expect(wrapper.get('.snapshot-record-detail').classes()).not.toContain('app-resource-card')
+    expect(wrapper.get('.snapshot-record-detail').classes()).toContain(
+      'snapshot-record-detail--embedded',
+    )
+    expect(
+      wrapper
+        .get('.snapshot-record-table-scroll')
+        .find('.app-card .app-card, .app-card .app-resource-card')
+        .exists(),
+    ).toBe(false)
     expect(wrapper.vm.$router.currentRoute.value.query.person).toBe('person.exact_42')
     expect(state.paths()).toContain(`${API_PATH}/people/person.exact_42`)
     expect(state.paths().some((path) => /predictions|annotations|review-items/.test(path))).toBe(
@@ -267,8 +285,10 @@ describe.each(['de', 'en'] as const)('snapshot detail in %s', (locale) => {
     const wrapper = await mountApplicationAt(PATH, locale, state.client)
     await waitFor(() => expect(wrapper.findAll('main h1')).toHaveLength(1))
     expect(wrapper.get('main h1').text()).not.toBe('')
+    expect(wrapper.get('.snapshot-detail > .app-feedback').classes()).toContain('app-card')
     response.resolve(failure())
     await waitFor(() => expect(wrapper.find('main [role="alert"]').exists()).toBe(true))
+    expect(wrapper.get('.snapshot-detail > .app-feedback').classes()).toContain('app-card')
     expect(wrapper.findAll('main h1')).toHaveLength(1)
     expect(state.paths().some((path) => path.startsWith(`${API_PATH}/`))).toBe(false)
   })
@@ -289,6 +309,7 @@ describe.each(['de', 'en'] as const)('snapshot detail in %s', (locale) => {
     await waitFor(() =>
       expect(wrapper.find('.snapshot-records [role="alert"]').exists()).toBe(true),
     )
+    expect(wrapper.get('.snapshot-record-feedback').classes()).not.toContain('app-card')
     expect(wrapper.findAll('.snapshot-record-view')).toHaveLength(1)
     await wrapper.get('.snapshot-records-retry').trigger('click')
     await waitFor(() => expect(wrapper.findAll('.snapshot-record-view')).toHaveLength(2))
@@ -302,6 +323,38 @@ describe.each(['de', 'en'] as const)('snapshot detail in %s', (locale) => {
     await waitFor(() => expect(wrapper.findAll('.snapshot-record-view')).toHaveLength(2))
     expect(cursors).toEqual([null, 'next-page', 'next-page'])
   })
+})
+
+it('cards the records loading and empty replacement states', async () => {
+  const response = deferredResponse()
+  const state = server((request) =>
+    new URL(request.url).pathname === `${API_PATH}/people` ? response.promise : undefined,
+  )
+  const wrapper = await mountApplicationAt(PATH, 'en', state.client)
+
+  await waitFor(() => expect(wrapper.find('.snapshot-record-list-status').exists()).toBe(true))
+  expect(wrapper.get('.snapshot-record-list-status').classes()).toContain('app-card')
+
+  response.resolve(page([]))
+  await waitFor(() => expect(wrapper.find('.snapshot-records-empty').exists()).toBe(true))
+  expect(wrapper.get('.snapshot-records-empty').classes()).toContain('app-card')
+})
+
+it('cards an initial records failure and its recovery', async () => {
+  let failing = true
+  const state = server((request) => {
+    if (new URL(request.url).pathname !== `${API_PATH}/people`) return undefined
+    return failing ? failure() : page([])
+  })
+  const wrapper = await mountApplicationAt(PATH, 'en', state.client)
+
+  await waitFor(() => expect(wrapper.find('.snapshot-record-feedback').exists()).toBe(true))
+  expect(wrapper.get('.snapshot-record-feedback').classes()).toContain('app-card')
+
+  failing = false
+  await wrapper.get('.snapshot-records-retry').trigger('click')
+  await waitFor(() => expect(wrapper.find('.snapshot-records-empty').exists()).toBe(true))
+  expect(wrapper.get('.snapshot-records-empty').classes()).toContain('app-card')
 })
 
 it('keeps the person list usable when snapshot statistics fail', async () => {

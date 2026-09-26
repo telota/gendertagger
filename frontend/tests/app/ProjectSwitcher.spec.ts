@@ -27,6 +27,7 @@ const project = (id: string, name: string): AccessibleProject => ({
   display_name: name,
   current_user_role: 'operator',
   current_user_can_manage_members: false,
+  game_mode_enabled: false,
   manager_user_id: USER.id,
   created_by_user_id: USER.id,
   team: {

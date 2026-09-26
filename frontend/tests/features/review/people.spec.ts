@@ -153,9 +153,11 @@ describe.each(['de', 'en'] as const)('person browser in %s', (locale: AppLocale)
     expect(entries[0]?.text()).toMatch(/2026|Jan/)
   })
 
-  it('links back to the aggregation it belongs to', async () => {
+  it('links the review context to the aggregation it belongs to', async () => {
     const wrapper = await mountPeople(newServer())
 
-    expect(wrapper.get('.review-back').attributes('href')).toContain(`/aggregations/${AGG_ID}`)
+    expect(wrapper.get('.review-context-link').attributes('href')).toContain(
+      `/aggregations/${AGG_ID}`,
+    )
   })
 })

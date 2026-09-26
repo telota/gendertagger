@@ -201,7 +201,7 @@ watch(selectedId, async (id) => {
 
     <AppFeedback
       v-if="people.isPending.value && records.length === 0"
-      class="snapshot-record-list-status"
+      class="snapshot-record-list-status app-card"
       announcement="polite"
     >
       {{ t('data.records.loading') }}
@@ -209,7 +209,7 @@ watch(selectedId, async (id) => {
 
     <div v-if="records.length" ref="recordList" class="snapshot-record-table-region">
       <AppScrollRegion
-        class="snapshot-record-table-scroll"
+        class="snapshot-record-table-scroll app-card app-card--sectioned"
         :label="t('layout.tableRegion', { label: t('data.records.title') })"
       >
         <table class="snapshot-record-table">
@@ -297,9 +297,12 @@ watch(selectedId, async (id) => {
       </AppScrollRegion>
     </div>
 
-    <p v-else-if="!people.isPending.value && !people.isError.value" class="snapshot-records-empty">
+    <AppFeedback
+      v-else-if="!people.isPending.value && !people.isError.value"
+      class="snapshot-records-empty app-card"
+    >
       {{ t('data.records.empty') }}
-    </p>
+    </AppFeedback>
 
     <div ref="recordPagination" class="snapshot-record-pagination">
       <AppFeedback
@@ -307,6 +310,7 @@ watch(selectedId, async (id) => {
         announcement="assertive"
         tone="critical"
         class="snapshot-record-feedback"
+        :class="{ 'app-card': records.length === 0 }"
       >
         {{
           people.isFetchNextPageError.value
@@ -389,9 +393,6 @@ watch(selectedId, async (id) => {
 
 .snapshot-record-table-scroll {
   container: imported-record-table / inline-size;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
 }
 
 .snapshot-record-table {

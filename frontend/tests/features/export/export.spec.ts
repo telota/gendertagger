@@ -7,6 +7,7 @@ import { createApiClient, type components } from '@/api'
 import type { AppLocale } from '@/app/i18n'
 import de from '@/locales/de.json'
 import en from '@/locales/en.json'
+import { useSessionStore } from '@/stores/session'
 
 import { mountApplicationAt } from '../../helpers/render'
 import { waitFor } from '../../helpers/wait'
@@ -103,6 +104,9 @@ interface Server {
   manifest: typeof MANIFEST | number
   manifestRequests: number
   aggregations: boolean
+  listFailures: number
+  listRequests: number
+  nextListResponse?: Promise<Response>
 }
 
 function newServer(overrides: Partial<Server> = {}): Server {
@@ -117,6 +121,8 @@ function newServer(overrides: Partial<Server> = {}): Server {
     manifest: SINGLE_MANIFEST,
     manifestRequests: 0,
     aggregations: true,
+    listFailures: 0,
+    listRequests: 0,
     ...overrides,
   }
 }
@@ -147,6 +153,7 @@ function exportClient(server: Server) {
           created_by_user_id: 'a0000000-0000-0000-0000-000000000003',
           current_user_role: server.role,
           current_user_can_manage_members: false,
+          game_mode_enabled: false,
           created_at: '2026-01-01T00:00:00Z',
         } satisfies components['schemas']['AccessibleProject'])
       }
@@ -198,6 +205,15 @@ function exportClient(server: Server) {
         })
       }
       if (pathname === `/api/v1/runs/${RUN_ID}/exports`) {
+        server.listRequests += 1
+        if (server.listRequests <= server.listFailures) {
+          return jsonResponse({}, { status: 500 })
+        }
+        if (server.nextListResponse) {
+          const response = server.nextListResponse
+          delete server.nextListResponse
+          return response
+        }
         return jsonResponse({ items: server.exports, next_cursor: null, has_more: false })
       }
       if (pathname === '/api/v1/exports' && request.method === 'POST') {
@@ -282,8 +298,15 @@ describe.each(['de', 'en'] as const)('exports in %s', (locale: AppLocale) => {
 
   async function mountDetail(server: Server) {
     const wrapper = await mountApplicationAt(detail, locale, exportClient(server))
-    await waitFor(() => expect(wrapper.find('.export-detail-title').exists()).toBe(true))
+    await waitFor(() => expect(wrapper.find('.export-detail-facts').exists()).toBe(true))
     return wrapper
+  }
+
+  async function openCreationForm(
+    wrapper: Awaited<ReturnType<typeof mountApplicationAt>>,
+  ): Promise<void> {
+    await wrapper.get('.export-list-create').trigger('click')
+    await waitFor(() => expect(wrapper.find('.new-export').exists()).toBe(true))
   }
 
   it('retains a newer responsibility statement when a completed submission tries to navigate', async () => {
@@ -294,6 +317,7 @@ describe.each(['de', 'en'] as const)('exports in %s', (locale: AppLocale) => {
     const server = newServer({ createResponse })
     const wrapper = await mountList(server)
     try {
+      await openCreationForm(wrapper)
       await waitFor(() => expect(wrapper.find('#export-resp').exists()).toBe(true))
       await wrapper.get('#export-resp').setValue('#submitted')
       await wrapper.get('.new-export').trigger('submit')
@@ -323,21 +347,81 @@ describe.each(['de', 'en'] as const)('exports in %s', (locale: AppLocale) => {
     expect(item.get('.export-open').attributes('href')).toBe(detail)
   })
 
+  it('hides cached private detail state while session readiness is lost', async () => {
+    const wrapper = await mountDetail(newServer())
+    const session = useSessionStore()
+    session.status = 'loading'
+    await flushPromises()
+
+    expect(wrapper.find('.export-detail-title').exists()).toBe(true)
+    expect(wrapper.find('.export-detail-status').exists()).toBe(false)
+  })
+
+  it('announces an export-list failure and permits one in-flight retry', async () => {
+    let finish!: (response: Response) => void
+    const nextListResponse = new Promise<Response>((resolve) => {
+      finish = resolve
+    })
+    const server = newServer({ listFailures: 1, nextListResponse })
+    const wrapper = await mountApplicationAt(list, locale, exportClient(server))
+    try {
+      await waitFor(() => expect(wrapper.find('.export-list-load-error').exists()).toBe(true))
+
+      const feedback = wrapper.get('.export-list-load-error')
+      const alert = feedback.get('[role="alert"]')
+      const retry = feedback.get('.export-list-retry')
+      expect(alert.text()).toBe(messages.loadError)
+      expect(alert.attributes('aria-atomic')).toBe('true')
+      expect(alert.find('button').exists()).toBe(false)
+      expect(feedback.classes()).toContain('app-feedback--critical')
+
+      const firstRetry = retry.trigger('click')
+      const duplicateRetry = retry.trigger('click')
+      await Promise.all([firstRetry, duplicateRetry])
+      await waitFor(() => expect(server.listRequests).toBe(2))
+      expect(wrapper.find('.export-list-retry:not([disabled])').exists()).toBe(false)
+      expect(server.listRequests).toBe(2)
+
+      finish(jsonResponse({ items: [], next_cursor: null, has_more: false }))
+      await waitFor(() => expect(wrapper.find('.export-list-empty').exists()).toBe(true))
+      expect(wrapper.find('.export-list-load-error').exists()).toBe(false)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('offers the form only to operators, and needs a completed aggregation', async () => {
     const viewer = await mountList(newServer({ role: 'viewer' }))
     expect(viewer.find('.new-export').exists()).toBe(false)
+    expect(viewer.find('.export-list-create').exists()).toBe(false)
     expect(viewer.get('.export-list-forbidden').text()).toBe(messages.forbidden)
     document.body.replaceChildren()
 
     const none = await mountList(newServer({ aggregations: false }))
+    await openCreationForm(none)
     await waitFor(() => expect(none.find('.new-export-hint').exists()).toBe(true))
     expect(none.get('.new-export-hint').text()).toBe(messages.new.noAggregation)
     expect(none.find('.new-export-submit').exists()).toBe(false)
   })
 
+  it('opens the card from the page heading and keeps label and TEI options collapsed', async () => {
+    const wrapper = await mountList(newServer())
+    const trigger = wrapper.get('.export-list-create')
+
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+    expect(wrapper.find('.new-export').exists()).toBe(false)
+    await openCreationForm(wrapper)
+
+    expect(trigger.attributes('aria-expanded')).toBe('true')
+    expect(wrapper.get('.export-list-new').classes()).toContain('app-card')
+    expect(wrapper.get('.new-export-advanced').attributes('open')).toBeUndefined()
+    expect(document.activeElement?.id).toBe('new-export-heading')
+  })
+
   it('starts a TEI export with human overrides, the profile and the responsibility statement', async () => {
     const server = newServer()
     const wrapper = await mountList(server)
+    await openCreationForm(wrapper)
     await waitFor(() => expect(wrapper.find('#export-policy-human').exists()).toBe(true))
 
     await wrapper.get('#export-policy-human').setValue(true)
@@ -359,6 +443,7 @@ describe.each(['de', 'en'] as const)('exports in %s', (locale: AppLocale) => {
   it('sends no TEI profile for JSON or CSV, and hides the TEI-only fields', async () => {
     const server = newServer()
     const wrapper = await mountList(server)
+    await openCreationForm(wrapper)
     await waitFor(() => expect(wrapper.find('#export-format-json').exists()).toBe(true))
 
     await wrapper.get('#export-format-json').setValue(true)
@@ -377,6 +462,7 @@ describe.each(['de', 'en'] as const)('exports in %s', (locale: AppLocale) => {
   it('refuses a responsibility statement the server would refuse', async () => {
     const server = newServer()
     const wrapper = await mountList(server)
+    await openCreationForm(wrapper)
     await waitFor(() => expect(wrapper.find('#export-resp').exists()).toBe(true))
 
     await wrapper.get('#export-resp').setValue('editor with spaces')
@@ -391,6 +477,7 @@ describe.each(['de', 'en'] as const)('exports in %s', (locale: AppLocale) => {
   it('explains that TEI needs a snapshot that is still TEI files, and still allows the others', async () => {
     const server = newServer({ snapshotConfig: { source_format: 'csv', packaging: 'single' } })
     const wrapper = await mountList(server)
+    await openCreationForm(wrapper)
     await waitFor(() => expect(wrapper.find('.new-export-error').exists()).toBe(true))
 
     expect(wrapper.get('.new-export-error').text()).toBe(messages.new.teiNotPossible)
@@ -402,6 +489,7 @@ describe.each(['de', 'en'] as const)('exports in %s', (locale: AppLocale) => {
 
   it('shows what the server refused', async () => {
     const wrapper = await mountList(newServer({ createStatus: 409 }))
+    await openCreationForm(wrapper)
     await waitFor(() => expect(wrapper.find('.new-export-submit').exists()).toBe(true))
 
     await wrapper.get('.new-export').trigger('submit')
@@ -419,6 +507,8 @@ describe.each(['de', 'en'] as const)('exports in %s', (locale: AppLocale) => {
 
     expect(wrapper.get('.export-detail-result .export-detail-hash').text()).toBe(OUTPUT_SHA)
     expect(wrapper.get('.export-detail-result').text()).toContain('export-')
+    expect(wrapper.get('.export-detail-result').classes()).not.toContain('app-resource-card')
+    expect(wrapper.findAll('.app-card .app-card, .app-card .app-resource-card')).toHaveLength(0)
     expect(saved).toHaveLength(1)
     expect(saved[0]?.name).toMatch(/\.xml$/)
   })

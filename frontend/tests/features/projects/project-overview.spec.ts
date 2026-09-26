@@ -1,6 +1,7 @@
 import { flushPromises } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { createApiClient } from '@/api'
 import type { AppLocale } from '@/app/i18n'
 import de from '@/locales/de.json'
 import en from '@/locales/en.json'
@@ -52,6 +53,12 @@ function signedInRoutes(
 const page = (items: unknown[]): RouteResponse => ({
   body: { items, has_more: false, next_cursor: null },
 })
+
+const json = (body: unknown, status = 200): Response =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  })
 
 function snapshot(status: string, extra: Record<string, unknown> = {}) {
   return {
@@ -131,6 +138,58 @@ describe.each(['de', 'en'] as const)('ProjectOverviewView in %s', (locale: AppLo
     expect(wrapper.text()).toContain(PROJECT.slug)
     expect(wrapper.text()).toContain(messages.role.viewer)
     expect(wrapper.text()).toContain('The first project.')
+    expect(wrapper.find('.game-mode-setting').exists()).toBe(false)
+  })
+
+  it('lets a project operator enable game mode for this project', async () => {
+    let project = {
+      ...PROJECT,
+      current_user_role: 'operator',
+      current_user_can_manage_members: true,
+      manager_user_id: VIEWER.id,
+      created_by_user_id: VIEWER.id,
+      game_mode_enabled: false,
+    }
+    const writes: { enabled: boolean }[] = []
+    const client = createApiClient({
+      fetch: async (request) => {
+        const path = new URL(request.url).pathname
+        if (path === '/api/v1/branding') return json({})
+        if (path === '/api/v1/me') return json(VIEWER)
+        if (path === '/api/v1/auth/session') {
+          return json({ must_change_password: false, keep_signed_in: false })
+        }
+        if (request.method === 'PUT' && path === `/api/v1/projects/${PROJECT_ID}/game-mode`) {
+          const body = (await request.json()) as { enabled: boolean }
+          writes.push(body)
+          project = { ...project, game_mode_enabled: body.enabled }
+          return json(project)
+        }
+        if (path === `/api/v1/projects/${PROJECT_ID}`) return json(project)
+        if (path === '/api/v1/projects') return json(page([project]).body)
+        if (path === `/api/v1/projects/${PROJECT_ID}/data-availability`) {
+          return json({
+            project_id: PROJECT_ID,
+            has_ready_snapshots: false,
+            has_completed_aggregations: false,
+          })
+        }
+        if (path === `/api/v1/projects/${PROJECT_ID}/snapshots`) return json(page([]).body)
+        return json({ error: { code: 'resource_not_found', message: 'Not mocked.' } }, 404)
+      },
+    })
+    const wrapper = await mountApplicationAt(`/projects/${PROJECT_ID}/overview`, locale, client)
+    const toggle = wrapper.get<HTMLInputElement>('.game-mode-setting__control input')
+    expect(toggle.element.checked).toBe(false)
+
+    await toggle.setValue(true)
+    await waitFor(() => expect(writes).toEqual([{ enabled: true }]))
+    await waitFor(() =>
+      expect(
+        wrapper.get<HTMLInputElement>('.game-mode-setting__control input').element.checked,
+      ).toBe(true),
+    )
+    expect(wrapper.get('.game-mode-setting__status').text()).toBe(messages.overview.gameMode.saved)
   })
 
   it('shows a placeholder when the project has no description', async () => {
@@ -172,7 +231,13 @@ describe.each(['de', 'en'] as const)('ProjectOverviewView in %s', (locale: AppLo
     )
     await flushPromises()
 
+    expect(wrapper.findAll('main h1')).toHaveLength(1)
+    expect(wrapper.get('main h1').text()).toBe(catalogues[locale].nav.overview)
     expect(wrapper.get('main').text()).toContain(messages.overview.loadError)
+    const feedback = wrapper.get('.project-overview-load-error')
+    expect(feedback.classes()).toEqual(
+      expect.arrayContaining(['app-feedback--critical', 'app-card']),
+    )
   })
 
   it('redirects a signed-out visitor to the login page', async () => {
@@ -239,6 +304,9 @@ describe.each(['de', 'en'] as const)(
       const wrapper = await mountOverview(PROJECT, {})
       await waitFor(() => {
         expect(wrapper.findAll('main .project-overview-card')).toHaveLength(1)
+        expect(wrapper.get('main .project-overview-card').classes()).toEqual(
+          expect.arrayContaining(['app-card', 'app-card--sectioned']),
+        )
         expect(wrapper.findAll('main .project-overview-card h2').map((h) => h.text())).toEqual([
           messages.data.title,
           messages.review.title,

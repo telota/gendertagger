@@ -64,7 +64,7 @@ const resolvedConfig = computed(() => JSON.stringify(props.execution.resolved_co
 </script>
 
 <template>
-  <li class="execution" :class="{ 'execution--compact': compact }">
+  <li class="execution app-resource-card" :class="{ 'execution--compact': compact }">
     <div class="execution-head">
       <h3 class="execution-name">
         <RouterLink v-if="resultsTo && hasFinalResults" :to="resultsTo">
@@ -94,15 +94,22 @@ const resolvedConfig = computed(() => JSON.stringify(props.execution.resolved_co
       <summary :aria-label="t('runs.execution.provenanceFor', { method: execution.method_name })">
         {{ t('runs.execution.provenance') }}
       </summary>
-      <dl class="execution-provenance-facts">
-        <div v-for="row in provenanceRows" :key="row.key" class="execution-provenance-fact">
+      <dl class="execution-provenance-facts app-fact-list">
+        <div
+          v-for="row in provenanceRows"
+          :key="row.key"
+          class="execution-provenance-fact app-fact-list__item"
+        >
           <dt>{{ row.label }}</dt>
           <dd>
             <code class="execution-provenance-value">{{ row.value }}</code>
           </dd>
         </div>
       </dl>
-      <pre class="execution-provenance-config">{{ resolvedConfig }}</pre>
+      <details class="execution-provenance-config-disclosure">
+        <summary>{{ t('runs.provenance.resolvedConfig') }}</summary>
+        <pre class="execution-provenance-config">{{ resolvedConfig }}</pre>
+      </details>
     </details>
     <div v-if="execution.failure_class || execution.failure_diagnostic" class="execution-failure">
       <p v-if="execution.failure_class" class="execution-failure-class">
@@ -120,19 +127,15 @@ const resolvedConfig = computed(() => JSON.stringify(props.execution.resolved_co
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
 }
 
 .execution--compact {
   gap: var(--space-1);
-  padding-block: var(--space-3);
 }
 
 .execution-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-3);
@@ -179,36 +182,25 @@ const resolvedConfig = computed(() => JSON.stringify(props.execution.resolved_co
 }
 
 .execution-provenance-facts {
-  display: grid;
-  gap: var(--space-2);
+  --app-fact-list-label-width: 10rem;
+
   margin: var(--space-2) 0;
-}
-
-.execution-provenance-fact {
-  display: grid;
-  grid-template-columns: 10rem 1fr;
-  gap: var(--space-3);
-}
-
-.execution-provenance-fact dt {
-  color: var(--text-secondary);
-}
-
-.execution-provenance-fact dd {
-  margin: 0;
-  overflow-wrap: anywhere;
 }
 
 .execution-provenance-value {
   font-size: var(--font-size-small);
 }
 
+.execution-provenance-config-disclosure {
+  margin-block-start: var(--space-2);
+}
+
 .execution-provenance-config {
-  margin: 0;
+  margin: var(--space-2) 0 0;
   padding: var(--space-3);
   overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-input);
+  background: var(--surface-1);
   font-size: var(--font-size-small);
 }
 

@@ -91,6 +91,7 @@ describe.each(['de', 'en'] as const)('ImportView in %s', (locale: AppLocale) => 
     await flushPromises()
 
     expect(wrapper.text()).toContain(messages.forbidden)
+    expect(wrapper.get('.import-view-forbidden').classes()).toContain('app-card')
     expect(wrapper.find('.import-file-input').exists()).toBe(false)
   })
 
@@ -109,6 +110,7 @@ describe.each(['de', 'en'] as const)('ImportView in %s', (locale: AppLocale) => 
     await flushPromises()
 
     expect(wrapper.get('main').text()).toContain(catalogues[locale].data.accessUnavailable)
+    expect(wrapper.get('.import-view > .app-feedback').classes()).toContain('app-card')
   })
 
   it('infers the source format from the selected file and shows the import as running', async () => {

@@ -185,6 +185,34 @@ PROJECT_SCOPED_ROUTES = (
         "GET", "/projects/{project_id}/data-availability", ProjectScope.project, ProjectRole.viewer
     ),
     _ScopedRoute(
+        "PUT",
+        "/projects/{project_id}/game-mode",
+        ProjectScope.project,
+        ProjectRole.operator,
+        {"json": {"enabled": True}},
+    ),
+    _ScopedRoute(
+        "POST",
+        "/projects/{project_id}/game-rounds",
+        ProjectScope.project,
+        ProjectRole.reviewer,
+        {
+            "json": {
+                "id": _OTHER,
+                "aggregation_execution_id": _OTHER,
+                "round_size": 10,
+                "annotation_ids": [],
+            }
+        },
+    ),
+    _ScopedRoute(
+        "GET",
+        "/projects/{project_id}/game-leaderboard",
+        ProjectScope.project,
+        ProjectRole.viewer,
+        {"params": {"round_size": 10}},
+    ),
+    _ScopedRoute(
         "GET", "/projects/{project_id}/review-results", ProjectScope.project, ProjectRole.reviewer
     ),
     _ScopedRoute(
@@ -205,6 +233,9 @@ PROJECT_SCOPED_ROUTES = (
         "GET", "/projects/{project_id}/snapshots", ProjectScope.project, ProjectRole.viewer
     ),
     _ScopedRoute("GET", "/snapshots/{snapshot_id}", ProjectScope.snapshot, ProjectRole.viewer),
+    _ScopedRoute(
+        "GET", "/snapshots/{snapshot_id}/statistics", ProjectScope.snapshot, ProjectRole.viewer
+    ),
     _ScopedRoute(
         "GET",
         "/snapshots/{snapshot_id}/source-members",

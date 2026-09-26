@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
 import AppButton from '@/components/base/AppButton.vue'
+import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
 import { useRunExecutions } from '@/features/runs/useRunDetail'
 import { useStatusLabel } from '@/features/runs/useStatusLabel'
@@ -27,7 +28,9 @@ const evaluationId = useRouteParam('evaluationId')
 const evaluation = useEvaluation(evaluationId, isSignedIn)
 const executions = useRunExecutions(runId, isSignedIn)
 
-const isCompleted = computed(() => evaluation.data.value?.status === 'completed')
+const isCompleted = computed(
+  () => isSignedIn.value && evaluation.data.value?.status === 'completed',
+)
 const report = useEvaluationReport(evaluationId, isCompleted)
 
 // The report is an immutable artifact; what produced it is on the evaluation itself.
@@ -56,43 +59,83 @@ const downloadUrl = computed(() => `/api/v1/evaluations/${evaluationId.value}/re
 </script>
 
 <template>
-  <main class="evaluation-detail">
-    <p v-if="session.status === 'idle' || session.status === 'loading'" role="status">
-      {{ t('runs.loading') }}
-    </p>
-    <div v-else-if="session.status === 'error'" class="evaluation-detail-load-error">
-      <p role="alert">{{ t('projects.sessionLoadError') }}</p>
-      <AppButton type="button" @click="retrySession">{{ t('runs.retry') }}</AppButton>
-    </div>
-    <template v-else-if="isSignedIn">
-      <RouterLink
-        class="evaluation-detail-back"
-        :to="{ name: 'evaluations', params: { projectId, runId } }"
-      >
-        {{ t('evaluation.detail.backToList') }}
-      </RouterLink>
-
-      <p v-if="evaluation.isPending.value" role="status">{{ t('runs.loading') }}</p>
-      <div v-else-if="evaluation.isError.value" class="evaluation-detail-load-error">
-        <p role="alert">{{ t('evaluation.detail.loadError') }}</p>
-        <AppButton
-          class="evaluation-detail-retry"
-          type="button"
-          @click="() => evaluation.refetch()"
+  <main class="evaluation-detail app-page-frame">
+    <RouterLink
+      v-if="isSignedIn"
+      class="evaluation-detail-back"
+      :to="{ name: 'evaluations', params: { projectId, runId } }"
+    >
+      {{ t('evaluation.detail.backToList') }}
+    </RouterLink>
+    <header class="evaluation-detail-page-heading app-page-heading">
+      <div class="app-page-heading__copy">
+        <h1 class="evaluation-detail-title app-page-heading__title">
+          {{ t('evaluation.detail.title') }}
+        </h1>
+        <p
+          v-if="isSignedIn && evaluation.data.value"
+          class="evaluation-detail-status"
+          role="status"
         >
-          {{ t('runs.retry') }}
-        </AppButton>
-      </div>
-      <template v-else-if="evaluation.data.value">
-        <h1 class="evaluation-detail-title">{{ t('evaluation.detail.title') }}</h1>
-        <p class="evaluation-detail-status" role="status">
           <span :class="`evaluation-detail-status--${evaluation.data.value.status}`">{{
             label(evaluation.data.value.status)
           }}</span>
         </p>
+      </div>
+      <div v-if="isCompleted" class="app-page-heading__actions">
+        <a class="evaluation-detail-download" :href="downloadUrl" download>
+          {{ t('evaluation.detail.download') }}
+        </a>
+      </div>
+    </header>
+
+    <AppFeedback
+      v-if="session.status === 'idle' || session.status === 'loading'"
+      class="app-card"
+      announcement="polite"
+    >
+      {{ t('runs.loading') }}
+    </AppFeedback>
+    <AppFeedback
+      v-else-if="session.status === 'error'"
+      class="app-card"
+      announcement="assertive"
+      tone="critical"
+    >
+      {{ t('projects.sessionLoadError') }}
+      <template #actions>
+        <AppButton type="button" variant="ghost" @click="retrySession">
+          {{ t('runs.retry') }}
+        </AppButton>
+      </template>
+    </AppFeedback>
+    <template v-else-if="isSignedIn">
+      <AppFeedback v-if="evaluation.isPending.value" class="app-card" announcement="polite">
+        {{ t('runs.loading') }}
+      </AppFeedback>
+      <AppFeedback
+        v-else-if="evaluation.isError.value"
+        class="app-card"
+        announcement="assertive"
+        tone="critical"
+      >
+        {{ t('evaluation.detail.loadError') }}
+        <template #actions>
+          <AppButton
+            class="evaluation-detail-retry"
+            type="button"
+            variant="ghost"
+            :disabled="evaluation.isFetching.value"
+            @click="() => evaluation.refetch()"
+          >
+            {{ t('runs.retry') }}
+          </AppButton>
+        </template>
+      </AppFeedback>
+      <template v-else-if="evaluation.data.value">
         <div
           v-if="evaluation.data.value.failure_class || evaluation.data.value.failure_diagnostic"
-          class="evaluation-detail-failure"
+          class="evaluation-detail-failure app-card"
         >
           <p v-if="evaluation.data.value.failure_class" class="evaluation-detail-failure-class">
             {{ evaluation.data.value.failure_class }}
@@ -102,16 +145,19 @@ const downloadUrl = computed(() => `/api/v1/evaluations/${evaluationId.value}/re
           </p>
         </div>
 
-        <section class="evaluation-detail-block" aria-labelledby="evaluation-provenance-heading">
+        <section
+          class="evaluation-detail-block app-card"
+          aria-labelledby="evaluation-provenance-heading"
+        >
           <h2 id="evaluation-provenance-heading" class="evaluation-detail-heading">
             {{ t('evaluation.detail.provenance') }}
           </h2>
-          <dl class="evaluation-detail-facts">
-            <div class="evaluation-detail-fact">
+          <dl class="evaluation-detail-facts app-fact-list">
+            <div class="evaluation-detail-fact app-fact-list__item">
               <dt>{{ t('evaluation.item.definition') }}</dt>
               <dd>{{ evaluation.data.value.definition ?? '' }}</dd>
             </div>
-            <div class="evaluation-detail-fact">
+            <div class="evaluation-detail-fact app-fact-list__item">
               <dt>{{ t('evaluation.item.configHash') }}</dt>
               <dd>
                 <code class="evaluation-detail-hash">{{
@@ -119,17 +165,20 @@ const downloadUrl = computed(() => `/api/v1/evaluations/${evaluationId.value}/re
                 }}</code>
               </dd>
             </div>
-            <div class="evaluation-detail-fact">
+            <div class="evaluation-detail-fact app-fact-list__item">
               <dt>{{ t('aggregations.detail.created') }}</dt>
               <dd>{{ d(new Date(evaluation.data.value.created_at), 'timestamp') }}</dd>
             </div>
-            <div v-if="evaluation.data.value.finished_at" class="evaluation-detail-fact">
+            <div
+              v-if="evaluation.data.value.finished_at"
+              class="evaluation-detail-fact app-fact-list__item"
+            >
               <dt>{{ t('aggregations.detail.finished') }}</dt>
               <dd>{{ d(new Date(evaluation.data.value.finished_at), 'timestamp') }}</dd>
             </div>
             <div
               v-if="evaluation.data.value.aggregation_execution_id"
-              class="evaluation-detail-fact"
+              class="evaluation-detail-fact app-fact-list__item"
             >
               <dt>{{ t('evaluation.detail.aggregation') }}</dt>
               <dd>
@@ -171,33 +220,44 @@ const downloadUrl = computed(() => `/api/v1/evaluations/${evaluationId.value}/re
               </li>
             </ul>
           </details>
-          <a v-if="isCompleted" class="evaluation-detail-download" :href="downloadUrl" download>
-            {{ t('evaluation.detail.download') }}
-          </a>
         </section>
 
         <p
           v-if="!isCompleted && !['failed', 'cancelled'].includes(evaluation.data.value.status)"
-          class="evaluation-detail-waiting"
+          class="evaluation-detail-waiting app-card"
           role="status"
         >
           {{ t('evaluation.detail.waiting') }}
         </p>
 
         <template v-if="isCompleted">
-          <p v-if="report.isPending.value" role="status">{{ t('runs.loading') }}</p>
-          <div v-else-if="report.isError.value" class="evaluation-detail-load-error">
-            <p role="alert" class="evaluation-detail-report-error">{{ reportError }}</p>
-            <AppButton
-              class="evaluation-detail-report-retry"
-              type="button"
-              @click="() => report.refetch()"
-            >
-              {{ t('runs.retry') }}
-            </AppButton>
-          </div>
+          <AppFeedback v-if="report.isPending.value" class="app-card" announcement="polite">
+            {{ t('runs.loading') }}
+          </AppFeedback>
+          <AppFeedback
+            v-else-if="report.isError.value"
+            class="app-card"
+            announcement="assertive"
+            tone="critical"
+          >
+            <p class="evaluation-detail-report-error">{{ reportError }}</p>
+            <template #actions>
+              <AppButton
+                class="evaluation-detail-report-retry"
+                type="button"
+                variant="ghost"
+                :disabled="report.isFetching.value"
+                @click="() => report.refetch()"
+              >
+                {{ t('runs.retry') }}
+              </AppButton>
+            </template>
+          </AppFeedback>
           <template v-else-if="report.data.value">
-            <section class="evaluation-detail-block" aria-labelledby="evaluation-benchmark-heading">
+            <section
+              class="evaluation-detail-block app-card"
+              aria-labelledby="evaluation-benchmark-heading"
+            >
               <h2 id="evaluation-benchmark-heading" class="evaluation-detail-heading">
                 {{ t('evaluation.report.benchmark.title') }}
               </h2>
@@ -241,7 +301,6 @@ const downloadUrl = computed(() => `/api/v1/evaluations/${evaluationId.value}/re
 
 <style scoped>
 .evaluation-detail {
-  padding: var(--space-8) var(--space-4);
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -258,10 +317,8 @@ const downloadUrl = computed(() => `/api/v1/evaluations/${evaluationId.value}/re
   text-underline-offset: 0.2em;
 }
 
-.evaluation-detail-title {
-  margin: 0;
-  font-size: var(--font-size-page);
-  line-height: var(--line-height-page);
+.evaluation-detail-page-heading {
+  margin-block-end: 0;
 }
 
 .evaluation-detail-status {
@@ -277,14 +334,6 @@ const downloadUrl = computed(() => `/api/v1/evaluations/${evaluationId.value}/re
   color: var(--critical-text);
 }
 
-.evaluation-detail-load-error {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-3);
-}
-
-.evaluation-detail-load-error p,
 .evaluation-detail-failure {
   margin: 0;
   color: var(--critical-text);
@@ -310,34 +359,16 @@ const downloadUrl = computed(() => `/api/v1/evaluations/${evaluationId.value}/re
   font-weight: var(--weight-semibold);
 }
 
-.evaluation-detail-facts {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-}
-
-.evaluation-detail-fact {
-  display: grid;
-  grid-template-columns: 9rem 1fr;
-  gap: var(--space-3);
-}
-
-.evaluation-detail-fact dt {
-  color: var(--text-secondary);
-}
-
-.evaluation-detail-fact dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
 .evaluation-detail-hash {
   font-size: var(--font-size-small);
 }
 
 .evaluation-detail-aggregation,
 .evaluation-detail-download {
-  align-self: flex-start;
+  display: inline-flex;
+  min-block-size: var(--control-min-size);
+  align-items: center;
+  padding-inline: var(--space-2);
   color: var(--accent);
   text-underline-offset: 0.2em;
 }
@@ -352,9 +383,8 @@ const downloadUrl = computed(() => `/api/v1/evaluations/${evaluationId.value}/re
   margin: var(--space-2) 0 0;
   padding: var(--space-3);
   overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
+  border-inline-start: 2px solid var(--grid);
+  background: var(--surface-1);
   font-size: var(--font-size-small);
 }
 

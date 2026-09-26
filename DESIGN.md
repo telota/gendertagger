@@ -3,179 +3,179 @@ version: alpha
 name: gendertagger
 description: A compact bilingual scholarly workbench for evidence-led review and reproducible annotation.
 colors:
-  quiet-parchment: "#f2f1ee"
-  paper-panel: "#ffffff"
-  raised-paper: "#fcfcfb"
-  primary-ink: "#0b0b0b"
-  secondary-ink: "#52514e"
-  muted-ink: "#706e68"
-  grid-line: "#e1e0d9"
-  border-line: "rgba(11, 11, 11, 0.12)"
-  annotation-ink: "#4a3aa7"
-  registry-teal: "#0f7a63"
-  focus-blue: "#1f5aa0"
-  verified-green: "#088a08"
-  caution-gold: "#fab219"
-  critical-red: "#d03b3b"
-  critical-red-text: "#bf3333"
-  overlay-backdrop: "rgba(11, 11, 11, 0.4)"
-  male-blue: "#2a78d6"
-  male-blue-text: "#1f5aa0"
-  male-blue-tint: "#e9f1fa"
-  female-coral: "#eb6834"
-  female-coral-text: "#b04e27"
-  female-coral-tint: "#fdefea"
-  institution-green: "#1baf7a"
-  institution-green-text: "#127a55"
-  institution-green-tint: "#e8f7f1"
-  unknown-amber: "#eda100"
-  unknown-amber-text: "#7a5900"
-  unknown-amber-tint: "#fdf5e5"
-  night-quiet-parchment: "#1a1917"
-  night-paper-panel: "#232220"
-  night-raised-paper: "#2c2a27"
-  night-primary-ink: "#f4f3f0"
-  night-secondary-ink: "#c2bfb8"
-  night-muted-ink: "#9c9890"
-  night-grid-line: "#3a3835"
-  night-border-line: "rgba(244, 243, 240, 0.14)"
-  night-annotation-ink: "#a99bf0"
-  night-registry-teal: "#4fc0a3"
-  night-focus-blue: "#8fbdf0"
-  night-verified-green: "#4fc94f"
-  night-caution-gold: "#f0b843"
-  night-critical-red: "#f0736f"
-  night-critical-red-text: "#f0736f"
-  night-overlay-backdrop: "rgba(0, 0, 0, 0.6)"
-  night-male-blue: "#5a9ee8"
-  night-male-blue-text: "#8fbdf0"
-  night-male-blue-tint: "#17293d"
-  night-female-coral: "#f08055"
-  night-female-coral-text: "#f0a184"
-  night-female-coral-tint: "#3a1e14"
-  night-institution-green: "#35c894"
-  night-institution-green-text: "#6fd6ae"
-  night-institution-green-tint: "#102e24"
-  night-unknown-amber: "#e8b53c"
-  night-unknown-amber-text: "#e8bd5e"
-  night-unknown-amber-tint: "#332813"
+    quiet-parchment: "#f2f1ee"
+    paper-panel: "#ffffff"
+    raised-paper: "#fcfcfb"
+    primary-ink: "#0b0b0b"
+    secondary-ink: "#52514e"
+    muted-ink: "#706e68"
+    grid-line: "#e1e0d9"
+    border-line: "rgba(11, 11, 11, 0.12)"
+    annotation-ink: "#4a3aa7"
+    registry-teal: "#0f7a63"
+    focus-blue: "#1f5aa0"
+    verified-green: "#088a08"
+    caution-gold: "#fab219"
+    critical-red: "#d03b3b"
+    critical-red-text: "#bf3333"
+    overlay-backdrop: "rgba(11, 11, 11, 0.4)"
+    male-blue: "#2a78d6"
+    male-blue-text: "#1f5aa0"
+    male-blue-tint: "#e9f1fa"
+    female-coral: "#eb6834"
+    female-coral-text: "#b04e27"
+    female-coral-tint: "#fdefea"
+    institution-green: "#1baf7a"
+    institution-green-text: "#127a55"
+    institution-green-tint: "#e8f7f1"
+    unknown-amber: "#eda100"
+    unknown-amber-text: "#7a5900"
+    unknown-amber-tint: "#fdf5e5"
+    night-quiet-parchment: "#1a1917"
+    night-paper-panel: "#232220"
+    night-raised-paper: "#2c2a27"
+    night-primary-ink: "#f4f3f0"
+    night-secondary-ink: "#c2bfb8"
+    night-muted-ink: "#9c9890"
+    night-grid-line: "#3a3835"
+    night-border-line: "rgba(244, 243, 240, 0.14)"
+    night-annotation-ink: "#a99bf0"
+    night-registry-teal: "#4fc0a3"
+    night-focus-blue: "#8fbdf0"
+    night-verified-green: "#4fc94f"
+    night-caution-gold: "#f0b843"
+    night-critical-red: "#f0736f"
+    night-critical-red-text: "#f0736f"
+    night-overlay-backdrop: "rgba(0, 0, 0, 0.6)"
+    night-male-blue: "#5a9ee8"
+    night-male-blue-text: "#8fbdf0"
+    night-male-blue-tint: "#17293d"
+    night-female-coral: "#f08055"
+    night-female-coral-text: "#f0a184"
+    night-female-coral-tint: "#3a1e14"
+    night-institution-green: "#35c894"
+    night-institution-green-text: "#6fd6ae"
+    night-institution-green-tint: "#102e24"
+    night-unknown-amber: "#e8b53c"
+    night-unknown-amber-text: "#e8bd5e"
+    night-unknown-amber-tint: "#332813"
 typography:
-  caption:
-    fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif"
-    fontSize: "0.6875rem"
-    fontWeight: 400
-    lineHeight: 1.45
-  small:
-    fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif"
-    fontSize: "0.75rem"
-    fontWeight: 400
-    lineHeight: 1.5
-  body:
-    fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif"
-    fontSize: "0.8125rem"
-    fontWeight: 400
-    lineHeight: 1.55
-  control:
-    fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif"
-    fontSize: "0.8125rem"
-    fontWeight: 600
-    lineHeight: 1.55
-  body-strong:
-    fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif"
-    fontSize: "0.875rem"
-    fontWeight: 600
-    lineHeight: 1.45
-  title:
-    fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif"
-    fontSize: "1rem"
-    fontWeight: 600
-    lineHeight: 1.5
-  page:
-    fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif"
-    fontSize: "1.25rem"
-    fontWeight: 600
-    lineHeight: 1.4
-  display:
-    fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif"
-    fontSize: "2.125rem"
-    fontWeight: 700
-    lineHeight: 1.2
-  mono-data:
-    fontFamily: "ui-monospace, 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace"
-    fontSize: "0.75rem"
-    fontWeight: 400
-    lineHeight: 1.5
+    caption:
+        fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif"
+        fontSize: "0.6875rem"
+        fontWeight: 400
+        lineHeight: 1.45
+    small:
+        fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif"
+        fontSize: "0.75rem"
+        fontWeight: 400
+        lineHeight: 1.5
+    body:
+        fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif"
+        fontSize: "0.8125rem"
+        fontWeight: 400
+        lineHeight: 1.55
+    control:
+        fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif"
+        fontSize: "0.8125rem"
+        fontWeight: 600
+        lineHeight: 1.55
+    body-strong:
+        fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif"
+        fontSize: "0.875rem"
+        fontWeight: 600
+        lineHeight: 1.45
+    title:
+        fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif"
+        fontSize: "1rem"
+        fontWeight: 600
+        lineHeight: 1.5
+    page:
+        fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif"
+        fontSize: "1.25rem"
+        fontWeight: 600
+        lineHeight: 1.4
+    display:
+        fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif"
+        fontSize: "2.125rem"
+        fontWeight: 700
+        lineHeight: 1.2
+    mono-data:
+        fontFamily: "ui-monospace, 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace"
+        fontSize: "0.75rem"
+        fontWeight: 400
+        lineHeight: 1.5
 rounded:
-  control: "4px"
-  input: "8px"
-  card: "12px"
-  modal: "16px"
-  full: "9999px"
+    control: "4px"
+    input: "8px"
+    card: "12px"
+    modal: "16px"
+    full: "9999px"
 spacing:
-  step-1: "0.25rem"
-  step-2: "0.5rem"
-  step-3: "0.75rem"
-  step-4: "1rem"
-  step-5: "1.25rem"
-  step-6: "1.5rem"
-  step-8: "2rem"
-  step-10: "2.5rem"
-  step-12: "3rem"
+    step-1: "0.25rem"
+    step-2: "0.5rem"
+    step-3: "0.75rem"
+    step-4: "1rem"
+    step-5: "1.25rem"
+    step-6: "1.5rem"
+    step-8: "2rem"
+    step-10: "2.5rem"
+    step-12: "3rem"
 components:
-  button-solid:
-    backgroundColor: "{colors.registry-teal}"
-    textColor: "{colors.paper-panel}"
-    typography: "{typography.control}"
-    rounded: "{rounded.control}"
-    padding: "0.5rem 1rem"
-  button-ghost:
-    backgroundColor: "transparent"
-    textColor: "{colors.primary-ink}"
-    typography: "{typography.control}"
-    rounded: "{rounded.control}"
-    padding: "0.5rem 1rem"
-  button-text:
-    backgroundColor: "transparent"
-    textColor: "{colors.annotation-ink}"
-    typography: "{typography.control}"
-    rounded: "{rounded.control}"
-    padding: "0.25rem 0.5rem"
-  text-field:
-    backgroundColor: "{colors.paper-panel}"
-    textColor: "{colors.primary-ink}"
-    typography: "{typography.body}"
-    rounded: "{rounded.input}"
-    padding: "0.5rem 0.75rem"
-  compact-listbox:
-    backgroundColor: "{colors.paper-panel}"
-    textColor: "{colors.primary-ink}"
-    typography: "{typography.small}"
-    rounded: "{rounded.control}"
-    padding: "0.25rem 0.75rem"
-  project-card:
-    backgroundColor: "{colors.paper-panel}"
-    textColor: "{colors.primary-ink}"
-    typography: "{typography.body}"
-    rounded: "{rounded.card}"
-    padding: "1rem"
-  nav-active:
-    backgroundColor: "{colors.raised-paper}"
-    textColor: "{colors.annotation-ink}"
-    typography: "{typography.body-strong}"
-    rounded: "{rounded.control}"
-    padding: "0.5rem 0.75rem"
-  vocabulary-badge:
-    backgroundColor: "{colors.female-coral-tint}"
-    textColor: "{colors.female-coral-text}"
-    typography: "{typography.mono-data}"
-    rounded: "{rounded.full}"
-    padding: "0 0.5rem"
-  review-row-selected:
-    backgroundColor: "{colors.raised-paper}"
-    textColor: "{colors.primary-ink}"
-    typography: "{typography.body}"
-    rounded: "{rounded.card}"
-    padding: "0.5rem 0.75rem"
+    button-solid:
+        backgroundColor: "{colors.registry-teal}"
+        textColor: "{colors.paper-panel}"
+        typography: "{typography.control}"
+        rounded: "{rounded.control}"
+        padding: "0.5rem 1rem"
+    button-ghost:
+        backgroundColor: "transparent"
+        textColor: "{colors.primary-ink}"
+        typography: "{typography.control}"
+        rounded: "{rounded.control}"
+        padding: "0.5rem 1rem"
+    button-text:
+        backgroundColor: "transparent"
+        textColor: "{colors.annotation-ink}"
+        typography: "{typography.control}"
+        rounded: "{rounded.control}"
+        padding: "0.25rem 0.5rem"
+    text-field:
+        backgroundColor: "{colors.paper-panel}"
+        textColor: "{colors.primary-ink}"
+        typography: "{typography.body}"
+        rounded: "{rounded.input}"
+        padding: "0.5rem 0.75rem"
+    compact-listbox:
+        backgroundColor: "{colors.paper-panel}"
+        textColor: "{colors.primary-ink}"
+        typography: "{typography.small}"
+        rounded: "{rounded.control}"
+        padding: "0.25rem 0.75rem"
+    project-card:
+        backgroundColor: "{colors.paper-panel}"
+        textColor: "{colors.primary-ink}"
+        typography: "{typography.body}"
+        rounded: "{rounded.card}"
+        padding: "1rem"
+    nav-active:
+        backgroundColor: "{colors.raised-paper}"
+        textColor: "{colors.annotation-ink}"
+        typography: "{typography.body-strong}"
+        rounded: "{rounded.control}"
+        padding: "0.5rem 0.75rem"
+    vocabulary-badge:
+        backgroundColor: "{colors.female-coral-tint}"
+        textColor: "{colors.female-coral-text}"
+        typography: "{typography.mono-data}"
+        rounded: "{rounded.full}"
+        padding: "0 0.5rem"
+    review-row-selected:
+        backgroundColor: "{colors.raised-paper}"
+        textColor: "{colors.primary-ink}"
+        typography: "{typography.body}"
+        rounded: "{rounded.card}"
+        padding: "0.5rem 0.75rem"
 ---
 
 # Design System: gendertagger
@@ -222,7 +222,7 @@ Eligible signed-in sessions use the working shell. Signed-out, unresolved, sessi
 
 The desktop working shell uses a 15rem sidebar, or a saved 3.75rem collapsed rail, and a flexible content region. From 720 to 1079 CSS px it uses the rail; below 720px navigation moves to a modal drawer. Labels remain available to assistive technology. Pages use their own purposeful maximum width rather than stretching every form, table, or paragraph to the viewport edge.
 
-The review workbench is the signature composition. Above the queues, provenance and the complete filter form live in native disclosures so they remain available without permanently narrowing the evidence. At 42rem of available content width, the work area uses a queue with an 18rem minimum and one share beside an evidence-and-decision column with a 22rem minimum and two shares; below that it stacks. Within the evidence column, the result summary and source register entry form equal cards at a 32rem detail width and stack below it. Shared fact lists stack labels above values below a 24rem container width. The shared page gutter is the smaller of four spacing steps and 4vw. Other incumbent feature layouts adapt around 56rem, 48rem, and 40rem according to their content.
+The review workbench is the signature composition. Above the queues, provenance and the complete filter form live in native disclosures so they remain available without permanently narrowing the evidence. At 42rem of available content width, the work area uses a queue with an 18rem minimum and one share beside an evidence-and-decision column with a 22rem minimum and two shares; below that it stacks. Within the evidence column, the result summary and source register entry form equal cards at a 32rem detail width and stack below it. The named `app-fact-list` recipe stacks labels above values below a 24rem container width. The `app-page-frame` recipe owns every route edge and the shared page gutter, which is the smaller of four spacing steps and 4vw. Ordinary project workflows use one 60rem maximum page width; report tables scroll locally instead of widening that family. Redigieren and Annotieren alone use the named dense frame modifier for a compact block inset while retaining that horizontal gutter. Workbenches and genuinely wide administrative directories may declare a different named width when their task requires it.
 
 **Four-Pixel Cadence.** Space follows the 4px-based scale. Dense rows use one or two steps internally; cards and panels usually use four; major regions use six to twelve. Prefer `gap` between siblings over compensating margins, and do not introduce off-scale spacing for isolated alignment fixes.
 
@@ -238,6 +238,24 @@ Menus and dialogs are genuinely floating, so they use the single overlay shadow 
 
 State changes use the short state-motion token. Honor reduced-motion preference by reducing transitions to effectively instantaneous. Never add parallax, spring motion, or decorative entrance choreography to evidence and review surfaces.
 
+## Optional game-mode character
+
+The optional game mode adds a storybook archive otter in warm brown cut-paper collage, with a violet bookmark.
+It rests beside round setup, follows completed records along the progress track, and presses a stamp
+only after an annotation saves. All three poses keep the same bare-eyed appearance; the completed-round
+otter holds a library ticket, and paper stars appear once the server saves the round. These moments acknowledge contributions and round
+completion, never label correctness or agreement with a method.
+
+Answer choices and saved feedback share a responsive grid row, retaining the four-choice height during
+feedback. The inactive choices are invisible and inert; evidence still appears only after saving and can
+expand naturally when opened.
+
+This surface alone permits brief decorative sequences up to 800 ms, with no loops, input delay, moving
+evidence, or animated focus targets. Reduced motion keeps the otter and stamp static and omits floating
+points. The existing panel, text, vocabulary, and control tokens continue to apply. The transparent raster artwork
+is decorative and stays the same in both themes; its generation prompt is recorded alongside the
+[project asset](frontend/src/assets/game/README.md).
+
 ## Shapes
 
 Controls use the 4px control radius; text fields and popup menus use 8px; cards and review rows use 12px; dialogs use 16px. Badges and compact vocabulary chips use the full pill radius. These levels reflect scope, not personality.
@@ -252,19 +270,21 @@ Structural borders are 1px. Keyboard focus is a 2px focus-blue outline with a 2p
 
 **Control sizing.** Shared buttons, text fields, native single-line fields, and listbox options use a 2rem minimum, rising to 2.75rem below 720 CSS px or with any coarse pointer. Compact styling keeps this minimum. Checkbox/radio geometry and noninteractive badges remain separate; verify label hit areas in each view. Long labels wrap, and fieldsets and fields can shrink within their container.
 
+**Layout recipes.** Shared geometry is opt-in and named in `src/styles/layout.css`. Every page-owning `main` uses `app-page-frame` for containment, gutters, and the ordinary 60rem project-workflow width. Named modifiers cover reading (40rem), authentication (24rem), form (48rem), wide tabular evidence (76rem), and the uncapped dense review/annotation workbenches; feature CSS does not invent another page width. `app-page-heading` and its copy, title, description, and actions elements preserve title-first DOM order and wrap actions after the page identity. `app-form-actions` gives disclosed creation forms one full-width, wrapping action row with the primary commit at the inline end; secondary actions precede it in DOM order. `app-fact-list` provides responsive label/value rows with an overridable label track. `app-card` provides the standard structural boundary for top-level content, task forms, reports, and statistics; `app-resource-card` names that same flat geometry on repeated domain resources. Both use one standard four-step inset, with no feature-local padding variants. The sectioned modifier delegates that inset to full-width child sections. Neither recipe dictates content or action topology. `app-multiline-field` gives native textareas the text-field surface, invalid border, shrinkability, and vertical resize behavior. Feature classes remain available for domain-specific layout; they do not repeat these recipe declarations.
+
 **Scrollable tables.** Use the named `AppScrollRegion` wrapper to contain wide tables. A tab stop and associated visible hint appear only when scrolling is needed. Keep readable columns and semantic table markup; view-specific stacked records remain a separate design choice.
 
-**Inline feedback.** Use `AppFeedback` for concise messages and adjacent recovery actions. Choose static, polite, or assertive announcements explicitly; critical foreground colour is a separate choice. Keep controls outside the live message. Conflict reconciliation, intentional focus targets, and individual bulk outcomes remain under the view's control.
+**Inline feedback.** Use `AppFeedback` for concise messages and adjacent recovery actions. Choose static, polite, or assertive announcements explicitly; critical foreground colour is a separate choice. Route-level loading, empty, failure, and recovery regions are structural content and use the shared card boundary. Feedback already inside a card stays inline and does not add a nested card. Keep controls outside the live message. Conflict reconciliation, intentional focus targets, and individual bulk outcomes remain under the view's control.
 
-**Text fields.** Every field has a visible label. Inputs use paper panels, hairline borders, the input radius, and two-by-three-step padding. Field-level errors sit next to the field, use critical text and border color, and connect through `aria-describedby`; do not assign an ambiguous form error to an arbitrary field.
+**Text fields.** Every field has a visible label. Inputs use paper panels, hairline borders, the input radius, and two-by-three-step padding; multiline fields opt into `app-multiline-field` and remain vertically resizable. Field-level errors sit next to the field, use critical text and border color, and connect through `aria-describedby`; do not assign an ambiguous form error to an arbitrary field.
 
 **Compact listboxes.** The trigger uses small type and control geometry. The option popup uses the input radius, one-step internal spacing, the overlay shadow, tonal hover, and Annotation Ink for the selected option. Accessible naming and keyboard behavior come from the headless control, not custom pointer-only behavior.
 
-**Header.** Short breadcrumbs identify the authorized project and current destination. The account name opens Personal settings and Sign out. Project switching sits above project destinations in the sidebar, including its rail and mobile drawer. Names wrap, scientific context and actions stay in their view, and registered unsaved input requires Stay or Discard and leave before path changes or sign-out. See [the accepted header brief](docs/frontend-header-proposal.md).
+**Header.** Short breadcrumbs identify the authorized project and current destination. The account name opens Personal settings and Sign out. Project switching sits above project destinations in the sidebar, including its rail and mobile drawer. Names wrap, scientific context and actions stay in their view, and registered unsaved input requires Stay or Discard and leave before path changes or sign-out. See [the global header guidelines](docs/25-frontend-design-guidelines.md#global-header).
 
 **Navigation.** Sidebar entries pair a 20px icon with a text label. Hover uses the raised surface; the active route adds Annotation Ink and semibold weight. Disabled destinations are non-links, unfocusable, and visibly subdued. On the icon rail, labels become visually hidden rather than removed.
 
-**Cards and panels.** Project cards and evidence panels use paper-panel backgrounds, hairline borders, card radii, and four-step padding. Card titles use the title role. Links reveal affordance with underlines on hover; the entire card does not float or animate.
+**Cards and panels.** Cards are the primary structural language: every major content, task, report, and statistics region uses one paper-panel background, hairline border, card radius, and four-step padding. Page identity, breadcrumbs, and collection headings remain outside. Card titles use the title role. Cards do not nest; inner groups use dividers or closed disclosures so padding does not compound. Links reveal affordance with underlines on hover; the entire card does not float or animate.
 
 **Vocabulary badges.** Badges contain the untranslated canonical token in monospace and may append a plain-language gloss. Their tint, border, and text color move as a tested semantic set. Missing values render an explicit dash with an accessible text alternative, never an empty gap.
 

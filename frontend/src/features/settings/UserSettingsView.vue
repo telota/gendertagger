@@ -181,18 +181,27 @@ async function loadSaved(replaceDraft: boolean): Promise<void> {
 </script>
 
 <template>
-  <main class="user-settings">
-    <header class="user-settings-heading">
-      <h1>{{ t('userSettings.title') }}</h1>
-      <p>{{ t('userSettings.description') }}</p>
+  <main class="user-settings app-page-frame app-page-frame--form">
+    <header class="user-settings-heading app-page-heading">
+      <div class="app-page-heading__copy">
+        <h1 class="app-page-heading__title">{{ t('userSettings.title') }}</h1>
+        <p class="app-page-heading__description">{{ t('userSettings.description') }}</p>
+      </div>
     </header>
 
-    <AppFeedback class="user-settings-status" announcement="polite">
+    <AppFeedback
+      class="user-settings-status"
+      :class="{ 'app-card': statusMessage }"
+      announcement="polite"
+    >
       {{ statusMessage }}
     </AppFeedback>
     <AppFeedback
       class="user-settings-error"
-      :class="{ 'user-settings-error--present': errorMessage }"
+      :class="{
+        'user-settings-error--present': errorMessage,
+        'app-card': errorMessage,
+      }"
       announcement="assertive"
       tone="critical"
     >
@@ -219,7 +228,7 @@ async function loadSaved(replaceDraft: boolean): Promise<void> {
     <template v-if="canAccess">
       <div
         v-if="baseline === null && !hasReadError"
-        class="user-settings-skeleton"
+        class="user-settings-skeleton app-card"
         aria-hidden="true"
       >
         <div></div>
@@ -227,7 +236,12 @@ async function loadSaved(replaceDraft: boolean): Promise<void> {
         <div></div>
       </div>
 
-      <form v-if="draft !== null" :aria-busy="isBusy" @submit.prevent="save">
+      <form
+        v-if="draft !== null"
+        class="user-settings-form app-card app-card--sectioned"
+        :aria-busy="isBusy"
+        @submit.prevent="save"
+      >
         <fieldset :disabled="isBusy" :aria-label="t('userSettings.title')">
           <div class="user-settings-field">
             <label for="user-settings-locale">{{ t('userSettings.language.label') }}</label>
@@ -295,27 +309,6 @@ async function loadSaved(replaceDraft: boolean): Promise<void> {
 </template>
 
 <style scoped>
-.user-settings {
-  flex: 1;
-  min-width: 0;
-  width: 100%;
-  max-width: 48rem;
-  margin: 0 auto;
-  padding: var(--space-8) var(--space-4);
-}
-
-.user-settings-heading h1 {
-  margin: 0;
-  font-size: var(--font-size-page);
-  font-weight: var(--weight-semibold);
-}
-
-.user-settings-heading p {
-  max-width: 65ch;
-  margin: var(--space-2) 0 var(--space-5);
-  color: var(--text-secondary);
-}
-
 .user-settings-status {
   min-height: var(--space-5);
   margin: 0 0 var(--space-4);
@@ -334,8 +327,12 @@ async function loadSaved(replaceDraft: boolean): Promise<void> {
 }
 
 .user-settings-field {
-  padding: var(--space-5) 0;
+  padding: var(--space-4);
   border-top: 1px solid var(--grid);
+}
+
+.user-settings-field:first-child {
+  border-top: 0;
 }
 
 .user-settings-field label {
@@ -367,7 +364,7 @@ async function loadSaved(replaceDraft: boolean): Promise<void> {
 }
 
 .user-settings-actions {
-  padding-top: var(--space-5);
+  padding: var(--space-4);
   border-top: 1px solid var(--grid);
 }
 
@@ -379,7 +376,7 @@ async function loadSaved(replaceDraft: boolean): Promise<void> {
 
 .user-settings-conflict {
   padding: var(--space-4);
-  margin-bottom: var(--space-5);
+  margin: 0 var(--space-4) var(--space-4);
   border: 1px solid var(--border);
   border-radius: var(--radius-input);
   background: var(--surface-1);

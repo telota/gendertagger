@@ -33,17 +33,17 @@ interaction model are in scope.
 The wireframe declares its full palette on `:root` and uses no other colors. These become the token layer of
 the Vue application (CSS custom properties or a design-token module).
 
-| Group | Tokens |
-|---|---|
-| Surfaces | `--surface-1: #fcfcfb`, `--page: #f2f1ee`, `--panel: #ffffff` |
-| Text | `--text-primary: #0b0b0b`, `--text-secondary: #52514e`, `--muted: #898781` |
-| Lines | `--grid: #e1e0d9`, `--border: rgba(11,11,11,0.12)` |
-| Label — solid | `--male: #2a78d6`, `--female: #eb6834`, `--institution: #1baf7a`, `--uncertain: #eda100` |
-| Label — text | `--male-text: #1f5aa0`, `--female-text: #b04e27`, `--institution-text: #127a55`, `--uncertain-text: #7a5900` |
-| Label — tint | `--male-tint: #e9f1fa`, `--female-tint: #fdefea`, `--institution-tint: #e8f7f1`, `--uncertain-tint: #fdf5e5` |
-| Status | `--good: #0ca30c`, `--warning: #fab219`, `--critical: #d03b3b` |
-| Brand | `--accent: #4a3aa7` (navigation/primary), `--accent-b: #0f7a63` (action/confirm) |
-| Focus | `--focus-ring: #1f5aa0` |
+| Group         | Tokens                                                                                                       |
+| ------------- | ------------------------------------------------------------------------------------------------------------ |
+| Surfaces      | `--surface-1: #fcfcfb`, `--page: #f2f1ee`, `--panel: #ffffff`                                                |
+| Text          | `--text-primary: #0b0b0b`, `--text-secondary: #52514e`, `--muted: #898781`                                   |
+| Lines         | `--grid: #e1e0d9`, `--border: rgba(11,11,11,0.12)`                                                           |
+| Label — solid | `--male: #2a78d6`, `--female: #eb6834`, `--institution: #1baf7a`, `--uncertain: #eda100`                     |
+| Label — text  | `--male-text: #1f5aa0`, `--female-text: #b04e27`, `--institution-text: #127a55`, `--uncertain-text: #7a5900` |
+| Label — tint  | `--male-tint: #e9f1fa`, `--female-tint: #fdefea`, `--institution-tint: #e8f7f1`, `--uncertain-tint: #fdf5e5` |
+| Status        | `--good: #0ca30c`, `--warning: #fab219`, `--critical: #d03b3b`                                               |
+| Brand         | `--accent: #4a3aa7` (navigation/primary), `--accent-b: #0f7a63` (action/confirm)                             |
+| Focus         | `--focus-ring: #1f5aa0`                                                                                      |
 
 Typography is a single system stack (`system-ui, -apple-system, "Segoe UI", sans-serif`) with a monospace
 stack (`ui-monospace, monospace`) for TEI snippets, file names, and repository identifiers. Sizes range
@@ -66,13 +66,13 @@ The shell is present on every screen and is the first thing to build.
 Fixed 224 px panel, collapsing to a 60 px icon rail below 1080 px. Contains a brand block that navigates to
 the project list, a variant tag, and grouped navigation:
 
-| Group | Items |
-|---|---|
-| (ungrouped) | Projekte |
-| Aktuelles Projekt | Übersicht, Import, Klassifikation, Redigieren, Manuell annotieren |
-| Zusätzlich (optional) | Spielmodus |
-| Auswertung | Statistik & Methoden |
-| Admin | Einstellungen |
+| Group                 | Items                                                             |
+| --------------------- | ----------------------------------------------------------------- |
+| (ungrouped)           | Projekte                                                          |
+| Aktuelles Projekt     | Übersicht, Import, Klassifikation, Redigieren, Manuell annotieren |
+| Zusätzlich (optional) | Spielmodus                                                        |
+| Auswertung            | Statistik & Methoden                                              |
+| Admin                 | Einstellungen                                                     |
 
 The "optional" styling of the Spielmodus item (amber, `.opt-pill` badge) is a deliberate
 information-architecture decision from [`09-annotation-and-review.md`](09-annotation-and-review.md): the game
@@ -106,67 +106,67 @@ that supplies the component's data.
 
 ### Layout and navigation
 
-| Wireframe classes | Proposed component | Backend binding |
-|---|---|---|
-| `.app`, `.main`, `.view` | `AppShell` | — |
-| `.sidebar`, `.brand`, `.nav-item`, `.nav-section`, `.opt-pill`, `.ic` | `AppSidebar`, `NavItem` | route table |
-| `.topbar`, `.right`, `.avatar` | `AppTopbar` | `GET /me` |
-| `.screen-tabs`, `.stab` | — | dropped per D7 |
-| `.proj-switch`, `.proj-menu`, `.proj-menu-item`, `.proj-menu-action`, `.pn`, `.ppct` | `ProjectSwitcher` | **Gap (backend):** no project-list endpoint |
-| `.dl-wrap`, `.dl-menu`, `.dl-item`, `.dl-sep` | `ExportMenu` | `POST /exports`, `GET /exports/{id}/download` |
-| `.save-block`, `.save-dot` | `SaveIndicator` | **Gap (backend):** no autosave concept |
-| `.bell`, `.badge` | `NotificationBell` | **Gap (backend):** no notification resource |
-| `.footer-note` | `AppFooter` | — |
+| Wireframe classes                                                                    | Proposed component      | Backend binding                               |
+| ------------------------------------------------------------------------------------ | ----------------------- | --------------------------------------------- |
+| `.app`, `.main`, `.view`                                                             | `AppShell`              | —                                             |
+| `.sidebar`, `.brand`, `.nav-item`, `.nav-section`, `.opt-pill`, `.ic`                | `AppSidebar`, `NavItem` | route table                                   |
+| `.topbar`, `.right`, `.avatar`                                                       | `AppTopbar`             | `GET /me`                                     |
+| `.screen-tabs`, `.stab`                                                              | —                       | dropped per D7                                |
+| `.proj-switch`, `.proj-menu`, `.proj-menu-item`, `.proj-menu-action`, `.pn`, `.ppct` | `ProjectSwitcher`       | **Gap (backend):** no project-list endpoint   |
+| `.dl-wrap`, `.dl-menu`, `.dl-item`, `.dl-sep`                                        | `ExportMenu`            | `POST /exports`, `GET /exports/{id}/download` |
+| `.save-block`, `.save-dot`                                                           | `SaveIndicator`         | **Gap (backend):** no autosave concept        |
+| `.bell`, `.badge`                                                                    | `NotificationBell`      | **Gap (backend):** no notification resource   |
+| `.footer-note`                                                                       | `AppFooter`             | —                                             |
 
 ### Primitives
 
-| Wireframe classes | Proposed component | Notes |
-|---|---|---|
-| `.btn-ghost`, `.btn-solid`, `.btn` | `BaseButton` with `variant` prop | three variants in use |
-| `.chip`, `.chip.on`, `.chip.disabled` | `FilterChip` / `MethodChip` | toggle semantics; needs `v-model` |
-| `.card`, `.two-col` | `BaseCard`, `TwoColumnLayout` | |
-| `.note`, `.note.b`, `.note.optional`, `.note.warn` | `CalloutNote` with `tone` prop | four tones: info, success, optional, warning |
-| `.badge.male/.female/.uncertain/.institution` | `LabelBadge` | bound to `CanonicalLabel` |
-| `.consensus-dot`, `.dot-green/.dot-yellow/.dot-red` | `AgreementIndicator` | **rebind** to `AgreementTier` |
-| `.conf-track`, `.conf-fill` | `ProgressBar` | dual use: progress *and* confidence — split these |
-| `.hbar-track`, `.hbar-fill` | `MetricBar` | horizontal metric bar in tables |
-| `.stat-tile`, `.lbl`, `.val`, `.delta` | `StatTile` | |
-| `.ring`, `.progress-card`, `.txt` | `ProgressRing` | conic-gradient ring |
-| `.toggle`, `.sw`, `.sw.on` | `BaseSwitch` | static in wireframe |
-| `.slider-track`, `.slider-fill`, `.slider-handle` | `BaseSlider` | static in wireframe; see semantic conflicts |
-| `.collapse`, `.collapse-body` | `CollapsibleSection` | |
-| `.modal-overlay`, `.modal-box`, `.modal-field`, `.modal-actions` | `BaseModal`, `FormField` | |
-| `.search-box` | `SearchInput` | **disabled in wireframe**; server-side `q` exists |
-| `.tag`, `.src-tag`, `.m-status`, `.file-status`, `.job-status` | `StatusPill` with `tone` prop | four pill styles that can consolidate |
-| `.table-scroll`, `.method-table`, `.mapping`, `.file-list-table`, `.job-hist-table` | `DataTable` | four bespoke tables that can consolidate |
+| Wireframe classes                                                                   | Proposed component               | Notes                                             |
+| ----------------------------------------------------------------------------------- | -------------------------------- | ------------------------------------------------- |
+| `.btn-ghost`, `.btn-solid`, `.btn`                                                  | `BaseButton` with `variant` prop | three variants in use                             |
+| `.chip`, `.chip.on`, `.chip.disabled`                                               | `FilterChip` / `MethodChip`      | toggle semantics; needs `v-model`                 |
+| `.card`, `.two-col`                                                                 | `BaseCard`, `TwoColumnLayout`    |                                                   |
+| `.note`, `.note.b`, `.note.optional`, `.note.warn`                                  | `CalloutNote` with `tone` prop   | four tones: info, success, optional, warning      |
+| `.badge.male/.female/.uncertain/.institution`                                       | `LabelBadge`                     | bound to `CanonicalLabel`                         |
+| `.consensus-dot`, `.dot-green/.dot-yellow/.dot-red`                                 | `AgreementIndicator`             | **rebind** to `AgreementTier`                     |
+| `.conf-track`, `.conf-fill`                                                         | `ProgressBar`                    | dual use: progress _and_ confidence — split these |
+| `.hbar-track`, `.hbar-fill`                                                         | `MetricBar`                      | horizontal metric bar in tables                   |
+| `.stat-tile`, `.lbl`, `.val`, `.delta`                                              | `StatTile`                       |                                                   |
+| `.ring`, `.progress-card`, `.txt`                                                   | `ProgressRing`                   | conic-gradient ring                               |
+| `.toggle`, `.sw`, `.sw.on`                                                          | `BaseSwitch`                     | static in wireframe                               |
+| `.slider-track`, `.slider-fill`, `.slider-handle`                                   | `BaseSlider`                     | static in wireframe; see semantic conflicts       |
+| `.collapse`, `.collapse-body`                                                       | `CollapsibleSection`             |                                                   |
+| `.modal-overlay`, `.modal-box`, `.modal-field`, `.modal-actions`                    | `BaseModal`, `FormField`         |                                                   |
+| `.search-box`                                                                       | `SearchInput`                    | **disabled in wireframe**; server-side `q` exists |
+| `.tag`, `.src-tag`, `.m-status`, `.file-status`, `.job-status`                      | `StatusPill` with `tone` prop    | four pill styles that can consolidate             |
+| `.table-scroll`, `.method-table`, `.mapping`, `.file-list-table`, `.job-hist-table` | `DataTable`                      | four bespoke tables that can consolidate          |
 
 ### Domain components
 
-| Wireframe classes | Proposed component | Backend binding |
-|---|---|---|
-| `.project-grid`, `.project-card`, `.ptitle`, `.psrc`, `.pmeta`, `.pprogress-track`, `.pfoot` | `ProjectCard` | **Gap (backend):** no list, no progress projection |
-| `.cta-row`, `.cta`, `.icon` | `ActionCard` | route targets |
-| `.feed-row` | `ActivityFeedRow` | **Gap (backend):** no activity/audit endpoint |
-| `.kpi-row` | `KpiRow` | derived from evaluation + review counts |
-| `.annotate-layout`, `.col` | `ReviewWorkbench` (3-column) | shared by Redigieren and Manuell annotieren |
-| `.filt-label` | `FilterGroup` | `ReviewItemQuery` fields |
-| `.bulk-bar` | `BulkActionBar` | **Gap (backend):** no batch annotation endpoint |
-| `.person-row`, `.cb`, `.pname`, `.preason` | `PersonRow` | `ReviewItem` |
-| `.detail-name`, `.detail-sub`, `.tei-snippet` | `PersonDetailHeader`, `TeiSnippet` | `PersonRecord` |
-| `.classifier-card`, `.row1`, `.method` | `MethodResultCard` | `GET /aggregations/{id}/results/{result_id}/predictions` |
-| `.action-bar`, `.act-btn` | `AnnotationActionBar` | `POST /annotations` |
-| `.upload-zone` | `FileDropZone` | `POST /projects/{id}/snapshots` |
-| `.src-switch`, `.src-opt`, `.src-panel`, `.msrc-card`, `.stitle`, `.ssub` | `SourceKindSelector` | `SourceFormat` + `SourcePackaging` |
-| `.parse-summary` | `SnapshotSummary` | `DatasetSnapshot` (partial) |
-| `.gitlab-bar`, `.gitlab-ic`, `.gitlab-form`, `.repo-name`, `.repo-meta` | `GitlabSourcePanel` | **Gap (backend):** no VCS integration |
-| `.threshold-box` | `AutomationThresholdPanel` | **Gap (backend):** no threshold concept |
-| `.method-pick` | `MethodSelector` | `GET /methods` |
-| `.retry-link` | — | **Gap (backend):** no run retry endpoint |
-| `.kappa-row`, `.kappa-val` | `MetricRow` | `EvaluationReport` |
-| `.bars`, `.bar`, `.cap`, `.legend` | `DistributionChart` | `EnsembleMetrics` |
-| `.mname`, `.msub` | `MethodNameCell` | `MethodDescriptor` |
-| `.game-wrap`, `.game-hud`, `.timer-ring`, `.hud-stat`, `.game-card`, `.game-btn`, `.combo-pill` | `GameMode*` | **Gap (backend):** no scoring resource |
-| `.lb-row`, `.lb-rank` | `LeaderboardRow` | **Gap (backend):** no leaderboard |
+| Wireframe classes                                                                               | Proposed component                 | Backend binding                                          |
+| ----------------------------------------------------------------------------------------------- | ---------------------------------- | -------------------------------------------------------- |
+| `.project-grid`, `.project-card`, `.ptitle`, `.psrc`, `.pmeta`, `.pprogress-track`, `.pfoot`    | `ProjectCard`                      | **Gap (backend):** no list, no progress projection       |
+| `.cta-row`, `.cta`, `.icon`                                                                     | `ActionCard`                       | route targets                                            |
+| `.feed-row`                                                                                     | `ActivityFeedRow`                  | **Gap (backend):** no activity/audit endpoint            |
+| `.kpi-row`                                                                                      | `KpiRow`                           | derived from evaluation + review counts                  |
+| `.annotate-layout`, `.col`                                                                      | `ReviewWorkbench` (3-column)       | shared by Redigieren and Manuell annotieren              |
+| `.filt-label`                                                                                   | `FilterGroup`                      | `ReviewItemQuery` fields                                 |
+| `.bulk-bar`                                                                                     | `BulkActionBar`                    | **Gap (backend):** no batch annotation endpoint          |
+| `.person-row`, `.cb`, `.pname`, `.preason`                                                      | `PersonRow`                        | `ReviewItem`                                             |
+| `.detail-name`, `.detail-sub`, `.tei-snippet`                                                   | `PersonDetailHeader`, `TeiSnippet` | `PersonRecord`                                           |
+| `.classifier-card`, `.row1`, `.method`                                                          | `MethodResultCard`                 | `GET /aggregations/{id}/results/{result_id}/predictions` |
+| `.action-bar`, `.act-btn`                                                                       | `AnnotationActionBar`              | `POST /annotations`                                      |
+| `.upload-zone`                                                                                  | `FileDropZone`                     | `POST /projects/{id}/snapshots`                          |
+| `.src-switch`, `.src-opt`, `.src-panel`, `.msrc-card`, `.stitle`, `.ssub`                       | `SourceKindSelector`               | `SourceFormat` + `SourcePackaging`                       |
+| `.parse-summary`                                                                                | `SnapshotSummary`                  | `DatasetSnapshot` (partial)                              |
+| `.gitlab-bar`, `.gitlab-ic`, `.gitlab-form`, `.repo-name`, `.repo-meta`                         | `GitlabSourcePanel`                | **Gap (backend):** no VCS integration                    |
+| `.threshold-box`                                                                                | `AutomationThresholdPanel`         | **Gap (backend):** no threshold concept                  |
+| `.method-pick`                                                                                  | `MethodSelector`                   | `GET /methods`                                           |
+| `.retry-link`                                                                                   | —                                  | **Gap (backend):** no run retry endpoint                 |
+| `.kappa-row`, `.kappa-val`                                                                      | `MetricRow`                        | `EvaluationReport`                                       |
+| `.bars`, `.bar`, `.cap`, `.legend`                                                              | `DistributionChart`                | `EnsembleMetrics`                                        |
+| `.mname`, `.msub`                                                                               | `MethodNameCell`                   | `MethodDescriptor`                                       |
+| `.game-wrap`, `.game-hud`, `.timer-ring`, `.hud-stat`, `.game-card`, `.game-btn`, `.combo-pill` | `GameMode*`                        | **Gap (backend):** no scoring resource                   |
+| `.lb-row`, `.lb-rank`                                                                           | `LeaderboardRow`                   | **Gap (backend):** no leaderboard                        |
 
 ## Screens
 
@@ -378,16 +378,21 @@ order. `PersonRecord` carries `tei_id`, `surname`, `forenames`, `birth`, `death`
 
 **Intent.** Deliberately secondary gamified annotation path writing into the same data as the review screens.
 
-**Contains.** A HUD (round timer, conic-gradient countdown ring, score), a combo pill, a large name card with
-a hint button carrying a point cost, and four full-width label buttons.
+**Contains.** A pre-round choice between open decisions and the entire dataset, a choice of 10, 20, or 50
+questions, and a switchable timer; a compact progress, score, streak, and elapsed-time HUD; the source record;
+four semantic label buttons with keyboard shortcuts; post-answer machine evidence; a completion summary; and
+a persistent project leaderboard for the selected round size.
 
-**Gaps.**
+**Backend.** `POST /projects/{project_id}/game-rounds` validates annotation evidence, computes the score, and
+persists an idempotent completed round. `GET /projects/{project_id}/game-leaderboard` returns each reviewer's
+best round for one target size. The annotation itself remains the ordinary `POST /annotations` command.
 
-- **Gap (backend):** nothing here exists server-side — no session, score, combo, timer, hint cost, or
-  leaderboard resource. [`09-annotation-and-review.md`](09-annotation-and-review.md) describes the behavior;
-  no contract implements it.
-- The annotation write itself is `POST /annotations` like any other, so the screen is buildable as a pure
-  presentation layer over the review contract if the scoring layer is deferred. Recommended for v1.
+**Frontend.** Delivered as a project-level, opt-in reviewer path for completed aggregations. Project operators
+control it from the overview; disabling it hides navigation and blocks direct access without deleting stored
+rounds. Open decisions preserve server triage order; the entire-dataset pool uses stable source-ID order so it
+can continue through cursor pages across rounds even as decisions append new revisions. A final partial round
+stops when the selected pool is exhausted, and the timer preference remains per signed-in account. It does not
+implement the wireframe's hint cost or alter the regular review queue.
 
 ### Statistik und Methoden
 
@@ -405,7 +410,7 @@ a pairwise `KappaCell` matrix, and optional `EnsembleMetrics`.
 
 **Gaps.**
 
-- **Gap (frontend):** evaluation as a *created, asynchronous, reproducible execution* with status and a
+- **Gap (frontend):** evaluation as a _created, asynchronous, reproducible execution_ with status and a
   downloadable report is not represented at all. The wireframe shows numbers with no provenance.
 - **Gap (frontend):** unused report content — the pairwise Cohen's κ matrix over eight methods; per-method
   confusion matrices; per-class recall with confidence intervals (`RecallWithCI`); `effective_accuracy`
@@ -413,7 +418,7 @@ a pairwise `KappaCell` matrix, and optional `EnsembleMetrics`.
   and the full `EnsembleMetrics` tier distributions.
 - **Gap (backend):** "Fleiss' κ (Team)" is computed nowhere.
   [`evaluation/kappa.py`](../backend/src/gendertagger/evaluation/kappa.py) computes pairwise **Cohen's** κ between
-  *methods*, not inter-annotator agreement between people.
+  _methods_, not inter-annotator agreement between people.
 - **Gap (backend):** "Ø Konfidenz" per method contradicts rule 10 in [`AGENTS.md`](../AGENTS.md) —
   `method_confidence` is method-specific and must not be presented as comparable across methods.
 - **Gap (backend):** "Ø Review-Zeit / Fall" is not measured.
@@ -464,57 +469,60 @@ trapped — the Vue port must add a focus trap and restore focus on close.
 
 ## Backend endpoint coverage
 
-All forty-five delivered `/api/v1` endpoints, and how the wireframe treats each. Project-scoped roles are
+The delivered `/api/v1` endpoints, and how the wireframe treats each. Project-scoped roles are
 checked against the project that owns the addressed resource.
 
-| Endpoint | Role | Wireframe treatment |
-|---|---|---|
-| `GET /me` | authenticated | mocked ("Sam Kurator:in") |
-| `GET /auth/session` | authenticated | **absent** |
-| `POST /auth/login` | unauthenticated | **absent — no login screen** |
-| `POST /auth/logout` | authenticated | **absent** |
-| `POST /me/password` | authenticated | **Delivered** — forced-password-change view |
-| `GET /admin/users` | global admin, password current | **Delivered** — read-only searchable, cursor-paginated local-account directory ([ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md)) |
-| `POST /projects` | global operator | modal, missing `slug`/`description` |
-| `GET /projects` | authenticated; own projects only | mocked card grid and switcher |
-| `GET /projects/{id}` | viewer | mocked in topbar |
-| `PUT /projects/{id}/working-aggregation` | operator | **absent** |
-| `GET /projects/{id}/members` | global admin | **absent — no member screen** |
-| `PUT /projects/{id}/members/{user_id}` | global admin | **absent** |
-| `DELETE /projects/{id}/members/{user_id}` | global admin | **absent** |
-| `POST /projects/{id}/snapshots` | operator | partial — TEI/single only |
-| `GET /projects/{id}/snapshots` | viewer | **absent — no snapshot history** |
-| `GET /snapshot-upload-limits` | any role or membership | **absent — no limit guidance** |
-| `GET /snapshots/{id}` | viewer | absent — no lifecycle shown |
-| `GET /snapshots/{id}/people` | viewer | mocked list, unsupported filters |
-| `GET /snapshots/{id}/runs` | viewer | mocked run-history table |
-| `GET /methods` | any role or membership | hardcoded, wrong roster |
-| `POST /classify` | any role or membership | **absent — no screen** |
-| `POST /runs` | operator | mocked button |
-| `GET /runs/{id}` | viewer | mocked card |
-| `GET /runs/{id}/executions` | viewer | mocked per-method cards |
-| `POST /runs/{id}/executions` | operator | mocked button |
-| `GET /runs/{id}/events` (SSE) | viewer | **absent — static UI** |
-| `POST /runs/{id}/aggregations` | operator | **absent — no screen** |
-| `GET /runs/{id}/aggregations` | viewer | **absent — no screen** |
-| `GET /runs/{id}/evaluations` | viewer | **absent** |
-| `GET /runs/{id}/exports` | viewer | **absent** |
-| `GET /aggregations/{id}` | viewer | **absent** |
-| `GET /aggregations/{id}/review-summary` | viewer | mocked KPI tiles and project-card progress |
-| `GET /aggregations/{id}/results` | viewer | **absent** |
-| `GET /aggregations/{id}/results/{result_id}` | viewer | **absent** |
-| `GET /aggregations/{id}/results/{result_id}/predictions` | viewer | mocked per-method cards |
-| `GET /review-items` | viewer | mocked list, filters do not map |
-| `GET /annotations` | viewer | mocked attribution line |
-| `POST /annotations` | reviewer | mocked action bar, no concurrency |
-| `POST /evaluations` | operator | **absent** |
-| `GET /evaluations/{id}` | viewer | **absent** |
-| `GET /evaluations/{id}/report` | viewer | mocked with non-existent metrics |
-| `POST /exports` | operator | mocked menu item |
-| `GET /exports/{id}` | viewer | **absent** |
-| `GET /exports/{id}/download` | viewer | mocked menu item |
-| `GET /branding` | unauthenticated | **absent — static wireframe footer note only** |
-| `GET /branding/logo` | unauthenticated | **absent** |
+| Endpoint                                                 | Role                             | Wireframe treatment                                                                                                                                    |
+| -------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /me`                                                | authenticated                    | mocked ("Sam Kurator:in")                                                                                                                              |
+| `GET /auth/session`                                      | authenticated                    | **absent**                                                                                                                                             |
+| `POST /auth/login`                                       | unauthenticated                  | **absent — no login screen**                                                                                                                           |
+| `POST /auth/logout`                                      | authenticated                    | **absent**                                                                                                                                             |
+| `POST /me/password`                                      | authenticated                    | **Delivered** — forced-password-change view                                                                                                            |
+| `GET /admin/users`                                       | global admin, password current   | **Delivered** — read-only searchable, cursor-paginated local-account directory ([ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md)) |
+| `POST /projects`                                         | global operator                  | modal, missing `slug`/`description`                                                                                                                    |
+| `GET /projects`                                          | authenticated; own projects only | mocked card grid and switcher                                                                                                                          |
+| `GET /projects/{id}`                                     | viewer                           | mocked in topbar                                                                                                                                       |
+| `PUT /projects/{id}/working-aggregation`                 | operator                         | **absent**                                                                                                                                             |
+| `PUT /projects/{id}/game-mode`                           | operator                         | **Delivered** — project-overview opt-in toggle                                                                                                         |
+| `POST /projects/{id}/game-rounds`                        | reviewer; game enabled           | **Delivered** — validated scoring and round persistence                                                                                                |
+| `GET /projects/{id}/game-leaderboard`                    | viewer; game enabled             | **Delivered** — best round per reviewer and target size                                                                                                |
+| `GET /projects/{id}/members`                             | global admin                     | **absent — no member screen**                                                                                                                          |
+| `PUT /projects/{id}/members/{user_id}`                   | global admin                     | **absent**                                                                                                                                             |
+| `DELETE /projects/{id}/members/{user_id}`                | global admin                     | **absent**                                                                                                                                             |
+| `POST /projects/{id}/snapshots`                          | operator                         | partial — TEI/single only                                                                                                                              |
+| `GET /projects/{id}/snapshots`                           | viewer                           | **absent — no snapshot history**                                                                                                                       |
+| `GET /snapshot-upload-limits`                            | any role or membership           | **absent — no limit guidance**                                                                                                                         |
+| `GET /snapshots/{id}`                                    | viewer                           | absent — no lifecycle shown                                                                                                                            |
+| `GET /snapshots/{id}/people`                             | viewer                           | mocked list, unsupported filters                                                                                                                       |
+| `GET /snapshots/{id}/runs`                               | viewer                           | mocked run-history table                                                                                                                               |
+| `GET /methods`                                           | any role or membership           | hardcoded, wrong roster                                                                                                                                |
+| `POST /classify`                                         | any role or membership           | **absent — no screen**                                                                                                                                 |
+| `POST /runs`                                             | operator                         | mocked button                                                                                                                                          |
+| `GET /runs/{id}`                                         | viewer                           | mocked card                                                                                                                                            |
+| `GET /runs/{id}/executions`                              | viewer                           | mocked per-method cards                                                                                                                                |
+| `POST /runs/{id}/executions`                             | operator                         | mocked button                                                                                                                                          |
+| `GET /runs/{id}/events` (SSE)                            | viewer                           | **absent — static UI**                                                                                                                                 |
+| `POST /runs/{id}/aggregations`                           | operator                         | **absent — no screen**                                                                                                                                 |
+| `GET /runs/{id}/aggregations`                            | viewer                           | **absent — no screen**                                                                                                                                 |
+| `GET /runs/{id}/evaluations`                             | viewer                           | **absent**                                                                                                                                             |
+| `GET /runs/{id}/exports`                                 | viewer                           | **absent**                                                                                                                                             |
+| `GET /aggregations/{id}`                                 | viewer                           | **absent**                                                                                                                                             |
+| `GET /aggregations/{id}/review-summary`                  | viewer                           | mocked KPI tiles and project-card progress                                                                                                             |
+| `GET /aggregations/{id}/results`                         | viewer                           | **absent**                                                                                                                                             |
+| `GET /aggregations/{id}/results/{result_id}`             | viewer                           | **absent**                                                                                                                                             |
+| `GET /aggregations/{id}/results/{result_id}/predictions` | viewer                           | mocked per-method cards                                                                                                                                |
+| `GET /review-items`                                      | viewer                           | mocked list, filters do not map                                                                                                                        |
+| `GET /annotations`                                       | viewer                           | mocked attribution line                                                                                                                                |
+| `POST /annotations`                                      | reviewer                         | mocked action bar, no concurrency                                                                                                                      |
+| `POST /evaluations`                                      | operator                         | **absent**                                                                                                                                             |
+| `GET /evaluations/{id}`                                  | viewer                           | **absent**                                                                                                                                             |
+| `GET /evaluations/{id}/report`                           | viewer                           | mocked with non-existent metrics                                                                                                                       |
+| `POST /exports`                                          | operator                         | mocked menu item                                                                                                                                       |
+| `GET /exports/{id}`                                      | viewer                           | **absent**                                                                                                                                             |
+| `GET /exports/{id}/download`                             | viewer                           | mocked menu item                                                                                                                                       |
+| `GET /branding`                                          | unauthenticated                  | **absent — static wireframe footer note only**                                                                                                         |
+| `GET /branding/logo`                                     | unauthenticated                  | **absent**                                                                                                                                             |
 
 Authentication is fail-closed: every `/api/v1` route except `POST /auth/login` carries
 `require_csrf_protection`, and the default backend is the local account system from
@@ -530,22 +538,22 @@ while the server authorizes.
 
 Grouped by whether they need a backend decision before or after v1.
 
-| Feature | Screens | Recommendation |
-|---|---|---|
-| GitLab repository source, sync, commit tracking, commit export | Import, Einstellungen, export menu | Defer; needs an ADR and a new resource family. Weigh against [ADR-0005](decisions/ADR-0005-local-first-data-processing.md). |
-| Automation confidence threshold | Import, Übersicht, Einstellungen | **Resolve before v1** — it drives three screens' primary metrics. |
-| Project list and per-project progress | Projekte, topbar switcher | Project list **delivered** (`GET /projects`); per-project progress still to add. |
-| Per-person, per-method predictions | Redigieren, Manuell annotieren | **Delivered.** `GET /aggregations/{id}/results/{result_id}/predictions`. |
-| Annotation history read | Redigieren, Manuell annotieren | **Delivered.** `GET /annotations?snapshot_id=&tei_id=`. |
-| Run retry and cancel | Klassifikation | Add; `cancelled` status already modeled. |
-| Run list | Klassifikation | **Delivered.** `GET /snapshots/{snapshot_id}/runs`. |
-| Bulk annotation | Redigieren | Client-side loop for v1; batch endpoint later. |
-| Activity feed | Übersicht | Defer. |
-| Notifications | shell | Defer. |
-| Autosave and "last saved" | shell | Drop — contradicts append-only annotations. |
-| User/project settings persistence | Einstellungen | ADR-0043 adds account locale/theme/desktop-sidebar persistence; its UI and project settings remain deferred. |
-| Game scoring, combos, timer, hints, leaderboard | Spielmodus, Statistik | Defer scoring; the annotation path itself is buildable now. |
-| Ø review time per case | Statistik | Defer; needs client timing telemetry. |
+| Feature                                                        | Screens                            | Recommendation                                                                                                                                                         |
+| -------------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GitLab repository source, sync, commit tracking, commit export | Import, Einstellungen, export menu | Defer; needs an ADR and a new resource family. Weigh against [ADR-0005](decisions/ADR-0005-local-first-data-processing.md).                                            |
+| Automation confidence threshold                                | Import, Übersicht, Einstellungen   | **Resolve before v1** — it drives three screens' primary metrics.                                                                                                      |
+| Project list and per-project progress                          | Projekte, topbar switcher          | Project list **delivered** (`GET /projects`); per-project progress still to add.                                                                                       |
+| Per-person, per-method predictions                             | Redigieren, Manuell annotieren     | **Delivered.** `GET /aggregations/{id}/results/{result_id}/predictions`.                                                                                               |
+| Annotation history read                                        | Redigieren, Manuell annotieren     | **Delivered.** `GET /annotations?snapshot_id=&tei_id=`.                                                                                                                |
+| Run retry and cancel                                           | Klassifikation                     | Add; `cancelled` status already modeled.                                                                                                                               |
+| Run list                                                       | Klassifikation                     | **Delivered.** `GET /snapshots/{snapshot_id}/runs`.                                                                                                                    |
+| Bulk annotation                                                | Redigieren                         | Client-side loop for v1; batch endpoint later.                                                                                                                         |
+| Activity feed                                                  | Übersicht                          | Defer.                                                                                                                                                                 |
+| Notifications                                                  | shell                              | Defer.                                                                                                                                                                 |
+| Autosave and "last saved"                                      | shell                              | Drop — contradicts append-only annotations.                                                                                                                            |
+| User/project settings persistence                              | Einstellungen                      | ADR-0043 adds account locale/theme/desktop-sidebar persistence; its UI and project settings remain deferred.                                                           |
+| Game scoring, combos, timer, hints, leaderboard                | Spielmodus, Statistik              | Scoring, streaks, switchable timing, and a project leaderboard are **delivered** in Spielmodus; hint costs and the separate Statistik leaderboard are not implemented. |
+| Ø review time per case                                         | Statistik                          | Defer; needs client timing telemetry.                                                                                                                                  |
 
 ## Semantic conflicts to resolve before implementation
 
@@ -565,7 +573,7 @@ decision quality categorically:
 - `AgreementTier`: `unanimous`, `strong_majority`, `weak_majority`, `no_consensus`, `single_rater`, `no_answer`
 - `CertaintyTier`: `high`, `low`, `contested`, `single`, `uncertain`, `no_data`
 
-`PredictionResult.method_confidence` is documented as *"not globally calibrated"* and rule 10 of
+`PredictionResult.method_confidence` is documented as _"not globally calibrated"_ and rule 10 of
 [`AGENTS.md`](../AGENTS.md) forbids treating it as a probability. A percentage threshold over it is not
 implementable as drawn.
 
@@ -609,7 +617,7 @@ measure different things over different populations.
 
 ### Confidence bars are overloaded
 
-`.conf-track`/`.conf-fill` renders both *execution progress* (Klassifikation) and *method confidence*
+`.conf-track`/`.conf-fill` renders both _execution progress_ (Klassifikation) and _method confidence_
 (review detail). The second use is the one that conflicts with rule 10. Split into `ProgressBar` and a
 non-numeric per-method indicator.
 
@@ -661,16 +669,16 @@ implicit global state, is the main structural change the port must make.
 
 ### Cross-cutting concerns to build once
 
-| Concern | Requirement |
-|---|---|
-| Error envelope | Single handler for the shared `ApiErrorEnvelope`; map `code` to user-facing copy. |
-| `409 annotation_conflict` | Dedicated recovery flow: refetch item, show both decisions, let the reviewer choose. |
-| `413` upload limits | Surface `SnapshotImportLimits` before upload and on rejection. |
-| Async resource polling | One composable for the `202` → poll → terminal-state pattern used by snapshots, aggregations, evaluations, and exports. |
-| SSE | One composable with reconnect; on reconnect refetch the resource, since no event log is replayed. |
-| Cursor pagination | One composable binding filters, sort, and cursor together. |
-| Roles | Directive or composable hiding/disabling controls above the user's role; never the authorization itself. |
-| CSRF | Attach the session's CSRF token to every unsafe request. |
+| Concern                   | Requirement                                                                                                             |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Error envelope            | Single handler for the shared `ApiErrorEnvelope`; map `code` to user-facing copy.                                       |
+| `409 annotation_conflict` | Dedicated recovery flow: refetch item, show both decisions, let the reviewer choose.                                    |
+| `413` upload limits       | Surface `SnapshotImportLimits` before upload and on rejection.                                                          |
+| Async resource polling    | One composable for the `202` → poll → terminal-state pattern used by snapshots, aggregations, evaluations, and exports. |
+| SSE                       | One composable with reconnect; on reconnect refetch the resource, since no event log is replayed.                       |
+| Cursor pagination         | One composable binding filters, sort, and cursor together.                                                              |
+| Roles                     | Directive or composable hiding/disabling controls above the user's role; never the authorization itself.                |
+| CSRF                      | Attach the session's CSRF token to every unsafe request.                                                                |
 
 ## Required backend additions
 
@@ -703,8 +711,8 @@ Ordered by whether the Vue port is blocked without them.
 
 ### Deferred but design-relevant
 
-Batch annotation, activity feed, notifications, project settings, further personal settings, game scoring,
-and VCS integration remain deferred. Each needs an ADR before it enters the API surface, per
+Batch annotation, activity feed, notifications, project settings, further personal settings, and VCS
+integration remain deferred. Each needs an ADR before it enters the API surface, per
 [`22-future-development.md`](22-future-development.md). ADR-0043 admits only account locale, theme, and
 explicit desktop-sidebar collapse; the personal settings page and client integration remain later work.
 
@@ -722,7 +730,7 @@ explicit desktop-sidebar collapse; the personal settings page and client integra
 7. **Manuell annotieren**, reusing the workbench with `sort=tei_id`.
 8. **Statistik**, driven by real evaluation executions and reports.
 9. **Export**, including format, label-source policy, TEI profile, and manifest display.
-10. **Spielmodus** as a presentation layer over the annotation contract, scoring deferred.
+10. **Spielmodus**, delivered as a scored but scientifically inert presentation layer over the annotation contract.
 11. **Einstellungen** last, scoped to whatever persistence has by then been decided.
 
 Mark the wireframe features listed under

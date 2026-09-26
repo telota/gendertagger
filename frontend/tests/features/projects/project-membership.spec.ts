@@ -79,6 +79,12 @@ describe('ProjectMembershipView', () => {
     await waitFor(() => expect(wrapper.text()).toContain(MEMBER.display_name))
     expect(wrapper.text()).toContain('No ordinary project role')
 
+    expect(
+      wrapper
+        .get('.project-members-add-actions')
+        .findAll('button')
+        .map((button) => button.text()),
+    ).toEqual(['Load more', 'Add member'])
     const loadMore = wrapper.findAll('button').find((button) => button.text() === 'Load more')
     await loadMore?.trigger('click')
     await waitFor(() => expect(wrapper.text()).toContain(secondCandidate.display_name))
@@ -348,10 +354,15 @@ describe('ProjectMembershipView', () => {
     })
     const wrapper = await mountApplicationAt(`/projects/${PROJECT_ID}/members`, 'en', client)
     await waitFor(() => expect(wrapper.get('main [role="alert"]').text()).toContain('could not'))
+    const loadError = wrapper.get('.project-members-load-error')
+    expect(loadError.classes()).toContain('app-card')
+    expect(loadError.classes()).toContain('app-feedback--critical')
+    expect(loadError.findAll('button').map((button) => button.text())).toEqual(['Try again'])
+    await loadError.get('button').trigger('click')
+    await waitFor(() => expect(wrapper.text()).toContain(MEMBER.display_name))
 
-    // Remount to exercise a successful read followed by a rejected membership write.
-    wrapper.unmount()
-    const ready = await mountApplicationAt(`/projects/${PROJECT_ID}/members`, 'en', client)
+    // Exercise the recovered state with a rejected membership write.
+    const ready = wrapper
     await waitFor(() => expect(ready.text()).toContain(MEMBER.display_name))
     expect(ready.text()).toContain('operator')
     const role = ready.get('tbody select[aria-label="Project role"]')
@@ -359,6 +370,7 @@ describe('ProjectMembershipView', () => {
       await role?.setValue(index % 2 === 0 ? 'operator' : 'reviewer')
       await waitFor(() => expect(mutationAttempts).toBe(index + 1))
       expect(ready.get('main [role="alert"]').text()).toContain('not confirmed')
+      expect(ready.get('main .project-members-error').classes()).toContain('app-card')
     }
     await flushPromises()
   })

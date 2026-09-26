@@ -494,3 +494,99 @@ states which markup gendertagger adds and gives both links in a footnote.
   (`data/raw/schleiermacher/Register/Orte.xml`) and on the edition website. The GeoNames record
   lists Gnadenfrei as a historical German name of Piława Górna. Both links were checked on
   23 September 2026.
+
+## 2026-09-26: Reviewer I13 - Derivation and meaning of `@cert`
+
+**Request:** Explain how the `@cert` categories are derived, what `high`, `low`, and `unknown` mean,
+whether another scale would be possible, and which scales are used elsewhere in DH (submitted
+manuscript lines 186 ff.).
+
+**Changes:**
+
+- Revised the `@cert` item in [article.tex](article.tex): three of the four categorical TEI values;
+  authority overrides always yield `high`; single-method labels map to `unknown`; `unknown` follows
+  the TEI definition; the value qualifies the resulting annotation, not a method's confidence.
+- Added a "Certainty Scale" paragraph: TEI also allows `medium` and numerical probabilities; why we
+  use neither; ediarum as DH precedent; finer tiers and agreement scores remain in the pipeline output.
+- Corrected the certainty-assignment definition (authority overrides, unresolved ties, LLM
+  self-reported certainty) and the paragraph that called internal tiers TEI values.
+- Added the TEI `@cert` value per tier to Table 5.
+- Separated internal certainty tier and TEI `@cert` throughout: voting paragraph, Section 3.5.3,
+  Table 6, LLM schema, example query, HIVOTO's certainty indicator.
+- Changed the TEI example (S0001126) to `cert="unknown"`; only the LLM classified it.
+- Own audit: corrected Table 6 against the case-study output (tiers of S0001317, S0001502, S9437075;
+  pre-review labels of S0001502 and S9437075; vote counts of S0001932 and S0001317; caption
+  N = 850 instead of the stale 854).
+- Bibliography: consolidated the TEI reference into one Guidelines entry (P5 4.12.0) cited with page
+  locators; added the ediarum.BASE manual.
+
+**Response to the reviewer:** `@cert` states the certainty of the resulting annotation, not the
+confidence of a single classifier. It is derived from the pipeline's certainty tier (Section 2.5):
+`high` when at least two methods vote and at least three quarters agree, when an authority signal
+(GND or the parenthetical-qualifier rule) decides the label, or after human review; `low` when at
+least half but fewer than three quarters agree; `unknown` when the methods reach no majority or only
+one method provides a label. Following the TEI definition, `unknown` means that the encoder does not
+wish to assert an opinion. We also corrected the definition of the tiers: an authority override
+always yields `high` (the submitted version said "in agreement with the vote"), an unresolved tie
+between substantive labels is assigned to `contested`, and the `@cert` description now covers entries
+with a single voting method. Other scales are possible: TEI also allows `medium` and numerical
+probabilities. We did not use numerical values because the pipeline has no calibrated probability:
+per-method confidences are not comparable, and the agreement score measures consensus, not
+correctness. We did not use `medium` because the pipeline distinguishes only two levels of
+agreement; this coarse scale also matches editorial practice such as the ediarum framework, which
+offers only `low` and `high` for uncertain readings. The
+finer tiers and agreement scores remain available in the pipeline output, and Table 5 now shows the
+TEI value per tier. While revising, we corrected passages that had called internal tiers TEI values
+and the certainty tiers given in Table 6.
+
+**Status:** Addressed in the local working tree; I13 is marked complete.
+
+**Verification:**
+
+- Tier rules and TEI projection checked against
+  `backend/src/gendertagger/domain/aggregation_assessment.py` and
+  `backend/src/gendertagger/export/certainty_projection.py`.
+- Tables 5 and 6 checked against `data/output/gender_summary.csv`; S0001126 has tier `single`.
+- TEI P5 4.12.0: `@cert` on `<gender>` uses `teidata.probCert` (categorical or 0–1); `unknown`
+  definition from `teidata.certainty`; `<gender>` with `@cert`, `@resp`, and `@evidence` confirmed.
+  ediarum.BASE manual 0.7 checked. All on 26 September 2026.
+- The manuscript compiles without errors or undefined references (23 pages).
+
+## 2026-09-26: Reviewer I23 - Discussion from an RSE perspective
+
+**Request:** Add a discussion that incorporates the case study (Section 3) and elements of the
+limitations (Section 4), especially from an RSE perspective, for example how the NFDI and the basic
+service TS4NFDI come into play and what that would change (submitted manuscript lines 532 ff.).
+
+**Changes:**
+
+- Added a Discussion section before the Conclusion in [article.tex](article.tex), with three paragraphs:
+  - the editorial review outcome per certainty tier, and the entries that remained unreviewed;
+  - the RSE perspective: replaceable classifiers; a stable layer of normalization,
+    abstention/`unknown`, and provenance; versioned external resources, including the unpinned
+    transformer revisions;
+  - TS4NFDI: publishing the per-method normalization mappings as reusable terminology mappings.
+- Added `baum_technical_2025` (TS4NFDI architecture, Zenodo DOI) to [gendertagger.bib](gendertagger.bib).
+
+**Response to the reviewer:** We added a Discussion section (Section 5). It uses the editorial review
+of the case study to assess the certainty tiers: editors changed an existing label in 5.8% of the
+entries with the tier `low` but in 26.3% of those with the tier `contested`, while entries with the
+tiers `high` and `single` remained unreviewed. From an RSE perspective, it argues that the classifiers
+are the replaceable part of the workflow, that the stable part is the layer of normalization,
+abstention handling, and provenance, and that external resources such as models need versioning. It
+then describes how TS4NFDI could come into play: the mappings from each method's raw labels onto the
+shared label set could be published as reusable terminology mappings instead of remaining in the
+source code.
+
+**Status:** Addressed in the local working tree; I23 is marked complete.
+
+**Verification:**
+
+- Review figures computed from `data/output/gender_reviewed.csv`: 634 reviewed entries (388 verified,
+  246 corrected); existing labels changed in 15 of 257 `low` and 10 of 38 `contested` entries; 14 of
+  the 15 `low` changes to `female`.
+- Normalization profiles checked in `backend/src/gendertagger/methods/normalization.py` (a versioned
+  `LabelNormalizationProfile` per method).
+- TS4NFDI description checked against the Zenodo architecture document (v1, 8 April 2025) and the
+  Base4NFDI project page on 26 September 2026.
+- The manuscript compiles without errors or undefined references (24 pages).

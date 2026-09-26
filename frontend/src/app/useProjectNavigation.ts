@@ -13,6 +13,7 @@ export interface ProjectNavigationContext {
   /** Null identifies a management-only context, without scientific project access. */
   currentUserRole: ProjectRole | null
   currentUserCanManageMembers: boolean
+  gameModeEnabled: boolean
   /** The run the run-level entries lead to; `null` while the project has none to show. */
   runId: string | null
   aggregationId: string | null
@@ -84,6 +85,7 @@ export function useProjectNavigation(): ComputedRef<ProjectNavigationContext | n
             projectId: projectId.value,
             currentUserRole: null,
             currentUserCanManageMembers: true,
+            gameModeEnabled: false,
             runId: null,
             aggregationId: null,
             snapshotId: null,
@@ -103,6 +105,7 @@ export function useProjectNavigation(): ComputedRef<ProjectNavigationContext | n
       projectId: projectId.value,
       currentUserRole: project.current_user_role,
       currentUserCanManageMembers: canManageMembers.value,
+      gameModeEnabled: project.game_mode_enabled === true,
       runId: validRunId,
       aggregationId:
         validRunId !== null &&

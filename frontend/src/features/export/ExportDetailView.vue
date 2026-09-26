@@ -5,6 +5,7 @@ import { RouterLink } from 'vue-router'
 
 import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
+import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useApiClient } from '@/composables/useApiClient'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
 import { useStatusLabel } from '@/features/runs/useStatusLabel'
@@ -22,7 +23,7 @@ const runId = useRouteParam('runId')
 const exportId = useRouteParam('exportId')
 
 const item = useExport(exportId, isSignedIn)
-const isCompleted = computed(() => item.data.value?.status === 'completed')
+const isCompleted = computed(() => isSignedIn.value && item.data.value?.status === 'completed')
 const manifest = useExportManifest(exportId, isCompleted)
 
 // Downloading also hashes what arrived, so the result can be compared with the manifest's checksum.
@@ -76,39 +77,74 @@ const verdict = computed<Verdict>(() => {
 </script>
 
 <template>
-  <main class="export-detail">
-    <p v-if="session.status === 'idle' || session.status === 'loading'" role="status">
-      {{ t('runs.loading') }}
-    </p>
-    <div v-else-if="session.status === 'error'" class="export-detail-load-error">
-      <p role="alert">{{ t('projects.sessionLoadError') }}</p>
-      <AppButton type="button" @click="retrySession">{{ t('runs.retry') }}</AppButton>
-    </div>
-    <template v-else-if="isSignedIn">
-      <RouterLink
-        class="export-detail-back"
-        :to="{ name: 'exports', params: { projectId, runId } }"
-      >
-        {{ t('export.detail.backToList') }}
-      </RouterLink>
-
-      <p v-if="item.isPending.value" role="status">{{ t('runs.loading') }}</p>
-      <div v-else-if="item.isError.value" class="export-detail-load-error">
-        <p role="alert">{{ t('export.detail.loadError') }}</p>
-        <AppButton class="export-detail-retry" type="button" @click="() => item.refetch()">
-          {{ t('runs.retry') }}
-        </AppButton>
-      </div>
-      <template v-else-if="item.data.value">
-        <h1 class="export-detail-title">{{ t('export.detail.title') }}</h1>
-        <p class="export-detail-status" role="status">
+  <main class="export-detail app-page-frame">
+    <RouterLink
+      v-if="isSignedIn"
+      class="export-detail-back"
+      :to="{ name: 'exports', params: { projectId, runId } }"
+    >
+      {{ t('export.detail.backToList') }}
+    </RouterLink>
+    <header class="export-detail-page-heading app-page-heading">
+      <div class="app-page-heading__copy">
+        <h1 class="export-detail-title app-page-heading__title">
+          {{ t('export.detail.title') }}
+        </h1>
+        <p v-if="isSignedIn && item.data.value" class="export-detail-status" role="status">
           <span :class="`export-detail-status--${item.data.value.status}`">{{
             label(item.data.value.status)
           }}</span>
         </p>
+      </div>
+    </header>
+
+    <AppFeedback
+      v-if="session.status === 'idle' || session.status === 'loading'"
+      class="app-card"
+      announcement="polite"
+    >
+      {{ t('runs.loading') }}
+    </AppFeedback>
+    <AppFeedback
+      v-else-if="session.status === 'error'"
+      class="app-card"
+      announcement="assertive"
+      tone="critical"
+    >
+      {{ t('projects.sessionLoadError') }}
+      <template #actions>
+        <AppButton type="button" variant="ghost" @click="retrySession">
+          {{ t('runs.retry') }}
+        </AppButton>
+      </template>
+    </AppFeedback>
+    <template v-else-if="isSignedIn">
+      <AppFeedback v-if="item.isPending.value" class="app-card" announcement="polite">
+        {{ t('runs.loading') }}
+      </AppFeedback>
+      <AppFeedback
+        v-else-if="item.isError.value"
+        class="app-card"
+        announcement="assertive"
+        tone="critical"
+      >
+        {{ t('export.detail.loadError') }}
+        <template #actions>
+          <AppButton
+            class="export-detail-retry"
+            type="button"
+            variant="ghost"
+            :disabled="item.isFetching.value"
+            @click="() => item.refetch()"
+          >
+            {{ t('runs.retry') }}
+          </AppButton>
+        </template>
+      </AppFeedback>
+      <template v-else-if="item.data.value">
         <div
           v-if="item.data.value.failure_class || item.data.value.failure_diagnostic"
-          class="export-detail-failure"
+          class="export-detail-failure app-card"
         >
           <p v-if="item.data.value.failure_class" class="export-detail-failure-class">
             {{ item.data.value.failure_class }}
@@ -118,38 +154,41 @@ const verdict = computed<Verdict>(() => {
           </p>
         </div>
 
-        <section class="export-detail-block" aria-labelledby="export-params-heading">
+        <section class="export-detail-block app-card" aria-labelledby="export-params-heading">
           <h2 id="export-params-heading" class="export-detail-heading">
             {{ t('export.detail.parameters') }}
           </h2>
-          <dl class="export-detail-facts">
-            <div class="export-detail-fact">
+          <dl class="export-detail-facts app-fact-list">
+            <div class="export-detail-fact app-fact-list__item">
               <dt>{{ t('export.item.format') }}</dt>
               <dd class="export-detail-token">{{ item.data.value.format }}</dd>
             </div>
-            <div class="export-detail-fact">
+            <div class="export-detail-fact app-fact-list__item">
               <dt>{{ t('export.item.policy') }}</dt>
               <dd class="export-detail-token">
                 {{ item.data.value.label_source_policy ?? 'machine_aggregation' }}
               </dd>
             </div>
-            <div v-if="item.data.value.tei_profile" class="export-detail-fact">
+            <div v-if="item.data.value.tei_profile" class="export-detail-fact app-fact-list__item">
               <dt>{{ t('export.item.profile') }}</dt>
               <dd class="export-detail-token">{{ item.data.value.tei_profile }}</dd>
             </div>
-            <div v-if="item.data.value.format === 'tei'" class="export-detail-fact">
+            <div
+              v-if="item.data.value.format === 'tei'"
+              class="export-detail-fact app-fact-list__item"
+            >
               <dt>{{ t('export.detail.resp') }}</dt>
               <dd class="export-detail-token">{{ item.data.value.human_resp_id }}</dd>
             </div>
-            <div class="export-detail-fact">
+            <div class="export-detail-fact app-fact-list__item">
               <dt>{{ t('aggregations.detail.created') }}</dt>
               <dd>{{ d(new Date(item.data.value.created_at), 'timestamp') }}</dd>
             </div>
-            <div v-if="item.data.value.finished_at" class="export-detail-fact">
+            <div v-if="item.data.value.finished_at" class="export-detail-fact app-fact-list__item">
               <dt>{{ t('aggregations.detail.finished') }}</dt>
               <dd>{{ d(new Date(item.data.value.finished_at), 'timestamp') }}</dd>
             </div>
-            <div class="export-detail-fact">
+            <div class="export-detail-fact app-fact-list__item">
               <dt>{{ t('evaluation.detail.aggregation') }}</dt>
               <dd>
                 <RouterLink
@@ -172,7 +211,7 @@ const verdict = computed<Verdict>(() => {
 
         <p
           v-if="!isCompleted && !['failed', 'cancelled'].includes(item.data.value.status)"
-          class="export-detail-waiting"
+          class="export-detail-waiting app-card"
           role="status"
         >
           {{ t('export.detail.waiting') }}
@@ -180,25 +219,34 @@ const verdict = computed<Verdict>(() => {
 
         <section
           v-if="isCompleted"
-          class="export-detail-block export-detail-manifest-section"
+          class="export-detail-block export-detail-manifest-section app-card"
           aria-labelledby="export-manifest-heading"
         >
           <h2 id="export-manifest-heading" class="export-detail-heading">
             {{ t('export.detail.manifest.title') }}
           </h2>
           <p class="export-detail-note">{{ t('export.detail.manifest.note') }}</p>
-          <p v-if="manifest.isPending.value" role="status">{{ t('runs.loading') }}</p>
-          <div v-else-if="manifest.isError.value" class="export-detail-load-error">
-            <p role="alert" class="export-detail-manifest-error">
+          <AppFeedback v-if="manifest.isPending.value" announcement="polite">
+            {{ t('runs.loading') }}
+          </AppFeedback>
+          <AppFeedback v-else-if="manifest.isError.value" announcement="assertive" tone="critical">
+            <p class="export-detail-manifest-error">
               {{ t('export.detail.manifest.loadError') }}
             </p>
-            <AppButton type="button" @click="() => manifest.refetch()">
-              {{ t('runs.retry') }}
-            </AppButton>
-          </div>
+            <template #actions>
+              <AppButton
+                type="button"
+                variant="ghost"
+                :disabled="manifest.isFetching.value"
+                @click="() => manifest.refetch()"
+              >
+                {{ t('runs.retry') }}
+              </AppButton>
+            </template>
+          </AppFeedback>
           <template v-else-if="manifest.data.value">
-            <dl class="export-detail-facts">
-              <div class="export-detail-fact">
+            <dl class="export-detail-facts app-fact-list">
+              <div class="export-detail-fact app-fact-list__item">
                 <dt>{{ t('export.detail.sourceSnapshot') }}</dt>
                 <dd>
                   <code class="export-detail-hash export-detail-source-hash">{{
@@ -206,7 +254,7 @@ const verdict = computed<Verdict>(() => {
                   }}</code>
                 </dd>
               </div>
-              <div class="export-detail-fact">
+              <div class="export-detail-fact app-fact-list__item">
                 <dt>{{ t('export.detail.manifest.generated') }}</dt>
                 <dd>{{ d(new Date(manifest.data.value.generated_at), 'timestamp') }}</dd>
               </div>
@@ -239,7 +287,7 @@ const verdict = computed<Verdict>(() => {
 
         <section
           v-if="isCompleted"
-          class="export-detail-block"
+          class="export-detail-block app-card"
           aria-labelledby="export-download-heading"
         >
           <h2 id="export-download-heading" class="export-detail-heading">
@@ -257,16 +305,16 @@ const verdict = computed<Verdict>(() => {
           <p v-if="downloadError" role="alert" class="export-detail-error">{{ downloadError }}</p>
 
           <div v-if="result" class="export-detail-result" role="status">
-            <dl class="export-detail-facts">
-              <div class="export-detail-fact">
+            <dl class="export-detail-facts app-fact-list">
+              <div class="export-detail-fact app-fact-list__item">
                 <dt>{{ t('export.detail.file') }}</dt>
                 <dd>{{ result.filename }}</dd>
               </div>
-              <div class="export-detail-fact">
+              <div class="export-detail-fact app-fact-list__item">
                 <dt>{{ t('export.detail.size') }}</dt>
                 <dd>{{ t('export.detail.bytes', { size: n(result.byteSize, 'integer') }) }}</dd>
               </div>
-              <div class="export-detail-fact">
+              <div class="export-detail-fact app-fact-list__item">
                 <dt>{{ t('export.detail.checksum') }}</dt>
                 <dd>
                   <code class="export-detail-hash">{{ result.sha256 }}</code>
@@ -328,12 +376,10 @@ const verdict = computed<Verdict>(() => {
 
 <style scoped>
 .export-detail {
-  padding: var(--space-8) var(--space-4);
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: var(--space-4);
-  max-width: 56rem;
 }
 
 .export-detail > * {
@@ -341,14 +387,14 @@ const verdict = computed<Verdict>(() => {
 }
 
 .export-detail-back {
+  align-self: flex-start;
   color: var(--accent);
   text-underline-offset: 0.2em;
 }
 
-.export-detail-title {
-  margin: 0;
-  font-size: var(--font-size-page);
-  line-height: var(--line-height-page);
+.export-detail-page-heading {
+  width: 100%;
+  margin-block-end: 0;
 }
 
 .export-detail-status {
@@ -364,14 +410,6 @@ const verdict = computed<Verdict>(() => {
   color: var(--critical-text);
 }
 
-.export-detail-load-error {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-3);
-}
-
-.export-detail-load-error p,
 .export-detail-failure,
 .export-detail-error {
   margin: 0;
@@ -380,6 +418,11 @@ const verdict = computed<Verdict>(() => {
 
 .export-detail-failure p {
   margin: 0;
+}
+
+.export-detail-failure,
+.export-detail-waiting {
+  width: 100%;
 }
 
 .export-detail-failure-class {
@@ -401,25 +444,8 @@ const verdict = computed<Verdict>(() => {
 }
 
 .export-detail-facts {
-  display: grid;
   width: 100%;
-  gap: var(--space-2);
-  margin: 0;
-}
-
-.export-detail-fact {
-  display: grid;
-  grid-template-columns: 11rem 1fr;
-  gap: var(--space-3);
-}
-
-.export-detail-fact dt {
-  color: var(--text-secondary);
-}
-
-.export-detail-fact dd {
-  margin: 0;
-  overflow-wrap: anywhere;
+  --app-fact-list-label-width: 11rem;
 }
 
 .export-detail-token {
@@ -447,10 +473,8 @@ const verdict = computed<Verdict>(() => {
   width: 100%;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
+  padding-block-start: var(--space-3);
+  border-block-start: 1px solid var(--border);
 }
 
 .export-detail-outputs {

@@ -104,15 +104,25 @@ function retryContext(): void {
 </script>
 
 <template>
-  <main class="method-results">
-    <h1 class="method-results-title">{{ t('runs.results.title') }}</h1>
+  <main class="method-results app-page-frame app-page-frame--wide">
+    <header class="method-results-page-heading app-page-heading">
+      <h1 class="method-results-title app-page-heading__title">
+        {{ t('runs.results.title') }}
+      </h1>
+    </header>
     <AppFeedback
       v-if="session.status === 'idle' || session.status === 'loading'"
+      class="app-card"
       announcement="polite"
     >
       {{ t('runs.loading') }}
     </AppFeedback>
-    <AppFeedback v-else-if="session.status === 'error'" announcement="assertive" tone="critical">
+    <AppFeedback
+      v-else-if="session.status === 'error'"
+      class="app-card"
+      announcement="assertive"
+      tone="critical"
+    >
       {{ t('projects.sessionLoadError') }}
       <template #actions>
         <AppButton variant="ghost" @click="retrySession">{{ t('runs.retry') }}</AppButton>
@@ -121,6 +131,7 @@ function retryContext(): void {
     <template v-else-if="isSignedIn">
       <AppFeedback
         v-if="project.isError.value || snapshot.isError.value"
+        class="app-card"
         announcement="assertive"
         tone="critical"
       >
@@ -131,11 +142,17 @@ function retryContext(): void {
       </AppFeedback>
       <AppFeedback
         v-else-if="project.isPending.value || snapshot.isPending.value"
+        class="app-card"
         announcement="polite"
       >
         {{ t('runs.loading') }}
       </AppFeedback>
-      <AppFeedback v-else-if="!canReadContext" announcement="assertive" tone="critical">
+      <AppFeedback
+        v-else-if="!canReadContext"
+        class="app-card"
+        announcement="assertive"
+        tone="critical"
+      >
         {{ t('runs.contextUnavailable') }}
         <template #actions>
           <AppButton variant="ghost" :to="{ name: 'projectClassification', params: { projectId } }">
@@ -143,11 +160,12 @@ function retryContext(): void {
           </AppButton>
         </template>
       </AppFeedback>
-      <AppFeedback v-else-if="run.isPending.value" announcement="polite">
+      <AppFeedback v-else-if="run.isPending.value" class="app-card" announcement="polite">
         {{ t('runs.loading') }}
       </AppFeedback>
       <AppFeedback
         v-else-if="run.isError.value || !selectedRun"
+        class="app-card"
         announcement="assertive"
         tone="critical"
       >
@@ -157,10 +175,15 @@ function retryContext(): void {
         </template>
       </AppFeedback>
       <template v-else>
-        <AppFeedback v-if="executions.isPending.value" announcement="polite">
+        <AppFeedback v-if="executions.isPending.value" class="app-card" announcement="polite">
           {{ t('runs.loading') }}
         </AppFeedback>
-        <AppFeedback v-else-if="executions.isError.value" announcement="assertive" tone="critical">
+        <AppFeedback
+          v-else-if="executions.isError.value"
+          class="app-card"
+          announcement="assertive"
+          tone="critical"
+        >
           {{ t('runs.detail.executionsLoadError') }}
           <template #actions>
             <AppButton variant="ghost" @click="executions.refetch()">{{
@@ -168,7 +191,12 @@ function retryContext(): void {
             }}</AppButton>
           </template>
         </AppFeedback>
-        <AppFeedback v-else-if="!execution" announcement="assertive" tone="critical">
+        <AppFeedback
+          v-else-if="!execution"
+          class="app-card"
+          announcement="assertive"
+          tone="critical"
+        >
           {{ t('runs.contextUnavailable') }}
           <template #actions>
             <AppButton
@@ -179,7 +207,7 @@ function retryContext(): void {
             </AppButton>
           </template>
         </AppFeedback>
-        <AppFeedback v-else-if="!hasFinalResults" announcement="polite">
+        <AppFeedback v-else-if="!hasFinalResults" class="app-card" announcement="polite">
           {{ t('runs.results.notFinal') }}
           <template #actions>
             <AppButton
@@ -197,122 +225,127 @@ function retryContext(): void {
           >
             {{ t('runs.results.backToRun') }}
           </RouterLink>
-          <header class="method-results-heading">
-            <p class="method-results-intro">
-              {{ t('runs.results.intro', { method: execution.method_name }) }}
-            </p>
-            <p v-if="execution.progress.total != null">
-              {{
-                t('runs.item.progressValue', {
-                  completed: n(execution.progress.completed, 'integer'),
-                  total: n(execution.progress.total, 'integer'),
-                  failed: n(execution.progress.failed, 'integer'),
-                })
-              }}
-            </p>
-            <p v-if="snapshot.data.value">
-              {{
-                t('data.snapshotTitle', {
-                  date: d(new Date(snapshot.data.value.created_at), 'timestamp'),
-                })
-              }}
-            </p>
-          </header>
+          <div class="method-results-content app-card">
+            <header class="method-results-heading">
+              <p class="method-results-intro">
+                {{ t('runs.results.intro', { method: execution.method_name }) }}
+              </p>
+              <p v-if="execution.progress.total != null">
+                {{
+                  t('runs.item.progressValue', {
+                    completed: n(execution.progress.completed, 'integer'),
+                    total: n(execution.progress.total, 'integer'),
+                    failed: n(execution.progress.failed, 'integer'),
+                  })
+                }}
+              </p>
+              <p v-if="snapshot.data.value">
+                {{
+                  t('data.snapshotTitle', {
+                    date: d(new Date(snapshot.data.value.created_at), 'timestamp'),
+                  })
+                }}
+              </p>
+            </header>
 
-          <p class="method-results-note">{{ t('runs.results.distinction') }}</p>
+            <p class="method-results-note">{{ t('runs.results.distinction') }}</p>
 
-          <form class="method-results-search" @submit.prevent>
-            <label for="method-results-search">{{ t('runs.results.search') }}</label>
-            <input
-              id="method-results-search"
-              v-model="searchInput"
-              type="search"
-              :placeholder="t('runs.results.searchHint')"
-            />
-          </form>
+            <form class="method-results-search" @submit.prevent>
+              <label for="method-results-search">{{ t('runs.results.search') }}</label>
+              <input
+                id="method-results-search"
+                v-model="searchInput"
+                type="search"
+                :placeholder="t('runs.results.searchHint')"
+              />
+            </form>
 
-          <AppFeedback v-if="results.isPending.value && items.length === 0" announcement="polite">
-            {{ t('runs.loading') }}
-          </AppFeedback>
-          <AppFeedback v-else-if="results.isError.value" announcement="assertive" tone="critical">
-            {{ t('runs.results.loadError') }}
-            <template #actions>
-              <AppButton variant="ghost" @click="results.refetch()">{{
-                t('runs.retry')
-              }}</AppButton>
+            <AppFeedback v-if="results.isPending.value && items.length === 0" announcement="polite">
+              {{ t('runs.loading') }}
+            </AppFeedback>
+            <AppFeedback v-else-if="results.isError.value" announcement="assertive" tone="critical">
+              {{ t('runs.results.loadError') }}
+              <template #actions>
+                <AppButton variant="ghost" @click="results.refetch()">{{
+                  t('runs.retry')
+                }}</AppButton>
+              </template>
+            </AppFeedback>
+            <template v-else>
+              <p v-if="items.length === 0" class="method-results-empty" role="status">
+                {{ t('runs.results.empty') }}
+              </p>
+              <AppScrollRegion
+                v-else
+                :label="t('layout.tableRegion', { label: t('runs.results.title') })"
+              >
+                <table class="method-results-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">{{ t('runs.results.person') }}</th>
+                      <th scope="col">{{ t('runs.results.teiId') }}</th>
+                      <th scope="col">{{ t('runs.results.decision') }}</th>
+                      <th scope="col">{{ t('runs.results.status') }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="item in items" :key="item.person_record_id">
+                      <th scope="row">{{ displayName(item) }}</th>
+                      <td>
+                        <code>{{ item.tei_id }}</code>
+                      </td>
+                      <td>
+                        <VocabBadge
+                          :value="item.prediction?.label"
+                          :gloss="labelGloss(item.prediction?.label)"
+                          kind="label"
+                        />
+                        <div
+                          v-if="
+                            item.prediction?.raw_label || item.prediction?.method_confidence != null
+                          "
+                          class="method-results-decision-detail"
+                        >
+                          <span v-if="item.prediction?.raw_label">
+                            {{ t('runs.results.rawLabel', { label: item.prediction.raw_label }) }}
+                          </span>
+                          <span v-if="item.prediction?.method_confidence != null">
+                            {{
+                              t('runs.results.confidence', {
+                                value: n(item.prediction.method_confidence, 'confidence'),
+                              })
+                            }}
+                          </span>
+                        </div>
+                        <p
+                          v-else-if="item.result_state === 'missing'"
+                          class="method-results-missing"
+                        >
+                          {{ t('runs.results.noPrediction') }}
+                        </p>
+                      </td>
+                      <td>
+                        <VocabBadge
+                          :value="item.result_state"
+                          :gloss="stateGloss(item.result_state)"
+                          kind="state"
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </AppScrollRegion>
+              <p class="method-results-confidence-note">{{ t('runs.results.confidenceNote') }}</p>
+              <AppButton
+                v-if="results.hasNextPage.value"
+                variant="ghost"
+                :disabled="results.isFetchingNextPage.value"
+                @click="results.fetchNextPage()"
+              >
+                {{ t('runs.results.loadMore') }}
+              </AppButton>
             </template>
-          </AppFeedback>
-          <template v-else>
-            <p v-if="items.length === 0" class="method-results-empty" role="status">
-              {{ t('runs.results.empty') }}
-            </p>
-            <AppScrollRegion
-              v-else
-              :label="t('layout.tableRegion', { label: t('runs.results.title') })"
-            >
-              <table class="method-results-table">
-                <thead>
-                  <tr>
-                    <th scope="col">{{ t('runs.results.person') }}</th>
-                    <th scope="col">{{ t('runs.results.teiId') }}</th>
-                    <th scope="col">{{ t('runs.results.decision') }}</th>
-                    <th scope="col">{{ t('runs.results.status') }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="item in items" :key="item.person_record_id">
-                    <th scope="row">{{ displayName(item) }}</th>
-                    <td>
-                      <code>{{ item.tei_id }}</code>
-                    </td>
-                    <td>
-                      <VocabBadge
-                        :value="item.prediction?.label"
-                        :gloss="labelGloss(item.prediction?.label)"
-                        kind="label"
-                      />
-                      <div
-                        v-if="
-                          item.prediction?.raw_label || item.prediction?.method_confidence != null
-                        "
-                        class="method-results-decision-detail"
-                      >
-                        <span v-if="item.prediction?.raw_label">
-                          {{ t('runs.results.rawLabel', { label: item.prediction.raw_label }) }}
-                        </span>
-                        <span v-if="item.prediction?.method_confidence != null">
-                          {{
-                            t('runs.results.confidence', {
-                              value: n(item.prediction.method_confidence, 'confidence'),
-                            })
-                          }}
-                        </span>
-                      </div>
-                      <p v-else-if="item.result_state === 'missing'" class="method-results-missing">
-                        {{ t('runs.results.noPrediction') }}
-                      </p>
-                    </td>
-                    <td>
-                      <VocabBadge
-                        :value="item.result_state"
-                        :gloss="stateGloss(item.result_state)"
-                        kind="state"
-                      />
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </AppScrollRegion>
-            <p class="method-results-confidence-note">{{ t('runs.results.confidenceNote') }}</p>
-            <AppButton
-              v-if="results.hasNextPage.value"
-              variant="ghost"
-              :disabled="results.isFetchingNextPage.value"
-              @click="results.fetchNextPage()"
-            >
-              {{ t('runs.results.loadMore') }}
-            </AppButton>
-          </template>
+          </div>
         </template>
       </template>
     </template>
@@ -322,21 +355,29 @@ function retryContext(): void {
 <style scoped>
 .method-results {
   display: flex;
-  flex: 1;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: var(--space-5);
-  inline-size: 100%;
-  max-inline-size: 76rem;
-  margin-inline: auto;
-  padding: var(--space-8) var(--page-gutter);
 }
 
 .method-results > * {
   max-inline-size: 100%;
 }
 
+.method-results-content {
+  display: flex;
+  inline-size: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-5);
+}
+
+.method-results-content > * {
+  max-inline-size: 100%;
+}
+
 .method-results-back {
+  align-self: flex-start;
   color: var(--accent);
   font-weight: var(--weight-semibold);
   text-underline-offset: 0.2em;
@@ -347,19 +388,17 @@ function retryContext(): void {
   gap: var(--space-2);
 }
 
-.method-results-title,
+.method-results-page-heading {
+  inline-size: 100%;
+  margin-block-end: 0;
+}
+
 .method-results-heading p,
 .method-results-note,
 .method-results-empty,
 .method-results-confidence-note,
 .method-results-missing {
   margin: 0;
-}
-
-.method-results-title {
-  margin: 0;
-  font-size: var(--font-size-page);
-  line-height: var(--line-height-page);
 }
 
 .method-results-heading p,

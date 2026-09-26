@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
+
 import './metric.css'
 import type { KappaCell } from './reportSchema'
 
@@ -44,11 +46,11 @@ const DASH = '—'
 </script>
 
 <template>
-  <section class="metric" aria-labelledby="kappa-heading">
+  <section class="metric app-card" aria-labelledby="kappa-heading">
     <h3 id="kappa-heading" class="metric-title">{{ t('evaluation.report.kappa.title') }}</h3>
     <p class="metric-note">{{ t('evaluation.report.kappa.note') }}</p>
     <p class="metric-note">{{ t('evaluation.report.kappa.undefinedNote') }}</p>
-    <div class="metric-scroll">
+    <AppScrollRegion :label="t('evaluation.report.kappa.caption')">
       <table class="metric-table">
         <caption class="metric-caption">
           {{
@@ -87,7 +89,7 @@ const DASH = '—'
           </tr>
         </tbody>
       </table>
-    </div>
+    </AppScrollRegion>
   </section>
 </template>
 

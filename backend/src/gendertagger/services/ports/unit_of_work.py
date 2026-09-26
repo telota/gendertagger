@@ -10,6 +10,7 @@ from gendertagger.services.ports.auth_repository import AuthRepository
 from gendertagger.services.ports.dispatch_repository import DispatchRepository
 from gendertagger.services.ports.evaluation_repository import EvaluationRepository
 from gendertagger.services.ports.export_repository import ExportRepository
+from gendertagger.services.ports.game_repository import GameRepository
 from gendertagger.services.ports.project_access_repository import ProjectAccessRepository
 from gendertagger.services.ports.project_repository import ProjectRepository
 from gendertagger.services.ports.review_repository import ReviewRepository
@@ -89,6 +90,11 @@ class UnitOfWork(Protocol):
     @property
     def reviews(self) -> ReviewRepository:
         """Return review persistence bound to the current transaction."""
+        ...
+
+    @property
+    def games(self) -> GameRepository:
+        """Return game-round persistence bound to the current transaction."""
         ...
 
     @property

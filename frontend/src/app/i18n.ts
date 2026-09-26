@@ -21,6 +21,7 @@ const numberFormats = {
   ratio: { minimumFractionDigits: 3, maximumFractionDigits: 3 },
   // A method's own confidence keeps two places: rounding 0.42 to 0.4 would misreport it.
   confidence: { minimumFractionDigits: 2, maximumFractionDigits: 2 },
+  percent: { style: 'percent', maximumFractionDigits: 0 },
 } as const
 
 const datetimeFormats = {

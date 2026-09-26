@@ -74,6 +74,10 @@ class ProjectRepository(Protocol):
         """
         ...
 
+    def set_game_mode_enabled(self, project_id: UUID, *, enabled: bool) -> Project:
+        """Enable or disable the optional game interface for one project."""
+        ...
+
     def add_snapshot(self, command: DatasetSnapshotCreate) -> DatasetSnapshot:
         """Persist and return a new pending dataset snapshot."""
         ...

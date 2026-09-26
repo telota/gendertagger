@@ -213,6 +213,10 @@ describe.each(['de', 'en'] as const)('method results in %s', (locale: AppLocale)
 
     await waitFor(() => expect(wrapper.findAll('.method-results-table tbody tr')).toHaveLength(4))
     expect(wrapper.get('h1').text()).toBe(messages.runs.results.title)
+    expect(wrapper.get('.method-results-content').classes()).toContain('app-card')
+    expect(wrapper.get('.method-results-back').element.parentElement).toBe(
+      wrapper.get('.method-results').element,
+    )
     expect(wrapper.get('.method-results-heading').text()).toContain('gender_guesser')
     expect(wrapper.text()).toContain('unknown')
     expect(wrapper.text()).toContain('missing')

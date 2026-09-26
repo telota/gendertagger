@@ -214,6 +214,26 @@ from these groups rather than paging through results.
 The summary uses the same final-decision resolution and review-state semantics as `review-items` and the
 `human_overrides` export policy. It remains a domain projection; it must not acquire screen-specific fields.
 
+## Game rounds
+
+Game mode is a project-level opt-in. `PUT /projects/{project_id}/game-mode` requires the project
+`operator` role, accepts `ProjectGameModeUpdate`, and returns the updated `AccessibleProject`. New projects
+default to disabled.
+
+When enabled, reviewers submit a completed round through `POST /projects/{project_id}/game-rounds`. The
+idempotent command supplies a client-generated round ID, a completed aggregation ID, one of the fixed round
+sizes `10`, `20`, or `50`, and the ordered IDs of answers already saved through `POST /annotations`. The
+service accepts only distinct `verify` or `correct` annotations by the authenticated reviewer for that
+aggregation, ensures each person occurs once and each annotation contributes to at most one round, and derives
+the official score as ten points per accepted annotation. Browser timing, skips, and streak state are neither
+accepted nor persisted by this endpoint.
+
+`GET /projects/{project_id}/game-leaderboard?round_size={10|20|50}` requires ordinary viewer access and
+returns at most one best round per reviewer for that comparable size. Both round creation and leaderboard
+reads return `409 game_mode_disabled` while the project flag is off. Disabling the feature retains prior
+rounds and never changes annotations, review order, or final decisions. See
+[`09-annotation-and-review.md`](09-annotation-and-review.md#game-mode).
+
 ## Progress and events
 
 Run progress is always recoverable from persisted Run and MethodExecution resources. Server-Sent Events are a

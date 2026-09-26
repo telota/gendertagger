@@ -239,6 +239,10 @@ describe.each(['de', 'en'] as const)('run detail with live progress in %s', (loc
       messages.detail.progress,
     ])
     expect(wrapper.get('.execution').classes()).toContain('execution--compact')
+    expect(wrapper.get('.execution').classes()).toContain('app-resource-card')
+    expect(wrapper.get('.run-detail-overview').classes()).toContain('app-card')
+    expect(wrapper.get('.run-detail-actions').classes()).toContain('app-card')
+    expect(wrapper.findAll('.app-card .app-card, .app-card .app-resource-card')).toHaveLength(0)
     expect(wrapper.find('.execution progress').exists()).toBe(false)
     expect(wrapper.get('.run-detail-execution-summary').text()).toBe(
       messages.detail.methodCountWithIssues.replace('{count}', '1').replace('{issues}', '1'),
@@ -266,6 +270,9 @@ describe.each(['de', 'en'] as const)('run detail with live progress in %s', (loc
       }),
     )
 
+    expect(wrapper.get('.run-detail-execution-summary').text()).toBe(
+      messages.detail.methodCount.replace('{count}', '1'),
+    )
     expect(wrapper.get('.execution-name a').attributes('href')).toBe(
       path + '/executions/' + EXECUTION_ID + '/results',
     )

@@ -5,6 +5,7 @@ import { createApiClient, type components } from '@/api'
 import type { AppLocale } from '@/app/i18n'
 import de from '@/locales/de.json'
 import en from '@/locales/en.json'
+import { useSessionStore } from '@/stores/session'
 
 import { mountApplicationAt } from '../../helpers/render'
 import { waitFor } from '../../helpers/wait'
@@ -182,6 +183,9 @@ interface Server {
   createResponse?: Promise<Response>
   posts: Record<string, unknown>[]
   reportRequests: number
+  listFailures: number
+  listRequests: number
+  nextListResponse?: Promise<Response>
 }
 
 function newServer(overrides: Partial<Server> = {}): Server {
@@ -193,6 +197,8 @@ function newServer(overrides: Partial<Server> = {}): Server {
     createStatus: 202,
     posts: [],
     reportRequests: 0,
+    listFailures: 0,
+    listRequests: 0,
     ...overrides,
   }
 }
@@ -223,6 +229,7 @@ function evaluationClient(server: Server) {
           created_by_user_id: 'a0000000-0000-0000-0000-000000000003',
           current_user_role: server.role,
           current_user_can_manage_members: false,
+          game_mode_enabled: false,
           created_at: '2026-01-01T00:00:00Z',
         } satisfies components['schemas']['AccessibleProject'])
       }
@@ -267,6 +274,15 @@ function evaluationClient(server: Server) {
         })
       }
       if (pathname === `/api/v1/runs/${RUN_ID}/evaluations`) {
+        server.listRequests += 1
+        if (server.listRequests <= server.listFailures) {
+          return jsonResponse({}, { status: 500 })
+        }
+        if (server.nextListResponse) {
+          const response = server.nextListResponse
+          delete server.nextListResponse
+          return response
+        }
         return jsonResponse({ items: server.evaluations, next_cursor: null, has_more: false })
       }
       if (pathname === '/api/v1/evaluations' && request.method === 'POST') {
@@ -316,8 +332,15 @@ describe.each(['de', 'en'] as const)('evaluation in %s', (locale: AppLocale) => 
 
   async function mountDetail(server: Server) {
     const wrapper = await mountApplicationAt(detail, locale, evaluationClient(server))
-    await waitFor(() => expect(wrapper.find('.evaluation-detail-title').exists()).toBe(true))
+    await waitFor(() => expect(wrapper.find('.evaluation-detail-facts').exists()).toBe(true))
     return wrapper
+  }
+
+  async function openCreationForm(
+    wrapper: Awaited<ReturnType<typeof mountApplicationAt>>,
+  ): Promise<void> {
+    await wrapper.get('.evaluation-list-create').trigger('click')
+    await waitFor(() => expect(wrapper.find('.new-evaluation').exists()).toBe(true))
   }
 
   it('retains a newer method selection when a completed submission tries to navigate', async () => {
@@ -328,6 +351,7 @@ describe.each(['de', 'en'] as const)('evaluation in %s', (locale: AppLocale) => 
     const server = newServer({ createResponse })
     const wrapper = await mountList(server)
     try {
+      await openCreationForm(wrapper)
       await waitFor(() => expect(wrapper.find(`#evaluate-${EXEC.gg}`).exists()).toBe(true))
       await wrapper.get(`#evaluate-${EXEC.gg}`).setValue(false)
       await wrapper.get('.new-evaluation').trigger('submit')
@@ -357,15 +381,103 @@ describe.each(['de', 'en'] as const)('evaluation in %s', (locale: AppLocale) => 
     expect(item.get('.evaluation-open').attributes('href')).toBe(detail)
   })
 
+  it('hides cached private detail state while session readiness is lost', async () => {
+    const wrapper = await mountDetail(newServer())
+    try {
+      const session = useSessionStore()
+      session.status = 'loading'
+      await flushPromises()
+
+      expect(wrapper.find('.evaluation-detail-title').exists()).toBe(true)
+      expect(wrapper.find('.evaluation-detail-status').exists()).toBe(false)
+      expect(wrapper.find('.evaluation-detail-download').exists()).toBe(false)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('announces the initial evaluation-list load through one polite region', async () => {
+    let finish!: (response: Response) => void
+    const nextListResponse = new Promise<Response>((resolve) => {
+      finish = resolve
+    })
+    const server = newServer({ nextListResponse })
+    const wrapper = await mountApplicationAt(list, locale, evaluationClient(server))
+    try {
+      await waitFor(() =>
+        expect(wrapper.find('.evaluation-list [role="status"]').exists()).toBe(true),
+      )
+
+      const status = wrapper.get('.evaluation-list [role="status"]')
+      expect(status.text()).toBe(catalogues[locale].runs.loading)
+      expect(status.attributes('aria-atomic')).toBe('true')
+
+      finish(jsonResponse({ items: [], next_cursor: null, has_more: false }))
+      await waitFor(() => expect(wrapper.find('.evaluation-list-empty').exists()).toBe(true))
+      expect(wrapper.find('.evaluation-list [role="status"]').exists()).toBe(false)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('announces an evaluation-list failure and permits one in-flight retry', async () => {
+    let finish!: (response: Response) => void
+    const nextListResponse = new Promise<Response>((resolve) => {
+      finish = resolve
+    })
+    const server = newServer({ listFailures: 1, nextListResponse })
+    const wrapper = await mountApplicationAt(list, locale, evaluationClient(server))
+    try {
+      await waitFor(() => expect(wrapper.find('.evaluation-list-load-error').exists()).toBe(true))
+
+      const feedback = wrapper.get('.evaluation-list-load-error')
+      const alert = feedback.get('[role="alert"]')
+      const retry = feedback.get('.evaluation-list-retry')
+      expect(alert.text()).toBe(messages.loadError)
+      expect(alert.attributes('aria-atomic')).toBe('true')
+      expect(alert.find('button').exists()).toBe(false)
+      expect(feedback.classes()).toContain('app-feedback--critical')
+
+      const firstRetry = retry.trigger('click')
+      const duplicateRetry = retry.trigger('click')
+      await Promise.all([firstRetry, duplicateRetry])
+      await waitFor(() => expect(server.listRequests).toBe(2))
+      expect(wrapper.find('.evaluation-list-retry:not([disabled])').exists()).toBe(false)
+      expect(server.listRequests).toBe(2)
+
+      finish(jsonResponse({ items: [], next_cursor: null, has_more: false }))
+      await waitFor(() => expect(wrapper.find('.evaluation-list-empty').exists()).toBe(true))
+      expect(wrapper.find('.evaluation-list-load-error').exists()).toBe(false)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('offers the form only to operators', async () => {
     const viewer = await mountList(newServer({ role: 'viewer' }))
     expect(viewer.find('.new-evaluation').exists()).toBe(false)
+    expect(viewer.find('.evaluation-list-create').exists()).toBe(false)
     expect(viewer.get('.evaluation-list-forbidden').text()).toBe(messages.forbidden)
+  })
+
+  it('opens the card from the page heading and keeps secondary options collapsed', async () => {
+    const wrapper = await mountList(newServer())
+    const trigger = wrapper.get('.evaluation-list-create')
+
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+    expect(wrapper.find('.new-evaluation').exists()).toBe(false)
+    await openCreationForm(wrapper)
+
+    expect(trigger.attributes('aria-expanded')).toBe('true')
+    expect(wrapper.get('.evaluation-list-new').classes()).toContain('app-card')
+    expect(wrapper.get('.new-evaluation-options').attributes('open')).toBeUndefined()
+    expect(document.activeElement?.id).toBe('new-evaluation-heading')
   })
 
   it('pre-selects what the server accepted last time and sends the ids in run order', async () => {
     const server = newServer({ evaluations: [evaluation('completed')] })
     const wrapper = await mountList(server)
+    await openCreationForm(wrapper)
     await waitFor(() => expect(wrapper.find(`#evaluate-${EXEC.gnd}`).exists()).toBe(true))
 
     const checked = (id: string) =>
@@ -389,6 +501,7 @@ describe.each(['de', 'en'] as const)('evaluation in %s', (locale: AppLocale) => 
   it('starts from every completed execution when there is no earlier evaluation', async () => {
     const server = newServer()
     const wrapper = await mountList(server)
+    await openCreationForm(wrapper)
     await waitFor(() => expect(wrapper.find(`#evaluate-${EXEC.pq}`).exists()).toBe(true))
 
     expect((wrapper.get(`#evaluate-${EXEC.pq}`).element as HTMLInputElement).checked).toBe(true)
@@ -404,6 +517,7 @@ describe.each(['de', 'en'] as const)('evaluation in %s', (locale: AppLocale) => 
 
   it('explains a selection the server refuses and keeps the form', async () => {
     const wrapper = await mountList(newServer({ createStatus: 409 }))
+    await openCreationForm(wrapper)
     await waitFor(() => expect(wrapper.find(`#evaluate-${EXEC.pq}`).exists()).toBe(true))
 
     await wrapper.get('.new-evaluation').trigger('submit')
@@ -422,6 +536,7 @@ describe.each(['de', 'en'] as const)('evaluation in %s', (locale: AppLocale) => 
     )
     expect(wrapper.get('.evaluation-detail-selection').text()).toContain('3')
     expect(wrapper.get('.evaluation-detail-aggregation').attributes('href')).toContain(AGG_ID)
+    expect(wrapper.findAll('.app-card .app-card, .app-card .app-resource-card')).toHaveLength(0)
   })
 
   it('reports coverage with abstentions and technical errors counted apart', async () => {
@@ -429,6 +544,9 @@ describe.each(['de', 'en'] as const)('evaluation in %s', (locale: AppLocale) => 
     await waitFor(() => expect(wrapper.find('#coverage-heading').exists()).toBe(true))
 
     const table = wrapper.get('#coverage-heading').element.parentElement as HTMLElement
+    expect(table.querySelector('[role="region"]')?.getAttribute('aria-label')).toBe(
+      messages.report.coverage.caption,
+    )
     const rows = Array.from(table.querySelectorAll('tbody tr')).map((tr) => tr.textContent ?? '')
     expect(rows[1]).toContain('gender_guesser')
     expect(rows[1]).toMatch(/0[.,]714/)
@@ -444,6 +562,9 @@ describe.each(['de', 'en'] as const)('evaluation in %s', (locale: AppLocale) => 
     await waitFor(() => expect(wrapper.find('#accuracy-heading').exists()).toBe(true))
 
     const section = wrapper.get('#accuracy-heading').element.parentElement as HTMLElement
+    expect(section.querySelector('[role="region"]')?.getAttribute('aria-label')).toBe(
+      messages.report.accuracy.caption,
+    )
     const first = section.querySelector('tbody tr')?.textContent ?? ''
     expect(first).toMatch(/0[.,]800/)
     expect(first).toMatch(/0[.,]571/)
@@ -459,6 +580,11 @@ describe.each(['de', 'en'] as const)('evaluation in %s', (locale: AppLocale) => 
 
     const tables = wrapper.findAll('.confusion-table')
     expect(tables).toHaveLength(2)
+    expect(
+      wrapper
+        .findAll('#confusion-heading ~ .confusion-grid [role="region"]')
+        .map((region) => region.attributes('aria-label')),
+    ).toEqual(['gender_guesser', 'wiki_gendersort'])
     const rows = tables[0]?.findAll('tbody tr').map((tr) => tr.text()) ?? []
     expect(rows[0]).toMatch(/^male\s*3\s*0\s*0\s*0$/)
     expect(rows[1]).toMatch(/^female\s*1\s*1\s*0\s*0$/)
@@ -470,6 +596,9 @@ describe.each(['de', 'en'] as const)('evaluation in %s', (locale: AppLocale) => 
     await waitFor(() => expect(wrapper.find('#kappa-heading').exists()).toBe(true))
 
     const section = wrapper.get('#kappa-heading').element.parentElement as HTMLElement
+    expect(section.querySelector('[role="region"]')?.getAttribute('aria-label')).toBe(
+      messages.report.kappa.caption,
+    )
     expect(section.textContent).toContain(messages.report.kappa.note)
     const rows = Array.from(section.querySelectorAll('tbody tr')).map((tr) =>
       Array.from(tr.querySelectorAll('th, td')).map((c) =>
@@ -489,6 +618,15 @@ describe.each(['de', 'en'] as const)('evaluation in %s', (locale: AppLocale) => 
     await waitFor(() => expect(wrapper.find('#ensemble-heading').exists()).toBe(true))
 
     const section = wrapper.get('#ensemble-heading').element.parentElement as HTMLElement
+    expect(
+      Array.from(section.querySelectorAll('[role="region"]'), (region) =>
+        region.getAttribute('aria-label'),
+      ),
+    ).toEqual([
+      messages.report.ensemble.labels,
+      messages.report.ensemble.agreement,
+      messages.report.ensemble.certainty,
+    ])
     expect(section.textContent).toContain('contested')
     expect(section.textContent).toContain(catalogues[locale].review.gloss.certainty.contested)
     expect(section.textContent).toContain(
@@ -524,7 +662,7 @@ describe.each(['de', 'en'] as const)('evaluation in %s', (locale: AppLocale) => 
     await waitFor(() => expect(wrapper.findAll('.metric')).toHaveLength(5))
 
     // Eight methods in the agreement matrix, as in the published study: twenty-eight pairs, shown in both directions.
-    expect(wrapper.findAll('#kappa-heading ~ .metric-scroll tbody tr')).toHaveLength(8)
+    expect(wrapper.findAll('#kappa-heading ~ .app-scroll-frame tbody tr')).toHaveLength(8)
     // One confusion matrix per scored method.
     expect(wrapper.findAll('.confusion-table')).toHaveLength(7)
     expect(wrapper.get('.evaluation-detail-benchmark').text()).toContain('7')

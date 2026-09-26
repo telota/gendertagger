@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
+import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
 import { CANONICAL_LABELS } from '@/features/review/useVocabulary'
 
 import './metric.css'
@@ -12,13 +13,13 @@ const { t, n } = useI18n()
 </script>
 
 <template>
-  <section class="metric" aria-labelledby="confusion-heading">
+  <section class="metric app-card" aria-labelledby="confusion-heading">
     <h3 id="confusion-heading" class="metric-title">
       {{ t('evaluation.report.confusion.title') }}
     </h3>
     <p class="metric-note">{{ t('evaluation.report.confusion.note') }}</p>
     <div class="confusion-grid">
-      <div v-for="row in rows" :key="row.method_name" class="metric-scroll">
+      <AppScrollRegion v-for="row in rows" :key="row.method_name" :label="row.method_name">
         <table class="metric-table confusion-table">
           <caption class="confusion-caption">
             {{
@@ -42,7 +43,7 @@ const { t, n } = useI18n()
             </tr>
           </tbody>
         </table>
-      </div>
+      </AppScrollRegion>
     </div>
   </section>
 </template>
@@ -50,7 +51,7 @@ const { t, n } = useI18n()
 <style scoped>
 .confusion-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
   gap: var(--space-4);
 }
 

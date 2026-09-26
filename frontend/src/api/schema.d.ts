@@ -802,6 +802,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/game-leaderboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Game Leaderboard
+         * @description List each project member's best round at one comparable round size.
+         */
+        get: operations["get_game_leaderboard_api_v1_projects__project_id__game_leaderboard_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/game-mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Project Game Mode
+         * @description Enable or disable the optional game interface for this project.
+         */
+        put: operations["set_project_game_mode_api_v1_projects__project_id__game_mode_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/game-rounds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Game Round
+         * @description Record a completed round after verifying its ordinary annotation writes.
+         */
+        post: operations["create_game_round_api_v1_projects__project_id__game_rounds_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/manager": {
         parameters: {
             query?: never;
@@ -1347,6 +1407,12 @@ export interface components {
             description?: string | null;
             /** Display Name */
             display_name: string;
+            /**
+             * Game Mode Enabled
+             * @description Whether this project permits the optional scored game interface. Project operators change it through PUT /projects/{project_id}/game-mode.
+             * @default false
+             */
+            game_mode_enabled: boolean;
             /**
              * Id
              * Format: uuid
@@ -2436,6 +2502,125 @@ export interface components {
             sha256: string;
         };
         /**
+         * GameLeaderboard
+         * @description Project-scoped best rounds for one comparable round size.
+         */
+        GameLeaderboard: {
+            /** Entries */
+            entries: components["schemas"]["GameLeaderboardEntry"][];
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /**
+             * Round Size
+             * @enum {integer}
+             */
+            round_size: 10 | 20 | 50;
+            /** Total Players */
+            total_players: number;
+        };
+        /**
+         * GameLeaderboardEntry
+         * @description One project member's best verified-answer round at a selected size.
+         */
+        GameLeaderboardEntry: {
+            /** Answered Count */
+            answered_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Rank */
+            rank: number;
+            /** Reviewer Display Name */
+            reviewer_display_name: string;
+            /**
+             * Reviewer User Id
+             * Format: uuid
+             */
+            reviewer_user_id: string;
+            /**
+             * Round Id
+             * Format: uuid
+             */
+            round_id: string;
+            /** Score */
+            score: number;
+        };
+        /**
+         * GameRound
+         * @description Persisted summary scored only from server-verified annotations.
+         */
+        GameRound: {
+            /**
+             * Aggregation Execution Id
+             * Format: uuid
+             */
+            aggregation_execution_id: string;
+            /** Answered Count */
+            answered_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /**
+             * Reviewer User Id
+             * Format: uuid
+             */
+            reviewer_user_id: string;
+            /**
+             * Round Size
+             * @enum {integer}
+             */
+            round_size: 10 | 20 | 50;
+            /** Score */
+            score: number;
+        };
+        /**
+         * GameRoundCreate
+         * @description Idempotent command recording verified answer evidence for one completed round.
+         *
+         *     Official points depend only on immutable annotations validated by the server.
+         *     Timer readings, skips, and streaks remain local presentation state because a
+         *     completed-round request cannot prove those client observations.
+         */
+        GameRoundCreate: {
+            /**
+             * Aggregation Execution Id
+             * Format: uuid
+             */
+            aggregation_execution_id: string;
+            /**
+             * Annotation Ids
+             * @default []
+             */
+            annotation_ids: string[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Round Size
+             * @enum {integer}
+             */
+            round_size: 10 | 20 | 50;
+        };
+        /**
          * GlobalRole
          * @description Hierarchical authorization role that applies outside any one project (ADR-0033).
          *
@@ -2934,6 +3119,14 @@ export interface components {
              * Format: uuid
              */
             id: string;
+        };
+        /**
+         * ProjectGameModeUpdate
+         * @description Command enabling or disabling the optional game interface for one project.
+         */
+        ProjectGameModeUpdate: {
+            /** Enabled */
+            enabled: boolean;
         };
         /**
          * ProjectManager
@@ -3586,6 +3779,12 @@ export interface components {
              */
             unknown: number;
         };
+        /**
+         * _GameRoundSizeQuery
+         * @description Numeric query representation that accepts HTTP string values.
+         * @enum {integer}
+         */
+        _GameRoundSizeQuery: 10 | 20 | 50;
     };
     responses: never;
     parameters: never;
@@ -7925,6 +8124,299 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CursorPage_ProjectEligibleUser_"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_game_leaderboard_api_v1_projects__project_id__game_leaderboard_get: {
+        parameters: {
+            query: {
+                round_size: components["schemas"]["_GameRoundSizeQuery"];
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GameLeaderboard"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    set_project_game_mode_api_v1_projects__project_id__game_mode_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectGameModeUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessibleProject"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_game_round_api_v1_projects__project_id__game_rounds_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GameRoundCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GameRound"];
                 };
             };
             /** @description Invalid request */

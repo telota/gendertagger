@@ -169,7 +169,12 @@ describe.each(['de', 'en'] as const)('AdminUserDirectoryView in %s', (locale: Ap
     )
 
     await flushPromises()
+    expect(wrapper.findAll('main h1')).toHaveLength(1)
+    expect(wrapper.get('main h1').text()).toBe(messages.title)
     expect(wrapper.get('main [role="alert"]').text()).toBe(messages.forbidden)
+    expect(wrapper.get('.admin-user-directory-error').classes()).toEqual(
+      expect.arrayContaining(['app-feedback', 'app-feedback--critical', 'app-card']),
+    )
     expect(wrapper.find('table').exists()).toBe(false)
   })
 
@@ -187,7 +192,12 @@ describe.each(['de', 'en'] as const)('AdminUserDirectoryView in %s', (locale: Ap
     )
 
     await flushPromises()
+    expect(wrapper.findAll('main h1')).toHaveLength(1)
+    expect(wrapper.get('main h1').text()).toBe(messages.title)
     expect(wrapper.get('main [role="alert"]').text()).toBe(messages.sessionLoadError)
+    expect(wrapper.get('.admin-user-directory-error').classes()).toEqual(
+      expect.arrayContaining(['app-feedback', 'app-feedback--critical', 'app-card']),
+    )
   })
 
   it('renders the server order, account states, and current account marker', async () => {
@@ -211,6 +221,8 @@ describe.each(['de', 'en'] as const)('AdminUserDirectoryView in %s', (locale: Ap
         expect.stringContaining(ACCOUNT_A.username),
       ])
     })
+    expect(wrapper.findAll('main h1')).toHaveLength(1)
+    expect(wrapper.get('main h1').text()).toBe(messages.title)
     expect(wrapper.text()).toContain(messages.currentAccount)
     expect(wrapper.text()).toContain(messages.states.inactive)
     expect(wrapper.text()).toContain(messages.states.passwordChangeRequired)
@@ -241,6 +253,9 @@ describe.each(['de', 'en'] as const)('AdminUserDirectoryView in %s', (locale: Ap
     await vi.advanceTimersByTimeAsync(0)
     await flushPromises()
     expect(requests).toHaveLength(1)
+    expect(wrapper.get('.admin-user-directory-empty').classes()).toEqual(
+      expect.arrayContaining(['app-feedback', 'app-card']),
+    )
 
     await wrapper.get('#admin-user-search').setValue('Ada')
     await vi.advanceTimersByTimeAsync(299)
@@ -281,6 +296,9 @@ describe.each(['de', 'en'] as const)('AdminUserDirectoryView in %s', (locale: Ap
     await waitFor(() => {
       expect(wrapper.get('main [role="alert"]').text()).toBe(messages.loadError)
     })
+    expect(wrapper.get('.admin-user-directory-error').classes()).toEqual(
+      expect.arrayContaining(['app-feedback', 'app-feedback--critical', 'app-card']),
+    )
 
     await buttonWithText(wrapper, messages.retry).trigger('click')
     await waitFor(() => {
@@ -326,6 +344,9 @@ describe.each(['de', 'en'] as const)('AdminUserDirectoryView in %s', (locale: Ap
     await waitFor(() => {
       expect(wrapper.text()).toContain(messages.paginationError)
     })
+    expect(wrapper.get('.admin-user-directory-page-error').classes()).toEqual(
+      expect.arrayContaining(['app-feedback', 'app-feedback--critical', 'app-card']),
+    )
     expect(wrapper.text()).toContain(ACCOUNT_A.username)
     expect(cursors).toEqual([null, 'opaque-cursor'])
   })

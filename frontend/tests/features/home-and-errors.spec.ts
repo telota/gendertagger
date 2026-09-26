@@ -175,6 +175,9 @@ describe.each(['de', 'en'] as const)('home page in %s', (locale: AppLocale) => {
     expect(page.text()).toContain(PROJECT.display_name)
     expect(page.text()).toContain(PROJECT.team.display_name)
     expect(page.text()).toContain(catalogues[locale].projects.role.reviewer)
+    expect(page.get('.home-project-panel').classes()).toEqual(
+      expect.arrayContaining(['app-card', 'app-card--sectioned']),
+    )
     expect(page.findAll(`a[href="/projects/${PROJECT.id}/overview"]`)).toHaveLength(2)
     expect(page.get('a[href="/settings"]').text()).toBe(
       messages.signedIn.workspace.personalSettings,

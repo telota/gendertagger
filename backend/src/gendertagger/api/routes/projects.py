@@ -30,6 +30,7 @@ from gendertagger.models.project import (
     ManagedProjectSummary,
     ProjectCreate,
     ProjectDataAvailability,
+    ProjectGameModeUpdate,
     ProjectWorkingAggregationUpdate,
     SnapshotImportRequest,
     SnapshotSourceMember,
@@ -169,6 +170,32 @@ def set_working_aggregation(
             code="resource_conflict",
             message="The aggregation execution is not completed.",
         ) from error
+    return AccessibleProject(
+        **project.model_dump(),
+        current_user_role=role,
+        current_user_can_manage_members=(
+            has_global_role(access.user, GlobalRole.admin)
+            or access.user.id == project.manager_user_id
+        ),
+    )
+
+
+@router.put(
+    "/projects/{project_id}/game-mode",
+    response_model=AccessibleProject,
+)
+def set_project_game_mode(
+    project_id: UUID,
+    command: ProjectGameModeUpdate,
+    service: Annotated[ProjectService, Depends(get_project_service)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
+) -> AccessibleProject:
+    """Enable or disable the optional game interface for this project."""
+    role = access.require(ProjectScope.project, project_id, ProjectRole.operator)
+    try:
+        project = service.set_game_mode_enabled(project_id, enabled=command.enabled)
+    except ResourceNotFoundError as error:
+        raise _not_found() from error
     return AccessibleProject(
         **project.model_dump(),
         current_user_role=role,

@@ -105,7 +105,6 @@ reads what changed and who changed it, and appends against its `revision`. Like 
 visible to members of the snapshot's project only, so reviewer names do not leave the project
 ([ADR-0033](decisions/ADR-0033-project-scoped-membership-roles.md)).
 
-
 ## Multi-user concurrency
 
 The append-only annotation model must also handle two reviewers opening the same record. Maintain a monotonically increasing review revision for each person/snapshot decision stream.
@@ -118,6 +117,40 @@ This is optimistic concurrency over the **review stream**, not mutation/versioni
 
 Review candidates must be queryable server-side by uncertainty, agreement, final label, review status, authority/ensemble conflict, method result, and error presence, and must be **sorted** server-side by the triage rank above. The browser must not download the full snapshot and implement scientific triage locally. A dedicated `review-items` resource is preferred over UI-page-specific endpoints.
 
-Cursors are scoped to the filters *and* the sort. Continuing a cursor under a different query returns `422` with `invalid_cursor` instead of silently reordering a partially reviewed queue.
+Cursors are scoped to the filters _and_ the sort. Continuing a cursor under a different query returns `422` with `invalid_cursor` instead of silently reordering a partially reviewed queue.
 
 Certainty tier, agreement tier, and review state each accept several values, and a record matches when it has any of them, so a queue that spans two tiers is one ordered query rather than two streams merged in the browser. `GET /aggregations/{aggregation_id}/review-summary` counts an aggregation's results by certainty tier, agreement tier, review state, final label, and review action, so a client can show how many records a queue holds, how many are still unreviewed, and how many were verified versus corrected, without downloading them. See [`05-api.md`](05-api.md#review-summary).
+
+## Game mode
+
+Game mode is a secondary reviewer interface over the same completed aggregation, review query, person record,
+annotation history, and `POST /annotations` command as the review workbench. The default **Open decisions**
+pool applies the `unreviewed` workflow-state filter and uses `review_triage_v1`. The optional **Entire dataset**
+pool removes that filter, so previously reviewed people are eligible too, and uses the stable `tei_id` order so
+append-only decisions cannot move records ahead of or behind the session's cursor. Both pools remain
+server-ordered across cursor pages; the client never samples or locally re-ranks them. A selected label matching
+the machine label is written as `verify`; a different label is written as `correct`. For a previously reviewed
+person, that write is the ordinary append-only next revision. Skipping a question writes no annotation.
+
+New projects default to disabled game mode. A project operator opts in or out through
+`PUT /projects/{project_id}/game-mode`; the project overview owns the control. Disabling the feature hides its
+navigation and blocks new round and leaderboard requests while retaining existing rounds for a later
+re-enable.
+
+A reviewer chooses a target of 10, 20, or 50 questions. A round can finish below that target when the selected
+pool has fewer remaining records; repeated entire-dataset rounds continue through the ordered cursor pages
+before returning to the start. The timer can be disabled before a round and that per-account browser preference
+persists. Timing and streaks are personal pacing aids only: they change neither candidates, annotation writes,
+nor official points.
+
+`POST /projects/{project_id}/game-rounds` persists the completed round. Its command contains the round ID,
+aggregation ID, target size, and ordered IDs of saved answers—never browser-authored timing, skip, or streak
+claims. The server requires a completed aggregation and validates that every answer references a distinct
+`verify` or `correct` annotation by that reviewer for the selected aggregation. A person contributes at most
+one answer to a round, and an annotation contributes to at most one scored round. Every accepted annotation is
+worth a fixed ten points. Round identifiers make exact retries idempotent; concurrent attempts cannot score an
+annotation twice.
+
+`GET /projects/{project_id}/game-leaderboard?round_size=10|20|50` returns each reviewer's best round for that
+target, ordered by score, creation time, and round ID. Scores and ranks are engagement metadata only: they do
+not enter aggregation, final-decision resolution, review ordering, exports, or evaluation.

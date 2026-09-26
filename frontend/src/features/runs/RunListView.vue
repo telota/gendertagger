@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 
 import AppButton from '@/components/base/AppButton.vue'
+import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
 import { hasProjectRole } from '@/features/projects/projectRoles'
 import { useProject } from '@/features/projects/useProjects'
@@ -66,51 +67,89 @@ function openRun(run: Run): void {
 }
 
 function retryContext(): void {
+  if (project.isFetching.value || snapshot.isFetching.value) return
   void project.refetch()
   void snapshot.refetch()
+}
+
+function retryRuns(): void {
+  if (!runs.isFetching.value) void runs.refetch()
+}
+
+function loadMore(): void {
+  if (!runs.isFetching.value) void runs.fetchNextPage()
 }
 </script>
 
 <template>
-  <main class="run-list-view">
-    <div class="run-list-heading-row">
-      <h1 class="run-list-title">{{ t('runs.title') }}</h1>
-      <AppButton
-        v-if="canRun"
-        class="run-list-create"
-        :variant="formOpen ? 'ghost' : 'solid'"
-        :aria-expanded="formOpen"
-        aria-controls="new-classification-panel"
-        @click="toggleForm"
-      >
-        <PhMinus v-if="formOpen" :size="18" aria-hidden="true" />
-        <PhPlus v-else :size="18" aria-hidden="true" />
-        {{ formOpen ? t('runs.new.hide') : t('runs.new.show') }}
-      </AppButton>
-    </div>
-    <p v-if="session.status === 'idle' || session.status === 'loading'" role="status">
-      {{ t('runs.loading') }}
-    </p>
-    <div v-else-if="session.status === 'error'" class="run-list-load-error">
-      <p role="alert">{{ t('projects.sessionLoadError') }}</p>
-      <AppButton variant="ghost" @click="retrySession">{{ t('runs.retry') }}</AppButton>
-    </div>
-    <template v-else-if="isSignedIn">
-      <div v-if="project.isError.value || snapshot.isError.value" class="run-list-load-error">
-        <p role="alert">{{ t('runs.contextLoadError') }}</p>
-        <AppButton variant="ghost" @click="retryContext">{{ t('runs.retry') }}</AppButton>
+  <main class="run-list-view app-page-frame">
+    <header class="run-list-heading-row app-page-heading">
+      <h1 class="run-list-title app-page-heading__title">{{ t('runs.title') }}</h1>
+      <div v-if="canRun" class="app-page-heading__actions">
+        <AppButton
+          class="run-list-create"
+          :variant="formOpen ? 'ghost' : 'solid'"
+          :aria-expanded="formOpen"
+          aria-controls="new-classification-panel"
+          @click="toggleForm"
+        >
+          <PhMinus v-if="formOpen" :size="18" aria-hidden="true" />
+          <PhPlus v-else :size="18" aria-hidden="true" />
+          {{ formOpen ? t('runs.new.hide') : t('runs.new.show') }}
+        </AppButton>
       </div>
-      <p v-else-if="project.isPending.value || snapshot.isPending.value" role="status">
+    </header>
+    <AppFeedback
+      v-if="session.status === 'idle' || session.status === 'loading'"
+      class="app-card"
+      announcement="polite"
+    >
+      {{ t('runs.loading') }}
+    </AppFeedback>
+    <AppFeedback
+      v-else-if="session.status === 'error'"
+      class="run-list-load-error app-card"
+      announcement="assertive"
+      tone="critical"
+    >
+      {{ t('projects.sessionLoadError') }}
+      <template #actions>
+        <AppButton variant="ghost" @click="retrySession">{{ t('runs.retry') }}</AppButton>
+      </template>
+    </AppFeedback>
+    <template v-else-if="isSignedIn">
+      <AppFeedback
+        v-if="project.isError.value || snapshot.isError.value"
+        class="run-list-load-error app-card"
+        announcement="assertive"
+        tone="critical"
+      >
+        {{ t('runs.contextLoadError') }}
+        <template #actions>
+          <AppButton
+            variant="ghost"
+            :disabled="project.isFetching.value || snapshot.isFetching.value"
+            @click="retryContext"
+          >
+            {{ t('runs.retry') }}
+          </AppButton>
+        </template>
+      </AppFeedback>
+      <AppFeedback
+        v-else-if="project.isPending.value || snapshot.isPending.value"
+        class="app-card"
+        announcement="polite"
+      >
         {{ t('runs.loading') }}
-      </p>
-      <div v-else-if="!canRead" class="run-list-unavailable">
+      </AppFeedback>
+      <div v-else-if="!canRead" class="run-list-unavailable app-card">
         <p>{{ t('runs.contextUnavailable') }}</p>
         <RouterLink :to="{ name: 'projectClassification', params: { projectId } }">
           {{ t('runs.changeSelection') }}
         </RouterLink>
       </div>
       <template v-else>
-        <div class="run-list-context">
+        <div class="run-list-context app-card">
           <span v-if="snapshot.data.value">
             {{
               t('data.snapshotTitle', {
@@ -122,7 +161,11 @@ function retryContext(): void {
             {{ t('runs.changeSelection') }}
           </RouterLink>
         </div>
-        <div v-show="formOpen && canRun" id="new-classification-panel" class="run-list-new">
+        <div
+          v-show="formOpen && canRun"
+          id="new-classification-panel"
+          class="run-list-new app-card"
+        >
           <NewRunForm
             v-if="formMounted && canRun"
             ref="form"
@@ -132,26 +175,67 @@ function retryContext(): void {
         </div>
         <section class="run-list" aria-labelledby="run-list-heading">
           <h2 id="run-list-heading" class="run-list-heading">{{ t('runs.history') }}</h2>
-          <p v-if="runs.isPending.value" role="status">{{ t('runs.loading') }}</p>
-          <div v-else-if="runs.isError.value" class="run-list-load-error">
-            <p role="alert">{{ t('runs.loadError') }}</p>
-            <AppButton class="run-list-retry" variant="ghost" @click="() => runs.refetch()">
-              {{ t('runs.retry') }}
-            </AppButton>
-          </div>
+          <AppFeedback v-if="runs.isPending.value" class="app-card" announcement="polite">
+            {{ t('runs.loading') }}
+          </AppFeedback>
+          <AppFeedback
+            v-else-if="runs.isError.value && !runs.data.value"
+            class="run-list-load-error app-card"
+            announcement="assertive"
+            tone="critical"
+          >
+            {{ t('runs.loadError') }}
+            <template #actions>
+              <AppButton
+                class="run-list-retry"
+                variant="ghost"
+                :disabled="runs.isFetching.value"
+                @click="retryRuns"
+              >
+                {{ t('runs.retry') }}
+              </AppButton>
+            </template>
+          </AppFeedback>
           <template v-else>
-            <p v-if="items.length === 0" class="run-list-empty">{{ t('runs.empty') }}</p>
-            <ul v-else class="run-list-items">
+            <p v-if="items.length === 0" class="run-list-empty app-card">
+              {{ t('runs.empty') }}
+            </p>
+            <ul v-else class="run-list-items" :aria-busy="runs.isFetching.value || undefined">
               <RunItem v-for="run in items" :key="run.id" :run="run" :project-id="projectId" />
             </ul>
+            <AppFeedback
+              v-if="runs.isError.value"
+              class="run-list-feedback app-card"
+              announcement="assertive"
+              tone="critical"
+            >
+              {{ t('runs.loadError') }}
+              <template v-if="!runs.isFetchNextPageError.value" #actions>
+                <AppButton
+                  class="run-list-retry"
+                  variant="ghost"
+                  :disabled="runs.isFetching.value"
+                  @click="retryRuns"
+                >
+                  {{ t('runs.retry') }}
+                </AppButton>
+              </template>
+            </AppFeedback>
+            <AppFeedback
+              v-if="runs.isFetchingNextPage.value"
+              class="run-list-feedback app-card"
+              announcement="polite"
+            >
+              {{ t('runs.loading') }}
+            </AppFeedback>
             <AppButton
               v-if="runs.hasNextPage.value"
               class="run-list-load-more"
               variant="ghost"
-              :disabled="runs.isFetchingNextPage.value"
-              @click="() => runs.fetchNextPage()"
+              :disabled="runs.isFetching.value"
+              @click="loadMore"
             >
-              {{ t('runs.loadMore') }}
+              {{ runs.isFetchNextPageError.value ? t('runs.retry') : t('runs.loadMore') }}
             </AppButton>
           </template>
         </section>
@@ -162,17 +246,10 @@ function retryContext(): void {
 
 <style scoped>
 .run-list-view {
-  flex: 1;
-  min-inline-size: 0;
-  inline-size: 100%;
-  max-inline-size: 60rem;
-  margin-inline: auto;
-  padding: var(--space-8) var(--page-gutter);
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
 }
-.run-list-heading-row,
 .run-list-context {
   display: flex;
   flex-wrap: wrap;
@@ -180,11 +257,9 @@ function retryContext(): void {
   justify-content: space-between;
   gap: var(--space-3) var(--space-6);
 }
-.run-list-title {
-  margin: 0;
-  font-size: var(--font-size-page);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-height-page);
+.run-list-heading-row {
+  inline-size: 100%;
+  margin-block-end: 0;
 }
 .run-list-create svg {
   flex-shrink: 0;
@@ -199,22 +274,6 @@ function retryContext(): void {
   color: var(--accent);
   text-underline-offset: 0.2em;
 }
-.run-list-load-error {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-3);
-}
-.run-list-load-error p {
-  margin: 0;
-  color: var(--critical-text);
-}
-.run-list-new {
-  padding: var(--space-5);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
-}
 .run-list-heading {
   margin: 0 0 var(--space-4);
   font-size: var(--font-size-title);
@@ -227,5 +286,8 @@ function retryContext(): void {
   margin: 0 0 var(--space-4);
   padding: 0;
   list-style: none;
+}
+.run-list-feedback {
+  margin-block-end: var(--space-4);
 }
 </style>

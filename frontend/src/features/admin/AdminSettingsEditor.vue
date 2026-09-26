@@ -318,7 +318,10 @@ function errorMessage(error: AdminSettingsMutationError | null): string | null {
 </script>
 
 <template>
-  <section class="admin-settings-editor" aria-labelledby="admin-settings-editor-heading">
+  <section
+    class="admin-settings-editor app-card app-card--sectioned"
+    aria-labelledby="admin-settings-editor-heading"
+  >
     <header class="admin-settings-editor-heading">
       <div>
         <h2 id="admin-settings-editor-heading">{{ t('adminSettings.editing.title') }}</h2>
@@ -439,6 +442,7 @@ function errorMessage(error: AdminSettingsMutationError | null): string | null {
                 v-if="field === 'editors'"
                 :id="`admin-settings-${field}`"
                 v-model="values[field]"
+                class="app-multiline-field"
                 :name="field"
                 :aria-invalid="fieldError(field) ? true : undefined"
                 :aria-describedby="fieldError(field) ? `admin-settings-${field}-error` : undefined"
@@ -575,9 +579,6 @@ function errorMessage(error: AdminSettingsMutationError | null): string | null {
 <style scoped>
 .admin-settings-editor {
   container: branding-editor / inline-size;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
 }
 
 .admin-settings-editor h2,
@@ -600,7 +601,7 @@ function errorMessage(error: AdminSettingsMutationError | null): string | null {
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-4);
-  padding: var(--space-5) var(--space-5) var(--space-2);
+  padding: var(--space-4) var(--space-4) var(--space-2);
 }
 
 .admin-settings-editor-heading p,
@@ -620,13 +621,13 @@ function errorMessage(error: AdminSettingsMutationError | null): string | null {
 
 .admin-settings-editor-precedence {
   max-inline-size: 65ch;
-  padding: 0 var(--space-5) var(--space-5);
+  padding: 0 var(--space-4) var(--space-4);
 }
 
 .admin-settings-editor-conflict {
   display: grid;
   gap: var(--space-3);
-  margin: 0 var(--space-5) var(--space-5);
+  margin: 0 var(--space-4) var(--space-4);
   padding: var(--space-4);
   border: 1px solid var(--critical);
   border-radius: var(--radius-card);
@@ -658,7 +659,7 @@ function errorMessage(error: AdminSettingsMutationError | null): string | null {
 .admin-settings-editor-summary {
   display: grid;
   gap: var(--space-4);
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-4);
 }
 
 .admin-settings-editor-summary-copy {
@@ -728,7 +729,7 @@ function errorMessage(error: AdminSettingsMutationError | null): string | null {
   display: grid;
   gap: var(--space-3);
   margin: 0;
-  padding: var(--space-4) var(--space-5) var(--space-5);
+  padding: var(--space-4);
   border: 0;
   border-top: 1px solid var(--grid);
 }
@@ -768,18 +769,12 @@ function errorMessage(error: AdminSettingsMutationError | null): string | null {
   font-size: var(--font-size-small);
 }
 
-.admin-settings-editor-value-field input,
-.admin-settings-editor-value-field textarea {
+.admin-settings-editor-value-field input {
   box-sizing: border-box;
   inline-size: 100%;
 }
 
-.admin-settings-editor-value-field textarea {
-  resize: vertical;
-}
-
-.admin-settings-editor-value-field input[aria-invalid='true'],
-.admin-settings-editor-value-field textarea[aria-invalid='true'] {
+.admin-settings-editor-value-field input[aria-invalid='true'] {
   border-color: var(--critical);
 }
 
@@ -791,7 +786,7 @@ function errorMessage(error: AdminSettingsMutationError | null): string | null {
 }
 
 .admin-settings-editor-error {
-  padding: var(--space-4) var(--space-5) 0;
+  padding: var(--space-4) var(--space-4) 0;
 }
 
 .admin-settings-editor-actions {
@@ -800,7 +795,7 @@ function errorMessage(error: AdminSettingsMutationError | null): string | null {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3) var(--space-6);
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-4);
 }
 
 .admin-settings-editor-change-summary {
@@ -812,7 +807,7 @@ function errorMessage(error: AdminSettingsMutationError | null): string | null {
 .admin-settings-reset {
   display: grid;
   gap: var(--space-3);
-  padding: var(--space-5);
+  padding: var(--space-4);
   border-top: 1px solid var(--grid);
 }
 

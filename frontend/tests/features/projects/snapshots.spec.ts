@@ -173,6 +173,7 @@ describe.each(['de', 'en'] as const)('imported data list in %s', (locale: AppLoc
     expect(wrapper.get('#project-import-panel').isVisible()).toBe(true)
     expect(wrapper.findAll('main h1')).toHaveLength(1)
     expect(wrapper.get('.snapshot-import-form .import-title').element.tagName).toBe('H2')
+    expect(wrapper.get('.snapshot-import-form').classes()).toContain('app-card')
 
     const file = testFile('{}', 'people.json', 'application/json')
     const input = selectFile(wrapper, file)
@@ -321,12 +322,14 @@ describe.each(['de', 'en'] as const)('imported data list in %s', (locale: AppLoc
     )
     expect(wrapper.get('main h1').text()).toBe(messages.title)
     expect(wrapper.get('main [role="status"]').text()).toBe(messages.loading)
+    expect(wrapper.get('.project-snapshots > .app-feedback').classes()).toContain('app-card')
     expect(lists).toBe(0)
     expect(wrapper.find('.project-snapshots-import').exists()).toBe(false)
     pending.resolve(failure(403))
     await waitFor(() =>
       expect(wrapper.get('main [role="alert"]').text()).toBe(messages.accessUnavailable),
     )
+    expect(wrapper.get('.project-snapshots > .app-feedback').classes()).toContain('app-card')
     expect(lists).toBe(0)
   })
 
@@ -343,6 +346,11 @@ describe.each(['de', 'en'] as const)('imported data list in %s', (locale: AppLoc
       }),
     )
     await waitFor(() => expect(wrapper.find('.snapshot-list-skeleton').exists()).toBe(true))
+    expect(wrapper.get('.snapshot-list > .app-feedback').classes()).toContain('app-card')
+    expect(wrapper.findAll('.snapshot-skeleton')).toHaveLength(3)
+    for (const skeleton of wrapper.findAll('.snapshot-skeleton')) {
+      expect(skeleton.classes()).toContain('app-resource-card')
+    }
     expect(wrapper.get('main').text()).not.toContain(messages.empty)
     pending.resolve(failure())
     await waitFor(() => expect(wrapper.get('main [role="alert"]').text()).toBe(messages.loadError))
@@ -370,11 +378,13 @@ describe.each(['de', 'en'] as const)('imported data list in %s', (locale: AppLoc
     await flushPromises()
     expect(wrapper.get<HTMLButtonElement>('.snapshot-list-load-more').element.disabled).toBe(true)
     expect(wrapper.get('main [role="status"]').text()).toBe(messages.loadingMore)
+    expect(wrapper.get('.snapshot-list-feedback').classes()).toContain('app-card')
     expect(wrapper.findAll('.snapshot')).toHaveLength(1)
     pending.resolve(failure())
     await waitFor(() =>
       expect(wrapper.get('main [role="alert"]').text()).toBe(messages.loadMoreError),
     )
+    expect(wrapper.get('.snapshot-list-feedback').classes()).toContain('app-card')
     expect(wrapper.findAll('.snapshot')).toHaveLength(1)
     expect(wrapper.get('.snapshot-list-load-more').text()).toBe(catalogues[locale].projects.retry)
     await wrapper.get('.snapshot-list-load-more').trigger('click')

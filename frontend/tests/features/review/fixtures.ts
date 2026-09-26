@@ -202,12 +202,16 @@ export interface HistoryFixture {
 
 export interface Server {
   aggregationStatus: string
+  /** Total imported people in the snapshot backing the aggregation. */
+  recordCount: number
   /** One entry per request, in order: the query string of `GET /review-items`. */
   requests: URLSearchParams[]
   pages: { items: ReturnType<typeof item>[]; next: string | null }[]
   known: ReturnType<typeof item>[]
   /** The caller's role in the project. */
   role: 'viewer' | 'reviewer' | 'operator'
+  /** Whether the project has opted into game mode. */
+  gameEnabled: boolean
   /** The person's annotation chain as the server holds it; a successful write extends it. */
   history: HistoryFixture
   /** Bodies of every `POST /annotations` received. */
@@ -220,12 +224,17 @@ export interface Server {
   failTeis: string[]
   /** When set, every `POST /annotations` waits for it, so a test can act while a write is in flight. */
   gate: Promise<void> | null
+  /** When set, paginated review reads wait for it after recording the request. */
+  pageGate: Promise<void> | null
+  /** Cursor values whose review-page reads fail with a 500. */
+  failPageCursors: string[]
   /** What the next `POST /annotations` answers. */
   postOutcome: 'ok' | 'conflict' | 'forbidden'
 }
 
 export function newServer(overrides: Partial<Server> = {}): Server {
   return {
+    recordCount: 9,
     aggregationStatus: 'completed',
     requests: [],
     pages: [
@@ -243,12 +252,15 @@ export function newServer(overrides: Partial<Server> = {}): Server {
     ],
     known: [],
     role: 'reviewer',
+    gameEnabled: true,
     history: structuredClone(HISTORY) as HistoryFixture,
     posts: [],
     writes: [],
     conflictTeis: [],
     failTeis: [],
     gate: null,
+    pageGate: null,
+    failPageCursors: [],
     postOutcome: 'ok',
     ...overrides,
   }
@@ -282,6 +294,7 @@ export function reviewFetch(server: Server): (request: Request) => Promise<Respo
         created_by_user_id: 'a0000000-0000-0000-0000-000000000003',
         current_user_role: server.role,
         current_user_can_manage_members: false,
+        game_mode_enabled: server.gameEnabled,
         created_at: '2026-01-01T00:00:00Z',
       } satisfies components['schemas']['AccessibleProject'])
     }
@@ -325,7 +338,7 @@ export function reviewFetch(server: Server): (request: Request) => Promise<Respo
         id: SNAPSHOT_ID,
         project_id: PROJECT_ID,
         status: 'ready',
-        record_count: 9,
+        record_count: server.recordCount,
         created_at: '2026-01-01T09:00:00Z',
       })
     }
@@ -333,6 +346,20 @@ export function reviewFetch(server: Server): (request: Request) => Promise<Respo
     if (pathname === '/api/v1/review-items') {
       server.requests.push(url.searchParams)
       const cursor = url.searchParams.get('cursor')
+      if (cursor !== null && server.pageGate) await server.pageGate
+      if (cursor !== null && server.failPageCursors.includes(cursor)) {
+        return jsonResponse(
+          {
+            error: {
+              code: 'internal_error',
+              message: 'Review page unavailable',
+              details: {},
+              request_id: 'review-page-test',
+            },
+          },
+          { status: 500 },
+        )
+      }
       const teiId = url.searchParams.get('tei_id')
       if (teiId !== null) {
         const candidates = [...server.known, ...server.pages.flatMap((page) => page.items)]

@@ -12,6 +12,7 @@ _REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 class _CiJob(TypedDict, total=False):
     extends: str
+    stage: str
     script: list[str]
     variables: dict[str, str]
     artifacts: dict[str, object]
@@ -28,12 +29,41 @@ def image_jobs() -> dict[str, _CiJob]:
         for name in (
             ".kaniko_build",
             ".sbom",
-            "build_and_publish_backend",
-            "build_and_publish_frontend",
+            "backend_publish_image",
+            "frontend_publish_image",
             "backend_sbom",
             "frontend_sbom",
         )
     }
+
+
+def test_first_party_jobs_are_component_scoped_and_need_existing_jobs() -> None:
+    pipeline = cast(
+        dict[str, object],
+        yaml.safe_load((_REPOSITORY_ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")),
+    )
+    # These keys intentionally override jobs supplied by GitLab security templates.
+    jobs = {
+        name: cast(_CiJob, definition)
+        for name, definition in pipeline.items()
+        if isinstance(definition, dict)
+        and not name.startswith(".")
+        and name not in {"sast", "secret_detection"}
+        and ("stage" in definition or "extends" in definition)
+    }
+
+    assert jobs
+    assert all(name.startswith(("backend_", "frontend_")) for name in jobs)
+
+    for name, job in jobs.items():
+        template = job.get("extends")
+        if isinstance(template, str):
+            assert template in pipeline, f"{name} extends missing template {template}"
+
+        for dependency in job.get("needs", []):
+            required_job = dependency.get("job")
+            if isinstance(required_job, str):
+                assert required_job in pipeline, f"{name} needs missing job {required_job}"
 
 
 def test_publish_retains_branch_tag_and_adds_full_commit_tag(image_jobs: dict[str, _CiJob]) -> None:
@@ -90,7 +120,7 @@ def test_publish_emits_one_digest_reference_for_sbom(image_jobs: dict[str, _CiJo
 def test_each_image_inherits_publishing_and_its_own_sbom_artifact(
     image_jobs: dict[str, _CiJob], image_name: str
 ) -> None:
-    publish_name = f"build_and_publish_{image_name}"
+    publish_name = f"{image_name}_publish_image"
     publish = image_jobs[publish_name]
     sbom = image_jobs[f"{image_name}_sbom"]
 

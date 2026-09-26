@@ -11,6 +11,7 @@ from gendertagger.db.repositories.auth_repository import SqlAlchemyAuthRepositor
 from gendertagger.db.repositories.dispatch_repository import SqlAlchemyDispatchRepository
 from gendertagger.db.repositories.evaluation_repository import SqlAlchemyEvaluationRepository
 from gendertagger.db.repositories.export_repository import SqlAlchemyExportRepository
+from gendertagger.db.repositories.game_repository import SqlAlchemyGameRepository
 from gendertagger.db.repositories.project_access_repository import SqlAlchemyProjectAccessRepository
 from gendertagger.db.repositories.project_repository import SqlAlchemyProjectRepository
 from gendertagger.db.repositories.review_repository import SqlAlchemyReviewRepository
@@ -110,6 +111,11 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
     def reviews(self) -> SqlAlchemyReviewRepository:
         """Return review persistence bound to the active session."""
         return SqlAlchemyReviewRepository(self._require_session())
+
+    @property
+    def games(self) -> SqlAlchemyGameRepository:
+        """Return game-round persistence bound to the active session."""
+        return SqlAlchemyGameRepository(self._require_session())
 
     @property
     def settings(self) -> SqlAlchemySettingsRepository:

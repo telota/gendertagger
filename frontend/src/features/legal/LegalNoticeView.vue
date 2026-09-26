@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppButton from '@/components/base/AppButton.vue'
+import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useBranding } from '@/composables/useBranding'
 
 import { SOURCE_CODE_LICENSE } from '../../app/publication'
@@ -13,25 +15,38 @@ const legalEntity = computed(() => data.value?.legal_entity ?? null)
 </script>
 
 <template>
-  <main class="legal">
-    <h1 class="legal-title">{{ t('legal.title') }}</h1>
+  <main class="legal app-page-frame app-page-frame--reading">
+    <header class="legal-heading app-page-heading">
+      <h1 class="legal-title app-page-heading__title">{{ t('legal.title') }}</h1>
+    </header>
 
-    <p v-if="state.status === 'loading'" role="status">{{ t('legal.loading') }}</p>
+    <AppFeedback v-if="state.status === 'loading'" class="app-card" announcement="polite">
+      {{ t('legal.loading') }}
+    </AppFeedback>
 
-    <div v-else-if="state.status === 'error'" class="legal-error">
-      <p role="alert">{{ t('legal.loadError') }}</p>
-      <button type="button" class="legal-retry" @click="refresh">{{ t('legal.retry') }}</button>
-    </div>
+    <AppFeedback
+      v-else-if="state.status === 'error'"
+      class="legal-error app-card"
+      announcement="assertive"
+      tone="critical"
+    >
+      {{ t('legal.loadError') }}
+      <template #actions>
+        <AppButton type="button" class="legal-retry" variant="ghost" @click="refresh">
+          {{ t('legal.retry') }}
+        </AppButton>
+      </template>
+    </AppFeedback>
 
-    <template v-else>
+    <div v-else class="legal-content app-card app-card--sectioned">
       <section class="legal-section" aria-labelledby="legal-provider-heading">
         <h2 id="legal-provider-heading">{{ t('legal.provider.heading') }}</h2>
         <p v-if="!legalEntity" class="legal-not-configured">{{ t('legal.notConfigured') }}</p>
         <template v-else>
           <p>{{ legalEntity.name }}</p>
           <p v-if="legalEntity.legal_form">{{ legalEntity.legal_form }}</p>
-          <dl class="legal-facts">
-            <div v-if="legalEntity.address_lines.length > 0">
+          <dl class="legal-facts app-fact-list">
+            <div v-if="legalEntity.address_lines.length > 0" class="app-fact-list__item">
               <dt>{{ t('legal.provider.address') }}</dt>
               <dd>
                 <address class="legal-address">
@@ -39,7 +54,7 @@ const legalEntity = computed(() => data.value?.legal_entity ?? null)
                 </address>
               </dd>
             </div>
-            <div v-if="legalEntity.telephone">
+            <div v-if="legalEntity.telephone" class="app-fact-list__item">
               <dt>{{ t('legal.provider.telephone') }}</dt>
               <dd>
                 <a v-if="legalEntity.telephone_href" :href="legalEntity.telephone_href">{{
@@ -48,11 +63,11 @@ const legalEntity = computed(() => data.value?.legal_entity ?? null)
                 <template v-else>{{ legalEntity.telephone }}</template>
               </dd>
             </div>
-            <div v-if="legalEntity.representative">
+            <div v-if="legalEntity.representative" class="app-fact-list__item">
               <dt>{{ t('legal.provider.representative') }}</dt>
               <dd>{{ legalEntity.representative }}</dd>
             </div>
-            <div v-if="legalEntity.vat_id">
+            <div v-if="legalEntity.vat_id" class="app-fact-list__item">
               <dt>{{ t('legal.provider.vatId') }}</dt>
               <dd>{{ legalEntity.vat_id }}</dd>
             </div>
@@ -102,28 +117,18 @@ const legalEntity = computed(() => data.value?.legal_entity ?? null)
         </p>
         <p v-else class="legal-not-configured">{{ t('legal.notConfigured') }}</p>
       </section>
-    </template>
+    </div>
   </main>
 </template>
 
 <style scoped>
-.legal {
-  flex: 1;
-  width: 100%;
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: var(--space-12) var(--space-4);
-}
-
-.legal-title {
-  margin: 0 0 var(--space-6);
-  font-size: var(--font-size-page);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-height-page);
-}
-
 .legal-section {
-  margin: 0 0 var(--space-6);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--grid);
+}
+
+.legal-section:last-child {
+  border-bottom: 0;
 }
 
 .legal-section h2 {
@@ -142,9 +147,7 @@ const legalEntity = computed(() => data.value?.legal_entity ?? null)
 }
 
 .legal-facts {
-  display: grid;
-  gap: var(--space-3);
-  margin: var(--space-3) 0 0;
+  margin-block-start: var(--space-3);
 }
 
 .legal-facts dt {
@@ -152,10 +155,6 @@ const legalEntity = computed(() => data.value?.legal_entity ?? null)
   font-size: var(--font-size-caption);
   line-height: var(--line-height-caption);
   text-transform: uppercase;
-}
-
-.legal-facts dd {
-  margin: 0;
 }
 
 .legal-address {
@@ -167,25 +166,5 @@ const legalEntity = computed(() => data.value?.legal_entity ?? null)
 .legal a {
   color: var(--accent);
   text-underline-offset: 0.2em;
-}
-
-.legal-error {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-}
-
-.legal-retry {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  background: var(--panel);
-  color: var(--text-primary);
-  font: inherit;
-  padding: var(--space-1) var(--space-3);
-  cursor: pointer;
-}
-
-.legal-retry:hover {
-  background: var(--surface-1);
 }
 </style>

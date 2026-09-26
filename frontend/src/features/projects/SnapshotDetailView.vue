@@ -68,28 +68,35 @@ watch(
 </script>
 
 <template>
-  <main class="snapshot-detail">
-    <div class="snapshot-detail-heading">
-      <h1>
+  <main class="snapshot-detail app-page-frame">
+    <header class="snapshot-detail-heading app-page-heading">
+      <h1 class="app-page-heading__title">
         {{
           snapshot
             ? t('data.snapshotTitle', { date: d(new Date(snapshot.created_at), 'timestamp') })
             : t('data.detailTitle')
         }}
       </h1>
-      <AppButton
-        v-if="ready"
-        variant="ghost"
-        :to="{ name: 'snapshotRuns', params: { projectId, snapshotId } }"
-        >{{ t('projects.snapshots.openRuns') }}</AppButton
-      >
-    </div>
+      <div v-if="ready" class="app-page-heading__actions">
+        <AppButton
+          variant="ghost"
+          :to="{ name: 'snapshotRuns', params: { projectId, snapshotId } }"
+          >{{ t('projects.snapshots.openRuns') }}</AppButton
+        >
+      </div>
+    </header>
     <AppFeedback
       v-if="session.status === 'idle' || session.status === 'loading'"
+      class="app-card"
       announcement="polite"
       >{{ t('data.loading') }}</AppFeedback
     >
-    <AppFeedback v-else-if="session.status === 'error'" announcement="assertive" tone="critical">
+    <AppFeedback
+      v-else-if="session.status === 'error'"
+      class="app-card"
+      announcement="assertive"
+      tone="critical"
+    >
       {{ t('projects.sessionLoadError') }}
       <template #actions
         ><AppButton variant="ghost" @click="session.initialize()">{{
@@ -98,10 +105,10 @@ watch(
       >
     </AppFeedback>
     <template v-else-if="enabled">
-      <AppFeedback v-if="query.isPending.value" announcement="polite">{{
+      <AppFeedback v-if="query.isPending.value" class="app-card" announcement="polite">{{
         t('data.loading')
       }}</AppFeedback>
-      <AppFeedback v-else-if="!snapshot" announcement="assertive" tone="critical">
+      <AppFeedback v-else-if="!snapshot" class="app-card" announcement="assertive" tone="critical">
         {{ t('data.snapshotUnavailable') }}
         <template #actions
           ><AppButton
@@ -114,22 +121,22 @@ watch(
         >
       </AppFeedback>
       <template v-else>
-        <dl class="snapshot-summary">
+        <dl class="snapshot-summary app-fact-list app-card">
           <div
-            class="snapshot-summary-status"
+            class="snapshot-summary-status app-fact-list__item"
             :class="`snapshot-summary-status--${snapshot.status}`"
           >
             <dt>{{ t('data.status') }}</dt>
             <dd>{{ statusLabel }}</dd>
           </div>
-          <div v-if="sourceFormat">
+          <div v-if="sourceFormat" class="app-fact-list__item">
             <dt>{{ t('data.sourceFormat') }}</dt>
             <dd>{{ sourceFormat }}</dd>
           </div>
         </dl>
         <AppFeedback
           v-if="query.isError.value"
-          class="snapshot-detail-feedback"
+          class="snapshot-detail-feedback app-card"
           announcement="assertive"
           tone="critical"
         >
@@ -143,12 +150,16 @@ watch(
             ></template
           >
         </AppFeedback>
-        <AppFeedback v-if="!terminal" class="snapshot-detail-feedback" announcement="polite">{{
-          t('data.importing')
-        }}</AppFeedback>
+        <AppFeedback
+          v-if="!terminal"
+          class="snapshot-detail-feedback app-card"
+          announcement="polite"
+        >
+          {{ t('data.importing') }}
+        </AppFeedback>
         <AppFeedback
           v-if="snapshot.status === 'failed'"
-          class="snapshot-detail-feedback"
+          class="snapshot-detail-feedback app-card"
           announcement="assertive"
           tone="critical"
         >
@@ -162,7 +173,10 @@ watch(
           :snapshot-id="snapshot.id"
         />
         <div class="snapshot-secondary">
-          <details v-if="terminal" class="snapshot-disclosure snapshot-sources">
+          <details
+            v-if="terminal"
+            class="snapshot-disclosure snapshot-sources app-card app-card--sectioned"
+          >
             <summary>
               <span>{{ t('data.sourceFiles') }}</span>
               <span v-if="membersQuery.isSuccess.value" class="snapshot-disclosure-count">
@@ -219,19 +233,19 @@ watch(
               </p>
             </div>
           </details>
-          <details class="snapshot-disclosure snapshot-provenance">
+          <details class="snapshot-disclosure snapshot-provenance app-card app-card--sectioned">
             <summary>{{ t('data.importDetails') }}</summary>
             <div class="snapshot-disclosure-content">
-              <dl>
-                <div>
+              <dl class="app-fact-list">
+                <div class="app-fact-list__item">
                   <dt>{{ t('data.snapshotId') }}</dt>
                   <dd>{{ snapshot.id }}</dd>
                 </div>
-                <div>
+                <div class="app-fact-list__item">
                   <dt>{{ t('projects.snapshots.parserVersion') }}</dt>
                   <dd>{{ snapshot.parser_version }}</dd>
                 </div>
-                <div>
+                <div class="app-fact-list__item">
                   <dt>{{ t('projects.snapshots.checksum') }}</dt>
                   <dd class="snapshot-hash">{{ snapshot.source_sha256 }}</dd>
                 </div>
@@ -257,33 +271,9 @@ watch(
 <style scoped>
 .snapshot-detail {
   container: snapshot-detail / inline-size;
-  flex: 1;
-  min-inline-size: 0;
-  inline-size: 100%;
-  max-inline-size: 60rem;
-  margin-inline: auto;
-  padding: var(--space-8) var(--page-gutter);
-}
-.snapshot-detail-heading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3) var(--space-6);
-  margin-block-end: var(--space-5);
-}
-.snapshot-detail h1 {
-  margin: 0;
-  font-size: var(--font-size-page);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-height-page);
-  overflow-wrap: anywhere;
 }
 .snapshot-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3) var(--space-8);
-  margin: 0;
+  --app-fact-list-label-width: 8rem;
 }
 .snapshot-summary-status dd {
   font-weight: var(--weight-semibold);
@@ -293,13 +283,6 @@ watch(
 }
 .snapshot-summary-status--failed dd {
   color: var(--critical-text);
-}
-.snapshot-detail dt {
-  color: var(--text-secondary);
-}
-.snapshot-detail dd {
-  margin: var(--space-1) 0 0;
-  overflow-wrap: anywhere;
 }
 .snapshot-detail-feedback {
   margin-block-start: var(--space-4);
@@ -316,9 +299,6 @@ watch(
 }
 .snapshot-disclosure {
   min-inline-size: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
 }
 .snapshot-disclosure[open] {
   grid-column: 1 / -1;
@@ -370,9 +350,7 @@ watch(
   font-size: var(--font-size-small);
 }
 .snapshot-provenance dl {
-  display: grid;
-  gap: var(--space-3);
-  margin: 0 0 var(--space-5);
+  margin-block-end: var(--space-5);
 }
 .snapshot-provenance-title {
   margin: 0 0 var(--space-3);

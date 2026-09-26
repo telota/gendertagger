@@ -43,6 +43,11 @@ erDiagram
     AGGREGATION_EXECUTION ||--o{ AGGREGATED_RESULT : produces
     PERSON_RECORD ||--o{ ANNOTATION : receives
     USER ||--o{ ANNOTATION : creates
+    PROJECT ||--o{ GAME_ROUND : contains
+    AGGREGATION_EXECUTION ||--o{ GAME_ROUND : contextualizes
+    USER ||--o{ GAME_ROUND : completes
+    GAME_ROUND ||--|{ GAME_ROUND_EVENT : records
+    ANNOTATION ||--o| GAME_ROUND_EVENT : proves
     PERSON_RECORD ||--o| REVIEW_STATE : projects
     REVIEW_STATE }o--|| ANNOTATION : heads
     RUN ||--o{ EVALUATION_EXECUTION : evaluates
@@ -63,6 +68,10 @@ Long-lived corpus/editorial project. Carries a nullable `working_aggregation_exe
 completed AggregationExecution, from one of its own runs, that its review queue and dashboard currently
 summarize. It is an explicit, operator-set pointer, not an inferred "most recent" — see
 [ADR-0035](decisions/ADR-0035-project-working-aggregation.md).
+
+Its `game_mode_enabled` flag defaults to false and records the project operator's opt-in for the secondary,
+scored review interface. Disabling the interface blocks new round and leaderboard requests but does not
+delete completed rounds or alter annotations, review order, or scientific results.
 
 ### ProjectMembership
 One user's role — `viewer`, `reviewer`, or `operator` — in one project. A project owns every snapshot, run,
@@ -126,6 +135,15 @@ Combined result for one PersonRecord, including final machine label, vote counts
 
 ### Annotation
 A human editorial decision. Append-only and attributable to a User. May verify, correct, or mark an item for follow-up.
+
+### GameRound
+An immutable, server-scored summary of one reviewer's optional round over one completed
+AggregationExecution. Its ordered GameRoundEvents retain only the Annotation identifiers that prove the
+official score; browser-authored timing, skips, and streaks are session presentation and are not persisted.
+Every answer references an ordinary immutable `verify` or `correct` Annotation; each person contributes at
+most one answer to a round, and an Annotation may contribute to at most one GameRound. The server derives ten
+points per verified annotation. Round size, score, answer count, reviewer, and aggregation remain attributable
+without affecting FinalDecision.
 
 ### ReviewState
 A mutable concurrency/workflow projection for one PersonRecord in one DatasetSnapshot. Stores the current review revision, current annotation head, and workflow state needed for efficient review queries. It is not a replacement for Annotation history and must be reconstructable from that history.

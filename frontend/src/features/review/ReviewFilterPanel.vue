@@ -291,8 +291,25 @@ const PREDICTION_STATUSES: readonly PredictionStatus[] = ['success', 'abstain', 
 
 .check {
   display: flex;
-  align-items: baseline;
+  min-block-size: var(--control-min-size);
+  align-items: center;
   gap: var(--space-2);
+}
+
+.check input {
+  flex: none;
+}
+
+.check label {
+  display: inline-flex;
+  min-width: 0;
+  min-block-size: var(--control-min-size);
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-1);
+  overflow-wrap: anywhere;
+  cursor: pointer;
 }
 
 .token {

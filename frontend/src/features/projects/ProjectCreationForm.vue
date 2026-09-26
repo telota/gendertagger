@@ -97,7 +97,7 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <section class="project-creation" aria-labelledby="project-creation-title">
+  <section class="project-creation app-card" aria-labelledby="project-creation-title">
     <h2 id="project-creation-title">{{ t('projects.creation.title') }}</h2>
     <form @submit.prevent="submit">
       <fieldset class="project-creation-group">
@@ -112,26 +112,26 @@ async function submit(): Promise<void> {
             required
           />
           <div class="project-creation-field">
-            <label for="project-create-slug">{{ t('projects.creation.slug') }}</label>
-            <div class="project-creation-slug-control">
-              <input
-                id="project-create-slug"
-                v-model="slug"
-                name="slug"
-                maxlength="100"
-                autocomplete="off"
-                :spellcheck="false"
-                :placeholder="t('projects.creation.slugExample')"
-                pattern="[a-z][a-z0-9]*(?:-[a-z0-9]+)*"
-                aria-describedby="project-create-slug-help"
-                required
-              />
+            <div class="project-creation-label">
+              <label for="project-create-slug">{{ t('projects.creation.slug') }}</label>
               <AppFieldHelp
                 description-id="project-create-slug-help"
                 :label="t('projects.creation.slugHelpLabel')"
                 :text="t('projects.creation.slugConstraints')"
               />
             </div>
+            <input
+              id="project-create-slug"
+              v-model="slug"
+              name="slug"
+              maxlength="100"
+              autocomplete="off"
+              :spellcheck="false"
+              :placeholder="t('projects.creation.slugExample')"
+              pattern="[a-z][a-z0-9]*(?:-[a-z0-9]+)*"
+              aria-describedby="project-create-slug-help"
+              required
+            />
           </div>
           <div class="project-creation-field project-creation-description">
             <label for="project-create-description">{{
@@ -140,6 +140,7 @@ async function submit(): Promise<void> {
             <textarea
               id="project-create-description"
               v-model="description"
+              class="app-multiline-field"
               name="description"
               maxlength="2000"
               rows="2"
@@ -336,16 +337,18 @@ async function submit(): Promise<void> {
       >
         {{ t('projects.creation.refreshFailed') }}
       </AppFeedback>
-      <AppButton
-        class="project-creation-submit"
-        type="submit"
-        :disabled="selectedTeamId === null || creation.isSubmitting.value"
-        >{{
-          creation.isSubmitting.value
-            ? t('projects.creation.submitting')
-            : t('projects.creation.submit')
-        }}</AppButton
-      >
+      <div class="project-creation-actions app-form-actions">
+        <AppButton
+          class="project-creation-submit"
+          type="submit"
+          :disabled="selectedTeamId === null || creation.isSubmitting.value"
+          >{{
+            creation.isSubmitting.value
+              ? t('projects.creation.submitting')
+              : t('projects.creation.submit')
+          }}</AppButton
+        >
+      </div>
     </form>
   </section>
 </template>
@@ -362,11 +365,6 @@ async function submit(): Promise<void> {
 .project-creation {
   container: project-creation / inline-size;
   gap: var(--space-4);
-  padding: var(--space-5) var(--page-gutter);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
-  overflow-wrap: anywhere;
 }
 
 .project-creation h2,
@@ -420,26 +418,21 @@ async function submit(): Promise<void> {
   gap: var(--space-1);
 }
 
-.project-creation-slug-control {
+.project-creation-label {
   display: flex;
   min-inline-size: 0;
   align-items: center;
   gap: var(--space-1);
 }
 
-.project-creation-slug-control input {
-  flex: 1;
-  inline-size: 100%;
-}
-
-.project-creation-field > label {
+.project-creation-field > label,
+.project-creation-label > label {
   color: var(--text-secondary);
   font-size: var(--font-size-small);
 }
 
 .project-creation input,
-.project-creation select,
-.project-creation textarea {
+.project-creation select {
   min-width: 0;
   min-height: var(--control-min-size);
   max-width: 100%;
@@ -451,32 +444,28 @@ async function submit(): Promise<void> {
   padding: var(--space-2) var(--space-3);
 }
 
-.project-creation textarea {
-  resize: vertical;
-}
-
 .project-creation-manager {
   gap: var(--space-3);
 }
 
-.project-creation-submit,
 .project-creation-teams-more,
 .project-creation-managers-more {
   align-self: flex-start;
 }
 
-.project-creation-feedback,
-.project-creation-submit {
+.project-creation-feedback {
   grid-column: 1 / -1;
-}
-
-.project-creation-submit {
-  justify-self: start;
 }
 
 @container project-creation (min-width: 32rem) {
   .project-creation-details {
     grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  }
+
+  .project-creation-details :deep(.app-text-field > label) {
+    display: flex;
+    min-block-size: var(--control-min-size);
+    align-items: center;
   }
 
   .project-creation-description {

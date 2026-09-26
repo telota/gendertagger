@@ -190,6 +190,16 @@ class SqlAlchemyProjectRepository:
         self._session.flush()
         return self._project_from_row(row, self._require_team(row.team_id))
 
+    def set_game_mode_enabled(self, project_id: UUID, *, enabled: bool) -> Project:
+        """Enable or disable the optional game interface for one project."""
+        row = self._session.get(ProjectRow, project_id)
+        if row is None:
+            msg = f"project {project_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        row.game_mode_enabled = enabled
+        self._session.flush()
+        return self._project_from_row(row, self._require_team(row.team_id))
+
     def add_snapshot(self, command: DatasetSnapshotCreate) -> DatasetSnapshot:
         """Persist and flush a new pending snapshot without committing."""
         import_config = self._validated_import_config(command.import_config)
@@ -1006,6 +1016,7 @@ class SqlAlchemyProjectRepository:
             created_by_user_id=row.created_by_user_id,
             created_at=row.created_at,
             working_aggregation_execution_id=row.working_aggregation_execution_id,
+            game_mode_enabled=row.game_mode_enabled,
         )
 
     @staticmethod

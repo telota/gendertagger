@@ -68,6 +68,7 @@ const ROLE_ITEMS: Record<ProjectRole, NavKey[]> = {
     'classification',
     'review',
     'annotate',
+    'game',
     'evaluations',
     'exports',
   ],
@@ -78,6 +79,7 @@ const ROLE_ITEMS: Record<ProjectRole, NavKey[]> = {
     'classification',
     'review',
     'annotate',
+    'game',
     'evaluations',
     'exports',
   ],
@@ -101,6 +103,7 @@ function project(id: string, role: ProjectRole): AccessibleProject {
     },
     created_at: '2026-01-01T00:00:00Z',
     working_aggregation_execution_id: null,
+    game_mode_enabled: true,
   }
 }
 
@@ -363,6 +366,7 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
       await waitFor(() => expect(wrapper.findAll('nav [aria-disabled="true"]')).toHaveLength(0))
       expect(wrapper.findAll('nav h2').map((heading) => heading.text())).toEqual([
         messages.currentProject,
+        ...(role === 'viewer' ? [] : [messages.additionalGroup]),
         messages.evaluationGroup,
       ])
       expect(
@@ -790,8 +794,9 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
 
     await waitFor(() =>
       expectItems(wrapper, locale, [
-        ...ROLE_ITEMS.operator.slice(0, -2),
+        ...ROLE_ITEMS.operator.slice(0, -3),
         'projectMembers',
+        'game',
         'evaluations',
         'exports',
         'administration',
@@ -821,6 +826,7 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
       expect(wrapper.find('nav a[href$="/evaluations"]').exists()).toBe(false)
       expect(wrapper.findAll('nav h2').map((heading) => heading.text())).toEqual([
         messages.currentProject,
+        ...(role === 'viewer' ? [] : [messages.additionalGroup]),
       ])
     },
   )

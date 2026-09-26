@@ -27,7 +27,6 @@ def _write_minimal_documentation(root: Path) -> None:
         "README.md",
         "QUICKSTART.md",
         "CONTRIBUTING.md",
-        "PLAN.md",
         "SPEC.md",
         "AGENTS.md",
     ):

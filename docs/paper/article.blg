@@ -6,45 +6,45 @@ Database file #1: gendertagger.bib
 Warning--empty journal in article aleksander_gendern_2025
 Warning--empty journal in article karimi_inferring_2016
 Warning--empty booktitle in incollection sahle_digitale_2013
-You've used 22 entries,
+You've used 24 entries,
             2580 wiz_defined-function locations,
-            686 strings with 8890 characters,
-and the built_in function-call counts, 5976 in all, are:
-= -- 416
-> -- 311
-< -- 12
-+ -- 104
-- -- 103
-* -- 451
-:= -- 848
-add.period$ -- 74
-call.type$ -- 22
-change.case$ -- 106
-chr.to.int$ -- 22
-cite$ -- 25
-duplicate$ -- 254
-empty$ -- 511
-format.name$ -- 135
-if$ -- 1105
+            698 strings with 9465 characters,
+and the built_in function-call counts, 6627 in all, are:
+= -- 462
+> -- 363
+< -- 13
++ -- 123
+- -- 122
+* -- 505
+:= -- 951
+add.period$ -- 82
+call.type$ -- 24
+change.case$ -- 120
+chr.to.int$ -- 24
+cite$ -- 27
+duplicate$ -- 275
+empty$ -- 549
+format.name$ -- 156
+if$ -- 1218
 int.to.chr$ -- 1
 int.to.str$ -- 0
 missing$ -- 11
-newline$ -- 141
-num.names$ -- 63
-pop$ -- 88
+newline$ -- 155
+num.names$ -- 69
+pop$ -- 100
 preamble$ -- 1
-purify$ -- 150
+purify$ -- 168
 quote$ -- 0
-skip$ -- 267
+skip$ -- 289
 stack$ -- 0
-substring$ -- 191
-swap$ -- 54
-text.length$ -- 12
-text.prefix$ -- 38
+substring$ -- 205
+swap$ -- 57
+text.length$ -- 13
+text.prefix$ -- 42
 top$ -- 0
-type$ -- 172
+type$ -- 188
 warning$ -- 3
-while$ -- 54
-width$ -- 25
-write$ -- 206
+while$ -- 59
+width$ -- 26
+write$ -- 226
 (There were 3 warnings)

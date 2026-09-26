@@ -253,7 +253,9 @@ describe.each(['de', 'en'] as const)('aggregation in %s', (locale: AppLocale) =>
       `/projects/${PROJECT_ID}/runs/${RUN_ID}/aggregations/${AGG_ID}/review`,
     )
     expect(wrapper.text()).not.toContain('9'.repeat(64))
-    expect(wrapper.get('.aggregations-history').text()).toContain(messages.history)
+    expect(wrapper.get('.aggregations-history').text()).toContain(
+      messages.historyWithCount.replace('{count}', '1'),
+    )
 
     await featured.get('.aggregation-selection summary').trigger('click')
     await wrapper.get('.aggregations-history > summary').trigger('click')
@@ -296,6 +298,9 @@ describe.each(['de', 'en'] as const)('aggregation in %s', (locale: AppLocale) =>
 
     expect(wrapper.get('.aggregation-detail-hash').text()).toBe('9'.repeat(64))
     expect(wrapper.get('.aggregation-detail-config').text()).toBe('{}')
+    expect(wrapper.get('.aggregation-detail-config').classes()).not.toContain('app-resource-card')
+    expect(wrapper.get('.aggregation-detail-facts').classes()).toContain('app-card')
+    expect(wrapper.findAll('.app-card .app-card, .app-card .app-resource-card')).toHaveLength(0)
     expect(wrapper.findAll('.aggregation-detail-method').map((m) => m.text())).toEqual([
       'gender_guesser',
       'gnd',
@@ -308,6 +313,8 @@ describe.each(['de', 'en'] as const)('aggregation in %s', (locale: AppLocale) =>
     expect(
       wrapper.get('.aggregation-detail-review:not(.aggregation-detail-people)').attributes('href'),
     ).toBe(`/projects/${PROJECT_ID}/runs/${RUN_ID}/aggregations/${AGG_ID}/review`)
+    const headingActions = wrapper.findAll('.aggregation-detail-actions .app-button--text')
+    expect(headingActions).toHaveLength(3)
     // The exit criterion: the code that produced the aggregation's run is readable from here.
     expect(wrapper.get('.provenance-fact[data-key="codeCommit"] dd').text()).toBe('abc')
     expect(wrapper.get('.provenance-fact[data-key="configHash"] dd').text()).toBe('e'.repeat(64))

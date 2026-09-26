@@ -68,7 +68,7 @@ function progressLabel(label: string, count: number, total: number): string {
 </script>
 
 <template>
-  <section class="snapshot-statistics" aria-labelledby="snapshot-statistics-title">
+  <section class="snapshot-statistics app-card" aria-labelledby="snapshot-statistics-title">
     <header class="snapshot-statistics-header">
       <div>
         <h2 id="snapshot-statistics-title">{{ t('data.statistics.title') }}</h2>
@@ -216,8 +216,6 @@ function progressLabel(label: string, count: number, total: number): string {
 <style scoped>
 .snapshot-statistics {
   margin-block-start: var(--space-6);
-  padding-block: var(--space-5);
-  border-block: 1px solid var(--border);
 }
 
 .snapshot-statistics-header {
@@ -290,7 +288,7 @@ function progressLabel(label: string, count: number, total: number): string {
 }
 
 .snapshot-statistic-label {
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-semibold);
 }
 
 .snapshot-statistic-value {

@@ -54,7 +54,7 @@ Describe the available techniques collectively as methods, not models: some meth
 - The Vue client consumes the versioned HTTP API and does not duplicate scientific or persistence logic.
 - Authorization is role-scoped and server-authoritative. The interface may explain capabilities but never substitutes presentation rules for authorization.
 - Public-facing facts come from deployment branding configuration. The interface must not fabricate institution, publisher, editor, legal, benchmark, or performance claims.
-- Open product decision: stakeholders still need to confirm the documented v1 exclusions, including Git repository synchronization, activity notifications, game mode, persisted user/project settings, bulk API writes, and per-case timing telemetry.
+- Open product decision: stakeholders still need to confirm the documented v1 exclusions, including Git repository synchronization, activity notifications, further persisted user/project settings, bulk API writes, and per-case review-time telemetry.
 
 ## Brand Commitments
 

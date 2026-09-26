@@ -1,19 +1,21 @@
 # Fdb version 4
-["bibtex article"] 1790199847.49639 "article.aux" "article.bbl" "article" 1790199848.18204 0
+["bibtex article"] 1790457858.61323 "article.aux" "article.bbl" "article" 1790459052.21556 0
   "./eceasst.bst" 1790188604.83197 26107 18417fe77bfecbb5140f1d47333ae01a ""
-  "./gendertagger.bib" 1790197817.13756 36689 04ab4b60fda0f11280df45fe9ff133ea ""
-  "article.aux" 1790199848.09028 14935 045daed8bba298ef2bb1c7561b2feb37 "pdflatex"
+  "./gendertagger.bib" 1790457856.67648 37406 90d4893aa08afa0c7093a6a5366b4e51 ""
+  "article.aux" 1790459052.09109 15720 ddad8c2e6f9687e478c19f1f864c3472 "pdflatex"
   (generated)
   "article.bbl"
   "article.blg"
   (rewritten before read)
-["pdflatex"] 1790199847.51275 "/home/westphal/Projekte/BBAW/gendertagger/repo/gendertagger/docs/paper/article.tex" "article.pdf" "article" 1790199848.18218 0
-  "/home/westphal/Projekte/BBAW/gendertagger/repo/gendertagger/docs/paper/article.tex" 1790199846.63656 71220 67c5a80c229273de4bb63801bd1b0ae7 ""
+["pdflatex"] 1790459050.97846 "/home/westphal/Projekte/BBAW/gendertagger/repo/gendertagger/docs/paper/article.tex" "article.pdf" "article" 1790459052.21582 0
+  "/home/westphal/Projekte/BBAW/gendertagger/repo/gendertagger/docs/paper/article.tex" 1790459050.58204 74196 a7d3bc7bb18492e4a9c6785044a0262d ""
   "/usr/share/texmf-dist/fonts/enc/dvips/base/8r.enc" 1775415801 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrb7t.tfm" 1775415801 960 4ab65358b8406f30ef5496c8c096d22b ""
   "/usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrb8r.tfm" 1775415801 1292 3059476c50a24578715759f22652f3d0 ""
   "/usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrr7t.tfm" 1775415801 960 379cc0019370a9e0208a0a3f949f847a ""
   "/usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrr8r.tfm" 1775415801 1292 bd42be2f344128bff6d35d98474adfe3 ""
+  "/usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrro7t.tfm" 1775415801 1116 3b5422ca7b3feeb8bd20316af67485c1 ""
+  "/usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrro8r.tfm" 1775415801 1544 4fb84cf2931ec523c2c6a08d939088ba ""
   "/usr/share/texmf-dist/fonts/tfm/adobe/helvetic/phvr7t.tfm" 1775415801 2520 53e01eef820ca829e42c1333c3fd02b9 ""
   "/usr/share/texmf-dist/fonts/tfm/adobe/helvetic/phvr8r.tfm" 1775415801 4712 9ef4d7d106579d4b136e1529e1a4533c ""
   "/usr/share/texmf-dist/fonts/tfm/adobe/symbol/psyr.tfm" 1775415801 1408 5937f58aa508ea2cea4901c07d10f5fe ""
@@ -42,6 +44,7 @@
   "/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb" 1775415801 32569 5e5ddc8df908dea60932f3c484a54c0d ""
   "/usr/share/texmf-dist/fonts/type1/urw/courier/ucrb8a.pfb" 1775415801 50493 4ed1f7e9eba8f1f3e1ec25195460190d ""
   "/usr/share/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb" 1775415801 45758 19968a0990191524e34e1994d4a31cb6 ""
+  "/usr/share/texmf-dist/fonts/type1/urw/courier/ucrro8a.pfb" 1775415801 44404 ea3d9c0311883914133975dd62a9185c ""
   "/usr/share/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb" 1775415801 44648 23115b2a545ebfe2c526c3ca99db8b95 ""
   "/usr/share/texmf-dist/fonts/type1/urw/symbol/usyr.pfb" 1775415801 33709 b09d2e140b7e807d3a97058263ab6693 ""
   "/usr/share/texmf-dist/fonts/type1/urw/times/utmb8a.pfb" 1775415801 44729 811d6c62865936705a31c797a1d5dada ""
@@ -50,6 +53,7 @@
   "/usr/share/texmf-dist/fonts/type1/urw/times/utmri8a.pfb" 1775415801 45458 a3faba884469519614ca56ba5f6b1de1 ""
   "/usr/share/texmf-dist/fonts/vf/adobe/courier/pcrb7t.vf" 1775415801 1344 c590fc3b8640445e169e64e330afb3d5 ""
   "/usr/share/texmf-dist/fonts/vf/adobe/courier/pcrr7t.vf" 1775415801 1344 6ff472164bf9de0fb2e864b28ac156d9 ""
+  "/usr/share/texmf-dist/fonts/vf/adobe/courier/pcrro7t.vf" 1775415801 1348 83f3fb6f885de67cb91aba9ac0b7d8ac ""
   "/usr/share/texmf-dist/fonts/vf/adobe/helvetic/phvr7t.vf" 1775415801 1372 dc841a9f00a1a11b1443367ae6c5588e ""
   "/usr/share/texmf-dist/fonts/vf/adobe/times/ptmb7t.vf" 1775415801 1372 788387fea833ef5963f4c5bffe33eb89 ""
   "/usr/share/texmf-dist/fonts/vf/adobe/times/ptmbi7t.vf" 1775415801 1384 6ac0f8b839230f5d9389287365b243c0 ""
@@ -199,10 +203,10 @@
   "/usr/share/texmf-dist/web2c/texmf.cnf" 1775415801 43569 fd570f2fa160877d211e859f687312ba ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1780595439 325445 e037c2d0d08ad8cbac81cfa7969967b5 ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1780595438 2809891 6fb0a3c3b8c632bc1effcbe43d160913 ""
-  "article.aux" 1790199848.09028 14935 045daed8bba298ef2bb1c7561b2feb37 "pdflatex"
-  "article.bbl" 1790199847.50973 5061 092630075a9ae4bfae4ea7562ec34c1f "bibtex article"
-  "article.out" 1790199848.0919 5301 e12446d15e2ac7f295e4f6bde432a6a5 "pdflatex"
-  "article.tex" 1790199846.63656 71220 67c5a80c229273de4bb63801bd1b0ae7 ""
+  "article.aux" 1790459052.09109 15720 ddad8c2e6f9687e478c19f1f864c3472 "pdflatex"
+  "article.bbl" 1790457858.62454 5681 4686ee05e309ffe0a02f2ea924abc1f0 "bibtex article"
+  "article.out" 1790459052.09209 5395 0186cdf35a9595b2a89b4422f90597ef "pdflatex"
+  "article.tex" 1790459050.58204 74196 a7d3bc7bb18492e4a9c6785044a0262d ""
   "easst.pdf" 1790188604.83191 18460 c04bf8a8a8bdafee992ff1a84ca7f602 ""
   "eceasst.cls" 1790188604.83197 9356 15a9c86faf8a508cb177465e1e3902bf ""
   "figures/gender_coverage_pies.png" 1790188604.83283 186134 80922b38d58fd2ff664015dc98f73bfe ""

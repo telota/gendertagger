@@ -96,8 +96,13 @@ describe.each(['de', 'en'] as const)('project creation discovery in %s', (locale
 
   it('describes slug constraints accessibly and shows focus help that Escape dismisses', async () => {
     const wrapper = await mountForm(locale, () => page([TEAM_A]))
+    expect(wrapper.get('.project-creation').classes()).toContain('app-card')
     const input = wrapper.get<HTMLInputElement>('#project-create-slug')
+    const label = wrapper.get('.project-creation-label')
     const button = wrapper.get<HTMLButtonElement>('.app-field-help')
+    expect(label.get('label').attributes('for')).toBe('project-create-slug')
+    expect(label.get('.app-field-help').element).toBe(button.element)
+    expect(label.element.nextElementSibling).toBe(input.element)
     expect(input.attributes('aria-describedby')).toBe('project-create-slug-help')
     expect(wrapper.get('#project-create-slug-help').text()).toBe(messages.slugConstraints)
     expect(wrapper.find('p#project-create-slug-help').exists()).toBe(false)

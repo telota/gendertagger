@@ -6,8 +6,8 @@ separately from issues found during our own audit. Completed changes are documen
 
 ## Editorial requirements
 
-- [ ] Submit the revised manuscript within four weeks of receiving the decision email.
-- [ ] Provide a detailed, point-by-point list of changes responding to the reviews.
+- [x] Submit the revised manuscript within four weeks of receiving the decision email.
+- [x] Provide a detailed, point-by-point list of changes responding to the reviews.
 
 ## Reviewer C: written report
 
@@ -48,7 +48,7 @@ Source: [Reviewer C's annotated PDF](C-klappenbach,neuber,westphal_2026_genderta
 - [x] **I11 - Footnote 2:** Add an access date.
 - [x] **I12 - Lines 167-169:** Address the suggestion to add certainty information and a gazetteer
   link to the Gnadenfrei example.
-- [ ] **I13 - Lines 186 onward:** Explain how `@cert` categories are derived, what they mean,
+- [x] **I13 - Lines 186 onward:** Explain how `@cert` categories are derived, what they mean,
   possible alternative scales, and relevant DH practice.
 - [x] **I14 - Lines 238-241:** Justify using GND alone and discuss alternatives such as Wikidata,
   VIAF, and Getty ULAN.
@@ -62,7 +62,7 @@ Source: [Reviewer C's annotated PDF](C-klappenbach,neuber,westphal_2026_genderta
 - [x] **I21 - Line 476:** Translate *(Tochter des Ernst Ferdinand Klein)*.
 - [x] **I22 - Table 6:** Translate *Frau des*, *Baronin von*, *Arzt in Berlin*, and
   *wohnhaft in der Friedrichsgracht 50*.
-- [ ] **I23 - Lines 532 onward:** Add a discussion connecting the case study and limitations,
+- [x] **I23 - Lines 532 onward:** Add a discussion connecting the case study and limitations,
   particularly the RSE implications and the possible role of NFDI/TS4NFDI.
 - [x] **I24 - Footnotes 9 and 10:** Add access dates or convert them into bibliography entries
   for software visibility.

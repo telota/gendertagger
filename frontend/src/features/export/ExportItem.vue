@@ -15,23 +15,23 @@ const statusLabel = computed(() => label(props.item.status))
 </script>
 
 <template>
-  <li class="export">
+  <li class="export app-resource-card">
     <div class="export-head">
       <span class="export-status" :class="`export-status--${item.status}`">{{ statusLabel }}</span>
       <time :datetime="item.created_at" class="export-created">{{
         d(new Date(item.created_at), 'timestamp')
       }}</time>
     </div>
-    <dl class="export-facts">
-      <div class="export-fact">
+    <dl class="export-facts app-fact-list">
+      <div class="export-fact app-fact-list__item">
         <dt>{{ t('export.item.format') }}</dt>
         <dd class="export-token">{{ item.format }}</dd>
       </div>
-      <div class="export-fact">
+      <div class="export-fact app-fact-list__item">
         <dt>{{ t('export.item.policy') }}</dt>
         <dd class="export-token">{{ item.label_source_policy ?? 'machine_aggregation' }}</dd>
       </div>
-      <div v-if="item.tei_profile" class="export-fact">
+      <div v-if="item.tei_profile" class="export-fact app-fact-list__item">
         <dt>{{ t('export.item.profile') }}</dt>
         <dd class="export-token">{{ item.tei_profile }}</dd>
       </div>
@@ -50,15 +50,9 @@ const statusLabel = computed(() => label(props.item.status))
 </template>
 
 <style scoped>
-.export {
-  padding: var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
-}
-
 .export-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-3);
@@ -83,24 +77,7 @@ const statusLabel = computed(() => label(props.item.status))
 }
 
 .export-facts {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-}
-
-.export-fact {
-  display: grid;
-  grid-template-columns: 11rem 1fr;
-  gap: var(--space-3);
-}
-
-.export-fact dt {
-  color: var(--text-secondary);
-}
-
-.export-fact dd {
-  margin: 0;
-  overflow-wrap: anywhere;
+  --app-fact-list-label-width: 11rem;
 }
 
 .export-token {

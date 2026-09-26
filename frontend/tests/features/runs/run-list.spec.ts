@@ -61,11 +61,14 @@ interface Setup {
   createResponse?: Promise<Response>
   snapshotProject?: string
   snapshotStatus?: string
+  runListFailures?: number
+  nextRunListResponse?: Promise<Response>
 }
 
 interface Sent {
   runBodies: unknown[]
   scheduled: string[]
+  runListRequests: number
 }
 
 function runsClient(setup: Setup, sent: Sent) {
@@ -101,6 +104,11 @@ function runsClient(setup: Setup, sent: Sent) {
         })
       }
       if (pathname === `/api/v1/snapshots/${SNAPSHOT_ID}/runs`) {
+        sent.runListRequests += 1
+        if (sent.runListRequests <= (setup.runListFailures ?? 0)) {
+          return jsonResponse({}, { status: 500 })
+        }
+        if (setup.nextRunListResponse) return setup.nextRunListResponse
         return jsonResponse({ items: runs, next_cursor: null, has_more: false })
       }
       if (pathname === '/api/v1/runs' && request.method === 'POST') {
@@ -140,7 +148,7 @@ describe.each(['de', 'en'] as const)('run list and new run in %s', (locale: AppL
   const path = `/projects/${PROJECT_ID}/snapshots/${SNAPSHOT_ID}/runs`
 
   async function mountRuns(setup: Setup = {}, openForm = true) {
-    const sent: Sent = { runBodies: [], scheduled: [] }
+    const sent: Sent = { runBodies: [], scheduled: [], runListRequests: 0 }
     const wrapper = await mountApplicationAt(path, locale, runsClient(setup, sent))
     await waitFor(() =>
       expect(wrapper.find('.run-list, .run-list-unavailable').exists()).toBe(true),
@@ -250,6 +258,45 @@ describe.each(['de', 'en'] as const)('run list and new run in %s', (locale: AppL
     expect(wrapper.get('.run-list-empty').text()).toBe(messages.empty)
   })
 
+  it('announces a run-list failure and recovers without announcing the retry action', async () => {
+    let finish!: (response: Response) => void
+    const nextRunListResponse = new Promise<Response>((resolve) => {
+      finish = resolve
+    })
+    const sent: Sent = { runBodies: [], scheduled: [], runListRequests: 0 }
+    const wrapper = await mountApplicationAt(
+      path,
+      locale,
+      runsClient({ runListFailures: 1, nextRunListResponse }, sent),
+    )
+    try {
+      await waitFor(() => expect(wrapper.find('.run-list-load-error').exists()).toBe(true))
+
+      const feedback = wrapper.get('.run-list-load-error')
+      const alert = feedback.get('[role="alert"]')
+      const retry = feedback.get('.run-list-retry')
+      expect(alert.text()).toBe(messages.loadError)
+      expect(alert.attributes('aria-atomic')).toBe('true')
+      expect(alert.find('button').exists()).toBe(false)
+      expect(feedback.classes()).toContain('app-feedback--critical')
+      expect(retry.text()).toBe(messages.retry)
+
+      const firstRetry = retry.trigger('click')
+      const duplicateRetry = retry.trigger('click')
+      await Promise.all([firstRetry, duplicateRetry])
+      await waitFor(() => expect(sent.runListRequests).toBe(2))
+      expect(wrapper.find('.run-list-retry:not([disabled])').exists()).toBe(false)
+      expect(sent.runListRequests).toBe(2)
+
+      finish(jsonResponse({ items: [], next_cursor: null, has_more: false }))
+      await waitFor(() => expect(wrapper.find('.run-list-empty').exists()).toBe(true))
+
+      expect(wrapper.find('.run-list-load-error').exists()).toBe(false)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('takes the method roster from the server and states each own confidence range', async () => {
     const { wrapper } = await mountRuns()
 
@@ -355,6 +402,8 @@ describe.each(['de', 'en'] as const)('run list and new run in %s', (locale: AppL
       await wrapper.get('.run-list-create').trigger('click')
       await tick()
       expect(document.activeElement?.id).toBe('new-run-heading')
+      expect(wrapper.get('.run-list-new').classes()).toContain('app-card')
+      expect(wrapper.get('.run-list-new').classes()).not.toContain('app-card--roomy')
       await pick(wrapper, 'local_llm')
       await wrapper.get('#config-local_llm').setValue('{"model":"draft"}')
       await wrapper.get('.run-list-create').trigger('click')

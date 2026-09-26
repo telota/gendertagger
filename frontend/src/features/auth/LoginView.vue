@@ -37,9 +37,11 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <main class="login">
-    <h1 class="login-title">{{ t('login.title') }}</h1>
-    <form class="login-form" novalidate @submit.prevent="submit">
+  <main class="login app-page-frame app-page-frame--auth">
+    <header class="login-heading app-page-heading">
+      <h1 class="login-title app-page-heading__title">{{ t('login.title') }}</h1>
+    </header>
+    <form class="login-form app-card" novalidate @submit.prevent="submit">
       <AppTextField
         id="login-username"
         v-model="username"
@@ -68,21 +70,6 @@ async function submit(): Promise<void> {
 </template>
 
 <style scoped>
-.login {
-  flex: 1;
-  width: 100%;
-  max-width: 24rem;
-  margin: 0 auto;
-  padding: var(--space-12) var(--space-4);
-}
-
-.login-title {
-  margin: 0 0 var(--space-6);
-  font-size: var(--font-size-page);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-height-page);
-}
-
 .login-form {
   display: flex;
   flex-direction: column;

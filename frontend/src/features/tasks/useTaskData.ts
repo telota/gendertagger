@@ -6,7 +6,7 @@ import { useApiClient } from '@/composables/useApiClient'
 import { currentData } from '@/features/projects/useSnapshotData'
 import { useSessionStore } from '@/stores/session'
 
-export type TaskMode = 'classification' | 'review' | 'annotation'
+export type TaskMode = 'classification' | 'review' | 'annotation' | 'game'
 export type Snapshot = components['schemas']['DatasetSnapshot']
 export type TaskRun = components['schemas']['Run']
 export type ProjectReviewResult = components['schemas']['ProjectReviewResult']

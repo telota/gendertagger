@@ -52,8 +52,8 @@ const currentHistory = computed(() =>
             <h3 id="annotation-summary-heading" class="annotation-section-heading">
               {{ t('review.detail.summaryTitle') }}
             </h3>
-            <dl class="annotation-current app-facts">
-              <div class="app-fact">
+            <dl class="annotation-current app-fact-list">
+              <div class="app-fact-list__item">
                 <dt>{{ t('review.detail.state') }}</dt>
                 <dd>
                   <VocabBadge :value="item.workflow_state" kind="state" />
@@ -64,7 +64,7 @@ const currentHistory = computed(() =>
                   }}</span>
                 </dd>
               </div>
-              <div class="app-fact">
+              <div class="app-fact-list__item">
                 <dt>{{ t('annotation.humanLabel') }}</dt>
                 <dd>
                   <VocabBadge v-if="item.human_label" :value="item.human_label" kind="label" />
@@ -230,17 +230,6 @@ const currentHistory = computed(() =>
   margin: 0;
   font-size: var(--font-size-body-strong);
   font-weight: var(--weight-semibold);
-}
-
-.annotation-current {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-}
-
-.annotation-current dd {
-  margin: 0;
-  overflow-wrap: anywhere;
 }
 
 .annotation-revision {

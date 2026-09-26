@@ -226,6 +226,8 @@
     "classification": "Automatic suggestions",
     "review": "Review",
     "annotate": "Annotate manually",
+    "game": "Game mode",
+    "additionalGroup": "Additional",
     "evaluationGroup": "Evaluation",
     "evaluations": "Statistics & methods",
     "exports": "Export",
@@ -711,6 +713,16 @@
         "lastActivity": "Last review activity: {when}",
         "openReview": "Open the review queues",
         "browsePeople": "Browse all people"
+      },
+      "gameMode": {
+        "title": "Game mode",
+        "hint": "Allow this project’s reviewers to use the optional scored annotation path.",
+        "retention": "Turning it off hides and blocks game mode. Existing rounds remain stored.",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "saving": "Saving game-mode availability …",
+        "saved": "Game-mode availability saved.",
+        "saveError": "Game-mode availability could not be saved. The previous setting remains active."
       }
     },
     "import": {
@@ -984,7 +996,6 @@
     "currentWorking": "Current working result",
     "latestResult": "Latest combined result",
     "latestAttempt": "Latest aggregation attempt",
-    "history": "Aggregation history",
     "historyWithCount": "Aggregation history ({count})",
     "waitingForRun": "A combined result can be calculated once the run has finished successfully.",
     "empty": "No combined result exists for this run yet.",
@@ -1280,6 +1291,120 @@
       "hint": "Everyone in the register, in TEI order, whatever the automation made of them. Find a person by name, other name, TEI id or an authority id such as a GND number."
     }
   },
+  "game": {
+    "title": "Game mode",
+    "retry": "Try again",
+    "optional": "Optional",
+    "intro": "Review people in focused rounds. Every answer is saved as the same audited annotation used by the regular review workflow.",
+    "disabled": "Game mode is disabled for this project. A project operator can enable it from the project overview.",
+    "selectResult": "Select a completed result",
+    "reviewerRequired": "The leaderboard is visible to project members. A reviewer or operator role is required to play and save decisions.",
+    "loading": "Loading game mode …",
+    "scoringPrinciple": "Each saved annotation earns 10 verified points. The timer and streak are personal pacing aids; neither changes the leaderboard or scientific results.",
+    "start": "Start round with {count} people",
+    "backToReview": "Open regular review",
+    "setup": {
+      "title": "Configure the round",
+      "hint": "Open decisions follow server triage. The entire dataset uses stable source-ID order so later rounds continue where the last one stopped.",
+      "availableOpen": "{available} open people available. This round will use {count}.",
+      "availableAll": "{available} people in the dataset are eligible. This round will use {count}.",
+      "preparing": "Preparing the next dataset entries …"
+    },
+    "pool": {
+      "legend": "Question pool",
+      "open": "Open decisions",
+      "openHint": "Only people that still need a review decision.",
+      "all": "Entire dataset",
+      "allHint": "Include already reviewed people. Every answer adds a new audited decision."
+    },
+    "rounds": {
+      "legend": "Round length",
+      "short": "Short",
+      "shortHint": "{count} people · quick session",
+      "standard": "Standard",
+      "standardHint": "{count} people · balanced session",
+      "long": "Long",
+      "longHint": "{count} people · extended session"
+    },
+    "timer": {
+      "label": "Show personal timer",
+      "hint": "Track the time spent on each person during this session. Timing never changes the verified score."
+    },
+    "queue": {
+      "loading": "Loading the question pool …",
+      "loadError": "The question pool could not be loaded. Try again before starting a round.",
+      "emptyOpen": "There are no open people in this result. All available decisions have been reviewed.",
+      "emptyAll": "There are no people in this result."
+    },
+    "round": {
+      "statusLabel": "Game round status",
+      "progress": "Person {current} of {total}",
+      "progressLabel": "{complete} of {total} people completed",
+      "score": "Round points",
+      "streak": "Streak",
+      "timer": "This person",
+      "question": "Person {current} of {total}"
+    },
+    "record": {
+      "title": "Source record",
+      "loading": "Loading the source record …",
+      "loadError": "The source record could not be loaded. Retry before deciding, or skip this person."
+    },
+    "decision": {
+      "title": "Choose the human label",
+      "hint": "Keys 1–4 select the matching label. The saved decision is append-only and remains available in annotation history.",
+      "loading": "Checking the current annotation revision …",
+      "loadError": "The current annotation history could not be loaded. Retry before saving a decision.",
+      "changed": "This person was changed after the round loaded. Refresh the round so you do not overwrite newer work.",
+      "refreshRound": "Refresh the question pool",
+      "saveError": "The annotation could not be saved. No points were added; retry the answer or skip this person.",
+      "skip": "Skip this person",
+      "saving": "Saving annotation …"
+    },
+    "feedback": {
+      "earnedPoints": "+{points}",
+      "stamp": "Saved",
+      "saved": "Annotation saved · +{points} points",
+      "explanation": "Every saved annotation is worth 10 verified points, regardless of the label or pace.",
+      "machineLabel": "Machine label",
+      "evidenceTitle": "Method evidence",
+      "evidenceHint": "Read-only predictions from the completed aggregation. They are revealed only after the human decision is saved.",
+      "loading": "Loading method evidence …",
+      "loadError": "Method evidence could not be loaded. You can continue the round without it.",
+      "noEvidence": "No method prediction is available for this person.",
+      "evidenceTable": "Method evidence for the saved answer",
+      "next": "Next person",
+      "finish": "Finish round"
+    },
+    "complete": {
+      "title": "Round complete",
+      "hint": "Your annotations are already in the project history. The server confirms the saved answers before adding their fixed points to the leaderboard.",
+      "score": "Score",
+      "time": "Decision time",
+      "answered": "Answered",
+      "skipped": "Skipped",
+      "longestStreak": "Longest streak",
+      "saving": "Verifying and saving the round …",
+      "saveError": "The round score could not be saved. Your annotations are safe; retry with the same round.",
+      "retrySave": "Retry score save",
+      "saved": "The server verified the saved answers and updated the project leaderboard.",
+      "playAgain": "Play another round"
+    },
+    "leaderboard": {
+      "title": "Project leaderboard",
+      "hint": "Best server-verified round per project member for the selected length. Ties go to the earliest saved round.",
+      "playerCount": "Players: {count}",
+      "loading": "Loading the leaderboard …",
+      "loadError": "The leaderboard could not be loaded.",
+      "empty": "No verified round has been saved at this length yet.",
+      "tableLabel": "Project game leaderboard",
+      "rank": "Rank",
+      "member": "Member",
+      "score": "Score",
+      "answered": "Answered",
+      "you": "(you)"
+    }
+  },
   "evaluation": {
     "title": "Evaluations",
     "intro": "An evaluation scores the methods of a run against a benchmark: the decisions of the GND authority, gendered entries only. It is a stored, reproducible result with its own configuration hash.",
@@ -1297,9 +1422,12 @@
     },
     "new": {
       "title": "Start an evaluation",
+      "show": "Start evaluation",
+      "hide": "Close form",
       "hint": "Choose the completed method executions to score. The server accepts only the selection its definition prescribes: the benchmark method, the scored methods and the methods that only enter the agreement matrix, each exactly once.",
       "executionsLoadError": "The method executions of this run could not be loaded.",
       "definition": "Definition: {definition}",
+      "options": "Method and ensemble options ({count} selected)",
       "methods": "Method executions",
       "fromEarlier": "Pre-selected: the selection the server accepted for the latest evaluation of this run.",
       "fromAll": "Pre-selected: every completed execution. If the server refuses this selection, remove the methods the definition does not use.",
@@ -1400,6 +1528,9 @@
     },
     "new": {
       "title": "Start an export",
+      "show": "Start export",
+      "hide": "Close form",
+      "advanced": "Label and TEI options",
       "noAggregation": "An export needs a completed aggregation. Create one on the run first.",
       "aggregation": "Aggregation to export",
       "aggregationOption": "{strategy} · {hash}",
@@ -1537,6 +1668,7 @@
     "classificationHint": "Choose an imported dataset to browse runs or generate suggestions.",
     "reviewHint": "Open a completed result for review. Its dataset and run are shown on the card.",
     "annotationHint": "Choose a dataset to annotate. Automatic suggestions are optional.",
+    "gameHint": "Open a completed result and review its unannotated people in a scored round.",
     "selectSnapshot": "Select dataset",
     "selectRun": "Select run",
     "selectResult": "Select result",
@@ -1544,6 +1676,7 @@
     "openClassification": "Select",
     "openReview": "Open",
     "openAnnotation": "Start annotating",
+    "openGame": "Play",
     "selectSnapshotNamed": "Select dataset from {date}",
     "selectRunNamed": "Select run from {date}",
     "openResultNamed": "Open result from {date}",

@@ -23,6 +23,13 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const router = useRouter()
+const heading = ref<HTMLElement>()
+
+function focusHeading(): void {
+  heading.value?.focus()
+}
+
+defineExpose({ focusHeading })
 
 const runId = computed(() => props.runId)
 const executions = useRunExecutions(runId)
@@ -131,7 +138,7 @@ async function submit(): Promise<void> {
     aria-labelledby="new-evaluation-heading"
     @submit.prevent="submit"
   >
-    <h2 id="new-evaluation-heading" class="new-evaluation-title">
+    <h2 id="new-evaluation-heading" ref="heading" class="new-evaluation-title" tabindex="-1">
       {{ t('evaluation.new.title') }}
     </h2>
     <p class="new-evaluation-hint">{{ t('evaluation.new.hint') }}</p>
@@ -146,46 +153,55 @@ async function submit(): Promise<void> {
         {{ t('evaluation.new.definition', { definition: 'gnd_benchmark_v1' }) }}
       </p>
 
-      <fieldset class="new-evaluation-methods">
-        <legend>{{ t('evaluation.new.methods') }}</legend>
-        <p class="new-evaluation-hint">
-          {{ previous ? t('evaluation.new.fromEarlier') : t('evaluation.new.fromAll') }}
-        </p>
-        <div v-for="execution in eligible" :key="execution.id" class="new-evaluation-method">
-          <input
-            :id="`evaluate-${execution.id}`"
-            type="checkbox"
-            :checked="isChosen(execution.id)"
-            @change="chosen[execution.id] = ($event.target as HTMLInputElement).checked"
-          />
-          <label :for="`evaluate-${execution.id}`">{{ execution.method_name }}</label>
-        </div>
-      </fieldset>
+      <details class="new-evaluation-options">
+        <summary>
+          {{ t('evaluation.new.options', { count: selectedIds.length }) }}
+        </summary>
+        <div class="new-evaluation-options-content">
+          <fieldset class="new-evaluation-methods">
+            <legend>{{ t('evaluation.new.methods') }}</legend>
+            <p class="new-evaluation-hint">
+              {{ previous ? t('evaluation.new.fromEarlier') : t('evaluation.new.fromAll') }}
+            </p>
+            <div v-for="execution in eligible" :key="execution.id" class="new-evaluation-method">
+              <input
+                :id="`evaluate-${execution.id}`"
+                type="checkbox"
+                :checked="isChosen(execution.id)"
+                @change="chosen[execution.id] = ($event.target as HTMLInputElement).checked"
+              />
+              <label :for="`evaluate-${execution.id}`">{{ execution.method_name }}</label>
+            </div>
+          </fieldset>
 
-      <div class="new-evaluation-field">
-        <label for="evaluate-aggregation">{{ t('evaluation.new.aggregation') }}</label>
-        <select id="evaluate-aggregation" v-model="aggregationChoice">
-          <option value="">{{ t('evaluation.new.noAggregation') }}</option>
-          <option
-            v-for="aggregation in completedAggregations"
-            :key="aggregation.id"
-            :value="aggregation.id"
-          >
-            {{
-              t('evaluation.new.aggregationOption', {
-                strategy: aggregation.strategy ?? '',
-                hash: aggregation.config_sha256.slice(0, 8),
-              })
-            }}
-          </option>
-        </select>
-        <p class="new-evaluation-hint">{{ t('evaluation.new.aggregationHint') }}</p>
-      </div>
+          <div class="new-evaluation-field">
+            <label for="evaluate-aggregation">{{ t('evaluation.new.aggregation') }}</label>
+            <select id="evaluate-aggregation" v-model="aggregationChoice">
+              <option value="">{{ t('evaluation.new.noAggregation') }}</option>
+              <option
+                v-for="aggregation in completedAggregations"
+                :key="aggregation.id"
+                :value="aggregation.id"
+              >
+                {{
+                  t('evaluation.new.aggregationOption', {
+                    strategy: aggregation.strategy ?? '',
+                    hash: aggregation.config_sha256.slice(0, 8),
+                  })
+                }}
+              </option>
+            </select>
+            <p class="new-evaluation-hint">{{ t('evaluation.new.aggregationHint') }}</p>
+          </div>
+        </div>
+      </details>
 
       <p v-if="errorText" role="alert" class="new-evaluation-error">{{ errorText }}</p>
-      <AppButton class="new-evaluation-submit" type="submit" :disabled="!canSubmit">
-        {{ create.isPending.value ? t('evaluation.new.submitting') : t('evaluation.new.submit') }}
-      </AppButton>
+      <div class="app-form-actions">
+        <AppButton class="new-evaluation-submit" type="submit" :disabled="!canSubmit">
+          {{ create.isPending.value ? t('evaluation.new.submitting') : t('evaluation.new.submit') }}
+        </AppButton>
+      </div>
     </template>
   </form>
 </template>
@@ -204,6 +220,10 @@ async function submit(): Promise<void> {
   font-weight: var(--weight-semibold);
 }
 
+.new-evaluation-title:focus {
+  outline: none;
+}
+
 .new-evaluation-hint,
 .new-evaluation-definition {
   margin: 0;
@@ -217,6 +237,27 @@ async function submit(): Promise<void> {
   border: 0;
 }
 
+.new-evaluation-options {
+  inline-size: 100%;
+  border-block: 1px solid var(--border);
+}
+
+.new-evaluation-options > summary {
+  display: flex;
+  min-block-size: var(--control-min-size);
+  align-items: center;
+  padding-block: var(--space-2);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+
+.new-evaluation-options-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-block: var(--space-2) var(--space-4);
+}
+
 .new-evaluation-methods legend {
   padding: 0;
   font-weight: var(--weight-semibold);
@@ -224,9 +265,24 @@ async function submit(): Promise<void> {
 
 .new-evaluation-method {
   display: flex;
+  min-block-size: var(--control-min-size);
   align-items: center;
   gap: var(--space-2);
   margin-top: var(--space-1);
+}
+
+.new-evaluation-method input {
+  flex: none;
+}
+
+.new-evaluation-method label {
+  display: flex;
+  min-width: 0;
+  min-block-size: var(--control-min-size);
+  flex: 1;
+  align-items: center;
+  overflow-wrap: anywhere;
+  cursor: pointer;
 }
 
 .new-evaluation-field {

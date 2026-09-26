@@ -27,14 +27,19 @@ function loadMore(): void {
 <template>
   <div class="snapshot-list">
     <template v-if="query.isPending.value">
-      <AppFeedback announcement="polite">{{ t('data.loading') }}</AppFeedback>
+      <AppFeedback class="app-card" announcement="polite">{{ t('data.loading') }}</AppFeedback>
       <div class="snapshot-list-skeleton" aria-hidden="true">
-        <div v-for="row in 3" :key="row" class="snapshot-skeleton">
+        <div v-for="row in 3" :key="row" class="snapshot-skeleton app-resource-card">
           <span></span><span></span><span></span>
         </div>
       </div>
     </template>
-    <AppFeedback v-else-if="accessUnavailable" announcement="assertive" tone="critical">
+    <AppFeedback
+      v-else-if="accessUnavailable"
+      class="app-card"
+      announcement="assertive"
+      tone="critical"
+    >
       {{ t('data.accessUnavailable') }}
       <template #actions>
         <AppButton :to="{ name: 'projects' }" variant="ghost">{{ t('projects.title') }}</AppButton>
@@ -42,6 +47,7 @@ function loadMore(): void {
     </AppFeedback>
     <AppFeedback
       v-else-if="query.isError.value && !query.data.value"
+      class="app-card"
       announcement="assertive"
       tone="critical"
     >
@@ -58,7 +64,7 @@ function loadMore(): void {
       </template>
     </AppFeedback>
     <template v-else>
-      <div v-if="snapshots.length === 0" class="snapshot-list-empty">
+      <div v-if="snapshots.length === 0" class="snapshot-list-empty app-card">
         <p>{{ t('data.empty') }}</p>
         <p>{{ t('data.emptyHint') }}</p>
       </div>
@@ -67,7 +73,7 @@ function loadMore(): void {
       </ul>
       <AppFeedback
         v-if="query.isError.value"
-        class="snapshot-list-feedback"
+        class="snapshot-list-feedback app-card"
         announcement="assertive"
         tone="critical"
       >
@@ -84,7 +90,7 @@ function loadMore(): void {
       </AppFeedback>
       <AppFeedback
         v-if="query.isFetchingNextPage.value"
-        class="snapshot-list-feedback"
+        class="snapshot-list-feedback app-card"
         announcement="polite"
       >
         {{ t('data.loadingMore') }}
@@ -107,7 +113,6 @@ function loadMore(): void {
   min-inline-size: 0;
 }
 .snapshot-list-empty {
-  padding-block: var(--space-6);
   color: var(--text-secondary);
 }
 .snapshot-list-empty p {
@@ -130,10 +135,6 @@ function loadMore(): void {
 .snapshot-skeleton {
   display: grid;
   gap: var(--space-3);
-  padding: var(--space-5);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
 }
 .snapshot-skeleton span {
   block-size: 1em;

@@ -83,22 +83,23 @@ watch(
 </script>
 
 <template>
-  <main class="project-snapshots">
-    <div class="project-snapshots-heading">
-      <h1>{{ t('data.title') }}</h1>
-      <AppButton
-        v-if="canImport"
-        class="project-snapshots-import"
-        variant="ghost"
-        :aria-expanded="importOpen"
-        aria-controls="project-import-panel"
-        @click="toggleImport"
-      >
-        <PhMinus v-if="importOpen" :size="18" aria-hidden="true" />
-        <PhUploadSimple v-else :size="18" aria-hidden="true" />
-        {{ importOpen ? t('data.hideImport') : t('data.importAction') }}
-      </AppButton>
-    </div>
+  <main class="project-snapshots app-page-frame">
+    <header class="project-snapshots-heading app-page-heading">
+      <h1 class="app-page-heading__title">{{ t('data.title') }}</h1>
+      <div v-if="canImport" class="app-page-heading__actions">
+        <AppButton
+          class="project-snapshots-import"
+          :variant="importOpen ? 'ghost' : 'solid'"
+          :aria-expanded="importOpen"
+          aria-controls="project-import-panel"
+          @click="toggleImport"
+        >
+          <PhMinus v-if="importOpen" :size="18" aria-hidden="true" />
+          <PhUploadSimple v-else :size="18" aria-hidden="true" />
+          {{ importOpen ? t('data.hideImport') : t('data.importAction') }}
+        </AppButton>
+      </div>
+    </header>
     <div
       v-show="importOpen && canImport"
       id="project-import-panel"
@@ -112,11 +113,17 @@ watch(
     </div>
     <AppFeedback
       v-if="session.status === 'idle' || session.status === 'loading'"
+      class="app-card"
       announcement="polite"
     >
       {{ t('data.loading') }}
     </AppFeedback>
-    <AppFeedback v-else-if="session.status === 'error'" announcement="assertive" tone="critical">
+    <AppFeedback
+      v-else-if="session.status === 'error'"
+      class="app-card"
+      announcement="assertive"
+      tone="critical"
+    >
       {{ t('projects.sessionLoadError') }}
       <template #actions
         ><AppButton variant="ghost" @click="session.initialize()">{{
@@ -125,10 +132,15 @@ watch(
       >
     </AppFeedback>
     <template v-else-if="canUseData">
-      <AppFeedback v-if="query.isPending.value" announcement="polite">{{
+      <AppFeedback v-if="query.isPending.value" class="app-card" announcement="polite">{{
         t('data.loading')
       }}</AppFeedback>
-      <AppFeedback v-else-if="query.isError.value" announcement="assertive" tone="critical">
+      <AppFeedback
+        v-else-if="query.isError.value"
+        class="app-card"
+        announcement="assertive"
+        tone="critical"
+      >
         {{ accessUnavailable ? t('data.accessUnavailable') : t('data.projectLoadError') }}
         <template #actions>
           <AppButton v-if="accessUnavailable" :to="{ name: 'projects' }" variant="ghost">{{
@@ -156,26 +168,6 @@ watch(
 <style scoped>
 .project-snapshots {
   container: snapshot-index / inline-size;
-  flex: 1;
-  min-inline-size: 0;
-  inline-size: 100%;
-  max-inline-size: 60rem;
-  margin-inline: auto;
-  padding: var(--space-8) var(--page-gutter);
-}
-.project-snapshots-heading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3) var(--space-6);
-  margin-block-end: var(--space-6);
-}
-.project-snapshots h1 {
-  margin: 0;
-  font-size: var(--font-size-page);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-height-page);
 }
 .project-snapshots-import svg {
   flex-shrink: 0;

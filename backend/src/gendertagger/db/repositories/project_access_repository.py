@@ -110,6 +110,7 @@ class SqlAlchemyProjectAccessRepository:
                 created_by_user_id=project.created_by_user_id,
                 created_at=project.created_at,
                 working_aggregation_execution_id=project.working_aggregation_execution_id,
+                game_mode_enabled=project.game_mode_enabled,
                 current_user_role=role,
                 current_user_can_manage_members=project.manager_user_id == user_id,
             )

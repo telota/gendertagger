@@ -189,9 +189,14 @@ and CSRF attachment.
   Keep actual draft values in their view. Path/parameter changes and sign-out confirm Stay or Discard and
   leave; only committed navigation or successful logout discards. Failed writes remain dirty; successful
   writes update their baseline. Guard late responses after discard/unmount and session replacement.
-  Ordinary query/hash navigation retains existing semantics. Submitted work is never rolled back;
-  bulk departure stops later submissions after the current one. The accepted
-  [header brief](frontend-header-proposal.md) records coverage and limits.
+  Ordinary query/hash navigation retains existing semantics, except that changing or clearing the selected
+  person in a review query, including a queue change that clears the selection, also confirms first;
+  same-person filter refreshes keep the detail mounted. Sign-out asks before its request. Nothing is saved
+  or resubmitted implicitly. Submitted work is never rolled back; bulk departure stops later submissions
+  after the current one. Registered drafts cover review decisions and bulk input, import,
+  project/run/aggregation/evaluation/export creation, personal settings, branding, account create/edit,
+  and team create/rename. Search/filter controls and immediate membership commands are not drafts.
+  Browser tab closure is outside this in-application guard's scope.
 
 ## Error handling
 
@@ -233,6 +238,12 @@ and CSRF attachment.
 - Utility classes, if introduced, are token-backed and enumerable; ad-hoc inline `style` attributes carrying
   layout are not used. Inline style is acceptable only for genuinely dynamic values such as a computed bar
   width.
+- Repeated view geometry uses the opt-in recipes in `src/styles/layout.css`: `app-page-frame`,
+  `app-page-heading` and its named elements, `app-fact-list` and its item, `app-resource-card`, and
+  `app-multiline-field`. Keep route width, named containers, resource-card topology, and feature-specific
+  typography in scoped styles rather than broadening a shared recipe. Every page-owning `main` uses the
+  frame and does not redefine its outer padding. Only review and snapshot annotation may add the named
+  `app-page-frame--dense` modifier; dense child rows and panels remain feature-owned.
 - The label palette is applied only through the domain components that own it. A component does not reach
   for `--male` directly.
 

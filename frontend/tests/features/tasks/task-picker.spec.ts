@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -23,10 +26,26 @@ import {
 import { waitFor } from '../../helpers/wait'
 
 const catalogues = { de, en }
+const PROJECT_TASK_SOURCE = readFileSync(
+  join(import.meta.dirname, '../../../src/features/tasks/ProjectTaskView.vue'),
+  'utf8',
+)
 const mounted: VueWrapper[] = []
 afterEach(() => {
   for (const wrapper of mounted.splice(0)) wrapper.unmount()
   document.body.replaceChildren()
+})
+
+describe('task picker layout recipes', () => {
+  it('cards every standalone feedback state with the shared recipe', () => {
+    const template = PROJECT_TASK_SOURCE.split('</script>')[1]?.split('<style scoped>')[0] ?? ''
+    const feedbackTags = [...template.matchAll(/<AppFeedback\b([^>]*)>/gs)]
+
+    expect(feedbackTags.length).toBeGreaterThan(0)
+    for (const [, attributes] of feedbackTags) {
+      expect(attributes).toMatch(/class="[^"]*\bapp-card\b[^"]*"/)
+    }
+  })
 })
 
 describe.each(['de', 'en'] as const)('independent project picker in %s', (locale) => {
@@ -97,6 +116,37 @@ describe.each(['de', 'en'] as const)('independent project picker in %s', (locale
     expect(server.writes).toEqual([])
   })
 
+  it('opens game mode from the same exact completed-result picker', async () => {
+    const { wrapper, server } = await mount('game')
+    await waitFor(() => expect(wrapper.findAll('.task-option')).toHaveLength(1))
+    expect(wrapper.vm.$router.currentRoute.value.name).toBe('projectGame')
+    const link = wrapper.get<HTMLAnchorElement>('.task-option a')
+    expect(link.text()).toBe(messages.openGame)
+    expect(link.attributes('href')).toContain(`/aggregations/${RESULT}/game`)
+    expect(
+      server.requests.some(
+        (request) =>
+          request.path.endsWith('/snapshots') ||
+          request.path.endsWith('/runs') ||
+          request.path.endsWith('/aggregations'),
+      ),
+    ).toBe(false)
+    await expectNoAxeViolations(wrapper.get('.task-entry').element)
+    await link.trigger('click')
+    await waitFor(() => expect(wrapper.vm.$router.currentRoute.value.name).toBe('game'))
+    expect(server.writes).toEqual([])
+  })
+
+  it('blocks the game picker when the project has disabled game mode', async () => {
+    const { wrapper, server } = await mount('game', taskServer({ gameEnabled: false }))
+    await waitFor(() =>
+      expect(wrapper.get('.task-entry').text()).toContain(catalogues[locale].game.disabled),
+    )
+    expect(wrapper.find('.task-option').exists()).toBe(false)
+    expect(wrapper.get('.task-entry > .app-feedback').classes()).toContain('app-card')
+    expect(server.requests.some((request) => request.path.endsWith('/review-results'))).toBe(false)
+  })
+
   it('lists completed results without a working pointer even when the overall run failed', async () => {
     const { wrapper, server } = await mount(
       `review?snapshot=${SNAPSHOT}&run=${RUN}`,
@@ -157,6 +207,9 @@ describe.each(['de', 'en'] as const)('independent project picker in %s', (locale
     const heading = '.task-annotation-choice h2'
     await waitFor(() => expect(wrapper.find(heading).exists()).toBe(true))
     await waitFor(() => expect(document.activeElement).toBe(wrapper.get(heading).element))
+    expect(wrapper.get('.task-context').classes()).toContain('app-resource-card')
+    expect(wrapper.get('.task-annotation-choice').classes()).toContain('app-card')
+    expect(wrapper.findAll('.app-card .app-card, .app-card .app-resource-card')).toHaveLength(0)
     // Once resolved, arriving run options must not steal focus from the current control.
     const change = wrapper.get<HTMLAnchorElement>('.task-context a')
     change.element.focus()
@@ -192,6 +245,10 @@ describe.each(['de', 'en'] as const)('independent project picker in %s', (locale
     )
     await waitFor(() => expect(wrapper.get('.task-entry').text()).toContain(messages.resultError))
     expect(wrapper.get('.task-entry').text()).not.toContain(messages.noReviewSnapshots)
+    const feedback = wrapper
+      .findAll('.app-feedback')
+      .find((entry) => entry.text().includes(messages.resultError))
+    expect(feedback?.classes()).toContain('app-card')
     expect(button(wrapper, catalogues[locale].projects.retry).exists()).toBe(true)
   })
 
@@ -212,6 +269,7 @@ describe.each(['de', 'en'] as const)('independent project picker in %s', (locale
         expect(wrapper.get('.task-entry').text()).toContain(messages.selectionUnavailable),
       )
       expect(wrapper.find('.task-option').exists()).toBe(false)
+      expect(wrapper.get('.app-feedback').classes()).toContain('app-card')
       expect(server.requests.some((r) => r.path.endsWith('/aggregations'))).toBe(false)
     },
   )

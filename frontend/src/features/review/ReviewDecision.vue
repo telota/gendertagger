@@ -339,6 +339,7 @@ onBeforeUnmount(() => {
           <textarea
             id="decision-comment"
             v-model="comment"
+            class="app-multiline-field"
             rows="2"
             aria-labelledby="decision-comment-summary"
           ></textarea>
@@ -535,11 +536,6 @@ onBeforeUnmount(() => {
 
 .decision-comment-disclosure .decision-comment {
   padding-top: var(--space-2);
-}
-
-.decision-comment textarea {
-  width: 100%;
-  font: inherit;
 }
 
 .decision-muted {

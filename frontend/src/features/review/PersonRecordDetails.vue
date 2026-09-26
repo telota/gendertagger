@@ -81,8 +81,8 @@ const isEmpty = computed(
   <div class="record">
     <p v-if="isEmpty" class="record-muted">{{ t('review.detail.person.empty') }}</p>
 
-    <dl v-if="facts.length > 0" class="record-facts app-facts">
-      <div v-for="fact in facts" :key="fact.key" class="record-fact app-fact">
+    <dl v-if="facts.length > 0" class="record-facts app-fact-list">
+      <div v-for="fact in facts" :key="fact.key" class="record-fact app-fact-list__item">
         <dt>{{ fact.label }}</dt>
         <dd>{{ fact.value }}</dd>
       </div>
@@ -138,21 +138,6 @@ const isEmpty = computed(
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-}
-
-.record-facts {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-}
-
-.record-fact dt {
-  color: var(--text-secondary);
-}
-
-.record-fact dd {
-  margin: 0;
-  overflow-wrap: anywhere;
 }
 
 .record-subtitle {

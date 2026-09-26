@@ -287,17 +287,12 @@ function retryContext(): void {
 </script>
 
 <template>
-  <main class="review">
-    <p v-if="session.status === 'idle' || session.status === 'loading'" role="status">
-      {{ t('review.loading') }}
-    </p>
-    <div v-else-if="session.status === 'error'" class="review-load-error">
-      <p role="alert">{{ t('projects.sessionLoadError') }}</p>
-      <AppButton type="button" @click="retrySession">{{ t('review.retry') }}</AppButton>
-    </div>
-    <template v-else-if="isSignedIn">
-      <div class="review-heading-row">
-        <h1 class="review-title">{{ isPeople ? t('review.people.title') : t('review.title') }}</h1>
+  <main class="review app-page-frame app-page-frame--dense">
+    <header class="review-heading-row app-page-heading">
+      <h1 class="review-title app-page-heading__title">
+        {{ isPeople ? t('review.people.title') : t('review.title') }}
+      </h1>
+      <div v-if="isSignedIn" class="app-page-heading__actions">
         <AppButton
           v-if="isPeople"
           variant="ghost"
@@ -320,7 +315,16 @@ function retryContext(): void {
           <PhCaretDown v-else :size="16" aria-hidden="true" />
         </AppButton>
       </div>
+    </header>
 
+    <p v-if="session.status === 'idle' || session.status === 'loading'" role="status">
+      {{ t('review.loading') }}
+    </p>
+    <div v-else-if="session.status === 'error'" class="review-load-error">
+      <p role="alert">{{ t('projects.sessionLoadError') }}</p>
+      <AppButton type="button" @click="retrySession">{{ t('review.retry') }}</AppButton>
+    </div>
+    <template v-else-if="isSignedIn">
       <p v-if="aggregation.isPending.value" role="status">{{ t('review.loading') }}</p>
       <div v-else-if="aggregation.isError.value && !validContext" class="review-load-error">
         <p role="alert">{{ t('review.aggregationLoadError') }}</p>
@@ -492,11 +496,7 @@ function retryContext(): void {
 
 <style scoped>
 .review-heading-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
+  margin-block-end: 0;
 }
 
 .review-context {
@@ -562,9 +562,7 @@ function retryContext(): void {
 }
 .review {
   container: review-workbench / inline-size;
-  min-width: 0;
   overflow-wrap: anywhere;
-  padding: var(--space-8) var(--page-gutter);
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -574,12 +572,6 @@ function retryContext(): void {
 .review-context-link {
   color: var(--accent);
   text-underline-offset: 0.2em;
-}
-
-.review-title {
-  margin: 0;
-  font-size: var(--font-size-page);
-  line-height: var(--line-height-page);
 }
 
 .review-subtitle,

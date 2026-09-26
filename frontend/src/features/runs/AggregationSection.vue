@@ -214,12 +214,12 @@ function loadMore(): void {
       <p class="aggregations-hint">{{ t('aggregations.hint') }}</p>
     </div>
 
-    <p v-if="!runSucceeded" class="aggregations-waiting">
+    <p v-if="!runSucceeded" class="aggregations-waiting app-card">
       {{ t('aggregations.waitingForRun') }}
     </p>
 
-    <p v-if="list.isPending.value" role="status">{{ t('runs.loading') }}</p>
-    <div v-else-if="list.isError.value" class="aggregations-load-error">
+    <p v-if="list.isPending.value" class="app-card" role="status">{{ t('runs.loading') }}</p>
+    <div v-else-if="list.isError.value" class="aggregations-load-error app-card">
       <p role="alert">{{ t('aggregations.loadError') }}</p>
       <AppButton class="aggregations-retry" type="button" @click="() => list.refetch()">
         {{ t('runs.retry') }}
@@ -228,7 +228,7 @@ function loadMore(): void {
     <template v-else>
       <p
         v-if="aggregations.length === 0 && !(create.isPending.value && attempt === 'auto')"
-        class="aggregations-empty"
+        class="aggregations-empty app-card"
       >
         {{ t('aggregations.empty') }}
       </p>
@@ -289,8 +289,8 @@ function loadMore(): void {
             : ''
       }}
     </p>
-    <p v-if="errorText" role="alert" class="aggregations-error">{{ errorText }}</p>
-    <p v-if="reusedId" class="aggregations-reused" role="status">
+    <p v-if="errorText" role="alert" class="aggregations-error app-card">{{ errorText }}</p>
+    <p v-if="reusedId" class="aggregations-reused app-card" role="status">
       {{ t('aggregations.reused') }}
       <RouterLink
         class="aggregations-reused-link"
@@ -303,7 +303,7 @@ function loadMore(): void {
       </RouterLink>
     </p>
 
-    <details v-if="canOperate && runSucceeded" class="aggregations-advanced">
+    <details v-if="canOperate && runSucceeded" class="aggregations-advanced app-card">
       <summary>{{ t('aggregations.advanced.title') }}</summary>
       <form class="aggregations-form" novalidate @submit.prevent="submitManual">
         <p class="aggregations-hint">{{ t('aggregations.advanced.hint') }}</p>
@@ -436,8 +436,6 @@ function loadMore(): void {
 
 .aggregations-advanced {
   width: 100%;
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border);
 }
 
 .aggregations-form {
@@ -449,7 +447,7 @@ function loadMore(): void {
 }
 
 .aggregations-selection {
-  width: min(100%, 40rem);
+  width: 100%;
   margin: 0;
   padding: 0;
   border: 0;

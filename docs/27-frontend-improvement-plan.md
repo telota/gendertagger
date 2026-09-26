@@ -15,12 +15,12 @@ the [design guidelines](25-frontend-design-guidelines.md) govern presentation an
 The package sequence below remains the roadmap; implementation evidence and pending work are recorded
 separately below.
 
-The delivered classification/navigation design is recorded in the
-[classification and independent review proposal](frontend-classification-proposal.md). The user chose
-explicit picker entry with the working result marked as recommended, and manual annotation before
-classification. Preparation established a project-wide availability contract, navigation context
-validation, and annotation draft/cache fixes. The independent picker views, snapshot-only annotation
-workbench and availability-based sidebar are implemented in the 2026-09-26 increment below.
+The delivered classification/navigation design is recorded in the delivery plan's
+[decision D5](24-frontend-delivery-plan.md#d5--manual-annotation-has-independent-snapshot-entry). The user
+chose explicit picker entry with the working result marked as recommended, and manual annotation before
+classification. Preparation established a project-wide availability contract, navigation context validation,
+and annotation draft/cache fixes. The independent picker views, snapshot-only annotation workbench and
+availability-based sidebar are implemented in the 2026-09-26 increment below.
 
 Inputs are the local `audit.md` and saved frontend critique
 `.impeccable/critique/2026-09-25T12-21-09Z__frontend-src.md`, checked against source at `d24f541`.
@@ -99,12 +99,13 @@ surfaces.
 
 ## Classification and review preparation — 2026-09-25
 
-The accepted [entry brief](frontend-classification-proposal.md) now replaces D5's aggregation-only
-manual entry target. The first preparation batch adds `ProjectDataAvailability` through the ordinary
-project service/repository and viewer-authorized API, with generated OpenAPI and frontend transport.
-Its existence queries cover the whole project independently of cursor pages and the working pointer;
-completed aggregation eligibility does not depend on the parent run being successful. No persistence
-migration, dependency change or scientific semantics change is required.
+The accepted classification entry design, now recorded in
+[D5](24-frontend-delivery-plan.md#d5--manual-annotation-has-independent-snapshot-entry), replaced its former
+aggregation-only manual entry target. The first preparation batch adds `ProjectDataAvailability` through the
+ordinary project service/repository and viewer-authorized API, with generated OpenAPI and frontend
+transport. Its existence queries cover the whole project independently of cursor pages and the working
+pointer; completed aggregation eligibility does not depend on the parent run being successful. No
+persistence migration, dependency change or scientific semantics change is required.
 
 Sidebar context now validates aggregation/run/snapshot/project relationships and exposes aggregation
 workbench links only for completed results. Existing working-pointer fallback remains until the new
@@ -156,7 +157,7 @@ integration suites and the combined coverage gate were not rerun for this fronte
 Live keyboard/scroll/focus and desktop/mobile visual checks remain pending: this session had no connected
 browser and could not open Chrome. These automated results do not close the live checks.
 
-**H0 proposal drafted for review.** The [header content proposal](frontend-header-proposal.md) provides
+**H0 proposal drafted for review.** The header content proposal provides
 a recommended purpose, ownership/source tables, route/state matrix, desktop/mobile compositions, and
 open decisions. It proposes explicit project identity/switching on project routes, stable session
 access, and page-owned scientific/task context. No header composition or sidebar relocation is approved
@@ -228,11 +229,12 @@ is ready for that verification; G1 acceptance is not closed solely on automated 
 
 ## Header increment — 2026-09-25
 
-**H1 implemented; live verification pending.** The [accepted header brief](frontend-header-proposal.md)
-replaces the earlier proposal. Short, authorized breadcrumbs identify project/location without fetching
-scientific ancestry solely for the shell. The account name opens Personal settings and Sign out.
-Project switching now sits above project destinations in the sidebar; the collapsed rail has a named
-control and tooltip, and mobile uses the same control inside the drawer. Language/theme remain below.
+**H1 implemented; live verification pending.** The accepted header brief, now the
+[global header guidelines](25-frontend-design-guidelines.md#global-header), replaces the earlier proposal.
+Short, authorized breadcrumbs identify project/location without fetching scientific ancestry solely for the
+shell. The account name opens Personal settings and Sign out. Project switching now sits above project
+destinations in the sidebar; the collapsed rail has a named control and tooltip, and mobile uses the same
+control inside the drawer. Language/theme remain below.
 
 Both shell locations share the existing principal-scoped project query. Pending/error/access-loss states
 clear old identity and provide an appropriate route out or retry. Account/session failures remain
@@ -620,7 +622,7 @@ contents and priority before choosing alignment, density, sticky behavior, or me
 
 **H0 deliverable:** purpose statement, included/excluded contents with reasons, header/page/sidebar
 ownership, route/state matrix, and small desktop/mobile compositions. The accepted choices and updated
-composition now live in the [header brief](frontend-header-proposal.md).
+composition now live in the [global header guidelines](25-frontend-design-guidelines.md#global-header).
 
 ### H1: implement the resolved design
 

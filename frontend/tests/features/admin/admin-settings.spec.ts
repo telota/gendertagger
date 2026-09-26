@@ -150,6 +150,9 @@ describe.each(['de', 'en'] as const)('AdminSettingsView in %s', (locale: AppLoca
     )
     await flushPromises()
     expect(operator.get('main [role="alert"]').text()).toBe(messages.forbidden)
+    expect(operator.get('.admin-settings-error').classes()).toEqual(
+      expect.arrayContaining(['app-feedback', 'app-feedback--critical', 'app-card']),
+    )
   })
 
   it('routes a password-change-required administrator and an unauthenticated visitor away from settings', async () => {
@@ -214,6 +217,14 @@ describe.each(['de', 'en'] as const)('AdminSettingsView in %s', (locale: AppLoca
     )
     await waitFor(() => expect(wrapper.find('.admin-settings-editor').exists()).toBe(true))
 
+    expect(wrapper.get('.admin-settings-editor').classes()).toEqual(
+      expect.arrayContaining(['app-card', 'app-card--sectioned']),
+    )
+    expect(wrapper.get('.admin-settings-deployment-card').classes()).toEqual(
+      expect.arrayContaining(['app-card', 'app-card--sectioned']),
+    )
+    expect(wrapper.find('.app-card .app-card').exists()).toBe(false)
+
     expect(rowFor(wrapper, messages.fields.institutionName).text()).toContain(
       messages.status.overridden,
     )
@@ -266,6 +277,9 @@ describe.each(['de', 'en'] as const)('AdminSettingsView in %s', (locale: AppLoca
     await waitFor(() =>
       expect(wrapper.get('main [role="alert"]').text()).toBe(messages.settingsUnavailable),
     )
+    expect(wrapper.get('.admin-settings-error').classes()).toEqual(
+      expect.arrayContaining(['app-feedback', 'app-feedback--critical', 'app-card']),
+    )
 
     await buttonWithText(wrapper, messages.retry).trigger('click')
     await waitFor(() => expect(wrapper.find('.admin-settings-editor').exists()).toBe(true))
@@ -290,6 +304,9 @@ describe.each(['de', 'en'] as const)('AdminSettingsView in %s', (locale: AppLoca
       ),
     )
     await waitFor(() => expect(wrapper.get('main [role="alert"]').text()).toBe(messages.loadError))
+    expect(wrapper.get('.admin-settings-error').classes()).toEqual(
+      expect.arrayContaining(['app-feedback', 'app-feedback--critical', 'app-card']),
+    )
     expect(wrapper.find('.admin-settings-editor').exists()).toBe(false)
   })
 

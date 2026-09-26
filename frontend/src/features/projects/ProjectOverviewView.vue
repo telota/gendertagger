@@ -4,8 +4,10 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import AppButton from '@/components/base/AppButton.vue'
+import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useSessionStore } from '@/stores/session'
 
+import ProjectGameModeSetting from './ProjectGameModeSetting.vue'
 import ProjectDataStats from './ProjectDataStats.vue'
 import ProjectOverviewSection from './ProjectOverviewSection.vue'
 import ProjectReviewStats from './ProjectReviewStats.vue'
@@ -47,25 +49,52 @@ const query = useProject(projectId, isSignedIn)
 </script>
 
 <template>
-  <main class="project-overview">
-    <p v-if="session.status === 'idle' || session.status === 'loading'" role="status">
+  <main class="project-overview app-page-frame">
+    <header class="project-overview-heading app-page-heading">
+      <h1 class="project-overview-title app-page-heading__title">
+        {{ query.data.value?.display_name ?? t('nav.overview') }}
+      </h1>
+    </header>
+
+    <AppFeedback
+      v-if="session.status === 'idle' || session.status === 'loading'"
+      class="app-card"
+      announcement="polite"
+    >
       {{ t('projects.loading') }}
-    </p>
-    <div v-else-if="session.status === 'error'" class="project-overview-load-error">
-      <p role="alert">{{ t('projects.sessionLoadError') }}</p>
-      <AppButton type="button" @click="retrySession">{{ t('projects.retry') }}</AppButton>
-    </div>
-    <template v-else-if="isSignedIn">
-      <p v-if="query.isPending.value" role="status">{{ t('projects.loading') }}</p>
-      <div v-else-if="query.isError.value" class="project-overview-load-error">
-        <p role="alert">{{ t('projects.overview.loadError') }}</p>
-        <AppButton type="button" @click="() => query.refetch()">{{
+    </AppFeedback>
+    <AppFeedback
+      v-else-if="session.status === 'error'"
+      class="project-overview-load-error app-card"
+      announcement="assertive"
+      tone="critical"
+    >
+      {{ t('projects.sessionLoadError') }}
+      <template #actions>
+        <AppButton type="button" variant="ghost" @click="retrySession">{{
           t('projects.retry')
         }}</AppButton>
-      </div>
+      </template>
+    </AppFeedback>
+    <template v-else-if="isSignedIn">
+      <AppFeedback v-if="query.isPending.value" class="app-card" announcement="polite">
+        {{ t('projects.loading') }}
+      </AppFeedback>
+      <AppFeedback
+        v-else-if="query.isError.value"
+        class="project-overview-load-error app-card"
+        announcement="assertive"
+        tone="critical"
+      >
+        {{ t('projects.overview.loadError') }}
+        <template #actions>
+          <AppButton type="button" variant="ghost" @click="() => query.refetch()">{{
+            t('projects.retry')
+          }}</AppButton>
+        </template>
+      </AppFeedback>
       <template v-else-if="query.data.value">
-        <h1 class="project-overview-title">{{ query.data.value.display_name }}</h1>
-        <div class="project-overview-card">
+        <div class="project-overview-card app-card app-card--sectioned">
           <ProjectOverviewSection>
             <dl class="project-overview-facts">
               <div class="project-overview-fact">
@@ -97,6 +126,11 @@ const query = useProject(projectId, isSignedIn)
             :project-id="projectId"
             :aggregation-id="query.data.value.working_aggregation_execution_id ?? null"
           />
+          <ProjectGameModeSetting
+            v-if="query.data.value.current_user_role === 'operator'"
+            :project-id="projectId"
+            :enabled="query.data.value.game_mode_enabled === true"
+          />
         </div>
       </template>
     </template>
@@ -106,39 +140,6 @@ const query = useProject(projectId, isSignedIn)
 <style scoped>
 .project-overview {
   container: project-overview / inline-size;
-  flex: 1;
-  min-inline-size: 0;
-  inline-size: 100%;
-  max-inline-size: 60rem;
-  margin-inline: auto;
-  padding: var(--space-8) var(--page-gutter);
-}
-
-.project-overview-title {
-  margin: 0 0 var(--space-4);
-  font-size: var(--font-size-page);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-height-page);
-}
-
-.project-overview-load-error {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-4);
-}
-
-.project-overview-load-error p {
-  margin: 0;
-  color: var(--critical-text);
-}
-
-/* The one content card: tonal panel, hairline border, card radius, no shadow (docs/25). Its
-   sections are divided by hairlines instead of being cards of their own. */
-.project-overview-card {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
 }
 
 /* Four facts: one column, two, or all four in a row — never three and an orphan. Side by side, a

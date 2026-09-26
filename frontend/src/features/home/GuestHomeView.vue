@@ -51,11 +51,15 @@ async function submit(): Promise<void> {
 
 <template>
   <div class="home-guest">
-    <h1 class="home-guest-lede">{{ t('home.guest.lede') }}</h1>
-    <p class="home-guest-intro">{{ t('home.guest.intro') }}</p>
+    <header class="home-guest-heading app-page-heading">
+      <div class="app-page-heading__copy">
+        <h1 class="home-guest-lede app-page-heading__title">{{ t('home.guest.lede') }}</h1>
+        <p class="home-guest-intro app-page-heading__description">{{ t('home.guest.intro') }}</p>
+      </div>
+    </header>
 
     <form
-      class="home-guest-signin"
+      class="home-guest-signin app-card"
       novalidate
       :aria-label="t('login.title')"
       @submit.prevent="submit"
@@ -93,7 +97,10 @@ async function submit(): Promise<void> {
       <p class="home-guest-account-hint">{{ t('home.guest.accountHint') }}</p>
     </form>
 
-    <ol class="home-guest-steps" :aria-label="t('home.guest.stepsLabel')">
+    <ol
+      class="home-guest-steps app-card app-card--sectioned"
+      :aria-label="t('home.guest.stepsLabel')"
+    >
       <li v-for="step in steps" :key="step.key" class="home-guest-step">
         <span class="home-guest-step-title">{{ step.title }}</span>
         <span class="home-guest-step-text">{{ step.text }}</span>
@@ -118,19 +125,10 @@ async function submit(): Promise<void> {
 }
 
 .home-guest-lede {
-  margin: 0 0 var(--space-3);
-  font-size: var(--font-size-title);
-  font-weight: var(--weight-regular);
-  line-height: var(--line-height-title);
-  color: var(--text-primary);
   text-wrap: pretty;
 }
 
 .home-guest-intro {
-  margin: 0 0 var(--space-6);
-  font-size: var(--font-size-body-strong);
-  line-height: var(--line-height-body);
-  color: var(--text-secondary);
   text-wrap: pretty;
 }
 
@@ -139,7 +137,7 @@ async function submit(): Promise<void> {
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-3);
-  margin-bottom: var(--space-10);
+  margin-bottom: var(--space-6);
 }
 
 .home-guest-signin-row {
@@ -186,9 +184,7 @@ async function submit(): Promise<void> {
 .home-guest-steps {
   counter-reset: step;
   margin: 0;
-  padding: 0;
   list-style: none;
-  border-top: 1px solid var(--grid);
 }
 
 .home-guest-step {
@@ -197,8 +193,12 @@ async function submit(): Promise<void> {
   grid-template-columns: var(--space-8) minmax(0, 1fr);
   column-gap: var(--space-3);
   row-gap: var(--space-2);
-  padding: var(--space-6) 0;
+  padding: var(--space-4);
   border-bottom: 1px solid var(--grid);
+}
+
+.home-guest-step:last-child {
+  border-bottom: 0;
 }
 
 .home-guest-step::before {

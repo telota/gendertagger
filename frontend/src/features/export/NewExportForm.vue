@@ -16,6 +16,10 @@ const props = defineProps<{ projectId: string; runId: string }>()
 
 const { t } = useI18n()
 const router = useRouter()
+const heading = ref<HTMLElement>()
+const advanced = ref<HTMLDetailsElement>()
+const advancedOpen = ref(false)
+defineExpose({ focusHeading: () => heading.value?.focus() })
 
 const runId = computed(() => props.runId)
 const aggregations = useAggregationList(runId)
@@ -73,6 +77,8 @@ function resetDraft(): void {
   policy.value = POLICY_MACHINE
   respId.value = DEFAULT_RESP
   acceptedDraft.value = null
+  advancedOpen.value = false
+  if (advanced.value) advanced.value.open = false
 }
 useDraftRegistration(
   () =>
@@ -108,6 +114,10 @@ const errorText = computed(() => {
   return t('export.new.errors.generic')
 })
 
+function syncAdvancedState(event: Event): void {
+  advancedOpen.value = (event.currentTarget as HTMLDetailsElement).open
+}
+
 async function submit(): Promise<void> {
   if (!canSubmit.value) return
   const owner = draftGeneration
@@ -137,7 +147,9 @@ async function submit(): Promise<void> {
 
 <template>
   <form class="new-export" novalidate aria-labelledby="new-export-heading" @submit.prevent="submit">
-    <h2 id="new-export-heading" class="new-export-title">{{ t('export.new.title') }}</h2>
+    <h2 id="new-export-heading" ref="heading" class="new-export-title" tabindex="-1">
+      {{ t('export.new.title') }}
+    </h2>
 
     <p v-if="aggregations.isPending.value" role="status">{{ t('runs.loading') }}</p>
     <p v-else-if="completed.length === 0" class="new-export-hint">
@@ -177,63 +189,83 @@ async function submit(): Promise<void> {
         </p>
       </fieldset>
 
-      <fieldset class="new-export-field">
-        <legend>{{ t('export.new.policy') }}</legend>
-        <div class="new-export-choice">
-          <input
-            id="export-policy-machine"
-            v-model="policy"
-            type="radio"
-            name="policy"
-            value="machine_aggregation"
-          />
-          <label for="export-policy-machine">
-            <span class="new-export-token">{{ POLICY_MACHINE }}</span>
-            {{ t('export.new.policies.machine') }}
-          </label>
-        </div>
-        <div class="new-export-choice">
-          <input
-            id="export-policy-human"
-            v-model="policy"
-            type="radio"
-            name="policy"
-            value="human_overrides"
-          />
-          <label for="export-policy-human">
-            <span class="new-export-token">{{ POLICY_HUMAN }}</span>
-            {{ t('export.new.policies.human') }}
-          </label>
-        </div>
-        <p class="new-export-hint">{{ t('export.new.policyHint') }}</p>
-      </fieldset>
-
-      <template v-if="format === 'tei'">
-        <div class="new-export-field">
-          <span class="new-export-label">{{ t('export.new.profile') }}</span>
-          <span class="new-export-token">{{ TEI_PROFILE }}</span>
-        </div>
-        <div class="new-export-field">
-          <label for="export-resp">{{ t('export.new.resp') }}</label>
-          <input
-            id="export-resp"
-            v-model="respId"
-            type="text"
-            autocomplete="off"
-            :aria-invalid="!respValid"
-            aria-describedby="export-resp-hint"
-          />
-          <p id="export-resp-hint" class="new-export-hint">{{ t('export.new.respHint') }}</p>
-          <p v-if="!respValid" role="alert" class="new-export-error">
+      <details ref="advanced" class="new-export-advanced" @toggle="syncAdvancedState">
+        <summary class="new-export-advanced-summary">
+          <span>{{ t('export.new.advanced') }}</span>
+          <span class="new-export-advanced-policy new-export-token">{{ policy }}</span>
+          <span
+            v-if="format === 'tei' && !respValid && !advancedOpen"
+            class="new-export-advanced-error"
+          >
             {{ t('export.new.respInvalid') }}
-          </p>
+          </span>
+        </summary>
+        <div class="new-export-advanced-content">
+          <fieldset class="new-export-field">
+            <legend>{{ t('export.new.policy') }}</legend>
+            <div class="new-export-choice">
+              <input
+                id="export-policy-machine"
+                v-model="policy"
+                type="radio"
+                name="policy"
+                value="machine_aggregation"
+              />
+              <label for="export-policy-machine">
+                <span class="new-export-token">{{ POLICY_MACHINE }}</span>
+                {{ t('export.new.policies.machine') }}
+              </label>
+            </div>
+            <div class="new-export-choice">
+              <input
+                id="export-policy-human"
+                v-model="policy"
+                type="radio"
+                name="policy"
+                value="human_overrides"
+              />
+              <label for="export-policy-human">
+                <span class="new-export-token">{{ POLICY_HUMAN }}</span>
+                {{ t('export.new.policies.human') }}
+              </label>
+            </div>
+            <p class="new-export-hint">{{ t('export.new.policyHint') }}</p>
+          </fieldset>
+
+          <template v-if="format === 'tei'">
+            <div class="new-export-field">
+              <span class="new-export-label">{{ t('export.new.profile') }}</span>
+              <span class="new-export-token">{{ TEI_PROFILE }}</span>
+            </div>
+            <div class="new-export-field">
+              <label for="export-resp">{{ t('export.new.resp') }}</label>
+              <input
+                id="export-resp"
+                v-model="respId"
+                type="text"
+                autocomplete="off"
+                :aria-invalid="!respValid"
+                :aria-describedby="
+                  respValid ? 'export-resp-hint' : 'export-resp-hint export-resp-error'
+                "
+              />
+              <p id="export-resp-hint" class="new-export-hint">
+                {{ t('export.new.respHint') }}
+              </p>
+              <p v-if="!respValid" id="export-resp-error" role="alert" class="new-export-error">
+                {{ t('export.new.respInvalid') }}
+              </p>
+            </div>
+          </template>
         </div>
-      </template>
+      </details>
 
       <p v-if="errorText" role="alert" class="new-export-error">{{ errorText }}</p>
-      <AppButton class="new-export-submit" type="submit" :disabled="!canSubmit">
-        {{ create.isPending.value ? t('export.new.submitting') : t('export.new.submit') }}
-      </AppButton>
+      <div class="app-form-actions">
+        <AppButton class="new-export-submit" type="submit" :disabled="!canSubmit">
+          {{ create.isPending.value ? t('export.new.submitting') : t('export.new.submit') }}
+        </AppButton>
+      </div>
     </template>
   </form>
 </template>
@@ -241,6 +273,7 @@ async function submit(): Promise<void> {
 <style scoped>
 .new-export {
   display: flex;
+  min-inline-size: 0;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-3);
@@ -250,10 +283,13 @@ async function submit(): Promise<void> {
   margin: 0;
   font-size: var(--font-size-title);
   font-weight: var(--weight-semibold);
+  overflow-wrap: anywhere;
 }
 
 .new-export-field {
   display: flex;
+  min-inline-size: 0;
+  inline-size: 100%;
   flex-direction: column;
   gap: var(--space-1);
   margin: 0;
@@ -269,9 +305,65 @@ async function submit(): Promise<void> {
 
 .new-export-choice {
   display: flex;
+  min-block-size: var(--control-min-size);
   align-items: center;
   gap: var(--space-2);
   margin-top: var(--space-1);
+}
+
+.new-export-choice input {
+  flex: none;
+}
+
+.new-export-choice label {
+  display: inline-flex;
+  min-width: 0;
+  min-block-size: var(--control-min-size);
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-1);
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.new-export-advanced {
+  width: 100%;
+  padding-block-start: var(--space-2);
+  border-block-start: 1px solid var(--border);
+}
+
+.new-export-advanced-summary {
+  min-block-size: var(--control-min-size);
+  align-content: center;
+  cursor: pointer;
+  font-weight: var(--weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.new-export-advanced-policy {
+  margin-inline-start: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--font-size-small);
+  font-weight: var(--weight-regular);
+}
+
+.new-export-advanced-error {
+  display: block;
+  margin-block-start: var(--space-1);
+  color: var(--critical-text);
+  font-size: var(--font-size-small);
+  font-weight: var(--weight-regular);
+}
+
+.new-export-advanced-content {
+  display: flex;
+  min-inline-size: 0;
+  inline-size: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-block-start: var(--space-2);
 }
 
 .new-export-hint {

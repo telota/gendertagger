@@ -65,14 +65,22 @@ function onKeydown(event: KeyboardEvent): void {
       <p v-if="items.length === 0" class="review-list-empty">{{ t('review.list.empty') }}</p>
       <ul v-else ref="list" class="review-list-items" :aria-label="t('review.list.label')">
         <li v-for="item in items" :key="item.aggregated_result_id" class="row-item">
-          <input
+          <label
             v-if="selectable"
-            type="checkbox"
-            class="row-check"
-            :checked="ticked.has(item.tei_id)"
-            :aria-label="t('review.bulk.tick', { name: reviewItemName(item) })"
-            @change="emit('toggle', item.tei_id, ($event.target as HTMLInputElement).checked)"
-          />
+            class="row-check-target"
+            :for="`review-tick-${item.aggregated_result_id}`"
+          >
+            <input
+              :id="`review-tick-${item.aggregated_result_id}`"
+              type="checkbox"
+              class="row-check"
+              :checked="ticked.has(item.tei_id)"
+              @change="emit('toggle', item.tei_id, ($event.target as HTMLInputElement).checked)"
+            />
+            <span class="row-check-text">{{
+              t('review.bulk.tick', { name: reviewItemName(item) })
+            }}</span>
+          </label>
           <button
             type="button"
             class="row"
@@ -136,8 +144,23 @@ function onKeydown(event: KeyboardEvent): void {
   gap: var(--space-2);
 }
 
-.row-check {
-  flex-shrink: 0;
+.row-check-target {
+  display: inline-flex;
+  flex: none;
+  min-inline-size: var(--control-min-size);
+  min-block-size: var(--control-min-size);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.row-check-text {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .row {

@@ -4,6 +4,7 @@ import {
   PhExport,
   PhFolders,
   PhGearSix,
+  PhGameController,
   PhPencilSimpleLine,
   PhSquaresFour,
   PhTreeStructure,
@@ -51,6 +52,7 @@ const OWNED_ROUTES: Record<string, readonly string[]> = {
     'aggregationDetail',
   ],
   review: ['projectReview', 'review'],
+  game: ['projectGame', 'game'],
   people: ['projectAnnotation', 'snapshotAnnotations', 'people'],
   evaluations: ['evaluations', 'evaluationDetail'],
   exports: ['exports', 'exportDetail'],
@@ -101,8 +103,10 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
     ]
     const current = project.value
     if (current !== null) {
-      const { projectId, runId, currentUserRole, currentUserCanManageMembers } = current
+      const { projectId, runId, currentUserRole, currentUserCanManageMembers, gameModeEnabled } =
+        current
       const items: SidebarNavigationItem[] = []
+      const additionalItems: SidebarNavigationItem[] = []
       if (currentUserRole !== null) {
         items.push(
           item(
@@ -133,6 +137,11 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
                 link('projectReview', { projectId }),
               ),
             )
+            if (gameModeEnabled) {
+              additionalItems.push(
+                item('game', t('nav.game'), PhGameController, link('projectGame', { projectId })),
+              )
+            }
           }
           if (availability.data.value?.has_ready_snapshots) {
             items.push(
@@ -171,6 +180,13 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
                 },
               }
             : {}),
+        })
+      }
+      if (additionalItems.length) {
+        groups.push({
+          id: 'additional',
+          label: t('nav.additionalGroup'),
+          items: additionalItems,
         })
       }
       if (currentUserRole !== null && runId !== null) {

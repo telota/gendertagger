@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
 import AppButton from '@/components/base/AppButton.vue'
+import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
 
 import RunProvenance from './RunProvenance.vue'
@@ -38,47 +39,108 @@ const resolvedConfig = computed(() =>
 </script>
 
 <template>
-  <main class="aggregation-detail">
-    <p v-if="session.status === 'idle' || session.status === 'loading'" role="status">
-      {{ t('runs.loading') }}
-    </p>
-    <div v-else-if="session.status === 'error'" class="aggregation-detail-load-error">
-      <p role="alert">{{ t('projects.sessionLoadError') }}</p>
-      <AppButton type="button" @click="retrySession">{{ t('runs.retry') }}</AppButton>
-    </div>
-    <template v-else-if="isSignedIn">
-      <RouterLink
-        v-if="run.data.value"
-        class="aggregation-detail-back"
-        :to="{
-          name: 'runDetail',
-          params: { projectId, snapshotId: run.data.value.dataset_snapshot_id, runId },
-        }"
-      >
-        {{ t('aggregations.detail.backToRun') }}
-      </RouterLink>
+  <main class="aggregation-detail app-page-frame">
+    <RouterLink
+      v-if="isSignedIn && run.data.value"
+      class="aggregation-detail-back"
+      :to="{
+        name: 'runDetail',
+        params: { projectId, snapshotId: run.data.value.dataset_snapshot_id, runId },
+      }"
+    >
+      {{ t('aggregations.detail.backToRun') }}
+    </RouterLink>
 
-      <p v-if="aggregation.isPending.value" role="status">{{ t('runs.loading') }}</p>
-      <div v-else-if="aggregation.isError.value" class="aggregation-detail-load-error">
-        <p role="alert">{{ t('aggregations.detail.loadError') }}</p>
-        <AppButton
-          class="aggregation-detail-retry"
-          type="button"
-          @click="() => aggregation.refetch()"
+    <header class="aggregation-detail-page-heading app-page-heading">
+      <div class="app-page-heading__copy">
+        <h1 class="aggregation-detail-title app-page-heading__title">
+          {{ t('aggregations.detail.title') }}
+        </h1>
+        <p
+          v-if="isSignedIn && aggregation.data.value"
+          class="aggregation-detail-status"
+          role="status"
         >
-          {{ t('runs.retry') }}
-        </AppButton>
-      </div>
-      <template v-else-if="aggregation.data.value">
-        <h1 class="aggregation-detail-title">{{ t('aggregations.detail.title') }}</h1>
-        <p class="aggregation-detail-status" role="status">
           <span :class="`aggregation-detail-status--${aggregation.data.value.status}`">{{
             label(aggregation.data.value.status)
           }}</span>
         </p>
+      </div>
+      <div
+        v-if="isSignedIn && aggregation.data.value?.status === 'completed'"
+        class="aggregation-detail-actions app-page-heading__actions"
+      >
+        <AppButton
+          class="aggregation-detail-review"
+          variant="text"
+          :to="{ name: 'review', params: { projectId, runId, aggregationId } }"
+        >
+          {{ t('aggregations.detail.review') }}
+        </AppButton>
+        <AppButton
+          class="aggregation-detail-review aggregation-detail-people"
+          variant="text"
+          :to="{ name: 'people', params: { projectId, runId, aggregationId } }"
+        >
+          {{ t('aggregations.detail.people') }}
+        </AppButton>
+        <AppButton
+          class="aggregation-detail-review aggregation-detail-export"
+          variant="text"
+          :to="{ name: 'exports', params: { projectId, runId } }"
+        >
+          {{ t('aggregations.detail.export') }}
+        </AppButton>
+      </div>
+    </header>
+
+    <AppFeedback
+      v-if="session.status === 'idle' || session.status === 'loading'"
+      class="app-card"
+      announcement="polite"
+    >
+      {{ t('runs.loading') }}
+    </AppFeedback>
+    <AppFeedback
+      v-else-if="session.status === 'error'"
+      class="app-card"
+      announcement="assertive"
+      tone="critical"
+    >
+      {{ t('projects.sessionLoadError') }}
+      <template #actions>
+        <AppButton type="button" variant="ghost" @click="retrySession">
+          {{ t('runs.retry') }}
+        </AppButton>
+      </template>
+    </AppFeedback>
+    <template v-else-if="isSignedIn">
+      <AppFeedback v-if="aggregation.isPending.value" class="app-card" announcement="polite">
+        {{ t('runs.loading') }}
+      </AppFeedback>
+      <AppFeedback
+        v-else-if="aggregation.isError.value"
+        class="app-card"
+        announcement="assertive"
+        tone="critical"
+      >
+        {{ t('aggregations.detail.loadError') }}
+        <template #actions>
+          <AppButton
+            class="aggregation-detail-retry"
+            type="button"
+            variant="ghost"
+            :disabled="aggregation.isFetching.value"
+            @click="() => aggregation.refetch()"
+          >
+            {{ t('runs.retry') }}
+          </AppButton>
+        </template>
+      </AppFeedback>
+      <template v-else-if="aggregation.data.value">
         <div
           v-if="aggregation.data.value.failure_class || aggregation.data.value.failure_diagnostic"
-          class="aggregation-detail-failure"
+          class="aggregation-detail-failure app-card"
         >
           <p v-if="aggregation.data.value.failure_class" class="aggregation-detail-failure-class">
             {{ aggregation.data.value.failure_class }}
@@ -88,46 +150,30 @@ const resolvedConfig = computed(() =>
           </p>
         </div>
 
-        <RouterLink
-          v-if="aggregation.data.value.status === 'completed'"
-          class="aggregation-detail-review"
-          :to="{ name: 'review', params: { projectId, runId, aggregationId } }"
-        >
-          {{ t('aggregations.detail.review') }}
-        </RouterLink>
-        <RouterLink
-          v-if="aggregation.data.value.status === 'completed'"
-          class="aggregation-detail-review aggregation-detail-people"
-          :to="{ name: 'people', params: { projectId, runId, aggregationId } }"
-        >
-          {{ t('aggregations.detail.people') }}
-        </RouterLink>
-        <RouterLink
-          v-if="aggregation.data.value.status === 'completed'"
-          class="aggregation-detail-review aggregation-detail-export"
-          :to="{ name: 'exports', params: { projectId, runId } }"
-        >
-          {{ t('aggregations.detail.export') }}
-        </RouterLink>
-
-        <dl class="aggregation-detail-facts">
-          <div class="aggregation-detail-fact">
+        <dl class="aggregation-detail-facts app-fact-list app-card">
+          <div class="aggregation-detail-fact app-fact-list__item">
             <dt>{{ t('aggregations.item.strategy') }}</dt>
             <dd>{{ aggregation.data.value.strategy ?? '' }}</dd>
           </div>
-          <div class="aggregation-detail-fact">
+          <div class="aggregation-detail-fact app-fact-list__item">
             <dt>{{ t('aggregations.detail.created') }}</dt>
             <dd>{{ d(new Date(aggregation.data.value.created_at), 'timestamp') }}</dd>
           </div>
-          <div v-if="aggregation.data.value.started_at" class="aggregation-detail-fact">
+          <div
+            v-if="aggregation.data.value.started_at"
+            class="aggregation-detail-fact app-fact-list__item"
+          >
             <dt>{{ t('aggregations.detail.started') }}</dt>
             <dd>{{ d(new Date(aggregation.data.value.started_at), 'timestamp') }}</dd>
           </div>
-          <div v-if="aggregation.data.value.finished_at" class="aggregation-detail-fact">
+          <div
+            v-if="aggregation.data.value.finished_at"
+            class="aggregation-detail-fact app-fact-list__item"
+          >
             <dt>{{ t('aggregations.detail.finished') }}</dt>
             <dd>{{ d(new Date(aggregation.data.value.finished_at), 'timestamp') }}</dd>
           </div>
-          <div class="aggregation-detail-fact">
+          <div class="aggregation-detail-fact app-fact-list__item">
             <dt>{{ t('aggregations.item.configHash') }}</dt>
             <dd>
               <code class="aggregation-detail-hash">{{
@@ -137,14 +183,20 @@ const resolvedConfig = computed(() =>
           </div>
         </dl>
 
-        <section class="aggregation-detail-block" aria-labelledby="aggregation-config-heading">
+        <section
+          class="aggregation-detail-block app-card"
+          aria-labelledby="aggregation-config-heading"
+        >
           <h2 id="aggregation-config-heading" class="aggregation-detail-heading">
             {{ t('aggregations.detail.resolvedConfig') }}
           </h2>
           <pre class="aggregation-detail-config">{{ resolvedConfig }}</pre>
         </section>
 
-        <section class="aggregation-detail-block" aria-labelledby="aggregation-selection-heading">
+        <section
+          class="aggregation-detail-block app-card"
+          aria-labelledby="aggregation-selection-heading"
+        >
           <h2 id="aggregation-selection-heading" class="aggregation-detail-heading">
             {{ t('aggregations.detail.selection') }}
           </h2>
@@ -174,15 +226,19 @@ const resolvedConfig = computed(() =>
 
 <style scoped>
 .aggregation-detail {
-  padding: var(--space-8) var(--space-4);
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: var(--space-4);
-  max-width: 48rem;
+}
+
+.aggregation-detail-page-heading {
+  inline-size: 100%;
+  margin-block-end: 0;
 }
 
 .aggregation-detail-back {
+  align-self: flex-start;
   color: var(--accent);
   text-underline-offset: 0.2em;
 }
@@ -193,20 +249,6 @@ const resolvedConfig = computed(() =>
   text-underline-offset: 0.2em;
 }
 
-.aggregation-detail-title {
-  margin: 0;
-  font-size: var(--font-size-page);
-  line-height: var(--line-height-page);
-}
-
-.aggregation-detail-load-error {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-3);
-}
-
-.aggregation-detail-load-error p,
 .aggregation-detail-failure {
   margin: 0;
   color: var(--critical-text);
@@ -234,25 +276,7 @@ const resolvedConfig = computed(() =>
 }
 
 .aggregation-detail-facts {
-  display: grid;
-  gap: var(--space-2);
-  width: 100%;
-  margin: 0;
-}
-
-.aggregation-detail-fact {
-  display: grid;
-  grid-template-columns: 9rem 1fr;
-  gap: var(--space-3);
-}
-
-.aggregation-detail-fact dt {
-  color: var(--text-secondary);
-}
-
-.aggregation-detail-fact dd {
-  margin: 0;
-  overflow-wrap: anywhere;
+  inline-size: 100%;
 }
 
 .aggregation-detail-hash {
@@ -279,9 +303,8 @@ const resolvedConfig = computed(() =>
   margin: 0;
   padding: var(--space-3);
   overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
+  border-radius: var(--radius-input);
+  background: var(--surface-1);
   font-size: var(--font-size-small);
 }
 

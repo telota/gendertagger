@@ -39,6 +39,12 @@
             "title": "Display Name",
             "type": "string"
           },
+          "game_mode_enabled": {
+            "default": false,
+            "description": "Whether this project permits the optional scored game interface. Project operators change it through PUT /projects/{project_id}/game-mode.",
+            "title": "Game Mode Enabled",
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -2880,6 +2886,203 @@
         "title": "ExportManifestOutput",
         "type": "object"
       },
+      "GameLeaderboard": {
+        "additionalProperties": false,
+        "description": "Project-scoped best rounds for one comparable round size.",
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/GameLeaderboardEntry"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "round_size": {
+            "enum": [
+              10,
+              20,
+              50
+            ],
+            "title": "Round Size",
+            "type": "integer"
+          },
+          "total_players": {
+            "minimum": 0.0,
+            "title": "Total Players",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "project_id",
+          "round_size",
+          "total_players",
+          "entries"
+        ],
+        "title": "GameLeaderboard",
+        "type": "object"
+      },
+      "GameLeaderboardEntry": {
+        "additionalProperties": false,
+        "description": "One project member's best verified-answer round at a selected size.",
+        "properties": {
+          "answered_count": {
+            "minimum": 0.0,
+            "title": "Answered Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "rank": {
+            "exclusiveMinimum": 0.0,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "reviewer_display_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reviewer Display Name",
+            "type": "string"
+          },
+          "reviewer_user_id": {
+            "format": "uuid",
+            "title": "Reviewer User Id",
+            "type": "string"
+          },
+          "round_id": {
+            "format": "uuid",
+            "title": "Round Id",
+            "type": "string"
+          },
+          "score": {
+            "minimum": 0.0,
+            "title": "Score",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rank",
+          "round_id",
+          "reviewer_user_id",
+          "reviewer_display_name",
+          "score",
+          "answered_count",
+          "created_at"
+        ],
+        "title": "GameLeaderboardEntry",
+        "type": "object"
+      },
+      "GameRound": {
+        "additionalProperties": false,
+        "description": "Persisted summary scored only from server-verified annotations.",
+        "properties": {
+          "aggregation_execution_id": {
+            "format": "uuid",
+            "title": "Aggregation Execution Id",
+            "type": "string"
+          },
+          "answered_count": {
+            "minimum": 0.0,
+            "title": "Answered Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "reviewer_user_id": {
+            "format": "uuid",
+            "title": "Reviewer User Id",
+            "type": "string"
+          },
+          "round_size": {
+            "enum": [
+              10,
+              20,
+              50
+            ],
+            "title": "Round Size",
+            "type": "integer"
+          },
+          "score": {
+            "minimum": 0.0,
+            "title": "Score",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "aggregation_execution_id",
+          "reviewer_user_id",
+          "round_size",
+          "score",
+          "answered_count",
+          "created_at"
+        ],
+        "title": "GameRound",
+        "type": "object"
+      },
+      "GameRoundCreate": {
+        "additionalProperties": false,
+        "description": "Idempotent command recording verified answer evidence for one completed round.\n\nOfficial points depend only on immutable annotations validated by the server.\nTimer readings, skips, and streaks remain local presentation state because a\ncompleted-round request cannot prove those client observations.",
+        "properties": {
+          "aggregation_execution_id": {
+            "format": "uuid",
+            "title": "Aggregation Execution Id",
+            "type": "string"
+          },
+          "annotation_ids": {
+            "default": [],
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Annotation Ids",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "round_size": {
+            "enum": [
+              10,
+              20,
+              50
+            ],
+            "title": "Round Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "aggregation_execution_id",
+          "round_size"
+        ],
+        "title": "GameRoundCreate",
+        "type": "object"
+      },
       "GlobalRole": {
         "description": "Hierarchical authorization role that applies outside any one project (ADR-0033).\n\n``operator`` may create projects and grants no access to existing ones. ``admin`` additionally\nholds operator capability in every project and administers local accounts and project memberships.",
         "enum": [
@@ -3998,6 +4201,21 @@
           "display_name"
         ],
         "title": "ProjectEligibleUser",
+        "type": "object"
+      },
+      "ProjectGameModeUpdate": {
+        "additionalProperties": false,
+        "description": "Command enabling or disabling the optional game interface for one project.",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "ProjectGameModeUpdate",
         "type": "object"
       },
       "ProjectManager": {
@@ -5357,6 +5575,16 @@
         },
         "title": "VoteCounts",
         "type": "object"
+      },
+      "_GameRoundSizeQuery": {
+        "description": "Numeric query representation that accepts HTTP string values.",
+        "enum": [
+          10,
+          20,
+          50
+        ],
+        "title": "_GameRoundSizeQuery",
+        "type": "integer"
       }
     }
   },
@@ -10819,6 +11047,388 @@
         "summary": "List Eligible Users",
         "tags": [
           "project members"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/game-leaderboard": {
+      "get": {
+        "description": "List each project member's best round at one comparable round size.",
+        "operationId": "get_game_leaderboard_api_v1_projects__project_id__game_leaderboard_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "round_size",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/_GameRoundSizeQuery"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameLeaderboard"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Game Leaderboard",
+        "tags": [
+          "game"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/game-mode": {
+      "put": {
+        "description": "Enable or disable the optional game interface for this project.",
+        "operationId": "set_project_game_mode_api_v1_projects__project_id__game_mode_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectGameModeUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessibleProject"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Set Project Game Mode",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/game-rounds": {
+      "post": {
+        "description": "Record a completed round after verifying its ordinary annotation writes.",
+        "operationId": "create_game_round_api_v1_projects__project_id__game_rounds_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameRoundCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameRound"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Create Game Round",
+        "tags": [
+          "game"
         ]
       }
     },

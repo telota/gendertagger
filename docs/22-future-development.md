@@ -289,17 +289,6 @@ This must retain the same artifact-resource semantics and authorization checks, 
 a delivery optimization rather than a way around project ownership and role checks. It is coupled to the
 shared object storage entry above.
 
-### Game mechanics in the review client
-
-Playful scoring, streaks, or similar UI effects may be worth retaining in the review interface to sustain
-reviewer engagement.
-
-The hard constraint is that they stay entirely outside scientific annotation semantics. A click that
-produces an annotation must still map to exactly the same explicit reviewed decision, with the same
-reviewer identity and the same audit trail, as one made through a plain interface. Scoring must never
-influence which records are shown for review, since that would bias the corrected sample. See
-[`09-annotation-and-review.md`](09-annotation-and-review.md).
-
 ### Administrative redaction and audit-logged deletion
 
 Ordinary review history is never hard-deleted, because human annotation is part of scholarly provenance.

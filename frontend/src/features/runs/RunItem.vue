@@ -28,7 +28,7 @@ const methodNames = computed(() => props.run.resolved_config.methods.map((m) => 
 </script>
 
 <template>
-  <li class="run">
+  <li class="run app-resource-card">
     <div class="run-content">
       <div class="run-head">
         <h3 class="run-title">
@@ -75,11 +75,6 @@ const methodNames = computed(() => props.run.resolved_config.methods.map((m) => 
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4) var(--space-6);
-  min-inline-size: 0;
-  padding: var(--space-5);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
 }
 .run-content {
   flex: 1 1 24rem;

@@ -18,10 +18,6 @@
   font-size: var(--font-size-small);
 }
 
-.metric-scroll {
-  overflow-x: auto;
-}
-
 .metric-table {
   width: 100%;
   border-collapse: collapse;

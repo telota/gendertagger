@@ -6,6 +6,7 @@ from uuid import UUID
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -63,6 +64,11 @@ class ProjectRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
         POSTGRESQL_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
+    )
+    game_mode_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("false"),
     )
     # Forward reference: `projects` is created before `aggregation_executions` in the baseline
     # migration, so this column needs `use_alter=True`, like every other forward FK in

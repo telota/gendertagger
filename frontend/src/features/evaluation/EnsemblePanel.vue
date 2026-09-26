@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
+import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
 import {
   AGREEMENT_TIERS,
   CANONICAL_LABELS,
@@ -20,65 +21,71 @@ const gloss = useVocabularyGloss()
 </script>
 
 <template>
-  <section class="metric" aria-labelledby="ensemble-heading">
+  <section class="metric app-card" aria-labelledby="ensemble-heading">
     <h3 id="ensemble-heading" class="metric-title">{{ t('evaluation.report.ensemble.title') }}</h3>
     <p v-if="!ensemble" class="metric-note">{{ t('evaluation.report.ensemble.none') }}</p>
     <template v-else>
       <p class="metric-note">{{ t('evaluation.report.ensemble.note') }}</p>
       <div class="ensemble-grid">
-        <table class="metric-table ensemble-table">
-          <caption class="ensemble-caption">
-            {{
-              t('evaluation.report.ensemble.labels')
-            }}
-          </caption>
-          <tbody>
-            <tr v-for="label in CANONICAL_LABELS" :key="label">
-              <th scope="row" class="token">{{ label }}</th>
-              <td class="num">
-                {{ n(ensemble.canonical_label_distribution[label] ?? 0, 'integer') }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <AppScrollRegion :label="t('evaluation.report.ensemble.labels')">
+          <table class="metric-table ensemble-table">
+            <caption class="ensemble-caption">
+              {{
+                t('evaluation.report.ensemble.labels')
+              }}
+            </caption>
+            <tbody>
+              <tr v-for="label in CANONICAL_LABELS" :key="label">
+                <th scope="row" class="token">{{ label }}</th>
+                <td class="num">
+                  {{ n(ensemble.canonical_label_distribution[label] ?? 0, 'integer') }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </AppScrollRegion>
 
-        <table class="metric-table ensemble-table">
-          <caption class="ensemble-caption">
-            {{
-              t('evaluation.report.ensemble.agreement')
-            }}
-          </caption>
-          <tbody>
-            <tr v-for="tier in AGREEMENT_TIERS" :key="tier">
-              <th scope="row">
-                <span class="token">{{ tier }}</span>
-                <span class="metric-muted"> {{ gloss.agreement(tier as AgreementTier) }}</span>
-              </th>
-              <td class="num">
-                {{ n(ensemble.agreement_tier_distribution[tier] ?? 0, 'integer') }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <AppScrollRegion :label="t('evaluation.report.ensemble.agreement')">
+          <table class="metric-table ensemble-table">
+            <caption class="ensemble-caption">
+              {{
+                t('evaluation.report.ensemble.agreement')
+              }}
+            </caption>
+            <tbody>
+              <tr v-for="tier in AGREEMENT_TIERS" :key="tier">
+                <th scope="row">
+                  <span class="token">{{ tier }}</span>
+                  <span class="metric-muted"> {{ gloss.agreement(tier as AgreementTier) }}</span>
+                </th>
+                <td class="num">
+                  {{ n(ensemble.agreement_tier_distribution[tier] ?? 0, 'integer') }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </AppScrollRegion>
 
-        <table class="metric-table ensemble-table">
-          <caption class="ensemble-caption">
-            {{
-              t('evaluation.report.ensemble.certainty')
-            }}
-          </caption>
-          <tbody>
-            <tr v-for="tier in CERTAINTY_TIERS" :key="tier">
-              <th scope="row">
-                <span class="token">{{ tier }}</span>
-                <span class="metric-muted"> {{ gloss.certainty(tier as CertaintyTier) }}</span>
-              </th>
-              <td class="num">
-                {{ n(ensemble.certainty_tier_distribution[tier] ?? 0, 'integer') }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <AppScrollRegion :label="t('evaluation.report.ensemble.certainty')">
+          <table class="metric-table ensemble-table">
+            <caption class="ensemble-caption">
+              {{
+                t('evaluation.report.ensemble.certainty')
+              }}
+            </caption>
+            <tbody>
+              <tr v-for="tier in CERTAINTY_TIERS" :key="tier">
+                <th scope="row">
+                  <span class="token">{{ tier }}</span>
+                  <span class="metric-muted"> {{ gloss.certainty(tier as CertaintyTier) }}</span>
+                </th>
+                <td class="num">
+                  {{ n(ensemble.certainty_tier_distribution[tier] ?? 0, 'integer') }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </AppScrollRegion>
       </div>
       <p class="ensemble-review">
         {{
@@ -95,7 +102,7 @@ const gloss = useVocabularyGloss()
 <style scoped>
 .ensemble-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
   gap: var(--space-4);
 }
 

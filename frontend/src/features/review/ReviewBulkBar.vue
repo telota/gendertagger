@@ -218,7 +218,12 @@ const preview = computed(() => props.items.slice(0, PREVIEW_LIMIT).map(reviewIte
       </div>
       <div class="bulk-field">
         <label for="bulk-comment">{{ t('review.bulk.comment') }}</label>
-        <textarea id="bulk-comment" v-model="comment" rows="2"></textarea>
+        <textarea
+          id="bulk-comment"
+          v-model="comment"
+          class="app-multiline-field"
+          rows="2"
+        ></textarea>
       </div>
       <AppButton class="bulk-review" type="submit" :disabled="!spec || contextReady === false">
         {{ t('review.bulk.review') }}
@@ -350,8 +355,7 @@ const preview = computed(() => props.items.slice(0, PREVIEW_LIMIT).map(reviewIte
   font-size: var(--font-size-small);
 }
 
-.bulk-field select,
-.bulk-field textarea {
+.bulk-field select {
   width: 100%;
   font: inherit;
 }

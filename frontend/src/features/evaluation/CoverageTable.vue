@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
+import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
 import { CANONICAL_LABELS } from '@/features/review/useVocabulary'
 
 import './metric.css'
@@ -12,10 +13,10 @@ const { t, n } = useI18n()
 </script>
 
 <template>
-  <section class="metric" aria-labelledby="coverage-heading">
+  <section class="metric app-card" aria-labelledby="coverage-heading">
     <h3 id="coverage-heading" class="metric-title">{{ t('evaluation.report.coverage.title') }}</h3>
     <p class="metric-note">{{ t('evaluation.report.coverage.note') }}</p>
-    <div class="metric-scroll">
+    <AppScrollRegion :label="t('evaluation.report.coverage.caption')">
       <table class="metric-table">
         <caption class="metric-caption">
           {{
@@ -49,6 +50,6 @@ const { t, n } = useI18n()
           </tr>
         </tbody>
       </table>
-    </div>
+    </AppScrollRegion>
   </section>
 </template>

@@ -17,7 +17,7 @@ const headingId = useId()
 <style scoped>
 .overview-section {
   min-inline-size: 0;
-  padding: var(--space-5);
+  padding: var(--space-4);
   overflow-wrap: anywhere;
 }
 .overview-section + .overview-section {

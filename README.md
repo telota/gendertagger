@@ -1,9 +1,6 @@
 # gendertagger
 
-This repository is the implementation of the next generation of `gendertagger`.
-
-The target system is a reproducible, human-in-the-loop service for semi-automated gender annotation of TEI/XML person registers.
-The design preserves the published multi-method workflow while adding persistent storage, an API, task orchestration, annotation, evaluation, provenance, and deployable infrastructure.
+This is a human-in-the-loop tool for semi-automated gender annotation of TEI/XML person registers of digital scholarly editions.
 
 ## Setup
 
@@ -119,7 +116,6 @@ development tool, not a production administration command.
 
 ## Documentation
 
-- Current status: [`PLAN.md`](PLAN.md)
 - Product and architecture: [`SPEC.md`](SPEC.md) and
   [`docs/01-architecture.md`](docs/01-architecture.md)
 - Phase roadmap and deferred scope: [`docs/15-implementation-plan.md`](docs/15-implementation-plan.md) and

@@ -201,8 +201,8 @@ function methodGroupLabel(group: MethodPredictionGroup): string {
             <h3 id="detail-summary-heading" class="detail-heading">
               {{ t('review.detail.summaryTitle') }}
             </h3>
-            <dl class="detail-facts app-facts">
-              <div class="detail-fact app-fact">
+            <dl class="detail-facts app-fact-list">
+              <div class="detail-fact app-fact-list__item">
                 <dt>{{ t('review.detail.certainty') }}</dt>
                 <dd>
                   <VocabBadge
@@ -212,31 +212,31 @@ function methodGroupLabel(group: MethodPredictionGroup): string {
                   />
                 </dd>
               </div>
-              <div class="detail-fact app-fact">
+              <div class="detail-fact app-fact-list__item">
                 <dt>{{ t('review.detail.agreement') }}</dt>
                 <dd>
                   <VocabBadge :value="item.agreement_tier" />
                 </dd>
               </div>
-              <div class="detail-fact app-fact">
+              <div class="detail-fact app-fact-list__item">
                 <dt>{{ t('review.detail.outcome') }}</dt>
                 <dd>
                   <VocabBadge :value="item.aggregation_outcome" />
                 </dd>
               </div>
-              <div class="detail-fact app-fact">
+              <div class="detail-fact app-fact-list__item">
                 <dt>{{ t('review.detail.machineLabel') }}</dt>
                 <dd>
                   <VocabBadge :value="item.machine_label" kind="label" />
                 </dd>
               </div>
-              <div class="detail-fact app-fact">
+              <div class="detail-fact app-fact-list__item">
                 <dt>{{ t('review.detail.finalLabel') }}</dt>
                 <dd>
                   <VocabBadge :value="item.final_label" kind="label" />
                 </dd>
               </div>
-              <div class="detail-fact app-fact">
+              <div class="detail-fact app-fact-list__item">
                 <dt>{{ t('review.detail.state') }}</dt>
                 <dd>
                   <VocabBadge :value="item.workflow_state" />
@@ -500,23 +500,8 @@ function methodGroupLabel(group: MethodPredictionGroup): string {
   font-weight: normal;
 }
 
-.detail-facts {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-}
-
 .detail-fact {
   align-items: baseline;
-}
-
-.detail-fact dt {
-  color: var(--text-secondary);
-}
-
-.detail-fact dd {
-  margin: 0;
-  overflow-wrap: anywhere;
 }
 
 .detail-revision {

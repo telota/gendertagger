@@ -15,7 +15,7 @@ const statusLabel = computed(() => label(props.evaluation.status))
 </script>
 
 <template>
-  <li class="evaluation">
+  <li class="evaluation app-resource-card">
     <div class="evaluation-head">
       <span class="evaluation-status" :class="`evaluation-status--${evaluation.status}`">{{
         statusLabel
@@ -24,12 +24,12 @@ const statusLabel = computed(() => label(props.evaluation.status))
         d(new Date(evaluation.created_at), 'timestamp')
       }}</time>
     </div>
-    <dl class="evaluation-facts">
-      <div class="evaluation-fact">
+    <dl class="evaluation-facts app-fact-list">
+      <div class="evaluation-fact app-fact-list__item">
         <dt>{{ t('evaluation.item.definition') }}</dt>
         <dd>{{ evaluation.definition ?? '' }}</dd>
       </div>
-      <div class="evaluation-fact">
+      <div class="evaluation-fact app-fact-list__item">
         <dt>{{ t('evaluation.item.methods') }}</dt>
         <dd>
           {{
@@ -39,7 +39,7 @@ const statusLabel = computed(() => label(props.evaluation.status))
           }}
         </dd>
       </div>
-      <div class="evaluation-fact">
+      <div class="evaluation-fact app-fact-list__item">
         <dt>{{ t('evaluation.item.configHash') }}</dt>
         <dd>
           <code class="evaluation-hash">{{ evaluation.config_sha256 }}</code>
@@ -62,13 +62,6 @@ const statusLabel = computed(() => label(props.evaluation.status))
 </template>
 
 <style scoped>
-.evaluation {
-  padding: var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
-}
-
 .evaluation-head {
   display: flex;
   align-items: baseline;
@@ -92,27 +85,6 @@ const statusLabel = computed(() => label(props.evaluation.status))
 .evaluation-created {
   color: var(--text-secondary);
   font-size: var(--font-size-small);
-}
-
-.evaluation-facts {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-}
-
-.evaluation-fact {
-  display: grid;
-  grid-template-columns: 9rem 1fr;
-  gap: var(--space-3);
-}
-
-.evaluation-fact dt {
-  color: var(--text-secondary);
-}
-
-.evaluation-fact dd {
-  margin: 0;
-  overflow-wrap: anywhere;
 }
 
 .evaluation-hash {

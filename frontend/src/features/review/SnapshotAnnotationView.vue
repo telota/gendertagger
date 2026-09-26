@@ -129,14 +129,21 @@ function retryContext(): void {
 </script>
 
 <template>
-  <main class="snapshot-annotations">
-    <header class="annotation-heading">
-      <h1>{{ canReview ? t('review.people.title') : t('annotation.browseTitle') }}</h1>
-      <AppButton
-        variant="ghost"
-        :to="{ name: canReview ? 'projectAnnotation' : 'projectSnapshots', params: { projectId } }"
-        >{{ t('taskEntry.changeSelection') }}</AppButton
-      >
+  <main class="snapshot-annotations app-page-frame app-page-frame--dense">
+    <header class="annotation-heading app-page-heading">
+      <h1 class="app-page-heading__title">
+        {{ canReview ? t('review.people.title') : t('annotation.browseTitle') }}
+      </h1>
+      <div class="app-page-heading__actions">
+        <AppButton
+          variant="ghost"
+          :to="{
+            name: canReview ? 'projectAnnotation' : 'projectSnapshots',
+            params: { projectId },
+          }"
+          >{{ t('taskEntry.changeSelection') }}</AppButton
+        >
+      </div>
     </header>
     <AppFeedback
       v-if="session.status === 'idle' || session.status === 'loading'"
@@ -319,16 +326,12 @@ function retryContext(): void {
 .snapshot-annotations {
   container: annotations / inline-size;
   display: flex;
-  min-width: 0;
-  flex: 1;
   flex-direction: column;
   align-items: stretch;
   gap: var(--space-4);
-  padding: var(--space-8) var(--page-gutter);
   overflow-wrap: anywhere;
 }
 
-.annotation-heading,
 .annotation-context {
   display: flex;
   flex-wrap: wrap;
@@ -337,11 +340,8 @@ function retryContext(): void {
   gap: var(--space-3);
 }
 
-.annotation-heading h1 {
-  margin: 0;
-  font-size: var(--font-size-page);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-height-page);
+.annotation-heading {
+  margin-block-end: 0;
 }
 
 .annotation-context {
