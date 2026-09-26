@@ -17,6 +17,9 @@ export const TERMINAL_RUN_STATUSES: ReadonlySet<Run['status']> = new Set([
   'cancelled',
 ])
 
+export const TERMINAL_METHOD_EXECUTION_STATUSES: ReadonlySet<MethodExecutionSummary['status']> =
+  new Set(['completed', 'completed_with_errors', 'failed', 'cancelled'])
+
 export function runKey(runId: string) {
   return ['runs', runId] as const
 }

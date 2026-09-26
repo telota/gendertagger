@@ -19,8 +19,8 @@ const recovery = useSessionRecovery()
 const confirming = ref(false)
 const signingOut = ref(false)
 const signOutFailed = ref(false)
-// The guest home page already provides the primary sign-in action.
-const showSignIn = computed(() => route.name !== 'home')
+// The guest home page already provides the primary sign-in action, and the login page is the form.
+const showSignIn = computed(() => route.name !== 'home' && route.name !== 'login')
 const showAccountControls = computed(
   () =>
     session.status !== 'ready' ||

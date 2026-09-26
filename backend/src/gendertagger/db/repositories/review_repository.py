@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from typing import cast
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, and_, case, exists, func, or_, select
+from sqlalchemy import ColumnElement, Select, and_, case, exists, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from gendertagger.db.rows.aggregations import (
@@ -36,6 +36,8 @@ from gendertagger.models.review import (
     ReviewState,
     ReviewSummaryGroup,
     ReviewWorkflowState,
+    SnapshotAnnotationItem,
+    SnapshotAnnotationItemQuery,
 )
 from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
@@ -213,6 +215,98 @@ class SqlAlchemyReviewRepository:
             revision=state.revision,
             workflow_state=state.workflow_state,
             current_annotation_id=state.current_annotation_id,
+        )
+
+    def list_annotation_items(
+        self,
+        snapshot_id: UUID,
+        query: SnapshotAnnotationItemQuery,
+        *,
+        limit: int,
+        after: ReviewItemCursor | None = None,
+    ) -> Sequence[SnapshotAnnotationItem]:
+        """Project imported people and current decisions in one query, without machine results."""
+        if limit <= 0:
+            msg = "limit must be positive"
+            raise ValueError(msg)
+        statement = self._annotation_item_statement(snapshot_id)
+        if query.workflow_states:
+            matches = [ReviewStateRow.workflow_state.in_(query.workflow_states)]
+            if ReviewWorkflowState.unreviewed in query.workflow_states:
+                matches.append(ReviewStateRow.workflow_state.is_(None))
+            statement = statement.where(or_(*matches))
+        if query.human_label is not None:
+            statement = statement.where(AnnotationRow.label == query.human_label)
+        if query.q is not None:
+            pattern = self._contains_pattern(query.q)
+            statement = statement.where(
+                or_(
+                    PersonRecordRow.tei_id.ilike(pattern, escape="\\"),
+                    PersonRecordRow.surname.ilike(pattern, escape="\\"),
+                    func.array_to_string(PersonRecordRow.forenames, " ").ilike(
+                        pattern, escape="\\"
+                    ),
+                    func.array_to_string(PersonRecordRow.alt_names, " ").ilike(
+                        pattern, escape="\\"
+                    ),
+                )
+            )
+        if after is not None:
+            statement = statement.where(
+                or_(
+                    PersonRecordRow.tei_id > after.tei_id,
+                    and_(
+                        PersonRecordRow.tei_id == after.tei_id,
+                        PersonRecordRow.id > after.person_record_id,
+                    ),
+                )
+            )
+        rows = self._session.execute(
+            statement.order_by(PersonRecordRow.tei_id, PersonRecordRow.id).limit(limit)
+        ).tuples()
+        return [
+            self._annotation_item(person, state, annotation) for person, state, annotation in rows
+        ]
+
+    def get_annotation_item(self, snapshot_id: UUID, tei_id: str) -> SnapshotAnnotationItem | None:
+        """Read one imported person's current decision without requiring a classification."""
+        row = self._session.execute(
+            self._annotation_item_statement(snapshot_id).where(PersonRecordRow.tei_id == tei_id)
+        ).one_or_none()
+        return None if row is None else self._annotation_item(*row)
+
+    @staticmethod
+    def _annotation_item_statement(
+        snapshot_id: UUID,
+    ) -> Select[tuple[PersonRecordRow, ReviewStateRow, AnnotationRow]]:
+        return (
+            select(PersonRecordRow, ReviewStateRow, AnnotationRow)
+            .outerjoin(
+                ReviewStateRow,
+                and_(
+                    ReviewStateRow.dataset_snapshot_id == PersonRecordRow.dataset_snapshot_id,
+                    ReviewStateRow.person_record_id == PersonRecordRow.id,
+                ),
+            )
+            .outerjoin(AnnotationRow, AnnotationRow.id == ReviewStateRow.current_annotation_id)
+            .where(PersonRecordRow.dataset_snapshot_id == snapshot_id)
+        )
+
+    @staticmethod
+    def _annotation_item(
+        person: PersonRecordRow, state: ReviewStateRow | None, annotation: AnnotationRow | None
+    ) -> SnapshotAnnotationItem:
+        return SnapshotAnnotationItem(
+            snapshot_id=person.dataset_snapshot_id,
+            person_record_id=person.id,
+            tei_id=person.tei_id,
+            surname=person.surname,
+            forenames=person.forenames,
+            workflow_state=state.workflow_state if state else ReviewWorkflowState.unreviewed,
+            review_revision=state.revision if state else 0,
+            current_annotation_id=state.current_annotation_id if state else None,
+            review_action=annotation.action if annotation else None,
+            human_label=annotation.label if annotation else None,
         )
 
     def list_review_items(
@@ -506,6 +600,8 @@ class SqlAlchemyReviewRepository:
         selected_prediction: type[PredictionRow],
     ) -> list[ColumnElement[bool]]:
         filters: list[ColumnElement[bool]] = []
+        if query.tei_id is not None:
+            filters.append(PersonRecordRow.tei_id == query.tei_id)
         if query.final_label is not None:
             filters.append(final_label == query.final_label)
         if query.certainty_tiers:

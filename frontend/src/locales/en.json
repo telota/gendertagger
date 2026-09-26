@@ -1,4 +1,82 @@
 {
+  "data": {
+    "title": "Imported data",
+    "importAction": "Import data",
+    "hideImport": "Hide form",
+    "viewImportedData": "View imported data",
+    "empty": "No data has been imported yet.",
+    "emptyHint": "A project operator can import a person register to create the first dataset.",
+    "loading": "Loading imported data…",
+    "loadingMore": "Loading more datasets…",
+    "loadError": "The imported data could not be loaded. Please try again.",
+    "loadMoreError": "More datasets could not be loaded. The datasets already shown are still available.",
+    "loadMore": "Load more datasets",
+    "projectLoadError": "The project could not be loaded. Please try again.",
+    "accessUnavailable": "This project is unavailable or you do not have access to its data.",
+    "snapshotTitle": "Dataset from {date}",
+    "openSnapshot": "Open dataset",
+    "openSnapshotNamed": "Open dataset from {date}",
+    "sourceFormat": "Source format",
+    "detailTitle": "Imported dataset",
+    "snapshotUnavailable": "This dataset could not be loaded or does not belong to this project.",
+    "status": "Status",
+    "refreshError": "The import status could not be updated. The last available status is shown.",
+    "importing": "The import is in progress. Records will be available when it finishes.",
+    "failed": "The import failed. Review the diagnostic and source details before importing again.",
+    "sourceFiles": "Source files",
+    "sourcesLoading": "Loading source files…",
+    "sourcesEmpty": "No source files are available for this dataset.",
+    "importDetails": "Import details",
+    "snapshotId": "Dataset ID",
+    "configuration": "Import configuration",
+    "statistics": {
+      "title": "Dataset inventory",
+      "description": "Coverage of information present in the imported person register.",
+      "totalPeople": "People total: {count}",
+      "loading": "Loading dataset inventory…",
+      "loadError": "The dataset inventory could not be loaded. Please try again.",
+      "coverageTitle": "Coverage",
+      "sourceGender": "Gender element in source",
+      "gndReference": "GND reference",
+      "gndAndSourceGender": "GND reference and gender element",
+      "countOfTotal": "{count} of {total} ({percentage})",
+      "progressLabel": "{label}: {count} of {total}",
+      "notCaptured": "Not captured",
+      "notCapturedDetail": "Source gender elements were not captured statistically for this dataset.",
+      "genderTitle": "Values in the TEI gender element",
+      "genderDescription": "Distribution for {count} people with at least one gender element.",
+      "gender": {
+        "male": "Male",
+        "female": "Female",
+        "unknown": "Unknown",
+        "institution": "Institution",
+        "otherOrMultiple": "Other or multiple"
+      }
+    },
+    "records": {
+      "title": "Person records",
+      "titleWithCount": "Person records ({count})",
+      "description": "Read-only records from this import.",
+      "name": "Name",
+      "teiId": "TEI xml:id",
+      "gnd": "GND",
+      "gndReference": "GND reference: {id}",
+      "noGnd": "No GND reference",
+      "noGndSymbol": "—",
+      "actions": "Actions",
+      "showDetails": "Show details",
+      "hideDetails": "Close",
+      "openedDirectly": "Directly opened record",
+      "loading": "Loading records…",
+      "empty": "This dataset contains no person records.",
+      "loadMoreError": "More records could not be loaded. The records already shown are still available.",
+      "loadError": "The person records could not be loaded. Please try again.",
+      "loadMore": "Load more records",
+      "detailTitle": "Person record",
+      "loadingRecord": "Loading person record…",
+      "recordError": "This person record could not be loaded."
+    }
+  },
   "app": {
     "title": "gendertagger"
   },
@@ -6,7 +84,6 @@
     "guest": {
       "lede": "Add gender annotations to person registers.",
       "intro": "gendertagger uses authority data and various models to suggest gender annotations for person registers in digital editions. These concern historically and culturally shaped gender attributions, not individual gender identity. You can compare the results of individual methods and add your own annotations.",
-      "signIn": "Sign in",
       "accountHint": "Contact the administrator for an account.",
       "stepsLabel": "How it works",
       "steps": {
@@ -19,8 +96,42 @@
       }
     },
     "signedIn": {
-      "welcomeBack": "Welcome back, {name}.",
-      "goToProjects": "Go to your projects"
+      "welcomeBack": "Welcome back, {name}",
+      "introduction": "Open a project to continue your work, or use the account tools available to you.",
+      "projects": {
+        "title": "Available projects",
+        "description": "Projects you can currently access.",
+        "viewAll": "View all projects",
+        "loading": "Loading your projects …",
+        "loadError": "Your projects could not be loaded.",
+        "refreshError": "Your projects could not be refreshed. The projects already shown remain available.",
+        "retry": "Try again",
+        "empty": "No projects are available to you yet.",
+        "emptyCanCreate": "You can create a project from the projects page.",
+        "emptyAsk": "Ask a project manager to give you access.",
+        "open": "Open project",
+        "openNamed": "Open {project}",
+        "team": "Team",
+        "role": "Your role"
+      },
+      "workspace": {
+        "title": "Your workspace",
+        "description": "Account-level access and shortcuts.",
+        "access": {
+          "admin": "Administrator",
+          "adminDescription": "You can manage local accounts, teams, project memberships, and publication details.",
+          "operator": "Operator",
+          "operatorDescription": "You can create projects. Access to existing projects is assigned separately.",
+          "projectAccess": "Project access",
+          "projectAccessDescription": "Access and permissions are assigned separately for each project."
+        },
+        "linksLabel": "Workspace shortcuts",
+        "personalSettings": "Personal settings",
+        "projectManagement": "View and create projects",
+        "users": "User accounts",
+        "teams": "Teams",
+        "publicationDetails": "Publication details"
+      }
     }
   },
   "publication": {
@@ -96,6 +207,7 @@
     "horizontalScrollHint": "Scroll horizontally to see all columns."
   },
   "nav": {
+    "data": "Data",
     "skipToContent": "Skip to main content",
     "label": "Main navigation",
     "openNavigation": "Open navigation",
@@ -104,24 +216,22 @@
     "expandSidebar": "Expand sidebar",
     "collapseSaveError": "The sidebar change could not be saved. Try again.",
     "dismiss": "Dismiss",
-    "requiresSnapshot": "Select a dataset snapshot first.",
-    "requiresAggregation": "Select an aggregation in this run first.",
-    "requiresRun": "Select a classification run first.",
     "projects": "Projects",
-    "administration": "Administration",
+    "administration": "Users",
     "teams": "Teams",
-    "settings": "Branding settings",
+    "settings": "Settings",
     "currentProject": "Current project",
     "overview": "Overview",
     "import": "Import",
-    "classification": "Classification",
+    "classification": "Automatic suggestions",
     "review": "Review",
     "annotate": "Annotate manually",
     "evaluationGroup": "Evaluation",
     "evaluations": "Statistics & methods",
     "exports": "Export",
     "administrationGroup": "Admin",
-    "unavailable": "Not available yet: the project has no run with an aggregation."
+    "unavailable": "Not available yet: the project has no run with an aggregation.",
+    "projectMembers": "Members"
   },
   "locale": {
     "label": "Language"
@@ -179,7 +289,7 @@
     }
   },
   "admin": {
-    "title": "Administration",
+    "title": "Users",
     "description": "Local accounts",
     "loadingAccess": "Checking administrative access …",
     "sessionLoadError": "The session could not be checked.",
@@ -217,6 +327,8 @@
       "passwordCurrent": "Current"
     },
     "creation": {
+      "open": "Add user",
+      "hide": "Hide form",
       "title": "Create local account",
       "description": "The new account receives a server-generated temporary password and must change it at first sign-in.",
       "username": "Username",
@@ -329,6 +441,8 @@
     "cancel": "Cancel",
     "refreshFailed": "The change was confirmed, but the affected lists could not be refreshed. Review the current state before making another change.",
     "creation": {
+      "open": "Add team",
+      "hide": "Hide form",
       "title": "Create team",
       "description": "A team is an eligibility group, not a project role or automatic project access.",
       "slug": "Slug",
@@ -337,16 +451,13 @@
     },
     "creating": "Creating team …",
     "list": {
-      "title": "Teams",
+      "manage": "Manage team",
+      "manageNamed": "Manage {name}",
       "search": "Search teams",
       "loadError": "The team list could not be loaded.",
       "paginationError": "More teams could not be loaded. The teams already shown are unchanged.",
       "empty": "No teams are available.",
       "searchEmpty": "No teams match this search."
-    },
-    "selection": {
-      "title": "Select a team",
-      "description": "Choose a team to view its direct roster and administer its membership."
     },
     "rename": {
       "title": "Rename team",
@@ -415,120 +526,115 @@
     }
   },
   "adminSettings": {
-    "title": "Branding settings",
-    "description": "Effective branding and deployment fallbacks",
-    "loadingAccess": "Checking administrative access …",
-    "sessionLoadError": "The session could not be checked.",
-    "forbidden": "You do not have permission to view branding settings.",
-    "passwordChangeRequired": "Your password must be changed before you can view branding settings.",
-    "loading": "Loading branding settings …",
-    "loadError": "The branding settings could not be loaded.",
-    "settingsUnavailable": "Settings storage is unavailable. Deployment fallbacks cannot be shown safely.",
+    "title": "Publication details",
+    "description": "Control the institution, contact details, editors, privacy link, and publication year shown publicly.",
+    "loadingAccess": "Checking access to publication details …",
+    "sessionLoadError": "Your session could not be checked. Try again.",
+    "forbidden": "You do not have permission to view publication details.",
+    "passwordChangeRequired": "Change your password before viewing publication details.",
+    "loading": "Loading publication details …",
+    "loadError": "Publication details could not be loaded.",
+    "settingsUnavailable": "Settings storage is unavailable, so effective public values cannot be shown safely.",
     "retry": "Try again",
-    "refetch": "Refresh settings",
-    "editingAvailable": "Choose only the branding overrides you intend to store. Editing is revision-protected.",
+    "refetch": "Refresh values",
     "precedence": {
-      "title": "Resolution order",
-      "description": "Stored override → deployment environment → application default."
+      "description": "A saved choice—including “publish no value”—takes precedence. Without one, gendertagger uses the deployment setting, then the application default."
     },
-    "branding": {
-      "title": "Editable branding fields",
-      "description": "Effective values and the deployment fallbacks used when no stored override exists."
-    },
-    "revision": "Revision {revision}",
-    "table": {
-      "field": "Field",
-      "effectiveValue": "Effective value",
-      "deploymentFallback": "Deployment fallback",
-      "overrideStatus": "Override status"
-    },
+    "revision": "Configuration revision {revision}",
     "fields": {
       "institutionName": "Institution name",
-      "institutionUrl": "Institution URL",
-      "contactEmail": "Contact email",
-      "privacyNoticeUrl": "Privacy notice URL",
+      "institutionUrl": "Institution website",
+      "contactEmail": "Contact email address",
+      "privacyNoticeUrl": "Privacy notice link",
       "editors": "Editors",
-      "publishedSinceYear": "Published since year"
+      "publishedSinceYear": "Published since"
     },
     "status": {
-      "inherited": "Inherited",
-      "overridden": "Overridden",
-      "cleared": "Explicitly cleared"
+      "inherited": "Using default",
+      "overridden": "Using custom value",
+      "cleared": "Publishing no value"
     },
     "values": {
-      "notConfigured": "Not configured",
-      "noEditors": "No editors",
-      "noLogo": "No logo configured",
+      "notConfigured": "No value configured",
+      "noPublishedValue": "No value published",
+      "noEditors": "No editors configured",
+      "noLogo": "No publisher logo configured",
       "noInitiatives": "No initiatives configured",
       "noLegalEntity": "No legal entity configured"
     },
     "editing": {
-      "title": "Edit branding overrides",
-      "description": "Each field stays unchanged unless you explicitly store or clear it. Storing a value can intentionally pin a value equal to the current fallback.",
+      "title": "Public values",
+      "description": "Review what is currently published. Change only fields that need a custom value or should publish no value.",
+      "changeField": "Change",
+      "closeField": "Close",
+      "changeFieldLabel": "Change {field}",
+      "closeFieldLabel": "Close {field}",
+      "pendingChange": "Unsaved change",
+      "changesPending": "Fields with unsaved changes: {count}",
+      "noChanges": "No unsaved changes",
       "modes": {
-        "unchanged": "Leave unchanged",
-        "set": "Store value",
-        "clear": "Clear value"
+        "unchanged": "Keep current setting",
+        "set": "Set a custom value",
+        "clear": "Publish no value"
       },
-      "fallback": "Current deployment fallback: {value}",
-      "value": "Value",
-      "editorsHint": "Enter one editor per line. Order is preserved.",
-      "save": "Save overrides",
-      "submitting": "Saving …",
-      "discard": "Discard draft",
+      "fallback": "Current default: {value}",
+      "valueFor": "Custom value for {field}",
+      "editorsHint": "Enter one editor per line. The displayed order is preserved.",
+      "save": "Save changes",
+      "submitting": "Saving changes …",
+      "discard": "Discard changes",
       "validation": {
-        "institutionName": "Enter a nonblank institution name with at most 200 characters.",
-        "url": "Enter an absolute HTTP(S) URL or a same-origin path beginning with one slash.",
+        "institutionName": "Enter an institution name with 1–200 characters.",
+        "url": "Enter a full HTTP(S) address or a path on this site beginning with one slash, such as /privacy.",
         "contactEmail": "Enter one valid email address.",
-        "editors": "Enter at most 50 distinct, nonblank editors with at most 200 characters each.",
+        "editors": "Enter up to 50 distinct editors, one per line. Each name can contain up to 200 characters.",
         "publishedSinceYear": "Enter a whole year from 1 through {currentYear}."
       },
       "conflict": {
-        "latestLoaded": "Another administrator changed these settings. Revision {revision} is now shown above. Review it, then explicitly keep or discard this draft.",
-        "latestUnavailable": "Another administrator changed these settings, but the latest state could not be loaded. Your draft is retained; refresh the settings before reconciling it.",
-        "reconcile": "Use latest revision and keep draft"
+        "latestLoaded": "Another administrator saved newer settings. Configuration revision {revision} is now shown. Your changes are still available; review them, then keep or discard them.",
+        "latestUnavailable": "Another administrator saved newer settings, but they could not be loaded. Your changes are still available. Refresh the values before continuing.",
+        "reconcile": "Review latest values and keep my changes"
       },
       "errors": {
-        "settingsUnavailable": "Settings storage is unavailable. No change was confirmed.",
-        "validation": "Review the selected override values and try again.",
-        "authenticationRequired": "Your session ended. Sign in again, review the current settings, and deliberately resubmit.",
-        "passwordChangeRequired": "Change your password before editing branding settings.",
-        "forbidden": "You no longer have permission to edit branding settings.",
-        "uncertain": "The result is uncertain because the request did not complete. Refresh the settings and review them before trying again."
+        "settingsUnavailable": "Settings storage is unavailable. Your changes were not confirmed.",
+        "validation": "Some custom values need attention. Review the marked fields and try again.",
+        "authenticationRequired": "Your session ended. Sign in again, review the current values, and deliberately submit your changes again.",
+        "passwordChangeRequired": "Change your password before editing publication details.",
+        "forbidden": "You no longer have permission to edit publication details.",
+        "uncertain": "The result is uncertain because the request did not complete. Refresh the values and review them before trying again."
       },
-      "publicRefreshFailed": "The branding change was confirmed, but mounted public branding could not be refreshed.",
-      "retryPublicRefresh": "Retry public branding refresh"
+      "publicRefreshFailed": "The changes were saved, but the public publication details could not be refreshed.",
+      "retryPublicRefresh": "Retry public refresh"
     },
     "reset": {
-      "title": "Reset stored overrides",
-      "description": "Reset removes selected stored overrides and reveals the current deployment fallback.",
-      "unsavedChanges": "Save or discard the current draft before resetting overrides.",
-      "fallback": "Fallback after reset: {value}",
-      "submit": "Reset selected overrides",
-      "none": "No stored overrides can be reset.",
+      "title": "Use default values",
+      "description": "Remove selected custom settings to use the current default values again.",
+      "unsavedChanges": "Save or discard the current changes before removing custom settings.",
+      "fallback": "Default after removal: {value}",
+      "submit": "Use defaults for selected fields",
       "confirm": {
-        "title": "Reset selected overrides?",
-        "description": "The selected values will reveal the deployment fallbacks shown here.",
+        "title": "Use default values for selected fields?",
+        "description": "The selected custom settings will be removed. Their public values will come from the deployment configuration or application default.",
         "entry": "{field}: {value}",
-        "nonAtomic": "Saving overrides and resetting overrides are separate operations.",
+        "nonAtomic": "Saving changes and removing custom settings are separate operations.",
         "cancel": "Cancel",
-        "submit": "Reset overrides"
+        "submit": "Use default values"
       }
     },
     "deployment": {
-      "title": "Deployment-managed branding",
-      "description": "These values are shown for context and cannot be changed here.",
+      "title": "Managed by the deployment",
+      "description": "These details also appear publicly. Change them in the deployment configuration; verify them here.",
       "logo": {
-        "title": "Derived logo URL",
-        "description": "This same-origin URL is derived by the deployment; no filesystem path is exposed."
+        "title": "Publisher logo",
+        "description": "The deployment provides this logo through a URL on this site; the filesystem path is never exposed."
       },
       "initiatives": {
         "title": "Initiatives",
-        "description": "Deployment-managed institutional context."
+        "description": "Institutional initiatives shown in the shared footer."
       },
       "legalEntity": {
         "title": "Legal entity",
-        "description": "Deployment-managed provider details.",
+        "description": "Provider details shown in the legal notice.",
         "name": "Name",
         "legalForm": "Legal form",
         "address": "Address",
@@ -539,12 +645,30 @@
     }
   },
   "projects": {
+    "emptyHint": "Ask a project manager to give you access.",
+    "emptyCreateHint": "Create a project using the button above, or ask a project manager to give you access.",
+    "newProject": "Create project",
+    "hideCreation": "Hide form",
+    "openProject": "Open project",
+    "openProjectNamed": "Open project: {project}",
+    "manageMembers": "Manage members",
+    "manageMembersNamed": "Manage members: {project}",
+    "yourRole": "Your role",
+    "team": "Team",
+    "loadMoreError": "More projects could not be loaded. The projects already loaded remain available.",
+    "loadingMore": "Loading more projects …",
+    "managedTitle": "Membership management",
+    "managedDescription": "Additional projects whose members you can manage.",
+    "managedLoading": "Loading projects you manage …",
+    "managedLoadError": "Projects you manage could not be loaded.",
+    "managedLoadMoreError": "More projects you manage could not be loaded. The projects already loaded remain available.",
+    "loadMoreManaged": "Load more projects to manage",
     "title": "Projects",
     "loading": "Loading …",
     "loadError": "The projects could not be loaded.",
     "sessionLoadError": "The session status could not be loaded.",
     "retry": "Try again",
-    "empty": "There are no projects yet.",
+    "empty": "No projects are available to you yet.",
     "loadMore": "Load more",
     "role": {
       "viewer": "Viewer",
@@ -555,35 +679,84 @@
       "loadError": "The project could not be loaded.",
       "slug": "Slug",
       "role": "Your role",
+      "team": "Team",
+      "created": "Created",
       "noDescription": "This project has no description yet.",
-      "importAction": "Import data"
+      "atLeast": "{count}+",
+      "data": {
+        "title": "Imported data",
+        "loadError": "The imported data could not be loaded.",
+        "empty": "No data has been imported into this project yet.",
+        "snapshots": "Datasets",
+        "records": "Records in the latest imported dataset",
+        "imported": "Latest dataset import",
+        "runs": "Runs on the latest dataset",
+        "inProgress": "Imports in progress",
+        "failed": "Failed imports"
+      },
+      "review": {
+        "title": "Review progress",
+        "noWorkingAggregation": "This project has no working aggregation yet, so there are no review figures to show.",
+        "aggregationLoadError": "The working aggregation could not be loaded.",
+        "summaryLoadError": "The review figures could not be loaded.",
+        "notCompleted": "The working aggregation is {status}. Review figures appear once it has completed.",
+        "noPeople": "The working aggregation contains no people.",
+        "progress": "{reviewed} of {total} people reviewed",
+        "progressLabel": "Share of people reviewed",
+        "decisionSplit": "{verified} confirmed, {corrected} corrected",
+        "queuesTitle": "Still to review",
+        "labelsTitle": "Final labels",
+        "labelsHint": "The latest human decision, otherwise the aggregated machine label.",
+        "noLabel": "No final label",
+        "lastActivity": "Last review activity: {when}",
+        "openReview": "Open the review queues",
+        "browsePeople": "Browse all people"
+      }
     },
     "import": {
       "title": "Import: {project}",
+      "formTitle": "Upload person register",
       "forbidden": "Import is reserved to this project's operators.",
-      "format": "Source format",
       "file": "File",
       "submit": "Upload",
       "submitting": "Uploading …",
       "errors": {
         "validation": "Please check your input.",
         "tooLarge": "The file exceeds this installation's allowed size.",
-        "looksLikeArchive": "The file looks like an archive. Choose the delivery \"ZIP archive\" or \"TAR.GZ archive\" instead of a plain TEI file.",
-        "notAnArchive": "The selected file does not match the chosen archive type. Pick a matching file or change the delivery.",
+        "unsupportedSelection": "Those files were not added; the current selection is unchanged. Choose one supported file, or several .xml files. Mixed formats and multiple .tei, CSV, XLSX, JSON, or archive files cannot be imported together.",
         "network": "The server could not be reached.",
         "generic": "The import could not be started.",
         "partTooLarge": "At least one file exceeds the allowed size per file.",
         "totalTooLarge": "Together the files exceed the allowed total size.",
+        "tooManyFiles": "This installation allows at most {count} separate XML files per import.",
+        "emptyFiles": "Empty files cannot be imported. Remove or replace: {names}.",
+        "duplicateFiles": "File names must be unique. Remove or rename: {names}.",
         "headerMismatch": "The first row of this file does not have the required columns. Expected: {expected}. Found: {found}."
       },
+      "upload": {
+        "dropzoneLabel": "Add source files",
+        "dropTitle": "Drag and drop files here",
+        "dropActive": "Release to add the files",
+        "dropHint": "Choose files from your device or add them by drag and drop.",
+        "browse": "Browse files",
+        "validatingCsv": "Checking the CSV header …",
+        "supported": "TEI XML, CSV, XLSX, JSON, ZIP, or TAR.GZ",
+        "selectedFiles": "Selected files",
+        "selectedSummary": "Files: {count} · {size}",
+        "removeFile": "Remove {name}",
+        "clearAll": "Clear all",
+        "importSettings": "Import settings",
+        "settingSummary": "{format} · {delivery}"
+      },
       "status": {
+        "title": "Import status",
         "pending": "The import is running …",
         "ready": "Import complete: {count} records.",
+        "readyWithoutCount": "Import complete.",
         "failedGeneric": "The import failed.",
         "pollError": "The import status could not be loaded.",
-        "toOverview": "Back to the project overview"
+        "importAnother": "Import another register"
       },
-      "packagingLabel": "Delivery",
       "packaging": {
         "single": "Single file",
         "loose": "Several TEI files",
@@ -596,14 +769,13 @@
         "unavailable": "The upload limits could not be loaded; the server still checks them on upload."
       },
       "profile": {
-        "intro": "CSV, XLSX and JSON must follow one fixed person-register profile. The first row holds exactly these columns, in this order:",
+        "requirements": "Format requirements",
+        "tabularIntro": "CSV and XLSX use exactly these columns in this order:",
+        "jsonIntro": "JSON contains a top-level array whose objects use exactly these fields:",
         "arrays": "persName, event and idno are JSON arrays; see the ingestion documentation for the exact structure."
       }
     },
     "snapshots": {
-      "title": "Imported snapshots",
-      "empty": "Nothing has been imported into this project yet.",
-      "loadError": "The snapshots could not be loaded.",
       "status": {
         "pending": "Waiting",
         "importing": "Importing",
@@ -613,49 +785,68 @@
       "recordCount": "Records",
       "parserVersion": "Parser version",
       "checksum": "SHA-256",
-      "showMembers": "Show source files",
-      "hideMembers": "Hide source files",
       "membersLoadError": "The source files could not be loaded.",
       "members": {
-        "label": "This snapshot's source files",
+        "label": "This dataset's source files",
         "name": "Name",
         "mediaType": "Media type",
         "size": "Size",
         "checksum": "SHA-256",
         "bytes": "{size} bytes"
       },
-      "openRuns": "Runs on this snapshot"
+      "openRuns": "Runs on this dataset"
     },
     "creation": {
       "title": "Create project",
-      "description": "Choose a team before creating a project.",
-      "slug": "Slug",
+      "slug": "Short name (slug)",
       "displayName": "Display name",
-      "descriptionField": "Description",
-      "teamSearch": "Search teams",
+      "descriptionField": "Description (optional)",
       "team": "Team",
       "chooseTeam": "Choose a team",
-      "noTeams": "No eligible teams were found.",
-      "initialManager": "Initial manager",
-      "defaultManager": "Use the server default",
+      "noTeams": "No teams are available.",
+      "initialManager": "Project manager",
+      "defaultManager": "My account",
       "noManagers": "This team has no active eligible manager.",
       "submit": "Create project",
       "error": "The project could not be created. Review the current team and try again.",
-      "refreshFailed": "The project was created, but the project list could not be refreshed."
+      "refreshFailed": "The project was created, but the project list could not be refreshed.",
+      "detailsTitle": "Project details",
+      "teamTitle": "Assign team",
+      "managerHelp": "Manages project members and their roles. Choose an active team member; “My account” requires your own membership in that team.",
+      "teamsLoading": "Loading teams …",
+      "teamsLoadError": "Teams could not be loaded.",
+      "teamsPageError": "More teams could not be loaded. Your current choices remain available.",
+      "teamsLoadMore": "Load more teams",
+      "managersLoading": "Loading team members …",
+      "managersLoadError": "Team members could not be loaded.",
+      "managersPageError": "More team members could not be loaded. Your current choices remain available.",
+      "managersLoadMore": "Load more team members",
+      "noLoadedManagers": "No active member appears on the loaded pages. Load more to continue.",
+      "submitting": "Creating project …",
+      "slugExample": "my-project",
+      "slugHelpLabel": "Requirements for the short name",
+      "slugConstraints": "Start with a lowercase letter (a–z). Use only lowercase letters, digits (0–9), and single hyphens between them. Maximum 100 characters."
     }
   },
   "projectMembers": {
     "title": "Project membership",
     "description": "Management authority is separate from ordinary project access.",
     "loadError": "The membership state could not be loaded.",
-    "managedProjects": "Projects you manage",
     "manager": "Manager",
     "noRole": "No ordinary project role",
     "transfer": "Transfer management",
     "members": "Project members",
+    "actions": "Actions",
     "remove": "Remove role",
+    "addOpen": "Add member",
+    "addHide": "Hide form",
+    "removeConfirm": {
+      "title": "Remove {name}'s project role?",
+      "description": "This removes {name}'s ordinary project role. Their account and team membership remain unchanged.",
+      "cancel": "Cancel",
+      "submit": "Remove role"
+    },
     "add": "Add member",
-    "search": "Search eligible teammates",
     "choose": "Choose a person",
     "person": "Person",
     "role": "Project role",
@@ -669,12 +860,10 @@
   "runs": {
     "loading": "Loading …",
     "retry": "Try again",
-    "title": "Runs",
-    "backToOverview": "Back to the project overview",
-    "forbidden": "Only project operators can start runs.",
+    "title": "Automatic suggestions",
     "history": "Run history",
     "loadError": "The runs could not be loaded.",
-    "empty": "No run has been started on this snapshot yet.",
+    "empty": "No run has been started on this dataset yet.",
     "loadMore": "Load more",
     "status": {
       "created": "Created",
@@ -691,18 +880,20 @@
       "progress": "Progress",
       "progressValue": "{completed} of {total} done, {failed} failed",
       "configHash": "Configuration hash",
-      "open": "Open run"
+      "open": "Open run",
+      "title": "Run from {date}",
+      "openNamed": "Open run from {date}"
     },
     "new": {
-      "title": "Start a run",
+      "title": "Generate suggestions",
       "methods": "Methods",
-      "methodsHint": "Each method runs independently on the snapshot. Confidence values are specific to their method and are not comparable between methods.",
+      "methodsHint": "Each method runs independently on the dataset. Confidence values are specific to their method and are not comparable between methods.",
       "methodsLoadError": "The available methods could not be loaded.",
       "version": "Version {version}",
       "config": "Method configuration (JSON)",
       "configHint": "Leave empty for the method's defaults. Some methods require values such as a lookup checksum or a model address; the server rejects a configuration it cannot resolve.",
       "failOnOptionalError": "Fail the whole run if an optional method fails",
-      "submit": "Start run",
+      "submit": "Generate suggestions",
       "submitting": "Starting …",
       "errors": {
         "notJsonObject": "The configuration must be a JSON object.",
@@ -710,13 +901,22 @@
         "network": "The run could not be started: the server is not reachable.",
         "generic": "The run could not be started."
       },
-      "versionWithConfidence": "Version {version} · reports its own confidence, {min} to {max}"
+      "versionWithConfidence": "Version {version} · reports its own confidence, {min} to {max}",
+      "show": "Generate suggestions",
+      "hide": "Close form",
+      "advanced": "Advanced settings",
+      "configureMethod": "Adjust configuration"
     },
     "detail": {
       "title": "Run",
-      "backToRuns": "Back to the runs",
+      "titleWithDate": "Run from {date}",
+      "status": "Status",
+      "created": "Created",
+      "progress": "Progress",
       "loadError": "The run could not be loaded.",
       "executions": "Methods",
+      "methodCount": "Method executions: {count}",
+      "methodCountWithIssues": "Method executions: {count}, with issues: {issues}",
       "executionsLoadError": "The method executions could not be loaded.",
       "noExecutions": "No method has been scheduled for this run yet.",
       "overallProgressLabel": "Overall progress of the run",
@@ -728,6 +928,27 @@
       },
       "evaluations": "Evaluations of this run",
       "exports": "Exports of this run"
+    },
+    "results": {
+      "title": "Method results",
+      "intro": "Decisions from {method} for this run.",
+      "backToRun": "Back to the run",
+      "search": "Search by name or TEI xml:id",
+      "searchHint": "Name or TEI xml:id",
+      "notFinal": "Results are available once the method has finished.",
+      "loadError": "The method results could not be loaded.",
+      "empty": "No people match this search.",
+      "loadMore": "Load more",
+      "person": "Person",
+      "teiId": "TEI xml:id",
+      "decision": "Decision",
+      "status": "Status",
+      "missing": "no stored result",
+      "noPrediction": "This method stored no result for this person.",
+      "rawLabel": "Raw label: {label}",
+      "confidence": "Own confidence: {value}",
+      "confidenceNote": "Confidence values are specific to this method and are not comparable between methods.",
+      "distinction": "A missing result is neither abstain nor error. The label unknown is a stored result."
     },
     "provenance": {
       "title": "Provenance",
@@ -744,6 +965,7 @@
     },
     "execution": {
       "provenance": "Method provenance",
+      "provenanceFor": "Provenance for {method}",
       "implementationVersion": "Implementation version",
       "normalizationVersion": "Normalization version",
       "modelIdentifier": "Model",
@@ -751,22 +973,40 @@
       "modelChecksum": "Model checksum",
       "promptVersion": "Prompt version",
       "schemaVersion": "Schema version"
-    }
+    },
+    "changeSelection": "Change selection",
+    "contextLoadError": "The selected dataset could not be loaded.",
+    "contextUnavailable": "Automatic suggestions are unavailable for this selection. Choose an available dataset."
   },
   "aggregations": {
-    "title": "Aggregations",
-    "hint": "An aggregation combines the results of the selected method executions into one decision per person. A run can have several; re-aggregating does not run any method again.",
-    "waitingForRun": "Aggregations can be created once the run has finished successfully.",
-    "empty": "No aggregation exists for this run yet.",
-    "loadError": "The aggregations could not be loaded.",
-    "inProgress": "An aggregation is in progress …",
-    "reused": "An identical aggregation already exists.",
+    "title": "Combined result",
+    "hint": "The included method results are combined into one suggestion for each person.",
+    "currentWorking": "Current working result",
+    "latestResult": "Latest combined result",
+    "latestAttempt": "Latest aggregation attempt",
+    "history": "Aggregation history",
+    "historyWithCount": "Aggregation history ({count})",
+    "waitingForRun": "A combined result can be calculated once the run has finished successfully.",
+    "empty": "No combined result exists for this run yet.",
+    "loadError": "The combined results could not be loaded.",
+    "autoCreating": "The combined result is being calculated automatically …",
+    "inProgress": "A combined result is being calculated …",
+    "reused": "A result with the same selection already exists.",
     "item": {
       "strategy": "Strategy",
+      "referenceStrategy": "Reference decision",
       "selection": "Selection",
-      "selectionValue": "{count} method executions",
+      "selectionValue": "Method executions: {count}",
+      "selectedMethods": "Included methods: {count}",
+      "notSelected": "Not included: {count}",
+      "executionUnavailable": "Status not loaded",
+      "ready": "Ready for expert review. Resolve contested and uncertain suggestions, then confirm the working result.",
+      "review": "Review result",
+      "details": "Details and provenance",
       "configHash": "Configuration hash",
-      "open": "Open aggregation"
+      "open": "Open aggregation",
+      "openLabel": "Open aggregation from {date}",
+      "titleWithDate": "Aggregation from {date}"
     },
     "errors": {
       "autoNotAggregatable": "The automatic reference aggregation could not be created: the method executions of this run are not a complete reference selection. The reference strategy needs its full method set, each method once, all completed. Start a run with the full method set.",
@@ -775,12 +1015,12 @@
       "generic": "The aggregation could not be created."
     },
     "advanced": {
-      "title": "Create another aggregation",
-      "hint": "Choose exactly which method executions enter the aggregation. The server accepts only selections that satisfy the strategy and rejects any other.",
+      "title": "Calculate another result",
+      "hint": "The displayed result's selection is the starting point. Change it only to compare another valid method combination; methods are not run again.",
       "strategy": "Strategy: {strategy}",
       "selection": "Method executions",
-      "submit": "Create aggregation",
-      "submitting": "Creating …"
+      "submit": "Calculate result",
+      "submitting": "Calculating …"
     },
     "detail": {
       "title": "Aggregation",
@@ -799,15 +1039,25 @@
     }
   },
   "review": {
+    "refreshError": "The current data could not be refreshed. Your draft is retained; retry before saving.",
     "title": "Review",
-    "back": "Back to the aggregation",
     "loading": "Loading …",
     "retry": "Try again",
     "loadMore": "Load more",
     "none": "none",
-    "subtitle": "Strategy {strategy} · {count} people",
+    "subtitleOne": "Working result with one person",
+    "subtitleMany": "Working result with {count} people",
     "aggregationLoadError": "The aggregation could not be loaded.",
     "notCompleted": "This aggregation has not finished yet. Its results can be reviewed once it is completed.",
+    "context": {
+      "title": "Review basis",
+      "dataset": "Dataset",
+      "datasetHint": "Imported person records",
+      "suggestions": "Automatic suggestions",
+      "suggestionsHint": "Results from the selected methods",
+      "result": "Working result",
+      "resultHint": "Combined using strategy {strategy}"
+    },
     "queue": {
       "label": "Queue",
       "count": "{open} open of {total}",
@@ -855,6 +1105,7 @@
     },
     "detail": {
       "title": "Person",
+      "summaryTitle": "Result summary",
       "none": "Choose a person from the list.",
       "notFound": "This person is not part of this aggregation.",
       "certainty": "Certainty",
@@ -864,6 +1115,11 @@
       "finalLabel": "Final label",
       "state": "Review state",
       "revision": "revision {revision}",
+      "navigation": {
+        "label": "Person navigation",
+        "previous": "Previous person",
+        "next": "Next person"
+      },
       "authorityTitle": "An authority decided.",
       "authorityBody": "{source} overruled the pooled vote.",
       "conflictTitle": "Authority and ensemble disagree.",
@@ -885,14 +1141,16 @@
         "source": "From {file}, record {locator}"
       },
       "methods": {
-        "title": "Result of each method",
+        "title": "Results by method",
         "method": "Method",
         "label": "Label",
         "status": "Status",
         "confidence": "Own confidence",
         "raw": "raw: {raw}",
         "noPrediction": "This method stored no prediction for this person.",
-        "confidenceNote": "A confidence value is specific to its method. It does not influence the vote and is not comparable between methods.",
+        "unassigned": "No class assigned",
+        "groupSummary": "{count}× {label}",
+        "groupCount": "{count}×",
         "loadError": "The method results could not be loaded."
       },
       "history": {
@@ -962,7 +1220,6 @@
       "key": "Key {key}",
       "comment": "Comment (optional)",
       "keyboardHint": "Keys 1 to 4 choose the label to correct to; then press Enter to save.",
-      "appendOnly": "Nothing is saved automatically. Every decision is a new, permanent entry in the history; a later decision supersedes it.",
       "save": "Save decision",
       "saving": "Saving …",
       "saved": "{action}. Revision {revision}.",
@@ -1152,7 +1409,7 @@
         "json": "JSON result bundle",
         "csv": "CSV analysis report"
       },
-      "teiNotPossible": "A TEI export needs a snapshot that is still TEI files, imported as a single file or as loose files. This run’s snapshot is not, so the server would refuse it.",
+      "teiNotPossible": "A TEI export needs a dataset imported from one TEI file or several loose TEI files. This run’s dataset does not meet that requirement.",
       "policy": "Which label is exported",
       "policies": {
         "machine": "the machine’s aggregated decision for everybody",
@@ -1166,7 +1423,7 @@
       "submit": "Start export",
       "submitting": "Starting …",
       "errors": {
-        "conflict": "The server refused this export. It needs a completed aggregation of this run, and a TEI export needs a TEI snapshot.",
+        "conflict": "The server refused this export. It needs a completed aggregation of this run, and a TEI export needs a dataset imported from TEI files.",
         "network": "The export could not be started: the server is not reachable.",
         "generic": "The export could not be started."
       }
@@ -1187,7 +1444,7 @@
       "bytes": "{size} bytes",
       "checksum": "SHA-256",
       "manifestReceived": "This export produced several outputs, so the download is its manifest; the outputs are listed in the manifest section above and are not downloadable separately.",
-      "sourceSnapshot": "Source snapshot SHA-256",
+      "sourceSnapshot": "Source dataset SHA-256",
       "outputs": "Outputs recorded in the manifest",
       "verifyLabel": "Checksum from the manifest (paste it to compare)",
       "verdict": {
@@ -1275,5 +1532,71 @@
     "body": "Stay to keep editing, or discard your unsaved input and leave. Submitted work and saved decisions remain. Leaving stops any remaining bulk decisions after the current submission.",
     "stay": "Stay",
     "discard": "Discard and leave"
+  },
+  "taskEntry": {
+    "classificationHint": "Choose an imported dataset to browse runs or generate suggestions.",
+    "reviewHint": "Open a completed result for review. Its dataset and run are shown on the card.",
+    "annotationHint": "Choose a dataset to annotate. Automatic suggestions are optional.",
+    "selectSnapshot": "Select dataset",
+    "selectRun": "Select run",
+    "selectResult": "Select result",
+    "select": "Select",
+    "openClassification": "Select",
+    "openReview": "Open",
+    "openAnnotation": "Start annotating",
+    "selectSnapshotNamed": "Select dataset from {date}",
+    "selectRunNamed": "Select run from {date}",
+    "openResultNamed": "Open result from {date}",
+    "recordCount": "{count} records",
+    "methodCount": "{count} methods",
+    "dataset": "Dataset",
+    "run": "Run",
+    "methods": "Methods",
+    "strategy": "Strategy",
+    "recommended": "Working result · recommended",
+    "runTitle": "Run from {date}",
+    "resultTitle": "Result from {date}",
+    "changeSnapshot": "Change dataset",
+    "changeRun": "Change run",
+    "changeSelection": "Change selection",
+    "moreSnapshots": "Load more datasets",
+    "moreRuns": "Load more runs",
+    "moreResults": "Load more results",
+    "reviewResultsTitle": "Completed results",
+    "noSnapshots": "No imported datasets are ready yet. Import data in the Data area first.",
+    "noReviewSnapshots": "No completed result is available for review yet. Automatic suggestions must first be generated and combined into a result.",
+    "noResults": "No completed results are available for this selection yet.",
+    "snapshotError": "Datasets could not be loaded.",
+    "runError": "Runs could not be loaded.",
+    "resultError": "Results could not be loaded.",
+    "selectionUnavailable": "This selection is unavailable. Reload it or choose another dataset.",
+    "noPermission": "You do not have permission to use this task in this project.",
+    "recommendationError": "The working-result recommendation could not be loaded. You can still select other available data.",
+    "annotationStart": "Annotate this dataset",
+    "optionalEvidence": "Work directly with the imported records, or add automatic suggestions to support your decisions.",
+    "withoutEvidence": "Annotate directly",
+    "chooseEvidence": "Choose automatic suggestions",
+    "availabilityLoading": "Checking available tasks…",
+    "availabilityError": "Available tasks could not be checked.",
+    "retryAvailability": "Check available tasks again"
+  },
+  "annotation": {
+    "chooseLabel": "Choose a label",
+    "humanLabel": "Human decision",
+    "noDecision": "No label recorded",
+    "hint": "Decisions apply to this dataset. No automatic suggestions are selected.",
+    "search": "Find a person",
+    "searchSubmit": "Search",
+    "allStates": "All review states",
+    "allLabels": "All human labels",
+    "empty": "No records match these filters.",
+    "selectPerson": "Select a person to inspect the source and record a decision.",
+    "loadError": "The annotation records could not be loaded.",
+    "personError": "This person could not be loaded.",
+    "more": "Load more people",
+    "openNamed": "Annotate {name}",
+    "evidence": "Add automatic suggestions",
+    "browseTitle": "People and decisions",
+    "openReadOnly": "View {name}"
   }
 }

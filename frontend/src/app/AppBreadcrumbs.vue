@@ -51,8 +51,15 @@ const crumbs = computed<Breadcrumb[]>(() => {
     projectMembers: t('projectMembers.title'),
     projectOverview: t('nav.overview'),
     projectImport: t('nav.import'),
+    projectSnapshots: t('nav.data'),
+    snapshotDetail: t('data.detailTitle'),
+    projectClassification: t('runs.title'),
+    projectReview: t('review.title'),
+    projectAnnotation: t('review.people.title'),
+    snapshotAnnotations: t('review.people.title'),
     snapshotRuns: t('runs.title'),
     runDetail: t('runs.detail.title'),
+    methodExecutionResults: t('runs.results.title'),
     aggregationDetail: t('aggregations.detail.title'),
     review: t('review.title'),
     people: t('review.people.title'),
@@ -87,7 +94,13 @@ const crumbs = computed<Breadcrumb[]>(() => {
   }
   // Only actual, route-supplied parents become links. Never resolve additional scientific resources
   // to manufacture a breadcrumb, or show a run/aggregation/person identifier in the shell.
-  if (project !== null && name === 'runDetail') {
+  if (project !== null && (name === 'snapshotDetail' || name === 'projectImport')) {
+    entries.push({
+      id: 'projectSnapshots',
+      label: t('nav.data'),
+      to: { name: 'projectSnapshots', params: { projectId: project.id } },
+    })
+  } else if (project !== null && (name === 'runDetail' || name === 'methodExecutionResults')) {
     entries.push({
       id: 'snapshotRuns',
       label: t('runs.title'),
@@ -96,6 +109,20 @@ const crumbs = computed<Breadcrumb[]>(() => {
         params: { projectId: project.id, snapshotId: route.params.snapshotId },
       },
     })
+    if (name === 'methodExecutionResults') {
+      entries.push({
+        id: 'runDetail',
+        label: t('runs.detail.title'),
+        to: {
+          name: 'runDetail',
+          params: {
+            projectId: project.id,
+            snapshotId: route.params.snapshotId,
+            runId: route.params.runId,
+          },
+        },
+      })
+    }
   } else if (project !== null && (name === 'exportDetail' || name === 'evaluationDetail')) {
     entries.push({
       id: name === 'exportDetail' ? 'exports' : 'evaluations',

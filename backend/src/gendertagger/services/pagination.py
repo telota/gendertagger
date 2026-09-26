@@ -11,6 +11,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from gendertagger.models.api import CursorPage
+from gendertagger.models.common import canonical_json_sha256
 
 _MAX_CURSOR_LENGTH = 2048
 _MAX_SORT_VALUES = 8
@@ -18,6 +19,14 @@ _MAX_SORT_VALUES = 8
 
 class InvalidCursorError(ValueError):
     """Raised when a cursor is malformed or belongs to another resource."""
+
+
+def filtered_collection_resource(resource: str, filters: BaseModel) -> str:
+    """Bind a collection cursor to all filters, preserving the unfiltered scope."""
+    values = filters.model_dump(mode="json")
+    if all(value is None for value in values.values()):
+        return resource
+    return f"{resource}:{canonical_json_sha256(values)}"
 
 
 @dataclass(frozen=True, slots=True)

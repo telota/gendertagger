@@ -26,6 +26,7 @@ from gendertagger.models.aggregation import (
     AggregatedResult,
     AggregationExecution,
     AggregationExecutionCreate,
+    AggregationExecutionListFilter,
     AggregationPersonPredictions,
     AggregationResultWrite,
     ResultMethodPrediction,
@@ -177,12 +178,17 @@ class SqlAlchemyAggregationRepository:
         *,
         limit: int,
         after: CreationPosition | None = None,
+        filters: AggregationExecutionListFilter | None = None,
     ) -> Sequence[AggregationExecution]:
-        """Return a run's aggregations newest first, in every lifecycle state."""
+        """Return a run's matching aggregations newest first."""
+        filters = filters or AggregationExecutionListFilter()
+        statement = select(AggregationExecutionRow).where(AggregationExecutionRow.run_id == run_id)
+        if filters.status is not None:
+            statement = statement.where(AggregationExecutionRow.status == filters.status)
         rows = tuple(
             self._session.scalars(
                 newest_first_slice(
-                    select(AggregationExecutionRow).where(AggregationExecutionRow.run_id == run_id),
+                    statement,
                     created_at=AggregationExecutionRow.created_at,
                     row_id=AggregationExecutionRow.id,
                     limit=limit,

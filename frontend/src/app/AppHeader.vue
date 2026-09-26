@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { PhGenderIntersex, PhList } from '@phosphor-icons/vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 
 import { useSessionStore } from '@/stores/session'
 
@@ -13,11 +13,18 @@ defineProps<{ mobileNavigationOpen?: boolean }>()
 defineEmits<{ openNavigation: [] }>()
 
 const { t } = useI18n()
+const route = useRoute()
 const session = useSessionStore()
 </script>
 
 <template>
-  <header class="app-header" :class="{ 'app-header--public': !session.canUsePrivateNavigation }">
+  <header
+    class="app-header"
+    :class="{
+      'app-header--public': !session.canUsePrivateNavigation,
+      'app-header--private-home': session.canUsePrivateNavigation && route.name === 'home',
+    }"
+  >
     <button
       v-if="session.canUsePrivateNavigation"
       type="button"
@@ -29,8 +36,15 @@ const session = useSessionStore()
     >
       <PhList :size="24" aria-hidden="true" />
     </button>
-    <AppBreadcrumbs v-if="session.canUsePrivateNavigation" class="app-header-location" />
-    <RouterLink v-else :to="{ name: 'home' }" class="app-header-brand">
+    <AppBreadcrumbs
+      v-if="session.canUsePrivateNavigation && route.name !== 'home'"
+      class="app-header-location"
+    />
+    <RouterLink
+      v-else-if="!session.canUsePrivateNavigation"
+      :to="{ name: 'home' }"
+      class="app-header-brand"
+    >
       <PhGenderIntersex :size="24" aria-hidden="true" />
       <span>{{ t('app.title') }}</span>
     </RouterLink>
@@ -128,6 +142,10 @@ const session = useSessionStore()
   .app-header-account {
     grid-column: 2;
     grid-row: 2;
+  }
+
+  .app-header--private-home .app-header-account {
+    grid-row: 1;
   }
 
   .app-header--public {

@@ -15,7 +15,11 @@ import {
 } from './i18n'
 import { createQueryClient } from './queryClient'
 import { createAppRouter } from './router'
-import { createUnauthorizedHandler, shouldRetryAfterUnauthorized } from './sessionGuard'
+import {
+  annotationRetryScope,
+  createUnauthorizedHandler,
+  shouldRetryAfterUnauthorized,
+} from './sessionGuard'
 
 function readStoredLocale(storage: Storage): string | null {
   try {
@@ -50,6 +54,7 @@ export function createApplication(environment: {
     createApiClient({
       onUnauthorized: createUnauthorizedHandler(router),
       shouldRetryAfterUnauthorized,
+      retryScope: annotationRetryScope,
     }),
   )
   return application

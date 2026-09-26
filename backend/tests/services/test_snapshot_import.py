@@ -216,7 +216,28 @@ def test_executor_streams_imported_batches_and_commits_atomically(
     assert result.status is DatasetSnapshotStatus.ready
     assert persisted_batches == [["p3", "p1"], ["p2"]]
     assert projects.add_imported_person_records.call_count == 2
-    projects.complete_snapshot_import.assert_called_once_with(SNAPSHOT_ID, ready_at=NOW)
+    projects.complete_snapshot_import.assert_called_once()
+    completion = projects.complete_snapshot_import.call_args
+    assert completion.args == (SNAPSHOT_ID,)
+    assert completion.kwargs["ready_at"] == NOW
+    assert completion.kwargs["statistics"].model_dump(mode="json") == {
+        "dataset_snapshot_id": str(SNAPSHOT_ID),
+        "total_person_count": 3,
+        "source_gender": {
+            "with_element_count": 0,
+            "without_element_count": 3,
+            "male_count": 0,
+            "female_count": 0,
+            "unknown_count": 0,
+            "institution_count": 0,
+            "other_or_multiple_count": 0,
+        },
+        "gnd": {
+            "with_reference_count": 0,
+            "without_reference_count": 3,
+            "with_reference_and_source_gender_count": 0,
+        },
+    }
     assert len(factory.units) == 1
     assert factory.units[0].commit_count == 1
     assert factory.units[0].exit_exception_type is None

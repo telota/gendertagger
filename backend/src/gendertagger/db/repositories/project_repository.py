@@ -10,10 +10,14 @@ from pydantic import ValidationError
 from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.orm import Session
 
+from gendertagger.config.run import AggregationStrategy, RunConfig
 from gendertagger.db.keyset import newest_first_slice
-from gendertagger.db.rows.aggregations import AggregationExecutionRow
+from gendertagger.db.rows.aggregations import (
+    AggregationExecutionRow,
+    AggregationMethodExecutionRow,
+)
 from gendertagger.db.rows.artifacts import ArtifactRow
-from gendertagger.db.rows.executions import RunRow
+from gendertagger.db.rows.executions import MethodExecutionRow, RunRow
 from gendertagger.db.rows.projects import (
     DatasetSnapshotRow,
     PersonExternalIdRow,
@@ -23,6 +27,7 @@ from gendertagger.db.rows.projects import (
 )
 from gendertagger.db.rows.teams import TeamRow
 from gendertagger.ingestion.registry import version_for_snapshot_import
+from gendertagger.models.aggregation import AggregationExecution
 from gendertagger.models.common import normalize_utc_datetime
 from gendertagger.models.lifecycle import AggregationExecutionStatus, DatasetSnapshotStatus
 from gendertagger.models.person import (
@@ -35,8 +40,12 @@ from gendertagger.models.person import (
 from gendertagger.models.project import (
     DatasetSnapshot,
     DatasetSnapshotCreate,
+    DatasetSnapshotListFilter,
+    DatasetSnapshotStatistics,
     Project,
     ProjectCreate,
+    ProjectDataAvailability,
+    SnapshotGndStatistics,
     SnapshotImportConfig,
     SnapshotSourceMember,
     SnapshotSourceMemberCreate,
@@ -44,6 +53,8 @@ from gendertagger.models.project import (
     TabularImportProfile,
     TeiImportProfile,
 )
+from gendertagger.models.run import Progress, Run
+from gendertagger.models.task import ProjectReviewResult
 from gendertagger.models.team import TeamSummary
 from gendertagger.services.pagination import CreationPosition
 from gendertagger.services.ports.persistence_errors import (
@@ -84,6 +95,39 @@ class SqlAlchemyProjectRepository:
         """Return a project contract by ID without exposing its row."""
         row = self._session.get(ProjectRow, project_id)
         return None if row is None else self._project_from_row(row, self._require_team(row.team_id))
+
+    def get_data_availability(self, project_id: UUID) -> ProjectDataAvailability | None:
+        """Read project-wide existence without loading collections or using a working pointer."""
+        ready_snapshots = (
+            select(DatasetSnapshotRow.id)
+            .where(
+                DatasetSnapshotRow.project_id == ProjectRow.id,
+                DatasetSnapshotRow.status == DatasetSnapshotStatus.ready,
+            )
+            .exists()
+        )
+        completed_aggregations = (
+            select(AggregationExecutionRow.id)
+            .join(RunRow, RunRow.id == AggregationExecutionRow.run_id)
+            .join(DatasetSnapshotRow, DatasetSnapshotRow.id == RunRow.dataset_snapshot_id)
+            .where(
+                DatasetSnapshotRow.project_id == ProjectRow.id,
+                AggregationExecutionRow.status == AggregationExecutionStatus.completed,
+            )
+            .exists()
+        )
+        row = self._session.execute(
+            select(ProjectRow.id, ready_snapshots, completed_aggregations).where(
+                ProjectRow.id == project_id
+            )
+        ).one_or_none()
+        if row is None:
+            return None
+        return ProjectDataAvailability(
+            project_id=row[0],
+            has_ready_snapshots=row[1],
+            has_completed_aggregations=row[2],
+        )
 
     def get_project_for_update(self, project_id: UUID) -> Project | None:
         """Return a project contract under a write lock without exposing its row."""
@@ -167,6 +211,7 @@ class SqlAlchemyProjectRepository:
             parser_version=command.parser_version,
             import_config=command.import_config,
             record_count=None,
+            statistics=None,
             ready_at=None,
             failure_class=None,
             failure_diagnostic=None,
@@ -180,17 +225,85 @@ class SqlAlchemyProjectRepository:
         row = self._session.get(DatasetSnapshotRow, snapshot_id)
         return None if row is None else self._snapshot_from_row(row)
 
+    def get_snapshot_statistics(
+        self,
+        snapshot_id: UUID,
+    ) -> DatasetSnapshotStatistics | None:
+        """Return materialized statistics, deriving GND coverage for legacy snapshots."""
+        row = self._session.get(DatasetSnapshotRow, snapshot_id)
+        if row is None:
+            return None
+        if row.status is not DatasetSnapshotStatus.ready:
+            msg = f"dataset snapshot {snapshot_id} is not ready"
+            raise InvalidResourceStateError(msg)
+        if row.statistics is not None:
+            statistics = DatasetSnapshotStatistics.model_validate(row.statistics)
+            if (
+                statistics.dataset_snapshot_id != row.id
+                or statistics.total_person_count != row.record_count
+            ):
+                msg = f"dataset snapshot {snapshot_id} statistics do not match the snapshot"
+                raise InvalidResourceStateError(msg)
+            return statistics
+
+        with_gnd_count = (
+            self._session.scalar(
+                select(func.count(PersonExternalIdRow.id))
+                .join(
+                    PersonRecordRow,
+                    PersonRecordRow.id == PersonExternalIdRow.person_record_id,
+                )
+                .where(
+                    PersonRecordRow.dataset_snapshot_id == snapshot_id,
+                    PersonExternalIdRow.scheme == "gnd",
+                )
+            )
+            or 0
+        )
+        total_person_count = row.record_count
+        if total_person_count is None:
+            msg = f"ready dataset snapshot {snapshot_id} has no record count"
+            raise InvalidResourceStateError(msg)
+        return DatasetSnapshotStatistics(
+            dataset_snapshot_id=snapshot_id,
+            total_person_count=total_person_count,
+            source_gender=None,
+            gnd=SnapshotGndStatistics(
+                with_reference_count=with_gnd_count,
+                without_reference_count=total_person_count - with_gnd_count,
+                with_reference_and_source_gender_count=None,
+            ),
+        )
+
     def list_snapshots(
         self,
         project_id: UUID,
         *,
         limit: int,
         after: CreationPosition | None = None,
+        filters: DatasetSnapshotListFilter | None = None,
     ) -> Sequence[DatasetSnapshot]:
-        """Return a project's snapshots newest first, in every lifecycle state."""
+        """Return matching snapshots newest first, filtering before the keyset slice."""
+        filters = filters or DatasetSnapshotListFilter()
+        statement = select(DatasetSnapshotRow).where(DatasetSnapshotRow.project_id == project_id)
+        if filters.status is not None:
+            statement = statement.where(DatasetSnapshotRow.status == filters.status)
+        if filters.has_completed_aggregations is not None:
+            completed = (
+                select(AggregationExecutionRow.id)
+                .join(RunRow, RunRow.id == AggregationExecutionRow.run_id)
+                .where(
+                    RunRow.dataset_snapshot_id == DatasetSnapshotRow.id,
+                    AggregationExecutionRow.status == AggregationExecutionStatus.completed,
+                )
+                .exists()
+            )
+            statement = statement.where(
+                completed if filters.has_completed_aggregations else ~completed
+            )
         rows = self._session.scalars(
             newest_first_slice(
-                select(DatasetSnapshotRow).where(DatasetSnapshotRow.project_id == project_id),
+                statement,
                 created_at=DatasetSnapshotRow.created_at,
                 row_id=DatasetSnapshotRow.id,
                 limit=limit,
@@ -198,6 +311,58 @@ class SqlAlchemyProjectRepository:
             )
         )
         return tuple(self._snapshot_from_row(row) for row in rows)
+
+    def list_review_results(
+        self,
+        project_id: UUID,
+        *,
+        limit: int,
+        after: CreationPosition | None = None,
+    ) -> Sequence[ProjectReviewResult]:
+        """Return completed aggregation executions with their run and snapshot context."""
+        statement = (
+            select(AggregationExecutionRow, RunRow, DatasetSnapshotRow)
+            .join(RunRow, RunRow.id == AggregationExecutionRow.run_id)
+            .join(DatasetSnapshotRow, DatasetSnapshotRow.id == RunRow.dataset_snapshot_id)
+            .where(
+                DatasetSnapshotRow.project_id == project_id,
+                DatasetSnapshotRow.status == DatasetSnapshotStatus.ready,
+                AggregationExecutionRow.status == AggregationExecutionStatus.completed,
+            )
+        )
+        if after is not None:
+            statement = statement.where(
+                or_(
+                    AggregationExecutionRow.created_at < after.created_at,
+                    and_(
+                        AggregationExecutionRow.created_at == after.created_at,
+                        AggregationExecutionRow.id < after.id,
+                    ),
+                )
+            )
+        rows = self._session.execute(
+            statement.order_by(
+                AggregationExecutionRow.created_at.desc(),
+                AggregationExecutionRow.id.desc(),
+            ).limit(limit)
+        ).all()
+        aggregation_ids = [aggregation.id for aggregation, _, _ in rows]
+        run_ids = [run.id for _, run, _ in rows]
+        method_ids = self._method_execution_ids_by_aggregation(aggregation_ids)
+        progress = self._run_progress_by_id(run_ids)
+        return tuple(
+            ProjectReviewResult(
+                id=aggregation.id,
+                created_at=aggregation.created_at,
+                aggregation=self._aggregation_from_row(
+                    aggregation,
+                    method_ids.get(aggregation.id, ()),
+                ),
+                run=self._run_from_row(run, progress=progress.get(run.id)),
+                snapshot=self._snapshot_from_row(snapshot),
+            )
+            for aggregation, run, snapshot in rows
+        )
 
     def add_snapshot_source_members(
         self,
@@ -715,17 +880,26 @@ class SqlAlchemyProjectRepository:
         self,
         snapshot_id: UUID,
         *,
+        statistics: DatasetSnapshotStatistics,
         ready_at: datetime,
     ) -> DatasetSnapshot:
         """Lock and make an importing snapshot immutable and ready."""
         row = self._locked_snapshot(snapshot_id)
         self._require_snapshot_status(row, DatasetSnapshotStatus.importing)
         self._require_complete_source_provenance(row)
-        row.record_count = self._session.scalar(
+        record_count = self._session.scalar(
             select(func.count(PersonRecordRow.id)).where(
                 PersonRecordRow.dataset_snapshot_id == snapshot_id
             )
         )
+        if (
+            statistics.dataset_snapshot_id != snapshot_id
+            or statistics.total_person_count != record_count
+        ):
+            msg = f"dataset snapshot {snapshot_id} statistics do not match persisted people"
+            raise InvalidResourceStateError(msg)
+        row.record_count = record_count
+        row.statistics = statistics.model_dump(mode="json")
         row.ready_at = normalize_utc_datetime(ready_at)
         row.status = DatasetSnapshotStatus.ready
         self._session.flush()
@@ -852,6 +1026,88 @@ class SqlAlchemyProjectRepository:
         )
 
     @staticmethod
+    def _aggregation_from_row(
+        row: AggregationExecutionRow,
+        method_execution_ids: tuple[UUID, ...],
+    ) -> AggregationExecution:
+        return AggregationExecution(
+            id=row.id,
+            run_id=row.run_id,
+            strategy=AggregationStrategy(row.strategy),
+            resolved_config=row.resolved_config,
+            method_execution_ids=method_execution_ids,
+            config_sha256=row.config_sha256,
+            status=row.status,
+            started_at=row.started_at,
+            finished_at=row.finished_at,
+            failure_class=row.failure_class,
+            failure_diagnostic=row.failure_diagnostic,
+            created_at=row.created_at,
+        )
+
+    @staticmethod
+    def _run_from_row(row: RunRow, *, progress: Progress | None = None) -> Run:
+        return Run(
+            id=row.id,
+            dataset_snapshot_id=row.dataset_snapshot_id,
+            resolved_config=RunConfig.model_validate(row.resolved_config),
+            config_sha256=row.config_sha256,
+            status=row.status,
+            code_git_commit=row.code_git_commit,
+            application_version=row.application_version,
+            container_image_digest=row.container_image_digest,
+            python_version=row.python_version,
+            dependency_lock_sha256=row.dependency_lock_sha256,
+            dependency_lock_artifact_id=row.dependency_lock_artifact_id,
+            started_at=row.started_at,
+            finished_at=row.finished_at,
+            failure_class=row.failure_class,
+            failure_diagnostic=row.failure_diagnostic,
+            created_at=row.created_at,
+            progress=Progress(total=None, completed=0, failed=0, percentage=None)
+            if progress is None
+            else progress,
+        )
+
+    def _method_execution_ids_by_aggregation(
+        self,
+        aggregation_execution_ids: Sequence[UUID],
+    ) -> dict[UUID, tuple[UUID, ...]]:
+        selections: defaultdict[UUID, list[UUID]] = defaultdict(list)
+        if aggregation_execution_ids:
+            for aggregation_execution_id, method_execution_id in self._session.execute(
+                select(
+                    AggregationMethodExecutionRow.aggregation_execution_id,
+                    AggregationMethodExecutionRow.method_execution_id,
+                )
+                .where(
+                    AggregationMethodExecutionRow.aggregation_execution_id.in_(
+                        aggregation_execution_ids
+                    )
+                )
+                .order_by(
+                    AggregationMethodExecutionRow.aggregation_execution_id,
+                    AggregationMethodExecutionRow.position,
+                )
+            ):
+                selections[aggregation_execution_id].append(method_execution_id)
+        return {
+            aggregation_execution_id: tuple(selections[aggregation_execution_id])
+            for aggregation_execution_id in aggregation_execution_ids
+        }
+
+    def _run_progress_by_id(self, run_ids: Sequence[UUID]) -> dict[UUID, Progress]:
+        executions: defaultdict[UUID, list[MethodExecutionRow]] = defaultdict(list)
+        if run_ids:
+            for row in self._session.scalars(
+                select(MethodExecutionRow)
+                .where(MethodExecutionRow.run_id.in_(run_ids))
+                .order_by(MethodExecutionRow.run_id, MethodExecutionRow.method_name)
+            ):
+                executions[row.run_id].append(row)
+        return {run_id: _progress_of(executions[run_id]) for run_id in run_ids}
+
+    @staticmethod
     def _source_member_from_row(row: SnapshotSourceMemberRow) -> SnapshotSourceMember:
         return SnapshotSourceMember(
             id=row.id,
@@ -893,3 +1149,15 @@ class SqlAlchemyProjectRepository:
             source_record_locator=row.source_record_locator,
             created_at=row.created_at,
         )
+
+
+def _progress_of(executions: Sequence[MethodExecutionRow]) -> Progress:
+    """Sum one run's execution counters; total is known only when every execution has one."""
+    if not executions:
+        return Progress(total=None, completed=0, failed=0, percentage=None)
+    totals = [execution.total_count for execution in executions]
+    present = [value for value in totals if value is not None]
+    total = sum(present) if len(present) == len(totals) else None
+    completed = sum(execution.completed_count for execution in executions)
+    failed = sum(execution.failed_count for execution in executions)
+    return Progress.of(total=total, completed=completed, failed=failed)

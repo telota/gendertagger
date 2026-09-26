@@ -1,12 +1,12 @@
 import {
   PhChartBar,
+  PhDatabase,
   PhExport,
   PhFolders,
   PhGearSix,
   PhPencilSimpleLine,
   PhSquaresFour,
   PhTreeStructure,
-  PhUploadSimple,
   PhUserList,
   PhUsers,
   PhUsersThree,
@@ -17,6 +17,7 @@ import { useRoute, type RouteLocationRaw } from 'vue-router'
 
 import { useAdminAccess } from '@/composables/useAdminAccess'
 import { hasProjectRole } from '@/features/projects/projectRoles'
+import { useProjectDataAvailability } from '@/features/tasks/useTaskData'
 
 import { useProjectNavigation } from './useProjectNavigation'
 
@@ -33,16 +34,24 @@ export interface SidebarNavigationGroup {
   id: string
   label?: string
   items: SidebarNavigationItem[]
+  availability?: { status: 'loading' | 'error'; retry: () => void }
 }
 
 /** Each implemented route belongs to one leaf, including detail views with no separate menu item. */
 const OWNED_ROUTES: Record<string, readonly string[]> = {
   projects: ['projects'],
-  overview: ['projectOverview', 'projectMembers'],
-  import: ['projectImport'],
-  classification: ['snapshotRuns', 'runDetail', 'aggregationDetail'],
-  review: ['review'],
-  people: ['people'],
+  overview: ['projectOverview'],
+  projectMembers: ['projectMembers'],
+  data: ['projectSnapshots', 'snapshotDetail', 'projectImport'],
+  classification: [
+    'projectClassification',
+    'snapshotRuns',
+    'runDetail',
+    'methodExecutionResults',
+    'aggregationDetail',
+  ],
+  review: ['projectReview', 'review'],
+  people: ['projectAnnotation', 'snapshotAnnotations', 'people'],
   evaluations: ['evaluations', 'evaluationDetail'],
   exports: ['exports', 'exportDetail'],
   administration: ['adminUsers'],
@@ -62,6 +71,10 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
   const route = useRoute()
   const { canAccessAdmin, session } = useAdminAccess()
   const project = useProjectNavigation()
+  const availability = useProjectDataAvailability(
+    computed(() => project.value?.projectId ?? ''),
+    computed(() => project.value !== null && project.value.currentUserRole !== null),
+  )
 
   function item(
     id: string,
@@ -75,16 +88,6 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
       icon,
       to,
       current: typeof route.name === 'string' && (OWNED_ROUTES[id]?.includes(route.name) ?? false),
-      ...(to === null
-        ? {
-            unavailableReason:
-              id === 'classification'
-                ? t('nav.requiresSnapshot')
-                : id === 'review' || id === 'people'
-                  ? t('nav.requiresAggregation')
-                  : t('nav.requiresRun'),
-          }
-        : {}),
     }
   }
 
@@ -98,44 +101,80 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
     ]
     const current = project.value
     if (current !== null) {
-      const { projectId, snapshotId, runId, aggregationId, currentUserRole } = current
-      const items = [
-        item('overview', t('nav.overview'), PhSquaresFour, link('projectOverview', { projectId })),
-      ]
-      if (hasProjectRole(currentUserRole, 'operator')) {
-        items.push(
-          item('import', t('nav.import'), PhUploadSimple, link('projectImport', { projectId })),
-        )
-      }
-      items.push(
-        item(
-          'classification',
-          t('nav.classification'),
-          PhTreeStructure,
-          link('snapshotRuns', { projectId, snapshotId }),
-        ),
-      )
-      if (hasProjectRole(currentUserRole, 'reviewer')) {
+      const { projectId, runId, currentUserRole, currentUserCanManageMembers } = current
+      const items: SidebarNavigationItem[] = []
+      if (currentUserRole !== null) {
         items.push(
           item(
-            'review',
-            t('nav.review'),
-            PhPencilSimpleLine,
-            link('review', { projectId, runId, aggregationId }),
+            'overview',
+            t('nav.overview'),
+            PhSquaresFour,
+            link('projectOverview', { projectId }),
+          ),
+        )
+        items.push(item('data', t('nav.data'), PhDatabase, link('projectSnapshots', { projectId })))
+        if (availability.data.value?.has_ready_snapshots) {
+          items.push(
+            item(
+              'classification',
+              t('nav.classification'),
+              PhTreeStructure,
+              link('projectClassification', { projectId }),
+            ),
+          )
+        }
+        if (hasProjectRole(currentUserRole, 'reviewer')) {
+          if (availability.data.value?.has_completed_aggregations) {
+            items.push(
+              item(
+                'review',
+                t('nav.review'),
+                PhPencilSimpleLine,
+                link('projectReview', { projectId }),
+              ),
+            )
+          }
+          if (availability.data.value?.has_ready_snapshots) {
+            items.push(
+              item(
+                'people',
+                t('nav.annotate'),
+                PhUserList,
+                link('projectAnnotation', { projectId }),
+              ),
+            )
+          }
+        }
+      }
+      if (currentUserCanManageMembers) {
+        items.push(
+          item(
+            'projectMembers',
+            t('nav.projectMembers'),
+            PhUsers,
+            link('projectMembers', { projectId }),
           ),
         )
       }
-      items.push(
-        item(
-          'people',
-          t('nav.annotate'),
-          PhUserList,
-          link('people', { projectId, runId, aggregationId }),
-        ),
-      )
-      groups.push(
-        { id: 'project', label: t('nav.currentProject'), items },
-        {
+      if (items.length) {
+        groups.push({
+          id: 'project',
+          label: t('nav.currentProject'),
+          items,
+          ...(currentUserRole !== null && availability.data.value === undefined
+            ? {
+                availability: {
+                  status: availability.isError.value ? ('error' as const) : ('loading' as const),
+                  retry: () => {
+                    void availability.refetch()
+                  },
+                },
+              }
+            : {}),
+        })
+      }
+      if (currentUserRole !== null && runId !== null) {
+        groups.push({
           id: 'evaluation',
           label: t('nav.evaluationGroup'),
           items: [
@@ -147,8 +186,8 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
             ),
             item('exports', t('nav.exports'), PhExport, link('exports', { projectId, runId })),
           ],
-        },
-      )
+        })
+      }
     }
     if (canAccessAdmin.value) {
       groups.push({

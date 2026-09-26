@@ -1,13 +1,90 @@
 {
+  "data": {
+    "title": "Importierte Daten",
+    "importAction": "Daten importieren",
+    "hideImport": "Formular ausblenden",
+    "viewImportedData": "Importierte Daten ansehen",
+    "empty": "Es wurden noch keine Daten importiert.",
+    "emptyHint": "Eine Person mit der Projektrolle Operator kann ein Personenregister importieren und damit den ersten Datenstand anlegen.",
+    "loading": "Importierte Daten werden geladen…",
+    "loadingMore": "Weitere Datenstände werden geladen…",
+    "loadError": "Die importierten Daten konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "loadMoreError": "Weitere Datenstände konnten nicht geladen werden. Die bereits angezeigten Datenstände bleiben verfügbar.",
+    "loadMore": "Weitere Datenstände laden",
+    "projectLoadError": "Das Projekt konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "accessUnavailable": "Dieses Projekt ist nicht verfügbar oder Sie haben keinen Zugriff auf seine Daten.",
+    "snapshotTitle": "Datenstand vom {date}",
+    "openSnapshot": "Datenstand öffnen",
+    "openSnapshotNamed": "Datenstand vom {date} öffnen",
+    "sourceFormat": "Quellformat",
+    "detailTitle": "Datenstand",
+    "snapshotUnavailable": "Dieser Datenstand konnte nicht geladen werden oder gehört nicht zu diesem Projekt.",
+    "status": "Status",
+    "refreshError": "Der Importstatus konnte nicht aktualisiert werden. Der zuletzt verfügbare Status wird angezeigt.",
+    "importing": "Der Import läuft. Nach Abschluss stehen die Datensätze zur Verfügung.",
+    "failed": "Der Import ist fehlgeschlagen. Prüfen Sie die Fehlerbeschreibung und Quelldaten vor einem erneuten Import.",
+    "sourceFiles": "Quelldateien",
+    "sourcesLoading": "Quelldateien werden geladen…",
+    "sourcesEmpty": "Für diesen Datenstand sind keine Quelldateien verfügbar.",
+    "importDetails": "Importdetails",
+    "snapshotId": "Datenstand-ID",
+    "configuration": "Importkonfiguration",
+    "statistics": {
+      "title": "Bestandsübersicht",
+      "description": "Abdeckung der im importierten Personenregister vorhandenen Angaben.",
+      "totalPeople": "Personen gesamt: {count}",
+      "loading": "Bestandsübersicht wird geladen…",
+      "loadError": "Die Bestandsübersicht konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+      "coverageTitle": "Abdeckung",
+      "sourceGender": "Geschlechtsangabe im Quelltext",
+      "gndReference": "GND-Referenz",
+      "gndAndSourceGender": "GND-Referenz und Geschlechtsangabe",
+      "countOfTotal": "{count} von {total} ({percentage})",
+      "progressLabel": "{label}: {count} von {total}",
+      "notCaptured": "Nicht erfasst",
+      "notCapturedDetail": "Für diesen Datenstand wurden Geschlechtsangaben im Quelltext nicht statistisch erfasst.",
+      "genderTitle": "Werte im TEI-Element gender",
+      "genderDescription": "Verteilung für {count} Personen mit mindestens einem gender-Element.",
+      "gender": {
+        "male": "Männlich",
+        "female": "Weiblich",
+        "unknown": "Unbekannt",
+        "institution": "Institution",
+        "otherOrMultiple": "Sonstige oder mehrfach"
+      }
+    },
+    "records": {
+      "title": "Personendatensätze",
+      "titleWithCount": "Personendatensätze ({count})",
+      "description": "Schreibgeschützte Datensätze aus diesem Import.",
+      "name": "Name",
+      "teiId": "TEI xml:id",
+      "gnd": "GND",
+      "gndReference": "GND-Referenz: {id}",
+      "noGnd": "Keine GND-Referenz",
+      "noGndSymbol": "—",
+      "actions": "Aktionen",
+      "showDetails": "Details anzeigen",
+      "hideDetails": "Schließen",
+      "openedDirectly": "Direkt geöffneter Datensatz",
+      "loading": "Datensätze werden geladen…",
+      "empty": "Dieser Datenstand enthält keine Personendatensätze.",
+      "loadMoreError": "Weitere Datensätze konnten nicht geladen werden. Die bereits angezeigten Datensätze bleiben verfügbar.",
+      "loadError": "Die Personendatensätze konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+      "loadMore": "Weitere Datensätze laden",
+      "detailTitle": "Personendatensatz",
+      "loadingRecord": "Personendatensatz wird geladen…",
+      "recordError": "Dieser Personendatensatz konnte nicht geladen werden."
+    }
+  },
   "app": {
     "title": "gendertagger"
   },
   "home": {
     "guest": {
       "lede": "Ein Tool, um Geschlechtsangaben in Personenregistern zu ergänzen.",
-      "intro": "Der gendertagger nutzt Normdaten und verschiedene Modelle, um Geschlechtsangaben für Personenregister digitaler Editionen vorzuschlagen. Dabei geht es um historisch und kulturell geprägte Geschlechtszuschreibungen, nicht um die individuelle Geschlechtsidentität. Die Ergebnisse der einzelnen Verfahren können Sie vergleichen und durch eigene Annotationen ergänzen.",
-      "signIn": "Anmelden",
-      "accountHint": "Für einen Zugang wenden Sie sich an die Administration.",
+      "intro": "Der gendertagger nutzt Normdaten und verschiedene Methoden und Modelle, um anhand von Vornamen Geschlechtsangaben für Personenregister digitaler Editionen vorzuschlagen. Automatisiert klassifiziert wird eine historisch und kulturell geprägte Geschlechtszuschreibung, nicht die individuelle Geschlechtsidentität der verzeichneten historischen Personen. Die Ergebnisse der einzelnen Verfahren können geprüft und durch eigene Annotationen ergänzt werden.",
+      "accountHint": "Für einen Zugang wenden Sie sich bitte an die Betreiber der Anwendung.",
       "stepsLabel": "So funktioniert es",
       "steps": {
         "importTitle": "Register importieren",
@@ -19,8 +96,42 @@
       }
     },
     "signedIn": {
-      "welcomeBack": "Willkommen zurück, {name}.",
-      "goToProjects": "Zu Ihren Projekten"
+      "welcomeBack": "Willkommen zurück, {name}",
+      "introduction": "Öffnen Sie ein Projekt, um Ihre Arbeit fortzusetzen, oder nutzen Sie die verfügbaren Kontofunktionen.",
+      "projects": {
+        "title": "Verfügbare Projekte",
+        "description": "Projekte, auf die Sie derzeit zugreifen können.",
+        "viewAll": "Alle Projekte ansehen",
+        "loading": "Ihre Projekte werden geladen …",
+        "loadError": "Ihre Projekte konnten nicht geladen werden.",
+        "refreshError": "Ihre Projekte konnten nicht aktualisiert werden. Die bereits angezeigten Projekte bleiben verfügbar.",
+        "retry": "Erneut versuchen",
+        "empty": "Für Sie sind noch keine Projekte verfügbar.",
+        "emptyCanCreate": "Auf der Projektseite können Sie ein Projekt anlegen.",
+        "emptyAsk": "Bitten Sie eine Projektverwaltung, Ihnen Zugriff zu geben.",
+        "open": "Projekt öffnen",
+        "openNamed": "Projekt „{project}“ öffnen",
+        "team": "Team",
+        "role": "Ihre Rolle"
+      },
+      "workspace": {
+        "title": "Ihr Arbeitsbereich",
+        "description": "Zugriffsrechte und direkte Einstiege für Ihr Konto.",
+        "access": {
+          "admin": "Administrator*in",
+          "adminDescription": "Sie können lokale Konten, Teams, Projektmitgliedschaften und Publikationsangaben verwalten.",
+          "operator": "Operator*in",
+          "operatorDescription": "Sie können Projekte anlegen. Der Zugriff auf bestehende Projekte wird separat vergeben.",
+          "projectAccess": "Projektzugriff",
+          "projectAccessDescription": "Zugriff und Berechtigungen werden für jedes Projekt separat vergeben."
+        },
+        "linksLabel": "Direkte Einstiege in Ihren Arbeitsbereich",
+        "personalSettings": "Persönliche Einstellungen",
+        "projectManagement": "Projekte ansehen und anlegen",
+        "users": "Benutzerkonten",
+        "teams": "Teams",
+        "publicationDetails": "Publikationsangaben"
+      }
     }
   },
   "publication": {
@@ -96,6 +207,7 @@
     "horizontalScrollHint": "Horizontal scrollen, um alle Spalten zu sehen."
   },
   "nav": {
+    "data": "Daten",
     "skipToContent": "Zum Hauptinhalt springen",
     "label": "Hauptnavigation",
     "openNavigation": "Navigation öffnen",
@@ -104,24 +216,22 @@
     "expandSidebar": "Seitenleiste ausklappen",
     "collapseSaveError": "Die Änderung der Seitenleiste konnte nicht gespeichert werden. Versuchen Sie es erneut.",
     "dismiss": "Schließen",
-    "requiresSnapshot": "Zuerst einen Datenstand auswählen.",
-    "requiresAggregation": "Zuerst eine Aggregation in diesem Lauf auswählen.",
-    "requiresRun": "Zuerst einen Klassifikationslauf auswählen.",
     "projects": "Projekte",
-    "administration": "Administration",
+    "administration": "Benutzer*innen",
     "teams": "Teams",
-    "settings": "Branding-Einstellungen",
+    "settings": "Einstellungen",
     "currentProject": "Aktuelles Projekt",
     "overview": "Übersicht",
     "import": "Import",
-    "classification": "Klassifikation",
+    "classification": "Automatische Vorschläge",
     "review": "Redigieren",
     "annotate": "Manuell annotieren",
     "evaluationGroup": "Auswertung",
     "evaluations": "Statistik & Methoden",
     "exports": "Export",
     "administrationGroup": "Admin",
-    "unavailable": "Noch nicht verfügbar: Das Projekt hat noch keinen Lauf mit Aggregation."
+    "unavailable": "Noch nicht verfügbar: Das Projekt hat noch keinen Lauf mit Aggregation.",
+    "projectMembers": "Mitglieder"
   },
   "locale": {
     "label": "Sprache"
@@ -179,7 +289,7 @@
     }
   },
   "admin": {
-    "title": "Administration",
+    "title": "Benutzer*innen",
     "description": "Lokale Konten",
     "loadingAccess": "Administrativer Zugriff wird geprüft …",
     "sessionLoadError": "Die Sitzung konnte nicht geprüft werden.",
@@ -217,6 +327,8 @@
       "passwordCurrent": "Aktuell"
     },
     "creation": {
+      "open": "Benutzer*in anlegen",
+      "hide": "Formular ausblenden",
       "title": "Lokales Konto anlegen",
       "description": "Das neue Konto erhält ein serverseitig erzeugtes temporäres Passwort und muss dieses bei der ersten Anmeldung ändern.",
       "username": "Benutzername",
@@ -317,7 +429,7 @@
   },
   "adminTeams": {
     "title": "Teams",
-    "description": "Die direkte Teammitgliedschaft schafft die Berechtigung für explizite Projektfreigaben, aber keinen Projektzugriff.",
+    "description": "Verwaltung von Teams, zugehörige Berechtigungen und Mitgliedschaften.",
     "loadingAccess": "Administrativer Zugriff wird geprüft …",
     "sessionLoadError": "Die Sitzung konnte nicht geprüft werden.",
     "forbidden": "Sie haben keine Berechtigung, Teams zu verwalten.",
@@ -329,6 +441,8 @@
     "cancel": "Abbrechen",
     "refreshFailed": "Die Änderung wurde bestätigt, aber die betroffenen Listen konnten nicht aktualisiert werden. Prüfen Sie den aktuellen Stand, bevor Sie eine weitere Änderung vornehmen.",
     "creation": {
+      "open": "Team anlegen",
+      "hide": "Formular ausblenden",
       "title": "Team anlegen",
       "description": "Ein Team ist eine Berechtigungsgruppe, keine Projektrolle und kein automatischer Projektzugriff.",
       "slug": "Slug",
@@ -337,16 +451,13 @@
     },
     "creating": "Team wird angelegt …",
     "list": {
-      "title": "Teams",
+      "manage": "Team verwalten",
+      "manageNamed": "{name} verwalten",
       "search": "Teams suchen",
       "loadError": "Die Teamliste konnte nicht geladen werden.",
       "paginationError": "Weitere Teams konnten nicht geladen werden. Die bereits angezeigten Teams bleiben unverändert.",
       "empty": "Es sind keine Teams vorhanden.",
       "searchEmpty": "Keine Teams entsprechen dieser Suche."
-    },
-    "selection": {
-      "title": "Team auswählen",
-      "description": "Wählen Sie ein Team, um seine direkten Mitglieder anzuzeigen und die Mitgliedschaft zu verwalten."
     },
     "rename": {
       "title": "Team umbenennen",
@@ -415,120 +526,115 @@
     }
   },
   "adminSettings": {
-    "title": "Branding-Einstellungen",
-    "description": "Wirksames Branding und Deployment-Fallbacks",
-    "loadingAccess": "Administrativer Zugriff wird geprüft …",
-    "sessionLoadError": "Die Sitzung konnte nicht geprüft werden.",
-    "forbidden": "Sie haben keine Berechtigung, Branding-Einstellungen anzuzeigen.",
-    "passwordChangeRequired": "Bevor Sie Branding-Einstellungen anzeigen können, müssen Sie Ihr Passwort ändern.",
-    "loading": "Branding-Einstellungen werden geladen …",
-    "loadError": "Die Branding-Einstellungen konnten nicht geladen werden.",
-    "settingsUnavailable": "Der Einstellungsspeicher ist nicht verfügbar. Deployment-Fallbacks können nicht sicher angezeigt werden.",
+    "title": "Publikationsangaben",
+    "description": "Steuern Sie die öffentlich angezeigten Angaben zu Institution, Kontakt, Herausgebenden, Datenschutz und Publikationsjahr.",
+    "loadingAccess": "Zugriff auf die Publikationsangaben wird geprüft …",
+    "sessionLoadError": "Ihre Sitzung konnte nicht geprüft werden. Versuchen Sie es erneut.",
+    "forbidden": "Sie haben keine Berechtigung, die Publikationsangaben anzuzeigen.",
+    "passwordChangeRequired": "Ändern Sie Ihr Passwort, bevor Sie die Publikationsangaben anzeigen.",
+    "loading": "Publikationsangaben werden geladen …",
+    "loadError": "Die Publikationsangaben konnten nicht geladen werden.",
+    "settingsUnavailable": "Der Einstellungsspeicher ist nicht verfügbar. Die wirksamen öffentlichen Werte können daher nicht sicher angezeigt werden.",
     "retry": "Erneut versuchen",
-    "refetch": "Einstellungen aktualisieren",
-    "editingAvailable": "Wählen Sie nur Branding-Overrides aus, die Sie speichern möchten. Änderungen sind revisionsgeschützt.",
+    "refetch": "Werte aktualisieren",
     "precedence": {
-      "title": "Auflösungsreihenfolge",
-      "description": "Gespeicherter Override → Deployment-Umgebung → Anwendungsstandard."
+      "description": "Eine gespeicherte Auswahl – auch „Keinen Wert veröffentlichen“ – hat Vorrang. Ohne gespeicherte Auswahl verwendet gendertagger zuerst die Deployment-Einstellung und dann den Anwendungsstandard."
     },
-    "branding": {
-      "title": "Editierbare Branding-Felder",
-      "description": "Wirksame Werte und die Deployment-Fallbacks, die ohne gespeicherten Override gelten."
-    },
-    "revision": "Revision {revision}",
-    "table": {
-      "field": "Feld",
-      "effectiveValue": "Wirksamer Wert",
-      "deploymentFallback": "Deployment-Fallback",
-      "overrideStatus": "Override-Status"
-    },
+    "revision": "Konfigurationsrevision {revision}",
     "fields": {
       "institutionName": "Institutionsname",
-      "institutionUrl": "Institutions-URL",
-      "contactEmail": "Kontakt-E-Mail",
-      "privacyNoticeUrl": "URL der Datenschutzerklärung",
+      "institutionUrl": "Website der Institution",
+      "contactEmail": "Kontakt-E-Mail-Adresse",
+      "privacyNoticeUrl": "Link zur Datenschutzerklärung",
       "editors": "Herausgebende",
-      "publishedSinceYear": "Veröffentlicht seit Jahr"
+      "publishedSinceYear": "Veröffentlicht seit"
     },
     "status": {
-      "inherited": "Geerbt",
-      "overridden": "Überschrieben",
-      "cleared": "Ausdrücklich geleert"
+      "inherited": "Standardwert aktiv",
+      "overridden": "Eigener Wert aktiv",
+      "cleared": "Kein Wert veröffentlicht"
     },
     "values": {
-      "notConfigured": "Nicht konfiguriert",
-      "noEditors": "Keine Herausgebenden",
-      "noLogo": "Kein Logo konfiguriert",
+      "notConfigured": "Kein Wert konfiguriert",
+      "noPublishedValue": "Kein Wert veröffentlicht",
+      "noEditors": "Keine Herausgebenden konfiguriert",
+      "noLogo": "Kein Logo der herausgebenden Institution konfiguriert",
       "noInitiatives": "Keine Initiativen konfiguriert",
       "noLegalEntity": "Keine Rechtseinheit konfiguriert"
     },
     "editing": {
-      "title": "Branding-Overrides bearbeiten",
-      "description": "Jedes Feld bleibt unverändert, bis Sie es ausdrücklich speichern oder leeren. Ein gespeicherter Wert kann bewusst einem aktuellen Fallback entsprechen.",
+      "title": "Öffentlich angezeigte Werte",
+      "description": "Prüfen Sie, was derzeit veröffentlicht wird. Ändern Sie nur Felder, die einen eigenen Wert benötigen oder keinen Wert veröffentlichen sollen.",
+      "changeField": "Ändern",
+      "closeField": "Schließen",
+      "changeFieldLabel": "{field} ändern",
+      "closeFieldLabel": "{field} schließen",
+      "pendingChange": "Ungespeicherte Änderung",
+      "changesPending": "Felder mit ungespeicherten Änderungen: {count}",
+      "noChanges": "Keine ungespeicherten Änderungen",
       "modes": {
-        "unchanged": "Unverändert lassen",
-        "set": "Wert speichern",
-        "clear": "Wert leeren"
+        "unchanged": "Aktuelle Einstellung beibehalten",
+        "set": "Eigenen Wert festlegen",
+        "clear": "Keinen Wert veröffentlichen"
       },
-      "fallback": "Aktueller Deployment-Fallback: {value}",
-      "value": "Wert",
-      "editorsHint": "Geben Sie eine Person pro Zeile ein. Die Reihenfolge bleibt erhalten.",
-      "save": "Overrides speichern",
-      "submitting": "Wird gespeichert …",
-      "discard": "Entwurf verwerfen",
+      "fallback": "Aktueller Standardwert: {value}",
+      "valueFor": "Eigener Wert für {field}",
+      "editorsHint": "Geben Sie eine Person pro Zeile ein. Die angezeigte Reihenfolge bleibt erhalten.",
+      "save": "Änderungen speichern",
+      "submitting": "Änderungen werden gespeichert …",
+      "discard": "Änderungen verwerfen",
       "validation": {
-        "institutionName": "Geben Sie einen nichtleeren Institutionsnamen mit höchstens 200 Zeichen ein.",
-        "url": "Geben Sie eine absolute HTTP(S)-URL oder einen Same-Origin-Pfad mit genau einem führenden Schrägstrich ein.",
+        "institutionName": "Geben Sie einen Institutionsnamen mit 1 bis 200 Zeichen ein.",
+        "url": "Geben Sie eine vollständige HTTP(S)-Adresse oder einen Pfad auf dieser Website mit einem führenden Schrägstrich ein, zum Beispiel /datenschutz.",
         "contactEmail": "Geben Sie eine gültige E-Mail-Adresse ein.",
-        "editors": "Geben Sie höchstens 50 verschiedene, nichtleere Namen mit jeweils höchstens 200 Zeichen ein.",
+        "editors": "Geben Sie höchstens 50 verschiedene Personen ein, jeweils eine pro Zeile. Jeder Name darf bis zu 200 Zeichen enthalten.",
         "publishedSinceYear": "Geben Sie ein ganzzahliges Jahr von 1 bis {currentYear} ein."
       },
       "conflict": {
-        "latestLoaded": "Eine andere Administration hat diese Einstellungen geändert. Revision {revision} wird jetzt oben angezeigt. Prüfen Sie sie und behalten oder verwerfen Sie diesen Entwurf dann ausdrücklich.",
-        "latestUnavailable": "Eine andere Administration hat diese Einstellungen geändert, aber der aktuelle Stand konnte nicht geladen werden. Ihr Entwurf bleibt erhalten; aktualisieren Sie die Einstellungen vor der Abstimmung.",
-        "reconcile": "Aktuelle Revision verwenden und Entwurf behalten"
+        "latestLoaded": "Eine andere Administration hat neuere Einstellungen gespeichert. Konfigurationsrevision {revision} wird jetzt angezeigt. Ihre Änderungen sind weiterhin vorhanden; prüfen Sie sie und behalten oder verwerfen Sie sie anschließend.",
+        "latestUnavailable": "Eine andere Administration hat neuere Einstellungen gespeichert, sie konnten jedoch nicht geladen werden. Ihre Änderungen sind weiterhin vorhanden. Aktualisieren Sie die Werte, bevor Sie fortfahren.",
+        "reconcile": "Aktuelle Werte prüfen und meine Änderungen behalten"
       },
       "errors": {
-        "settingsUnavailable": "Der Einstellungsspeicher ist nicht verfügbar. Es wurde keine Änderung bestätigt.",
-        "validation": "Prüfen Sie die ausgewählten Override-Werte und versuchen Sie es erneut.",
-        "authenticationRequired": "Ihre Sitzung ist beendet. Melden Sie sich erneut an, prüfen Sie die aktuellen Einstellungen und senden Sie die Änderung dann bewusst erneut.",
-        "passwordChangeRequired": "Ändern Sie Ihr Passwort, bevor Sie Branding-Einstellungen bearbeiten.",
-        "forbidden": "Sie haben keine Berechtigung mehr, Branding-Einstellungen zu bearbeiten.",
-        "uncertain": "Das Ergebnis ist unsicher, weil die Anfrage nicht abgeschlossen wurde. Aktualisieren und prüfen Sie die Einstellungen, bevor Sie es erneut versuchen."
+        "settingsUnavailable": "Der Einstellungsspeicher ist nicht verfügbar. Ihre Änderungen wurden nicht bestätigt.",
+        "validation": "Einige eigene Werte müssen geprüft werden. Korrigieren Sie die markierten Felder und versuchen Sie es erneut.",
+        "authenticationRequired": "Ihre Sitzung ist beendet. Melden Sie sich erneut an, prüfen Sie die aktuellen Werte und senden Sie Ihre Änderungen dann bewusst erneut.",
+        "passwordChangeRequired": "Ändern Sie Ihr Passwort, bevor Sie die Publikationsangaben bearbeiten.",
+        "forbidden": "Sie haben keine Berechtigung mehr, die Publikationsangaben zu bearbeiten.",
+        "uncertain": "Das Ergebnis ist unsicher, weil die Anfrage nicht abgeschlossen wurde. Aktualisieren und prüfen Sie die Werte, bevor Sie es erneut versuchen."
       },
-      "publicRefreshFailed": "Die Branding-Änderung wurde bestätigt, aber das Branding bereits geöffneter öffentlicher Ansichten konnte nicht aktualisiert werden.",
-      "retryPublicRefresh": "Aktualisierung des öffentlichen Brandings erneut versuchen"
+      "publicRefreshFailed": "Die Änderungen wurden gespeichert, aber die öffentlichen Publikationsangaben konnten nicht aktualisiert werden.",
+      "retryPublicRefresh": "Öffentliche Ansicht erneut aktualisieren"
     },
     "reset": {
-      "title": "Gespeicherte Overrides zurücksetzen",
-      "description": "Das Zurücksetzen entfernt ausgewählte gespeicherte Overrides und zeigt den aktuellen Deployment-Fallback.",
-      "unsavedChanges": "Speichern oder verwerfen Sie den aktuellen Entwurf, bevor Sie Overrides zurücksetzen.",
-      "fallback": "Fallback nach dem Zurücksetzen: {value}",
-      "submit": "Ausgewählte Overrides zurücksetzen",
-      "none": "Es gibt keine gespeicherten Overrides zum Zurücksetzen.",
+      "title": "Standardwerte verwenden",
+      "description": "Entfernen Sie ausgewählte eigene Einstellungen, um wieder die aktuellen Standardwerte zu verwenden.",
+      "unsavedChanges": "Speichern oder verwerfen Sie die aktuellen Änderungen, bevor Sie eigene Einstellungen entfernen.",
+      "fallback": "Standardwert nach dem Entfernen: {value}",
+      "submit": "Für ausgewählte Felder Standardwerte verwenden",
       "confirm": {
-        "title": "Ausgewählte Overrides zurücksetzen?",
-        "description": "Die ausgewählten Werte zeigen danach die hier dargestellten Deployment-Fallbacks.",
+        "title": "Für ausgewählte Felder Standardwerte verwenden?",
+        "description": "Die ausgewählten eigenen Einstellungen werden entfernt. Die öffentlichen Werte stammen danach aus der Deployment-Konfiguration oder dem Anwendungsstandard.",
         "entry": "{field}: {value}",
-        "nonAtomic": "Overrides speichern und Overrides zurücksetzen sind getrennte Operationen.",
+        "nonAtomic": "Änderungen speichern und eigene Einstellungen entfernen sind getrennte Vorgänge.",
         "cancel": "Abbrechen",
-        "submit": "Overrides zurücksetzen"
+        "submit": "Standardwerte verwenden"
       }
     },
     "deployment": {
-      "title": "Deployment-verwaltetes Branding",
-      "description": "Diese Werte dienen dem Kontext und können hier nicht geändert werden.",
+      "title": "Vom Deployment verwaltet",
+      "description": "Diese Angaben erscheinen ebenfalls öffentlich. Ändern Sie sie in der Deployment-Konfiguration und prüfen Sie sie hier.",
       "logo": {
-        "title": "Abgeleitete Logo-URL",
-        "description": "Diese Same-Origin-URL wird vom Deployment abgeleitet; ein Dateisystempfad wird nicht offengelegt."
+        "title": "Logo der herausgebenden Institution",
+        "description": "Das Deployment stellt dieses Logo über eine URL dieser Website bereit; der Dateisystempfad bleibt verborgen."
       },
       "initiatives": {
         "title": "Initiativen",
-        "description": "Vom Deployment verwalteter institutioneller Kontext."
+        "description": "Institutionelle Initiativen im gemeinsamen Footer."
       },
       "legalEntity": {
         "title": "Rechtseinheit",
-        "description": "Vom Deployment verwaltete Anbieterangaben.",
+        "description": "Anbieterangaben im Impressum.",
         "name": "Name",
         "legalForm": "Rechtsform",
         "address": "Adresse",
@@ -539,12 +645,30 @@
     }
   },
   "projects": {
+    "emptyHint": "Bitten Sie eine Projektverwaltung, Ihnen Zugriff zu geben.",
+    "emptyCreateHint": "Legen Sie über die Schaltfläche oben ein Projekt an oder bitten Sie eine Projektverwaltung um Zugriff.",
+    "newProject": "Projekt anlegen",
+    "hideCreation": "Formular ausblenden",
+    "openProject": "Projekt öffnen",
+    "openProjectNamed": "Projekt öffnen: {project}",
+    "manageMembers": "Mitglieder verwalten",
+    "manageMembersNamed": "Mitglieder verwalten: {project}",
+    "yourRole": "Ihre Rolle",
+    "team": "Team",
+    "loadMoreError": "Weitere Projekte konnten nicht geladen werden. Bereits geladene Projekte bleiben zugänglich.",
+    "loadingMore": "Weitere Projekte werden geladen …",
+    "managedTitle": "Mitgliedschaften verwalten",
+    "managedDescription": "Weitere Projekte, deren Mitglieder Sie verwalten können.",
+    "managedLoading": "Verwaltete Projekte werden geladen …",
+    "managedLoadError": "Die von Ihnen verwalteten Projekte konnten nicht geladen werden.",
+    "managedLoadMoreError": "Weitere verwaltete Projekte konnten nicht geladen werden. Bereits geladene Projekte bleiben zugänglich.",
+    "loadMoreManaged": "Weitere verwaltete Projekte laden",
     "title": "Projekte",
     "loading": "Wird geladen …",
     "loadError": "Die Projekte konnten nicht geladen werden.",
     "sessionLoadError": "Der Sitzungsstatus konnte nicht geladen werden.",
     "retry": "Erneut versuchen",
-    "empty": "Es sind noch keine Projekte vorhanden.",
+    "empty": "Für Sie sind noch keine Projekte zugänglich.",
     "loadMore": "Weitere laden",
     "role": {
       "viewer": "Betrachter*in",
@@ -555,35 +679,84 @@
       "loadError": "Das Projekt konnte nicht geladen werden.",
       "slug": "Kurzname (Slug)",
       "role": "Ihre Rolle",
+      "team": "Team",
+      "created": "Angelegt",
       "noDescription": "Für dieses Projekt ist noch keine Beschreibung hinterlegt.",
-      "importAction": "Daten importieren"
+      "atLeast": "{count}+",
+      "data": {
+        "title": "Importierte Daten",
+        "loadError": "Die importierten Daten konnten nicht geladen werden.",
+        "empty": "In dieses Projekt wurden noch keine Daten importiert.",
+        "snapshots": "Datenstände",
+        "records": "Datensätze im neuesten vollständig importierten Datenstand",
+        "imported": "Neuester Datenstand importiert",
+        "runs": "Läufe für den neuesten Datenstand",
+        "inProgress": "Laufende Importe",
+        "failed": "Fehlgeschlagene Importe"
+      },
+      "review": {
+        "title": "Stand der Prüfung",
+        "noWorkingAggregation": "Für dieses Projekt ist noch keine Arbeitsaggregation festgelegt, daher gibt es keine Prüfzahlen.",
+        "aggregationLoadError": "Die Arbeitsaggregation konnte nicht geladen werden.",
+        "summaryLoadError": "Die Prüfzahlen konnten nicht geladen werden.",
+        "notCompleted": "Die Arbeitsaggregation hat den Status {status}. Prüfzahlen erscheinen, sobald sie abgeschlossen ist.",
+        "noPeople": "Die Arbeitsaggregation enthält keine Personen.",
+        "progress": "{reviewed} von {total} Personen geprüft",
+        "progressLabel": "Anteil der geprüften Personen",
+        "decisionSplit": "{verified} bestätigt, {corrected} korrigiert",
+        "queuesTitle": "Noch zu prüfen",
+        "labelsTitle": "Endgültige Labels",
+        "labelsHint": "Die letzte menschliche Entscheidung, sonst das aggregierte maschinelle Label.",
+        "noLabel": "Kein endgültiges Label",
+        "lastActivity": "Letzte Prüfaktivität: {when}",
+        "openReview": "Prüf-Warteschlangen öffnen",
+        "browsePeople": "Alle Personen durchsuchen"
+      }
     },
     "import": {
       "title": "Import: {project}",
+      "formTitle": "Personenregister hochladen",
       "forbidden": "Der Import ist nur Verantwortlichen dieses Projekts vorbehalten.",
-      "format": "Quellformat",
       "file": "Datei",
       "submit": "Hochladen",
       "submitting": "Wird hochgeladen …",
       "errors": {
         "validation": "Bitte überprüfen Sie Ihre Eingaben.",
         "tooLarge": "Die Datei überschreitet die zulässige Größe für diese Installation.",
-        "looksLikeArchive": "Die Datei sieht wie ein Archiv aus. Wähle als Lieferart „ZIP-Archiv“ oder „TAR.GZ-Archiv“ statt einer einfachen TEI-Datei.",
-        "notAnArchive": "Die ausgewählte Datei passt nicht zum gewählten Archivtyp. Wähle eine passende Datei oder ändere die Lieferart.",
+        "unsupportedSelection": "Diese Dateien wurden nicht hinzugefügt; die aktuelle Auswahl bleibt unverändert. Wählen Sie eine unterstützte Datei oder mehrere .xml-Dateien. Gemischte Formate und mehrere .tei-, CSV-, XLSX-, JSON- oder Archivdateien können nicht gemeinsam importiert werden.",
         "network": "Der Server ist nicht erreichbar.",
         "generic": "Der Import konnte nicht gestartet werden.",
         "partTooLarge": "Mindestens eine Datei überschreitet die zulässige Größe je Datei.",
         "totalTooLarge": "Die Dateien überschreiten zusammen die zulässige Gesamtgröße.",
+        "tooManyFiles": "Diese Installation erlaubt höchstens {count} einzelne XML-Dateien pro Import.",
+        "emptyFiles": "Leere Dateien können nicht importiert werden. Entfernen oder ersetzen Sie: {names}.",
+        "duplicateFiles": "Dateinamen müssen eindeutig sein. Entfernen Sie die Dateien oder geben Sie ihnen andere Namen: {names}.",
         "headerMismatch": "Die erste Zeile dieser Datei hat nicht die erforderlichen Spalten. Erwartet: {expected}. Gefunden: {found}."
       },
+      "upload": {
+        "dropzoneLabel": "Quelldateien hinzufügen",
+        "dropTitle": "Dateien hier ablegen",
+        "dropActive": "Loslassen, um die Dateien hinzuzufügen",
+        "dropHint": "Wählen Sie Dateien auf Ihrem Gerät aus oder fügen Sie sie per Drag-and-drop hinzu.",
+        "browse": "Dateien auswählen",
+        "validatingCsv": "CSV-Kopfzeile wird geprüft …",
+        "supported": "TEI XML, CSV, XLSX, JSON, ZIP oder TAR.GZ",
+        "selectedFiles": "Ausgewählte Dateien",
+        "selectedSummary": "Dateien: {count} · {size}",
+        "removeFile": "{name} entfernen",
+        "clearAll": "Alle entfernen",
+        "importSettings": "Importeinstellungen",
+        "settingSummary": "{format} · {delivery}"
+      },
       "status": {
+        "title": "Importstatus",
         "pending": "Der Import läuft …",
         "ready": "Import abgeschlossen: {count} Datensätze.",
+        "readyWithoutCount": "Import abgeschlossen.",
         "failedGeneric": "Der Import ist fehlgeschlagen.",
         "pollError": "Der Importstatus konnte nicht geladen werden.",
-        "toOverview": "Zur Projektübersicht"
+        "importAnother": "Weiteres Register importieren"
       },
-      "packagingLabel": "Lieferform",
       "packaging": {
         "single": "Einzelne Datei",
         "loose": "Mehrere TEI-Dateien",
@@ -596,14 +769,13 @@
         "unavailable": "Die Upload-Grenzen konnten nicht geladen werden; der Server prüft sie beim Hochladen trotzdem."
       },
       "profile": {
-        "intro": "CSV, XLSX und JSON müssen einem festen Personenregister-Profil folgen. Die erste Zeile enthält genau diese Spalten in dieser Reihenfolge:",
+        "requirements": "Formatanforderungen",
+        "tabularIntro": "CSV und XLSX verwenden genau diese Spalten in dieser Reihenfolge:",
+        "jsonIntro": "JSON enthält auf oberster Ebene eine Liste, deren Objekte genau diese Felder verwenden:",
         "arrays": "persName, event und idno sind JSON-Arrays; die genaue Struktur steht in der Ingestion-Dokumentation."
       }
     },
     "snapshots": {
-      "title": "Importierte Snapshots",
-      "empty": "Für dieses Projekt wurde noch nichts importiert.",
-      "loadError": "Die Snapshots konnten nicht geladen werden.",
       "status": {
         "pending": "Wartet",
         "importing": "Wird importiert",
@@ -613,49 +785,68 @@
       "recordCount": "Datensätze",
       "parserVersion": "Parser-Version",
       "checksum": "SHA-256",
-      "showMembers": "Quelldateien anzeigen",
-      "hideMembers": "Quelldateien ausblenden",
       "membersLoadError": "Die Quelldateien konnten nicht geladen werden.",
       "members": {
-        "label": "Quelldateien dieses Snapshots",
+        "label": "Quelldateien dieses Datenstands",
         "name": "Name",
         "mediaType": "Medientyp",
         "size": "Größe",
         "checksum": "SHA-256",
         "bytes": "{size} Byte"
       },
-      "openRuns": "Läufe auf diesem Snapshot"
+      "openRuns": "Automatische Vorschläge"
     },
     "creation": {
       "title": "Projekt anlegen",
-      "description": "Wählen Sie vor dem Anlegen eines Projekts ein Team.",
-      "slug": "Slug",
+      "slug": "Kurzname (Slug)",
       "displayName": "Anzeigename",
-      "descriptionField": "Beschreibung",
-      "teamSearch": "Teams suchen",
+      "descriptionField": "Beschreibung (optional)",
       "team": "Team",
       "chooseTeam": "Team auswählen",
-      "noTeams": "Es wurden keine geeigneten Teams gefunden.",
-      "initialManager": "Anfängliche Verwaltung",
-      "defaultManager": "Servervorgabe verwenden",
+      "noTeams": "Es sind keine Teams verfügbar.",
+      "initialManager": "Projektmanager*in",
+      "defaultManager": "Mein Konto",
       "noManagers": "Dieses Team hat keine aktive geeignete Verwaltung.",
       "submit": "Projekt anlegen",
       "error": "Das Projekt konnte nicht angelegt werden. Prüfen Sie das aktuelle Team und versuchen Sie es erneut.",
-      "refreshFailed": "Das Projekt wurde angelegt, aber die Projektliste konnte nicht aktualisiert werden."
+      "refreshFailed": "Das Projekt wurde angelegt, aber die Projektliste konnte nicht aktualisiert werden.",
+      "detailsTitle": "Projektdetails",
+      "teamTitle": "Team zuweisen",
+      "managerHelp": "Verwaltet Mitglieder und deren Projektrollen. Wählen Sie ein aktives Teammitglied; „Mein Konto“ setzt Ihre eigene Mitgliedschaft in diesem Team voraus.",
+      "teamsLoading": "Teams werden geladen …",
+      "teamsLoadError": "Die Teams konnten nicht geladen werden.",
+      "teamsPageError": "Weitere Teams konnten nicht geladen werden. Die bisherigen Auswahlmöglichkeiten bleiben verfügbar.",
+      "teamsLoadMore": "Weitere Teams laden",
+      "managersLoading": "Teammitglieder werden geladen …",
+      "managersLoadError": "Die Teammitglieder konnten nicht geladen werden.",
+      "managersPageError": "Weitere Teammitglieder konnten nicht geladen werden. Die bisherigen Auswahlmöglichkeiten bleiben verfügbar.",
+      "managersLoadMore": "Weitere Teammitglieder laden",
+      "noLoadedManagers": "Auf den geladenen Seiten ist kein aktives Mitglied aufgeführt. Laden Sie weitere Seiten.",
+      "submitting": "Projekt wird angelegt …",
+      "slugExample": "mein-projekt",
+      "slugHelpLabel": "Anforderungen an den Kurznamen",
+      "slugConstraints": "Mit einem Kleinbuchstaben (a–z) beginnen. Nur Kleinbuchstaben, Ziffern (0–9) und einzelne Bindestriche dazwischen verwenden. Höchstens 100 Zeichen."
     }
   },
   "projectMembers": {
-    "title": "Projektmitgliedschaften",
+    "title": "Projektmitglieder",
     "description": "Verwaltungsbefugnis und gewöhnlicher Projektzugriff sind getrennt.",
     "loadError": "Der Mitgliedschaftsstatus konnte nicht geladen werden.",
-    "managedProjects": "Von Ihnen verwaltete Projekte",
     "manager": "Verwaltung",
     "noRole": "Keine gewöhnliche Projektrolle",
     "transfer": "Verwaltung übertragen",
     "members": "Projektmitglieder",
+    "actions": "Aktionen",
     "remove": "Rolle entfernen",
+    "addOpen": "Mitglied hinzufügen",
+    "addHide": "Formular ausblenden",
+    "removeConfirm": {
+      "title": "Projektrolle von {name} entfernen?",
+      "description": "Dadurch wird die gewöhnliche Projektrolle von {name} entfernt. Konto und Teammitgliedschaft bleiben unverändert.",
+      "cancel": "Abbrechen",
+      "submit": "Rolle entfernen"
+    },
     "add": "Mitglied hinzufügen",
-    "search": "Geeignete Teammitglieder suchen",
     "choose": "Person auswählen",
     "person": "Person",
     "role": "Projektrolle",
@@ -669,12 +860,10 @@
   "runs": {
     "loading": "Wird geladen …",
     "retry": "Erneut versuchen",
-    "title": "Läufe",
-    "backToOverview": "Zurück zur Projektübersicht",
-    "forbidden": "Nur Projekt-Operatoren können Läufe starten.",
+    "title": "Automatische Vorschläge",
     "history": "Laufhistorie",
     "loadError": "Die Läufe konnten nicht geladen werden.",
-    "empty": "Auf diesem Snapshot wurde noch kein Lauf gestartet.",
+    "empty": "Für diesen Datenstand wurde noch kein Lauf gestartet.",
     "loadMore": "Mehr laden",
     "status": {
       "created": "Angelegt",
@@ -691,18 +880,20 @@
       "progress": "Fortschritt",
       "progressValue": "{completed} von {total} fertig, {failed} fehlgeschlagen",
       "configHash": "Konfigurations-Hash",
-      "open": "Lauf öffnen"
+      "open": "Lauf öffnen",
+      "title": "Lauf vom {date}",
+      "openNamed": "Lauf vom {date} öffnen"
     },
     "new": {
-      "title": "Lauf starten",
+      "title": "Vorschläge erstellen",
       "methods": "Methoden",
-      "methodsHint": "Jede Methode läuft unabhängig auf dem Snapshot. Konfidenzwerte gelten nur für ihre Methode und sind zwischen Methoden nicht vergleichbar.",
+      "methodsHint": "Die ausgewählten Methoden werden unabhängig auf diesem Datenstand ausgeführt. Konfidenzwerte gelten nur für die jeweilige Methode und sind zwischen Methoden nicht vergleichbar.",
       "methodsLoadError": "Die verfügbaren Methoden konnten nicht geladen werden.",
       "version": "Version {version}",
       "config": "Methodenkonfiguration (JSON)",
       "configHint": "Leer lassen für die Standardwerte der Methode. Manche Methoden verlangen Werte wie eine Lookup-Prüfsumme oder eine Modelladresse; der Server weist eine Konfiguration ab, die er nicht auflösen kann.",
       "failOnOptionalError": "Gesamten Lauf abbrechen, wenn eine optionale Methode fehlschlägt",
-      "submit": "Lauf starten",
+      "submit": "Vorschläge erstellen",
       "submitting": "Wird gestartet …",
       "errors": {
         "notJsonObject": "Die Konfiguration muss ein JSON-Objekt sein.",
@@ -710,13 +901,22 @@
         "network": "Der Lauf konnte nicht gestartet werden: Der Server ist nicht erreichbar.",
         "generic": "Der Lauf konnte nicht gestartet werden."
       },
-      "versionWithConfidence": "Version {version} · liefert eigene Konfidenz, {min} bis {max}"
+      "versionWithConfidence": "Version {version} · liefert eigene Konfidenz, {min} bis {max}",
+      "show": "Vorschläge erstellen",
+      "hide": "Formular schließen",
+      "advanced": "Erweiterte Einstellungen",
+      "configureMethod": "Konfiguration anpassen"
     },
     "detail": {
       "title": "Lauf",
-      "backToRuns": "Zurück zu den Läufen",
+      "titleWithDate": "Lauf vom {date}",
+      "status": "Status",
+      "created": "Angelegt",
+      "progress": "Fortschritt",
       "loadError": "Der Lauf konnte nicht geladen werden.",
       "executions": "Methoden",
+      "methodCount": "Methodenausführungen: {count}",
+      "methodCountWithIssues": "Methodenausführungen: {count}, mit Problemen: {issues}",
       "executionsLoadError": "Die Methodenausführungen konnten nicht geladen werden.",
       "noExecutions": "Für diesen Lauf ist noch keine Methode eingeplant.",
       "overallProgressLabel": "Gesamtfortschritt des Laufs",
@@ -728,6 +928,27 @@
       },
       "evaluations": "Auswertungen dieses Laufs",
       "exports": "Exporte dieses Laufs"
+    },
+    "results": {
+      "title": "Methodenergebnisse",
+      "intro": "Entscheidungen von {method} für diesen Lauf.",
+      "backToRun": "Zurück zum Lauf",
+      "search": "Nach Name oder TEI xml:id suchen",
+      "searchHint": "Name oder TEI xml:id",
+      "notFinal": "Die Ergebnisse sind verfügbar, sobald die Methode beendet ist.",
+      "loadError": "Die Methodenergebnisse konnten nicht geladen werden.",
+      "empty": "Zu dieser Suche gibt es keine Personen.",
+      "loadMore": "Mehr laden",
+      "person": "Person",
+      "teiId": "TEI xml:id",
+      "decision": "Entscheidung",
+      "status": "Status",
+      "missing": "kein Ergebnis gespeichert",
+      "noPrediction": "Für diese Person ist kein Ergebnis gespeichert.",
+      "rawLabel": "Rohes Label: {label}",
+      "confidence": "Eigene Konfidenz: {value}",
+      "confidenceNote": "Konfidenzwerte gelten nur für diese Methode und sind zwischen Methoden nicht vergleichbar.",
+      "distinction": "Ein fehlendes Ergebnis ist weder abstain noch error. Das Label unknown ist ein gespeichertes Ergebnis."
     },
     "provenance": {
       "title": "Provenienz",
@@ -744,6 +965,7 @@
     },
     "execution": {
       "provenance": "Methodenprovenienz",
+      "provenanceFor": "Provenienz von {method}",
       "implementationVersion": "Implementierungsversion",
       "normalizationVersion": "Normalisierungsversion",
       "modelIdentifier": "Modell",
@@ -751,22 +973,40 @@
       "modelChecksum": "Modellprüfsumme",
       "promptVersion": "Prompt-Version",
       "schemaVersion": "Schema-Version"
-    }
+    },
+    "changeSelection": "Auswahl ändern",
+    "contextLoadError": "Der ausgewählte Datenstand konnte nicht geladen werden.",
+    "contextUnavailable": "Dieser Datenstand ist nicht verfügbar oder sein Import ist noch nicht abgeschlossen. Wählen Sie einen vollständig importierten Datenstand."
   },
   "aggregations": {
-    "title": "Aggregationen",
-    "hint": "Eine Aggregation fasst die Ergebnisse der gewählten Methodenausführungen zu einer Entscheidung je Person zusammen. Ein Lauf kann mehrere haben; erneutes Aggregieren führt keine Methode noch einmal aus.",
-    "waitingForRun": "Aggregationen können angelegt werden, sobald der Lauf erfolgreich beendet ist.",
-    "empty": "Für diesen Lauf gibt es noch keine Aggregation.",
-    "loadError": "Die Aggregationen konnten nicht geladen werden.",
-    "inProgress": "Eine Aggregation läuft …",
-    "reused": "Eine identische Aggregation existiert bereits.",
+    "title": "Kombiniertes Ergebnis",
+    "hint": "Die einbezogenen Methodenergebnisse werden zu einem Vorschlag je Person zusammengeführt.",
+    "currentWorking": "Aktuelles Arbeitsergebnis",
+    "latestResult": "Neuestes kombiniertes Ergebnis",
+    "latestAttempt": "Letzter Aggregationsversuch",
+    "history": "Aggregationsverlauf",
+    "historyWithCount": "Aggregationsverlauf ({count})",
+    "waitingForRun": "Ein kombiniertes Ergebnis kann berechnet werden, sobald der Lauf erfolgreich beendet ist.",
+    "empty": "Für diesen Lauf gibt es noch kein kombiniertes Ergebnis.",
+    "loadError": "Die kombinierten Ergebnisse konnten nicht geladen werden.",
+    "autoCreating": "Das kombinierte Ergebnis wird automatisch berechnet …",
+    "inProgress": "Ein kombiniertes Ergebnis wird berechnet …",
+    "reused": "Ein Ergebnis mit derselben Auswahl existiert bereits.",
     "item": {
       "strategy": "Strategie",
+      "referenceStrategy": "Referenzentscheidung",
       "selection": "Auswahl",
-      "selectionValue": "{count} Methodenausführungen",
+      "selectionValue": "Methodenausführungen: {count}",
+      "selectedMethods": "Einbezogene Methoden: {count}",
+      "notSelected": "Nicht einbezogen: {count}",
+      "executionUnavailable": "Status nicht geladen",
+      "ready": "Bereit zur fachlichen Prüfung. Prüfe strittige und unsichere Vorschläge und bestätige das Arbeitsergebnis.",
+      "review": "Ergebnis prüfen",
+      "details": "Details und Provenienz",
       "configHash": "Konfigurations-Hash",
-      "open": "Aggregation öffnen"
+      "open": "Aggregation öffnen",
+      "openLabel": "Aggregation vom {date} öffnen",
+      "titleWithDate": "Aggregation vom {date}"
     },
     "errors": {
       "autoNotAggregatable": "Die automatische Referenz-Aggregation konnte nicht angelegt werden: Die Methodenausführungen dieses Laufs sind keine vollständige Referenzauswahl. Die Referenzstrategie braucht ihren vollständigen Methodensatz, jede Methode einmal und alle abgeschlossen. Starte einen Lauf mit dem vollständigen Methodensatz.",
@@ -775,12 +1015,12 @@
       "generic": "Die Aggregation konnte nicht angelegt werden."
     },
     "advanced": {
-      "title": "Weitere Aggregation anlegen",
-      "hint": "Wähle genau, welche Methodenausführungen in die Aggregation eingehen. Der Server akzeptiert nur Auswahlen, die zur Strategie passen, und weist alle anderen ab.",
+      "title": "Anderes Ergebnis berechnen",
+      "hint": "Ausgangspunkt ist die Auswahl des angezeigten Ergebnisses. Passe sie nur an, wenn du eine andere zulässige Methodenkombination vergleichen möchtest; die Methoden werden nicht erneut ausgeführt.",
       "strategy": "Strategie: {strategy}",
       "selection": "Methodenausführungen",
-      "submit": "Aggregation anlegen",
-      "submitting": "Wird angelegt …"
+      "submit": "Ergebnis berechnen",
+      "submitting": "Wird berechnet …"
     },
     "detail": {
       "title": "Aggregation",
@@ -799,15 +1039,25 @@
     }
   },
   "review": {
+    "refreshError": "Die aktuellen Daten konnten nicht aktualisiert werden. Ihr Entwurf bleibt erhalten; versuchen Sie es vor dem Speichern erneut.",
     "title": "Prüfen",
-    "back": "Zurück zur Aggregation",
     "loading": "Wird geladen …",
     "retry": "Erneut versuchen",
     "loadMore": "Mehr laden",
     "none": "keine",
-    "subtitle": "Strategie {strategy} · {count} Personen",
+    "subtitleOne": "Arbeitsergebnis mit einer Person",
+    "subtitleMany": "Arbeitsergebnis mit {count} Personen",
     "aggregationLoadError": "Die Aggregation konnte nicht geladen werden.",
     "notCompleted": "Diese Aggregation ist noch nicht fertig. Ihre Ergebnisse lassen sich prüfen, sobald sie abgeschlossen ist.",
+    "context": {
+      "title": "Prüfgrundlage",
+      "dataset": "Datenstand",
+      "datasetHint": "Importierte Personendaten",
+      "suggestions": "Automatische Vorschläge",
+      "suggestionsHint": "Ergebnisse der ausgewählten Methoden",
+      "result": "Arbeitsergebnis",
+      "resultHint": "Zusammengeführt mit Strategie {strategy}"
+    },
     "queue": {
       "label": "Warteschlange",
       "count": "{open} offen von {total}",
@@ -855,6 +1105,7 @@
     },
     "detail": {
       "title": "Person",
+      "summaryTitle": "Ergebnisübersicht",
       "none": "Wähle eine Person aus der Liste.",
       "notFound": "Diese Person gehört nicht zu dieser Aggregation.",
       "certainty": "Sicherheit",
@@ -864,6 +1115,11 @@
       "finalLabel": "Endgültiges Label",
       "state": "Prüfstand",
       "revision": "Revision {revision}",
+      "navigation": {
+        "label": "Navigation in der Personenliste",
+        "previous": "Vorherige Person",
+        "next": "Nächste Person"
+      },
       "authorityTitle": "Eine Autorität hat entschieden.",
       "authorityBody": "{source} hat die gemeinsame Abstimmung überstimmt.",
       "conflictTitle": "Autorität und Ensemble widersprechen sich.",
@@ -885,14 +1141,16 @@
         "source": "Aus {file}, Datensatz {locator}"
       },
       "methods": {
-        "title": "Ergebnis je Methode",
+        "title": "Ergebnisse je Methode",
         "method": "Methode",
         "label": "Label",
         "status": "Status",
         "confidence": "Eigene Konfidenz",
         "raw": "roh: {raw}",
         "noPrediction": "Diese Methode hat für diese Person nichts gespeichert.",
-        "confidenceNote": "Ein Konfidenzwert gilt nur für seine Methode. Er beeinflusst die Abstimmung nicht und ist zwischen Methoden nicht vergleichbar.",
+        "unassigned": "Keine Klasse zugeordnet",
+        "groupSummary": "{count}× {label}",
+        "groupCount": "{count}×",
         "loadError": "Die Methodenergebnisse konnten nicht geladen werden."
       },
       "history": {
@@ -962,7 +1220,6 @@
       "key": "Taste {key}",
       "comment": "Kommentar (optional)",
       "keyboardHint": "Die Tasten 1 bis 4 wählen das Label, zu dem korrigiert wird; danach speichert Enter.",
-      "appendOnly": "Nichts wird automatisch gespeichert. Jede Entscheidung ist ein neuer, dauerhafter Eintrag im Verlauf; eine spätere ersetzt sie.",
       "save": "Entscheidung speichern",
       "saving": "Wird gespeichert …",
       "saved": "{action}. Revision {revision}.",
@@ -1152,7 +1409,7 @@
         "json": "JSON-Ergebnisbündel",
         "csv": "CSV-Analysebericht"
       },
-      "teiNotPossible": "Ein TEI-Export braucht einen Snapshot, der noch aus TEI-Dateien besteht, als einzelne Datei oder als lose Dateien importiert. Der Snapshot dieses Laufs ist das nicht, der Server würde ablehnen.",
+      "teiNotPossible": "Ein TEI-Export benötigt einen Datenstand aus einer einzelnen TEI-Datei oder mehreren einzeln importierten TEI-Dateien. Dieser Datenstand erfüllt diese Voraussetzung nicht.",
       "policy": "Welches Label exportiert wird",
       "policies": {
         "machine": "die aggregierte Entscheidung der Maschine für alle",
@@ -1166,7 +1423,7 @@
       "submit": "Export starten",
       "submitting": "Wird gestartet …",
       "errors": {
-        "conflict": "Der Server hat diesen Export abgelehnt. Er braucht eine abgeschlossene Aggregation dieses Laufs, und ein TEI-Export braucht einen TEI-Snapshot.",
+        "conflict": "Der Server hat diesen Export abgelehnt. Er benötigt eine abgeschlossene Aggregation dieses Laufs und für einen TEI-Export einen aus TEI-Dateien importierten Datenstand.",
         "network": "Der Export konnte nicht gestartet werden: Der Server ist nicht erreichbar.",
         "generic": "Der Export konnte nicht gestartet werden."
       }
@@ -1187,7 +1444,7 @@
       "bytes": "{size} Bytes",
       "checksum": "SHA-256",
       "manifestReceived": "Dieser Export hat mehrere Ausgaben erzeugt, deshalb ist der Download sein Manifest; die Ausgaben stehen im Abschnitt Manifest oben und lassen sich nicht getrennt herunterladen.",
-      "sourceSnapshot": "SHA-256 des Quell-Snapshots",
+      "sourceSnapshot": "SHA-256 des Quelldatenstands",
       "outputs": "Im Manifest festgehaltene Ausgaben",
       "verifyLabel": "Prüfsumme aus dem Manifest (zum Vergleichen einfügen)",
       "verdict": {
@@ -1275,5 +1532,71 @@
     "body": "Bleiben Sie, um weiterzuarbeiten, oder verwerfen Sie Ihre ungespeicherten Eingaben und verlassen Sie die Seite. Bereits übermittelte Aufträge und gespeicherte Entscheidungen bleiben bestehen. Ausstehende Sammelentscheidungen werden nach der aktuellen Übermittlung gestoppt.",
     "stay": "Bleiben",
     "discard": "Verwerfen und verlassen"
+  },
+  "taskEntry": {
+    "classificationHint": "Wählen Sie einen Datenstand, um automatische Vorschläge zu erstellen oder vorhandene Ergebnisse anzusehen.",
+    "reviewHint": "Öffnen Sie ein abgeschlossenes Ergebnis zum Redigieren. Der zugehörige Datenstand und Lauf stehen auf der Karte.",
+    "annotationHint": "Wählen Sie einen Datenstand zum Annotieren. Automatische Vorschläge können Sie optional hinzunehmen.",
+    "selectSnapshot": "Datenstand auswählen",
+    "selectRun": "Lauf auswählen",
+    "selectResult": "Ergebnis auswählen",
+    "select": "Auswählen",
+    "openClassification": "Auswählen",
+    "openReview": "Öffnen",
+    "openAnnotation": "Annotieren starten",
+    "selectSnapshotNamed": "Datenstand vom {date} auswählen",
+    "selectRunNamed": "Lauf vom {date} auswählen",
+    "openResultNamed": "Ergebnis vom {date} öffnen",
+    "recordCount": "{count} Datensätze",
+    "methodCount": "{count} Methoden",
+    "dataset": "Datenstand",
+    "run": "Lauf",
+    "methods": "Methoden",
+    "strategy": "Strategie",
+    "recommended": "Arbeitsergebnis · empfohlen",
+    "runTitle": "Lauf vom {date}",
+    "resultTitle": "Ergebnis vom {date}",
+    "changeSnapshot": "Datenstand wechseln",
+    "changeRun": "Lauf wechseln",
+    "changeSelection": "Auswahl ändern",
+    "moreSnapshots": "Weitere Datenstände laden",
+    "moreRuns": "Weitere Läufe laden",
+    "moreResults": "Weitere Ergebnisse laden",
+    "reviewResultsTitle": "Abgeschlossene Ergebnisse",
+    "noSnapshots": "Es sind noch keine vollständig importierten Datenstände verfügbar. Importieren Sie zuerst Daten im Bereich Daten.",
+    "noResults": "Für diese Auswahl sind noch keine abgeschlossenen Ergebnisse verfügbar.",
+    "snapshotError": "Die Datenstände konnten nicht geladen werden.",
+    "runError": "Die Läufe konnten nicht geladen werden.",
+    "resultError": "Die Ergebnisse konnten nicht geladen werden.",
+    "selectionUnavailable": "Diese Auswahl ist nicht verfügbar. Laden Sie sie erneut oder wählen Sie einen anderen Datenstand.",
+    "noPermission": "Sie haben in diesem Projekt keine Berechtigung für diese Aufgabe.",
+    "recommendationError": "Das empfohlene Arbeitsergebnis konnte nicht geladen werden. Sie können weiterhin andere verfügbare Daten auswählen.",
+    "annotationStart": "Diesen Datenstand annotieren",
+    "optionalEvidence": "Annotieren Sie die importierten Datensätze direkt oder ziehen Sie automatische Vorschläge als zusätzliche Hinweise heran.",
+    "withoutEvidence": "Direkt annotieren",
+    "chooseEvidence": "Automatische Vorschläge auswählen",
+    "availabilityLoading": "Verfügbare Aufgaben werden geprüft …",
+    "availabilityError": "Verfügbare Aufgaben konnten nicht geprüft werden.",
+    "retryAvailability": "Verfügbare Aufgaben erneut prüfen",
+    "noReviewSnapshots": "Es gibt noch kein abgeschlossenes Ergebnis zum Redigieren. Automatische Vorschläge müssen zuerst erstellt und zu einem Ergebnis zusammengeführt werden."
+  },
+  "annotation": {
+    "chooseLabel": "Label auswählen",
+    "humanLabel": "Manuelle Entscheidung",
+    "noDecision": "Kein Label vergeben",
+    "hint": "Ihre Entscheidungen gelten für diesen Datenstand. Es sind keine automatischen Vorschläge ausgewählt.",
+    "search": "Person suchen",
+    "searchSubmit": "Suchen",
+    "allStates": "Alle Bearbeitungsstände",
+    "allLabels": "Alle manuellen Labels",
+    "empty": "Keine Datensätze entsprechen diesen Filtern.",
+    "selectPerson": "Wählen Sie eine Person, um die Quelldaten zu prüfen und eine Entscheidung festzuhalten.",
+    "loadError": "Die Datensätze zum Annotieren konnten nicht geladen werden.",
+    "personError": "Diese Person konnte nicht geladen werden.",
+    "more": "Weitere Personen laden",
+    "openNamed": "{name} annotieren",
+    "evidence": "Automatische Vorschläge hinzunehmen",
+    "browseTitle": "Personen und Entscheidungen",
+    "openReadOnly": "Details zu {name}"
   }
 }

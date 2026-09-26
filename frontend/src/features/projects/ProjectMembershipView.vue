@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
+import { PhMinus, PhPlus } from '@phosphor-icons/vue'
+import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import AppButton from '@/components/base/AppButton.vue'
-import AppTextField from '@/components/base/AppTextField.vue'
+import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
 import { useSessionStore } from '@/stores/session'
 import { useProjectMembership } from './useProjectMembership'
 const { t } = useI18n()
@@ -12,158 +14,513 @@ const session = useSessionStore()
 const projectId = computed(() => String(route.params.projectId))
 const principalId = computed(() => session.user?.id ?? null)
 const enabled = computed(() => session.status === 'ready' && session.isSignedIn)
-const searchInput = ref('')
 const selectedCandidate = ref<string | null>(null)
 const selectedRole = ref<'viewer' | 'reviewer' | 'operator'>('viewer')
+const addMemberOpen = ref(false)
 const transferTarget = ref<string | null>(null)
-const management = useProjectMembership(projectId, principalId, enabled, searchInput)
+const memberToRemove = ref<{ user_id: string; display_name: string } | null>(null)
+const management = useProjectMembership(projectId, principalId, enabled)
 const candidates = computed(
   () => management.candidates.data.value?.pages.flatMap((page) => page.items) ?? [],
 )
+
+function toggleAddMember(): void {
+  addMemberOpen.value = !addMemberOpen.value
+  if (addMemberOpen.value) {
+    void nextTick(() => document.getElementById('project-member-candidate')?.focus())
+  }
+}
+
+async function addMember(): Promise<void> {
+  if (selectedCandidate.value === null) return
+
+  const result = await management.setRole(selectedCandidate.value, selectedRole.value)
+  if (result === null) return
+
+  selectedCandidate.value = null
+  selectedRole.value = 'viewer'
+  addMemberOpen.value = false
+}
+
+function openMemberRemoval(member: { user_id: string; display_name: string }): void {
+  memberToRemove.value = member
+}
+
+function closeMemberRemoval(): void {
+  if (!management.pending.value) memberToRemove.value = null
+}
+
+async function removeMember(): Promise<void> {
+  const member = memberToRemove.value
+  if (member === null) return
+
+  const result = await management.removeRole(member.user_id)
+  if (result !== null) memberToRemove.value = null
+}
 </script>
 <template>
   <main class="project-members">
-    <h1>{{ t('projectMembers.title') }}</h1>
-    <p>{{ t('projectMembers.description') }}</p>
+    <header class="project-members-heading">
+      <div>
+        <h1>{{ t('projectMembers.title') }}</h1>
+        <p>{{ t('projectMembers.description') }}</p>
+      </div>
+      <AppButton
+        type="button"
+        variant="ghost"
+        :aria-expanded="addMemberOpen"
+        aria-controls="project-member-add-panel"
+        @click="toggleAddMember"
+      >
+        <PhMinus v-if="addMemberOpen" :size="18" aria-hidden="true" />
+        <PhPlus v-else :size="18" aria-hidden="true" />
+        {{ addMemberOpen ? t('projectMembers.addHide') : t('projectMembers.addOpen') }}
+      </AppButton>
+    </header>
+
     <p v-if="management.state.isPending.value" role="status">{{ t('projects.loading') }}</p>
-    <p v-else-if="management.state.isError.value" role="alert">
+    <p v-else-if="management.state.isError.value" class="project-members-error" role="alert">
       {{ t('projectMembers.loadError') }}
     </p>
-    <template v-else-if="management.state.data.value"
-      ><section>
-        <h2>{{ t('projectMembers.manager') }}</h2>
-        <p>{{ management.state.data.value.manager.display_name }}</p>
-        <p>
-          {{
-            management.state.data.value.manager.project_role === null
-              ? t('projectMembers.noRole')
-              : management.state.data.value.manager.project_role
-          }}
-        </p>
-        <label for="transfer">{{ t('projectMembers.transfer') }}</label
-        ><select id="transfer" v-model="transferTarget">
-          <option :value="null">{{ t('projectMembers.choose') }}</option>
-          <option v-for="candidate in candidates" :key="candidate.id" :value="candidate.id">
-            {{ candidate.display_name }}
-          </option></select
-        ><AppButton
-          type="button"
-          :disabled="transferTarget === null || management.pending.value"
-          @click="
-            transferTarget &&
-            management.transfer(transferTarget, management.state.data.value.manager.user_id)
-          "
-          >{{ t('projectMembers.transfer') }}</AppButton
-        >
-      </section>
-      <section>
-        <h2>{{ t('projectMembers.members') }}</h2>
-        <ul>
-          <li v-for="member in management.state.data.value.members" :key="member.user_id">
-            <span>{{ member.display_name }}</span>
-            <span>{{ t(`projectMembers.roles.${member.role}`) }}</span>
+
+    <template v-else-if="management.state.data.value">
+      <section
+        v-show="addMemberOpen"
+        id="project-member-add-panel"
+        class="project-members-add"
+        aria-labelledby="project-members-add-title"
+      >
+        <h2 id="project-members-add-title">{{ t('projectMembers.add') }}</h2>
+        <div class="project-members-add-fields">
+          <div>
+            <label for="project-member-candidate">{{ t('projectMembers.person') }}</label>
             <select
+              id="project-member-candidate"
+              v-model="selectedCandidate"
+              :aria-label="t('projectMembers.person')"
+              :disabled="management.pending.value"
+            >
+              <option :value="null">{{ t('projectMembers.choose') }}</option>
+              <option v-for="candidate in candidates" :key="candidate.id" :value="candidate.id">
+                {{ candidate.display_name }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label for="project-member-role">{{ t('projectMembers.role') }}</label>
+            <select
+              id="project-member-role"
+              v-model="selectedRole"
               :aria-label="t('projectMembers.role')"
-              :value="member.role"
-              @change="
-                management.setRole(
-                  member.user_id,
-                  ($event.target as HTMLSelectElement).value as 'viewer' | 'reviewer' | 'operator',
-                )
-              "
+              :disabled="management.pending.value"
             >
               <option value="viewer">{{ t('projectMembers.roles.viewer') }}</option>
               <option value="reviewer">{{ t('projectMembers.roles.reviewer') }}</option>
               <option value="operator">{{ t('projectMembers.roles.operator') }}</option>
             </select>
+          </div>
+        </div>
+        <div class="project-members-add-actions">
+          <AppButton
+            type="button"
+            :disabled="selectedCandidate === null || management.pending.value"
+            @click="addMember"
+            >{{ t('projectMembers.add') }}</AppButton
+          >
+          <AppButton
+            v-if="management.candidates.hasNextPage.value"
+            type="button"
+            variant="ghost"
+            :disabled="management.candidates.isFetchingNextPage.value || management.pending.value"
+            @click="management.candidates.fetchNextPage()"
+            >{{
+              management.candidates.isFetchingNextPage.value
+                ? t('projects.loading')
+                : t('projects.loadMore')
+            }}</AppButton
+          >
+        </div>
+      </section>
+
+      <section class="project-members-manager" aria-labelledby="project-members-manager-title">
+        <div>
+          <h2 id="project-members-manager-title">{{ t('projectMembers.manager') }}</h2>
+          <dl class="project-members-manager-summary">
+            <div>
+              <dt>{{ t('projectMembers.person') }}</dt>
+              <dd>{{ management.state.data.value.manager.display_name }}</dd>
+            </div>
+            <div>
+              <dt>{{ t('projectMembers.role') }}</dt>
+              <dd>
+                {{
+                  management.state.data.value.manager.project_role === null
+                    ? t('projectMembers.noRole')
+                    : management.state.data.value.manager.project_role
+                }}
+              </dd>
+            </div>
+          </dl>
+        </div>
+        <div class="project-members-transfer">
+          <label for="transfer">{{ t('projectMembers.transfer') }}</label>
+          <div class="project-members-transfer-controls">
+            <select id="transfer" v-model="transferTarget" :disabled="management.pending.value">
+              <option :value="null">{{ t('projectMembers.choose') }}</option>
+              <option v-for="candidate in candidates" :key="candidate.id" :value="candidate.id">
+                {{ candidate.display_name }}
+              </option>
+            </select>
             <AppButton
               type="button"
-              variant="text"
-              :disabled="management.pending.value"
-              @click="management.removeRole(member.user_id)"
-              >{{ t('projectMembers.remove') }}</AppButton
+              variant="ghost"
+              :disabled="transferTarget === null || management.pending.value"
+              @click="
+                transferTarget &&
+                management.transfer(transferTarget, management.state.data.value.manager.user_id)
+              "
+              >{{ t('projectMembers.transfer') }}</AppButton
             >
-          </li>
-        </ul>
+          </div>
+        </div>
       </section>
-      <section>
-        <h2>{{ t('projectMembers.add') }}</h2>
-        <AppTextField
-          id="candidate-search"
-          v-model="searchInput"
-          :label="t('projectMembers.search')"
-        />
-        <select v-model="selectedCandidate" :aria-label="t('projectMembers.person')">
-          <option :value="null">{{ t('projectMembers.choose') }}</option>
-          <option v-for="candidate in candidates" :key="candidate.id" :value="candidate.id">
-            {{ candidate.display_name }}
-          </option>
-        </select>
-        <select v-model="selectedRole" :aria-label="t('projectMembers.role')">
-          <option value="viewer">{{ t('projectMembers.roles.viewer') }}</option>
-          <option value="reviewer">{{ t('projectMembers.roles.reviewer') }}</option>
-          <option value="operator">{{ t('projectMembers.roles.operator') }}</option>
-        </select>
-        <AppButton
-          type="button"
-          :disabled="selectedCandidate === null || management.pending.value"
-          @click="selectedCandidate && management.setRole(selectedCandidate, selectedRole)"
-          >{{ t('projectMembers.add') }}</AppButton
+
+      <div class="project-members-roster">
+        <AppScrollRegion
+          class="project-members-table-scroll"
+          :label="t('layout.tableRegion', { label: t('projectMembers.members') })"
         >
-        <AppButton
-          v-if="management.candidates.hasNextPage.value"
-          type="button"
-          variant="ghost"
-          @click="management.candidates.fetchNextPage()"
-          >{{ t('projects.loadMore') }}</AppButton
-        >
-      </section>
-      <p v-if="management.error.value" role="alert">{{ t('projectMembers.error') }}</p></template
-    >
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">{{ t('projectMembers.person') }}</th>
+                <th scope="col">{{ t('projectMembers.role') }}</th>
+                <th scope="col">{{ t('projectMembers.actions') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="member in management.state.data.value.members" :key="member.user_id">
+                <th scope="row">{{ member.display_name }}</th>
+                <td>
+                  <select
+                    :aria-label="t('projectMembers.role')"
+                    :value="member.role"
+                    :disabled="management.pending.value"
+                    @change="
+                      management.setRole(
+                        member.user_id,
+                        ($event.target as HTMLSelectElement).value as
+                          'viewer' | 'reviewer' | 'operator',
+                      )
+                    "
+                  >
+                    <option value="viewer">{{ t('projectMembers.roles.viewer') }}</option>
+                    <option value="reviewer">{{ t('projectMembers.roles.reviewer') }}</option>
+                    <option value="operator">{{ t('projectMembers.roles.operator') }}</option>
+                  </select>
+                </td>
+                <td class="project-members-actions">
+                  <AppButton
+                    type="button"
+                    variant="ghost"
+                    tone="destructive"
+                    :disabled="management.pending.value"
+                    @click="openMemberRemoval(member)"
+                    >{{ t('projectMembers.remove') }}</AppButton
+                  >
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </AppScrollRegion>
+      </div>
+
+      <p
+        v-if="management.error.value && memberToRemove === null"
+        class="project-members-error"
+        role="alert"
+      >
+        {{ t('projectMembers.error') }}
+      </p>
+    </template>
   </main>
+
+  <Dialog
+    :open="memberToRemove !== null"
+    class="project-members-dialog"
+    @close="closeMemberRemoval"
+  >
+    <div class="project-members-dialog-backdrop" aria-hidden="true" />
+    <div class="project-members-dialog-position">
+      <DialogPanel class="project-members-dialog-panel">
+        <DialogTitle class="project-members-dialog-title">
+          {{ t('projectMembers.removeConfirm.title', { name: memberToRemove?.display_name }) }}
+        </DialogTitle>
+        <p>
+          {{
+            t('projectMembers.removeConfirm.description', { name: memberToRemove?.display_name })
+          }}
+        </p>
+        <p v-if="management.error.value" class="project-members-error" role="alert">
+          {{ t('projectMembers.error') }}
+        </p>
+        <div class="project-members-dialog-actions">
+          <AppButton
+            type="button"
+            variant="ghost"
+            :disabled="management.pending.value"
+            @click="closeMemberRemoval"
+          >
+            {{ t('projectMembers.removeConfirm.cancel') }}
+          </AppButton>
+          <AppButton
+            type="button"
+            tone="destructive"
+            :disabled="management.pending.value"
+            @click="removeMember"
+          >
+            {{ t('projectMembers.removeConfirm.submit') }}
+          </AppButton>
+        </div>
+      </DialogPanel>
+    </div>
+  </Dialog>
 </template>
+
 <style scoped>
 .project-members {
-  padding: var(--space-8) var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-  max-width: 64rem;
+  width: 100%;
+  min-width: 0;
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: var(--space-8) var(--page-gutter);
+  overflow-wrap: anywhere;
 }
-.project-members section {
+
+.project-members-heading {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.project-members-heading h1,
+.project-members h2,
+.project-members p {
+  margin: 0;
+}
+
+.project-members-heading h1 {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-page);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-height-page);
+}
+
+.project-members-heading p {
+  color: var(--text-secondary);
+}
+
+.project-members-heading > .app-button {
+  flex-shrink: 0;
+}
+
+.project-members-manager,
+.project-members-add {
+  display: grid;
+  gap: var(--space-5);
   padding: var(--space-5);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background: var(--panel);
 }
-.project-members h1,
-.project-members h2,
-.project-members p {
-  margin: 0;
+
+.project-members-manager {
+  margin-top: var(--space-6);
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.9fr);
+  align-items: end;
 }
-.project-members ul {
+
+.project-members-manager-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: var(--space-4) 0 0;
+}
+
+.project-members-manager-summary div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.project-members-manager-summary dt {
+  color: var(--text-secondary);
+  font-size: var(--font-size-caption);
+  font-weight: var(--weight-semibold);
+}
+
+.project-members-manager-summary dd {
+  margin: 0;
+  font-weight: var(--weight-semibold);
+}
+
+.project-members-transfer,
+.project-members-add > div,
+.project-members-add-fields > div {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
-.project-members li {
+
+.project-members-transfer-controls,
+.project-members-add-actions {
   display: flex;
-  gap: var(--space-3);
-  align-items: center;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-2);
 }
+
+.project-members-transfer-controls select {
+  flex: 1 1 12rem;
+}
+
+.project-members-roster {
+  margin-top: var(--space-6);
+}
+
+.project-members-table-scroll {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+}
+
+.project-members-table-scroll table {
+  width: 100%;
+  min-width: 34rem;
+  border-collapse: collapse;
+  font-size: var(--font-size-body);
+}
+
+.project-members-table-scroll th,
+.project-members-table-scroll td {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--grid);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.project-members-table-scroll thead th {
+  color: var(--text-secondary);
+  font-size: var(--font-size-caption);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.project-members-table-scroll tbody th {
+  font-weight: var(--weight-semibold);
+}
+
+.project-members-table-scroll tbody tr:last-child th,
+.project-members-table-scroll tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.project-members-table-scroll :deep(thead th:last-child),
+.project-members-table-scroll :deep(tbody td:last-child) {
+  text-align: right;
+}
+
+.project-members-actions .app-button {
+  white-space: nowrap;
+}
+
+.project-members-add-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(10rem, 0.55fr);
+  gap: var(--space-4);
+}
+
+.project-members-add-actions {
+  justify-content: flex-end;
+}
+
 .project-members select {
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-input);
-  padding: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   background: var(--panel);
   color: var(--text-primary);
   font: inherit;
+}
+
+.project-members select:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+p.project-members-error {
+  margin-top: var(--space-4);
+  color: var(--critical-text);
+}
+
+.project-members-dialog {
+  position: relative;
+  z-index: 10;
+}
+
+.project-members-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--text-primary) 45%, transparent);
+}
+
+.project-members-dialog-position {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+.project-members-dialog-panel {
+  display: flex;
+  width: min(100%, 34rem);
+  flex-direction: column;
+  gap: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-modal);
+  background: var(--panel);
+  box-shadow: var(--shadow-menu);
+  padding: var(--space-6);
+}
+
+.project-members-dialog-title {
+  margin: 0;
+  font-size: var(--font-size-title);
+}
+
+.project-members-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+@media (max-width: 40rem) {
+  .project-members-heading {
+    flex-direction: column;
+  }
+
+  .project-members-manager,
+  .project-members-add-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .project-members-add-actions {
+    justify-content: flex-start;
+  }
 }
 </style>

@@ -1,12 +1,13 @@
 """Canonical run, execution, batch, and persisted-prediction contracts."""
 
+from enum import StrEnum
 from typing import Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator, model_validator
 
 from gendertagger.config.run import RunConfig
-from gendertagger.models.classification import PredictionResult
+from gendertagger.models.classification import CanonicalLabel, PredictionResult, PredictionStatus
 from gendertagger.models.common import UtcDatetime, canonical_json_sha256
 from gendertagger.models.lifecycle import MethodExecutionStatus, RunStatus, TaskBatchStatus
 from gendertagger.models.method import METHOD_NAME_PATTERN, MethodDescriptor
@@ -19,6 +20,142 @@ METHOD_EXECUTION_FAILURE_CLASS = "MethodExecutionFailure"
 Recorded when ``fail_run_on_optional_method_error`` is set and at least one execution failed; per-method
 exception classes stay on the method executions and their batches.
 """
+
+
+class RunListFilter(BaseModel):
+    """Filter runs by completed aggregation existence, independent of run status."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    has_completed_aggregations: bool | None = None
+
+
+class MethodExecutionResultState(StrEnum):
+    """Visible outcome state for one snapshot person in one method execution.
+
+    ``missing`` means that the execution has not persisted a prediction for the
+    person. It is deliberately separate from a method-level ``abstain`` or
+    ``error`` prediction.
+    """
+
+    missing = "missing"
+    success = "success"
+    abstain = "abstain"
+    error = "error"
+
+
+class MethodExecutionPredictionSummary(BaseModel):
+    """Bounded public summary of one persisted method prediction.
+
+    The collection deliberately excludes raw output and normalization metadata.
+    They remain immutable persisted evidence and can be exposed by a focused
+    detail resource when the product needs an audit view.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    label: CanonicalLabel | None
+    status: PredictionStatus
+    method_confidence: float | None = Field(default=None, allow_inf_nan=False)
+    raw_label: str | None = None
+
+    @model_validator(mode="after")
+    def _validate_status_label(self) -> Self:
+        if self.status is PredictionStatus.success and self.label is None:
+            msg = "a successful prediction requires a canonical label"
+            raise ValueError(msg)
+        if (
+            self.status in {PredictionStatus.abstain, PredictionStatus.error}
+            and self.label is not None
+        ):
+            msg = "an abstained or failed prediction must not have a label"
+            raise ValueError(msg)
+        return self
+
+
+class MethodExecutionResult(BaseModel):
+    """One person's bounded method-result projection for an execution.
+
+    The collection contains every person in the execution's immutable snapshot.
+    A null ``prediction`` makes an unpersisted output visible, rather than
+    silently omitting it from a partially completed or failed execution.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    method_execution_id: UUID
+    dataset_snapshot_id: UUID
+    person_record_id: UUID
+    tei_id: str = Field(min_length=1)
+    surname: str | None = None
+    forenames: list[str] = Field(default_factory=list)
+    result_state: MethodExecutionResultState
+    prediction_id: UUID | None = None
+    prediction: MethodExecutionPredictionSummary | None = None
+
+    @model_validator(mode="after")
+    def _validate_prediction_projection(self) -> Self:
+        if self.prediction is None:
+            if self.prediction_id is not None:
+                msg = "a missing prediction must not have a prediction ID"
+                raise ValueError(msg)
+            if self.result_state is not MethodExecutionResultState.missing:
+                msg = "a missing prediction requires the missing result state"
+                raise ValueError(msg)
+            return self
+        if self.prediction_id is None:
+            msg = "a persisted prediction requires a prediction ID"
+            raise ValueError(msg)
+        if self.result_state.value != self.prediction.status.value:
+            msg = "the result state must match the persisted prediction status"
+            raise ValueError(msg)
+        return self
+
+
+class MethodExecutionResultFilter(BaseModel):
+    """Server-side filters for one method execution's per-person result list."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    q: str | None = Field(default=None, min_length=1, max_length=200)
+    result_state: MethodExecutionResultState | None = None
+    label: CanonicalLabel | None = None
+
+    @field_validator("q")
+    @classmethod
+    def _normalize_query(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            msg = "q must not be blank"
+            raise ValueError(msg)
+        return normalized
+
+    @model_validator(mode="after")
+    def _validate_label_filter(self) -> Self:
+        if self.label is not None and self.result_state not in {
+            None,
+            MethodExecutionResultState.success,
+        }:
+            msg = "a label filter requires successful results or no result-state filter"
+            raise ValueError(msg)
+        return self
+
+
+class MethodExecutionResultQuery(MethodExecutionResultFilter):
+    """Filters and opaque-cursor controls for a method execution result collection."""
+
+    limit: int = Field(default=100, ge=1, le=200)
+    cursor: str | None = Field(default=None, min_length=1, max_length=2048)
+
+    def collection_filter(self) -> MethodExecutionResultFilter:
+        """Return only the values that scope a continuation cursor."""
+        return MethodExecutionResultFilter(
+            q=self.q,
+            result_state=self.result_state,
+            label=self.label,
+        )
 
 
 class Progress(BaseModel):

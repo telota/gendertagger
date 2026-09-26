@@ -31,7 +31,7 @@ def test_tei_import_version_captures_profile_collection_and_packaging(
     )
 
     assert version_for_snapshot_import(command) == (
-        f"tei_parser_v3+tei_collection_v1+{source_version}"
+        f"tei_parser_v4+tei_collection_v1+{source_version}"
     )
 
 

@@ -77,6 +77,7 @@ def test_loose_collection_parses_in_member_order_with_profile_and_provenance() -
         "xml:id=p2",
     ]
     assert all(collected.person.name_forms is not None for collected in people)
+    assert [collected.source_gender_values for collected in people] == [[], []]
 
 
 def test_collection_rejects_duplicate_xml_id_across_members() -> None:

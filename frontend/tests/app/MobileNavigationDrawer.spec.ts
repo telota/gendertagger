@@ -95,6 +95,11 @@ async function application(
           revision: 2,
         },
         '/api/v1/projects': { items: [], has_more: false, next_cursor: null },
+        [`/api/v1/projects/${PROJECT}/data-availability`]: {
+          project_id: PROJECT,
+          has_ready_snapshots: true,
+          has_completed_aggregations: false,
+        },
         [`/api/v1/projects/${PROJECT}`]: {
           id: PROJECT,
           slug: 'project-a',
@@ -102,6 +107,12 @@ async function application(
           current_user_role: 'viewer',
           working_aggregation_execution_id: null,
           created_at: '2026-01-01T00:00:00Z',
+          team: {
+            id: 'c0000000-0000-0000-0000-0000000000f1',
+            slug: 'editors',
+            display_name: 'Editorial Team',
+            created_at: '2026-01-01T00:00:00Z',
+          },
         },
       }
       return Promise.resolve(
@@ -113,7 +124,12 @@ async function application(
   const wrapper = await mountApplicationAt(options.path ?? '/projects', locale, client, router)
   mounted.push(wrapper)
   await waitFor(() => {
-    expect(wrapper.find('.app-header-session').exists()).toBe(true)
+    if (options.state === 'signedOut' && (options.path ?? '/projects') === '/') {
+      expect(wrapper.find('.app-header-session').exists()).toBe(false)
+      expect(wrapper.get('main form button[type="submit"]').text()).toBe(
+        catalogues[locale].login.submit,
+      )
+    } else expect(wrapper.find('.app-header-session').exists()).toBe(true)
     if (options.state !== 'signedOut' && options.state !== 'passwordChange') {
       expect(preferenceRequests).toContain('GET')
     }
@@ -254,13 +270,82 @@ describe.each(['de', 'en'] as const)('mobile navigation in %s', (locale: AppLoca
     expect(preferenceRequests.every((method) => method === 'GET')).toBe(true)
   })
 
+  it('keeps Members current in the rail and drawer for a management-only manager', async () => {
+    const requests: string[] = []
+    const responses: Record<string, unknown> = {
+      '/api/v1/branding': {},
+      '/api/v1/me': USER,
+      '/api/v1/auth/session': { must_change_password: false, keep_signed_in: false },
+      '/api/v1/me/preferences': {
+        locale,
+        theme: 'system',
+        desktop_sidebar_collapsed: true,
+        revision: 2,
+      },
+      [`/api/v1/projects/${PROJECT}/members`]: {
+        manager: { user_id: USER.id, display_name: USER.display_name, project_role: null },
+        members: [],
+      },
+      [`/api/v1/projects/${PROJECT}/eligible-users`]: {
+        items: [],
+        has_more: false,
+        next_cursor: null,
+      },
+    }
+    const { wrapper, open } = await application(locale, {
+      path: `/projects/${PROJECT}/members`,
+      fetch: (request) => {
+        const path = new URL(request.url).pathname
+        requests.push(path)
+        return Promise.resolve(
+          Response.json(responses[path] ?? {}, { status: path in responses ? 200 : 404 }),
+        )
+      },
+    })
+    await waitFor(() =>
+      expect(wrapper.get('aside [aria-current="page"]').text()).toBe(messages.nav.projectMembers),
+    )
+    expect(wrapper.get('aside').classes()).toContain('app-sidebar--desktop-collapsed')
+    expect(wrapper.findAll('aside nav .nav-item').map((item) => item.text())).toEqual([
+      messages.nav.projects,
+      messages.nav.projectMembers,
+    ])
+    expect(wrapper.get('.app-breadcrumbs a').attributes('href')).toBe('/projects')
+    expect(wrapper.get('.app-breadcrumbs [aria-current="page"]').text()).toBe(
+      messages.projectMembers.title,
+    )
+    expect(requests.filter((path) => path === `/api/v1/projects/${PROJECT}/members`)).toHaveLength(
+      1,
+    )
+
+    const drawer = await open()
+    await waitFor(() =>
+      expect(drawer.get('nav [aria-current="page"]').text()).toBe(messages.nav.projectMembers),
+    )
+    expect(drawer.get(`a[href="/projects/${PROJECT}/members"]`).classes()).toContain(
+      'nav-item--mobile',
+    )
+    expect(drawer.findAll('nav .nav-item').map((item) => item.text())).toEqual([
+      messages.nav.projects,
+      messages.nav.projectMembers,
+    ])
+    expect(drawer.find('.project-switcher').exists()).toBe(false)
+    expect(requests).not.toContain(`/api/v1/projects/${PROJECT}`)
+    expect(
+      requests.some(
+        (path) => path.startsWith('/api/v1/runs/') || path.startsWith('/api/v1/aggregations/'),
+      ),
+    ).toBe(false)
+  })
+
   it('shows the same viewer destinations as the persistent navigation', async () => {
     const { wrapper, open } = await application(locale, { path: `/projects/${PROJECT}/overview` })
     await waitFor(() => expect(wrapper.get('aside').text()).toContain(messages.nav.currentProject))
     const persistentItems = wrapper.findAll('aside nav .nav-item').map((item) => item.text())
     const drawer = await open()
     expect(drawer.findAll('nav .nav-item').map((item) => item.text())).toEqual(persistentItems)
-    expect(persistentItems).toContain(messages.nav.annotate)
+    expect(persistentItems).not.toContain(messages.nav.annotate)
+    expect(persistentItems).toContain(messages.nav.data)
     expect(persistentItems).not.toContain(messages.nav.import)
     expect(persistentItems).not.toContain(messages.nav.review)
   })
@@ -273,7 +358,7 @@ describe.each(['de', 'en'] as const)('mobile navigation in %s', (locale: AppLoca
         state,
       })
       expect(trigger.exists()).toBe(false)
-      expect(wrapper.find('aside').exists()).toBe(false)
+      expect(wrapper.find('.app-sidebar').exists()).toBe(false)
       expect(dialog()).toBeNull()
       expect(wrapper.get('.app-header-brand').text()).toBe(messages.app.title)
       expect(wrapper.findAll('header [aria-haspopup="listbox"]')).toHaveLength(2)
@@ -309,6 +394,12 @@ describe.each(['de', 'en'] as const)('mobile navigation in %s', (locale: AppLoca
       current_user_role: 'viewer',
       working_aggregation_execution_id: null,
       created_at: '2026-01-01T00:00:00Z',
+      team: {
+        id: 'c0000000-0000-0000-0000-0000000000f1',
+        slug: 'editors',
+        display_name: 'Editorial Team',
+        created_at: '2026-01-01T00:00:00Z',
+      },
     }
     const { wrapper, router, open } = await application(locale, {
       path: reviewPath,

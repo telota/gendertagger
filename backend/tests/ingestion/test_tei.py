@@ -56,7 +56,7 @@ def test_parser_extracts_source_fields_and_structured_name_forms() -> None:
 
     people = list(parser.iter_people(BytesIO(VALID_TEI)))
 
-    assert TEI_PARSER_VERSION == "tei_parser_v3"
+    assert TEI_PARSER_VERSION == "tei_parser_v4"
     assert people == [
         PersonInput(
             tei_id="p1",
@@ -87,6 +87,23 @@ def test_parser_extracts_source_fields_and_structured_name_forms() -> None:
             name_forms=[PersonNameForm(type=PersonNameType.regular, name="Mononym")],
         ),
     ]
+
+
+def test_parser_captures_direct_gender_values_outside_classification_input() -> None:
+    source = b"""<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><listPerson>
+    <person xml:id="p1">
+      <persName type="reg"><name>Example</name></persName>
+      <gender value="female"/>
+      <gender/>
+      <note>Nested <gender value="male"/> text.</note>
+    </person>
+    </listPerson></body></text></TEI>"""
+
+    [parsed] = TeiPersonParser().iter_parsed_people(BytesIO(source))
+
+    assert parsed.person.tei_id == "p1"
+    assert parsed.source_gender_values == ["female", None]
+    assert "source_gender_values" not in PersonInput.model_fields
 
 
 def test_parser_preserves_name_forms_in_document_order() -> None:

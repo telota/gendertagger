@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { PhGenderIntersex } from '@phosphor-icons/vue'
+import {
+  PhArrowClockwise,
+  PhGenderIntersex,
+  PhHourglass,
+  PhWarningCircle,
+} from '@phosphor-icons/vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
@@ -7,6 +12,7 @@ import NavItem from './NavItem.vue'
 import ProjectSwitcher from './ProjectSwitcher.vue'
 import SidebarCollapseButton from './SidebarCollapseButton.vue'
 import SidebarPreferences from './SidebarPreferences.vue'
+import SidebarTooltip from './SidebarTooltip.vue'
 import { useSidebarNavigation } from './useSidebarNavigation'
 import { useProjectIdentity } from './useProjectIdentity'
 
@@ -51,6 +57,41 @@ const { project } = useProjectIdentity()
             />
           </li>
         </ul>
+        <div v-if="group.availability" class="app-sidebar-availability">
+          <p role="status">
+            <component
+              :is="group.availability.status === 'error' ? PhWarningCircle : PhHourglass"
+              :size="20"
+              aria-hidden="true"
+            />
+            <span class="app-sidebar-availability-label">{{
+              group.availability.status === 'error'
+                ? t('taskEntry.availabilityError')
+                : t('taskEntry.availabilityLoading')
+            }}</span>
+          </p>
+          <SidebarTooltip
+            v-if="group.availability.status === 'error'"
+            v-slot="{ triggerProps }"
+            :text="`${t('taskEntry.availabilityError')} ${t('taskEntry.retryAvailability')}`"
+            rail-only
+            :desktop-collapsed="desktopSidebarCollapsed"
+            :mobile="mobile"
+          >
+            <button
+              v-bind="triggerProps"
+              type="button"
+              class="app-sidebar-availability-retry"
+              :aria-label="t('taskEntry.retryAvailability')"
+              @click="group.availability.retry"
+            >
+              <PhArrowClockwise :size="20" aria-hidden="true" />
+              <span class="app-sidebar-availability-label">{{
+                t('taskEntry.retryAvailability')
+              }}</span>
+            </button>
+          </SidebarTooltip>
+        </div>
       </div>
     </nav>
     <footer class="app-sidebar-footer">
@@ -129,6 +170,41 @@ const { project } = useProjectIdentity()
   list-style: none;
 }
 
+.app-sidebar-availability {
+  margin-top: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--font-size-body);
+}
+
+.app-sidebar-availability p,
+.app-sidebar-availability-retry {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+}
+
+.app-sidebar-availability svg {
+  flex-shrink: 0;
+}
+
+.app-sidebar-availability-retry {
+  min-height: var(--space-10);
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--panel);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.app-sidebar-availability-retry:hover {
+  background: var(--surface-1);
+}
+
 @media (min-width: 1080px) {
   .app-sidebar--desktop-collapsed {
     width: var(--sidebar-rail-width);
@@ -140,13 +216,20 @@ const { project } = useProjectIdentity()
   }
 
   .app-sidebar--desktop-collapsed .app-sidebar-brand-label,
-  .app-sidebar--desktop-collapsed .app-sidebar-group {
+  .app-sidebar--desktop-collapsed .app-sidebar-group,
+  .app-sidebar--desktop-collapsed .app-sidebar-availability-label {
     position: absolute;
     width: 1px;
     height: 1px;
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
+  }
+
+  .app-sidebar--desktop-collapsed .app-sidebar-availability p,
+  .app-sidebar--desktop-collapsed .app-sidebar-availability-retry {
+    justify-content: center;
+    padding: var(--space-2);
   }
 }
 
@@ -161,13 +244,20 @@ const { project } = useProjectIdentity()
   }
 
   .app-sidebar-brand-label,
-  .app-sidebar-group {
+  .app-sidebar-group,
+  .app-sidebar-availability-label {
     position: absolute;
     width: 1px;
     height: 1px;
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
+  }
+
+  .app-sidebar-availability p,
+  .app-sidebar-availability-retry {
+    justify-content: center;
+    padding: var(--space-2);
   }
 }
 

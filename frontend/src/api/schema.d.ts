@@ -762,6 +762,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/data-availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Project Data Availability
+         * @description Read project-wide data existence without selecting a snapshot or a working result.
+         */
+        get: operations["get_project_data_availability_api_v1_projects__project_id__data_availability_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/eligible-users": {
         parameters: {
             query?: never;
@@ -846,6 +866,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/review-results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Review Results
+         * @description List completed results that can be opened for review, with run and snapshot context.
+         */
+        get: operations["list_review_results_api_v1_projects__project_id__review_results_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/snapshots": {
         parameters: {
             query?: never;
@@ -855,7 +895,7 @@ export interface paths {
         };
         /**
          * List Snapshots
-         * @description List a project's snapshots newest first, in every lifecycle state.
+         * @description List a project's snapshots newest first with optional lifecycle and result filters.
          */
         get: operations["list_snapshots_api_v1_projects__project_id__snapshots_get"];
         put?: never;
@@ -899,7 +939,7 @@ export interface paths {
         };
         /**
          * List Review Items
-         * @description List one aggregation's candidates using explicit server-side filters.
+         * @description List aggregation candidates with server-side filters, including exact TEI identity.
          */
         get: operations["list_review_items_api_v1_review_items_get"];
         put?: never;
@@ -959,7 +999,7 @@ export interface paths {
         };
         /**
          * List Aggregations
-         * @description List a run's aggregations newest first, in every lifecycle state.
+         * @description List a run's aggregations newest first with an optional lifecycle filter.
          */
         get: operations["list_aggregations_api_v1_runs__run_id__aggregations_get"];
         put?: never;
@@ -1041,6 +1081,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/runs/{run_id}/executions/{method_execution_id}/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Run Execution Results
+         * @description List every snapshot person and one method execution result per person.
+         */
+        get: operations["list_run_execution_results_api_v1_runs__run_id__executions__method_execution_id__results_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/runs/{run_id}/exports": {
         parameters: {
             query?: never;
@@ -1101,6 +1161,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/snapshots/{snapshot_id}/annotation-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Snapshot Annotation Items
+         * @description List imported people and human decisions without requiring machine classification.
+         */
+        get: operations["list_snapshot_annotation_items_api_v1_snapshots__snapshot_id__annotation_items_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/snapshots/{snapshot_id}/annotation-items/{tei_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Snapshot Annotation Item
+         * @description Read one imported person's current human decision in a ready snapshot.
+         */
+        get: operations["get_snapshot_annotation_item_api_v1_snapshots__snapshot_id__annotation_items__tei_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/snapshots/{snapshot_id}/people": {
         parameters: {
             query?: never;
@@ -1150,7 +1250,7 @@ export interface paths {
         };
         /**
          * List Runs
-         * @description List a snapshot's runs newest first, in every lifecycle state.
+         * @description List a snapshot's runs newest first with an optional completed-result filter.
          */
         get: operations["list_runs_api_v1_snapshots__snapshot_id__runs_get"];
         put?: never;
@@ -1173,6 +1273,26 @@ export interface paths {
          * @description List the snapshot's source provenance in canonical ordinal order.
          */
         get: operations["list_snapshot_source_members_api_v1_snapshots__snapshot_id__source_members_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/snapshots/{snapshot_id}/statistics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Snapshot Statistics
+         * @description Read immutable source-inventory statistics for one ready snapshot.
+         */
+        get: operations["get_snapshot_statistics_api_v1_snapshots__snapshot_id__statistics_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1942,6 +2062,15 @@ export interface components {
             /** Next Cursor */
             next_cursor?: string | null;
         };
+        /** CursorPage[MethodExecutionResult] */
+        CursorPage_MethodExecutionResult_: {
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["MethodExecutionResult"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
         /** CursorPage[PersonRecord] */
         CursorPage_PersonRecord_: {
             /** Has More */
@@ -1960,6 +2089,15 @@ export interface components {
             /** Next Cursor */
             next_cursor?: string | null;
         };
+        /** CursorPage[ProjectReviewResult] */
+        CursorPage_ProjectReviewResult_: {
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["ProjectReviewResult"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
         /** CursorPage[ReviewItem] */
         CursorPage_ReviewItem_: {
             /** Has More */
@@ -1975,6 +2113,15 @@ export interface components {
             has_more: boolean;
             /** Items */
             items: components["schemas"]["Run"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
+        /** CursorPage[SnapshotAnnotationItem] */
+        CursorPage_SnapshotAnnotationItem_: {
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["SnapshotAnnotationItem"][];
             /** Next Cursor */
             next_cursor?: string | null;
         };
@@ -2038,6 +2185,21 @@ export interface components {
             /** Source Sha256 */
             source_sha256: string;
             status: components["schemas"]["DatasetSnapshotStatus"];
+        };
+        /**
+         * DatasetSnapshotStatistics
+         * @description Immutable source-inventory statistics for one ready dataset snapshot.
+         */
+        DatasetSnapshotStatistics: {
+            /**
+             * Dataset Snapshot Id
+             * Format: uuid
+             */
+            dataset_snapshot_id: string;
+            gnd: components["schemas"]["SnapshotGndStatistics"];
+            source_gender?: components["schemas"]["SnapshotSourceGenderStatistics"] | null;
+            /** Total Person Count */
+            total_person_count: number;
         };
         /**
          * DatasetSnapshotStatus
@@ -2383,6 +2545,67 @@ export interface components {
             normalization_version: string;
         };
         /**
+         * MethodExecutionPredictionSummary
+         * @description Bounded public summary of one persisted method prediction.
+         *
+         *     The collection deliberately excludes raw output and normalization metadata.
+         *     They remain immutable persisted evidence and can be exposed by a focused
+         *     detail resource when the product needs an audit view.
+         */
+        MethodExecutionPredictionSummary: {
+            label: components["schemas"]["CanonicalLabel"] | null;
+            /** Method Confidence */
+            method_confidence?: number | null;
+            /** Raw Label */
+            raw_label?: string | null;
+            status: components["schemas"]["PredictionStatus"];
+        };
+        /**
+         * MethodExecutionResult
+         * @description One person's bounded method-result projection for an execution.
+         *
+         *     The collection contains every person in the execution's immutable snapshot.
+         *     A null ``prediction`` makes an unpersisted output visible, rather than
+         *     silently omitting it from a partially completed or failed execution.
+         */
+        MethodExecutionResult: {
+            /**
+             * Dataset Snapshot Id
+             * Format: uuid
+             */
+            dataset_snapshot_id: string;
+            /** Forenames */
+            forenames?: string[];
+            /**
+             * Method Execution Id
+             * Format: uuid
+             */
+            method_execution_id: string;
+            /**
+             * Person Record Id
+             * Format: uuid
+             */
+            person_record_id: string;
+            prediction?: components["schemas"]["MethodExecutionPredictionSummary"] | null;
+            /** Prediction Id */
+            prediction_id?: string | null;
+            result_state: components["schemas"]["MethodExecutionResultState"];
+            /** Surname */
+            surname?: string | null;
+            /** Tei Id */
+            tei_id: string;
+        };
+        /**
+         * MethodExecutionResultState
+         * @description Visible outcome state for one snapshot person in one method execution.
+         *
+         *     ``missing`` means that the execution has not persisted a prediction for the
+         *     person. It is deliberately separate from a method-level ``abstain`` or
+         *     ``error`` prediction.
+         * @enum {string}
+         */
+        MethodExecutionResultState: "missing" | "success" | "abstain" | "error";
+        /**
          * MethodExecutionStatus
          * @description Lifecycle for one method execution within a run.
          * @enum {string}
@@ -2679,6 +2902,27 @@ export interface components {
             team_id: string;
         };
         /**
+         * ProjectDataAvailability
+         * @description Project-scoped existence of imported data and completed classification results.
+         */
+        ProjectDataAvailability: {
+            /**
+             * Has Completed Aggregations
+             * @description Whether any run of this project's snapshots has a completed aggregation, independent of the run's status and the project's working-aggregation pointer.
+             */
+            has_completed_aggregations: boolean;
+            /**
+             * Has Ready Snapshots
+             * @description Whether this project contains at least one successfully imported snapshot.
+             */
+            has_ready_snapshots: boolean;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+        };
+        /**
          * ProjectEligibleUser
          * @description Minimal candidate representation for delegated project membership management.
          */
@@ -2767,6 +3011,25 @@ export interface components {
             manager: components["schemas"]["ProjectManager"];
             /** Members */
             members: components["schemas"]["ProjectMember"][];
+        };
+        /**
+         * ProjectReviewResult
+         * @description One completed aggregation that can be opened for review, with exact provenance.
+         */
+        ProjectReviewResult: {
+            aggregation: components["schemas"]["AggregationExecution"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            run: components["schemas"]["Run"];
+            snapshot: components["schemas"]["DatasetSnapshot"];
         };
         /**
          * ProjectRole
@@ -3005,6 +3268,47 @@ export interface components {
          */
         RunStatus: "created" | "queued" | "running" | "completed" | "completed_with_errors" | "failed" | "cancelled";
         /**
+         * SnapshotAnnotationItem
+         * @description Imported person and current human decision, independent of classification results.
+         */
+        SnapshotAnnotationItem: {
+            /** Current Annotation Id */
+            current_annotation_id?: string | null;
+            /** Forenames */
+            forenames?: string[];
+            human_label?: components["schemas"]["CanonicalLabel"] | null;
+            /**
+             * Person Record Id
+             * Format: uuid
+             */
+            person_record_id: string;
+            review_action?: components["schemas"]["ReviewAction"] | null;
+            /** Review Revision */
+            review_revision: number;
+            /**
+             * Snapshot Id
+             * Format: uuid
+             */
+            snapshot_id: string;
+            /** Surname */
+            surname?: string | null;
+            /** Tei Id */
+            tei_id: string;
+            workflow_state: components["schemas"]["ReviewWorkflowState"];
+        };
+        /**
+         * SnapshotGndStatistics
+         * @description Person-level coverage of source-preserved GND references.
+         */
+        SnapshotGndStatistics: {
+            /** With Reference And Source Gender Count */
+            with_reference_and_source_gender_count?: number | null;
+            /** With Reference Count */
+            with_reference_count: number;
+            /** Without Reference Count */
+            without_reference_count: number;
+        };
+        /**
          * SnapshotImportLimits
          * @description Resolved immutable safety bounds applied by one snapshot import.
          */
@@ -3039,6 +3343,26 @@ export interface components {
              * @default 524288000
              */
             max_total_expanded_bytes: number;
+        };
+        /**
+         * SnapshotSourceGenderStatistics
+         * @description Person-level coverage and values of direct source ``gender`` elements.
+         */
+        SnapshotSourceGenderStatistics: {
+            /** Female Count */
+            female_count: number;
+            /** Institution Count */
+            institution_count: number;
+            /** Male Count */
+            male_count: number;
+            /** Other Or Multiple Count */
+            other_or_multiple_count: number;
+            /** Unknown Count */
+            unknown_count: number;
+            /** With Element Count */
+            with_element_count: number;
+            /** Without Element Count */
+            without_element_count: number;
         };
         /**
          * SnapshotSourceMember
@@ -7485,6 +7809,100 @@ export interface operations {
             };
         };
     };
+    get_project_data_availability_api_v1_projects__project_id__data_availability_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectDataAvailability"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     list_eligible_users_api_v1_projects__project_id__eligible_users_get: {
         parameters: {
             query?: {
@@ -7967,11 +8385,110 @@ export interface operations {
             };
         };
     };
+    list_review_results_api_v1_projects__project_id__review_results_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string | null;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CursorPage_ProjectReviewResult_"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     list_snapshots_api_v1_projects__project_id__snapshots_get: {
         parameters: {
             query?: {
                 limit?: number;
                 cursor?: string | null;
+                status?: components["schemas"]["DatasetSnapshotStatus"] | null;
+                has_completed_aggregations?: boolean | null;
             };
             header?: never;
             path: {
@@ -8264,6 +8781,8 @@ export interface operations {
         parameters: {
             query: {
                 aggregation_id: string;
+                /** @description Exact, case-sensitive TEI xml:id within the aggregation's snapshot. */
+                tei_id?: string | null;
                 final_label?: components["schemas"]["CanonicalLabel"] | null;
                 /** @description Match results in any of these certainty tiers; empty matches every tier. */
                 certainty_tiers?: components["schemas"]["CertaintyTier"][];
@@ -8565,6 +9084,7 @@ export interface operations {
             query?: {
                 limit?: number;
                 cursor?: string | null;
+                status?: components["schemas"]["AggregationExecutionStatus"] | null;
             };
             header?: never;
             path: {
@@ -9143,6 +9663,107 @@ export interface operations {
             };
         };
     };
+    list_run_execution_results_api_v1_runs__run_id__executions__method_execution_id__results_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                result_state?: components["schemas"]["MethodExecutionResultState"] | null;
+                label?: components["schemas"]["CanonicalLabel"] | null;
+                limit?: number;
+                cursor?: string | null;
+            };
+            header?: never;
+            path: {
+                run_id: string;
+                method_execution_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CursorPage_MethodExecutionResult_"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     list_exports_api_v1_runs__run_id__exports_get: {
         parameters: {
             query?: {
@@ -9426,6 +10047,202 @@ export interface operations {
             };
         };
     };
+    list_snapshot_annotation_items_api_v1_snapshots__snapshot_id__annotation_items_get: {
+        parameters: {
+            query?: {
+                /** @description Match people in any of these review states; empty matches every state. */
+                workflow_states?: components["schemas"]["ReviewWorkflowState"][];
+                human_label?: components["schemas"]["CanonicalLabel"] | null;
+                q?: string | null;
+                limit?: number;
+                cursor?: string | null;
+            };
+            header?: never;
+            path: {
+                snapshot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CursorPage_SnapshotAnnotationItem_"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_snapshot_annotation_item_api_v1_snapshots__snapshot_id__annotation_items__tei_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                snapshot_id: string;
+                tei_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SnapshotAnnotationItem"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     list_people_api_v1_snapshots__snapshot_id__people_get: {
         parameters: {
             query?: {
@@ -9623,6 +10440,7 @@ export interface operations {
             query?: {
                 limit?: number;
                 cursor?: string | null;
+                has_completed_aggregations?: boolean | null;
             };
             header?: never;
             path: {
@@ -9733,6 +10551,100 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SnapshotSourceMember"][];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_snapshot_statistics_api_v1_snapshots__snapshot_id__statistics_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                snapshot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetSnapshotStatistics"];
                 };
             };
             /** @description Invalid request */

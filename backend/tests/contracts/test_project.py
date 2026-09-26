@@ -9,12 +9,15 @@ from gendertagger.models.person import PersonEvent, PersonNameForm, PersonNameTy
 from gendertagger.models.project import (
     DatasetSnapshot,
     DatasetSnapshotCreate,
+    DatasetSnapshotStatistics,
     Project,
     ProjectCreate,
     ProjectWorkingAggregationUpdate,
+    SnapshotGndStatistics,
     SnapshotImportConfig,
     SnapshotImportLimits,
     SnapshotImportRequest,
+    SnapshotSourceGenderStatistics,
     SourceFormat,
     SourceManifestMember,
     SourceManifestV1,
@@ -318,6 +321,50 @@ def test_failed_snapshot_requires_diagnostic_without_success_metadata() -> None:
     assert snapshot.failure_diagnostic == "invalid TEI"
     with pytest.raises(ValidationError, match="only a failed snapshot may have a failure class"):
         DatasetSnapshot.model_validate(snapshot_payload(failure_class="TeiImportError"))
+
+
+def test_snapshot_statistics_require_complete_person_level_partitions() -> None:
+    statistics = DatasetSnapshotStatistics(
+        dataset_snapshot_id=SNAPSHOT_ID,
+        total_person_count=3,
+        source_gender=SnapshotSourceGenderStatistics(
+            with_element_count=2,
+            without_element_count=1,
+            male_count=0,
+            female_count=1,
+            unknown_count=0,
+            institution_count=0,
+            other_or_multiple_count=1,
+        ),
+        gnd=SnapshotGndStatistics(
+            with_reference_count=1,
+            without_reference_count=2,
+            with_reference_and_source_gender_count=1,
+        ),
+    )
+
+    assert statistics.source_gender is not None
+    assert statistics.source_gender.with_element_count == 2
+    with pytest.raises(ValidationError, match="distribution"):
+        SnapshotSourceGenderStatistics(
+            with_element_count=2,
+            without_element_count=1,
+            male_count=0,
+            female_count=1,
+            unknown_count=0,
+            institution_count=0,
+            other_or_multiple_count=0,
+        )
+    with pytest.raises(ValidationError, match="GND coverage"):
+        DatasetSnapshotStatistics(
+            dataset_snapshot_id=SNAPSHOT_ID,
+            total_person_count=3,
+            source_gender=None,
+            gnd=SnapshotGndStatistics(
+                with_reference_count=1,
+                without_reference_count=1,
+            ),
+        )
 
 
 def test_person_record_preserves_snapshot_scoped_source_fields() -> None:

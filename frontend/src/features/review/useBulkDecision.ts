@@ -98,7 +98,9 @@ export function useBulkDecision() {
     // One refresh at the end, not one per person: the queues and counts are re-read once.
     const [first] = items
     if (first) {
-      invalidateAfterDecision(queryClient, first.aggregation_execution_id)
+      invalidateAfterDecision(queryClient, {
+        snapshotId: first.snapshot_id,
+      })
       for (const item of items) {
         void queryClient.invalidateQueries({
           queryKey: ['snapshots', item.snapshot_id, 'annotations', item.tei_id],

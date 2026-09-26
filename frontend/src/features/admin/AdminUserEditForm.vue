@@ -142,26 +142,28 @@ watch(() => props.account, resetDraft)
       <fieldset class="admin-user-edit-roles">
         <legend>{{ t('admin.editing.roles') }}</legend>
         <p>{{ t('admin.editing.rolesHint') }}</p>
-        <div
-          v-for="role in ['admin', 'operator'] as const"
-          :key="role"
-          class="admin-user-role-option"
-        >
-          <input
-            :id="`admin-user-edit-role-${account.id}-${role}`"
-            v-model="roles"
-            type="checkbox"
-            :value="role"
-            :disabled="isCurrentAccount && role === 'admin'"
-            :aria-describedby="
-              isCurrentAccount && role === 'admin'
-                ? `admin-user-edit-self-admin-${account.id}`
-                : undefined
-            "
-          />
-          <label :for="`admin-user-edit-role-${account.id}-${role}`">
-            {{ t(`admin.roles.${role}`) }}
-          </label>
+        <div class="admin-user-role-options">
+          <div
+            v-for="role in ['admin', 'operator'] as const"
+            :key="role"
+            class="admin-user-role-option"
+          >
+            <input
+              :id="`admin-user-edit-role-${account.id}-${role}`"
+              v-model="roles"
+              type="checkbox"
+              :value="role"
+              :disabled="isCurrentAccount && role === 'admin'"
+              :aria-describedby="
+                isCurrentAccount && role === 'admin'
+                  ? `admin-user-edit-self-admin-${account.id}`
+                  : undefined
+              "
+            />
+            <label :for="`admin-user-edit-role-${account.id}-${role}`">
+              {{ t(`admin.roles.${role}`) }}
+            </label>
+          </div>
         </div>
         <p v-if="isCurrentAccount" :id="`admin-user-edit-self-admin-${account.id}`">
           {{ t('admin.editing.selfAdminRoleLocked') }}
@@ -230,8 +232,7 @@ watch(() => props.account, resetDraft)
 .admin-user-edit {
   min-width: 0;
   overflow-wrap: anywhere;
-  padding: var(--space-4) var(--page-gutter);
-  background: var(--surface-1);
+  padding: var(--space-4) var(--space-3) var(--space-5);
 }
 
 .admin-user-edit h2 {
@@ -244,10 +245,10 @@ watch(() => props.account, resetDraft)
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-4);
+  max-inline-size: 44rem;
 }
 
-.admin-user-edit-roles,
-.admin-user-edit-active {
+.admin-user-edit-roles {
   display: grid;
   gap: var(--space-2);
   margin: 0;
@@ -268,6 +269,12 @@ watch(() => props.account, resetDraft)
   font-size: var(--font-size-small);
 }
 
+.admin-user-role-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+}
+
 .admin-user-role-option {
   display: flex;
   align-items: center;
@@ -275,21 +282,15 @@ watch(() => props.account, resetDraft)
 }
 
 .admin-user-edit-active {
+  display: flex;
+  flex-wrap: wrap;
   grid-column: 1 / -1;
-}
-
-.admin-user-edit-active input {
-  grid-row: 1;
-  align-self: center;
-}
-
-.admin-user-edit-active label {
-  grid-row: 1;
-  grid-column: 2;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
 }
 
 .admin-user-edit-active p {
-  grid-column: 1 / -1;
+  flex-basis: 100%;
 }
 
 .admin-user-edit-error {

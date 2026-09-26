@@ -1,18 +1,29 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { RouterLink, type RouteLocationRaw } from 'vue-router'
 
 import AppProgress from '@/components/base/AppProgress.vue'
 
-import type { MethodExecutionSummary } from './useRunDetail'
+import { TERMINAL_METHOD_EXECUTION_STATUSES, type MethodExecutionSummary } from './useRunDetail'
 import { useStatusLabel } from './useStatusLabel'
 
-const props = defineProps<{ execution: MethodExecutionSummary }>()
+const props = withDefaults(
+  defineProps<{
+    execution: MethodExecutionSummary
+    resultsTo?: RouteLocationRaw
+    compact?: boolean
+  }>(),
+  { compact: false },
+)
 
 const { t, n } = useI18n()
 const label = useStatusLabel()
 
 const statusLabel = computed(() => label(props.execution.status))
+const hasFinalResults = computed(() =>
+  TERMINAL_METHOD_EXECUTION_STATUSES.has(props.execution.status),
+)
 
 // The method's own identity: which implementation, which model and prompt produced these results
 // (docs/11). Optional entries appear only for methods that have them; the ones every execution
@@ -53,14 +64,20 @@ const resolvedConfig = computed(() => JSON.stringify(props.execution.resolved_co
 </script>
 
 <template>
-  <li class="execution">
+  <li class="execution" :class="{ 'execution--compact': compact }">
     <div class="execution-head">
-      <h3 class="execution-name">{{ execution.method_name }}</h3>
+      <h3 class="execution-name">
+        <RouterLink v-if="resultsTo && hasFinalResults" :to="resultsTo">
+          {{ execution.method_name }}
+        </RouterLink>
+        <template v-else>{{ execution.method_name }}</template>
+      </h3>
       <span class="execution-status" :class="`execution-status--${execution.status}`">{{
         statusLabel
       }}</span>
     </div>
     <AppProgress
+      v-if="!compact"
       :percentage="execution.progress.percentage ?? null"
       :label="t('runs.detail.executionProgressLabel', { method: execution.method_name })"
     />
@@ -74,7 +91,9 @@ const resolvedConfig = computed(() => JSON.stringify(props.execution.resolved_co
       }}
     </p>
     <details class="execution-provenance">
-      <summary>{{ t('runs.execution.provenance') }}</summary>
+      <summary :aria-label="t('runs.execution.provenanceFor', { method: execution.method_name })">
+        {{ t('runs.execution.provenance') }}
+      </summary>
       <dl class="execution-provenance-facts">
         <div v-for="row in provenanceRows" :key="row.key" class="execution-provenance-fact">
           <dt>{{ row.label }}</dt>
@@ -107,6 +126,11 @@ const resolvedConfig = computed(() => JSON.stringify(props.execution.resolved_co
   background: var(--panel);
 }
 
+.execution--compact {
+  gap: var(--space-1);
+  padding-block: var(--space-3);
+}
+
 .execution-head {
   display: flex;
   align-items: baseline;
@@ -118,6 +142,11 @@ const resolvedConfig = computed(() => JSON.stringify(props.execution.resolved_co
   margin: 0;
   font-size: var(--font-size-body-strong);
   font-weight: var(--weight-semibold);
+}
+
+.execution-name a {
+  color: var(--accent);
+  text-underline-offset: 0.2em;
 }
 
 .execution-status {
@@ -140,6 +169,10 @@ const resolvedConfig = computed(() => JSON.stringify(props.execution.resolved_co
 }
 
 .execution-provenance summary {
+  display: flex;
+  width: fit-content;
+  min-block-size: 2rem;
+  align-items: center;
   cursor: pointer;
   color: var(--text-secondary);
   font-size: var(--font-size-small);
@@ -189,5 +222,11 @@ const resolvedConfig = computed(() => JSON.stringify(props.execution.resolved_co
 
 .execution-failure-class {
   font-weight: var(--weight-semibold);
+}
+
+@media (pointer: coarse) {
+  .execution-provenance summary {
+    min-block-size: 2.75rem;
+  }
 }
 </style>

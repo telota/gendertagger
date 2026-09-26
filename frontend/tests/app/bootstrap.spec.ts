@@ -65,7 +65,7 @@ describe('createApplication', () => {
     await application.config.globalProperties.$router.isReady()
     await flushPromises()
 
-    expect(container.querySelector('h1')?.textContent).toBe(en.app.title)
+    expect(container.querySelector('h1')?.textContent).toBe(en.home.guest.lede)
     expect(container.querySelector('footer')).not.toBeNull()
   })
 

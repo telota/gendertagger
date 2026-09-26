@@ -128,6 +128,7 @@ def test_review_items_route_passes_repeated_filters_in_vocabulary_order() -> Non
                 "aggregation_id": str(AGGREGATION_ID),
                 "certainty_tiers": ["uncertain", "single"],
                 "workflow_states": ["deferred", "unreviewed"],
+                "tei_id": "Person-A",
             },
         )
 
@@ -136,3 +137,4 @@ def test_review_items_route_passes_repeated_filters_in_vocabulary_order() -> Non
     assert query.certainty_tiers == (CertaintyTier.single, CertaintyTier.uncertain)
     assert query.agreement_tiers == ()
     assert query.workflow_states == (ReviewWorkflowState.unreviewed, ReviewWorkflowState.deferred)
+    assert query.tei_id == "Person-A"

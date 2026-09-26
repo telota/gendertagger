@@ -49,8 +49,33 @@ The browser follows these integration rules:
   scientific ordering;
 - cursors remain attached to the complete query that produced them;
 - list summaries render collections without one detail request per row;
+- a method-results collection is scoped to the exact method execution beneath its run and returns each
+  snapshot person in server-owned TEI order; a missing persisted output remains distinct from
+  abstain and error outcomes and the substantive unknown label;
 - a stale annotation write reloads current history/revision and asks the reviewer to decide again;
-- unsent scholarly decisions survive authentication recovery and transient transport failures.
+- unsent scholarly decisions survive same-account authentication recovery and transient transport
+  failures; an annotation command cannot replay under a different principal.
+
+Project task availability is read from the canonical project data-availability resource and combined
+with effective project roles. The independent task pickers use this instead of interpreting
+a null working pointer or a partial collection page as absent data. The working result is only a
+recommendation; task entry does not select it or write state. Snapshot/run/result collections filter
+eligibility on the server before cursor pagination. Existing resource links must
+resolve their aggregation, run and snapshot relationships back to the current project; a review
+workbench requires a completed aggregation. Manual annotation can instead open a ready snapshot
+without model evidence, using the snapshot annotation read model and the ordinary annotation command.
+
+Annotation mutations require snapshot/person identity and may attach a real aggregation result as
+evidence. Draft identity also includes the snapshot, so repeated TEI IDs in different imports never
+carry decisions between records. A save or revision conflict refreshes history and all affected
+cached snapshot annotation items and review projections across the snapshot's aggregations.
+Path-based and query-based person changes guard unsaved decisions; filters retaining the same person
+preserve the mounted draft. Recoverable network/server refresh errors keep an already authorized,
+exactly scoped decision mounted and show retry, with saving blocked until context and history are
+fresh again. Access loss, missing resources and identity changes remove the stale context. Exact
+evidence deep links use the `tei_id` identity filter, never the first page of fuzzy `q` results.
+If a cached projection has outlived
+its ownership metadata, refresh it conservatively rather than assuming it is unrelated.
 
 Review-specific behavior is defined in
 [`09-annotation-and-review.md`](09-annotation-and-review.md). The client never silently overwrites a conflict

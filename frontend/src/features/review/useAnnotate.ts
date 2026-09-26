@@ -1,15 +1,23 @@
 import { useMutation, useQueryClient, type QueryClient } from '@tanstack/vue-query'
 
-import { unwrap, type ApiClient, type components } from '@/api'
+import { ApiError, unwrap, type ApiClient, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
+import type { AggregationExecution } from '@/features/runs/useAggregations'
+import type { Run } from '@/features/runs/useRuns'
 
 import { annotationHistoryKey, type ReviewItem } from './useReviewData'
 import type { CanonicalLabel, ReviewAction } from './useVocabulary'
 
 export type Annotation = components['schemas']['Annotation']
 
+/** A snapshot/person is sufficient; a classification result is optional supporting evidence. */
+export type AnnotationTarget = Pick<
+  components['schemas']['AnnotationCreate'],
+  'snapshot_id' | 'tei_id' | 'aggregated_result_id'
+>
+
 export interface DecisionInput {
-  item: ReviewItem
+  item: AnnotationTarget
   action: ReviewAction
   /** Required for `verify` and `correct`, forbidden for `defer` (the server enforces the same). */
   label: CanonicalLabel | null
@@ -31,7 +39,9 @@ export function postAnnotation(client: ApiClient, input: DecisionInput): Promise
         snapshot_id: input.item.snapshot_id,
         tei_id: input.item.tei_id,
         action: input.action,
-        aggregated_result_id: input.item.aggregated_result_id,
+        ...(input.item.aggregated_result_id == null
+          ? {}
+          : { aggregated_result_id: input.item.aggregated_result_id }),
         expected_revision: input.expectedRevision,
         ...(input.label ? { label: input.label } : {}),
         ...(comment === '' ? {} : { comment }),
@@ -40,20 +50,61 @@ export function postAnnotation(client: ApiClient, input: DecisionInput): Promise
   )
 }
 
-/** Refetch everything that derives from decisions: the queues, their counts and one person's chain. */
+/** Read known ownership without additional requests or assumptions about partially loaded pages. */
+function cachedAggregationSnapshot(queryClient: QueryClient, aggregationId: string): string | null {
+  const aggregation = queryClient.getQueryData<AggregationExecution>([
+    'aggregations',
+    aggregationId,
+  ])
+  if (aggregation) {
+    const run = queryClient.getQueryData<Run>(['runs', aggregation.run_id])
+    if (run) return run.dataset_snapshot_id
+  }
+  for (const [, item] of queryClient.getQueriesData<ReviewItem | null>({
+    queryKey: ['aggregations', aggregationId, 'review-item'],
+  })) {
+    if (item) return item.snapshot_id
+  }
+  for (const [, list] of queryClient.getQueriesData<{ pages: { items: ReviewItem[] }[] }>({
+    queryKey: ['aggregations', aggregationId, 'review-items'],
+  })) {
+    const item = list?.pages.find((page) => page.items.length > 0)?.items[0]
+    if (item) return item.snapshot_id
+  }
+  return null
+}
+
+/** Decisions belong to a snapshot/person and affect every aggregation of that snapshot. */
 export function invalidateAfterDecision(
   queryClient: QueryClient,
-  aggregationId: string,
-  chain?: { snapshotId: string; teiId: string },
+  scope: { snapshotId: string; teiId?: string },
 ): void {
-  if (chain) {
+  for (const resource of ['snapshot-annotation-items', 'snapshot-annotation-item']) {
+    void queryClient.invalidateQueries({ queryKey: [resource, scope.snapshotId] })
+  }
+  if (scope.teiId !== undefined) {
     void queryClient.invalidateQueries({
-      queryKey: annotationHistoryKey(chain.snapshotId, chain.teiId),
+      queryKey: annotationHistoryKey(scope.snapshotId, scope.teiId),
     })
   }
-  for (const part of ['review-items', 'review-summary', 'review-item']) {
-    void queryClient.invalidateQueries({ queryKey: ['aggregations', aggregationId, part] })
-  }
+  const snapshots = new Map<string, string | null>()
+  void queryClient.invalidateQueries({
+    predicate: (query) => {
+      const [resource, aggregationId, part] = query.queryKey
+      if (
+        resource !== 'aggregations' ||
+        typeof aggregationId !== 'string' ||
+        !['review-items', 'review-summary', 'review-item'].includes(String(part))
+      )
+        return false
+      if (!snapshots.has(aggregationId))
+        snapshots.set(aggregationId, cachedAggregationSnapshot(queryClient, aggregationId))
+      const snapshotId = snapshots.get(aggregationId)
+      // A summary or empty queue may outlive its ownership metadata. Refresh it conservatively:
+      // an unknown scope is not proof that the decision cannot affect this projection.
+      return snapshotId === null || snapshotId === scope.snapshotId
+    },
+  })
 }
 
 /**
@@ -68,15 +119,18 @@ export function useCreateAnnotation() {
   return useMutation({
     mutationFn: (input: DecisionInput): Promise<Annotation> => postAnnotation(client, input),
     onSettled: (_annotation, error, input) => {
-      const chain = { snapshotId: input.item.snapshot_id, teiId: input.item.tei_id }
-      if (error) {
-        // A conflict means the person changed: the chain must be re-read either way.
+      const scope = {
+        snapshotId: input.item.snapshot_id,
+        teiId: input.item.tei_id,
+      }
+      if (error && !(error instanceof ApiError && error.code === 'annotation_conflict')) {
         void queryClient.invalidateQueries({
-          queryKey: annotationHistoryKey(chain.snapshotId, chain.teiId),
+          queryKey: annotationHistoryKey(scope.snapshotId, scope.teiId),
         })
         return
       }
-      invalidateAfterDecision(queryClient, input.item.aggregation_execution_id, chain)
+      // A conflict also proves another decision changed the snapshot's projections.
+      invalidateAfterDecision(queryClient, scope)
     },
   })
 }

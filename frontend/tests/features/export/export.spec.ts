@@ -1,6 +1,6 @@
 import { createHash, webcrypto } from 'node:crypto'
 
-import { flushPromises } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createApiClient, type components } from '@/api'
@@ -19,6 +19,7 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 }
 
 const catalogues = { de, en } as const
+enableAutoUnmount(afterEach)
 const USER = { id: 'a0000000-0000-0000-0000-000000000002', display_name: 'Op', roles: [] }
 const PROJECT_ID = 'b0000000-0000-0000-0000-000000000001'
 const SNAPSHOT_ID = 'c0000000-0000-0000-0000-000000000001'
@@ -258,7 +259,9 @@ beforeEach(() => {
   saved.length = 0
 })
 
-afterEach(() => {
+afterEach(async () => {
+  // Finish component cleanup before restoring globals and tearing down the jsdom document.
+  await flushPromises()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
   document.body.replaceChildren()

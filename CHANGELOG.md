@@ -82,6 +82,11 @@ the phased plan that resumes application code.
 - Immutable loose-source manifests, ordered source-member Artifact provenance, and record-level source member
   and locator attribution. TEI v3 now preserves ordered direct events while source `<sex>` labels remain
   excluded from PersonInput to prevent target leakage.
+- Immutable ready-snapshot inventory statistics now materialize during import and expose total people, direct
+  TEI `<gender>` coverage and value distribution, GND coverage, and their intersection through
+  `GET /snapshots/{snapshot_id}/statistics`. The dataset detail view presents those counts and marks each
+  person-list row with GND availability; legacy snapshots report source-gender coverage as not captured
+  instead of a false zero.
 - A pinned official Pyright CLI and shared editor/CI configuration, complementing strict mypy with a second
   required static-analysis implementation.
 - Server-side uncertainty-first review ordering. `GET /api/v1/review-items` accepts `sort=uncertainty` (the
@@ -266,6 +271,10 @@ the phased plan that resumes application code.
 - The browser client's Node pin moved from 22 to 26 (`engines` `^26.9.0`, image `node:26.9.0-alpine`, and
   `@types/node` 26), because Node 22 reaches end of life in April 2027 and Node 26 is supported until April
   2029 (decision D12 in [`docs/24-frontend-delivery-plan.md`](docs/24-frontend-delivery-plan.md)).
+
+- Manual annotation now follows the review workbench's panel, queue-row, detail-summary,
+  source-record, and collapsed-history composition across desktop and narrow layouts while retaining
+  its snapshot-only filters and decisions.
 
 ### Fixed
 

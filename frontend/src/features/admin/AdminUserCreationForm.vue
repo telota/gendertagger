@@ -139,22 +139,26 @@ watch(
       <fieldset class="admin-user-creation-roles">
         <legend>{{ t('admin.creation.roles') }}</legend>
         <p>{{ t('admin.creation.rolesHint') }}</p>
-        <div v-for="role in GLOBAL_ROLES" :key="role" class="admin-user-role-option">
-          <input
-            :id="`admin-user-create-role-${role}`"
-            v-model="roles"
-            type="checkbox"
-            :value="role"
-          />
-          <label :for="`admin-user-create-role-${role}`">{{ t(`admin.roles.${role}`) }}</label>
+        <div class="admin-user-role-options">
+          <div v-for="role in GLOBAL_ROLES" :key="role" class="admin-user-role-option">
+            <input
+              :id="`admin-user-create-role-${role}`"
+              v-model="roles"
+              type="checkbox"
+              :value="role"
+            />
+            <label :for="`admin-user-create-role-${role}`">{{ t(`admin.roles.${role}`) }}</label>
+          </div>
         </div>
       </fieldset>
       <p v-if="errorMessage(error)" role="alert" class="admin-user-creation-error">
         {{ errorMessage(error) }}
       </p>
-      <AppButton type="submit" :disabled="isSubmitting">
-        {{ isSubmitting ? t('admin.creation.submitting') : t('admin.creation.submit') }}
-      </AppButton>
+      <div class="admin-user-creation-actions">
+        <AppButton type="submit" :disabled="isSubmitting">
+          {{ isSubmitting ? t('admin.creation.submitting') : t('admin.creation.submit') }}
+        </AppButton>
+      </div>
     </form>
 
     <section
@@ -186,11 +190,10 @@ watch(
 
 <style scoped>
 .admin-user-creation {
+  container: admin-user-creation / inline-size;
   min-width: 0;
   overflow-wrap: anywhere;
-  max-width: 44rem;
-  margin-bottom: var(--space-8);
-  padding: var(--space-6) var(--page-gutter);
+  padding: var(--space-5) var(--page-gutter);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background: var(--panel);
@@ -207,13 +210,32 @@ watch(
 .admin-user-creation-roles > p,
 .admin-user-temporary-password > p {
   margin: 0;
+  max-inline-size: 65ch;
   color: var(--text-secondary);
 }
 
 .admin-user-creation-form {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
   margin-top: var(--space-5);
+}
+
+/* Username and display name side by side once the card has room, like the project form. */
+@container admin-user-creation (min-width: 36rem) {
+  .admin-user-creation-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .admin-user-creation-roles,
+  .admin-user-creation-error,
+  .admin-user-creation-actions {
+    grid-column: 1 / -1;
+  }
+}
+
+.admin-user-creation-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .admin-user-creation-roles {
@@ -232,6 +254,12 @@ watch(
 
 .admin-user-creation-roles > p {
   font-size: var(--font-size-small);
+}
+
+.admin-user-role-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
 }
 
 .admin-user-role-option {
@@ -255,6 +283,7 @@ watch(
 
 .admin-user-temporary-password input {
   width: 100%;
+  max-inline-size: 28rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-input);
   background: var(--surface-1);

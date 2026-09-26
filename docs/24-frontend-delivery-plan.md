@@ -296,6 +296,13 @@ deactivation, and prevents obvious self-lockout controls without treating the pa
 an authority on the last active administrator. Manual browser verification of the new German/English,
 light/dark, keyboard, responsive, and recovery states remains pending review.
 
+**Presentation (2026-09-25).** The screen is titled Users (Benutzer*innen) and uses the project pages' width.
+Account creation is an inline card opened from an Add user button in the heading row; hiding it preserves a
+draft and a one-time temporary password. Editing expands beneath the account's own row, with focus moving in
+and back; deactivation and the security actions keep their confirmations. Row actions are ghost buttons, and
+account and password states are plain coloured text. The rationale and open checks are recorded in
+[`27-frontend-improvement-plan.md`](27-frontend-improvement-plan.md).
+
 The existing read path presents server-ordered accounts with username/display-name search, opaque cursor
 pagination, account state, required-password-change state, global roles, and a current-account marker. The
 route and sidebar wait for the session result; the screen retains its clear signed-in non-admin, signed-out,
@@ -467,10 +474,16 @@ this delivery.
   outstanding from M2 and folded in here since M3 is what first needs cross-screen navigation. The project
   switcher was built in M9 (below), and the nested `/projects/:projectId/...` routes were added as their own
   screens landed.
-- `ProjectOverviewView` (`/projects/:projectId/overview`). **Delivered**, deliberately minimal: name, slug,
-  role, description, and a link to import — the wireframe's KPI dashboard is not attempted here, since it
-  reads `GET /aggregations/{id}/review-summary`, which needs a run and an aggregation that cannot exist
-  before M4.
+- `ProjectOverviewView` (`/projects/:projectId/overview`). **Delivered.** One flat panel card with three
+  hairline-divided sections: project details (slug, role, team, creation date, description); imported data
+  (snapshot count, records and import date of the latest ready snapshot, runs on it, and imports in
+  progress or failed only when there are any); and review progress for the project's working aggregation
+  ([ADR-0035](decisions/ADR-0035-project-working-aggregation.md)). The last reads
+  `GET /aggregations/{id}/review-summary` once the aggregation has completed: people reviewed, the three
+  workflow states with the confirmed/corrected split, the same "open of total" per evidence queue as the
+  review workbench, and the final-label distribution. It never uses a confidence threshold. Snapshot and run
+  counts read only the first page and show a lower bound (`n+`) when the server reports more. Each section
+  fails and retries on its own, and the button to Data stays available if its figures do not load.
 - Import with the full `source_format` × `packaging` matrix; the backend derives the import profile.
   **Delivered.** `ImportView` uploads to `POST /projects/{project_id}/snapshots`, gated to the project's
   own operators (`current_user_role`, not the global roles D6 gives project creation), for every
@@ -497,11 +510,14 @@ line 1, column 1`), so the form also compares the file name with the chosen deli
   `idno` are JSON arrays), and for CSV it reads the first line of the chosen file and refuses a header that is
   not exactly that list, naming expected and found columns. XLSX and JSON cannot be checked without parsing
   them, so they are left to the server; its diagnostic is shown on the snapshot list and the import screen.
-- Snapshot provenance: `source_sha256`, `parser_version`, per-member manifest entries. **Delivered.** The
-  project overview lists the project's snapshots (`GET /projects/{id}/snapshots`, newest first, cursor-paginated,
-  every lifecycle state) with status, record count, parser version, and the full SHA-256; a disclosure per
-  snapshot fetches `GET /snapshots/{id}/source-members` on demand and shows each source file's name, media
-  type, size, and checksum. The import screen's `ready` state shows the checksum and links back to the list.
+- Snapshot provenance: `source_sha256`, `parser_version`, per-member manifest entries. **Delivered.**
+  The dedicated Data view lists snapshots (`GET /projects/{id}/snapshots`, newest first and cursor-paginated)
+  with import time, lifecycle, record count and source format. Each opens a snapshot detail with source
+  files (name, media type, size and checksum), disclosed import configuration/parser/hash, and read-only
+  raw person records once ready. Source records use the existing cursor and exact TEI-ID endpoints,
+  independently of classification. Project overview links to Data; the import screen's successful state
+  links to its specific snapshot. Principal-scoped queries and project/snapshot checks prevent stale
+  data appearing after account or route changes.
 
 **Exit criterion.** An operator imports a TEI ZIP and a CSV through the browser and sees both snapshots
 reach `ready` with their checksums. **Met** in the frontend: both formats can be imported and their
@@ -645,6 +661,12 @@ artifacts, and the two contract gaps above (configuration schemas, lookup discov
   apart, each `method_confidence` labelled as method-specific and shown to two places, the register entry, and the
   complete attributed annotation chain. Verified against the real API on the seeded aggregation (queues
   `demo-4, demo-3` / `demo-6, demo-5`, seven people in TEI order).
+- **Detail navigation. Delivered (2026-09-26).** Compact previous/next arrows beside the person's name follow the
+  server-ordered queue. `ArrowUp` and `ArrowDown` invoke those controls only while a navigation control has
+  focus. At the final loaded entry, Next fetches the next cursor page before advancing;
+  it never guesses a neighbour across a cursor. A deep-linked item outside the loaded queue has neither direction.
+  Each move is the ordinary URL selection, so the shared draft-leave guard still asks before abandoning unsaved input;
+  declining keeps the current person selected.
 - **Deviations from the wireframe, deliberate.** No automatic save (append-only). No confidence threshold or
   "confidence ascending" order (D2). The action bar is the four real labels. No default review-state filter: the
   server's triage order deliberately ignores `workflow_state` (ADR-0022), so reviewed people stay in place and are
@@ -684,8 +706,9 @@ artifacts, and the two contract gaps above (configuration schemas, lookup discov
   view. Verified against the real API: a write against the current revision saves (revision +1), a stale write to
   another person answers `409` and leaves that person unchanged, and the first write stays saved. (`demo-1` therefore
   carries an extra `defer` on the seed.)
-- Not done: a pinned action bar (the decision block sits inline under the method results; the WCAG 2.4.11 focus check
-  for a pinned bar does not arise yet).
+- Not done: a pinned action bar (the compact choice bar and save button sit directly below the person's name,
+  before the summary and method results; the optional comment remains below that evidence. The WCAG 2.4.11 focus
+  check for a pinned bar does not arise yet).
 
 **Exit criterion.** A reviewer corrects a machine result and the final-decision view changes without any
 mutation of `Prediction` or `AggregatedResult` rows — the Phase 8 criterion from
@@ -700,7 +723,8 @@ mutation of `Prediction` or `AggregatedResult` rows — the Phase 8 criterion fr
 - Reuse the workbench with `sort=tei_id` and the status/label filters, per decision D5.
 - Detail rendering of the source-preserving fields: `name_forms`, `alt_names`, `events`, `external_ids`,
   `source_member_name`, `source_record_locator`.
-- Annotation history view showing the superseding chain with reviewer attribution and timestamps.
+- Annotation history view showing the superseding chain with reviewer attribution and timestamps in a native
+  disclosure, collapsed until the reviewer requests it.
 
 **Exit criterion.** Any person in the register is reachable by search, and every past decision on that
 person is visible with its author.
@@ -870,21 +894,24 @@ resolve, and the review path works end to end behind a real session.
   Import, Klassifikation, Redigieren, Manuell annotieren); Auswertung (Statistik & Methoden, Export); Admin. The
   private navigation and project switcher wait for a resolved, signed-in, password-current session,
   including completion of login's session-flags request. The project group appears only after the current
-  project's effective `current_user_role` is resolved successfully. Viewers see Overview, Classification,
-  People, Statistics and existing Exports; reviewers additionally see Review; operators additionally see
-  Import. Export creation remains operator-only in its screen. Global operator status never substitutes
+  project's effective `current_user_role` is resolved successfully. Viewers see Overview, Data and
+  available Classification, Statistics and existing Exports; reviewers additionally see available
+  Review and Manual annotation. Operators can import from Data and create runs, aggregations and
+  exports in their respective screens. Global operator status never substitutes
   for project membership; administrators use the effective operator role returned by the backend.
   Users, Teams and Branding settings require a global administrator. Project query caches are scoped
   to the signed-in principal so a different account cannot inherit cached project roles or names.
-  Missing roles, loading and failed project reads hide the project group; missing resource context only
-  disables destinations already permitted by the resolved role. Run-level entries follow the run,
-  aggregation or snapshot in the URL; elsewhere in the project they follow the project's working
-  aggregation (ADR-0035) and the run and snapshot
-  it belongs to, never a guess from recency (`app/useProjectNavigation.ts`). The working-aggregation
-  fallback applies only when the URL selects no snapshot, run, or aggregation. Inside a selected run or
-  snapshot, Review and People require an aggregation in the URL; cached project context must never
-  combine that selection with another run's aggregation. An entry with no target yet is shown
-  disabled (`aria-disabled`, keyboard-focusable for its prerequisite explanation) without a dead URL.
+  Missing roles, loading and failed project reads hide the project group. As of 2026-09-26,
+  Classification, Review and Manual annotation open independent project-level pickers. Availability
+  comes from the canonical project data summary: ready snapshots enable Classification; reviewers and
+  operators can annotate them without a run; completed aggregations enable Review for those roles.
+  Genuinely unavailable tasks and empty groups are hidden. Loading/error checks show status and retry,
+  including on the icon rail. Data retains read-only inspection for viewers; existing exact result
+  links also preserve read-only access. Statistics and Export require an explicitly selected,
+  validated run and never borrow the working result when entering from Members or Overview.
+  The working pointer marks recommendations in the picker; it neither selects a result automatically
+  nor changes on task entry. Explicit resource links validate project/snapshot/run relationships and
+  require a completed aggregation before opening an evidence workbench.
   Desktop collapse, the medium-width rail, and the mobile drawer follow the contextual sidebar
   specification above; labels stay available to assistive technology. Icons are Phosphor (`@phosphor-icons/vue`,
   MIT, named imports so unused icons are tree-shaken), decorative and `aria-hidden`. There is no Spielmodus
@@ -901,7 +928,7 @@ resolve, and the review path works end to end behind a real session.
   with explicit saving and conflict recovery. They are available to every password-current account.
   The wireframe's other settings remain unsupported
   ([`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md)). The six branding fields of ADR-0040
-  remain separate at `/admin/settings` (sidebar: Admin, "Branding-Einstellungen"). A read-only page of
+  remain separate at `/admin/settings` (sidebar: Admin, "Einstellungen" / "Settings"). A read-only page of
   deployment facts would still require its own explicit endpoint contract and ADR.
 - **Accessibility pass, automated part. Delivered.** `tests/accessibility/screens.spec.ts` mounts every screen
   (projects, overview, import, runs, run, aggregation, review, people, evaluations, evaluation, exports, export) in
@@ -1050,9 +1077,13 @@ and all canonical-vocabulary rules remain unchanged. ADR-0030 itself remains imm
 
 ### D4 — Aggregation is created automatically, with an explicit advanced path
 
-**Resolved as recommended.** When a run reaches a terminal successful state, the client creates a default
+**Resolved as recommended.** When an operator opens run detail for a run in a terminal successful state,
+the client creates a default
 `reference_v1` aggregation over all completed method executions. Explicit aggregation — choosing a strategy
 and an exact subset of executions — remains available as an advanced action.
+
+This is a run-detail client command when no viable aggregation exists, not backend automatic execution
+on run completion. Opening the upcoming read-only task picker must not trigger that command.
 
 **Consequences.**
 
@@ -1073,29 +1104,31 @@ and an exact subset of executions — remains available as an advanced action.
   cancelled one leads to a fresh attempt. The client therefore sends the executions in a stable order, the
   one `GET /runs/{id}/executions` returns, and may repeat the request after every reload.
 
-### D5 — `review-items` is the person-browser data source
+### D5 — Manual annotation has independent snapshot entry
 
-**Resolved.** “Manuell annotieren” uses `GET /review-items` with the route's aggregation ID and
-`sort=tei_id`. It reuses the same workbench and server-side `q`, review-state, label, certainty-tier, and
-agreement-tier filters as “Redigieren”; only the default sort and entry context differ.
+**Implemented, 2026-09-26.** “Manuell annotieren” starts from a ready snapshot and permits decisions
+before classification. The shared picker optionally adds a run and its exact completed aggregation.
+“Redigieren” independently selects a snapshot with results, then a run/result. Sidebar entry always
+opens the picker; the working result is marked as recommended without automatic selection or writes.
 
-Browsing therefore requires a completed aggregation. That is intentional: a completed aggregation has one
-result for every person in its immutable snapshot and supplies the final decision, current review state, and
-review revision the annotation workbench needs. The aggregation already appears in the route, so the client
-does not infer one from global state.
+Raw manual browsing uses `GET /snapshots/{snapshot_id}/annotation-items`, a canonical projection of
+person identity and the current human decision/revision. Search, workflow-state and human-label filters
+are server-side and cursor-bound. Exact person reads and snapshot/person URLs support reloads beyond
+the loaded page. The existing `POST /annotations` accepts the selected snapshot/person without result
+evidence; history provides revision zero for unannotated records and the full append-only chain.
+Source details remain available through the raw person endpoint. No machine labels, certainty, agreement
+or verification action are fabricated when classification is absent.
 
-`GET /snapshots/{snapshot_id}/people` remains the stable raw-register collection, not a parallel search and
-filter API. `GET /snapshots/{snapshot_id}/people/{tei_id}` supports direct detail reloads and source-rich
-provenance views after a person has been selected. No duplicate query semantics are added to the snapshot
-people collection.
+With real result evidence, the existing `GET /review-items` workbench remains the source for machine
+outcomes, final decisions, evidence filters and uncertainty ordering. Exact run/aggregation links remain
+valid. Both workbenches expose Change selection and preserve draft-leave protection. Decisions share
+snapshot/person history across runs; a new import never inherits it. Saves and revision conflicts refresh
+raw annotation projections and all affected cached aggregation review projections.
 
-**Consequences.**
-
-- M6 is a second configuration of the M5 cursor/query composable, keyed by the complete filter tuple with
-  `sort=tei_id`; it does not need another backend collection.
-- Search and filter behavior cannot drift between “Redigieren” and “Manuell annotieren.”
-- Deep links retain the run and aggregation context required for predictions, final decisions, annotations,
-  and conflict recovery.
+The Data area remains dedicated to import and read-only source inspection. Viewers can inspect raw data,
+completed results and read-only decisions; sidebar labels do not advertise annotation writes to them.
+Picker reads do not create default aggregations, move the working pointer, or infer eligibility from a
+partial page. See the [entry brief](frontend-classification-proposal.md) for composition and validation.
 
 ### D6 — Project visibility and role scope
 

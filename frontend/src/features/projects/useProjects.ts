@@ -11,17 +11,29 @@ export type AccessibleProject = components['schemas']['AccessibleProject']
  * `GET /projects`, cursor-paginated (docs/23-wireframe-ui-inventory.md: server state through
  * TanStack Query, never re-sorted or re-filtered in the browser). `enabled` lets a caller hold the
  * request until it knows the visitor is signed in, rather than firing a request bound to fail.
+ *
+ * A bounded `pageSize` gets its own cache entry so dashboard previews never truncate the complete
+ * project list or project switcher.
  */
-export function useProjectList(enabled: Ref<boolean>) {
+export function useProjectList(enabled: Ref<boolean>, pageSize?: number) {
   const client = useApiClient()
   const session = useSessionStore()
 
   return useInfiniteQuery({
-    queryKey: computed(() => ['projects', 'list', session.user?.id ?? 'anonymous'] as const),
+    queryKey: computed(() =>
+      pageSize === undefined
+        ? (['projects', 'list', session.user?.id ?? 'anonymous'] as const)
+        : (['projects', 'list', 'preview', pageSize, session.user?.id ?? 'anonymous'] as const),
+    ),
     queryFn: ({ pageParam, signal }) =>
       unwrap(
         client.GET('/api/v1/projects', {
-          params: { query: { cursor: pageParam ?? null } },
+          params: {
+            query: {
+              cursor: pageParam ?? null,
+              ...(pageSize === undefined ? {} : { limit: pageSize }),
+            },
+          },
           signal,
         }),
       ),

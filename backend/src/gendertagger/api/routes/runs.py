@@ -13,7 +13,14 @@ from gendertagger.api.dependencies import get_run_scheduler, get_run_service
 from gendertagger.api.errors import ApiRequestError, invalid_cursor_error
 from gendertagger.api.routes.run_events import stream_run_events
 from gendertagger.models.api import CursorPage
-from gendertagger.models.run import MethodExecutionSummary, Run, RunCreateRequest
+from gendertagger.models.run import (
+    MethodExecutionResult,
+    MethodExecutionResultQuery,
+    MethodExecutionSummary,
+    Run,
+    RunCreateRequest,
+    RunListFilter,
+)
 from gendertagger.models.user import ProjectRole
 from gendertagger.services.execution import RunScheduler
 from gendertagger.services.method_registry import MethodRegistryError
@@ -91,11 +98,17 @@ def list_runs(
     access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
     cursor: Annotated[str | None, Query(max_length=2048)] = None,
+    has_completed_aggregations: Annotated[bool | None, Query()] = None,
 ) -> CursorPage[Run]:
-    """List a snapshot's runs newest first, in every lifecycle state."""
+    """List a snapshot's runs newest first with an optional completed-result filter."""
     access.require(ProjectScope.snapshot, snapshot_id, ProjectRole.viewer)
     try:
-        return service.list_runs(snapshot_id, limit=limit, cursor=cursor)
+        return service.list_runs(
+            snapshot_id,
+            limit=limit,
+            cursor=cursor,
+            filters=RunListFilter(has_completed_aggregations=has_completed_aggregations),
+        )
     except ResourceNotFoundError as error:
         raise _not_found() from error
     except InvalidCursorError as error:
@@ -132,6 +145,31 @@ def list_run_executions(
         return service.list_executions(run_id)
     except ResourceNotFoundError as error:
         raise _not_found() from error
+
+
+@router.get(
+    "/runs/{run_id}/executions/{method_execution_id}/results",
+    response_model=CursorPage[MethodExecutionResult],
+)
+def list_run_execution_results(
+    run_id: UUID,
+    method_execution_id: UUID,
+    query: Annotated[MethodExecutionResultQuery, Query()],
+    service: Annotated[RunService, Depends(get_run_service)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
+) -> CursorPage[MethodExecutionResult]:
+    """List every snapshot person and one method execution result per person."""
+    access.require(ProjectScope.run, run_id, ProjectRole.viewer)
+    try:
+        return service.list_execution_results(
+            run_id=run_id,
+            method_execution_id=method_execution_id,
+            query=query,
+        )
+    except ResourceNotFoundError as error:
+        raise _not_found() from error
+    except InvalidCursorError as error:
+        raise invalid_cursor_error() from error
 
 
 @router.get("/runs/{run_id}/events")

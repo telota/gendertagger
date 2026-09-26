@@ -26,9 +26,25 @@ contained table scrolling. The third batch adds route-transition focus, reusable
 page/action/content-width conventions. H1 now implements the accepted
 [header brief](docs/frontend-header-proposal.md): short breadcrumbs, sidebar project switching, account
 menu, and view-owned unsaved-input protection. Signed-out and session-access states now use a compact
-public header without an empty sidebar. All 1,235 frontend tests and applicable automated gates pass;
-outstanding live browser checks are recorded in the improvement plan. Individual view packages and
-broader sidebar work remain pending.
+public header without an empty sidebar. The first V2 increment adds the all-projects index, an inline
+creation form with slug help, permission-based Members navigation, and a dedicated Data list/detail
+with read-only imported records. The individual project overview now presents its details, imported-data
+figures and working-aggregation review progress on one card, and the Users panel uses an inline creation
+form and edit rows beneath their accounts, and Teams follows the same pattern; connected-browser checks,
+aligning the settings page, remaining view packages and broader sidebar refinement are pending. Validation evidence and outstanding live
+browser checks are recorded in the improvement plan.
+The classification/review increment now implements independent snapshot/run/result pickers, an inline
+classification form and clearer run details, and snapshot-only manual annotation with optional evidence.
+Project-wide availability drives sidebar task visibility; the working result is a recommendation instead
+of an implicit sidebar selection. Filtered cursor contracts and the annotation read projection are
+canonical API resources with generated frontend transport. See the
+[entry brief](docs/frontend-classification-proposal.md) and verification record in the improvement plan.
+The next proposed classification follow-up is the
+[aggregation workflow increment](docs/28-aggregation-workflow-plan.md): server-owned automatic
+aggregation for ordinary suggestion runs, reusable project configuration, clearer result/review
+terminology, and human decisions included in new exports by default. This is planning only; the
+existing runtime remains unchanged. Its sequence and exit criteria are linked from the authoritative
+implementation plan.
 The second active track is operating the stack in production following
 [`docs/21-production-promotion.md`](docs/21-production-promotion.md).
 

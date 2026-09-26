@@ -70,16 +70,28 @@ const PROJECT = {
   display_name: 'Project A',
   current_user_role: 'operator',
   created_at: '2026-01-01T00:00:00Z',
+  team: {
+    id: 'c0000000-0000-0000-0000-0000000000f1',
+    slug: 'editors',
+    display_name: 'Editorial Team',
+    created_at: '2026-01-01T00:00:00Z',
+  },
 }
 const projectRoutes = (workingAggregation: string | null): Record<string, RouteResponse> => ({
   ...SIGNED_IN,
   [`/api/v1/projects/${PROJECT_ID}`]: {
     body: { ...PROJECT, working_aggregation_execution_id: workingAggregation },
   },
+  [`/api/v1/projects/${PROJECT_ID}/data-availability`]: {
+    body: { project_id: PROJECT_ID, has_ready_snapshots: true, has_completed_aggregations: true },
+  },
   [`/api/v1/aggregations/${AGGREGATION_ID}`]: {
     body: { id: AGGREGATION_ID, run_id: RUN_ID, status: 'completed' },
   },
   [`/api/v1/runs/${RUN_ID}`]: { body: { id: RUN_ID, dataset_snapshot_id: SNAPSHOT_ID } },
+  [`/api/v1/snapshots/${SNAPSHOT_ID}`]: {
+    body: { id: SNAPSHOT_ID, project_id: PROJECT_ID, status: 'ready' },
+  },
 })
 
 describe.each(['de', 'en'] as const)('AppSidebar project group in %s', (locale: AppLocale) => {
@@ -93,160 +105,75 @@ describe.each(['de', 'en'] as const)('AppSidebar project group in %s', (locale: 
     expect(wrapper.get('aside').text()).not.toContain(nav.currentProject)
   })
 
-  it('points the run entries at the working aggregation of the project', async () => {
+  it.each([AGGREGATION_ID, null])(
+    'opens independent task pickers regardless of working pointer %s',
+    async (working) => {
+      const wrapper = await mountApplicationAt(
+        `/projects/${PROJECT_ID}/overview`,
+        locale,
+        apiClientWithRoutes(projectRoutes(working)),
+      )
+      await waitFor(() =>
+        expect(wrapper.find(`aside a[href="/projects/${PROJECT_ID}/review"]`).exists()).toBe(true),
+      )
+      expect(wrapper.get(`aside a[href="/projects/${PROJECT_ID}/classification"]`).text()).toBe(
+        nav.classification,
+      )
+      expect(wrapper.get(`aside a[href="/projects/${PROJECT_ID}/annotation"]`).text()).toBe(
+        nav.annotate,
+      )
+      expect(wrapper.find('aside a[href$="/evaluations"]').exists()).toBe(false)
+      expect(wrapper.find('aside a[href$="/exports"]').exists()).toBe(false)
+      expect(wrapper.findAll('aside [aria-disabled="true"]')).toHaveLength(0)
+    },
+  )
+
+  it('hides actual unavailable tasks in an empty project', async () => {
     const wrapper = await mountApplicationAt(
       `/projects/${PROJECT_ID}/overview`,
+      locale,
+      apiClientWithRoutes({
+        ...projectRoutes(null),
+        [`/api/v1/projects/${PROJECT_ID}/data-availability`]: {
+          body: {
+            project_id: PROJECT_ID,
+            has_ready_snapshots: false,
+            has_completed_aggregations: false,
+          },
+        },
+      }),
+    )
+    await waitFor(() =>
+      expect(wrapper.find(`aside a[href="/projects/${PROJECT_ID}/overview"]`).exists()).toBe(true),
+    )
+    expect(wrapper.findAll('aside nav .nav-item').map((item) => item.text())).toEqual([
+      nav.projects,
+      nav.overview,
+      nav.data,
+    ])
+    expect(wrapper.findAll('aside [aria-disabled="true"]')).toHaveLength(0)
+    expect(
+      wrapper
+        .findAll('aside .app-sidebar-section')
+        .every((group) => group.findAll('li').length > 0),
+    ).toBe(true)
+  })
+
+  it('clears explicit run destinations when returning to overview', async () => {
+    const router = createAppRouter(createMemoryHistory())
+    const wrapper = await mountApplicationAt(
+      `${runBase}/exports`,
       locale,
       apiClientWithRoutes(projectRoutes(AGGREGATION_ID)),
-    )
-
-    await waitFor(() => {
-      expect(
-        wrapper.find(`aside a[href="${runBase}/aggregations/${AGGREGATION_ID}/review"]`).text(),
-      ).toBe(nav.review)
-    })
-    const aside = wrapper.get('aside')
-    expect(aside.text()).toContain(nav.currentProject)
-    expect(aside.get(`a[href="/projects/${PROJECT_ID}/import"]`).text()).toBe(nav.import)
-    expect(aside.get(`a[href="${runBase}/aggregations/${AGGREGATION_ID}/people"]`).text()).toBe(
-      nav.annotate,
-    )
-    expect(aside.get(`a[href="${runBase}/evaluations"]`).text()).toBe(nav.evaluations)
-    expect(aside.get(`a[href="${runBase}/exports"]`).text()).toBe(nav.exports)
-    await waitFor(() => {
-      expect(
-        wrapper
-          .find(`aside a[href="/projects/${PROJECT_ID}/snapshots/${SNAPSHOT_ID}/runs"]`)
-          .text(),
-      ).toBe(nav.classification)
-    })
-  })
-
-  it('disables the run entries, not links them, while the project has no working aggregation', async () => {
-    const wrapper = await mountApplicationAt(
-      `/projects/${PROJECT_ID}/overview`,
-      locale,
-      apiClientWithRoutes(projectRoutes(null)),
-    )
-    await waitFor(() => {
-      expect(wrapper.findAll('aside [aria-disabled="true"]').length).toBe(5)
-    })
-
-    const disabled = wrapper.findAll('aside [aria-disabled="true"]').map((item) => item.text())
-    expect(disabled).toEqual([
-      nav.classification,
-      nav.review,
-      nav.annotate,
-      nav.evaluations,
-      nav.exports,
-    ])
-    expect(wrapper.find('aside a[href$="/review"]').exists()).toBe(false)
-    expect(wrapper.get(`aside a[href="/projects/${PROJECT_ID}/overview"]`).text()).toBe(
-      nav.overview,
-    )
-  })
-
-  it('does not borrow a working aggregation for an explicitly selected run', async () => {
-    const otherRun = 'd0000000-0000-0000-0000-0000000000ff'
-    const otherSnapshot = 'c0000000-0000-0000-0000-0000000000ff'
-    const wrapper = await mountApplicationAt(
-      `/projects/${PROJECT_ID}/runs/${otherRun}/exports`,
-      locale,
-      apiClientWithRoutes({
-        ...projectRoutes(AGGREGATION_ID),
-        [`/api/v1/runs/${otherRun}`]: {
-          body: { id: otherRun, dataset_snapshot_id: otherSnapshot },
-        },
-      }),
-    )
-
-    await waitFor(() => {
-      expect(wrapper.find('.export-list-new').exists()).toBe(true)
-      expect(
-        wrapper
-          .find(`aside a[href="/projects/${PROJECT_ID}/snapshots/${otherSnapshot}/runs"]`)
-          .exists(),
-      ).toBe(true)
-    })
-
-    expect(
-      wrapper.find(`aside a[href="/projects/${PROJECT_ID}/runs/${otherRun}/evaluations"]`).exists(),
-    ).toBe(true)
-    expect(wrapper.find('aside a[href$="/review"]').exists()).toBe(false)
-    expect(wrapper.find('aside a[href$="/people"]').exists()).toBe(false)
-    expect(wrapper.findAll('aside [aria-disabled="true"]').map((item) => item.text())).toEqual([
-      nav.review,
-      nav.annotate,
-    ])
-  })
-
-  it('clears cached working context on resource routes and restores it on the overview', async () => {
-    const otherRun = 'd0000000-0000-0000-0000-0000000000ff'
-    const otherSnapshot = 'c0000000-0000-0000-0000-0000000000ff'
-    const router = createAppRouter(createMemoryHistory())
-    const overview = `/projects/${PROJECT_ID}/overview`
-    const review = `${runBase}/aggregations/${AGGREGATION_ID}/review`
-    const wrapper = await mountApplicationAt(
-      overview,
-      locale,
-      apiClientWithRoutes({
-        ...projectRoutes(AGGREGATION_ID),
-        [`/api/v1/runs/${otherRun}`]: {
-          body: { id: otherRun, dataset_snapshot_id: otherSnapshot },
-        },
-      }),
       router,
     )
-    await waitFor(() => expect(wrapper.find(`aside a[href="${review}"]`).exists()).toBe(true))
-
-    const exports = `/projects/${PROJECT_ID}/runs/${otherRun}/exports`
-    await router.push(exports)
-    await waitFor(() => expect(wrapper.find(`aside a[href="${exports}"]`).exists()).toBe(true))
-    expect(wrapper.find('aside a[href$="/review"]').exists()).toBe(false)
-    expect(wrapper.find('aside a[href$="/people"]').exists()).toBe(false)
-
-    const snapshotRuns = `/projects/${PROJECT_ID}/snapshots/${otherSnapshot}/runs`
-    await router.push(snapshotRuns)
-    await waitFor(() => {
-      expect(wrapper.find(`aside a[href="${snapshotRuns}"]`).exists()).toBe(true)
-    })
-
-    expect(wrapper.find('aside a[href$="/review"]').exists()).toBe(false)
-    expect(wrapper.find('aside a[href$="/people"]').exists()).toBe(false)
-    expect(wrapper.find('aside a[href$="/evaluations"]').exists()).toBe(false)
-    expect(wrapper.find('aside a[href$="/exports"]').exists()).toBe(false)
-    expect(wrapper.findAll('aside [aria-disabled="true"]').map((item) => item.text())).toEqual([
-      nav.review,
-      nav.annotate,
-      nav.evaluations,
-      nav.exports,
-    ])
-
-    await router.push(overview)
-    await waitFor(() => expect(wrapper.find(`aside a[href="${review}"]`).exists()).toBe(true))
-    expect(wrapper.find(`aside a[href="${runBase}/exports"]`).exists()).toBe(true)
-  })
-
-  it('keeps an explicitly selected aggregation instead of the working aggregation', async () => {
-    const otherRun = 'd0000000-0000-0000-0000-0000000000ff'
-    const otherAggregation = 'e0000000-0000-0000-0000-0000000000ff'
-    const aggregationBase = `/projects/${PROJECT_ID}/runs/${otherRun}/aggregations/${otherAggregation}`
-    const wrapper = await mountApplicationAt(
-      `${aggregationBase}/review`,
-      locale,
-      apiClientWithRoutes({
-        ...projectRoutes(AGGREGATION_ID),
-        [`/api/v1/aggregations/${otherAggregation}`]: {
-          body: { id: otherAggregation, run_id: otherRun, status: 'queued' },
-        },
-      }),
+    await waitFor(() =>
+      expect(wrapper.find(`aside a[href="${runBase}/evaluations"]`).exists()).toBe(true),
     )
-
-    await waitFor(() => {
-      expect(wrapper.find(`aside a[href="${aggregationBase}/review"]`).exists()).toBe(true)
-      expect(wrapper.find(`aside a[href="${aggregationBase}/people"]`).exists()).toBe(true)
-    })
-    expect(wrapper.find(`aside a[href*="${AGGREGATION_ID}"]`).exists()).toBe(false)
+    await router.push(`/projects/${PROJECT_ID}/overview`)
+    await waitFor(() => expect(wrapper.find('aside a[href$="/exports"]').exists()).toBe(false))
+    expect(wrapper.find('aside a[href$="/evaluations"]').exists()).toBe(false)
+    expect(wrapper.find(`aside a[href="/projects/${PROJECT_ID}/review"]`).exists()).toBe(true)
   })
 
   it('follows the run in the URL rather than the working aggregation', async () => {
@@ -254,7 +181,12 @@ describe.each(['de', 'en'] as const)('AppSidebar project group in %s', (locale: 
     const wrapper = await mountApplicationAt(
       `/projects/${PROJECT_ID}/runs/${otherRun}/exports`,
       locale,
-      apiClientWithRoutes(projectRoutes(null)),
+      apiClientWithRoutes({
+        ...projectRoutes(null),
+        [`/api/v1/runs/${otherRun}`]: {
+          body: { id: otherRun, dataset_snapshot_id: SNAPSHOT_ID },
+        },
+      }),
     )
 
     await waitFor(() => {

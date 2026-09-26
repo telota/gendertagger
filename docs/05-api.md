@@ -106,6 +106,12 @@ ordinals for provenance views without serving source bytes or storage locations.
 `GET /snapshots/{snapshot_id}/people/{tei_id}` reads one `PersonRecord` by its snapshot-scoped canonical TEI
 identity. It supports stable detail URLs without requiring clients to search cursor pages.
 
+`GET /snapshots/{snapshot_id}/statistics` returns immutable inventory counts for a ready snapshot: total
+people, GND coverage, and, where the import profile captured it, direct source-gender-element coverage,
+canonical value distribution, and the GND/source-gender intersection. Source-gender fields are nullable as a
+group so legacy and unsupported import profiles remain distinguishable from a measured zero. The endpoint
+requires ordinary project viewer access and returns `409` until the snapshot is ready.
+
 The bounded synchronous `/classify` operation is the deliberate exception to queued scientific execution. It
 persists no Prediction; see
 [ADR-0028](decisions/ADR-0028-synchronous-on-demand-classification-api.md).
@@ -121,11 +127,78 @@ Ordinary collection responses do not calculate total counts. When the product ne
 domain-level summary resource rather than adding page-specific fields or forcing the client to download every
 page.
 
+### Project data availability
+
+`GET /projects/{project_id}/data-availability` returns `ProjectDataAvailability`: the project ID,
+`has_ready_snapshots`, and `has_completed_aggregations`. These are existence facts over the whole
+project, independent of collection pagination and the optional working-aggregation pointer. A completed
+aggregation is eligible regardless of its run's overall status; pending, failed, and cancelled
+aggregations are not completed results. Reads never create resources or change the working pointer.
+
+The endpoint requires ordinary project viewer access and follows project-resource `404` hiding.
+Management authority alone does not grant access. The response describes persisted data, not navigation
+permissions: clients combine it with the effective project role. A failed or pending read must not be
+interpreted as an empty project.
+
+### Snapshot, run, and aggregation filters
+
+The snapshot, run, and aggregation collections retain newest-first `(created_at, id)` ordering and
+the ordinary cursor envelope. Their optional filters are applied before pagination:
+
+- `GET /projects/{project_id}/snapshots`: `status` (`DatasetSnapshotStatus`) and
+  `has_completed_aggregations` (boolean), validated as `DatasetSnapshotListFilter`.
+- `GET /snapshots/{snapshot_id}/runs`: `has_completed_aggregations` (boolean), validated as
+  `RunListFilter`.
+- `GET /runs/{run_id}/aggregations`: `status` (`AggregationExecutionStatus`), validated as
+  `AggregationExecutionListFilter`.
+
+Omitting a filter matches all values; `has_completed_aggregations=false` matches resources without
+any completed aggregation. Completed-result existence is scoped to the owning snapshot or run,
+independent of the run's overall lifecycle state and the project's working-result pointer. Filters
+never create an aggregation. A cursor binds the complete normalized filter tuple and parent scope;
+changing or removing a filter requires starting a new traversal. Existing unfiltered cursors remain
+valid. Ordinary project viewer authorization and resource hiding apply to each collection.
+
+### Method execution results
+
+`GET /runs/{run_id}/executions/{method_execution_id}/results` returns a cursor-paginated,
+TEI-identifier-ordered `MethodExecutionResult` projection for every person in the run snapshot.
+It is an execution-owned read resource: ordinary run viewer authorization applies, and an execution
+that is absent or belongs to another run returns `404 resource_not_found`.
+
+Each row contains person identity and name projections, a `result_state`, and a nullable bounded
+prediction summary. `missing` means no immutable Prediction row was persisted for that person; it
+is distinct from a persisted `abstain`, a persisted technical `error`, and a successful result whose
+canonical label is `unknown`. Present summaries include only label, status, method-specific confidence,
+and raw label. Raw method output and normalization metadata remain persisted provenance and are not
+included in this potentially large collection.
+
+The optional `q`, `result_state`, and `label` filters run on the server before pagination. `q` matches
+TEI identifier and imported name projections. Cursors bind the run, execution, and normalized filters,
+with `(tei_id, person_record_id)` ordering. A changed filter starts a new traversal.
+
 ## Review items
+
+`GET /snapshots/{snapshot_id}/annotation-items` returns a cursor-paginated collection of
+`SnapshotAnnotationItem`: imported identity and name fields plus the current human action, label,
+workflow state, and revision. It requires a ready snapshot and ordinary project viewer access, without
+requiring a run or aggregation. `q`, repeated `workflow_states`, and optional `human_label` filters run
+on the server; cursors bind every filter and the snapshot, with stable `(tei_id, person_record_id)`
+ordering. `GET /snapshots/{snapshot_id}/annotation-items/{tei_id}` reads an exact record independently
+of list pagination. Unannotated records have revision zero and null decision fields; deferred records
+have a null human label. These resources contain no machine evidence. Reviewer writes continue through
+`POST /annotations`, using the same snapshot/person revision stream and an optional machine-result
+reference. See [annotation before classification](09-annotation-and-review.md#annotation-before-classification).
 
 `review-items` is a domain query resource, not a page-specific endpoint. It projects the person, aggregation
 evidence, final decision, and current review revision needed for uncertainty-first review. Query filters and
 sorts are validated contracts, and the cursor is scoped to their complete normalized tuple.
+
+`GET /review-items` optionally accepts `tei_id` for an exact, case-sensitive person identifier
+within the selected aggregation's snapshot. This lookup applies before pagination and is distinct
+from the substring search `q`; supplying both requires both to match. Exact identity participates in
+cursor scope, while omitting it preserves existing cursors. The ordinary aggregation authorization
+and completed-result prerequisites also apply to exact lookups.
 
 The uncertainty order is the versioned `review_triage_v1` strategy. A completed aggregation is immutable, so
 annotation activity does not reorder records between pages. See

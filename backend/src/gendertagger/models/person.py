@@ -151,12 +151,24 @@ class PersonInput(BaseModel):
         return self
 
 
-class ImportedPerson(BaseModel):
-    """One validated person plus its exact source-member record location."""
+class ParsedPerson(BaseModel):
+    """One parsed person plus source facts excluded from classification input."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     person: PersonInput
+    source_gender_values: list[str | None] | None = Field(
+        default=None,
+        description=(
+            "Direct TEI gender @value attributes in document order; an empty list means "
+            "none were present, while null means the source profile does not capture them."
+        ),
+    )
+
+
+class ImportedPerson(ParsedPerson):
+    """One validated person plus its exact source-member record location."""
+
     source_member_name: str = Field(
         min_length=1,
         max_length=SOURCE_MEMBER_LOGICAL_NAME_MAX_LENGTH,

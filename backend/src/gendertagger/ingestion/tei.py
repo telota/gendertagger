@@ -10,9 +10,15 @@ from gendertagger.ingestion.authority import (
     AuthorityIdentifierError,
     add_external_identifier,
 )
-from gendertagger.models.person import PersonEvent, PersonInput, PersonNameForm, PersonNameType
+from gendertagger.models.person import (
+    ParsedPerson,
+    PersonEvent,
+    PersonInput,
+    PersonNameForm,
+    PersonNameType,
+)
 
-TEI_PARSER_VERSION = "tei_parser_v3"
+TEI_PARSER_VERSION = "tei_parser_v4"
 _TEI_NAMESPACE = "http://www.tei-c.org/ns/1.0"
 _XML_ID = "{http://www.w3.org/XML/1998/namespace}id"
 _PERSON_TAG = f"{{{_TEI_NAMESPACE}}}person"
@@ -26,6 +32,7 @@ _DEATH_TAG = f"{{{_TEI_NAMESPACE}}}death"
 _NOTE_TAG = f"{{{_TEI_NAMESPACE}}}note"
 _IDNO_TAG = f"{{{_TEI_NAMESPACE}}}idno"
 _EVENT_TAG = f"{{{_TEI_NAMESPACE}}}event"
+_GENDER_TAG = f"{{{_TEI_NAMESPACE}}}gender"
 _EXTERNAL_ID_SCHEME_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
 
 
@@ -44,7 +51,15 @@ class TeiPersonParser:
         self,
         source: BinaryIO,
     ) -> Iterator[PersonInput]:
-        """Yield validated people under the secure TEI extraction profile."""
+        """Yield validated classification inputs under the secure TEI profile."""
+        for parsed in self.iter_parsed_people(source):
+            yield parsed.person
+
+    def iter_parsed_people(
+        self,
+        source: BinaryIO,
+    ) -> Iterator[ParsedPerson]:
+        """Yield validated people and direct source-gender facts."""
         seen_tei_ids: set[str] = set()
         root_seen = False
         try:
@@ -70,7 +85,12 @@ class TeiPersonParser:
                     msg = f"duplicate TEI xml:id {person.tei_id!r}"
                     raise TeiImportError(msg)
                 seen_tei_ids.add(person.tei_id)
-                yield person
+                yield ParsedPerson(
+                    person=person,
+                    source_gender_values=[
+                        gender.get("value") for gender in element.findall(_GENDER_TAG)
+                    ],
+                )
                 self._clear_element(element)
         except TeiImportError:
             raise

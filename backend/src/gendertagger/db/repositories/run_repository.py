@@ -6,15 +6,18 @@ from datetime import datetime
 from typing import cast
 from uuid import UUID, uuid4
 
-from sqlalchemy import Table, select, update
+from sqlalchemy import Table, and_, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from gendertagger.config.run import RunConfig
 from gendertagger.db.keyset import newest_first_slice
+from gendertagger.db.rows.aggregations import AggregationExecutionRow
 from gendertagger.db.rows.executions import MethodExecutionRow, PredictionRow, RunRow, TaskBatchRow
 from gendertagger.db.rows.projects import DatasetSnapshotRow, PersonRecordRow
+from gendertagger.models.classification import PredictionStatus
 from gendertagger.models.lifecycle import (
+    AggregationExecutionStatus,
     DatasetSnapshotStatus,
     MethodExecutionStatus,
     RunStatus,
@@ -24,11 +27,16 @@ from gendertagger.models.run import (
     METHOD_EXECUTION_FAILURE_CLASS,
     MethodExecution,
     MethodExecutionCreate,
+    MethodExecutionPredictionSummary,
+    MethodExecutionResult,
+    MethodExecutionResultFilter,
+    MethodExecutionResultState,
     Prediction,
     PredictionWrite,
     Progress,
     Run,
     RunCreate,
+    RunListFilter,
     TaskBatch,
     TaskBatchPlan,
 )
@@ -38,6 +46,7 @@ from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
 )
+from gendertagger.services.ports.run_repository import MethodExecutionResultCursor
 
 _RUN_TERMINAL_STATUSES = frozenset(
     {RunStatus.completed, RunStatus.completed_with_errors, RunStatus.failed}
@@ -107,12 +116,27 @@ class SqlAlchemyRunRepository:
         *,
         limit: int,
         after: CreationPosition | None = None,
+        filters: RunListFilter | None = None,
     ) -> Sequence[Run]:
         """Return a snapshot's runs newest first, reading every run's progress in one query."""
+        filters = filters or RunListFilter()
+        statement = select(RunRow).where(RunRow.dataset_snapshot_id == dataset_snapshot_id)
+        if filters.has_completed_aggregations is not None:
+            completed = (
+                select(AggregationExecutionRow.id)
+                .where(
+                    AggregationExecutionRow.run_id == RunRow.id,
+                    AggregationExecutionRow.status == AggregationExecutionStatus.completed,
+                )
+                .exists()
+            )
+            statement = statement.where(
+                completed if filters.has_completed_aggregations else ~completed
+            )
         rows = tuple(
             self._session.scalars(
                 newest_first_slice(
-                    select(RunRow).where(RunRow.dataset_snapshot_id == dataset_snapshot_id),
+                    statement,
                     created_at=RunRow.created_at,
                     row_id=RunRow.id,
                     limit=limit,
@@ -195,6 +219,75 @@ class SqlAlchemyRunRepository:
             .order_by(MethodExecutionRow.method_name)
         )
         return [self._method_execution_from_row(row) for row in rows]
+
+    def list_method_execution_results(
+        self,
+        dataset_snapshot_id: UUID,
+        method_execution_id: UUID,
+        *,
+        limit: int,
+        after: MethodExecutionResultCursor | None = None,
+        filters: MethodExecutionResultFilter | None = None,
+    ) -> Sequence[MethodExecutionResult]:
+        """Return every snapshot person with its present or missing execution output."""
+        if limit <= 0:
+            msg = "limit must be positive"
+            raise ValueError(msg)
+        filters = filters or MethodExecutionResultFilter()
+        statement = (
+            select(PersonRecordRow, PredictionRow)
+            .outerjoin(
+                PredictionRow,
+                and_(
+                    PredictionRow.person_record_id == PersonRecordRow.id,
+                    PredictionRow.method_execution_id == method_execution_id,
+                ),
+            )
+            .where(PersonRecordRow.dataset_snapshot_id == dataset_snapshot_id)
+        )
+        if filters.result_state is MethodExecutionResultState.missing:
+            statement = statement.where(PredictionRow.id.is_(None))
+        elif filters.result_state is not None:
+            statement = statement.where(
+                PredictionRow.status == PredictionStatus(filters.result_state.value)
+            )
+        if filters.label is not None:
+            statement = statement.where(PredictionRow.label == filters.label)
+        if filters.q is not None:
+            pattern = self._contains_pattern(filters.q)
+            statement = statement.where(
+                or_(
+                    PersonRecordRow.tei_id.ilike(pattern, escape="\\"),
+                    PersonRecordRow.surname.ilike(pattern, escape="\\"),
+                    func.array_to_string(PersonRecordRow.forenames, " ").ilike(
+                        pattern, escape="\\"
+                    ),
+                    func.array_to_string(PersonRecordRow.alt_names, " ").ilike(
+                        pattern, escape="\\"
+                    ),
+                )
+            )
+        if after is not None:
+            statement = statement.where(
+                or_(
+                    PersonRecordRow.tei_id > after.tei_id,
+                    and_(
+                        PersonRecordRow.tei_id == after.tei_id,
+                        PersonRecordRow.id > after.person_record_id,
+                    ),
+                )
+            )
+        rows = self._session.execute(
+            statement.order_by(PersonRecordRow.tei_id, PersonRecordRow.id).limit(limit)
+        ).tuples()
+        return tuple(
+            self._method_execution_result_from_rows(
+                method_execution_id=method_execution_id,
+                person=person,
+                prediction=prediction,
+            )
+            for person, prediction in rows
+        )
 
     def get_task_batch(self, task_batch_id: UUID) -> TaskBatch | None:
         """Return a task batch contract by ID without exposing its row."""
@@ -836,6 +929,45 @@ class SqlAlchemyRunRepository:
             failure_class=row.failure_class,
             failure_diagnostic=row.failure_diagnostic,
             created_at=row.created_at,
+        )
+
+    @staticmethod
+    def _contains_pattern(value: str) -> str:
+        escaped = value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        return f"%{escaped}%"
+
+    @staticmethod
+    def _method_execution_result_from_rows(
+        *,
+        method_execution_id: UUID,
+        person: PersonRecordRow,
+        prediction: PredictionRow | None,
+    ) -> MethodExecutionResult:
+        if prediction is None:
+            return MethodExecutionResult(
+                method_execution_id=method_execution_id,
+                dataset_snapshot_id=person.dataset_snapshot_id,
+                person_record_id=person.id,
+                tei_id=person.tei_id,
+                surname=person.surname,
+                forenames=person.forenames,
+                result_state=MethodExecutionResultState.missing,
+            )
+        return MethodExecutionResult(
+            method_execution_id=method_execution_id,
+            dataset_snapshot_id=person.dataset_snapshot_id,
+            person_record_id=person.id,
+            tei_id=person.tei_id,
+            surname=person.surname,
+            forenames=person.forenames,
+            result_state=MethodExecutionResultState(prediction.status.value),
+            prediction_id=prediction.id,
+            prediction=MethodExecutionPredictionSummary(
+                label=prediction.label,
+                status=prediction.status,
+                method_confidence=prediction.method_confidence,
+                raw_label=prediction.raw_label,
+            ),
         )
 
     @staticmethod

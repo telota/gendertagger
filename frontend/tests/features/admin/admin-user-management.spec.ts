@@ -79,6 +79,20 @@ function buttonWithText(
   return button
 }
 
+/** The creation form is collapsed until "Add user" is pressed: wait for the page, open it, wait for it. */
+async function openCreation(
+  wrapper: Parameters<typeof buttonWithText>[0] & {
+    find: (selector: string) => { exists: () => boolean }
+  },
+  label: string,
+): Promise<void> {
+  await waitFor(() =>
+    expect(wrapper.findAll('main button').some((button) => button.text() === label)).toBe(true),
+  )
+  await buttonWithText(wrapper, label).trigger('click')
+  await waitFor(() => expect(wrapper.find('#admin-user-create-username').exists()).toBe(true))
+}
+
 function signedInClient(
   handler: (request: Request) => Response | Promise<Response>,
   currentUser: () => typeof ADMIN_A,
@@ -125,7 +139,8 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
       )
       const router = createAppRouter(createMemoryHistory())
       const wrapper = await mountApplicationAt('/admin/users', locale, client, router)
-      await waitFor(() => expect(wrapper.find('#admin-user-create-username').exists()).toBe(true))
+      if (mode === 'create') await openCreation(wrapper, messages.creation.open)
+      else await waitFor(() => expect(wrapper.text()).toContain(ACCOUNT.username))
       if (mode === 'edit') await buttonWithText(wrapper, messages.editing.open).trigger('click')
       const field =
         mode === 'create'
@@ -195,7 +210,7 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
       () => ADMIN_A,
     )
     const wrapper = await mountApplicationAt('/admin/users', locale, client)
-    await waitFor(() => expect(wrapper.find('#admin-user-create-username').exists()).toBe(true))
+    await openCreation(wrapper, messages.creation.open)
     await wrapper.get('#admin-user-create-username').setValue('New.Admin')
     await wrapper.get('#admin-user-create-display-name').setValue('New administrator')
     await buttonWithText(wrapper, messages.creation.submit).trigger('click')
@@ -279,7 +294,7 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
       () => ADMIN_A,
     )
     const wrapper = await mountApplicationAt('/admin/users', locale, client)
-    await waitFor(() => expect(wrapper.find('#admin-user-create-username').exists()).toBe(true))
+    await openCreation(wrapper, messages.creation.open)
     await wrapper.get('#admin-user-create-username').setValue('new.admin')
     await wrapper.get('#admin-user-create-display-name').setValue('New administrator')
 
@@ -368,7 +383,7 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
       () => currentUser,
     )
     const wrapper = await mountApplicationAt('/admin/users', locale, client)
-    await waitFor(() => expect(wrapper.find('#admin-user-create-username').exists()).toBe(true))
+    await openCreation(wrapper, messages.creation.open)
     await wrapper.get('#admin-user-create-username').setValue('new.admin')
     await wrapper.get('#admin-user-create-display-name').setValue('New administrator')
     await buttonWithText(wrapper, messages.creation.submit).trigger('click')
@@ -408,7 +423,7 @@ describe.each(['de', 'en'] as const)(ADMIN_ACCOUNT_TEST, (locale: AppLocale) => 
     )
     const router = createAppRouter(createMemoryHistory())
     const wrapper = await mountApplicationAt('/admin/users', locale, client, router)
-    await waitFor(() => expect(wrapper.find('#admin-user-create-username').exists()).toBe(true))
+    await openCreation(wrapper, messages.creation.open)
     await wrapper.get('#admin-user-create-username').setValue('new.admin')
     await wrapper.get('#admin-user-create-display-name').setValue('New administrator')
     await buttonWithText(wrapper, messages.creation.submit).trigger('click')

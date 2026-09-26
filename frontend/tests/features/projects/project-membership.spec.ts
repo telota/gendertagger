@@ -1,4 +1,4 @@
-import { flushPromises } from '@vue/test-utils'
+import { DOMWrapper, enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { createApiClient } from '@/api'
@@ -37,6 +37,8 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
       : { ...init, headers: init.headers ?? { 'content-type': 'application/json' } }
   return new Response(init.status === 204 ? null : JSON.stringify(body), responseInit)
 }
+
+enableAutoUnmount(afterEach)
 
 afterEach(() => document.body.replaceChildren())
 
@@ -81,12 +83,21 @@ describe('ProjectMembershipView', () => {
     await loadMore?.trigger('click')
     await waitFor(() => expect(wrapper.text()).toContain(secondCandidate.display_name))
 
-    const roleSelects = wrapper.findAll('select[aria-label="Project role"]')
-    await roleSelects[0]?.setValue('reviewer')
+    await wrapper.get('tbody select[aria-label="Project role"]').setValue('reviewer')
     await waitFor(() => expect(writes).toHaveLength(1))
 
     const remove = wrapper.findAll('button').find((button) => button.text() === 'Remove role')
     await remove?.trigger('click')
+    await waitFor(() =>
+      expect(new DOMWrapper(document.body).find('[role="dialog"]').exists()).toBe(true),
+    )
+    expect(writes).toHaveLength(1)
+    const confirmation = new DOMWrapper(document.body)
+      .get('[role="dialog"]')
+      .findAll('button')
+      .find((button) => button.text() === 'Remove role')
+    expect(confirmation).toBeDefined()
+    await confirmation?.trigger('click')
     await waitFor(() => expect(writes).toHaveLength(2))
 
     await wrapper.get('#transfer').setValue(CANDIDATE.id)
@@ -96,10 +107,11 @@ describe('ProjectMembershipView', () => {
     await transfer?.trigger('click')
     await waitFor(() => expect(writes).toHaveLength(3))
 
-    await wrapper.get('select[aria-label="Person"]').setValue(CANDIDATE.id)
-    await roleSelects[1]?.setValue('operator')
-    const add = wrapper.findAll('button').find((button) => button.text() === 'Add member')
-    await add?.trigger('click')
+    await wrapper.get('button[aria-controls="project-member-add-panel"]').trigger('click')
+    await wrapper.get('#project-member-candidate').setValue(CANDIDATE.id)
+    await wrapper.get('#project-member-role').setValue('operator')
+    const add = wrapper.get('.project-members-add-actions button')
+    await add.trigger('click')
     await waitFor(() => expect(writes).toHaveLength(4))
 
     expect(writes).toEqual([
@@ -125,6 +137,159 @@ describe('ProjectMembershipView', () => {
       },
     ])
   })
+
+  it.each([
+    { membershipStatus: 404, first: 'membership', projectStatus: 200 },
+    { membershipStatus: 404, first: 'project', projectStatus: 200 },
+    { membershipStatus: 403, first: 'membership', projectStatus: 200 },
+    { membershipStatus: 403, first: 'project', projectStatus: 200 },
+    { membershipStatus: 404, first: 'membership', projectStatus: 404 },
+  ])(
+    'rechecks ordinary access after transfer ($membershipStatus, $first first, project $projectStatus)',
+    async ({ membershipStatus, first, projectStatus }) => {
+      let transferred = false
+      let membershipReads = 0
+      let projectReads = 0
+      let finishMembership!: (response: Response) => void
+      let finishProject!: (response: Response) => void
+      const membershipResponse = new Promise<Response>((resolve) => {
+        finishMembership = resolve
+      })
+      const projectResponse = new Promise<Response>((resolve) => {
+        finishProject = resolve
+      })
+      const readableProject = {
+        id: PROJECT_ID,
+        slug: 'edition',
+        display_name: 'Readable edition',
+        current_user_role: 'viewer',
+        current_user_can_manage_members: true,
+        working_aggregation_execution_id: null,
+        team: {
+          id: 'team',
+          slug: 'team',
+          display_name: 'Team',
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z',
+        },
+        manager_user_id: ACTOR.id,
+        created_by_user_id: ACTOR.id,
+        created_at: '2026-01-01T00:00:00Z',
+      }
+      const client = createApiClient({
+        fetch: (request) => {
+          const path = new URL(request.url).pathname
+          if (path === '/api/v1/branding') return Promise.resolve(jsonResponse({}))
+          if (path === '/api/v1/me') return Promise.resolve(jsonResponse(ACTOR))
+          if (path === '/api/v1/auth/session')
+            return Promise.resolve(
+              jsonResponse({ must_change_password: false, keep_signed_in: false }),
+            )
+          if (path === '/api/v1/me/preferences')
+            return Promise.resolve(
+              jsonResponse({
+                locale: 'en',
+                theme: 'system',
+                desktop_sidebar_collapsed: false,
+                revision: 1,
+              }),
+            )
+          if (path === `/api/v1/projects/${PROJECT_ID}/members`) {
+            membershipReads += 1
+            return transferred
+              ? membershipResponse
+              : Promise.resolve(
+                  jsonResponse({ ...STATE, manager: { ...STATE.manager, project_role: 'viewer' } }),
+                )
+          }
+          if (path === `/api/v1/projects/${PROJECT_ID}`) {
+            projectReads += 1
+            return transferred ? projectResponse : Promise.resolve(jsonResponse(readableProject))
+          }
+          if (path === `/api/v1/projects/${PROJECT_ID}/eligible-users`)
+            return Promise.resolve(
+              jsonResponse({ items: [CANDIDATE], has_more: false, next_cursor: null }),
+            )
+          if (path === `/api/v1/projects/${PROJECT_ID}/manager` && request.method === 'PUT') {
+            transferred = true
+            return Promise.resolve(
+              jsonResponse({
+                ...STATE,
+                manager: { ...CANDIDATE, user_id: CANDIDATE.id, project_role: 'operator' },
+              }),
+            )
+          }
+          return Promise.resolve(jsonResponse({}, { status: 404 }))
+        },
+      })
+      const wrapper = await mountApplicationAt(`/projects/${PROJECT_ID}/members`, 'en', client)
+      await waitFor(() =>
+        expect(wrapper.find(`aside a[href="/projects/${PROJECT_ID}/overview"]`).exists()).toBe(
+          true,
+        ),
+      )
+      expect(wrapper.get('aside [aria-current="page"]').text()).toBe('Members')
+      await wrapper.get('#transfer').setValue(CANDIDATE.id)
+      const transfer = wrapper
+        .findAll('main button')
+        .find((button) => button.text() === 'Transfer management')
+      expect(transfer).toBeDefined()
+      await transfer!.trigger('click')
+      await waitFor(() => {
+        expect(membershipReads).toBe(2)
+        expect(projectReads).toBe(2)
+      })
+      const denyMembership = () =>
+        finishMembership(
+          jsonResponse(
+            {
+              error: {
+                code: 'resource_not_found',
+                message: 'Membership management is no longer available.',
+              },
+            },
+            { status: membershipStatus },
+          ),
+        )
+      const resolveProject = () =>
+        finishProject(
+          projectStatus === 200
+            ? jsonResponse({
+                ...readableProject,
+                manager_user_id: CANDIDATE.id,
+                current_user_can_manage_members: false,
+              })
+            : jsonResponse(
+                {
+                  error: { code: 'resource_not_found', message: 'Project is no longer readable.' },
+                },
+                { status: projectStatus },
+              ),
+        )
+      if (first === 'membership') {
+        denyMembership()
+        await flushPromises()
+        expect(wrapper.find(`aside a[href="/projects/${PROJECT_ID}/members"]`).exists()).toBe(false)
+        expect(wrapper.find(`aside a[href="/projects/${PROJECT_ID}/overview"]`).exists()).toBe(true)
+        resolveProject()
+      } else {
+        resolveProject()
+        await flushPromises()
+        denyMembership()
+      }
+      await waitFor(() => {
+        expect(wrapper.find(`aside a[href="/projects/${PROJECT_ID}/members"]`).exists()).toBe(false)
+        expect(wrapper.find(`aside a[href="/projects/${PROJECT_ID}/overview"]`).exists()).toBe(
+          projectStatus === 200,
+        )
+      })
+      expect(wrapper.find('aside nav [aria-current="page"]').exists()).toBe(false)
+      expect(wrapper.get('.app-breadcrumbs').text().includes('Readable edition')).toBe(
+        projectStatus === 200,
+      )
+      expect(projectReads).toBe(2)
+    },
+  )
 
   it('renders initial-load and mutation failures distinctly', async () => {
     let failLoad = true
@@ -165,7 +330,7 @@ describe('ProjectMembershipView', () => {
             jsonResponse({ items: [CANDIDATE], has_more: false, next_cursor: null }),
           )
         }
-        // The sidebar reads the project for its links; that is not a membership write.
+        // Read-only shell requests are not membership writes.
         if (request.method === 'GET') return Promise.resolve(jsonResponse({}, { status: 404 }))
         mutationAttempts += 1
         return Promise.resolve(
@@ -189,7 +354,7 @@ describe('ProjectMembershipView', () => {
     const ready = await mountApplicationAt(`/projects/${PROJECT_ID}/members`, 'en', client)
     await waitFor(() => expect(ready.text()).toContain(MEMBER.display_name))
     expect(ready.text()).toContain('operator')
-    const role = ready.findAll('select[aria-label="Project role"]')[0]
+    const role = ready.get('tbody select[aria-label="Project role"]')
     for (const [index] of mutationErrors.entries()) {
       await role?.setValue(index % 2 === 0 ? 'operator' : 'reviewer')
       await waitFor(() => expect(mutationAttempts).toBe(index + 1))

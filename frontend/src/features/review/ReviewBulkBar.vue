@@ -11,12 +11,16 @@ import type { ReviewItem } from './useReviewData'
 import { useBulkDecision, type BulkResult, type BulkSpec } from './useBulkDecision'
 import { CANONICAL_LABELS, useVocabularyGloss, type CanonicalLabel } from './useVocabulary'
 
-const props = defineProps<{
-  /** The selected people, in list order. */
-  items: readonly ReviewItem[]
-  /** How many people the list holds right now, for "select all". */
-  loadedCount: number
-}>()
+const props = withDefaults(
+  defineProps<{
+    /** The selected people, in list order. */
+    items: readonly ReviewItem[]
+    /** How many people the list holds right now, for "select all". */
+    loadedCount: number
+    contextReady?: boolean
+  }>(),
+  { contextReady: true },
+)
 const emit = defineEmits<{
   toggleAll: [checked: boolean]
   clear: []
@@ -95,7 +99,7 @@ const actionText = computed(() => {
 })
 
 async function toConfirm(): Promise<void> {
-  if (!spec.value || count.value === 0) return
+  if (props.contextReady === false || !spec.value || count.value === 0) return
   const requestGeneration = generation
   step.value = 'confirm'
   await nextTick()
@@ -104,7 +108,7 @@ async function toConfirm(): Promise<void> {
 
 async function apply(): Promise<void> {
   const current = spec.value
-  if (!current || bulk.phase.value === 'running') return
+  if (props.contextReady === false || !current || bulk.phase.value === 'running') return
   const requestGeneration = generation
   names.value = Object.fromEntries(props.items.map((item) => [item.tei_id, reviewItemName(item)]))
   step.value = 'choose'
@@ -216,7 +220,7 @@ const preview = computed(() => props.items.slice(0, PREVIEW_LIMIT).map(reviewIte
         <label for="bulk-comment">{{ t('review.bulk.comment') }}</label>
         <textarea id="bulk-comment" v-model="comment" rows="2"></textarea>
       </div>
-      <AppButton class="bulk-review" type="submit" :disabled="!spec">
+      <AppButton class="bulk-review" type="submit" :disabled="!spec || contextReady === false">
         {{ t('review.bulk.review') }}
       </AppButton>
     </form>
@@ -243,7 +247,12 @@ const preview = computed(() => props.items.slice(0, PREVIEW_LIMIT).map(reviewIte
       </p>
       <p class="bulk-note">{{ t('review.bulk.appendOnly') }}</p>
       <div class="bulk-actions">
-        <AppButton class="bulk-apply" type="button" @click="apply">
+        <AppButton
+          class="bulk-apply"
+          type="button"
+          :disabled="contextReady === false"
+          @click="apply"
+        >
           {{ t('review.bulk.apply') }}
         </AppButton>
         <AppButton class="bulk-back" type="button" variant="ghost" @click="step = 'choose'">

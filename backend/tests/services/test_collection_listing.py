@@ -12,12 +12,16 @@ from uuid import UUID
 import pytest
 
 from gendertagger.ingestion.tei import TeiPersonParser
+from gendertagger.models.aggregation import AggregationExecutionListFilter
 from gendertagger.models.api import CursorPage
+from gendertagger.models.lifecycle import AggregationExecutionStatus, DatasetSnapshotStatus
+from gendertagger.models.project import DatasetSnapshotListFilter
+from gendertagger.models.run import RunListFilter
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.evaluations import EvaluationService
 from gendertagger.services.exports import ExportService
 from gendertagger.services.method_registry import MethodRegistry
-from gendertagger.services.pagination import CreationPosition, CursorCodec
+from gendertagger.services.pagination import CreationPosition, CursorCodec, InvalidCursorError
 from gendertagger.services.ports.aggregation_repository import AggregationRepository
 from gendertagger.services.ports.evaluation_repository import EvaluationRepository
 from gendertagger.services.ports.export_repository import ExportRepository
@@ -34,6 +38,11 @@ pytestmark = pytest.mark.unit
 NOW = datetime(2026, 9, 22, 10, 0, tzinfo=UTC)
 PARENT_ID = UUID("10000000-0000-0000-0000-000000000001")
 CASES = ("snapshots", "runs", "aggregations", "evaluations", "exports")
+DEFAULT_FILTERS = {
+    "snapshots": DatasetSnapshotListFilter(),
+    "runs": RunListFilter(),
+    "aggregations": AggregationExecutionListFilter(),
+}
 
 
 @dataclass(frozen=True)
@@ -171,12 +180,14 @@ def test_list_use_case_pages_newest_first_under_an_existing_parent(
     assert first_page.has_more is True
     assert second_page.items == [LISTED[2]]
     assert second_page.has_more is False
+    filter_arguments = {"filters": DEFAULT_FILTERS[name]} if name in DEFAULT_FILTERS else {}
     assert case.repository_slice.call_args_list == [
-        call(PARENT_ID, limit=3, after=None),
+        call(PARENT_ID, limit=3, after=None, **filter_arguments),
         call(
             PARENT_ID,
             limit=3,
             after=CreationPosition(created_at=LISTED[1].created_at, id=LISTED[1].id),
+            **filter_arguments,
         ),
     ]
 
@@ -195,3 +206,70 @@ def test_list_use_case_rejects_a_missing_parent_and_a_nonpositive_limit(
     with pytest.raises(ValueError, match="limit must be positive"):
         case.list_page(PARENT_ID, limit=0, cursor=None)
     case.repository_slice.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("name", "filters", "changed_filters"),
+    [
+        (
+            "snapshots",
+            DatasetSnapshotListFilter(status=DatasetSnapshotStatus.ready),
+            DatasetSnapshotListFilter(
+                status=DatasetSnapshotStatus.ready, has_completed_aggregations=True
+            ),
+        ),
+        (
+            "snapshots",
+            DatasetSnapshotListFilter(has_completed_aggregations=True),
+            DatasetSnapshotListFilter(has_completed_aggregations=False),
+        ),
+        (
+            "runs",
+            RunListFilter(has_completed_aggregations=True),
+            RunListFilter(has_completed_aggregations=False),
+        ),
+        (
+            "aggregations",
+            AggregationExecutionListFilter(status=AggregationExecutionStatus.completed),
+            AggregationExecutionListFilter(status=AggregationExecutionStatus.running),
+        ),
+    ],
+)
+def test_filtered_collections_bind_cursors_to_the_full_filter_tuple(
+    name: str,
+    filters: DatasetSnapshotListFilter | RunListFilter | AggregationExecutionListFilter,
+    changed_filters: DatasetSnapshotListFilter | RunListFilter | AggregationExecutionListFilter,
+    tmp_path: Path,
+) -> None:
+    case = _list_case(name, _ListingUnitOfWork(), tmp_path)
+    case.repository_slice.return_value = list(LISTED)
+    first = case.list_page(PARENT_ID, limit=1, cursor=None, filters=filters)
+    case.list_page(PARENT_ID, limit=1, cursor=first.next_cursor, filters=filters)
+    assert case.repository_slice.call_args.kwargs["filters"] == filters
+    assert case.repository_slice.call_args.kwargs["after"].id == LISTED[0].id
+
+    for incompatible in (changed_filters, None):
+        with pytest.raises(InvalidCursorError, match="different resource"):
+            case.list_page(PARENT_ID, limit=1, cursor=first.next_cursor, filters=incompatible)
+    with pytest.raises(InvalidCursorError, match="different resource"):
+        case.list_page(LISTED[0].id, limit=1, cursor=first.next_cursor, filters=filters)
+
+
+@pytest.mark.parametrize("name", tuple(DEFAULT_FILTERS))
+def test_default_filters_preserve_existing_unfiltered_cursor_scopes(
+    name: str, tmp_path: Path
+) -> None:
+    case = _list_case(name, _ListingUnitOfWork(), tmp_path)
+    case.repository_slice.return_value = []
+    prefix = {
+        "snapshots": "project_snapshots",
+        "runs": "snapshot_runs",
+        "aggregations": "run_aggregations",
+    }
+    cursor = CursorCodec().encode(
+        resource=f"{prefix[name]}:{PARENT_ID}",
+        sort_values=(LISTED[0].created_at.isoformat(),),
+        resource_id=LISTED[0].id,
+    )
+    case.list_page(PARENT_ID, limit=1, cursor=cursor, filters=DEFAULT_FILTERS[name])
+    assert case.repository_slice.call_args.kwargs["after"].id == LISTED[0].id

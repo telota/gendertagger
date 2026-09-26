@@ -103,7 +103,7 @@ export function useReviewSummary(aggregationId: Ref<string>, enabled: Ref<boolea
 
 /**
  * One item by its person id, for a deep link to somebody the current list does not (yet) contain.
- * `q` matches names and ids on the server; the exact `tei_id` is picked from its answer.
+ * Exact server-side identity filtering avoids looking for an ID in the first fuzzy-search page.
  */
 export function useReviewItemByPerson(
   aggregationId: Ref<string>,
@@ -116,17 +116,18 @@ export function useReviewItemByPerson(
     queryKey: computed(
       () => ['aggregations', aggregationId.value, 'review-item', teiId.value] as const,
     ),
-    queryFn: async () => {
-      const id = teiId.value
+    queryFn: async ({ queryKey, signal }) => {
+      const id = queryKey[3]
       if (id === null) throw new Error('useReviewItemByPerson: no person.')
       const page = await unwrap(
         client.GET('/api/v1/review-items', {
           params: {
-            query: { aggregation_id: aggregationId.value, q: id, sort: 'tei_id', limit: 20 },
+            query: { aggregation_id: queryKey[1], tei_id: id, sort: 'tei_id', limit: 1 },
           },
+          signal,
         }),
       )
-      return page.items.find((item) => item.tei_id === teiId.value) ?? null
+      return page.items.find((item) => item.tei_id === id) ?? null
     },
     enabled: computed(() => enabled.value && teiId.value !== null),
   })

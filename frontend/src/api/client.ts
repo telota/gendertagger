@@ -24,6 +24,8 @@ export interface ApiClientOptions {
    * `false`: their actor must deliberately resubmit after recovery, never run under a new principal.
    */
   shouldRetryAfterUnauthorized?: (request: Request) => boolean
+  /** Capture a retry's owner at dispatch; recovery cannot replay it if that scope changes. */
+  retryScope?: (request: Request) => string | null
 }
 
 function defaultCsrfToken(): string | null {
@@ -47,6 +49,7 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
   const csrfToken = options.csrfToken ?? defaultCsrfToken
   const doFetch = options.fetch ?? ((request: Request) => window.fetch(request))
   const shouldRetryAfterUnauthorized = options.shouldRetryAfterUnauthorized ?? (() => true)
+  const retryScope = options.retryScope ?? (() => null)
   const client = createClient<paths>({
     // Every path in the generated schema already starts with `/api/v1`, and the deployment is
     // same-origin, so the base is the page's own origin, spelled out because a `Request` needs an
@@ -70,14 +73,15 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
     // (by the network call itself); a clone taken up front, before that happens, is what a retry needs.
     // `Request.clone()` is cheap even for a large upload, since a `File`/`Blob`-backed body isn't
     // duplicated in memory, only re-referenced.
-    const clones = new Map<string, Request>()
+    const clones = new Map<string, { request: Request; scope: string | null }>()
     const recoverFromExpiredSession: Middleware = {
       onRequest({ request, id }) {
-        if (shouldRetryAfterUnauthorized(request)) clones.set(id, request.clone())
+        if (shouldRetryAfterUnauthorized(request))
+          clones.set(id, { request: request.clone(), scope: retryScope(request) })
         return request
       },
       async onResponse({ request, response, id }) {
-        const retryRequest = clones.get(id)
+        const retry = clones.get(id)
         clones.delete(id)
         // A cancelled query/write can still resolve in a custom transport. It must not recover
         // authentication for a principal that no longer owns that request.
@@ -87,11 +91,12 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
         } catch {
           return undefined
         }
-        if (!shouldRetryAfterUnauthorized(request) || !retryRequest) return undefined
+        if (!shouldRetryAfterUnauthorized(request) || !retry || retry.scope !== retryScope(request))
+          return undefined
         // The session that produced the original CSRF token is gone; the recovered one issues a new
         // one, so the retry needs its own header, not the stale value the clone still carries.
-        applyCsrfHeader(retryRequest, csrfToken)
-        return doFetch(retryRequest)
+        applyCsrfHeader(retry.request, csrfToken)
+        return doFetch(retry.request)
       },
     }
     client.use(recoverFromExpiredSession)

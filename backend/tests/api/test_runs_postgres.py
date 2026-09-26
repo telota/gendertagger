@@ -16,9 +16,16 @@ from gendertagger.db.rows.executions import MethodExecutionRow, TaskBatchRow
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.ingestion.tei import TeiPersonParser
+from gendertagger.models.classification import (
+    CanonicalLabel,
+    PredictionResult,
+    PredictionStatus,
+)
 from gendertagger.models.dispatch import DispatchStatus
-from gendertagger.models.lifecycle import RunStatus
+from gendertagger.models.lifecycle import RunStatus, TaskBatchStatus
+from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.project import SnapshotImportTaskMessage
+from gendertagger.models.run import MethodExecutionCreate, PredictionWrite, TaskBatchPlan
 from gendertagger.models.team import TeamCreate
 from gendertagger.models.user import GlobalRole, UserCreate
 from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
@@ -32,6 +39,14 @@ CODE_GIT_COMMIT = "c" * 40
 DEPENDENCY_LOCK_SHA256 = "d" * 64
 VALID_TEI = b"""<TEI xmlns="http://www.tei-c.org/ns/1.0">
 <text><body><listPerson><person xml:id="p1"><persName type="reg"><surname>Example</surname></persName></person></listPerson></body></text>
+</TEI>"""
+MULTI_PERSON_TEI = b"""<TEI xmlns="http://www.tei-c.org/ns/1.0">
+<text><body><listPerson>
+<person xml:id="p1"><persName type="reg"><forename>Ada</forename><surname>Unknown</surname></persName></person>
+<person xml:id="p2"><persName type="reg"><forename>Bea</forename><surname>Abstained</surname></persName></person>
+<person xml:id="p3"><persName type="reg"><forename>Cam</forename><surname>Errored</surname></persName></person>
+<person xml:id="p4"><persName type="reg"><forename>Dee</forename><surname>Missing</surname></persName></person>
+</listPerson></body></text>
 </TEI>"""
 
 
@@ -86,6 +101,8 @@ def _ready_snapshot_id(
     client: TestClient,
     unit_of_work_factory: UnitOfWorkFactory,
     artifact_root: Path,
+    *,
+    source: bytes = VALID_TEI,
 ) -> UUID:
     project_response = client.post(
         "/api/v1/projects",
@@ -98,7 +115,7 @@ def _ready_snapshot_id(
     project_id = UUID(project_response.json()["id"])
     snapshot_response = client.post(
         f"/api/v1/projects/{project_id}/snapshots",
-        files={"source": ("register.xml", VALID_TEI, "application/xml")},
+        files={"source": ("register.xml", source, "application/xml")},
     )
     snapshot_id = UUID(snapshot_response.json()["id"])
     SnapshotImportExecutor(
@@ -373,3 +390,232 @@ def test_project_snapshots_and_snapshot_runs_list_newest_first(
         params={"cursor": second_page["items"][0]["id"]},
     )
     assert invalid_cursor.status_code == 422
+
+
+def _persist_method_execution_results(
+    unit_of_work_factory: UnitOfWorkFactory,
+    *,
+    snapshot_id: UUID,
+    run_id: UUID,
+) -> UUID:
+    """Persist a partial execution through repositories for the public read fixture."""
+    now = datetime(2026, 9, 26, 12, tzinfo=UTC)
+    with unit_of_work_factory() as unit_of_work:
+        run = unit_of_work.runs.get_run(run_id)
+        assert run is not None
+        unit_of_work.runs.mark_run_queued(run.id)
+        unit_of_work.runs.mark_run_started(run.id, started_at=now)
+        execution = unit_of_work.runs.add_method_execution(
+            MethodExecutionCreate(
+                run_id=run.id,
+                descriptor=MethodDescriptor(
+                    name="gender_guesser",
+                    implementation_version="gender_guesser_v1",
+                    normalization_version="gender_guesser_v1",
+                ),
+                resolved_config=dict(run.resolved_config.methods[0].config),
+                queue_name="cpu",
+                total_count=4,
+            )
+        )
+        unit_of_work.runs.mark_execution_queued(execution.id)
+        unit_of_work.runs.mark_execution_started(execution.id, started_at=now)
+        records = unit_of_work.projects.list_person_records_slice(
+            snapshot_id,
+            offset=0,
+            limit=4,
+        )
+        assert len(records) == 4
+        batches = unit_of_work.runs.create_task_batches(
+            execution.id,
+            [
+                TaskBatchPlan(batch_index=index, record_offset=index, record_count=1)
+                for index in range(4)
+            ],
+        )
+        expected = {
+            "p1": PredictionResult(
+                label=CanonicalLabel.unknown,
+                status=PredictionStatus.success,
+                method_confidence=0.8,
+                raw_label="uncertain",
+                raw_output={"internal": "not part of list response"},
+                metadata={"normalization": "test-only"},
+            ),
+            "p2": PredictionResult(
+                label=None,
+                status=PredictionStatus.abstain,
+                raw_label="no_name",
+            ),
+            "p3": PredictionResult(
+                label=None,
+                status=PredictionStatus.error,
+                raw_label="timeout",
+            ),
+        }
+        for batch, record in zip(batches, records, strict=True):
+            claimed = unit_of_work.runs.claim_batch(
+                batch.id,
+                method_execution_id=execution.id,
+                worker_task_id=f"method-result-{batch.batch_index}",
+                started_at=now,
+                attempt_count=1,
+            )
+            assert claimed is not None
+            result = expected.get(record.tei_id)
+            if result is None:
+                unit_of_work.runs.mark_batch_finished(
+                    batch.id,
+                    status=TaskBatchStatus.failed,
+                    finished_at=now,
+                    error_count=1,
+                    failure_class="FixtureFailure",
+                    failure_diagnostic="result not persisted",
+                )
+                continue
+            unit_of_work.runs.add_predictions(
+                execution.id,
+                [
+                    PredictionWrite(
+                        person_record_id=record.id,
+                        task_batch_id=batch.id,
+                        input_fingerprint="f" * 64,
+                        result=result,
+                    )
+                ],
+            )
+            unit_of_work.runs.mark_batch_finished(
+                batch.id,
+                status=TaskBatchStatus.completed,
+                finished_at=now,
+                success_count=int(result.status is PredictionStatus.success),
+                abstain_count=int(result.status is PredictionStatus.abstain),
+                error_count=int(result.status is PredictionStatus.error),
+            )
+        unit_of_work.runs.finalize_execution_if_complete(execution.id, finished_at=now)
+        unit_of_work.runs.finalize_run_if_complete(run.id, finished_at=now)
+        unit_of_work.commit()
+    return execution.id
+
+
+def test_method_execution_results_list_is_paginated_filtered_and_execution_scoped(
+    postgres_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    client, unit_of_work_factory = _client(postgres_engine, tmp_path)
+    snapshot_id = _ready_snapshot_id(
+        client,
+        unit_of_work_factory,
+        tmp_path,
+        source=MULTI_PERSON_TEI,
+    )
+    run = client.post(
+        "/api/v1/runs",
+        json={
+            "dataset_snapshot_id": str(snapshot_id),
+            "config": {"methods": [{"name": "gender_guesser"}]},
+        },
+    ).json()
+    run_id = UUID(run["id"])
+    execution_id = _persist_method_execution_results(
+        unit_of_work_factory,
+        snapshot_id=snapshot_id,
+        run_id=run_id,
+    )
+    results_url = f"/api/v1/runs/{run_id}/executions/{execution_id}/results"
+
+    first = client.get(results_url, params={"limit": 2})
+    assert first.status_code == 200
+    first_body = first.json()
+    assert [item["tei_id"] for item in first_body["items"]] == ["p1", "p2"]
+    assert first_body["has_more"] is True
+    assert first_body["next_cursor"] is not None
+    first_item, abstained_item = first_body["items"]
+    assert first_item["method_execution_id"] == str(execution_id)
+    assert first_item["dataset_snapshot_id"] == str(snapshot_id)
+    assert first_item["person_record_id"]
+    assert first_item["tei_id"] == "p1"
+    assert first_item["surname"] == "Unknown"
+    assert first_item["forenames"] == ["Ada"]
+    assert first_item["result_state"] == "success"
+    assert first_item["prediction_id"]
+    assert first_item["prediction"] == {
+        "label": "unknown",
+        "status": "success",
+        "method_confidence": 0.8,
+        "raw_label": "uncertain",
+    }
+    assert set(first_item["prediction"]) == {
+        "label",
+        "status",
+        "method_confidence",
+        "raw_label",
+    }
+    assert abstained_item["result_state"] == "abstain"
+    assert abstained_item["prediction"] == {
+        "label": None,
+        "status": "abstain",
+        "method_confidence": None,
+        "raw_label": "no_name",
+    }
+
+    second = client.get(
+        results_url,
+        params={"limit": 2, "cursor": first_body["next_cursor"]},
+    )
+    assert second.status_code == 200
+    second_body = second.json()
+    assert [item["tei_id"] for item in second_body["items"]] == ["p3", "p4"]
+    errored_item, missing_item = second_body["items"]
+    assert errored_item["result_state"] == "error"
+    assert errored_item["prediction"] == {
+        "label": None,
+        "status": "error",
+        "method_confidence": None,
+        "raw_label": "timeout",
+    }
+    assert missing_item["result_state"] == "missing"
+    assert missing_item["prediction_id"] is None
+    assert missing_item["prediction"] is None
+    assert second_body["has_more"] is False
+    assert second_body["next_cursor"] is None
+
+    assert [
+        item["tei_id"]
+        for item in client.get(
+            results_url,
+            params={"result_state": "missing"},
+        ).json()["items"]
+    ] == ["p4"]
+    assert [
+        item["tei_id"]
+        for item in client.get(
+            results_url,
+            params={"result_state": "success", "label": "unknown"},
+        ).json()["items"]
+    ] == ["p1"]
+    assert [
+        item["tei_id"]
+        for item in client.get(
+            results_url,
+            params={"q": "Errored"},
+        ).json()["items"]
+    ] == ["p3"]
+    assert (
+        client.get(
+            results_url,
+            params={"result_state": "missing", "cursor": first_body["next_cursor"]},
+        ).status_code
+        == 422
+    )
+
+    unrelated_run = client.post(
+        "/api/v1/runs",
+        json={"dataset_snapshot_id": str(snapshot_id), "config": {"methods": []}},
+    ).json()
+    assert (
+        client.get(
+            f"/api/v1/runs/{unrelated_run['id']}/executions/{execution_id}/results"
+        ).status_code
+        == 404
+    )

@@ -7,6 +7,7 @@ import de from '@/locales/de.json'
 import en from '@/locales/en.json'
 
 import { mountApplicationAt } from '../../helpers/render'
+import { expectNoAxeViolations } from '../../helpers/axe'
 import { waitFor } from '../../helpers/wait'
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
@@ -25,6 +26,7 @@ const EXEC_A = 'e0000000-0000-0000-0000-00000000000a'
 const EXEC_B = 'e0000000-0000-0000-0000-00000000000b'
 const EXEC_C = 'e0000000-0000-0000-0000-00000000000c'
 const AGG_ID = 'f0000000-0000-0000-0000-000000000001'
+const HISTORY_AGG_ID = 'f0000000-0000-0000-0000-000000000002'
 
 const progress = { completed: 4, failed: 0, total: 4, percentage: 100 }
 
@@ -63,6 +65,7 @@ function aggregation(status: string, extra: Record<string, unknown> = {}) {
 interface Server {
   runStatus: string
   role: 'operator' | 'viewer'
+  workingAggregationId: string | null
   executions: ReturnType<typeof execution>[]
   aggregations: ReturnType<typeof aggregation>[]
   /** What `POST /runs/{id}/aggregations` answers. */
@@ -75,6 +78,7 @@ function newServer(overrides: Partial<Server> = {}): Server {
   return {
     runStatus: 'completed',
     role: 'operator',
+    workingAggregationId: null,
     executions: [
       execution(EXEC_A, 'gender_guesser'),
       execution(EXEC_B, 'gnd'),
@@ -104,6 +108,7 @@ function aggregationClient(server: Server) {
           description: null,
           current_user_role: server.role,
           created_at: '2026-01-01T00:00:00Z',
+          working_aggregation_execution_id: server.workingAggregationId,
         })
       }
       if (pathname === `/api/v1/runs/${RUN_ID}`) {
@@ -118,6 +123,14 @@ function aggregationClient(server: Server) {
           application_version: '1',
           code_git_commit: 'abc',
           python_version: '3.12',
+        })
+      }
+      if (pathname === `/api/v1/snapshots/${SNAPSHOT_ID}`) {
+        return jsonResponse({
+          id: SNAPSHOT_ID,
+          project_id: PROJECT_ID,
+          status: 'ready',
+          created_at: '2026-01-01T09:00:00Z',
         })
       }
       if (pathname === `/api/v1/runs/${RUN_ID}/executions`) return jsonResponse(server.executions)
@@ -214,13 +227,37 @@ describe.each(['de', 'en'] as const)('aggregation in %s', (locale: AppLocale) =>
     expect(server.posts).toHaveLength(1)
   })
 
-  it('lists aggregations with strategy, selection size and configuration hash', async () => {
-    const wrapper = await mountRun(newServer({ aggregations: [aggregation('completed')] }))
+  it('separates the working result, method lineage, next action and history', async () => {
+    const working = aggregation('completed')
+    const newerAlternative = aggregation('completed', {
+      id: HISTORY_AGG_ID,
+      method_execution_ids: [EXEC_A, EXEC_C],
+      created_at: '2026-01-01T12:00:00Z',
+    })
+    const wrapper = await mountRun(
+      newServer({
+        workingAggregationId: AGG_ID,
+        aggregations: [newerAlternative, working],
+      }),
+    )
 
-    const item = wrapper.get('.aggregation')
-    expect(item.text()).toContain('reference_v1')
-    expect(item.get('.aggregation-hash').text()).toBe('9'.repeat(64))
-    expect(item.get('.aggregation-status').text()).toBe(catalogues[locale].runs.status.completed)
+    const featured = wrapper.get('.aggregation--featured')
+    expect(featured.get('.aggregation-title').text()).toBe(messages.currentWorking)
+    expect(featured.text()).toContain(messages.item.referenceStrategy)
+    expect(featured.text()).toContain('hivoto_xgboost')
+    expect(featured.get('.aggregation-excluded').text()).toContain(
+      catalogues[locale].runs.status.completedWithErrors,
+    )
+    expect(featured.get('.app-button').text()).toBe(messages.item.review)
+    expect(featured.get('.app-button').attributes('href')).toBe(
+      `/projects/${PROJECT_ID}/runs/${RUN_ID}/aggregations/${AGG_ID}/review`,
+    )
+    expect(wrapper.text()).not.toContain('9'.repeat(64))
+    expect(wrapper.get('.aggregations-history').text()).toContain(messages.history)
+
+    await featured.get('.aggregation-selection summary').trigger('click')
+    await wrapper.get('.aggregations-history > summary').trigger('click')
+    await expectNoAxeViolations(wrapper.get('main').element)
   })
 
   it('re-aggregates from a chosen subset, in the server order, and reports an identical existing one', async () => {
@@ -228,11 +265,11 @@ describe.each(['de', 'en'] as const)('aggregation in %s', (locale: AppLocale) =>
     const wrapper = await mountRun(server)
 
     await wrapper.get('.aggregations-advanced summary').trigger('click')
-    await wrapper.get(`#aggregate-${EXEC_C}`).setValue(false)
+    await wrapper.get(`#aggregate-${EXEC_B}`).setValue(false)
     await wrapper.get('.aggregations-form').trigger('submit')
     await waitFor(() => expect(server.posts).toHaveLength(1))
 
-    expect(server.posts[0]?.method_execution_ids).toEqual([EXEC_A, EXEC_B])
+    expect(server.posts[0]?.method_execution_ids).toEqual([EXEC_A])
     await waitFor(() => expect(wrapper.find('.aggregations-reused').exists()).toBe(true))
     expect(wrapper.get('.aggregations-reused').text()).toContain(messages.reused)
   })
@@ -279,7 +316,7 @@ describe.each(['de', 'en'] as const)('aggregation in %s', (locale: AppLocale) =>
   it('protects a changed manual selection and keeps failed creation dirty', async () => {
     const server = newServer({ aggregations: [aggregation('completed')], postStatus: 409 })
     const wrapper = await mountRun(server)
-    await wrapper.get(`#aggregate-${EXEC_C}`).setValue(false)
+    await wrapper.get(`#aggregate-${EXEC_C}`).setValue(true)
     await wrapper.get('.aggregations-form').trigger('submit')
     await waitFor(() =>
       expect(wrapper.get('.aggregations-error').text()).toBe(messages.errors.notAggregatable),
@@ -289,7 +326,7 @@ describe.each(['de', 'en'] as const)('aggregation in %s', (locale: AppLocale) =>
     document.querySelector<HTMLButtonElement>('.draft-leave-actions button')!.click()
     await attempt
     expect(wrapper.vm.$route.path).toBe(runPath)
-    expect((wrapper.get(`#aggregate-${EXEC_C}`).element as HTMLInputElement).checked).toBe(false)
+    expect((wrapper.get(`#aggregate-${EXEC_C}`).element as HTMLInputElement).checked).toBe(true)
     expect(server.posts).toHaveLength(1)
     wrapper.unmount()
   })
@@ -297,10 +334,10 @@ describe.each(['de', 'en'] as const)('aggregation in %s', (locale: AppLocale) =>
   it('marks a successfully submitted manual selection clean without resetting it', async () => {
     const server = newServer({ aggregations: [aggregation('completed')], postStatus: 200 })
     const wrapper = await mountRun(server)
-    await wrapper.get(`#aggregate-${EXEC_C}`).setValue(false)
+    await wrapper.get(`#aggregate-${EXEC_C}`).setValue(true)
     await wrapper.get('.aggregations-form').trigger('submit')
     await waitFor(() => expect(wrapper.find('.aggregations-reused').exists()).toBe(true))
-    expect((wrapper.get(`#aggregate-${EXEC_C}`).element as HTMLInputElement).checked).toBe(false)
+    expect((wrapper.get(`#aggregate-${EXEC_C}`).element as HTMLInputElement).checked).toBe(true)
     const attempt = wrapper.vm.$router.push('/')
     await flushPromises()
     expect(document.querySelector('.draft-leave-panel')).toBeNull()
@@ -319,7 +356,7 @@ describe.each(['de', 'en'] as const)('aggregation in %s', (locale: AppLocale) =>
       }),
     })
     const wrapper = await mountRun(server)
-    await wrapper.get(`#aggregate-${EXEC_C}`).setValue(false)
+    await wrapper.get(`#aggregate-${EXEC_C}`).setValue(true)
     await wrapper.get('.aggregations-form').trigger('submit')
     await waitFor(() => expect(server.posts).toHaveLength(1))
     await wrapper.get(`#aggregate-${EXEC_B}`).setValue(false)
@@ -331,7 +368,7 @@ describe.each(['de', 'en'] as const)('aggregation in %s', (locale: AppLocale) =>
     await attempt
     expect(wrapper.vm.$route.path).toBe(runPath)
     expect((wrapper.get(`#aggregate-${EXEC_B}`).element as HTMLInputElement).checked).toBe(false)
-    expect(server.posts[0]?.method_execution_ids).toEqual([EXEC_A, EXEC_B])
+    expect(server.posts[0]?.method_execution_ids).toEqual([EXEC_A, EXEC_B, EXEC_C])
     wrapper.unmount()
   })
 })

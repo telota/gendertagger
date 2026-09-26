@@ -13,20 +13,20 @@ This is an operational surface: success means correct orientation and predictabl
 
 ## Content ownership
 
-| Content | Owner and behavior |
-|---|---|
-| Location | Private navigation uses breadcrumbs for the authorized project or application destination. Public pages use the home brand and their own page heading. |
-| Project switching | Sidebar, above project destinations, on readable project routes. Global pages use Projects. |
-| Account identity | Header button shows the full display name; its menu contains Personal settings and Sign out. |
-| Mobile navigation | Eligible signed-in sessions get the sidebar drawer trigger. Public sessions have no empty drawer. |
-| Product identity | Sidebar brand for private navigation; a header home link names `gendertagger` for public/session-access pages. |
-| Language, theme, desktop collapse | Eligible sessions use the sidebar footer. Public/session-access pages keep language and theme in a compact header; collapse is unavailable there. Preference persistence is unchanged. |
-| Page title, filters, actions, editable inputs | Relevant view; one H1 per page. |
-| Snapshot, run, aggregation, evaluation/export provenance | Relevant view; no persistent scientific identifier chain in the header. |
-| Person and annotation context | Review/person detail keeps TEI identity, evidence, decisions and history together. |
-| Working aggregation | Project overview owns selection; navigation retains the explicit URL/working-pointer rules of ADR-0035. |
-| Session initialization, retry and logout failure | Header account area; existing recovery dialog owns mid-task authentication. |
-| Progress, save errors, conflicts and partial results | The view or control performing the operation. |
+| Content                                                  | Owner and behavior                                                                                                                                                                     |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Location                                                 | Private navigation uses breadcrumbs for the authorized project or application destination. Public pages use the home brand and their own page heading.                                 |
+| Project switching                                        | Sidebar, above project destinations, on readable project routes. Global pages use Projects.                                                                                            |
+| Account identity                                         | Header button shows the full display name; its menu contains Personal settings and Sign out.                                                                                           |
+| Mobile navigation                                        | Eligible signed-in sessions get the sidebar drawer trigger. Public sessions have no empty drawer.                                                                                      |
+| Product identity                                         | Sidebar brand for private navigation; a header home link names `gendertagger` for public/session-access pages.                                                                         |
+| Language, theme, desktop collapse                        | Eligible sessions use the sidebar footer. Public/session-access pages keep language and theme in a compact header; collapse is unavailable there. Preference persistence is unchanged. |
+| Page title, filters, actions, editable inputs            | Relevant view; one H1 per page.                                                                                                                                                        |
+| Snapshot, run, aggregation, evaluation/export provenance | Relevant view; no persistent scientific identifier chain in the header.                                                                                                                |
+| Person and annotation context                            | Review/person detail keeps TEI identity, evidence, decisions and history together.                                                                                                     |
+| Working aggregation                                      | Project overview owns selection (ADR-0035); task pickers mark it as recommended without automatic selection. Scientific task context stays in the selected view. |
+| Session initialization, retry and logout failure         | Header account area; existing recovery dialog owns mid-task authentication.                                                                                                            |
+| Progress, save errors, conflicts and partial results     | The view or control performing the operation.                                                                                                                                          |
 
 No new search, notifications, job centre, status summary, avatar or project selector is introduced in the
 header. Account settings remain distinct from administrative branding settings.
@@ -37,15 +37,15 @@ Use real navigable ancestry, limited to resources already identified by the rout
 the current destination is ordinary text with `aria-current="page"`. Separators are decorative. Names
 wrap, including long German project and account names, without requiring hover to read them.
 
-| Route family | Breadcrumb example |
-|---|---|
-| Signed-in global destination | Projects, Personal settings, Accounts, Legal notice, or the relevant destination |
-| Project overview | Full project name |
-| Review, people, import, aggregation, membership | Project name › Current destination |
-| Snapshot runs, evaluations, exports | Project name › Current collection |
-| Run detail | Project name › Runs › Run |
-| Evaluation/export detail | Project name › Evaluations/Exports › Evaluation/Export |
-| Management-only membership | Projects › Project membership |
+| Route family                                    | Breadcrumb example                                                               |
+| ----------------------------------------------- | -------------------------------------------------------------------------------- |
+| Signed-in global destination                    | Projects, Personal settings, Accounts, Legal notice, or the relevant destination |
+| Project overview                                | Full project name                                                                |
+| Review, people, import, aggregation, membership | Project name › Current destination                                               |
+| Snapshot runs, evaluations, exports             | Project name › Current collection                                                |
+| Run detail                                      | Project name › Runs › Run                                                        |
+| Evaluation/export detail                        | Project name › Evaluations/Exports › Evaluation/Export                           |
+| Management-only membership                      | Projects › Project membership                                                    |
 
 The run parent comes from the route's snapshot identifier; evaluation/export parents use its run
 identifier. Review and aggregation routes do not fetch a run or snapshot merely to lengthen the trail.
@@ -59,7 +59,11 @@ successful matching response with a readable project role supplies the name. The
 share this source. A new route/account, pending request or failed query cannot display a previous
 project's name. A transient failure offers Retry; forbidden/missing context offers Projects without
 inferring why the API denied access. A management-only membership route retains generic scope and does
-not imply that membership access itself failed. No managed-project pagination is added for decoration.
+not imply that membership access itself failed. On the membership route, the shared membership-state
+read establishes management authority and any ordinary project role before the shell requests readable
+project identity. Management alone exposes a Members destination without scientific project navigation.
+Members has its own active state; it never highlights Overview. No managed-project pagination is added
+for decoration.
 
 Project alternatives use the first server-ordered page of `useProjectList`, with loading, empty and
 retry states. The Projects destination directly above the switcher opens the full list; the quick menu
@@ -93,16 +97,18 @@ saves remain dirty. Departed/discarded views ignore late results that would rest
 Submitted jobs and saved decisions remain persisted. Leaving an active bulk review stops subsequent
 people after the current submission; it does not abort or roll back the current write. Ordinary query
 and hash changes retain their existing navigation semantics. Same-person review filter refreshes keep
-the detail mounted; deliberate query-based person/queue changes and browser tab closure are outside this
-path-navigation guard's scope.
+the detail mounted. Changing or clearing the selected person in a review query also prompts before
+discarding its draft, including queue changes that clear the selection. Browser tab closure remains
+outside this in-application navigation guard's scope.
 
 ## Responsive composition and verification
 
 An eligible session (`canUsePrivateNavigation`) uses the sidebar and breadcrumb header. Signed-out,
 unresolved, failed-session and password-change-required states use the full content width without a
 sidebar or drawer trigger. Their header contains the home brand, account/sign-in/session feedback and
-the existing preference controls in a compact horizontal presentation. On the signed-out home page, the
-primary page button provides sign-in; the header omits its duplicate link and empty account slot. Other
+the existing preference controls in a compact horizontal presentation. On the signed-out home page, an inline sign-in form (username, password, submit; success continues to
+the projects, or to the forced password change) replaces the header link, and the header omits its
+duplicate link and empty account slot. The login page omits the header link as well. Other
 public pages retain the header sign-in entry, and session loading/error feedback remains available on
 every route. At narrow widths the preferences
 wrap into a full-width second row. Menus open downward; temporary and anonymous preference behavior is

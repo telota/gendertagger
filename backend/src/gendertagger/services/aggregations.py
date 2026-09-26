@@ -9,6 +9,7 @@ from gendertagger.models.aggregation import (
     AggregationCreateRequest,
     AggregationExecution,
     AggregationExecutionCreate,
+    AggregationExecutionListFilter,
     AggregationTaskMessage,
     ResultMethodPrediction,
 )
@@ -20,6 +21,7 @@ from gendertagger.services.pagination import (
     CursorCodec,
     InvalidCursorError,
     decode_creation_position,
+    filtered_collection_resource,
     newest_first_page,
 )
 from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
@@ -98,12 +100,14 @@ class AggregationService:
         *,
         limit: int,
         cursor: str | None,
+        filters: AggregationExecutionListFilter | None = None,
     ) -> CursorPage[AggregationExecution]:
         """Return one newest-first opaque-cursor page of a run's aggregations."""
         if limit <= 0:
             msg = "limit must be positive"
             raise ValueError(msg)
-        resource = f"run_aggregations:{run_id}"
+        filters = filters or AggregationExecutionListFilter()
+        resource = filtered_collection_resource(f"run_aggregations:{run_id}", filters)
         after = decode_creation_position(self._cursor_codec, cursor, resource=resource)
         with self._unit_of_work_factory() as unit_of_work:
             if unit_of_work.runs.get_run(run_id) is None:
@@ -113,6 +117,7 @@ class AggregationService:
                 run_id,
                 limit=limit + 1,
                 after=after,
+                filters=filters,
             )
         return newest_first_page(self._cursor_codec, aggregations, limit=limit, resource=resource)
 

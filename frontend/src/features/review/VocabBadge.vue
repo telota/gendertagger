@@ -29,8 +29,8 @@ const labelClass = computed(() =>
 <template>
   <span class="vocab" :class="labelClass">
     <template v-if="value">
-      <span class="vocab-token">{{ value }}</span>
-      <span v-if="gloss" class="vocab-gloss">{{ gloss }}</span>
+      <span class="vocab-token">{{ value }}</span
+      >{{ ' ' }}<span v-if="gloss" class="vocab-gloss">{{ gloss }}</span>
     </template>
     <template v-else>
       <span aria-hidden="true">{{ DASH }}</span>

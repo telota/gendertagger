@@ -28,7 +28,7 @@ def list_review_items(
     service: Annotated[ReviewItemService, Depends(get_review_item_service)],
     access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
 ) -> CursorPage[ReviewItem]:
-    """List one aggregation's candidates using explicit server-side filters."""
+    """List aggregation candidates with server-side filters, including exact TEI identity."""
     access.require(ProjectScope.aggregation, query.aggregation_id, ProjectRole.viewer)
     try:
         return service.list_review_items(query)

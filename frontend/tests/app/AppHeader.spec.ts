@@ -37,23 +37,25 @@ afterEach(() => {
 describe.each(['de', 'en'] as const)('AppHeader in %s', (locale: AppLocale) => {
   const messages = catalogues[locale].header
 
-  it('uses the main home sign-in action and restores the header link on other public pages', async () => {
+  it('uses the main home sign-in form and restores the header link on other public pages', async () => {
     const wrapper = await mountApplicationAt('/', locale, apiClientWithRoutes(NOT_SIGNED_IN))
     await flushPromises()
 
     expect(wrapper.find('header a[href="/login"]').exists()).toBe(false)
-    expect(wrapper.get('main a[href="/login"]').text()).toBe(catalogues[locale].home.guest.signIn)
-    expect(wrapper.find('aside').exists()).toBe(false)
+    expect(wrapper.get('main form button[type="submit"]').text()).toBe(
+      catalogues[locale].login.submit,
+    )
+    expect(wrapper.find('.app-sidebar').exists()).toBe(false)
     expect(wrapper.find('.app-header-navigation').exists()).toBe(false)
     expect(wrapper.get('.app-header-brand').attributes('href')).toBe('/')
-    expect(wrapper.findAll('a[href="/login"]')).toHaveLength(1)
+    expect(wrapper.findAll('a[href="/login"]')).toHaveLength(0)
 
     await wrapper.vm.$router.push('/impressum')
     await waitFor(() => expect(wrapper.get('header a[href="/login"]').text()).toBe(messages.signIn))
     await wrapper.vm.$router.push('/')
-    await waitFor(() => expect(wrapper.find('main a[href="/login"]').exists()).toBe(true))
+    await waitFor(() => expect(wrapper.find('main form').exists()).toBe(true))
     expect(wrapper.find('header a[href="/login"]').exists()).toBe(false)
-    expect(wrapper.findAll('a[href="/login"]')).toHaveLength(1)
+    expect(wrapper.findAll('a[href="/login"]')).toHaveLength(0)
     wrapper.unmount()
   })
 
@@ -69,8 +71,12 @@ describe.each(['de', 'en'] as const)('AppHeader in %s', (locale: AppLocale) => {
     )
     await flushPromises()
 
-    expect(wrapper.find('aside').exists()).toBe(true)
+    expect(wrapper.find('.app-sidebar').exists()).toBe(true)
     expect(wrapper.find('.app-header-brand').exists()).toBe(false)
+    expect(wrapper.find('.app-header-location').exists()).toBe(false)
+    expect(wrapper.get('header').text()).not.toContain(catalogues[locale].app.title)
+    await wrapper.vm.$router.push('/settings')
+    await waitFor(() => expect(wrapper.get('.app-header-location').text()).toBe(messages.settings))
     expect(wrapper.find('header [aria-haspopup="listbox"]').exists()).toBe(false)
     expect(wrapper.get('header .account-menu-button').text()).toBe('Reviewer One')
     await wrapper.get('header .account-menu-button').trigger('click')
@@ -92,6 +98,11 @@ describe.each(['de', 'en'] as const)('AppHeader in %s', (locale: AppLocale) => {
         '/api/v1/admin/users': { body: { items: [], has_more: false, next_cursor: null } },
       }),
     )
+    const addUser = catalogues[locale].admin.creation.open
+    const addButton = () =>
+      wrapper.findAll('main button').find((button) => button.text() === addUser)
+    await waitFor(() => expect(addButton()).toBeDefined())
+    await addButton()?.trigger('click')
     await waitFor(() => expect(wrapper.find('#admin-user-create-display-name').exists()).toBe(true))
     await wrapper.get('#admin-user-create-display-name').setValue('Unsaved account')
     const trigger = wrapper.get<HTMLButtonElement>('header .account-menu-button')
@@ -133,9 +144,9 @@ describe.each(['de', 'en'] as const)('AppHeader in %s', (locale: AppLocale) => {
     )
     await flushPromises()
     await wrapper.get('header .account-menu-button').trigger('click')
-    expect(wrapper.find('a[href="/settings"]').exists()).toBe(false)
+    expect(wrapper.find('header a[href="/settings"]').exists()).toBe(false)
     expect(wrapper.get('header button[role="menuitem"]').text()).toBe(messages.signOut)
-    expect(wrapper.find('aside').exists()).toBe(false)
+    expect(wrapper.find('.app-sidebar').exists()).toBe(false)
     expect(wrapper.find('.app-header-navigation').exists()).toBe(false)
     expect(wrapper.findAll('header [aria-haspopup="listbox"]')).toHaveLength(2)
   })
@@ -158,8 +169,10 @@ describe.each(['de', 'en'] as const)('AppHeader in %s', (locale: AppLocale) => {
     await flushPromises()
 
     expect(wrapper.find('header a[href="/login"]').exists()).toBe(false)
-    expect(wrapper.get('main a[href="/login"]').text()).toBe(catalogues[locale].home.guest.signIn)
-    expect(wrapper.find('aside').exists()).toBe(false)
+    expect(wrapper.get('main form button[type="submit"]').text()).toBe(
+      catalogues[locale].login.submit,
+    )
+    expect(wrapper.find('.app-sidebar').exists()).toBe(false)
     expect(wrapper.find('.app-header-navigation').exists()).toBe(false)
     expect(wrapper.get('.app-header-brand').text()).toBe(catalogues[locale].app.title)
     expect(wrapper.findAll('header [aria-haspopup="listbox"]')).toHaveLength(2)
@@ -169,8 +182,10 @@ describe.each(['de', 'en'] as const)('AppHeader in %s', (locale: AppLocale) => {
     const wrapper = await mountApplicationAt('/', locale, apiClientWithRoutes(NOT_SIGNED_IN))
     await flushPromises()
     expect(wrapper.find('header a[href="/login"]').exists()).toBe(false)
-    expect(wrapper.get('main a[href="/login"]').text()).toBe(catalogues[locale].home.guest.signIn)
-    expect(wrapper.find('aside').exists()).toBe(false)
+    expect(wrapper.get('main form button[type="submit"]').text()).toBe(
+      catalogues[locale].login.submit,
+    )
+    expect(wrapper.find('.app-sidebar').exists()).toBe(false)
     expect(wrapper.findAll('header [aria-haspopup="listbox"]')).toHaveLength(2)
     expect(wrapper.get('header [data-preference="locale"] button').attributes('aria-label')).toBe(
       catalogues[locale].locale.label,
@@ -205,7 +220,7 @@ describe.each(['de', 'en'] as const)('AppHeader in %s', (locale: AppLocale) => {
 
     expect(wrapper.get('header').text()).toContain(messages.serverError)
     expect(wrapper.find('header a[href="/login"]').exists()).toBe(false)
-    expect(wrapper.find('aside').exists()).toBe(false)
+    expect(wrapper.find('.app-sidebar').exists()).toBe(false)
     expect(wrapper.find('.app-header-navigation').exists()).toBe(false)
     expect(wrapper.findAll('header [aria-haspopup="listbox"]')).toHaveLength(2)
   })
@@ -241,7 +256,9 @@ describe.each(['de', 'en'] as const)('AppHeader in %s', (locale: AppLocale) => {
     await flushPromises()
 
     expect(wrapper.find('header a[href="/login"]').exists()).toBe(false)
-    expect(wrapper.get('main a[href="/login"]').text()).toBe(catalogues[locale].home.guest.signIn)
+    expect(wrapper.get('main form button[type="submit"]').text()).toBe(
+      catalogues[locale].login.submit,
+    )
     expect(wrapper.find('aside footer a[href="/settings"]').exists()).toBe(false)
   })
 })

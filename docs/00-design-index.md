@@ -28,4 +28,5 @@
 | [`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md) | Visual system, scientific-vocabulary rendering, states, and accessibility |
 | [`26-frontend-coding-guidelines.md`](26-frontend-coding-guidelines.md) | Vue 3 + TypeScript conventions, boundaries, testing, and validation |
 | [`27-frontend-improvement-plan.md`](27-frontend-improvement-plan.md) | Shared foundations, per-view improvements, header content design, sidebar sequencing, and verification |
+| [`28-aggregation-workflow-plan.md`](28-aggregation-workflow-plan.md) | Proposed automatic aggregation, reusable configuration, terminology, and reviewed-export implementation |
 | [Architecture Decision Records](decisions/) | Accepted decisions and ADR template |

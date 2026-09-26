@@ -70,8 +70,12 @@ export function provideDraftNavigation(): DraftNavigation {
 
   const approved = new WeakMap<RouteLocationNormalized, Draft[]>()
   const removeGuard = router.beforeEach(async (to, from) => {
-    // Queries hold ordinary queue/filter state. Route paths include project and run parameters.
-    if (to.path === from.path) return true
+    // Evidence workbenches select a person in the query; raw annotation uses a path parameter.
+    // Filter-only changes keep the same mounted person's draft and do not need confirmation.
+    const personChanged =
+      (from.name === 'review' || from.name === 'people') &&
+      JSON.stringify(to.query.person ?? null) !== JSON.stringify(from.query.person ?? null)
+    if (to.path === from.path && !personChanged) return true
     const forcedAuthentication =
       (to.name === 'login' && !session.isSignedIn) ||
       (to.name === 'changePassword' && session.mustChangePassword)

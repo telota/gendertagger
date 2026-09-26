@@ -70,6 +70,17 @@ describe.each(['de', 'en'] as const)('person browser in %s', (locale: AppLocale)
     expect(wrapper.find('#review-method').exists()).toBe(false)
   })
 
+  it('returns a read-only viewer to available project data when changing the selection', async () => {
+    const wrapper = await mountPeople(newServer({ role: 'viewer' }))
+    try {
+      expect(wrapper.get('.review-heading-row a').attributes('href')).toBe(
+        `/projects/${PROJECT_ID}/snapshots`,
+      )
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('finds a person by an authority id, other name or TEI id, all through the server search', async () => {
     const server = newServer()
     const wrapper = await mountPeople(server)

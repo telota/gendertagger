@@ -45,8 +45,10 @@ from gendertagger.models.person import ImportedPerson, PersonInput, PersonRecord
 from gendertagger.models.project import (
     DatasetSnapshot,
     DatasetSnapshotCreate,
+    DatasetSnapshotStatistics,
     Project,
     ProjectCreate,
+    SnapshotGndStatistics,
     SnapshotImportConfig,
     SnapshotImportLimits,
     SnapshotSourceMemberCreate,
@@ -249,6 +251,24 @@ def seed_pending_snapshot(
     return snapshot
 
 
+def legacy_snapshot_statistics(
+    snapshot_id: UUID,
+    people: Sequence[PersonInput],
+) -> DatasetSnapshotStatistics:
+    """Build exact GND coverage when synthetic seeds have no source-gender facts."""
+    with_gnd_count = sum(person.gnd_id is not None for person in people)
+    return DatasetSnapshotStatistics(
+        dataset_snapshot_id=snapshot_id,
+        total_person_count=len(people),
+        source_gender=None,
+        gnd=SnapshotGndStatistics(
+            with_reference_count=with_gnd_count,
+            without_reference_count=len(people) - with_gnd_count,
+            with_reference_and_source_gender_count=None,
+        ),
+    )
+
+
 def seed_ready_snapshot(
     repositories: SeedRepositories,
     project_id: UUID,
@@ -281,7 +301,11 @@ def seed_ready_snapshot(
                 for position, person in enumerate(people, start=1)
             ],
         )
-    return repositories.projects.complete_snapshot_import(snapshot.id, ready_at=ready_at)
+    return repositories.projects.complete_snapshot_import(
+        snapshot.id,
+        statistics=legacy_snapshot_statistics(snapshot.id, people),
+        ready_at=ready_at,
+    )
 
 
 def seed_run(

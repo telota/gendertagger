@@ -6,6 +6,30 @@ The browse/game interface is an annotation client. It is not a second datastore 
 
 The UI reads candidates from FastAPI and writes annotations through FastAPI.
 
+## Annotation before classification
+
+A successfully imported snapshot can be annotated before any classification has run. The canonical
+`GET /api/v1/snapshots/{snapshot_id}/annotation-items` collection projects every imported person and
+their current human decision as `SnapshotAnnotationItem`. It returns name and identity fields,
+`workflow_state`, `review_revision`, `current_annotation_id`, `review_action`, and `human_label`.
+It does not invent machine labels, confidence, or certainty for unclassified data. A person without an
+annotation has revision zero, state `unreviewed`, and null decision fields; a deferred head has a null
+human label, preserving the distinction between a workflow decision and the `unknown` gender label.
+
+The collection supports case-insensitive `q` search across TEI identifier and names, repeated
+`workflow_states`, and an optional `human_label`. Results use stable `(tei_id, person_record_id)`
+ordering and cursor pagination; the cursor binds the snapshot and every filter. Changes to review
+state can change membership in a filtered query, but never its sort key. Clients reload a filtered
+list after appending a decision. `GET /api/v1/snapshots/{snapshot_id}/annotation-items/{tei_id}` reads
+an exact record even when it is outside the current page. Both resources require a ready snapshot and
+ordinary project read access.
+
+Writes use the existing `POST /api/v1/annotations` command and reviewer permission, leaving
+`aggregated_result_id` unset when there is no machine evidence. Manual label selection is a `correct`
+action; machine verification is offered only when a machine result is present. Optional classification
+evidence does not create a separate review stream: decisions and revisions belong to the same person
+in the same snapshot, regardless of the selected run. A different snapshot has its own stream.
+
 ## Review queue
 
 Triage is ordered on the server, not in the browser. `GET /api/v1/review-items` accepts `sort=uncertainty`

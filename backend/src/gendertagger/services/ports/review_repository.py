@@ -14,6 +14,8 @@ from gendertagger.models.review import (
     ReviewItemQuery,
     ReviewState,
     ReviewSummaryGroup,
+    SnapshotAnnotationItem,
+    SnapshotAnnotationItemQuery,
 )
 
 
@@ -57,6 +59,21 @@ class ReviewRepository(Protocol):
 
     def get_annotation_history(self, snapshot_id: UUID, tei_id: str) -> AnnotationHistory | None:
         """Return the review state and attributed annotation chain, or ``None`` for an absent person."""
+        ...
+
+    def list_annotation_items(
+        self,
+        snapshot_id: UUID,
+        query: SnapshotAnnotationItemQuery,
+        *,
+        limit: int,
+        after: ReviewItemCursor | None = None,
+    ) -> Sequence[SnapshotAnnotationItem]:
+        """Return a filtered snapshot slice in stable TEI identifier order."""
+        ...
+
+    def get_annotation_item(self, snapshot_id: UUID, tei_id: str) -> SnapshotAnnotationItem | None:
+        """Return one snapshot's imported person and current human decision, if present."""
         ...
 
     def list_review_items(

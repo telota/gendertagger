@@ -8,8 +8,15 @@ from pydantic import JsonValue
 from gendertagger.domain.review_triage import review_triage_rank
 from gendertagger.models.api import CursorPage
 from gendertagger.models.common import canonical_json_sha256
-from gendertagger.models.lifecycle import AggregationExecutionStatus
-from gendertagger.models.review import ReviewItem, ReviewItemQuery, ReviewItemSort, ReviewSummary
+from gendertagger.models.lifecycle import AggregationExecutionStatus, DatasetSnapshotStatus
+from gendertagger.models.review import (
+    ReviewItem,
+    ReviewItemQuery,
+    ReviewItemSort,
+    ReviewSummary,
+    SnapshotAnnotationItem,
+    SnapshotAnnotationItemQuery,
+)
 from gendertagger.services.pagination import CursorCodec, InvalidCursorError
 from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
@@ -20,7 +27,7 @@ from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 
 
 class ReviewItemService:
-    """Query one completed aggregation through explicit server-side filters."""
+    """Query snapshot annotation records and completed aggregation review candidates."""
 
     def __init__(
         self,
@@ -31,6 +38,55 @@ class ReviewItemService:
         self._unit_of_work_factory = unit_of_work_factory
         self._cursor_codec = cursor_codec
 
+    def list_annotation_items(
+        self, snapshot_id: UUID, query: SnapshotAnnotationItemQuery
+    ) -> CursorPage[SnapshotAnnotationItem]:
+        """Return a filter-scoped page of imported people and current human decisions."""
+        self._require_ready_snapshot(snapshot_id)
+        filter_sha256 = canonical_json_sha256(
+            cast(JsonValue, query.model_dump(mode="json", exclude={"cursor", "limit"}))
+        )
+        resource = f"snapshot_annotation_items:{snapshot_id}:{filter_sha256}"
+        after = None
+        if query.cursor is not None:
+            position = self._cursor_codec.decode(query.cursor, expected_resource=resource)
+            after = ReviewItemCursor(tei_id=position.sort_values[0], person_record_id=position.id)
+        with self._unit_of_work_factory() as unit_of_work:
+            records = unit_of_work.reviews.list_annotation_items(
+                snapshot_id, query, limit=query.limit + 1, after=after
+            )
+        has_more = len(records) > query.limit
+        items = list(records[: query.limit])
+        next_cursor = None
+        if has_more:
+            last_item = items[-1]
+            next_cursor = self._cursor_codec.encode(
+                resource=resource,
+                sort_values=(last_item.tei_id,),
+                resource_id=last_item.person_record_id,
+            )
+        return CursorPage(items=items, next_cursor=next_cursor, has_more=has_more)
+
+    def get_annotation_item(self, snapshot_id: UUID, tei_id: str) -> SnapshotAnnotationItem:
+        """Read one imported person's decision, including records outside the current page."""
+        self._require_ready_snapshot(snapshot_id)
+        with self._unit_of_work_factory() as unit_of_work:
+            item = unit_of_work.reviews.get_annotation_item(snapshot_id, tei_id)
+        if item is None:
+            msg = f"person {tei_id!r} does not exist in snapshot {snapshot_id}"
+            raise ResourceNotFoundError(msg)
+        return item
+
+    def _require_ready_snapshot(self, snapshot_id: UUID) -> None:
+        with self._unit_of_work_factory() as unit_of_work:
+            snapshot = unit_of_work.projects.get_snapshot(snapshot_id)
+        if snapshot is None:
+            msg = f"dataset snapshot {snapshot_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        if snapshot.status is not DatasetSnapshotStatus.ready:
+            msg = f"dataset snapshot {snapshot_id} is not ready"
+            raise InvalidResourceStateError(msg)
+
     def list_review_items(self, query: ReviewItemQuery) -> CursorPage[ReviewItem]:
         """Return one filter- and sort-scoped opaque-cursor page.
 
@@ -38,9 +94,13 @@ class ReviewItemService:
         minted under one review query is never continued under another.
         """
         self._require_completed_aggregation(query.aggregation_id)
+        excluded_fields = {"cursor", "limit"}
+        if query.tei_id is None:
+            # Preserve cursors issued before exact identity filtering was available.
+            excluded_fields.add("tei_id")
         filter_payload = cast(
             JsonValue,
-            query.model_dump(mode="json", exclude={"cursor", "limit"}),
+            query.model_dump(mode="json", exclude=excluded_fields),
         )
         filter_sha256 = canonical_json_sha256(filter_payload)
         resource = f"review_items:{query.aggregation_id}:{filter_sha256}"

@@ -13,9 +13,11 @@ from gendertagger.models.aggregation import (
     AggregatedResult,
     AggregationCreateRequest,
     AggregationExecution,
+    AggregationExecutionListFilter,
     ResultMethodPrediction,
 )
 from gendertagger.models.api import CursorPage
+from gendertagger.models.lifecycle import AggregationExecutionStatus
 from gendertagger.models.user import ProjectRole
 from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.pagination import InvalidCursorError
@@ -73,11 +75,17 @@ def list_aggregations(
     access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
     cursor: Annotated[str | None, Query(max_length=2048)] = None,
+    aggregation_status: Annotated[AggregationExecutionStatus | None, Query(alias="status")] = None,
 ) -> CursorPage[AggregationExecution]:
-    """List a run's aggregations newest first, in every lifecycle state."""
+    """List a run's aggregations newest first with an optional lifecycle filter."""
     access.require(ProjectScope.run, run_id, ProjectRole.viewer)
     try:
-        return service.list_aggregations(run_id, limit=limit, cursor=cursor)
+        return service.list_aggregations(
+            run_id,
+            limit=limit,
+            cursor=cursor,
+            filters=AggregationExecutionListFilter(status=aggregation_status),
+        )
     except ResourceNotFoundError as error:
         raise _not_found() from error
     except InvalidCursorError as error:

@@ -6,6 +6,7 @@ import AppButton from '@/components/base/AppButton.vue'
 import AppTextField from '@/components/base/AppTextField.vue'
 import { useSessionStore } from '@/stores/session'
 
+import { signInDestination } from './signInDestination'
 import { useLoginForm } from './useLoginForm'
 
 const { t } = useI18n()
@@ -30,11 +31,7 @@ function redirectTarget(): string {
 async function submit(): Promise<void> {
   const succeeded = await attemptLogin()
   if (succeeded) {
-    await router.push(
-      session.mustChangePassword
-        ? { name: 'changePassword', query: { redirect: redirectTarget() } }
-        : redirectTarget(),
-    )
+    await router.push(signInDestination(session.mustChangePassword, redirectTarget()))
   }
 }
 </script>

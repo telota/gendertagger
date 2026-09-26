@@ -149,6 +149,85 @@ class ReviewItemSort(StrEnum):
     tei_id = "tei_id"
 
 
+class SnapshotAnnotationItemQuery(BaseModel):
+    """Server-side filters and cursor controls for one snapshot's annotation records."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    workflow_states: tuple[ReviewWorkflowState, ...] = Field(
+        default=(),
+        description="Match people in any of these review states; empty matches every state.",
+    )
+    human_label: CanonicalLabel | None = None
+    q: str | None = Field(default=None, min_length=1, max_length=200)
+    limit: int = Field(default=100, ge=1, le=200)
+    cursor: str | None = Field(default=None, min_length=1, max_length=2048)
+
+    @field_validator("workflow_states")
+    @classmethod
+    def _order_alternatives(
+        cls, values: tuple[ReviewWorkflowState, ...]
+    ) -> tuple[ReviewWorkflowState, ...]:
+        if len(set(values)) != len(values):
+            msg = "filter values must not repeat"
+            raise ValueError(msg)
+        return tuple(sorted(values, key=_vocabulary_position))
+
+    @field_validator("q")
+    @classmethod
+    def _normalize_query(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            msg = "q must not be blank"
+            raise ValueError(msg)
+        return normalized
+
+
+class SnapshotAnnotationItem(BaseModel):
+    """Imported person and current human decision, independent of classification results."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    snapshot_id: UUID
+    person_record_id: UUID
+    tei_id: str
+    surname: str | None = None
+    forenames: list[str] = Field(default_factory=list)
+    workflow_state: ReviewWorkflowState
+    review_revision: int = Field(ge=0)
+    current_annotation_id: UUID | None = None
+    review_action: ReviewAction | None = None
+    human_label: CanonicalLabel | None = None
+
+    @model_validator(mode="after")
+    def _validate_decision(self) -> Self:
+        ReviewState(
+            snapshot_id=self.snapshot_id,
+            person_record_id=self.person_record_id,
+            tei_id=self.tei_id,
+            revision=self.review_revision,
+            workflow_state=self.workflow_state,
+            current_annotation_id=self.current_annotation_id,
+        )
+        if self.review_action is None:
+            if self.review_revision != 0 or self.human_label is not None:
+                msg = "a missing decision requires an unannotated stream without a human label"
+                raise ValueError(msg)
+        else:
+            _validate_review_action_label(self.review_action, self.human_label)
+            expected_state = (
+                ReviewWorkflowState.deferred
+                if self.review_action is ReviewAction.defer
+                else ReviewWorkflowState.reviewed
+            )
+            if self.workflow_state is not expected_state:
+                msg = "the annotation action must match the workflow state"
+                raise ValueError(msg)
+        return self
+
+
 class ReviewItemQuery(BaseModel):
     """Server-side filters, ordering, and cursor controls for one aggregation.
 
@@ -160,6 +239,11 @@ class ReviewItemQuery(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     aggregation_id: UUID
+    tei_id: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Exact, case-sensitive TEI xml:id within the aggregation's snapshot.",
+    )
     final_label: CanonicalLabel | None = None
     certainty_tiers: tuple[CertaintyTier, ...] = Field(
         default=(),
@@ -182,6 +266,14 @@ class ReviewItemQuery(BaseModel):
     sort: ReviewItemSort = ReviewItemSort.uncertainty
     limit: int = Field(default=100, ge=1, le=200)
     cursor: str | None = Field(default=None, min_length=1, max_length=2048)
+
+    @field_validator("tei_id")
+    @classmethod
+    def _validate_tei_id(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            msg = "tei_id must not be blank"
+            raise ValueError(msg)
+        return value
 
     @field_validator("certainty_tiers", "agreement_tiers", "workflow_states")
     @classmethod

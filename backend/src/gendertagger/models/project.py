@@ -19,6 +19,15 @@ PROJECT_SLUG_PATTERN = r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
 SOURCE_MEMBER_LOGICAL_NAME_MAX_LENGTH = 1024
 
 
+class DatasetSnapshotListFilter(BaseModel):
+    """Lifecycle and completed-result filters for a project's snapshots."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status: DatasetSnapshotStatus | None = None
+    has_completed_aggregations: bool | None = None
+
+
 class TeiImportProfile(StrEnum):
     """Supported TEI extraction profile persisted with a snapshot import."""
 
@@ -294,6 +303,23 @@ class AccessibleProject(Project):
     current_user_can_manage_members: bool
 
 
+class ProjectDataAvailability(BaseModel):
+    """Project-scoped existence of imported data and completed classification results."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    project_id: UUID
+    has_ready_snapshots: bool = Field(
+        description="Whether this project contains at least one successfully imported snapshot."
+    )
+    has_completed_aggregations: bool = Field(
+        description=(
+            "Whether any run of this project's snapshots has a completed aggregation, "
+            "independent of the run's status and the project's working-aggregation pointer."
+        )
+    )
+
+
 class ManagedProjectSummary(BaseModel):
     """Management-only project identity for a caller assigned as its current manager."""
 
@@ -429,5 +455,92 @@ class DatasetSnapshot(DatasetSnapshotCreate):
             raise ValueError(msg)
         if self.record_count is not None:
             msg = "only a ready snapshot may have record_count"
+            raise ValueError(msg)
+        return self
+
+
+class SnapshotSourceGenderStatistics(BaseModel):
+    """Person-level coverage and values of direct source ``gender`` elements."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    with_element_count: int = Field(ge=0)
+    without_element_count: int = Field(ge=0)
+    male_count: int = Field(ge=0)
+    female_count: int = Field(ge=0)
+    unknown_count: int = Field(ge=0)
+    institution_count: int = Field(ge=0)
+    other_or_multiple_count: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def _validate_distribution(self) -> Self:
+        distribution_count = (
+            self.male_count
+            + self.female_count
+            + self.unknown_count
+            + self.institution_count
+            + self.other_or_multiple_count
+        )
+        if distribution_count != self.with_element_count:
+            msg = "source gender distribution must equal with_element_count"
+            raise ValueError(msg)
+        return self
+
+
+class SnapshotGndStatistics(BaseModel):
+    """Person-level coverage of source-preserved GND references."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    with_reference_count: int = Field(ge=0)
+    without_reference_count: int = Field(ge=0)
+    with_reference_and_source_gender_count: int | None = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def _validate_intersection(self) -> Self:
+        if (
+            self.with_reference_and_source_gender_count is not None
+            and self.with_reference_and_source_gender_count > self.with_reference_count
+        ):
+            msg = "GND and source-gender intersection cannot exceed GND coverage"
+            raise ValueError(msg)
+        return self
+
+
+class DatasetSnapshotStatistics(BaseModel):
+    """Immutable source-inventory statistics for one ready dataset snapshot."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    dataset_snapshot_id: UUID
+    total_person_count: int = Field(ge=0)
+    source_gender: SnapshotSourceGenderStatistics | None = None
+    gnd: SnapshotGndStatistics
+
+    @model_validator(mode="after")
+    def _validate_totals(self) -> Self:
+        if (
+            self.gnd.with_reference_count + self.gnd.without_reference_count
+            != self.total_person_count
+        ):
+            msg = "GND coverage must equal total_person_count"
+            raise ValueError(msg)
+        intersection = self.gnd.with_reference_and_source_gender_count
+        if self.source_gender is None:
+            if intersection is not None:
+                msg = "GND and source-gender intersection requires source gender statistics"
+                raise ValueError(msg)
+            return self
+        if (
+            self.source_gender.with_element_count + self.source_gender.without_element_count
+            != self.total_person_count
+        ):
+            msg = "source gender coverage must equal total_person_count"
+            raise ValueError(msg)
+        if intersection is None:
+            msg = "captured source gender statistics require a GND intersection count"
+            raise ValueError(msg)
+        if intersection > self.source_gender.with_element_count:
+            msg = "GND and source-gender intersection cannot exceed source gender coverage"
             raise ValueError(msg)
         return self

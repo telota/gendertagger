@@ -14,6 +14,7 @@ from gendertagger.models.aggregation import (
     AggregatedResult,
     AggregationExecution,
     AggregationExecutionCreate,
+    AggregationExecutionListFilter,
     AggregationOutcome,
     VoteCounts,
 )
@@ -202,6 +203,7 @@ def test_aggregation_list_route_pages_a_runs_aggregations() -> None:
     assert service.list_aggregations.call_args_list[0].kwargs == {
         "limit": 1,
         "cursor": "previous",
+        "filters": AggregationExecutionListFilter(),
     }
     assert missing.status_code == 404
     assert missing.json()["error"]["code"] == "resource_not_found"

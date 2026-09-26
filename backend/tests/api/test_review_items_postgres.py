@@ -10,6 +10,7 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from tests.factories import tei_person_input
 from tests.seeding import (
+    always_abstain,
     seed_completed_aggregation,
     seed_completed_run,
     seed_member,
@@ -228,6 +229,79 @@ def _tei_ids(response: object) -> list[str]:
     items = response["items"]
     assert isinstance(items, list)
     return [str(item["tei_id"]) for item in items]
+
+
+def test_exact_review_identity_finds_a_person_beyond_the_first_fuzzy_page(
+    postgres_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    unit_of_work_factory, _ = _unit_of_work_factory(postgres_engine)
+    with unit_of_work_factory() as unit_of_work:
+        project = seed_project(unit_of_work, slug_prefix="exact-review")
+        reviewer = seed_member(unit_of_work, project.id)
+        snapshot = seed_ready_snapshot(
+            unit_of_work,
+            project.id,
+            [tei_person_input(tei_id=f"p{index:02d}", surname="zz-target") for index in range(21)]
+            + [tei_person_input(tei_id="zz-target", surname="Exact person")],
+        )
+        completed = seed_completed_run(
+            unit_of_work, snapshot, REFERENCE_REQUIRED_METHODS, always_abstain
+        )
+        aggregation = seed_completed_aggregation(
+            unit_of_work, completed.run.id, completed.execution_ids
+        )
+        unit_of_work.commit()
+    application = create_app(
+        settings=AppSettings(
+            database_url=SecretStr(DATABASE_URL),
+            code_git_commit=CODE_GIT_COMMIT,
+            dependency_lock_sha256=DEPENDENCY_LOCK_SHA256,
+            artifact_root=tmp_path,
+        ),
+        unit_of_work_factory=unit_of_work_factory,
+        authentication_backend=StaticAuthenticationBackend(reviewer.id),
+    )
+    base = {"aggregation_id": str(aggregation.id), "sort": "tei_id", "limit": "20"}
+    with TestClient(application) as client:
+        fuzzy = client.get("/api/v1/review-items", params={**base, "q": "zz-target"})
+        assert fuzzy.status_code == 200
+        assert len(fuzzy.json()["items"]) == 20
+        assert "zz-target" not in _tei_ids(fuzzy.json())
+        assert fuzzy.json()["has_more"] is True
+
+        exact = client.get("/api/v1/review-items", params={**base, "tei_id": "zz-target"})
+        assert exact.status_code == 200
+        assert _tei_ids(exact.json()) == ["zz-target"]
+        assert exact.json()["has_more"] is False
+        assert exact.json()["next_cursor"] is None
+
+        for filters in (
+            {"tei_id": "ZZ-TARGET"},
+            {"tei_id": "target"},
+            {"tei_id": "zz-target", "q": "unmatched"},
+        ):
+            absent = client.get("/api/v1/review-items", params={**base, **filters})
+            assert absent.status_code == 200
+            assert _tei_ids(absent.json()) == []
+
+        continued = client.get(
+            "/api/v1/review-items",
+            params={**base, "q": "zz-target", "cursor": fuzzy.json()["next_cursor"]},
+        )
+        assert continued.status_code == 200
+        assert _tei_ids(continued.json()) == ["p20", "zz-target"]
+        changed_filter = client.get(
+            "/api/v1/review-items",
+            params={
+                **base,
+                "q": "zz-target",
+                "tei_id": "zz-target",
+                "cursor": fuzzy.json()["next_cursor"],
+            },
+        )
+        assert changed_filter.status_code == 422
+        assert changed_filter.json()["error"]["details"] == {"reason": "invalid_cursor"}
 
 
 def test_review_items_project_final_state_and_paginate_stably(

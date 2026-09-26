@@ -313,16 +313,42 @@ export function reviewFetch(server: Server): (request: Request) => Promise<Respo
         created_at: '2026-01-01T11:00:00Z',
       })
     }
+    if (pathname === `/api/v1/runs/${RUN_ID}`) {
+      return jsonResponse({
+        id: RUN_ID,
+        dataset_snapshot_id: SNAPSHOT_ID,
+        created_at: '2026-01-01T10:00:00Z',
+      })
+    }
+    if (pathname === `/api/v1/snapshots/${SNAPSHOT_ID}`) {
+      return jsonResponse({
+        id: SNAPSHOT_ID,
+        project_id: PROJECT_ID,
+        status: 'ready',
+        record_count: 9,
+        created_at: '2026-01-01T09:00:00Z',
+      })
+    }
     if (pathname === `/api/v1/aggregations/${AGG_ID}/review-summary`) return jsonResponse(SUMMARY)
     if (pathname === '/api/v1/review-items') {
       server.requests.push(url.searchParams)
       const cursor = url.searchParams.get('cursor')
+      const teiId = url.searchParams.get('tei_id')
+      if (teiId !== null) {
+        const candidates = [...server.known, ...server.pages.flatMap((page) => page.items)]
+        const exact = candidates.find((entry) => entry.tei_id === teiId)
+        return jsonResponse({ items: exact ? [exact] : [], next_cursor: null, has_more: false })
+      }
       const q = url.searchParams.get('q')
       if (q !== null && server.known.length > 0) {
+        const matching = server.known.filter((entry) =>
+          `${entry.tei_id} ${entry.surname}`.toLowerCase().includes(q.toLowerCase()),
+        )
+        const limit = Number(url.searchParams.get('limit') ?? 50)
         return jsonResponse({
-          items: server.known.filter((i) => i.tei_id === q),
-          next_cursor: null,
-          has_more: false,
+          items: matching.slice(0, limit),
+          next_cursor: matching.length > limit ? 'next-search-page' : null,
+          has_more: matching.length > limit,
         })
       }
       const index = cursor === null ? 0 : Number(cursor)

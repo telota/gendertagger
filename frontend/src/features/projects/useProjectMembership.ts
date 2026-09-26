@@ -2,7 +2,6 @@ import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref, type Ref } from 'vue'
 import { ApiError, unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
-import { useDebouncedValue } from '@/composables/useDebouncedValue'
 
 export type ProjectMembershipError =
   | 'project_manager_conflict'
@@ -13,7 +12,6 @@ export type ProjectMembershipError =
   | 'authentication_required'
   | 'network_error'
   | 'unexpected'
-const DEBOUNCE_MS = 300
 function code(error: unknown): ProjectMembershipError {
   if (!(error instanceof ApiError)) return 'unexpected'
   switch (error.code) {
@@ -29,47 +27,53 @@ function code(error: unknown): ProjectMembershipError {
       return 'unexpected'
   }
 }
-export function useProjectMembership(
+export type ProjectMembershipState = components['schemas']['ProjectMembershipState']
+
+export function projectMembershipQueryKey(principalId: string | null, projectId: string) {
+  return ['project-members', principalId ?? 'anonymous', projectId] as const
+}
+
+/** Shared authorized membership state; it exposes no scientific project data. */
+export function useProjectMembershipState(
   projectId: Readonly<Ref<string>>,
   principalId: Readonly<Ref<string | null>>,
   enabled: Readonly<Ref<boolean>>,
-  searchInput: Ref<string>,
 ) {
   const client = useApiClient()
-  const queryClient = useQueryClient()
-  const search = useDebouncedValue(searchInput, DEBOUNCE_MS)
-  const error = ref<ProjectMembershipError | null>(null)
-  const pending = ref(false)
-  let epoch = 0
-  const state = useQuery({
-    queryKey: computed(
-      () => ['project-members', principalId.value ?? 'anonymous', projectId.value] as const,
-    ),
-    queryFn: ({ signal }) =>
+  return useQuery({
+    queryKey: computed(() => projectMembershipQueryKey(principalId.value, projectId.value)),
+    queryFn: ({ signal, queryKey }) =>
       unwrap(
         client.GET('/api/v1/projects/{project_id}/members', {
-          params: { path: { project_id: projectId.value } },
+          params: { path: { project_id: queryKey[2] } },
           signal,
         }),
       ),
     enabled,
   })
+}
+
+export function useProjectMembership(
+  projectId: Readonly<Ref<string>>,
+  principalId: Readonly<Ref<string | null>>,
+  enabled: Readonly<Ref<boolean>>,
+) {
+  const client = useApiClient()
+  const queryClient = useQueryClient()
+  const error = ref<ProjectMembershipError | null>(null)
+  const pending = ref(false)
+  let epoch = 0
+  const state = useProjectMembershipState(projectId, principalId, enabled)
   const candidates = useInfiniteQuery({
     queryKey: computed(
-      () =>
-        [
-          'project-eligible-users',
-          principalId.value ?? 'anonymous',
-          projectId.value,
-          search.value.trim(),
-        ] as const,
+      () => ['project-eligible-users', principalId.value ?? 'anonymous', projectId.value] as const,
     ),
     queryFn: ({ pageParam, signal, queryKey }) =>
       unwrap(
         client.GET('/api/v1/projects/{project_id}/eligible-users', {
           params: {
             path: { project_id: queryKey[2] },
-            query: { query: queryKey[3] || null, cursor: pageParam },
+            query: { query: null, cursor: pageParam },
           },
           signal,
         }),
@@ -133,7 +137,6 @@ export function useProjectMembership(
   return {
     state,
     candidates,
-    search,
     error,
     pending,
     setRole,

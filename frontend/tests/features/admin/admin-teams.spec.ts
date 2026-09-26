@@ -90,8 +90,9 @@ function signedInRoutes(
 
 async function selectTeam(wrapper: Awaited<ReturnType<typeof mountApplicationAt>>): Promise<void> {
   const button = wrapper
-    .findAll('button')
-    .find((candidate) => candidate.text().includes(TEAM.display_name))
+    .findAll('main tbody tr')
+    .find((row) => row.text().includes(TEAM.display_name))
+    ?.find('button')
   if (!button) throw new Error('The expected team selection was not rendered.')
   await button.trigger('click')
 }

@@ -4,16 +4,26 @@ import { defineComponent } from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import type { ApiClient } from '@/api'
+import { createApiClient, type ApiClient } from '@/api'
 import { routes } from '@/app/router'
-import { createUnauthorizedHandler, shouldRetryAfterUnauthorized } from '@/app/sessionGuard'
+import {
+  annotationRetryScope,
+  createUnauthorizedHandler,
+  shouldRetryAfterUnauthorized,
+} from '@/app/sessionGuard'
 import { API_CLIENT_KEY } from '@/composables/useApiClient'
 import { useSessionRecovery } from '@/composables/useSessionRecovery'
 import { useSessionStore } from '@/stores/session'
 
 import { apiClientWithRoutes } from '../helpers/api'
+import { waitFor } from '../helpers/wait'
 
 const USER = { id: 'a0000000-0000-0000-0000-000000000001', display_name: 'Reviewer One', roles: [] }
+const OTHER_USER = {
+  ...USER,
+  id: 'a0000000-0000-0000-0000-000000000002',
+  display_name: 'Reviewer Two',
+}
 
 function request(path: string): Request {
   return new Request(`https://example.test${path}`)
@@ -215,4 +225,91 @@ describe('createUnauthorizedHandler', () => {
     expect(activeRouter.currentRoute.value.name).toBe('login')
     expect(activeRouter.currentRoute.value.query.redirect).toBeUndefined()
   })
+})
+
+describe('annotation retry ownership', () => {
+  it.each([
+    { name: 'same-account recovery', recovered: USER, changesBefore401: false, replays: true },
+    {
+      name: 'different-account recovery',
+      recovered: OTHER_USER,
+      changesBefore401: false,
+      replays: false,
+    },
+    {
+      name: 'an account change before the 401 arrives',
+      recovered: OTHER_USER,
+      changesBefore401: true,
+      replays: false,
+    },
+  ])(
+    'handles $name without changing an annotation author',
+    async ({ recovered, changesBefore401, replays }) => {
+      const session = mountSession(
+        apiClientWithRoutes({
+          '/api/v1/me': { body: USER },
+          '/api/v1/auth/session': { body: { must_change_password: false, keep_signed_in: false } },
+        }),
+      )
+      await session.initialize()
+      const activeRouter = await router()
+      let finishFirst!: (response: Response) => void
+      const firstResponse = new Promise<Response>((resolve) => {
+        finishFirst = resolve
+      })
+      const attempts: Request[] = []
+      const client = createApiClient({
+        csrfToken: () => 'csrf',
+        onUnauthorized: createUnauthorizedHandler(activeRouter),
+        shouldRetryAfterUnauthorized,
+        retryScope: annotationRetryScope,
+        fetch: (request) => {
+          attempts.push(request)
+          return attempts.length === 1
+            ? firstResponse
+            : Promise.resolve(
+                new Response('{}', {
+                  status: 201,
+                  headers: { 'content-type': 'application/json' },
+                }),
+              )
+        },
+      })
+      const pending = client.POST('/api/v1/annotations', {
+        body: {
+          snapshot_id: '20000000-0000-0000-0000-000000000001',
+          tei_id: 'p1',
+          action: 'correct',
+          label: 'unknown',
+          expected_revision: 0,
+        },
+      })
+      await waitFor(() => expect(attempts).toHaveLength(1))
+      if (changesBefore401) session.user = recovered
+      finishFirst(
+        new Response(
+          JSON.stringify({
+            error: { code: 'authentication_required', message: 'Session expired.' },
+          }),
+          { status: 401, headers: { 'content-type': 'application/json' } },
+        ),
+      )
+      await waitFor(() => expect(useSessionRecovery().isOpen.value).toBe(true))
+      if (!changesBefore401) session.user = recovered
+      useSessionRecovery().resolve()
+
+      const result = await pending
+
+      expect(attempts).toHaveLength(replays ? 2 : 1)
+      expect(result.response.status).toBe(replays ? 201 : 401)
+      expect(session.user?.id).toBe(recovered.id)
+      expect(activeRouter.currentRoute.value.path).toBe('/')
+      expect(annotationRetryScope(request('/api/v1/annotations'))).toBeNull()
+      expect(
+        annotationRetryScope(
+          new Request('https://example.test/api/v1/me/password', { method: 'POST' }),
+        ),
+      ).toBeNull()
+    },
+  )
 })

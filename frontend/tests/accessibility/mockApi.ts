@@ -28,6 +28,8 @@ const EXECUTIONS = [
   ['x0000000-0000-0000-0000-000000000004', 'local_llm', 'failed'],
 ] as const
 
+const METHOD_EXECUTION_ID = EXECUTIONS[0][0]
+
 const progress = { completed: 7, failed: 1, total: 8, percentage: 100 }
 
 function run(id: string, status: string) {
@@ -133,6 +135,12 @@ export function applicationFetch(server: Server): (request: Request) => Promise<
   const review = reviewFetch(server)
   return async (request) => {
     const { pathname } = new URL(request.url)
+    if (pathname === `/api/v1/projects/${PROJECT_ID}/data-availability`)
+      return jsonResponse({
+        project_id: PROJECT_ID,
+        has_ready_snapshots: true,
+        has_completed_aggregations: true,
+      })
     if (pathname === '/api/v1/projects') {
       return jsonResponse(
         page([
@@ -142,6 +150,16 @@ export function applicationFetch(server: Server): (request: Request) => Promise<
             display_name: 'Project A',
             description: 'A demonstration project.',
             current_user_role: server.role,
+            current_user_can_manage_members: false,
+            manager_user_id: 'a0000000-0000-0000-0000-000000000001',
+            created_by_user_id: 'a0000000-0000-0000-0000-000000000001',
+            team: {
+              id: 'c0000000-0000-0000-0000-000000000001',
+              slug: 'editorial-team',
+              display_name: 'Editorial team',
+              created_at: '2026-01-01T00:00:00Z',
+              updated_at: '2026-01-01T00:00:00Z',
+            },
             created_at: '2026-01-01T00:00:00Z',
             working_aggregation_execution_id: AGG_ID,
           },
@@ -156,7 +174,7 @@ export function applicationFetch(server: Server): (request: Request) => Promise<
             project_id: PROJECT_ID,
             source_artifact_id: 'a',
             source_sha256: 'a'.repeat(64),
-            parser_version: 'tei_parser_v3',
+            parser_version: 'tei_parser_v4',
             status: 'ready',
             record_count: 7,
             created_at: '2026-01-01T00:00:00Z',
@@ -193,6 +211,26 @@ export function applicationFetch(server: Server): (request: Request) => Promise<
         },
       ])
     }
+    if (pathname === `/api/v1/snapshots/${SNAPSHOT_ID}/statistics`) {
+      return jsonResponse({
+        dataset_snapshot_id: SNAPSHOT_ID,
+        total_person_count: 7,
+        source_gender: {
+          with_element_count: 5,
+          without_element_count: 2,
+          male_count: 2,
+          female_count: 2,
+          unknown_count: 1,
+          institution_count: 0,
+          other_or_multiple_count: 0,
+        },
+        gnd: {
+          with_reference_count: 4,
+          without_reference_count: 3,
+          with_reference_and_source_gender_count: 3,
+        },
+      })
+    }
     if (pathname === '/api/v1/snapshot-upload-limits') {
       return jsonResponse({
         max_upload_part_bytes: 104857600,
@@ -206,7 +244,7 @@ export function applicationFetch(server: Server): (request: Request) => Promise<
         project_id: PROJECT_ID,
         source_artifact_id: 'a',
         source_sha256: 'a'.repeat(64),
-        parser_version: 'tei_parser_v3',
+        parser_version: 'tei_parser_v4',
         status: 'ready',
         record_count: 7,
         created_at: '2026-01-01T00:00:00Z',
@@ -230,6 +268,39 @@ export function applicationFetch(server: Server): (request: Request) => Promise<
           normalization_version: `${name}_v1`,
           method_confidence_range: name === 'local_llm' ? { minimum: 0, maximum: 1 } : null,
         })),
+      )
+    }
+    if (pathname === '/api/v1/runs/' + RUN_ID + '/executions/' + METHOD_EXECUTION_ID + '/results') {
+      return jsonResponse(
+        page([
+          {
+            method_execution_id: METHOD_EXECUTION_ID,
+            dataset_snapshot_id: SNAPSHOT_ID,
+            person_record_id: 'person-1',
+            tei_id: 'person-1',
+            surname: 'Example',
+            forenames: ['Ada'],
+            result_state: 'success',
+            prediction_id: 'prediction-1',
+            prediction: {
+              label: 'unknown',
+              status: 'success',
+              method_confidence: 0.75,
+              raw_label: 'u',
+            },
+          },
+          {
+            method_execution_id: METHOD_EXECUTION_ID,
+            dataset_snapshot_id: SNAPSHOT_ID,
+            person_record_id: 'person-2',
+            tei_id: 'person-2',
+            surname: 'Example',
+            forenames: ['Bert'],
+            result_state: 'missing',
+            prediction_id: null,
+            prediction: null,
+          },
+        ]),
       )
     }
     if (pathname === `/api/v1/runs/${RUN_ID}/executions`)
@@ -258,6 +329,16 @@ export const SCREENS = {
   import: `/projects/${PROJECT_ID}/import`,
   runs: `/projects/${PROJECT_ID}/snapshots/${SNAPSHOT_ID}/runs`,
   run: `/projects/${PROJECT_ID}/snapshots/${SNAPSHOT_ID}/runs/${RUN_ID}`,
+  methodResults:
+    '/projects/' +
+    PROJECT_ID +
+    '/snapshots/' +
+    SNAPSHOT_ID +
+    '/runs/' +
+    RUN_ID +
+    '/executions/' +
+    METHOD_EXECUTION_ID +
+    '/results',
   aggregation: `/projects/${PROJECT_ID}/runs/${RUN_ID}/aggregations/${AGG_ID}`,
   review: `/projects/${PROJECT_ID}/runs/${RUN_ID}/aggregations/${AGG_ID}/review`,
   people: `/projects/${PROJECT_ID}/runs/${RUN_ID}/aggregations/${AGG_ID}/people`,

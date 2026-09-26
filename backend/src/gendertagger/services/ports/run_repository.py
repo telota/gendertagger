@@ -1,6 +1,7 @@
 """Application repository contract for runs, executions, batches, and predictions."""
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 from uuid import UUID
@@ -13,14 +14,25 @@ from gendertagger.models.lifecycle import (
 from gendertagger.models.run import (
     MethodExecution,
     MethodExecutionCreate,
+    MethodExecutionResult,
+    MethodExecutionResultFilter,
     Prediction,
     PredictionWrite,
     Run,
     RunCreate,
+    RunListFilter,
     TaskBatch,
     TaskBatchPlan,
 )
 from gendertagger.services.pagination import CreationPosition
+
+
+@dataclass(frozen=True, slots=True)
+class MethodExecutionResultCursor:
+    """Keyset continuation position in a method execution result collection."""
+
+    tei_id: str
+    person_record_id: UUID
 
 
 class RunRepository(Protocol):
@@ -40,6 +52,7 @@ class RunRepository(Protocol):
         *,
         limit: int,
         after: CreationPosition | None = None,
+        filters: RunListFilter | None = None,
     ) -> Sequence[Run]:
         """Return one newest-first ``(created_at, id)`` keyset slice of a snapshot's runs."""
         ...
@@ -54,6 +67,22 @@ class RunRepository(Protocol):
 
     def list_method_executions(self, run_id: UUID) -> list[MethodExecution]:
         """Return a run's method executions in stable order."""
+        ...
+
+    def list_method_execution_results(
+        self,
+        dataset_snapshot_id: UUID,
+        method_execution_id: UUID,
+        *,
+        limit: int,
+        after: MethodExecutionResultCursor | None = None,
+        filters: MethodExecutionResultFilter | None = None,
+    ) -> Sequence[MethodExecutionResult]:
+        """Return every snapshot person with its nullable method-output summary.
+
+        The slice uses stable ``(tei_id, person_record_id)`` keyset ordering.
+        A null prediction remains distinct from an explicit abstain or error.
+        """
         ...
 
     def get_task_batch(self, task_batch_id: UUID) -> TaskBatch | None:

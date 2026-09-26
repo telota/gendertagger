@@ -97,8 +97,10 @@ function rowFor(
   wrapper: { findAll: (selector: string) => { text: () => string }[] },
   field: string,
 ) {
-  const row = wrapper.findAll('tbody tr').find((candidate) => candidate.text().includes(field))
-  if (!row) throw new Error(`No settings row for ${field}.`)
+  const row = wrapper
+    .findAll('.admin-settings-editor-field')
+    .find((candidate) => candidate.text().includes(field))
+  if (!row) throw new Error(`Field ${field} was not rendered.`)
   return row
 }
 
@@ -210,7 +212,7 @@ describe.each(['de', 'en'] as const)('AdminSettingsView in %s', (locale: AppLoca
         () => ADMIN_A,
       ),
     )
-    await waitFor(() => expect(wrapper.find('table').exists()).toBe(true))
+    await waitFor(() => expect(wrapper.find('.admin-settings-editor').exists()).toBe(true))
 
     expect(rowFor(wrapper, messages.fields.institutionName).text()).toContain(
       messages.status.overridden,
@@ -219,6 +221,9 @@ describe.each(['de', 'en'] as const)('AdminSettingsView in %s', (locale: AppLoca
       messages.status.cleared,
     )
     expect(rowFor(wrapper, messages.fields.institutionUrl).text()).toContain('https://example.test')
+    expect(rowFor(wrapper, messages.fields.institutionUrl).text()).toContain(
+      messages.values.noPublishedValue,
+    )
     expect(rowFor(wrapper, messages.fields.contactEmail).text()).toContain(
       messages.status.overridden,
     )
@@ -226,14 +231,16 @@ describe.each(['de', 'en'] as const)('AdminSettingsView in %s', (locale: AppLoca
       messages.status.inherited,
     )
     expect(rowFor(wrapper, messages.fields.editors).text()).toContain(messages.status.cleared)
-    expect(rowFor(wrapper, messages.fields.editors).text()).toContain(messages.values.noEditors)
+    expect(rowFor(wrapper, messages.fields.editors).text()).toContain(
+      messages.values.noPublishedValue,
+    )
     expect(rowFor(wrapper, messages.fields.publishedSinceYear).text()).toContain(
       messages.status.inherited,
     )
     expect(wrapper.text()).toContain(SETTINGS.branding.logo_url)
     expect(wrapper.text()).toContain(SETTINGS.branding.initiatives[0]?.name)
     expect(wrapper.text()).toContain(SETTINGS.branding.legal_entity.name)
-    expect(wrapper.text()).toContain(messages.editingAvailable)
+    expect(wrapper.text()).toContain(messages.editing.description)
     await expectNoAxeViolations(wrapper.element)
   })
 
@@ -261,7 +268,7 @@ describe.each(['de', 'en'] as const)('AdminSettingsView in %s', (locale: AppLoca
     )
 
     await buttonWithText(wrapper, messages.retry).trigger('click')
-    await waitFor(() => expect(wrapper.find('table').exists()).toBe(true))
+    await waitFor(() => expect(wrapper.find('.admin-settings-editor').exists()).toBe(true))
     expect(requests).toBe(2)
   })
 
@@ -283,7 +290,7 @@ describe.each(['de', 'en'] as const)('AdminSettingsView in %s', (locale: AppLoca
       ),
     )
     await waitFor(() => expect(wrapper.get('main [role="alert"]').text()).toBe(messages.loadError))
-    expect(wrapper.find('table').exists()).toBe(false)
+    expect(wrapper.find('.admin-settings-editor').exists()).toBe(false)
   })
 
   it('removes a former principal settings response before rendering the next administrator data', async () => {

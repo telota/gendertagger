@@ -106,6 +106,40 @@ def _slug(prefix: str) -> str:
     return f"{prefix}-{uuid4().hex[:12]}"
 
 
+@pytest.mark.parametrize("role", ["viewer", "reviewer", "operator"])
+def test_project_data_availability_is_readable_with_every_scientific_role(
+    deployment: _Deployment,
+    role: str,
+) -> None:
+    creator = deployment.add_user("Creator", GlobalRole.operator)
+    administrator = deployment.add_user("Administrator", GlobalRole.admin)
+    reader = deployment.add_user("Reader")
+    outsider = deployment.add_user("Outsider", GlobalRole.operator)
+    project_id = deployment.create_project(creator, _slug("availability"))
+    deployment.grant(administrator, project_id, reader, role)
+
+    response = deployment.act_as(reader).get(f"/api/v1/projects/{project_id}/data-availability")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "project_id": str(project_id),
+        "has_ready_snapshots": False,
+        "has_completed_aggregations": False,
+    }
+    assert (
+        deployment.act_as(outsider)
+        .get(f"/api/v1/projects/{project_id}/data-availability")
+        .status_code
+        == 404
+    )
+    assert (
+        deployment.act_as(administrator)
+        .get(f"/api/v1/projects/{project_id}/data-availability")
+        .status_code
+        == 200
+    )
+
+
 def test_project_list_shows_only_member_projects_with_the_callers_role(
     deployment: _Deployment,
 ) -> None:
@@ -162,6 +196,12 @@ def test_manager_without_project_role_can_manage_roster_but_cannot_read_project_
     assert transfer.status_code == 200
     assert transfer.json()["manager"]["user_id"] == str(manager)
     assert deployment.act_as(manager).get(f"/api/v1/projects/{project_id}").status_code == 404
+    assert (
+        deployment.act_as(manager)
+        .get(f"/api/v1/projects/{project_id}/data-availability")
+        .status_code
+        == 404
+    )
     roster = deployment.act_as(manager).get(f"/api/v1/projects/{project_id}/members")
     assert roster.status_code == 200
     assert roster.json()["manager"]["project_role"] is None

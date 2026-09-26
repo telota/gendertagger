@@ -9,6 +9,7 @@ from gendertagger.models.aggregation import (
     AggregatedResult,
     AggregationExecution,
     AggregationExecutionCreate,
+    AggregationExecutionListFilter,
     AggregationPersonPredictions,
     AggregationResultWrite,
     ResultMethodPrediction,
@@ -47,6 +48,7 @@ class AggregationRepository(Protocol):
         *,
         limit: int,
         after: CreationPosition | None = None,
+        filters: AggregationExecutionListFilter | None = None,
     ) -> Sequence[AggregationExecution]:
         """Return one newest-first ``(created_at, id)`` keyset slice of a run's aggregations."""
         ...

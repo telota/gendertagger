@@ -1,48 +1,70 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/vue-query'
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref, type Ref } from 'vue'
 
 import { unwrap } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
+import { useSessionStore } from '@/stores/session'
 
-/** Shared with the import mutation so a new upload refreshes the list it will appear in. */
+import { currentData } from './useSnapshotData'
+
+/** Prefix shared with import invalidation; individual reads are isolated by principal. */
 export function snapshotListKey(projectId: string) {
   return ['projects', projectId, 'snapshots'] as const
 }
 
-/**
- * `GET /projects/{project_id}/snapshots`, newest first in every lifecycle state, cursor-paginated
- * (docs/23: server-side order, never re-sorted in the browser).
- */
+/** Newest first in every lifecycle state, with the server's opaque cursor and order. */
 export function useSnapshotList(projectId: Ref<string>, enabled: Ref<boolean> = ref(true)) {
   const client = useApiClient()
+  const session = useSessionStore()
 
   return useInfiniteQuery({
-    queryKey: computed(() => snapshotListKey(projectId.value)),
-    queryFn: ({ pageParam }) =>
+    queryKey: computed(
+      () => [...snapshotListKey(projectId.value), session.user?.id ?? 'anonymous'] as const,
+    ),
+    queryFn: ({ queryKey, pageParam, signal }) =>
       unwrap(
         client.GET('/api/v1/projects/{project_id}/snapshots', {
-          params: { path: { project_id: projectId.value }, query: { cursor: pageParam } },
+          params: { path: { project_id: queryKey[1] }, query: { cursor: pageParam } },
+          signal,
         }),
       ),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) =>
       lastPage.has_more ? (lastPage.next_cursor ?? null) : undefined,
-    enabled,
+    enabled: computed(() => enabled.value && session.canUsePrivateNavigation),
+    refetchInterval: (query) =>
+      query.state.status !== 'error' &&
+      query.state.data?.pages.some((page) =>
+        page.items.some((snapshot) => ['pending', 'importing'].includes(snapshot.status)),
+      )
+        ? 5000
+        : false,
   })
 }
 
-/** `GET /snapshots/{snapshot_id}/source-members`, fetched only once a caller asks for it. */
+/** Source provenance is fetched on demand and never shared between principals. */
 export function useSnapshotSourceMembers(snapshotId: Ref<string>, enabled: Ref<boolean>) {
   const client = useApiClient()
-
-  return useQuery({
-    queryKey: computed(() => ['snapshots', snapshotId.value, 'source-members'] as const),
-    queryFn: () =>
+  const session = useSessionStore()
+  const cache = useQueryClient()
+  const canRead = computed(() => enabled.value && session.canUsePrivateNavigation)
+  const key = computed(
+    () =>
+      ['snapshots', snapshotId.value, 'source-members', session.user?.id ?? 'anonymous'] as const,
+  )
+  const query = useQuery({
+    queryKey: key,
+    queryFn: ({ queryKey, signal }) =>
       unwrap(
         client.GET('/api/v1/snapshots/{snapshot_id}/source-members', {
-          params: { path: { snapshot_id: snapshotId.value } },
+          params: { path: { snapshot_id: queryKey[1] } },
+          signal,
         }),
       ),
-    enabled,
+    enabled: canRead,
   })
+  const data = computed(() =>
+    currentData(cache, key.value, canRead.value, query.status.value, query.data.value),
+  )
+  return { ...query, data }
 }

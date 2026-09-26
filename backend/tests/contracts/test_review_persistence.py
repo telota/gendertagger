@@ -17,6 +17,8 @@ from gendertagger.models.review import (
     ReviewSummary,
     ReviewSummaryGroup,
     ReviewWorkflowState,
+    SnapshotAnnotationItem,
+    SnapshotAnnotationItemQuery,
 )
 from gendertagger.models.user import CurrentUser, GlobalRole, User, UserCreate
 from gendertagger.services.ports.persistence_errors import ReviewConflictError
@@ -28,6 +30,56 @@ ANNOTATION_ID = UUID("b0000000-0000-0000-0000-000000000001")
 AGGREGATED_RESULT_ID = UUID("90000000-0000-0000-0000-000000000001")
 ARTIFACT_ID = UUID("30000000-0000-0000-0000-000000000001")
 CREATED_AT = datetime(2026, 8, 13, 10, 0, tzinfo=UTC)
+
+
+def test_snapshot_annotation_query_normalizes_search_and_state_order() -> None:
+    query = SnapshotAnnotationItemQuery(
+        q="  Ada  ",
+        workflow_states=(ReviewWorkflowState.deferred, ReviewWorkflowState.unreviewed),
+    )
+    assert query.q == "Ada"
+    assert query.workflow_states == (ReviewWorkflowState.unreviewed, ReviewWorkflowState.deferred)
+    with pytest.raises(ValidationError, match="must not repeat"):
+        SnapshotAnnotationItemQuery(workflow_states=(ReviewWorkflowState.reviewed,) * 2)
+    with pytest.raises(ValidationError, match="must not be blank"):
+        SnapshotAnnotationItemQuery(q="  ")
+
+
+@pytest.mark.parametrize(
+    "decision",
+    [
+        {"human_label": "unknown"},
+        {"review_revision": 1},
+        {"review_action": "correct", "human_label": "female"},
+        {
+            "review_revision": 1,
+            "current_annotation_id": ANNOTATION_ID,
+            "workflow_state": "reviewed",
+            "review_action": "defer",
+        },
+        {
+            "review_revision": 1,
+            "current_annotation_id": ANNOTATION_ID,
+            "workflow_state": "deferred",
+            "review_action": "defer",
+            "human_label": "unknown",
+        },
+    ],
+)
+def test_snapshot_annotation_projection_rejects_inconsistent_decisions(
+    decision: dict[str, object],
+) -> None:
+    with pytest.raises(ValidationError):
+        SnapshotAnnotationItem.model_validate(
+            {
+                "snapshot_id": SNAPSHOT_ID,
+                "person_record_id": PERSON_ID,
+                "tei_id": "p1",
+                "workflow_state": "unreviewed",
+                "review_revision": 0,
+                **decision,
+            }
+        )
 
 
 def test_provider_neutral_user_preserves_global_roles() -> None:
@@ -159,6 +211,17 @@ def test_review_query_requires_method_name_for_method_outcome_filters() -> None:
         )
     with pytest.raises(ValidationError, match="q must not be blank"):
         ReviewItemQuery(aggregation_id=AGGREGATED_RESULT_ID, q="   ")
+
+
+def test_review_query_preserves_exact_tei_identity_separately_from_search() -> None:
+    query = ReviewItemQuery(aggregation_id=AGGREGATED_RESULT_ID, tei_id="Person-A", q="  person  ")
+    assert query.tei_id == "Person-A"
+    assert query.q == "person"
+    assert ReviewItemQuery(aggregation_id=AGGREGATED_RESULT_ID).tei_id is None
+    with pytest.raises(ValidationError, match="tei_id must not be blank"):
+        ReviewItemQuery(aggregation_id=AGGREGATED_RESULT_ID, tei_id="   ")
+    with pytest.raises(ValidationError, match="at least 1 character"):
+        ReviewItemQuery(aggregation_id=AGGREGATED_RESULT_ID, tei_id="")
 
 
 def test_review_query_orders_alternatives_by_vocabulary_and_rejects_repeats() -> None:

@@ -93,6 +93,10 @@ class DatasetSnapshotRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
             name="ready_metadata_present",
         ),
         CheckConstraint(
+            "statistics IS NULL OR status = 'ready'",
+            name="statistics_requires_ready",
+        ),
+        CheckConstraint(
             "failure_class IS NULL OR status = 'failed'",
             name="failure_class_requires_failed",
         ),
@@ -124,6 +128,7 @@ class DatasetSnapshotRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
         server_default=text("'{}'::jsonb"),
     )
     record_count: Mapped[int | None] = mapped_column(Integer)
+    statistics: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True))
     ready_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     failure_class: Mapped[str | None] = mapped_column(String(255))
     failure_diagnostic: Mapped[str | None] = mapped_column(Text)

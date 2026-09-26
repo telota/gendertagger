@@ -91,7 +91,7 @@ describe.each(['de', 'en'] as const)('ImportView in %s', (locale: AppLocale) => 
     await flushPromises()
 
     expect(wrapper.text()).toContain(messages.forbidden)
-    expect(wrapper.find('#import-file').exists()).toBe(false)
+    expect(wrapper.find('.import-file-input').exists()).toBe(false)
   })
 
   it('shows a load error and retries when the project fails to load', async () => {
@@ -108,10 +108,10 @@ describe.each(['de', 'en'] as const)('ImportView in %s', (locale: AppLocale) => 
     )
     await flushPromises()
 
-    expect(wrapper.get('main').text()).toContain(catalogues[locale].projects.overview.loadError)
+    expect(wrapper.get('main').text()).toContain(catalogues[locale].data.accessUnavailable)
   })
 
-  it('uploads a file with a chosen source format and shows the import as running', async () => {
+  it('infers the source format from the selected file and shows the import as running', async () => {
     let capturedSourceFormat: FormDataEntryValue | null = null
     const client = createApiClient({
       fetch: async (request) => {
@@ -137,11 +137,19 @@ describe.each(['de', 'en'] as const)('ImportView in %s', (locale: AppLocale) => 
     const wrapper = await mountApplicationAt(`/projects/${PROJECT_ID}/import`, locale, client)
     await flushPromises()
 
-    const formatSwitcher = wrapper.get('.import-format')
-    await formatSwitcher.get('button').trigger('click')
-    const csvOption = formatSwitcher.findAll('li').find((item) => item.text() === 'CSV')
-    await csvOption?.trigger('click')
-    selectFile(wrapper, '#import-file', testFile('<TEI/>', 'source.xml', 'text/xml'))
+    selectFile(
+      wrapper,
+      '.import-file-input',
+      testFile(
+        'xml:id,persName,birth,death,event,note,idno\nS1,[],,,[],,[]\n',
+        'source.csv',
+        'text/csv',
+      ),
+    )
+    await waitFor(() => expect(wrapper.get('.import-detected-source').text()).toContain('CSV'))
+    await waitFor(() =>
+      expect(wrapper.get<HTMLButtonElement>('.import-submit').element.disabled).toBe(false),
+    )
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
@@ -149,7 +157,7 @@ describe.each(['de', 'en'] as const)('ImportView in %s', (locale: AppLocale) => 
     expect(capturedSourceFormat).toBe('csv')
   })
 
-  it('shows the record count once the import is ready', async () => {
+  it('shows the record count and links directly to the imported data when ready', async () => {
     const client = createApiClient({
       fetch: (request) => {
         const { pathname } = new URL(request.url)
@@ -176,16 +184,36 @@ describe.each(['de', 'en'] as const)('ImportView in %s', (locale: AppLocale) => 
     })
     const wrapper = await mountApplicationAt(`/projects/${PROJECT_ID}/import`, locale, client)
     await flushPromises()
+    const completionAnnouncement = wrapper.get('.import-completion-announcement')
+    expect(completionAnnouncement.text()).toBe('')
 
-    selectFile(wrapper, '#import-file', testFile('a,b', 'source.csv', 'text/csv'))
+    selectFile(
+      wrapper,
+      '.import-file-input',
+      testFile(
+        'xml:id,persName,birth,death,event,note,idno\nS1,[],,,[],,[]\n',
+        'source.csv',
+        'text/csv',
+      ),
+    )
+    await waitFor(() =>
+      expect(wrapper.get<HTMLButtonElement>('.import-submit').element.disabled).toBe(false),
+    )
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.text()).toContain(messages.status.ready.replace('{count}', '42'))
+    const readyAnnouncement = wrapper.get('.import-completion-announcement')
+    expect(readyAnnouncement.element).toBe(completionAnnouncement.element)
+    expect(readyAnnouncement.text()).toContain(messages.status.ready.replace('{count}', '42'))
+    expect(readyAnnouncement.attributes()).toMatchObject({
+      role: 'status',
+      'aria-live': 'polite',
+      'aria-atomic': 'true',
+    })
     expect(wrapper.get('.import-status-provenance').text()).toContain('a'.repeat(64))
-    expect(wrapper.get(`main a[href="/projects/${PROJECT_ID}/overview"]`).text()).toBe(
-      messages.status.toOverview,
-    )
+    expect(
+      wrapper.get(`main a[href="/projects/${PROJECT_ID}/snapshots/${SNAPSHOT_ID}"]`).text(),
+    ).toBe(catalogues[locale].data.viewImportedData)
   })
 
   it('shows the failure diagnostic once the import fails', async () => {
@@ -220,7 +248,7 @@ describe.each(['de', 'en'] as const)('ImportView in %s', (locale: AppLocale) => 
     const wrapper = await mountApplicationAt(`/projects/${PROJECT_ID}/import`, locale, client)
     await flushPromises()
 
-    selectFile(wrapper, '#import-file', testFile('x', 'source.xml', 'text/xml'))
+    selectFile(wrapper, '.import-file-input', testFile('x', 'source.xml', 'text/xml'))
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
@@ -255,12 +283,12 @@ describe.each(['de', 'en'] as const)('ImportView in %s', (locale: AppLocale) => 
     const wrapper = await mountApplicationAt(`/projects/${PROJECT_ID}/import`, locale, client)
     await flushPromises()
 
-    selectFile(wrapper, '#import-file', testFile('x', 'source.xml', 'text/xml'))
+    selectFile(wrapper, '.import-file-input', testFile('x', 'source.xml', 'text/xml'))
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
     expect(wrapper.get('main [role="alert"]').text()).toBe(messages.errors.tooLarge)
-    expect(wrapper.find('#import-file').exists()).toBe(true)
+    expect(wrapper.find('.import-file-input').exists()).toBe(true)
   })
 
   it('redirects a signed-out visitor to the login page', async () => {

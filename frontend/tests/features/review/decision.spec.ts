@@ -238,6 +238,20 @@ describe.each(['de', 'en'] as const)('review decisions in %s', (locale: AppLocal
     expect(wrapper.get('#decision-save').attributes('disabled')).toBeDefined()
   })
 
+  it('keeps the optional comment collapsed until the reviewer opens it', async () => {
+    const wrapper = await mountDecision(newServer())
+    const disclosure = wrapper.get('.decision-comment-disclosure')
+
+    expect(disclosure.attributes('open')).toBeUndefined()
+    expect(disclosure.get('summary').text()).toBe(messages.decision.comment)
+    expect(wrapper.get('#decision-comment').attributes('aria-labelledby')).toBe(
+      'decision-comment-summary',
+    )
+
+    await disclosure.get('summary').trigger('click')
+    expect(disclosure.attributes('open')).toBe('')
+  })
+
   it('lists the keys next to the labels and says how to save', async () => {
     const wrapper = await mountDecision(newServer())
 
@@ -258,7 +272,7 @@ describe.each(['de', 'en'] as const)('review decisions in %s', (locale: AppLocal
     expect(result.violations).toEqual([])
     expect(result.incomplete).toEqual([])
     expect(wrapper.text()).toContain(messages.decision.keyboardHint)
-    expect(wrapper.text()).toContain(messages.decision.appendOnly)
+    expect(wrapper.findAll('.decision .vocab-gloss')).toHaveLength(0)
   })
 
   it('turns a stale write into a designed recovery, not a lost or overwritten decision', async () => {
@@ -330,12 +344,18 @@ describe.each(['de', 'en'] as const)('review decisions in %s', (locale: AppLocal
     expect(wrapper.find('.decision-conflict').exists()).toBe(false)
   })
 
-  it('starts the next person with a clean form', async () => {
+  it('starts the next person with a clean form after discarding the current draft', async () => {
     const wrapper = await mountDecision(newServer())
     await wrapper.get('#decision-correct-female').setValue(true)
     await wrapper.get('#decision-comment').setValue('for demo-1')
 
     await wrapper.findAll('button.row')[1]?.trigger('click')
+    await waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull())
+    const discard = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
+    ).find((button) => button.textContent?.trim() === catalogues[locale].draftNavigation.discard)
+    expect(discard).toBeDefined()
+    discard?.click()
     await waitFor(() => expect(wrapper.get('.detail-name').text()).toContain('demo-2'))
 
     expect((wrapper.get('#decision-correct-female').element as HTMLInputElement).checked).toBe(

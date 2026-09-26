@@ -234,8 +234,10 @@ describe.each(['de', 'en'] as const)('AccountMenu in %s', (locale) => {
     await flushPromises()
     expect(wrapper.find('.account-menu').exists()).toBe(false)
 
-    await router.push('/login')
+    await router.push('/impressum')
     expect(wrapper.get('a[href="/login"]').text()).toBe(messages.signIn)
+    await router.push('/login')
+    expect(wrapper.find('.account-menu').exists()).toBe(false)
     await router.push('/')
     expect(wrapper.find('.account-menu').exists()).toBe(false)
   })

@@ -18,14 +18,18 @@ from gendertagger.api.authorization import (
 from gendertagger.api.dependencies import get_project_access_service, get_project_service
 from gendertagger.api.errors import ApiRequestError, invalid_cursor_error
 from gendertagger.models.api import CursorPage
+from gendertagger.models.lifecycle import DatasetSnapshotStatus
 from gendertagger.models.person import PersonRecord
 from gendertagger.models.project import (
     DEFAULT_SOURCE_FORMAT,
     DEFAULT_SOURCE_PACKAGING,
     AccessibleProject,
     DatasetSnapshot,
+    DatasetSnapshotListFilter,
+    DatasetSnapshotStatistics,
     ManagedProjectSummary,
     ProjectCreate,
+    ProjectDataAvailability,
     ProjectWorkingAggregationUpdate,
     SnapshotImportRequest,
     SnapshotSourceMember,
@@ -33,6 +37,7 @@ from gendertagger.models.project import (
     SourceFormat,
     SourcePackaging,
 )
+from gendertagger.models.task import ProjectReviewResult
 from gendertagger.models.user import CurrentUser, GlobalRole, ProjectRole
 from gendertagger.services.pagination import InvalidCursorError
 from gendertagger.services.ports.persistence_errors import (
@@ -120,6 +125,23 @@ def get_project(
             or access.user.id == project.manager_user_id
         ),
     )
+
+
+@router.get(
+    "/projects/{project_id}/data-availability",
+    response_model=ProjectDataAvailability,
+)
+def get_project_data_availability(
+    project_id: UUID,
+    service: Annotated[ProjectService, Depends(get_project_service)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
+) -> ProjectDataAvailability:
+    """Read project-wide data existence without selecting a snapshot or a working result."""
+    access.require(ProjectScope.project, project_id, ProjectRole.viewer)
+    try:
+        return service.get_data_availability(project_id)
+    except ResourceNotFoundError as error:
+        raise _not_found() from error
 
 
 @router.put(
@@ -237,11 +259,42 @@ def list_snapshots(
     access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
     cursor: Annotated[str | None, Query(max_length=2048)] = None,
+    snapshot_status: Annotated[DatasetSnapshotStatus | None, Query(alias="status")] = None,
+    has_completed_aggregations: Annotated[bool | None, Query()] = None,
 ) -> CursorPage[DatasetSnapshot]:
-    """List a project's snapshots newest first, in every lifecycle state."""
+    """List a project's snapshots newest first with optional lifecycle and result filters."""
     access.require(ProjectScope.project, project_id, ProjectRole.viewer)
     try:
-        return service.list_snapshots(project_id, limit=limit, cursor=cursor)
+        return service.list_snapshots(
+            project_id,
+            limit=limit,
+            cursor=cursor,
+            filters=DatasetSnapshotListFilter(
+                status=snapshot_status,
+                has_completed_aggregations=has_completed_aggregations,
+            ),
+        )
+    except ResourceNotFoundError as error:
+        raise _not_found() from error
+    except InvalidCursorError as error:
+        raise invalid_cursor_error() from error
+
+
+@router.get(
+    "/projects/{project_id}/review-results",
+    response_model=CursorPage[ProjectReviewResult],
+)
+def list_review_results(
+    project_id: UUID,
+    service: Annotated[ProjectService, Depends(get_project_service)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    cursor: Annotated[str | None, Query(max_length=2048)] = None,
+) -> CursorPage[ProjectReviewResult]:
+    """List completed results that can be opened for review, with run and snapshot context."""
+    access.require(ProjectScope.project, project_id, ProjectRole.reviewer)
+    try:
+        return service.list_review_results(project_id, limit=limit, cursor=cursor)
     except ResourceNotFoundError as error:
         raise _not_found() from error
     except InvalidCursorError as error:
@@ -260,6 +313,29 @@ def get_snapshot(
         return service.get_snapshot(snapshot_id)
     except ResourceNotFoundError as error:
         raise _not_found() from error
+
+
+@router.get(
+    "/snapshots/{snapshot_id}/statistics",
+    response_model=DatasetSnapshotStatistics,
+)
+def get_snapshot_statistics(
+    snapshot_id: UUID,
+    service: Annotated[ProjectService, Depends(get_project_service)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
+) -> DatasetSnapshotStatistics:
+    """Read immutable source-inventory statistics for one ready snapshot."""
+    access.require(ProjectScope.snapshot, snapshot_id, ProjectRole.viewer)
+    try:
+        return service.get_snapshot_statistics(snapshot_id)
+    except ResourceNotFoundError as error:
+        raise _not_found() from error
+    except InvalidResourceStateError as error:
+        raise ApiRequestError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="resource_conflict",
+            message="The dataset snapshot is not ready.",
+        ) from error
 
 
 @router.get(

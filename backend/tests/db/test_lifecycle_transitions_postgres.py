@@ -9,7 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 from tests.factories import tei_person_input
-from tests.seeding import seed_project, session_repositories
+from tests.seeding import legacy_snapshot_statistics, seed_project, session_repositories
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.db.repositories.artifact_repository import SqlAlchemyArtifactRepository
@@ -108,7 +108,14 @@ def _setup(
             )
         ],
     )
-    projects.complete_snapshot_import(snapshot.id, ready_at=NOW)
+    projects.complete_snapshot_import(
+        snapshot.id,
+        statistics=legacy_snapshot_statistics(
+            snapshot.id,
+            [tei_person_input(tei_id="p0001")],
+        ),
+        ready_at=NOW,
+    )
     person = projects.get_person_record_by_tei_id(snapshot.id, "p0001")
     assert person is not None
 

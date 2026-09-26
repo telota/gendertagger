@@ -30,12 +30,16 @@ from gendertagger.ingestion.tabular import (
 )
 from gendertagger.ingestion.tei import TeiImportError, TeiPersonParser, TeiSourceReadError
 from gendertagger.models.artifact import Artifact
+from gendertagger.models.classification import CanonicalLabel
 from gendertagger.models.person import ImportedPerson
 from gendertagger.models.project import (
     DatasetSnapshot,
+    DatasetSnapshotStatistics,
+    SnapshotGndStatistics,
     SnapshotImportConfig,
     SnapshotImportLimits,
     SnapshotImportTaskMessage,
+    SnapshotSourceGenderStatistics,
     SnapshotSourceMember,
     SourceFormat,
     SourceManifestMember,
@@ -68,6 +72,82 @@ class _ResolvedSource:
 
     logical_name: str
     artifact: Artifact
+
+
+@dataclass(slots=True)
+class _SnapshotStatisticsAccumulator:
+    """Accumulate immutable source facts while the parser already visits every person."""
+
+    captures_source_gender: bool
+    total_person_count: int = 0
+    with_gnd_count: int = 0
+    with_source_gender_count: int = 0
+    with_gnd_and_source_gender_count: int = 0
+    male_count: int = 0
+    female_count: int = 0
+    unknown_count: int = 0
+    institution_count: int = 0
+    other_or_multiple_count: int = 0
+
+    def add(self, imported: ImportedPerson) -> None:
+        self.total_person_count += 1
+        has_gnd = imported.person.gnd_id is not None
+        if has_gnd:
+            self.with_gnd_count += 1
+        if not self.captures_source_gender:
+            return
+
+        values = imported.source_gender_values
+        if values is None:
+            msg = "TEI import did not provide source gender facts"
+            raise RuntimeError(msg)
+        if not values:
+            return
+        self.with_source_gender_count += 1
+        if has_gnd:
+            self.with_gnd_and_source_gender_count += 1
+        if len(values) != 1 or values[0] is None:
+            self.other_or_multiple_count += 1
+            return
+
+        value = values[0].strip()
+        if value == CanonicalLabel.male.value:
+            self.male_count += 1
+        elif value == CanonicalLabel.female.value:
+            self.female_count += 1
+        elif value == CanonicalLabel.unknown.value:
+            self.unknown_count += 1
+        elif value == CanonicalLabel.institution.value:
+            self.institution_count += 1
+        else:
+            self.other_or_multiple_count += 1
+
+    def build(self, snapshot_id: UUID) -> DatasetSnapshotStatistics:
+        source_gender = (
+            SnapshotSourceGenderStatistics(
+                with_element_count=self.with_source_gender_count,
+                without_element_count=self.total_person_count - self.with_source_gender_count,
+                male_count=self.male_count,
+                female_count=self.female_count,
+                unknown_count=self.unknown_count,
+                institution_count=self.institution_count,
+                other_or_multiple_count=self.other_or_multiple_count,
+            )
+            if self.captures_source_gender
+            else None
+        )
+        return DatasetSnapshotStatistics(
+            dataset_snapshot_id=snapshot_id,
+            total_person_count=self.total_person_count,
+            source_gender=source_gender,
+            gnd=SnapshotGndStatistics(
+                with_reference_count=self.with_gnd_count,
+                without_reference_count=self.total_person_count - self.with_gnd_count,
+                with_reference_and_source_gender_count=(
+                    self.with_gnd_and_source_gender_count if self.captures_source_gender else None
+                ),
+            ),
+        )
 
 
 class PermanentSnapshotImportError(RuntimeError):
@@ -216,6 +296,9 @@ class SnapshotImportExecutor:
 
             sources = self._resolved_sources(unit_of_work, snapshot, import_config)
             batch: list[ImportedPerson] = []
+            statistics = _SnapshotStatisticsAccumulator(
+                captures_source_gender=import_config.source_format is SourceFormat.tei
+            )
             for record_count, imported_person in enumerate(
                 self._iter_people(import_config, sources),
                 start=1,
@@ -223,6 +306,7 @@ class SnapshotImportExecutor:
                 if record_count > import_config.limits.max_record_count:
                     msg = "snapshot source exceeds the configured record-count limit"
                     raise TeiImportError(msg)
+                statistics.add(imported_person)
                 batch.append(imported_person)
                 if len(batch) == self._import_batch_record_count:
                     self._persist_batch(unit_of_work, snapshot.id, batch)
@@ -232,6 +316,7 @@ class SnapshotImportExecutor:
 
             completed = unit_of_work.projects.complete_snapshot_import(
                 snapshot.id,
+                statistics=statistics.build(snapshot.id),
                 ready_at=self._clock(),
             )
             unit_of_work.commit()

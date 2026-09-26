@@ -65,6 +65,39 @@ export const routes: readonly RouteRecordRaw[] = [
     component: () => import('@/features/projects/ImportView.vue'),
   },
   {
+    path: '/projects/:projectId/snapshots',
+    name: 'projectSnapshots',
+    component: () => import('@/features/projects/ProjectSnapshotsView.vue'),
+  },
+  {
+    path: '/projects/:projectId/snapshots/:snapshotId',
+    name: 'snapshotDetail',
+    component: () => import('@/features/projects/SnapshotDetailView.vue'),
+  },
+  {
+    path: '/projects/:projectId/classification',
+    name: 'projectClassification',
+    component: () => import('@/features/tasks/ProjectTaskView.vue'),
+    props: { mode: 'classification' },
+  },
+  {
+    path: '/projects/:projectId/review',
+    name: 'projectReview',
+    component: () => import('@/features/tasks/ProjectTaskView.vue'),
+    props: { mode: 'review' },
+  },
+  {
+    path: '/projects/:projectId/annotation',
+    name: 'projectAnnotation',
+    component: () => import('@/features/tasks/ProjectTaskView.vue'),
+    props: { mode: 'annotation' },
+  },
+  {
+    path: '/projects/:projectId/snapshots/:snapshotId/annotations/:teiId?',
+    name: 'snapshotAnnotations',
+    component: () => import('@/features/review/SnapshotAnnotationView.vue'),
+  },
+  {
     path: '/projects/:projectId/snapshots/:snapshotId/runs',
     name: 'snapshotRuns',
     component: () => import('@/features/runs/RunListView.vue'),
@@ -73,6 +106,11 @@ export const routes: readonly RouteRecordRaw[] = [
     path: '/projects/:projectId/snapshots/:snapshotId/runs/:runId',
     name: 'runDetail',
     component: () => import('@/features/runs/RunDetailView.vue'),
+  },
+  {
+    path: '/projects/:projectId/snapshots/:snapshotId/runs/:runId/executions/:executionId/results',
+    name: 'methodExecutionResults',
+    component: () => import('@/features/runs/MethodExecutionResultsView.vue'),
   },
   {
     path: '/projects/:projectId/runs/:runId/aggregations/:aggregationId',

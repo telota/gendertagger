@@ -4,6 +4,7 @@ import { createMemoryHistory } from 'vue-router'
 
 import { createApiClient } from '@/api'
 import type { AppLocale } from '@/app/i18n'
+import type { AccessibleProject } from '@/features/projects/useProjects'
 import { createAppRouter } from '@/app/router'
 import { useSessionRecovery } from '@/composables/useSessionRecovery'
 import de from '@/locales/de.json'
@@ -20,11 +21,21 @@ const mounted: VueWrapper[] = []
 const USER = { id: 'a0000000-0000-0000-0000-000000000001', display_name: 'Reviewer One', roles: [] }
 const PROJECT_A = 'b0000000-0000-0000-0000-000000000001'
 const PROJECT_B = 'b0000000-0000-0000-0000-000000000002'
-const project = (id: string, name: string) => ({
+const project = (id: string, name: string): AccessibleProject => ({
   id,
   slug: name.toLowerCase().replace(' ', '-'),
   display_name: name,
   current_user_role: 'operator',
+  current_user_can_manage_members: false,
+  manager_user_id: USER.id,
+  created_by_user_id: USER.id,
+  team: {
+    id: 'c0000000-0000-0000-0000-000000000001',
+    slug: 'editorial-team',
+    display_name: 'Editorial team',
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
   created_at: '2026-01-01T00:00:00Z',
 })
 const ROUTES: Record<string, RouteResponse> = {

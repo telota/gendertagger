@@ -8,6 +8,13 @@ import { useSessionStore } from '@/stores/session'
 // sign-in form, or on top of an action that already meant to end the session.
 const PATHS_EXEMPT_FROM_RECOVERY = ['/api/v1/auth/login', '/api/v1/auth/logout']
 
+/** An annotation draft may recover only under the account that originally submitted it. */
+export function annotationRetryScope(request: Request): string | null {
+  return request.method === 'POST' && new URL(request.url).pathname.endsWith('/api/v1/annotations')
+    ? (useSessionStore().user?.id ?? null)
+    : null
+}
+
 /**
  * Administrative writes never replay after session recovery. A recovered session can belong to another
  * administrator, so retrying would execute the old actor's action under a different principal.

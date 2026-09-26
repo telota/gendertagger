@@ -45,32 +45,47 @@ const resolvedConfig = computed(() => JSON.stringify(props.run.resolved_config, 
 </script>
 
 <template>
-  <section class="provenance" aria-labelledby="provenance-heading">
-    <h2 id="provenance-heading" class="provenance-title">{{ t('runs.provenance.title') }}</h2>
-    <p class="provenance-hint">{{ t('runs.provenance.hint') }}</p>
-    <dl class="provenance-facts">
-      <div v-for="row in rows" :key="row.key" class="provenance-fact" :data-key="row.key">
-        <dt>{{ row.label }}</dt>
-        <dd>
-          <code v-if="row.value" class="provenance-value">{{ row.value }}</code>
-          <span v-else class="provenance-missing">{{ t('runs.provenance.notRecorded') }}</span>
-        </dd>
-      </div>
-    </dl>
-    <details class="provenance-config">
-      <summary>{{ t('runs.provenance.resolvedConfig') }}</summary>
-      <pre class="provenance-config-json">{{ resolvedConfig }}</pre>
-    </details>
-  </section>
+  <details class="provenance">
+    <summary class="provenance-summary">
+      <h2 class="provenance-title">{{ t('runs.provenance.title') }}</h2>
+    </summary>
+    <div class="provenance-content">
+      <p class="provenance-hint">{{ t('runs.provenance.hint') }}</p>
+      <dl class="provenance-facts">
+        <div v-for="row in rows" :key="row.key" class="provenance-fact" :data-key="row.key">
+          <dt>{{ row.label }}</dt>
+          <dd>
+            <code v-if="row.value" class="provenance-value">{{ row.value }}</code>
+            <span v-else class="provenance-missing">{{ t('runs.provenance.notRecorded') }}</span>
+          </dd>
+        </div>
+      </dl>
+      <details class="provenance-config">
+        <summary>{{ t('runs.provenance.resolvedConfig') }}</summary>
+        <pre class="provenance-config-json">{{ resolvedConfig }}</pre>
+      </details>
+    </div>
+  </details>
 </template>
 
 <style scoped>
 .provenance {
   width: 100%;
+  border-block-start: 1px solid var(--border);
+  padding-block: var(--space-3);
+  container: provenance / inline-size;
+}
+.provenance-summary {
+  cursor: pointer;
+  padding-block: var(--space-2);
+}
+.provenance-content {
+  margin-block-start: var(--space-3);
 }
 
 .provenance-title {
-  margin: 0 0 var(--space-2);
+  display: inline;
+  margin: 0;
   font-size: var(--font-size-title);
   font-weight: var(--weight-semibold);
 }
@@ -123,5 +138,11 @@ const resolvedConfig = computed(() => JSON.stringify(props.run.resolved_config, 
   border-radius: var(--radius-card);
   background: var(--panel);
   font-size: var(--font-size-small);
+}
+@container provenance (max-width: 32rem) {
+  .provenance-fact {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+  }
 }
 </style>

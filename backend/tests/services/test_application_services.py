@@ -28,10 +28,12 @@ from gendertagger.models.classification import (
     CanonicalLabel,
     CertaintyTier,
 )
+from gendertagger.models.common import canonical_json_sha256
 from gendertagger.models.dispatch import AggregationDispatchCreate, SnapshotDispatchCreate
 from gendertagger.models.lifecycle import (
     AggregationExecutionStatus,
     DatasetSnapshotStatus,
+    MethodExecutionStatus,
     RunStatus,
 )
 from gendertagger.models.person import PersonRecord
@@ -41,6 +43,7 @@ from gendertagger.models.project import (
     DatasetSnapshotCreate,
     Project,
     ProjectCreate,
+    ProjectDataAvailability,
     SnapshotImportConfig,
     SnapshotImportRequest,
     SnapshotImportTaskMessage,
@@ -61,7 +64,17 @@ from gendertagger.models.review import (
     ReviewSummaryGroup,
     ReviewWorkflowState,
 )
-from gendertagger.models.run import Progress, Run, RunCreate, RunCreateRequest
+from gendertagger.models.run import (
+    MethodExecution,
+    MethodExecutionResult,
+    MethodExecutionResultQuery,
+    MethodExecutionResultState,
+    Progress,
+    Run,
+    RunCreate,
+    RunCreateRequest,
+)
+from gendertagger.models.task import ProjectReviewResult
 from gendertagger.models.team import TeamMember, TeamSummary
 from gendertagger.models.user import CurrentUser, GlobalRole, ProjectRole, User, UserCreate
 from gendertagger.services.aggregations import AggregationCreation, AggregationService
@@ -90,7 +103,10 @@ from gendertagger.services.ports.review_repository import (
     ReviewRepository,
     ReviewSummaryData,
 )
-from gendertagger.services.ports.run_repository import RunRepository
+from gendertagger.services.ports.run_repository import (
+    MethodExecutionResultCursor,
+    RunRepository,
+)
 from gendertagger.services.ports.team_repository import TeamRepository
 from gendertagger.services.ports.unit_of_work import UnitOfWork
 from gendertagger.services.ports.user_repository import UserRepository
@@ -391,6 +407,197 @@ def test_project_service_validates_limits_and_project_resources(tmp_path: Path) 
         )
 
 
+def _method_execution(*, run_id: UUID = RUN_ID) -> MethodExecution:
+    return MethodExecution(
+        id=EXECUTION_ID,
+        run_id=run_id,
+        method_name="gender_guesser",
+        implementation_version="gender_guesser_v1",
+        normalization_version="gender_guesser_v1",
+        resolved_config={},
+        config_sha256="e" * 64,
+        status=MethodExecutionStatus.completed,
+        queue_name="cpu",
+        total_count=2,
+        completed_count=2,
+        failed_count=0,
+        created_at=NOW,
+        progress=Progress.of(total=2, completed=2, failed=0),
+    )
+
+
+def test_run_service_lists_execution_results_with_filter_scoped_cursor() -> None:
+    run_repository = Mock(spec=RunRepository)
+    run_repository.get_run.return_value = _run(
+        RunCreate(
+            dataset_snapshot_id=SNAPSHOT_ID,
+            resolved_config=RunConfig(methods=[]),
+            code_git_commit="c" * 40,
+            application_version="0.0.0",
+            python_version="3.13.14",
+            dependency_lock_sha256="d" * 64,
+        )
+    )
+    run_repository.get_method_execution.return_value = _method_execution()
+    results = [
+        MethodExecutionResult(
+            method_execution_id=EXECUTION_ID,
+            dataset_snapshot_id=SNAPSHOT_ID,
+            person_record_id=PERSON_IDS[0],
+            tei_id="p1",
+            result_state=MethodExecutionResultState.missing,
+        ),
+        MethodExecutionResult(
+            method_execution_id=EXECUTION_ID,
+            dataset_snapshot_id=SNAPSHOT_ID,
+            person_record_id=PERSON_IDS[1],
+            tei_id="p2",
+            result_state=MethodExecutionResultState.missing,
+        ),
+    ]
+    run_repository.list_method_execution_results.side_effect = [results, [results[1]]]
+    unit_of_work = StubUnitOfWork(runs=run_repository)
+    service = RunService(
+        unit_of_work_factory=unit_of_work.factory,
+        method_registry=MethodRegistry([]),
+        provenance=RunProvenance(
+            code_git_commit="c" * 40,
+            application_version="0.0.0",
+            python_version="3.13.14",
+            dependency_lock_sha256="d" * 64,
+        ),
+        cursor_codec=CursorCodec(),
+    )
+
+    first = service.list_execution_results(
+        run_id=RUN_ID,
+        method_execution_id=EXECUTION_ID,
+        query=MethodExecutionResultQuery(limit=1, result_state=MethodExecutionResultState.missing),
+    )
+    second = service.list_execution_results(
+        run_id=RUN_ID,
+        method_execution_id=EXECUTION_ID,
+        query=MethodExecutionResultQuery(
+            limit=1,
+            result_state=MethodExecutionResultState.missing,
+            cursor=first.next_cursor,
+        ),
+    )
+
+    assert first.items == [results[0]]
+    assert first.has_more is True
+    assert second.items == [results[1]]
+    assert second.has_more is False
+    assert run_repository.list_method_execution_results.call_args_list[0].args == (
+        SNAPSHOT_ID,
+        EXECUTION_ID,
+    )
+    assert run_repository.list_method_execution_results.call_args_list[0].kwargs["limit"] == 2
+    assert run_repository.list_method_execution_results.call_args_list[1].kwargs["after"] == (
+        MethodExecutionResultCursor(tei_id="p1", person_record_id=PERSON_IDS[0])
+    )
+
+
+def test_run_service_hides_an_execution_outside_its_parent_run() -> None:
+    run_repository = Mock(spec=RunRepository)
+    run_repository.get_run.return_value = _run(
+        RunCreate(
+            dataset_snapshot_id=SNAPSHOT_ID,
+            resolved_config=RunConfig(methods=[]),
+            code_git_commit="c" * 40,
+            application_version="0.0.0",
+            python_version="3.13.14",
+            dependency_lock_sha256="d" * 64,
+        )
+    )
+    run_repository.get_method_execution.return_value = _method_execution(run_id=uuid4())
+    service = RunService(
+        unit_of_work_factory=StubUnitOfWork(runs=run_repository).factory,
+        method_registry=MethodRegistry([]),
+        provenance=RunProvenance(
+            code_git_commit="c" * 40,
+            application_version="0.0.0",
+            python_version="3.13.14",
+            dependency_lock_sha256="d" * 64,
+        ),
+        cursor_codec=CursorCodec(),
+    )
+
+    with pytest.raises(ResourceNotFoundError, match=str(EXECUTION_ID)):
+        service.list_execution_results(
+            run_id=RUN_ID,
+            method_execution_id=EXECUTION_ID,
+            query=MethodExecutionResultQuery(),
+        )
+    run_repository.list_method_execution_results.assert_not_called()
+
+
+def test_project_service_reads_availability_without_selecting_or_mutating_data(
+    tmp_path: Path,
+) -> None:
+    project_repository = Mock(spec=ProjectRepository)
+    availability = ProjectDataAvailability(
+        project_id=PROJECT_ID,
+        has_ready_snapshots=True,
+        has_completed_aggregations=True,
+    )
+    project_repository.get_data_availability.side_effect = [availability, None]
+    unit_of_work = StubUnitOfWork(projects=project_repository)
+    service = _project_service(unit_of_work=unit_of_work, artifact_root=tmp_path)
+
+    assert service.get_data_availability(PROJECT_ID) == availability
+    with pytest.raises(ResourceNotFoundError, match=str(PROJECT_ID)):
+        service.get_data_availability(PROJECT_ID)
+
+    assert project_repository.get_data_availability.call_count == 2
+    project_repository.get_data_availability.assert_called_with(PROJECT_ID)
+    project_repository.list_snapshots.assert_not_called()
+    project_repository.set_working_aggregation.assert_not_called()
+    assert unit_of_work.commit_count == 0
+
+
+def test_project_service_lists_review_results_as_project_scoped_pages(tmp_path: Path) -> None:
+    project_repository = Mock(spec=ProjectRepository)
+    review_result = ProjectReviewResult(
+        id=AGGREGATION_ID,
+        created_at=NOW,
+        aggregation=_aggregation(
+            AggregationExecutionCreate(
+                run_id=RUN_ID,
+                method_execution_ids=(EXECUTION_ID,),
+            ),
+            status=AggregationExecutionStatus.completed,
+        ),
+        run=_run(
+            RunCreate(
+                dataset_snapshot_id=SNAPSHOT_ID,
+                resolved_config=RunConfig(methods=[]),
+                code_git_commit="c" * 40,
+                application_version="0.0.0",
+                python_version="3.13.14",
+            )
+        ).model_copy(update={"status": RunStatus.completed, "started_at": NOW, "finished_at": NOW}),
+        snapshot=_snapshot(DatasetSnapshotStatus.ready),
+    )
+    project_repository.get_project.side_effect = [_project(), _project(), None]
+    project_repository.list_review_results.side_effect = [[review_result, review_result], []]
+    unit_of_work = StubUnitOfWork(projects=project_repository)
+    service = _project_service(unit_of_work=unit_of_work, artifact_root=tmp_path)
+
+    first = service.list_review_results(PROJECT_ID, limit=1, cursor=None)
+    second = service.list_review_results(PROJECT_ID, limit=1, cursor=first.next_cursor)
+
+    assert first.items == [review_result]
+    assert first.has_more is True
+    assert second.items == []
+    assert project_repository.list_review_results.call_args_list[0].kwargs["limit"] == 2
+    assert project_repository.list_review_results.call_args_list[1].kwargs["after"].id == (
+        review_result.aggregation.id
+    )
+    with pytest.raises(ResourceNotFoundError, match=str(PROJECT_ID)):
+        service.list_review_results(PROJECT_ID, limit=1, cursor=None)
+
+
 def test_project_service_sets_working_aggregation_atomically(tmp_path: Path) -> None:
     project_repository = Mock(spec=ProjectRepository)
     pointed_project = _project().model_copy(
@@ -531,7 +738,7 @@ def test_project_service_stages_upload_and_atomically_queues_snapshot(tmp_path: 
         assert stored_source.read() == VALID_TEI
     snapshot_command = project_repository.add_snapshot.call_args.args[0]
     assert snapshot_command.parser_version == (
-        "tei_parser_v3+tei_collection_v1+tei_single_source_v1"
+        "tei_parser_v4+tei_collection_v1+tei_single_source_v1"
     )
     import_config = SnapshotImportConfig.model_validate(snapshot_command.import_config)
     assert import_config.profile.value == "tei_p5_person_register"
@@ -1051,6 +1258,21 @@ def test_review_item_service_requires_completed_aggregation_and_paginates() -> N
     assert [item.tei_id for item in second_page.items] == ["p3"]
     assert second_page.has_more is False
     assert second_page.next_cursor is None
+
+    old_filters = ReviewItemQuery(aggregation_id=AGGREGATION_ID).model_dump(
+        mode="json", exclude={"cursor", "limit", "tei_id"}
+    )
+    CursorCodec().decode(
+        first_page.next_cursor,
+        expected_resource=f"review_items:{AGGREGATION_ID}:{canonical_json_sha256(old_filters)}",
+        expected_sort_value_count=2,
+    )
+    with pytest.raises(InvalidCursorError, match="different resource"):
+        service.list_review_items(
+            ReviewItemQuery(
+                aggregation_id=AGGREGATION_ID, tei_id="p2", cursor=first_page.next_cursor
+            )
+        )
 
     continuation = review_repository.list_review_items.call_args_list[1].kwargs["after"]
     assert continuation == ReviewItemCursor(

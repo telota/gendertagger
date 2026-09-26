@@ -7,6 +7,7 @@ import de from '@/locales/de.json'
 import en from '@/locales/en.json'
 
 import { mountApplicationAt } from '../../helpers/render'
+import { expectNoAxeViolations } from '../../helpers/axe'
 import { waitFor } from '../../helpers/wait'
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
@@ -127,6 +128,23 @@ function detailClient(server: Server) {
       if (pathname === '/api/v1/auth/session') {
         return jsonResponse({ must_change_password: false, keep_signed_in: false })
       }
+      if (pathname === `/api/v1/projects/${PROJECT_ID}`) {
+        return jsonResponse({
+          id: PROJECT_ID,
+          slug: 'p',
+          display_name: 'Project A',
+          current_user_role: 'viewer',
+          working_aggregation_execution_id: null,
+        })
+      }
+      if (pathname === `/api/v1/snapshots/${SNAPSHOT_ID}`) {
+        return jsonResponse({
+          id: SNAPSHOT_ID,
+          project_id: PROJECT_ID,
+          status: 'ready',
+          created_at: '2026-01-01T09:00:00Z',
+        })
+      }
       if (pathname === `/api/v1/runs/${RUN_ID}`) {
         server.runGets += 1
         return jsonResponse(server.run)
@@ -134,6 +152,9 @@ function detailClient(server: Server) {
       if (pathname === `/api/v1/runs/${RUN_ID}/executions`) {
         server.executionGets += 1
         return jsonResponse(server.executions)
+      }
+      if (pathname === `/api/v1/runs/${RUN_ID}/aggregations`) {
+        return jsonResponse({ items: [], next_cursor: null, has_more: false })
       }
       return jsonResponse({}, { status: 404 })
     },
@@ -196,6 +217,77 @@ describe.each(['de', 'en'] as const)('run detail with live progress in %s', (loc
     await flushPromises()
 
     expect(FakeEventSource.instances).toHaveLength(0)
+  })
+
+  it('puts a successful outcome before compact method evidence and labels every control', async () => {
+    const wrapper = await mountDetail(
+      server({
+        run: runBody('completed_with_errors', progress(7, 1, 8)),
+        executions: [executionBody('completed_with_errors', progress(3, 1, 4))],
+      }),
+    )
+    await waitFor(() => expect(wrapper.find('.aggregations-empty').exists()).toBe(true))
+
+    const sections = Array.from(wrapper.get('.run-detail').element.children)
+    expect(sections.indexOf(wrapper.get('.aggregations').element)).toBeLessThan(
+      sections.indexOf(wrapper.get('.run-detail-executions').element),
+    )
+    expect(wrapper.get('.run-detail-title').text()).not.toBe(messages.detail.title)
+    expect(wrapper.findAll('.run-detail-summary dt').map((item) => item.text())).toEqual([
+      messages.detail.status,
+      messages.detail.created,
+      messages.detail.progress,
+    ])
+    expect(wrapper.get('.execution').classes()).toContain('execution--compact')
+    expect(wrapper.find('.execution progress').exists()).toBe(false)
+    expect(wrapper.get('.run-detail-execution-summary').text()).toBe(
+      messages.detail.methodCountWithIssues.replace('{count}', '1').replace('{issues}', '1'),
+    )
+    expect(wrapper.get('.execution-provenance summary').attributes('aria-label')).toBe(
+      messages.execution.provenanceFor.replace('{method}', 'gender_guesser'),
+    )
+    await expectNoAxeViolations(wrapper.get('main').element)
+  })
+
+  it('keeps the combined-result step after methods while a run is active', async () => {
+    const wrapper = await mountDetail(server())
+    const sections = Array.from(wrapper.get('.run-detail').element.children)
+
+    expect(sections.indexOf(wrapper.get('.aggregations').element)).toBeGreaterThan(
+      sections.indexOf(wrapper.get('.run-detail-executions').element),
+    )
+  })
+
+  it('opens a completed method’s decisions from its method name', async () => {
+    const wrapper = await mountDetail(
+      server({
+        run: runBody('completed', progress(8, 0, 8)),
+        executions: [executionBody('completed', progress(4, 0, 4))],
+      }),
+    )
+
+    expect(wrapper.get('.execution-name a').attributes('href')).toBe(
+      path + '/executions/' + EXECUTION_ID + '/results',
+    )
+  })
+
+  it('opens a cancelled method’s retained decisions from its method name', async () => {
+    const wrapper = await mountDetail(
+      server({
+        run: runBody('cancelled', progress(3, 1, 8)),
+        executions: [executionBody('cancelled', progress(3, 1, 4))],
+      }),
+    )
+
+    expect(wrapper.get('.execution-name a').attributes('href')).toBe(
+      path + '/executions/' + EXECUTION_ID + '/results',
+    )
+  })
+
+  it('does not present a decision link while a method is still running', async () => {
+    const wrapper = await mountDetail(server())
+
+    expect(wrapper.find('.execution-name a').exists()).toBe(false)
   })
 
   it('moves the bars and counts from progress events without refetching', async () => {
@@ -323,6 +415,24 @@ describe.each(['de', 'en'] as const)('run detail with live progress in %s', (loc
     expect(fact('dependencyLockHash')).toBe('b'.repeat(64))
     expect(fact('configHash')).toBe('e'.repeat(64))
     expect(fact('imageDigest')).toBe(messages.provenance.notRecorded)
+    expect(wrapper.get('.provenance').element.tagName).toBe('DETAILS')
+    expect(wrapper.get('.provenance').attributes('open')).toBeUndefined()
+    const sections = Array.from(wrapper.get('.run-detail').element.children)
+    expect(sections.indexOf(wrapper.get('.provenance').element)).toBeGreaterThan(
+      sections.indexOf(wrapper.get('.run-detail-executions').element),
+    )
+  })
+
+  it('does not stream or show method results for a run from a different snapshot', async () => {
+    const state = server({
+      run: runBody('running', progress(0, 0, 8), { dataset_snapshot_id: 'other-snapshot' }),
+    })
+    const wrapper = await mountApplicationAt(path, locale, detailClient(state))
+    await waitFor(() => expect(wrapper.find('.run-detail-unavailable').exists()).toBe(true))
+    expect(wrapper.find('.run-detail-executions').exists()).toBe(false)
+    expect(FakeEventSource.instances).toHaveLength(0)
+    expect(state.executionGets).toBe(0)
+    wrapper.unmount()
   })
 
   it('shows each method execution its own model and prompt identity, only where it has one', async () => {

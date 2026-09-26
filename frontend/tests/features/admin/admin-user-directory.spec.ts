@@ -104,7 +104,7 @@ describe.each(['de', 'en'] as const)('AdminUserDirectoryView in %s', (locale: Ap
       apiClientWithRoutes(signedInRoutes(ADMIN_A)),
     )
     await waitFor(() => {
-      expect(administrator.get('aside a[href="/admin/users"]').text()).toBe(
+      expect(administrator.get('.app-sidebar a[href="/admin/users"]').text()).toBe(
         catalogues[locale].nav.administration,
       )
     })
@@ -115,7 +115,7 @@ describe.each(['de', 'en'] as const)('AdminUserDirectoryView in %s', (locale: Ap
       locale,
       apiClientWithRoutes(signedInRoutes(OPERATOR)),
     )
-    expect(operator.find('aside a[href="/admin/users"]').exists()).toBe(false)
+    expect(operator.find('.app-sidebar a[href="/admin/users"]').exists()).toBe(false)
   })
 
   it('keeps the navigation hidden while a password change is required', async () => {
@@ -126,7 +126,7 @@ describe.each(['de', 'en'] as const)('AdminUserDirectoryView in %s', (locale: Ap
     )
 
     await flushPromises()
-    expect(wrapper.find('aside a[href="/admin/users"]').exists()).toBe(false)
+    expect(wrapper.find('.app-sidebar a[href="/admin/users"]').exists()).toBe(false)
   })
 
   it('redirects a signed-out direct visit to login and preserves its destination', async () => {

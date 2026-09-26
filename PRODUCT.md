@@ -28,6 +28,21 @@ The product combines an authenticated browser workbench with a public publicatio
 
 The interface is German and English. Scientific vocabulary, identifiers, hashes, source locations, and provenance are working material rather than implementation detail. Deployments may provide their own institution, editors, initiatives, legal entity, contact, privacy notice, publication period, and logo.
 
+## Interface Terminology
+
+Use task-oriented presentation names for editorial users, consistently across navigation, headings, actions, and explanatory copy.
+
+| Concept | German interface | English interface |
+| --- | --- | --- |
+| Imported collection of person records | Datenstand | Dataset; Imported dataset when context needs clarification |
+| Individual person record | Personendatensatz; Registereintrag in the existing register context | Person record; Register entry in the existing register context |
+| Automatic classification task | Automatische Vorschläge | Automatic suggestions |
+| Action that starts classification | Vorschläge erstellen | Generate suggestions |
+
+These are presentation names. API contracts, domain models, code, and technical provenance retain `DatasetSnapshot`, `Run`, `Prediction`, and `AggregationExecution`. Scientific labels, certainty tiers, status tokens, and their meanings are unchanged. The existing terms Lauf, Aggregation, and Redigieren remain in use.
+
+Describe the available techniques collectively as methods, not models: some methods use authority data or rules. Automatic suggestions provide evidence for editorial decisions and are not human annotations.
+
 ## Capabilities and Constraints
 
 - A person is identified by TEI `xml:id` within a project; the product does not invent a global person identity.

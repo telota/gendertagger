@@ -18,15 +18,26 @@ describe('routes', () => {
     ['/change-password', 'changePassword'],
     ['/admin/users', 'adminUsers'],
     ['/settings', 'userSettings'],
+    ['/projects/project-a/snapshots', 'projectSnapshots'],
+    ['/projects/project-a/snapshots/snapshot-a', 'snapshotDetail'],
+    ['/projects/project-a/snapshots/snapshot-a/runs', 'snapshotRuns'],
+    ['/projects/project-a/snapshots/snapshot-a/runs/run-a', 'runDetail'],
+    [
+      '/projects/project-a/snapshots/snapshot-a/runs/run-a/executions/execution-a/results',
+      'methodExecutionResults',
+    ],
     ['/irgendwas', 'notFound'],
     ['/impressum/zu-viel', 'notFound'],
   ])('resolves %s to %s', async (path, name) => {
     expect((await resolve(path)).name).toBe(name)
   })
 
-  it('keeps account settings lazy loaded', () => {
-    expect(typeof routes.find((route) => route.name === 'userSettings')?.component).toBe('function')
-  })
+  it.each(['userSettings', 'projectSnapshots', 'snapshotDetail'])(
+    'keeps %s lazy loaded',
+    (name) => {
+      expect(typeof routes.find((route) => route.name === name)?.component).toBe('function')
+    },
+  )
 
   it('names every route so links never depend on a path string', () => {
     expect(routes.every((route) => typeof route.name === 'string')).toBe(true)

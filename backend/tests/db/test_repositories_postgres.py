@@ -7,7 +7,15 @@ from pydantic import JsonValue
 from sqlalchemy import func, select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
-from tests.seeding import seed_project, session_repositories
+from tests.factories import tei_person_input
+from tests.seeding import (
+    legacy_snapshot_statistics,
+    seed_pending_snapshot,
+    seed_project,
+    seed_ready_snapshot,
+    seed_run,
+    session_repositories,
+)
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.db.repositories.aggregation_repository import SqlAlchemyAggregationRepository
@@ -46,7 +54,9 @@ from gendertagger.models.classification import (
 )
 from gendertagger.models.lifecycle import (
     AggregationExecutionStatus,
+    DatasetSnapshotStatus,
     MethodExecutionStatus,
+    RunStatus,
     TaskBatchStatus,
 )
 from gendertagger.models.method import MethodDescriptor
@@ -72,6 +82,8 @@ from gendertagger.models.project import (
 from gendertagger.models.review import AnnotationCreate, ReviewAction, ReviewWorkflowState
 from gendertagger.models.run import (
     MethodExecutionCreate,
+    MethodExecutionResultFilter,
+    MethodExecutionResultState,
     Prediction,
     PredictionWrite,
     RunCreate,
@@ -85,6 +97,7 @@ from gendertagger.services.ports.persistence_errors import (
     ResourceNotFoundError,
     ReviewConflictError,
 )
+from gendertagger.services.ports.run_repository import MethodExecutionResultCursor
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 
@@ -431,7 +444,11 @@ def test_modern_non_loose_source_member_must_be_primary_artifact(
         ],
     )
     assert projects.claim_snapshot_import(snapshot.id) is not None
-    ready = projects.complete_snapshot_import(snapshot.id, ready_at=datetime.now(UTC))
+    ready = projects.complete_snapshot_import(
+        snapshot.id,
+        statistics=legacy_snapshot_statistics(snapshot.id, []),
+        ready_at=datetime.now(UTC),
+    )
 
     assert ready.record_count == 0
 
@@ -477,7 +494,11 @@ def test_ready_transition_rejects_missing_or_malformed_modern_source_sets(
     )
     assert projects.claim_snapshot_import(missing_members.id) is not None
     with pytest.raises(InvalidResourceStateError, match="complete source-member set"):
-        projects.complete_snapshot_import(missing_members.id, ready_at=datetime.now(UTC))
+        projects.complete_snapshot_import(
+            missing_members.id,
+            statistics=legacy_snapshot_statistics(missing_members.id, []),
+            ready_at=datetime.now(UTC),
+        )
 
     wrong_primary = projects.add_snapshot(
         DatasetSnapshotCreate(
@@ -502,7 +523,11 @@ def test_ready_transition_rejects_missing_or_malformed_modern_source_sets(
     db_session.flush()
     assert projects.claim_snapshot_import(wrong_primary.id) is not None
     with pytest.raises(InvalidResourceStateError, match="primary source artifact"):
-        projects.complete_snapshot_import(wrong_primary.id, ready_at=datetime.now(UTC))
+        projects.complete_snapshot_import(
+            wrong_primary.id,
+            statistics=legacy_snapshot_statistics(wrong_primary.id, []),
+            ready_at=datetime.now(UTC),
+        )
 
     manifest = artifacts.add_artifact(
         ArtifactCreate(
@@ -537,7 +562,11 @@ def test_ready_transition_rejects_missing_or_malformed_modern_source_sets(
     db_session.flush()
     assert projects.claim_snapshot_import(ordinal_gap.id) is not None
     with pytest.raises(InvalidResourceStateError, match="contiguous"):
-        projects.complete_snapshot_import(ordinal_gap.id, ready_at=datetime.now(UTC))
+        projects.complete_snapshot_import(
+            ordinal_gap.id,
+            statistics=legacy_snapshot_statistics(ordinal_gap.id, []),
+            ready_at=datetime.now(UTC),
+        )
 
 
 def test_ready_transition_rechecks_modern_parser_provenance(db_session: Session) -> None:
@@ -587,7 +616,52 @@ def test_ready_transition_rechecks_modern_parser_provenance(db_session: Session)
     assert projects.claim_snapshot_import(snapshot.id) is not None
 
     with pytest.raises(InvalidResourceStateError, match="parser version"):
-        projects.complete_snapshot_import(snapshot.id, ready_at=datetime.now(UTC))
+        projects.complete_snapshot_import(
+            snapshot.id,
+            statistics=legacy_snapshot_statistics(snapshot.id, []),
+            ready_at=datetime.now(UTC),
+        )
+
+
+def test_legacy_ready_snapshot_derives_gnd_statistics(db_session: Session) -> None:
+    repositories = session_repositories(db_session)
+    project = seed_project(
+        repositories,
+        slug_prefix="legacy-statistics",
+        display_name="Legacy statistics fixture",
+    )
+    snapshot = seed_pending_snapshot(repositories, project.id)
+    assert repositories.projects.claim_snapshot_import(snapshot.id) is not None
+    repositories.projects.add_imported_person_records(
+        snapshot.id,
+        [
+            ImportedPerson(
+                person=PersonInput(
+                    tei_id="p1",
+                    surname="Example",
+                    name_forms=[PersonNameForm(type=PersonNameType.regular, surname="Example")],
+                    gnd_id="123456789",
+                ),
+                source_member_name="source.xml",
+                source_record_locator="xml:id:p1",
+            )
+        ],
+    )
+    row = db_session.get(DatasetSnapshotRow, snapshot.id)
+    assert row is not None
+    row.record_count = 1
+    row.ready_at = datetime.now(UTC)
+    row.status = DatasetSnapshotStatus.ready
+    db_session.flush()
+
+    statistics = repositories.projects.get_snapshot_statistics(snapshot.id)
+
+    assert statistics is not None
+    assert statistics.total_person_count == 1
+    assert statistics.source_gender is None
+    assert statistics.gnd.with_reference_count == 1
+    assert statistics.gnd.without_reference_count == 0
+    assert statistics.gnd.with_reference_and_source_gender_count is None
 
 
 def test_source_members_and_imported_person_provenance_round_trip(db_session: Session) -> None:
@@ -718,7 +792,11 @@ def test_source_members_and_imported_person_provenance_round_trip(db_session: Se
         )
         == 1
     )
-    snapshot = projects.complete_snapshot_import(snapshot.id, ready_at=datetime.now(UTC))
+    snapshot = projects.complete_snapshot_import(
+        snapshot.id,
+        statistics=legacy_snapshot_statistics(snapshot.id, [PersonInput(tei_id="p1")]),
+        ready_at=datetime.now(UTC),
+    )
     person = projects.get_person_record_by_tei_id(snapshot.id, "p1")
 
     assert person is not None
@@ -874,7 +952,14 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
         )
         == 1
     )
-    snapshot = projects.complete_snapshot_import(snapshot.id, ready_at=now)
+    snapshot = projects.complete_snapshot_import(
+        snapshot.id,
+        statistics=legacy_snapshot_statistics(
+            snapshot.id,
+            [PersonInput(tei_id="p1", gnd_id="123456789")],
+        ),
+        ready_at=now,
+    )
     person = projects.get_person_record_by_tei_id(snapshot.id, "p1")
     assert person is not None
 
@@ -1249,3 +1334,163 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
         db_session,
         lambda: setattr(annotation_row, "comment", "changed"),
     )
+
+
+def test_method_execution_results_project_every_snapshot_person_and_preserve_states(
+    db_session: Session,
+) -> None:
+    repositories = session_repositories(db_session)
+    project = seed_project(repositories, slug_prefix="method-results")
+    people = [
+        tei_person_input(tei_id="p1", surname="Unknown"),
+        tei_person_input(tei_id="p2", surname="Abstained"),
+        tei_person_input(tei_id="p3", surname="Errored"),
+        tei_person_input(tei_id="p4", surname="Missing"),
+    ]
+    snapshot = seed_ready_snapshot(repositories, project.id, people)
+    run = seed_run(
+        repositories,
+        snapshot.id,
+        [MethodRunConfig(name="gender_guesser")],
+    )
+    now = datetime(2026, 9, 25, 12, tzinfo=UTC)
+    repositories.runs.mark_run_queued(run.id)
+    repositories.runs.mark_run_started(run.id, started_at=now)
+    execution = repositories.runs.add_method_execution(
+        MethodExecutionCreate(
+            run_id=run.id,
+            descriptor=MethodDescriptor(
+                name="gender_guesser",
+                implementation_version="gender_guesser_v1",
+                normalization_version="gender_guesser_v1",
+            ),
+            queue_name="cpu",
+            total_count=4,
+        )
+    )
+    repositories.runs.mark_execution_queued(execution.id)
+    repositories.runs.mark_execution_started(execution.id, started_at=now)
+    records = repositories.projects.list_person_records_slice(snapshot.id, offset=0, limit=4)
+    batches = repositories.runs.create_task_batches(
+        execution.id,
+        [
+            TaskBatchPlan(batch_index=index, record_offset=index, record_count=1)
+            for index in range(4)
+        ],
+    )
+    expected = {
+        "p1": PredictionResult(
+            label=CanonicalLabel.unknown,
+            status=PredictionStatus.success,
+            method_confidence=0.8,
+            raw_label="uncertain",
+            raw_output={"source": "test"},
+            metadata={"normalization": "v1"},
+        ),
+        "p2": PredictionResult(label=None, status=PredictionStatus.abstain, raw_label="no_name"),
+        "p3": PredictionResult(label=None, status=PredictionStatus.error, raw_label="timeout"),
+    }
+    for batch, person in zip(batches, records, strict=True):
+        claimed = repositories.runs.claim_batch(
+            batch.id,
+            method_execution_id=execution.id,
+            worker_task_id=f"method-results-{batch.batch_index}",
+            started_at=now,
+            attempt_count=1,
+        )
+        assert claimed is not None
+        result = expected.get(person.tei_id)
+        if result is None:
+            repositories.runs.mark_batch_finished(
+                batch.id,
+                status=TaskBatchStatus.failed,
+                finished_at=now,
+                error_count=1,
+                failure_class="FixtureFailure",
+                failure_diagnostic="one result could not be persisted",
+            )
+            continue
+        repositories.runs.add_predictions(
+            execution.id,
+            [
+                PredictionWrite(
+                    person_record_id=person.id,
+                    task_batch_id=batch.id,
+                    input_fingerprint="f" * 64,
+                    result=result,
+                )
+            ],
+        )
+        repositories.runs.mark_batch_finished(
+            batch.id,
+            status=TaskBatchStatus.completed,
+            finished_at=now,
+            success_count=int(result.status is PredictionStatus.success),
+            abstain_count=int(result.status is PredictionStatus.abstain),
+            error_count=int(result.status is PredictionStatus.error),
+        )
+    repositories.runs.finalize_execution_if_complete(execution.id, finished_at=now)
+    completed_run = repositories.runs.finalize_run_if_complete(run.id, finished_at=now)
+    assert completed_run.status is RunStatus.completed_with_errors
+
+    results = repositories.runs.list_method_execution_results(
+        snapshot.id,
+        execution.id,
+        limit=10,
+    )
+
+    assert [result.tei_id for result in results] == ["p1", "p2", "p3", "p4"]
+    assert [result.result_state for result in results] == [
+        MethodExecutionResultState.success,
+        MethodExecutionResultState.abstain,
+        MethodExecutionResultState.error,
+        MethodExecutionResultState.missing,
+    ]
+    assert results[0].prediction is not None
+    assert results[0].prediction.label is CanonicalLabel.unknown
+    assert results[0].prediction.raw_label == "uncertain"
+    assert set(results[0].prediction.model_dump()) == {
+        "label",
+        "status",
+        "method_confidence",
+        "raw_label",
+    }
+    assert results[3].prediction_id is None
+    assert results[3].prediction is None
+    assert [
+        result.tei_id
+        for result in repositories.runs.list_method_execution_results(
+            snapshot.id,
+            execution.id,
+            limit=10,
+            filters=MethodExecutionResultFilter(result_state=MethodExecutionResultState.missing),
+        )
+    ] == ["p4"]
+    assert [
+        result.tei_id
+        for result in repositories.runs.list_method_execution_results(
+            snapshot.id,
+            execution.id,
+            limit=10,
+            filters=MethodExecutionResultFilter(label=CanonicalLabel.unknown),
+        )
+    ] == ["p1"]
+    assert [
+        result.tei_id
+        for result in repositories.runs.list_method_execution_results(
+            snapshot.id,
+            execution.id,
+            limit=10,
+            filters=MethodExecutionResultFilter(q="errored"),
+        )
+    ] == ["p3"]
+    continuation = repositories.runs.list_method_execution_results(
+        snapshot.id,
+        execution.id,
+        limit=10,
+        after=MethodExecutionResultCursor(
+            tei_id="p2",
+            person_record_id=records[1].id,
+        ),
+    )
+    assert [result.tei_id for result in continuation] == ["p3", "p4"]

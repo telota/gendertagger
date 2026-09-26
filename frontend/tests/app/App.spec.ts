@@ -23,10 +23,11 @@ afterEach(() => {
 })
 
 describe.each(['de', 'en'] as const)('application shell in %s', (locale) => {
-  it('renders the start page with its application title', async () => {
+  it('renders the start page titled by its introduction, with the application name in the header', async () => {
     const wrapper = await mountApplicationAt('/', locale, apiClientWithJsonResponse({}))
 
-    expect(wrapper.get('h1').text()).toBe(catalogues[locale].app.title)
+    expect(wrapper.get('h1').text()).toBe(catalogues[locale].home.guest.lede)
+    expect(wrapper.get('.app-header-brand').text()).toBe(catalogues[locale].app.title)
   })
 
   it('bypasses navigation on successive routes without changing the URL or nesting main landmarks', async () => {

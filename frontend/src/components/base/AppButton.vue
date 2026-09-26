@@ -89,6 +89,10 @@ withDefaults(
   color: var(--text-primary);
 }
 
+.app-button--ghost:hover:not(:disabled) {
+  background: var(--surface-1);
+}
+
 .app-button--ghost.app-button--destructive {
   border-color: var(--critical);
   color: var(--critical-text);

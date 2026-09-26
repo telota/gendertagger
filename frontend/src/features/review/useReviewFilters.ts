@@ -1,6 +1,8 @@
 import { computed, watch } from 'vue'
 import { useRoute, useRouter, type LocationQueryValue } from 'vue-router'
 
+import type { components } from '@/api'
+
 import {
   AGREEMENT_TIERS,
   CANONICAL_LABELS,
@@ -30,6 +32,29 @@ export const QUEUE_TIERS: Record<QueueId, readonly CertaintyTier[]> = {
   contested: ['low', 'contested'],
   thin: ['single', 'uncertain'],
   all: [],
+}
+
+/**
+ * Every queue's counts from the `review-summary` groups, never from loaded pages. One definition for
+ * the queue cards and any other screen that quotes "open of total", so the numbers cannot drift.
+ */
+export function queueCounts(
+  groups: readonly components['schemas']['ReviewSummaryGroup'][],
+): Record<QueueId, QueueCount> {
+  const result = {} as Record<QueueId, QueueCount>
+  for (const queue of QUEUES) {
+    const tiers = QUEUE_TIERS[queue]
+    const inQueue = groups.filter(
+      (group) => tiers.length === 0 || tiers.includes(group.certainty_tier),
+    )
+    result[queue] = {
+      total: inQueue.reduce((sum, group) => sum + group.result_count, 0),
+      open: inQueue
+        .filter((group) => group.workflow_state === 'unreviewed')
+        .reduce((sum, group) => sum + group.result_count, 0),
+    }
+  }
+  return result
 }
 
 const PREDICTION_STATUSES: readonly PredictionStatus[] = ['success', 'abstain', 'error']
@@ -107,8 +132,9 @@ export function useReviewFilters(fixedQueue?: QueueId) {
   const currentFilters = (): ReviewFilters => pending?.filters ?? filters.value
   const currentPerson = (): string | null => (pending ? pending.person : person.value)
 
-  function write(next: ReviewFilters, selected: string | null): void {
-    pending = { filters: next, person: selected }
+  function write(next: ReviewFilters, selected: string | null) {
+    const requested = { filters: next, person: selected }
+    pending = requested
     const query: Record<string, string | string[]> = {}
     if (!fixedQueue && next.queue !== 'contested') query.queue = next.queue
     if (next.q.trim() !== '') query.q = next.q.trim()
@@ -124,17 +150,20 @@ export function useReviewFilters(fixedQueue?: QueueId) {
     if (next.methodName && next.methodLabel) query.methodLabel = next.methodLabel
     if (next.methodName && next.predictionStatus) query.status = next.predictionStatus
     if (selected) query.person = selected
-    void router.replace({ query })
+    return router.replace({ query }).then((failure) => {
+      if (failure && pending === requested) pending = null
+      return failure
+    })
   }
 
   /** Change filters; the selection is kept, so a filter never silently blanks the detail. */
   function setFilters(patch: Partial<ReviewFilters>): void {
-    write({ ...currentFilters(), ...patch }, currentPerson())
+    void write({ ...currentFilters(), ...patch }, currentPerson())
   }
 
   /** Switching queue starts that queue fresh: its own tiers, order and no leftover filters. */
   function setQueue(queue: QueueId): void {
-    write(
+    void write(
       {
         queue,
         q: '',
@@ -152,8 +181,8 @@ export function useReviewFilters(fixedQueue?: QueueId) {
     )
   }
 
-  function selectPerson(teiId: string | null): void {
-    write(currentFilters(), teiId)
+  function selectPerson(teiId: string | null) {
+    return write(currentFilters(), teiId)
   }
 
   return { filters, person, setFilters, setQueue, selectPerson }

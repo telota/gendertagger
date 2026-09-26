@@ -28,6 +28,7 @@ from gendertagger.models.lifecycle import DatasetSnapshotStatus
 from gendertagger.models.person import ImportedPerson
 from gendertagger.models.project import (
     DatasetSnapshot,
+    DatasetSnapshotStatistics,
     SnapshotImportConfig,
     SnapshotImportLimits,
     SnapshotImportTaskMessage,
@@ -282,13 +283,19 @@ def _harness(
         factory.units[-1].staged_batches.append(batch)
         return len(people)
 
-    def complete(snapshot_id: UUID, *, ready_at: datetime) -> DatasetSnapshot:
+    def complete(
+        snapshot_id: UUID,
+        *,
+        statistics: DatasetSnapshotStatistics,
+        ready_at: datetime,
+    ) -> DatasetSnapshot:
         assert snapshot_id == SNAPSHOT_ID
         assert ready_at == NOW
+        assert statistics.total_person_count == sum(len(batch) for batch in batches)
         return _terminal_snapshot(
             snapshot,
             status=DatasetSnapshotStatus.ready,
-            record_count=sum(len(batch) for batch in batches),
+            record_count=statistics.total_person_count,
         )
 
     def fail(

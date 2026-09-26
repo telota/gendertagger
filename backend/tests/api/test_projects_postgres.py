@@ -46,9 +46,11 @@ VALID_TEI = b"""<?xml version="1.0" encoding="UTF-8"?>
       <persName type="alt" subtype="birthname"><surname>Earlier</surname><forename>Annette</forename></persName>
       <persName type="alt"><name>A. Example</name></persName>
       <idno type="uri">https://d-nb.info/gnd/123456789</idno>
+      <gender value="female"/>
     </person>
     <person xml:id="p2">
       <persName type="reg"><surname>Second</surname></persName>
+      <gender/>
     </person>
   </listPerson></body></text>
 </TEI>
@@ -158,7 +160,7 @@ def test_project_and_ready_snapshot_round_trip_through_http(
     assert snapshot_body["record_count"] is None
     assert snapshot_body["ready_at"] is None
     assert snapshot_body["parser_version"] == (
-        "tei_parser_v3+tei_collection_v1+tei_single_source_v1"
+        "tei_parser_v4+tei_collection_v1+tei_single_source_v1"
     )
     assert snapshot_body["import_config"] == {
         "source_format": SourceFormat.tei.value,
@@ -197,6 +199,8 @@ def test_project_and_ready_snapshot_round_trip_through_http(
     assert pending_people_response.status_code == 409
     pending_person_response = client.get(f"/api/v1/snapshots/{snapshot_id}/people/p1")
     assert pending_person_response.status_code == 409
+    pending_statistics_response = client.get(f"/api/v1/snapshots/{snapshot_id}/statistics")
+    assert pending_statistics_response.status_code == 409
 
     with unit_of_work_factory() as unit_of_work:
         dispatch = unit_of_work.dispatches.get_dispatch_for_snapshot(snapshot_id)
@@ -216,6 +220,26 @@ def test_project_and_ready_snapshot_round_trip_through_http(
     assert ready_snapshot_body["status"] == DatasetSnapshotStatus.ready.value
     assert ready_snapshot_body["record_count"] == 3
     assert ready_snapshot_body["ready_at"].endswith("Z")
+    statistics_response = client.get(f"/api/v1/snapshots/{snapshot_id}/statistics")
+    assert statistics_response.status_code == 200
+    assert statistics_response.json() == {
+        "dataset_snapshot_id": str(snapshot_id),
+        "total_person_count": 3,
+        "source_gender": {
+            "with_element_count": 2,
+            "without_element_count": 1,
+            "male_count": 0,
+            "female_count": 1,
+            "unknown_count": 0,
+            "institution_count": 0,
+            "other_or_multiple_count": 1,
+        },
+        "gnd": {
+            "with_reference_count": 1,
+            "without_reference_count": 2,
+            "with_reference_and_source_gender_count": 1,
+        },
+    }
 
     first_page_response = client.get(
         f"/api/v1/snapshots/{snapshot_id}/people",

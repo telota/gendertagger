@@ -172,6 +172,7 @@ PATH_VALUES = {
     "snapshot_id": _ID,
     "tei_id": "p1",
     "run_id": _ID,
+    "method_execution_id": _OTHER,
     "aggregation_id": _ID,
     "result_id": _OTHER,
     "evaluation_id": _ID,
@@ -180,6 +181,12 @@ PATH_VALUES = {
 }
 PROJECT_SCOPED_ROUTES = (
     _ScopedRoute("GET", "/projects/{project_id}", ProjectScope.project, ProjectRole.viewer),
+    _ScopedRoute(
+        "GET", "/projects/{project_id}/data-availability", ProjectScope.project, ProjectRole.viewer
+    ),
+    _ScopedRoute(
+        "GET", "/projects/{project_id}/review-results", ProjectScope.project, ProjectRole.reviewer
+    ),
     _ScopedRoute(
         "PUT",
         "/projects/{project_id}/working-aggregation",
@@ -215,6 +222,18 @@ PROJECT_SCOPED_ROUTES = (
         ProjectRole.viewer,
     ),
     _ScopedRoute(
+        "GET",
+        "/snapshots/{snapshot_id}/annotation-items",
+        ProjectScope.snapshot,
+        ProjectRole.viewer,
+    ),
+    _ScopedRoute(
+        "GET",
+        "/snapshots/{snapshot_id}/annotation-items/{tei_id}",
+        ProjectScope.snapshot,
+        ProjectRole.viewer,
+    ),
+    _ScopedRoute(
         "POST",
         "/runs",
         ProjectScope.snapshot,
@@ -223,6 +242,12 @@ PROJECT_SCOPED_ROUTES = (
     ),
     _ScopedRoute("GET", "/runs/{run_id}", ProjectScope.run, ProjectRole.viewer),
     _ScopedRoute("GET", "/runs/{run_id}/executions", ProjectScope.run, ProjectRole.viewer),
+    _ScopedRoute(
+        "GET",
+        "/runs/{run_id}/executions/{method_execution_id}/results",
+        ProjectScope.run,
+        ProjectRole.viewer,
+    ),
     _ScopedRoute("POST", "/runs/{run_id}/executions", ProjectScope.run, ProjectRole.operator),
     _ScopedRoute("GET", "/runs/{run_id}/events", ProjectScope.run, ProjectRole.viewer),
     _ScopedRoute(

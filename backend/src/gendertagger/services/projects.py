@@ -19,8 +19,11 @@ from gendertagger.models.project import (
     AccessibleProject,
     DatasetSnapshot,
     DatasetSnapshotCreate,
+    DatasetSnapshotListFilter,
+    DatasetSnapshotStatistics,
     Project,
     ProjectCreate,
+    ProjectDataAvailability,
     SnapshotImportConfig,
     SnapshotImportLimits,
     SnapshotImportRequest,
@@ -36,10 +39,12 @@ from gendertagger.models.project import (
     normalize_source_member_logical_name,
 )
 from gendertagger.models.queues import CPU_QUEUE
+from gendertagger.models.task import ProjectReviewResult
 from gendertagger.models.user import CurrentUser, GlobalRole, ProjectRole
 from gendertagger.services.pagination import (
     CursorCodec,
     decode_creation_position,
+    filtered_collection_resource,
     newest_first_page,
 )
 from gendertagger.services.ports.artifact_storage import ArtifactStorage
@@ -210,6 +215,15 @@ class ProjectService:
             raise ResourceNotFoundError(msg)
         return project
 
+    def get_data_availability(self, project_id: UUID) -> ProjectDataAvailability:
+        """Return data existence across the project or raise a not-found failure."""
+        with self._unit_of_work_factory() as unit_of_work:
+            availability = unit_of_work.projects.get_data_availability(project_id)
+        if availability is None:
+            msg = f"project {project_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        return availability
+
     def set_working_aggregation(
         self,
         project_id: UUID,
@@ -238,6 +252,19 @@ class ProjectService:
             raise ResourceNotFoundError(msg)
         return snapshot
 
+    def get_snapshot_statistics(self, snapshot_id: UUID) -> DatasetSnapshotStatistics:
+        """Return immutable source-inventory statistics for one ready snapshot."""
+        snapshot = self.get_snapshot(snapshot_id)
+        if snapshot.status is not DatasetSnapshotStatus.ready:
+            msg = f"dataset snapshot {snapshot_id} is not ready"
+            raise InvalidResourceStateError(msg)
+        with self._unit_of_work_factory() as unit_of_work:
+            statistics = unit_of_work.projects.get_snapshot_statistics(snapshot_id)
+        if statistics is None:
+            msg = f"dataset snapshot {snapshot_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        return statistics
+
     def list_snapshot_source_members(
         self,
         snapshot_id: UUID,
@@ -253,21 +280,46 @@ class ProjectService:
         *,
         limit: int,
         cursor: str | None,
+        filters: DatasetSnapshotListFilter | None = None,
     ) -> CursorPage[DatasetSnapshot]:
         """Return one newest-first opaque-cursor page of a project's snapshots."""
         if limit <= 0:
             msg = "limit must be positive"
             raise ValueError(msg)
         self.get_project(project_id)
-        resource = f"project_snapshots:{project_id}"
+        filters = filters or DatasetSnapshotListFilter()
+        resource = filtered_collection_resource(f"project_snapshots:{project_id}", filters)
         after = decode_creation_position(self._cursor_codec, cursor, resource=resource)
         with self._unit_of_work_factory() as unit_of_work:
             snapshots = unit_of_work.projects.list_snapshots(
                 project_id,
                 limit=limit + 1,
                 after=after,
+                filters=filters,
             )
         return newest_first_page(self._cursor_codec, snapshots, limit=limit, resource=resource)
+
+    def list_review_results(
+        self,
+        project_id: UUID,
+        *,
+        limit: int,
+        cursor: str | None,
+    ) -> CursorPage[ProjectReviewResult]:
+        """Return completed aggregation executions that can be opened for review."""
+        if limit <= 0:
+            msg = "limit must be positive"
+            raise ValueError(msg)
+        self.get_project(project_id)
+        resource = f"project_review_results:{project_id}"
+        after = decode_creation_position(self._cursor_codec, cursor, resource=resource)
+        with self._unit_of_work_factory() as unit_of_work:
+            results = unit_of_work.projects.list_review_results(
+                project_id,
+                limit=limit + 1,
+                after=after,
+            )
+        return newest_first_page(self._cursor_codec, results, limit=limit, resource=resource)
 
     def list_people(
         self,

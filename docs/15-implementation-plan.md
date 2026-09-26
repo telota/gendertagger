@@ -187,6 +187,36 @@ It preserves this phase's scope and the verification requirements of the increme
 
 Exit criterion: a reviewer can correct a machine result and the final-decision view changes without mutating Predictions/AggregatedResults.
 
+### Classification and independent annotation entry increment
+
+The accepted [classification and review entry brief](frontend-classification-proposal.md) separates
+project task entry from the previously selected run. Preparation and correctness fixes were delivered
+first: project-wide data availability, validated navigation ownership, and snapshot-scoped annotation
+state. The 2026-09-26 increment delivers server-filtered cursor collections, independent task pickers,
+the aligned classification list/form/detail and snapshot-only manual annotation with optional evidence.
+
+Sidebar task links use project availability and role permissions; unavailable tasks and empty groups
+are hidden, while failed checks offer retry. The working aggregation is a recommendation, never an
+implicit selection or write. Existing exact workbench links remain valid, and context changes preserve
+draft-leave protection. This extends client entry paths without changing scientific outcomes, immutable
+results, append-only decisions or revision conflict rules. Automated validation and the remaining live
+browser review are recorded in the [improvement plan](27-frontend-improvement-plan.md).
+
+### Aggregation workflow increment — proposed
+
+The [aggregation workflow plan](28-aggregation-workflow-plan.md) specifies the next proposed
+classification follow-up. Ordinary suggestion generation will explicitly request server-owned
+aggregation, while method-only experiments retain a separate advanced path. The scope includes one
+revision-protected project configuration, clear method/suggestion/editorial terminology, an explicit
+working-result action, and the user-confirmed default of including human decisions in new exports.
+
+Deliver in order: architecture and compatibility decisions; durable backend orchestration; reusable
+project configuration; client workflow and terminology; reviewed-export defaults and provenance; then
+migration, concurrency, recovery, scientific regression, and browser verification. Backend orchestration
+must precede removal of the browser trigger. Existing scientific rules and historical hashes remain
+unchanged, and no historical run is automatically re-aggregated. The detailed plan's acceptance matrix
+is this increment's exit criterion. No runtime work for this increment is claimed as delivered.
+
 ### Account preferences increment (ADR-0043)
 
 [ADR-0043](decisions/ADR-0043-account-level-user-preferences.md) defines a bounded personal-presentation

@@ -18,6 +18,7 @@ import {
 } from './useAggregations'
 import type { MethodExecutionSummary } from './useRunDetail'
 import type { Run } from './useRuns'
+import { useStatusLabel } from './useStatusLabel'
 
 const props = defineProps<{
   projectId: string
@@ -25,7 +26,8 @@ const props = defineProps<{
   executions: readonly MethodExecutionSummary[]
 }>()
 
-const { t } = useI18n()
+const { t, d, n } = useI18n()
+const label = useStatusLabel()
 
 const runId = computed(() => props.run.id)
 const list = useAggregationList(runId)
@@ -34,6 +36,43 @@ const aggregations = computed(() => list.data.value?.pages.flatMap((page) => pag
 const project = useProject(computed(() => props.projectId))
 // Creating an aggregation is a project-scoped operator action, like starting a run.
 const canOperate = computed(() => project.data.value?.current_user_role === 'operator')
+
+const currentAggregation = computed(() => {
+  const items = aggregations.value
+  const workingId = project.data.value?.working_aggregation_execution_id
+  const working = workingId ? items.find((aggregation) => aggregation.id === workingId) : undefined
+  return (
+    working ??
+    items.find(
+      (aggregation) => aggregation.status !== 'failed' && aggregation.status !== 'cancelled',
+    ) ??
+    items[0] ??
+    null
+  )
+})
+const aggregationHistory = computed(() => {
+  const currentId = currentAggregation.value?.id
+  return currentId
+    ? aggregations.value.filter((aggregation) => aggregation.id !== currentId)
+    : aggregations.value
+})
+const currentTitle = computed(() => {
+  const current = currentAggregation.value
+  if (current === null) return ''
+  if (project.data.value?.working_aggregation_execution_id === current.id) {
+    return t('aggregations.currentWorking')
+  }
+  if (current.status === 'failed' || current.status === 'cancelled') {
+    return t('aggregations.latestAttempt')
+  }
+  return t('aggregations.latestResult')
+})
+
+function historyTitle(createdAt: string): string {
+  return t('aggregations.item.titleWithDate', {
+    date: d(new Date(createdAt), 'timestamp'),
+  })
+}
 
 const aggregatable = computed(() =>
   props.executions.filter((execution) => AGGREGATABLE_EXECUTION_STATUSES.has(execution.status)),
@@ -100,8 +139,22 @@ watch(
   { immediate: true },
 )
 
-// The advanced path: an explicit selection, which is what makes re-aggregating without re-running
-// any method cheap. Everything aggregatable starts selected.
+watch(
+  [() => list.isSuccess.value, currentAggregation, aggregatable],
+  ([isReady, current, available]) => {
+    if (!isReady || Object.keys(selected.value).length > 0) return
+    const currentSelection = current ? new Set(current.method_execution_ids) : null
+    const initial = Object.fromEntries(
+      available.map((execution) => [execution.id, currentSelection?.has(execution.id) ?? true]),
+    )
+    selected.value = initial
+    savedSelection.value = { ...initial }
+  },
+  { immediate: true },
+)
+
+// The advanced path starts from the visible current selection. Operators can choose another exact
+// execution set without re-running methods; the server remains authoritative for strategy validity.
 const selectedIds = computed(() =>
   aggregatable.value
     .filter((execution) => selected.value[execution.id] ?? true)
@@ -156,8 +209,10 @@ function loadMore(): void {
 
 <template>
   <section class="aggregations" aria-labelledby="aggregations-heading">
-    <h2 id="aggregations-heading" class="aggregations-title">{{ t('aggregations.title') }}</h2>
-    <p class="aggregations-hint">{{ t('aggregations.hint') }}</p>
+    <div class="aggregations-header">
+      <h2 id="aggregations-heading" class="aggregations-title">{{ t('aggregations.title') }}</h2>
+      <p class="aggregations-hint">{{ t('aggregations.hint') }}</p>
+    </div>
 
     <p v-if="!runSucceeded" class="aggregations-waiting">
       {{ t('aggregations.waitingForRun') }}
@@ -171,19 +226,52 @@ function loadMore(): void {
       </AppButton>
     </div>
     <template v-else>
-      <p v-if="aggregations.length === 0" class="aggregations-empty">
+      <p
+        v-if="aggregations.length === 0 && !(create.isPending.value && attempt === 'auto')"
+        class="aggregations-empty"
+      >
         {{ t('aggregations.empty') }}
       </p>
-      <ul v-else class="aggregations-items">
+
+      <ul v-if="currentAggregation" class="aggregations-items">
         <AggregationItem
-          v-for="aggregation in aggregations"
-          :key="aggregation.id"
-          :aggregation="aggregation"
+          :aggregation="currentAggregation"
           :project-id="projectId"
+          :executions="executions"
+          :title="currentTitle"
+          featured
         />
       </ul>
+
+      <details v-if="aggregationHistory.length > 0" class="aggregations-history">
+        <summary>
+          {{
+            t('aggregations.historyWithCount', {
+              count: n(aggregationHistory.length, 'integer'),
+            })
+          }}
+        </summary>
+        <ul class="aggregations-items aggregations-items--history">
+          <AggregationItem
+            v-for="aggregation in aggregationHistory"
+            :key="aggregation.id"
+            :aggregation="aggregation"
+            :project-id="projectId"
+            :executions="executions"
+            :title="historyTitle(aggregation.created_at)"
+          />
+        </ul>
+        <AppButton
+          v-if="list.hasNextPage.value"
+          class="aggregations-load-more"
+          type="button"
+          @click="loadMore"
+        >
+          {{ t('runs.loadMore') }}
+        </AppButton>
+      </details>
       <AppButton
-        v-if="list.hasNextPage.value"
+        v-else-if="list.hasNextPage.value"
         class="aggregations-load-more"
         type="button"
         @click="loadMore"
@@ -193,7 +281,13 @@ function loadMore(): void {
     </template>
 
     <p class="aggregations-live" role="status">
-      {{ hasLive ? t('aggregations.inProgress') : '' }}
+      {{
+        create.isPending.value && attempt === 'auto'
+          ? t('aggregations.autoCreating')
+          : hasLive
+            ? t('aggregations.inProgress')
+            : ''
+      }}
     </p>
     <p v-if="errorText" role="alert" class="aggregations-error">{{ errorText }}</p>
     <p v-if="reusedId" class="aggregations-reused" role="status">
@@ -214,7 +308,11 @@ function loadMore(): void {
       <form class="aggregations-form" novalidate @submit.prevent="submitManual">
         <p class="aggregations-hint">{{ t('aggregations.advanced.hint') }}</p>
         <p class="aggregations-strategy">
-          {{ t('aggregations.advanced.strategy', { strategy: 'reference_v1' }) }}
+          {{
+            t('aggregations.advanced.strategy', {
+              strategy: t('aggregations.item.referenceStrategy'),
+            })
+          }}
         </p>
         <fieldset class="aggregations-selection">
           <legend>{{ t('aggregations.advanced.selection') }}</legend>
@@ -229,7 +327,10 @@ function loadMore(): void {
               :checked="selected[execution.id] ?? true"
               @change="selected[execution.id] = ($event.target as HTMLInputElement).checked"
             />
-            <label :for="`aggregate-${execution.id}`">{{ execution.method_name }}</label>
+            <label :for="`aggregate-${execution.id}`">
+              <span>{{ execution.method_name }}</span>
+              <span class="aggregations-method-status">{{ label(execution.status) }}</span>
+            </label>
           </div>
         </fieldset>
         <AppButton class="aggregations-submit" type="submit" :disabled="!canSubmit">
@@ -249,8 +350,13 @@ function loadMore(): void {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--space-3);
+  gap: var(--space-4);
   width: 100%;
+}
+
+.aggregations-header {
+  display: grid;
+  gap: var(--space-1);
 }
 
 .aggregations-title {
@@ -292,6 +398,33 @@ function loadMore(): void {
   list-style: none;
 }
 
+.aggregations-history {
+  width: 100%;
+}
+
+.aggregations-history > summary,
+.aggregations-advanced > summary {
+  display: inline-flex;
+  min-block-size: 2rem;
+  align-items: center;
+  gap: var(--space-1);
+  cursor: pointer;
+  font-weight: var(--weight-semibold);
+}
+
+.aggregations-history[open] > summary {
+  margin-bottom: var(--space-3);
+}
+
+.aggregations-items--history {
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--border);
+}
+
+.aggregations-load-more {
+  margin-top: var(--space-3);
+}
+
 .aggregations-reused {
   margin: 0;
 }
@@ -303,11 +436,8 @@ function loadMore(): void {
 
 .aggregations-advanced {
   width: 100%;
-}
-
-.aggregations-advanced summary {
-  cursor: pointer;
-  font-weight: var(--weight-semibold);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
 }
 
 .aggregations-form {
@@ -319,6 +449,7 @@ function loadMore(): void {
 }
 
 .aggregations-selection {
+  width: min(100%, 40rem);
   margin: 0;
   padding: 0;
   border: 0;
@@ -331,8 +462,36 @@ function loadMore(): void {
 
 .aggregations-selection-row {
   display: flex;
+  min-block-size: 2.5rem;
   align-items: center;
   gap: var(--space-2);
-  margin-top: var(--space-2);
+}
+
+.aggregations-selection-row input {
+  flex: 0 0 auto;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  margin: 0;
+}
+
+.aggregations-selection-row label {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.aggregations-method-status {
+  color: var(--text-secondary);
+  font-size: var(--font-size-small);
+}
+
+@media (pointer: coarse) {
+  .aggregations-history > summary,
+  .aggregations-advanced > summary,
+  .aggregations-selection-row {
+    min-block-size: 2.75rem;
+  }
 }
 </style>

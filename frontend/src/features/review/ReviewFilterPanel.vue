@@ -21,6 +21,7 @@ const props = defineProps<{
   methodNames: readonly string[]
   /** The register's filters: search, order, review state and final label. The rest is for triage. */
   simple?: boolean
+  layout?: 'column' | 'panel'
 }>()
 const emit = defineEmits<{ update: [patch: Partial<ReviewFilters>] }>()
 
@@ -56,7 +57,13 @@ const PREDICTION_STATUSES: readonly PredictionStatus[] = ['success', 'abstain', 
 </script>
 
 <template>
-  <form class="filters" role="search" novalidate @submit.prevent>
+  <form
+    class="filters"
+    :class="{ 'filters--panel': layout === 'panel' }"
+    role="search"
+    novalidate
+    @submit.prevent
+  >
     <h2 class="filters-title">{{ t('review.filters.title') }}</h2>
 
     <div class="filter">
@@ -239,6 +246,18 @@ const PREDICTION_STATUSES: readonly PredictionStatus[] = ['success', 'abstain', 
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+}
+
+.filters--panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  align-items: start;
+  gap: var(--space-4);
+}
+
+.filters--panel .filters-title,
+.filters--panel .filters-hint {
+  grid-column: 1 / -1;
 }
 
 .filters-title {

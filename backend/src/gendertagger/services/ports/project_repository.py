@@ -9,11 +9,15 @@ from gendertagger.models.person import ImportedPerson, PersonRecord
 from gendertagger.models.project import (
     DatasetSnapshot,
     DatasetSnapshotCreate,
+    DatasetSnapshotListFilter,
+    DatasetSnapshotStatistics,
     Project,
     ProjectCreate,
+    ProjectDataAvailability,
     SnapshotSourceMember,
     SnapshotSourceMemberCreate,
 )
+from gendertagger.models.task import ProjectReviewResult
 from gendertagger.services.pagination import CreationPosition
 
 
@@ -32,6 +36,10 @@ class ProjectRepository(Protocol):
 
     def get_project(self, project_id: UUID) -> Project | None:
         """Return a project by ID, or ``None`` when absent."""
+        ...
+
+    def get_data_availability(self, project_id: UUID) -> ProjectDataAvailability | None:
+        """Return project-wide data existence, or ``None`` if the project is absent."""
         ...
 
     def get_project_for_update(self, project_id: UUID) -> Project | None:
@@ -74,14 +82,32 @@ class ProjectRepository(Protocol):
         """Return a snapshot by ID, or ``None`` when absent."""
         ...
 
+    def get_snapshot_statistics(
+        self,
+        snapshot_id: UUID,
+    ) -> DatasetSnapshotStatistics | None:
+        """Return persisted or legacy-derived statistics for a ready snapshot."""
+        ...
+
     def list_snapshots(
         self,
         project_id: UUID,
         *,
         limit: int,
         after: CreationPosition | None = None,
+        filters: DatasetSnapshotListFilter | None = None,
     ) -> Sequence[DatasetSnapshot]:
         """Return one newest-first ``(created_at, id)`` keyset slice of a project's snapshots."""
+        ...
+
+    def list_review_results(
+        self,
+        project_id: UUID,
+        *,
+        limit: int,
+        after: CreationPosition | None = None,
+    ) -> Sequence[ProjectReviewResult]:
+        """Return completed reviewable results newest first for one project."""
         ...
 
     def add_snapshot_source_members(
@@ -144,9 +170,10 @@ class ProjectRepository(Protocol):
         self,
         snapshot_id: UUID,
         *,
+        statistics: DatasetSnapshotStatistics,
         ready_at: datetime,
     ) -> DatasetSnapshot:
-        """Atomically mark an importing snapshot ready with its persisted count."""
+        """Atomically mark an importing snapshot ready with its count and statistics."""
         ...
 
     def fail_snapshot_import(

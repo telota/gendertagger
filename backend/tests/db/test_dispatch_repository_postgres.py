@@ -8,7 +8,7 @@ from sqlalchemy import Engine, insert, select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 from tests.factories import tei_person_input
-from tests.seeding import seed_project, session_repositories
+from tests.seeding import legacy_snapshot_statistics, seed_project, session_repositories
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.db.repositories.artifact_repository import SqlAlchemyArtifactRepository
@@ -123,7 +123,17 @@ def _execution_context(
             ),
         ],
     )
-    projects.complete_snapshot_import(snapshot.id, ready_at=now)
+    projects.complete_snapshot_import(
+        snapshot.id,
+        statistics=legacy_snapshot_statistics(
+            snapshot.id,
+            [
+                tei_person_input(tei_id="p1"),
+                tei_person_input(tei_id="p2"),
+            ],
+        ),
+        ready_at=now,
+    )
 
     runs = SqlAlchemyRunRepository(session)
     run = runs.add_run(

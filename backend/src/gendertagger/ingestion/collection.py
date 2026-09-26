@@ -37,7 +37,8 @@ class TeiCollectionImporter:
         member_iterator = iter(members)
         try:
             for member in member_iterator:
-                for person in self._parser.iter_people(member.source):
+                for parsed in self._parser.iter_parsed_people(member.source):
+                    person = parsed.person
                     previous_member = seen_tei_ids.get(person.tei_id)
                     if previous_member is not None:
                         msg = (
@@ -48,6 +49,7 @@ class TeiCollectionImporter:
                     seen_tei_ids[person.tei_id] = member.logical_name
                     yield ImportedPerson(
                         person=person,
+                        source_gender_values=parsed.source_gender_values,
                         source_member_name=member.logical_name,
                         source_record_locator=_person_locator(person.tei_id),
                     )

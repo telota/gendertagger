@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useSlots, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { ApiError } from '@/api'
@@ -7,23 +7,29 @@ import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useDraftNavigation, useDraftRegistration } from '@/composables/useDraftNavigation'
 
-import { useCreateAnnotation } from './useAnnotate'
-import type { AnnotationHistory, ReviewItem } from './useReviewData'
+import { useCreateAnnotation, type AnnotationTarget } from './useAnnotate'
+import type { AnnotationHistory } from './useReviewData'
 import { CANONICAL_LABELS, useVocabularyGloss, type CanonicalLabel } from './useVocabulary'
 import VocabBadge from './VocabBadge.vue'
 
-const props = defineProps<{
-  item: ReviewItem
-  /** The freshly read chain; its `revision` is what a decision is written against. */
-  history: AnnotationHistory | undefined
-  historyRefreshing: boolean
-  canReview: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    item: AnnotationTarget & { machine_label?: CanonicalLabel | null }
+    /** The freshly read chain; its `revision` is what a decision is written against. */
+    history: AnnotationHistory | undefined
+    historyRefreshing: boolean
+    historyFailed?: boolean
+    contextReady?: boolean
+    canReview: boolean
+  }>(),
+  { contextReady: true },
+)
 
 const { t, n } = useI18n()
 const gloss = useVocabularyGloss()
 const create = useCreateAnnotation()
 const draftNavigation = useDraftNavigation()
+const hasResultsSlot = Boolean(useSlots().results)
 
 // One choice among: confirm the machine label, correct to one of the four labels, or defer.
 type Choice = '' | 'verify' | 'defer' | `correct:${CanonicalLabel}`
@@ -36,9 +42,9 @@ let draftGeneration = 0
 const conflictBox = ref<HTMLElement | null>(null)
 const savedBox = ref<HTMLElement | null>(null)
 
-// A different person starts from a clean slate: no carried-over choice, comment or message.
+// IDs can recur in other snapshots. A different person or evidence context starts a clean draft.
 watch(
-  () => props.item.tei_id,
+  [() => props.item.snapshot_id, () => props.item.tei_id, () => props.item.aggregated_result_id],
   () => {
     draftGeneration += 1
     choice.value = ''
@@ -50,7 +56,15 @@ watch(
 )
 
 const machineLabel = computed(() => props.item.machine_label ?? null)
-const ready = computed(() => props.history !== undefined && !props.historyRefreshing)
+const ready = computed(
+  () =>
+    props.history !== undefined &&
+    props.history.snapshot_id === props.item.snapshot_id &&
+    props.history.tei_id === props.item.tei_id &&
+    !props.historyRefreshing &&
+    !props.historyFailed &&
+    props.contextReady !== false,
+)
 // While a conflict is open the stale choice cannot be saved: the reviewer must first decide again
 // (or discard), so somebody else's newer decision is never overwritten unseen.
 const canSave = computed(
@@ -149,6 +163,16 @@ function discard(): void {
   create.reset()
 }
 
+watch(
+  () => props.canReview,
+  (allowed) => {
+    if (allowed) return
+    discard()
+    saved.value = ''
+  },
+  { flush: 'sync' },
+)
+
 useDraftRegistration(() => choice.value !== '' || comment.value !== '', discard)
 
 const errorText = computed(() => {
@@ -195,104 +219,147 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="decision" aria-labelledby="decision-heading">
-    <h3 id="decision-heading" class="decision-heading">{{ t('review.decision.title') }}</h3>
-
-    <AppFeedback v-if="!canReview" class="decision-muted">{{
-      t('review.decision.viewerNote')
-    }}</AppFeedback>
-    <form v-else class="decision-form" novalidate @submit.prevent="save">
-      <div v-if="conflict" ref="conflictBox" class="decision-conflict" role="alert" tabindex="-1">
-        <p class="decision-conflict-title">{{ t('review.decision.conflict.title') }}</p>
-        <p>{{ t('review.decision.conflict.body') }}</p>
-        <p v-if="latest" class="decision-conflict-latest">
-          {{
-            t('review.decision.conflict.latest', {
-              action: latest.action,
-              name: latest.reviewer_display_name,
-            })
-          }}
-          <VocabBadge v-if="latest.label" :value="latest.label" kind="label" />
-        </p>
-        <div class="decision-conflict-actions">
-          <AppButton class="decision-decide-again" type="button" @click="decideAgain">
-            {{ t('review.decision.conflict.again') }}
-          </AppButton>
-          <AppButton class="decision-discard" type="button" variant="ghost" @click="discard">
-            {{ t('review.decision.conflict.discard') }}
-          </AppButton>
+  <section
+    class="decision"
+    :class="{ 'decision--split': hasResultsSlot }"
+    aria-labelledby="decision-heading"
+  >
+    <form v-if="canReview" class="decision-form" novalidate @submit.prevent="save">
+      <div class="decision-controls">
+        <h3 id="decision-heading" class="decision-heading">{{ t('review.decision.title') }}</h3>
+        <div v-if="conflict" ref="conflictBox" class="decision-conflict" role="alert" tabindex="-1">
+          <p class="decision-conflict-title">{{ t('review.decision.conflict.title') }}</p>
+          <p>{{ t('review.decision.conflict.body') }}</p>
+          <p v-if="latest" class="decision-conflict-latest">
+            {{
+              t('review.decision.conflict.latest', {
+                action: latest.action,
+                name: latest.reviewer_display_name,
+              })
+            }}
+            <VocabBadge v-if="latest.label" :value="latest.label" kind="label" />
+          </p>
+          <div class="decision-conflict-actions">
+            <AppButton class="decision-decide-again" type="button" @click="decideAgain">
+              {{ t('review.decision.conflict.again') }}
+            </AppButton>
+            <AppButton class="decision-discard" type="button" variant="ghost" @click="discard">
+              {{ t('review.decision.conflict.discard') }}
+            </AppButton>
+          </div>
         </div>
+
+        <div class="decision-choice-layout">
+          <fieldset class="decision-choices">
+            <legend>{{ t('review.decision.choose') }}</legend>
+
+            <div v-if="item.aggregated_result_id" class="choice choice--verify">
+              <input
+                id="decision-verify"
+                v-model="choice"
+                type="radio"
+                name="decision"
+                value="verify"
+                :disabled="machineLabel === null"
+              />
+              <label for="decision-verify">
+                {{ t('review.decision.verify') }}
+                <VocabBadge v-if="machineLabel" :value="machineLabel" kind="label" />
+                <span v-else class="decision-muted">{{ t('review.decision.noMachineLabel') }}</span>
+              </label>
+            </div>
+
+            <div class="choice choice--defer">
+              <input
+                id="decision-defer"
+                v-model="choice"
+                type="radio"
+                name="decision"
+                value="defer"
+              />
+              <label for="decision-defer">{{ t('review.decision.defer') }}</label>
+            </div>
+
+            <div class="decision-correction">
+              <p class="decision-subtitle">
+                {{
+                  item.aggregated_result_id
+                    ? t('review.decision.correctTo')
+                    : t('annotation.chooseLabel')
+                }}
+              </p>
+              <div
+                v-for="(label, index) in CANONICAL_LABELS"
+                :key="label"
+                class="choice choice--label"
+              >
+                <input
+                  :id="`decision-correct-${label}`"
+                  v-model="choice"
+                  type="radio"
+                  name="decision"
+                  :value="`correct:${label}`"
+                />
+                <label :for="`decision-correct-${label}`">
+                  <VocabBadge :value="label" kind="label" />
+                  <span class="decision-key-announcement">{{
+                    t('review.decision.key', { key: index + 1 })
+                  }}</span>
+                  <kbd class="decision-key" aria-hidden="true">{{ index + 1 }}</kbd>
+                </label>
+              </div>
+            </div>
+          </fieldset>
+
+          <div class="decision-save-area">
+            <AppButton id="decision-save" class="decision-save" type="submit" :disabled="!canSave">
+              {{ create.isPending.value ? t('review.decision.saving') : t('review.decision.save') }}
+            </AppButton>
+            <p ref="savedBox" class="decision-saved" role="status" tabindex="-1">{{ saved }}</p>
+          </div>
+        </div>
+
+        <p class="decision-muted">{{ t('review.decision.keyboardHint') }}</p>
+        <AppFeedback
+          v-if="errorText"
+          class="decision-error"
+          announcement="assertive"
+          tone="critical"
+          >{{ errorText }}</AppFeedback
+        >
       </div>
 
-      <fieldset class="decision-choices">
-        <legend>{{ t('review.decision.choose') }}</legend>
+      <slot name="results"></slot>
 
-        <div class="choice">
-          <input
-            id="decision-verify"
-            v-model="choice"
-            type="radio"
-            name="decision"
-            value="verify"
-            :disabled="machineLabel === null"
-          />
-          <label for="decision-verify">
-            {{ t('review.decision.verify') }}
-            <VocabBadge v-if="machineLabel" :value="machineLabel" kind="label" />
-            <span v-else class="decision-muted">{{ t('review.decision.noMachineLabel') }}</span>
-          </label>
+      <details class="decision-footer decision-comment-disclosure">
+        <summary id="decision-comment-summary" class="decision-comment-summary">
+          {{ t('review.decision.comment') }}
+        </summary>
+        <div class="decision-comment">
+          <textarea
+            id="decision-comment"
+            v-model="comment"
+            rows="2"
+            aria-labelledby="decision-comment-summary"
+          ></textarea>
         </div>
-
-        <p class="decision-subtitle">{{ t('review.decision.correctTo') }}</p>
-        <div v-for="(label, index) in CANONICAL_LABELS" :key="label" class="choice">
-          <input
-            :id="`decision-correct-${label}`"
-            v-model="choice"
-            type="radio"
-            name="decision"
-            :value="`correct:${label}`"
-          />
-          <label :for="`decision-correct-${label}`">
-            <VocabBadge :value="label" :gloss="gloss.label(label)" kind="label" />
-            <span class="decision-key-announcement">{{
-              t('review.decision.key', { key: index + 1 })
-            }}</span>
-            <kbd class="decision-key" aria-hidden="true">{{ index + 1 }}</kbd>
-          </label>
-        </div>
-
-        <div class="choice">
-          <input id="decision-defer" v-model="choice" type="radio" name="decision" value="defer" />
-          <label for="decision-defer">{{ t('review.decision.defer') }}</label>
-        </div>
-      </fieldset>
-
-      <div class="decision-comment">
-        <label for="decision-comment">{{ t('review.decision.comment') }}</label>
-        <textarea id="decision-comment" v-model="comment" rows="2"></textarea>
-      </div>
-
-      <p class="decision-muted">{{ t('review.decision.keyboardHint') }}</p>
-      <p class="decision-muted">{{ t('review.decision.appendOnly') }}</p>
-
-      <AppFeedback
-        v-if="errorText"
-        class="decision-error"
-        announcement="assertive"
-        tone="critical"
-        >{{ errorText }}</AppFeedback
-      >
-      <AppButton id="decision-save" class="decision-save" type="submit" :disabled="!canSave">
-        {{ create.isPending.value ? t('review.decision.saving') : t('review.decision.save') }}
-      </AppButton>
-      <p ref="savedBox" class="decision-saved" role="status" tabindex="-1">{{ saved }}</p>
+      </details>
     </form>
+
+    <template v-else>
+      <div class="decision-controls">
+        <h3 id="decision-heading" class="decision-heading">{{ t('review.decision.title') }}</h3>
+        <AppFeedback class="decision-muted">{{ t('review.decision.viewerNote') }}</AppFeedback>
+      </div>
+      <slot name="results"></slot>
+    </template>
   </section>
 </template>
 
 <style scoped>
 .decision {
   min-width: 0;
+  container: review-decision / inline-size;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -300,6 +367,13 @@ onBeforeUnmount(() => {
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   background: var(--surface-1);
+}
+
+.decision--split {
+  gap: var(--space-4);
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .decision-heading {
@@ -312,7 +386,36 @@ onBeforeUnmount(() => {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+}
+
+.decision--split .decision-form {
+  gap: var(--space-4);
+}
+
+.decision-controls {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
   align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.decision--split .decision-controls,
+.decision--split .decision-footer {
+  padding: var(--page-gutter);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+}
+
+.decision-choice-layout {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
   gap: var(--space-3);
 }
 
@@ -321,25 +424,48 @@ onBeforeUnmount(() => {
   margin: 0;
   padding: 0;
   border: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--space-2);
 }
 
 .decision-choices legend {
+  grid-column: 1 / -1;
   padding: 0;
   color: var(--text-secondary);
   font-size: var(--font-size-small);
 }
 
 .decision-subtitle {
-  margin: var(--space-2) 0 var(--space-1);
+  margin: 0;
   color: var(--text-secondary);
   font-size: var(--font-size-small);
 }
 
-.choice {
+.decision-correction {
+  min-width: 0;
   display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-1) 0;
+}
+
+.decision-correction .decision-subtitle {
+  flex: 0 1 auto;
+}
+
+.choice {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: var(--control-min-size);
+}
+
+.choice--label {
+  flex: 0 1 auto;
 }
 
 .choice label {
@@ -349,6 +475,14 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+  min-block-size: var(--control-min-size);
+}
+
+.decision-save-area {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
 }
 
 .decision-key-announcement {
@@ -363,7 +497,7 @@ onBeforeUnmount(() => {
 .decision-key {
   padding: 0 var(--space-1);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-control);
   color: var(--text-secondary);
   font: var(--font-size-small) var(--font-mono, ui-monospace, monospace);
 }
@@ -374,6 +508,33 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: var(--space-1);
   font-size: var(--font-size-small);
+}
+
+.decision-footer {
+  min-width: 0;
+}
+
+.decision-comment-disclosure > summary {
+  padding-block: var(--space-2);
+  cursor: pointer;
+  font-size: var(--font-size-body-strong);
+  font-weight: var(--weight-semibold);
+}
+
+.decision-comment-disclosure > summary::marker {
+  color: var(--accent);
+}
+
+.decision-comment-disclosure > summary:hover {
+  background: var(--surface-1);
+}
+
+.decision-comment-disclosure[open] > summary {
+  border-bottom: 1px solid var(--grid);
+}
+
+.decision-comment-disclosure .decision-comment {
+  padding-top: var(--space-2);
 }
 
 .decision-comment textarea {
@@ -413,5 +574,21 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+}
+@container review-decision (max-width: 32rem) {
+  .decision-choice-layout {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .decision-choices {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .decision-save-area {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
 }
 </style>

@@ -11,6 +11,10 @@ from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.run import (
     MethodExecution,
     MethodExecutionCreate,
+    MethodExecutionPredictionSummary,
+    MethodExecutionResult,
+    MethodExecutionResultFilter,
+    MethodExecutionResultState,
     Prediction,
     PredictionWrite,
     Progress,
@@ -194,3 +198,45 @@ def test_prediction_write_and_read_preserve_unknown_as_success() -> None:
     assert write.result.status is PredictionStatus.success
     assert prediction.label is CanonicalLabel.unknown
     assert prediction.status is PredictionStatus.success
+
+
+def test_method_execution_result_projection_distinguishes_missing_from_unknown() -> None:
+    persisted = MethodExecutionResult(
+        method_execution_id=EXECUTION_ID,
+        dataset_snapshot_id=SNAPSHOT_ID,
+        person_record_id=PERSON_ID,
+        tei_id="p1",
+        result_state=MethodExecutionResultState.success,
+        prediction_id=PREDICTION_ID,
+        prediction=MethodExecutionPredictionSummary(
+            label=CanonicalLabel.unknown,
+            status=PredictionStatus.success,
+            raw_label="uncertain",
+        ),
+    )
+    missing = MethodExecutionResult(
+        method_execution_id=EXECUTION_ID,
+        dataset_snapshot_id=SNAPSHOT_ID,
+        person_record_id=PERSON_ID,
+        tei_id="p1",
+        result_state=MethodExecutionResultState.missing,
+    )
+
+    assert persisted.prediction is not None
+    assert persisted.prediction.label is CanonicalLabel.unknown
+    assert missing.prediction is None
+    with pytest.raises(
+        ValidationError, match="missing prediction requires the missing result state"
+    ):
+        MethodExecutionResult(
+            method_execution_id=EXECUTION_ID,
+            dataset_snapshot_id=SNAPSHOT_ID,
+            person_record_id=PERSON_ID,
+            tei_id="p1",
+            result_state=MethodExecutionResultState.success,
+        )
+    with pytest.raises(ValidationError, match="label filter requires successful"):
+        MethodExecutionResultFilter(
+            label=CanonicalLabel.unknown,
+            result_state=MethodExecutionResultState.abstain,
+        )

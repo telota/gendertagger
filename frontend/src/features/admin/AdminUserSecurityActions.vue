@@ -2,7 +2,6 @@
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
 
 import type { components } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
@@ -76,13 +75,13 @@ function confirm(): void {
 
 <template>
   <div class="admin-user-security-actions">
-    <RouterLink v-if="isCurrentAccount" class="admin-user-security-link" to="/change-password">
+    <AppButton v-if="isCurrentAccount" to="/change-password" variant="ghost">
       {{ t('admin.security.changeOwnPassword') }}
-    </RouterLink>
+    </AppButton>
     <AppButton
       v-else
       type="button"
-      variant="text"
+      variant="ghost"
       :disabled="isSubmitting"
       :aria-label="t('admin.security.reset.ariaLabel', { username: account.username })"
       @click="openConfirmation('resetPassword')"
@@ -91,7 +90,7 @@ function confirm(): void {
     </AppButton>
     <AppButton
       type="button"
-      variant="text"
+      variant="ghost"
       :disabled="isSubmitting"
       :aria-label="t('admin.security.revoke.ariaLabel', { username: account.username })"
       @click="openConfirmation('revokeSessions')"
@@ -117,9 +116,9 @@ function confirm(): void {
       :aria-labelledby="`admin-user-reset-disclosure-${account.id}`"
       role="status"
     >
-      <h3 :id="`admin-user-reset-disclosure-${account.id}`">
+      <h2 :id="`admin-user-reset-disclosure-${account.id}`">
         {{ t('admin.security.reset.successTitle', { username: disclosure.targetUsername }) }}
-      </h3>
+      </h2>
       <p>{{ t('admin.security.reset.successDescription') }}</p>
       <label :for="`admin-user-reset-password-${account.id}`">
         {{ t('admin.security.reset.temporaryPassword') }}
@@ -180,21 +179,9 @@ function confirm(): void {
 
 <style scoped>
 .admin-user-security-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: var(--space-2);
-}
-
-.admin-user-security-link {
-  padding: var(--space-1) var(--space-2);
-  color: var(--accent);
-  font-weight: var(--weight-semibold);
-  text-decoration: none;
-  text-underline-offset: 0.2em;
-}
-
-.admin-user-security-link:hover {
-  text-decoration: underline;
+  min-width: 0;
 }
 
 .admin-user-security-error,
@@ -215,7 +202,7 @@ function confirm(): void {
   background: var(--surface-1);
 }
 
-.admin-user-reset-disclosure h3 {
+.admin-user-reset-disclosure h2 {
   margin: 0;
   font-size: var(--font-size-body-strong);
   font-weight: var(--weight-semibold);

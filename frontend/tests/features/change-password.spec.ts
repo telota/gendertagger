@@ -192,6 +192,10 @@ describe.each(['de', 'en'] as const)('change-password page in %s', (locale: AppL
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.get('main h1').text()).toBe(catalogues[locale].app.title)
+    await waitFor(() =>
+      expect(wrapper.get('main h1').text()).toBe(
+        catalogues[locale].home.signedIn.welcomeBack.replace('{name}', USER.display_name),
+      ),
+    )
   })
 })

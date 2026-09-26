@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from tests.factories import tei_person_input
 from tests.seeding import (
     always_abstain,
+    legacy_snapshot_statistics,
     only_method_answers,
     seed_artifact,
     seed_completed_aggregation,
@@ -142,7 +143,11 @@ def test_add_export_rejects_an_incomplete_aggregation(db_session: Session) -> No
         ],
     )
     assert projects.claim_snapshot_import(snapshot.id) is not None
-    projects.complete_snapshot_import(snapshot.id, ready_at=NOW)
+    projects.complete_snapshot_import(
+        snapshot.id,
+        statistics=legacy_snapshot_statistics(snapshot.id, []),
+        ready_at=NOW,
+    )
     runs = SqlAlchemyRunRepository(db_session)
     other_run = runs.add_run(
         RunCreate(

@@ -22,6 +22,71 @@ function dialogButton(label: string): HTMLButtonElement {
 }
 
 describe('review draft navigation registration', () => {
+  it.each(['person', 'queue'] as const)(
+    'guards %s changes that replace the selected person',
+    async (change) => {
+      const router = createAppRouter(createMemoryHistory())
+      const server = newServer()
+      const wrapper = await mountApplicationAt(base, 'en', reviewClient(server), router)
+      try {
+        await waitFor(() => expect(wrapper.find('#decision-correct-female').exists()).toBe(true))
+        await wrapper.get('#decision-correct-female').setValue(true)
+        await wrapper.get('#decision-comment').setValue('Belongs to demo-1')
+        const query = change === 'person' ? { person: 'demo-2' } : { queue: 'all' }
+        const cancelled = router.push({ query })
+        await waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull())
+        dialogButton(en.draftNavigation.stay).click()
+        await cancelled
+        expect(router.currentRoute.value.query.person).toBe('demo-1')
+        expect(wrapper.get<HTMLTextAreaElement>('#decision-comment').element.value).toBe(
+          'Belongs to demo-1',
+        )
+        const accepted = router.push({ query })
+        await waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull())
+        dialogButton(en.draftNavigation.discard).click()
+        await accepted
+        await waitFor(() =>
+          expect(wrapper.get<HTMLTextAreaElement>('#decision-comment').element.value).toBe(''),
+        )
+        expect(server.posts).toHaveLength(0)
+      } finally {
+        wrapper.unmount()
+      }
+    },
+  )
+
+  it('guards next detail navigation until the reviewer stays or discards the draft', async () => {
+    const router = createAppRouter(createMemoryHistory())
+    const server = newServer()
+    const wrapper = await mountApplicationAt(base, 'en', reviewClient(server), router)
+    try {
+      await waitFor(() =>
+        expect(wrapper.get('#detail-next').attributes('disabled')).toBeUndefined(),
+      )
+      await wrapper.get('#decision-correct-female').setValue(true)
+      await wrapper.get('#decision-comment').setValue('Belongs to demo-1')
+
+      await wrapper.get('#detail-next').trigger('click')
+      await waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull())
+      dialogButton(en.draftNavigation.stay).click()
+      await waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeNull())
+      await waitFor(() => expect(router.currentRoute.value.query.person).toBe('demo-1'))
+      expect(wrapper.get('.detail-name').text()).toContain('demo-1')
+      expect(wrapper.get<HTMLTextAreaElement>('#decision-comment').element.value).toBe(
+        'Belongs to demo-1',
+      )
+
+      await wrapper.get('#detail-next').trigger('click')
+      await waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull())
+      dialogButton(en.draftNavigation.discard).click()
+      await waitFor(() => expect(wrapper.get('.detail-name').text()).toContain('demo-2'))
+      expect(wrapper.get<HTMLTextAreaElement>('#decision-comment').element.value).toBe('')
+      expect(server.posts).toHaveLength(0)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('retains the decision across filters and cancelled navigation, and ignores shortcuts in the prompt', async () => {
     const router = createAppRouter(createMemoryHistory())
     const server = newServer()

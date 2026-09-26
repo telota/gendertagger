@@ -13,6 +13,8 @@ const props = defineProps<{ snapshotId: string }>()
 const emit = defineEmits<{ created: [run: Run] }>()
 
 const { t, n } = useI18n()
+const heading = ref<HTMLElement>()
+defineExpose({ focusHeading: () => heading.value?.focus() })
 
 const methods = useMethodList()
 const createRun = useCreateRun()
@@ -125,7 +127,9 @@ async function submit(): Promise<void> {
 
 <template>
   <form class="new-run" novalidate aria-labelledby="new-run-heading" @submit.prevent="submit">
-    <h2 id="new-run-heading" class="new-run-title">{{ t('runs.new.title') }}</h2>
+    <h2 id="new-run-heading" ref="heading" class="new-run-title" tabindex="-1">
+      {{ t('runs.new.title') }}
+    </h2>
 
     <p v-if="methods.isPending.value" role="status">{{ t('runs.loading') }}</p>
     <div v-else-if="methods.isError.value" class="new-run-load-error">
@@ -162,32 +166,43 @@ async function submit(): Promise<void> {
                   : t('runs.new.version', { version: method.implementation_version })
               }}
             </p>
-            <div v-if="selected[method.name]" class="new-run-config">
-              <label :for="`config-${method.name}`">{{ t('runs.new.config') }}</label>
-              <textarea
-                :id="`config-${method.name}`"
-                v-model="configText[method.name]"
-                class="new-run-config-input"
-                rows="4"
-                spellcheck="false"
-                :aria-invalid="invalidConfigFor(method.name)"
-                :aria-describedby="`config-${method.name}-hint`"
-              />
-              <p :id="`config-${method.name}-hint`" class="new-run-hint">
-                {{ t('runs.new.configHint') }}
-              </p>
-              <p v-if="invalidConfigFor(method.name)" role="alert" class="new-run-error">
-                {{ t('runs.new.errors.notJsonObject') }}
-              </p>
-            </div>
+            <details v-if="selected[method.name]" class="new-run-config">
+              <summary>{{ t('runs.new.configureMethod') }}</summary>
+              <div class="new-run-config-fields">
+                <label :for="`config-${method.name}`">{{ t('runs.new.config') }}</label>
+                <textarea
+                  :id="`config-${method.name}`"
+                  v-model="configText[method.name]"
+                  class="new-run-config-input"
+                  rows="4"
+                  spellcheck="false"
+                  :aria-invalid="invalidConfigFor(method.name)"
+                  :aria-describedby="`config-${method.name}-hint${invalidConfigFor(method.name) ? ` config-${method.name}-error` : ''}`"
+                />
+                <p :id="`config-${method.name}-hint`" class="new-run-hint">
+                  {{ t('runs.new.configHint') }}
+                </p>
+                <p
+                  v-if="invalidConfigFor(method.name)"
+                  :id="`config-${method.name}-error`"
+                  role="alert"
+                  class="new-run-error"
+                >
+                  {{ t('runs.new.errors.notJsonObject') }}
+                </p>
+              </div>
+            </details>
           </li>
         </ul>
       </fieldset>
 
-      <div class="new-run-option">
-        <input id="fail-on-optional" v-model="failOnOptionalError" type="checkbox" />
-        <label for="fail-on-optional">{{ t('runs.new.failOnOptionalError') }}</label>
-      </div>
+      <details class="new-run-advanced">
+        <summary>{{ t('runs.new.advanced') }}</summary>
+        <div class="new-run-option">
+          <input id="fail-on-optional" v-model="failOnOptionalError" type="checkbox" />
+          <label for="fail-on-optional">{{ t('runs.new.failOnOptionalError') }}</label>
+        </div>
+      </details>
 
       <p v-if="createRun.isError.value" role="alert" class="new-run-error">
         {{ errorMessage(createRun.error.value) }}
@@ -209,6 +224,7 @@ async function submit(): Promise<void> {
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-4);
+  min-inline-size: 0;
 }
 
 .new-run-title {
@@ -250,19 +266,18 @@ async function submit(): Promise<void> {
 }
 
 .new-run-method-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: var(--space-4);
   margin: var(--space-3) 0 0;
   padding: 0;
   list-style: none;
 }
 
 .new-run-method {
-  padding: var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--panel);
+  min-inline-size: 0;
+  padding-block: var(--space-3);
+  border-block-start: 1px solid var(--border);
 }
 
 .new-run-method-head {
@@ -273,6 +288,8 @@ async function submit(): Promise<void> {
 
 .new-run-method-name {
   font-weight: var(--weight-semibold);
+  overflow-wrap: anywhere;
+  padding-block: var(--space-2);
 }
 
 .new-run-method-facts {
@@ -282,10 +299,19 @@ async function submit(): Promise<void> {
 }
 
 .new-run-config {
+  margin-top: var(--space-3);
+}
+.new-run-config summary,
+.new-run-advanced summary {
+  cursor: pointer;
+  font-weight: var(--weight-semibold);
+  padding-block: var(--space-2);
+}
+.new-run-config-fields {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  margin-top: var(--space-3);
+  margin-top: var(--space-2);
 }
 
 .new-run-config-input {
@@ -298,5 +324,6 @@ async function submit(): Promise<void> {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  margin-block-start: var(--space-2);
 }
 </style>

@@ -6,6 +6,9 @@ import { RouterLink } from 'vue-router'
 import AppButton from '@/components/base/AppButton.vue'
 import AppProgress from '@/components/base/AppProgress.vue'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
+import { hasProjectRole } from '@/features/projects/projectRoles'
+import { useProject } from '@/features/projects/useProjects'
+import { useImportedSnapshot } from '@/features/projects/useSnapshotData'
 
 import AggregationSection from './AggregationSection.vue'
 import ExecutionCard from './ExecutionCard.vue'
@@ -22,14 +25,53 @@ const projectId = useRouteParam('projectId')
 const snapshotId = useRouteParam('snapshotId')
 const runId = useRouteParam('runId')
 
-const run = useRun(runId, isSignedIn)
-const executions = useRunExecutions(runId, isSignedIn)
+const project = useProject(projectId, isSignedIn)
+const snapshot = useImportedSnapshot(projectId, snapshotId, isSignedIn)
+const canRead = computed(
+  () =>
+    isSignedIn.value &&
+    project.isSuccess.value &&
+    project.data.value?.id === projectId.value &&
+    hasProjectRole(project.data.value.current_user_role, 'viewer') &&
+    snapshot.data.value?.id === snapshotId.value &&
+    snapshot.data.value.project_id === projectId.value &&
+    snapshot.data.value.status === 'ready',
+)
+const run = useRun(runId, canRead)
+const selectedRun = computed(() => {
+  const value = run.data.value
+  return canRead.value &&
+    run.isSuccess.value &&
+    value?.id === runId.value &&
+    value.dataset_snapshot_id === snapshotId.value
+    ? value
+    : undefined
+})
+const canReadExecutions = computed(() => selectedRun.value !== undefined)
+const executions = useRunExecutions(runId, canReadExecutions)
 
 // A finished run has nothing left to stream; opening it reads the persisted state only.
 const isLive = computed(
-  () => run.data.value !== undefined && !TERMINAL_RUN_STATUSES.has(run.data.value.status),
+  () => selectedRun.value !== undefined && !TERMINAL_RUN_STATUSES.has(selectedRun.value.status),
 )
 const { state: streamState } = useRunProgress(runId, isLive)
+
+const isTerminalRun = computed(
+  () => selectedRun.value !== undefined && TERMINAL_RUN_STATUSES.has(selectedRun.value.status),
+)
+const outcomeFirst = computed(
+  () =>
+    selectedRun.value?.status === 'completed' ||
+    selectedRun.value?.status === 'completed_with_errors',
+)
+const executionIssueCount = computed(() =>
+  (executions.data.value ?? []).reduce(
+    (count, execution) =>
+      count +
+      (execution.status === 'failed' || execution.status === 'completed_with_errors' ? 1 : 0),
+    0,
+  ),
+)
 
 const statusLabel = computed(() => label(run.data.value?.status ?? ''))
 
@@ -44,10 +86,46 @@ const connectionLabel = computed(() => {
   }
   return ''
 })
+
+function retryContext(): void {
+  void project.refetch()
+  void snapshot.refetch()
+}
 </script>
 
 <template>
   <main class="run-detail">
+    <div class="run-detail-heading-row">
+      <div>
+        <h1 class="run-detail-title">
+          {{
+            selectedRun
+              ? t('runs.detail.titleWithDate', {
+                  date: d(new Date(selectedRun.created_at), 'timestamp'),
+                })
+              : t('runs.detail.title')
+          }}
+        </h1>
+        <RouterLink
+          v-if="snapshot.data.value"
+          class="run-detail-dataset"
+          :to="{ name: 'snapshotDetail', params: { projectId, snapshotId } }"
+        >
+          {{
+            t('data.snapshotTitle', {
+              date: d(new Date(snapshot.data.value.created_at), 'timestamp'),
+            })
+          }}
+        </RouterLink>
+      </div>
+      <AppButton
+        v-if="selectedRun"
+        variant="ghost"
+        :to="{ name: 'projectClassification', params: { projectId } }"
+      >
+        {{ t('runs.changeSelection') }}
+      </AppButton>
+    </div>
     <p v-if="session.status === 'idle' || session.status === 'loading'" role="status">
       {{ t('runs.loading') }}
     </p>
@@ -56,78 +134,118 @@ const connectionLabel = computed(() => {
       <AppButton type="button" @click="retrySession">{{ t('runs.retry') }}</AppButton>
     </div>
     <template v-else-if="isSignedIn">
-      <RouterLink
-        class="run-detail-back"
-        :to="{ name: 'snapshotRuns', params: { projectId, snapshotId } }"
-      >
-        {{ t('runs.detail.backToRuns') }}
-      </RouterLink>
-
-      <p v-if="run.isPending.value" role="status">{{ t('runs.loading') }}</p>
+      <div v-if="project.isError.value || snapshot.isError.value" class="run-detail-load-error">
+        <p role="alert">{{ t('runs.contextLoadError') }}</p>
+        <AppButton variant="ghost" @click="retryContext">{{ t('runs.retry') }}</AppButton>
+      </div>
+      <p v-else-if="project.isPending.value || snapshot.isPending.value" role="status">
+        {{ t('runs.loading') }}
+      </p>
+      <div v-else-if="!canRead" class="run-detail-unavailable">
+        <p>{{ t('runs.contextUnavailable') }}</p>
+        <RouterLink :to="{ name: 'projectClassification', params: { projectId } }">{{
+          t('runs.changeSelection')
+        }}</RouterLink>
+      </div>
+      <p v-else-if="run.isPending.value" role="status">{{ t('runs.loading') }}</p>
       <div v-else-if="run.isError.value" class="run-detail-load-error">
         <p role="alert">{{ t('runs.detail.loadError') }}</p>
         <AppButton class="run-detail-retry" type="button" @click="() => run.refetch()">
           {{ t('runs.retry') }}
         </AppButton>
       </div>
-      <template v-else-if="run.data.value">
-        <h1 class="run-detail-title">{{ t('runs.detail.title') }}</h1>
-        <div class="run-detail-summary">
-          <span class="run-detail-status" :class="`run-detail-status--${run.data.value.status}`">{{
-            statusLabel
-          }}</span>
-          <time :datetime="run.data.value.created_at" class="run-detail-created">{{
-            d(new Date(run.data.value.created_at), 'timestamp')
-          }}</time>
-          <!-- Always in the DOM so assistive technology announces the change, not the mount. -->
-          <span class="run-detail-connection" role="status">{{ connectionLabel }}</span>
-        </div>
-
+      <template v-else-if="selectedRun">
+        <dl class="run-detail-summary">
+          <div
+            class="run-detail-summary-fact run-detail-summary-status"
+            :class="`run-detail-summary-status--${selectedRun.status}`"
+          >
+            <dt>{{ t('runs.detail.status') }}</dt>
+            <dd class="run-detail-status">{{ statusLabel }}</dd>
+          </div>
+          <div class="run-detail-summary-fact">
+            <dt>{{ t('runs.detail.created') }}</dt>
+            <dd>
+              <time :datetime="selectedRun.created_at" class="run-detail-created">
+                {{ d(new Date(selectedRun.created_at), 'timestamp') }}
+              </time>
+            </dd>
+          </div>
+          <div v-if="selectedRun.progress.total != null" class="run-detail-summary-fact">
+            <dt>{{ t('runs.detail.progress') }}</dt>
+            <dd class="run-detail-counts">
+              {{
+                t('runs.item.progressValue', {
+                  completed: n(selectedRun.progress.completed, 'integer'),
+                  total: n(selectedRun.progress.total, 'integer'),
+                  failed: n(selectedRun.progress.failed, 'integer'),
+                })
+              }}
+            </dd>
+          </div>
+        </dl>
+        <!-- Always in the DOM so assistive technology announces the change, not the mount. -->
+        <span class="run-detail-connection" role="status">{{ connectionLabel }}</span>
         <AppProgress
-          :percentage="run.data.value.progress.percentage ?? null"
+          v-if="!isTerminalRun"
+          :percentage="selectedRun.progress.percentage ?? null"
           :label="t('runs.detail.overallProgressLabel')"
         />
-        <p v-if="run.data.value.progress.total != null" class="run-detail-counts">
-          {{
-            t('runs.item.progressValue', {
-              completed: n(run.data.value.progress.completed, 'integer'),
-              total: n(run.data.value.progress.total, 'integer'),
-              failed: n(run.data.value.progress.failed, 'integer'),
-            })
-          }}
-        </p>
         <div
-          v-if="run.data.value.failure_class || run.data.value.failure_diagnostic"
+          v-if="selectedRun.failure_class || selectedRun.failure_diagnostic"
           class="run-detail-failure"
         >
-          <p v-if="run.data.value.failure_class" class="run-detail-failure-class">
-            {{ run.data.value.failure_class }}
+          <p v-if="selectedRun.failure_class" class="run-detail-failure-class">
+            {{ selectedRun.failure_class }}
           </p>
-          <p v-if="run.data.value.failure_diagnostic">
-            {{ run.data.value.failure_diagnostic }}
+          <p v-if="selectedRun.failure_diagnostic">
+            {{ selectedRun.failure_diagnostic }}
           </p>
         </div>
 
-        <RouterLink
-          class="run-detail-evaluations"
-          :to="{ name: 'evaluations', params: { projectId, runId } }"
-        >
-          {{ t('runs.detail.evaluations') }}
-        </RouterLink>
+        <AggregationSection
+          v-if="executions.data.value && outcomeFirst"
+          :key="`outcome:${runId}`"
+          :project-id="projectId"
+          :run="selectedRun"
+          :executions="executions.data.value"
+        />
 
-        <RouterLink
-          class="run-detail-evaluations run-detail-exports"
-          :to="{ name: 'exports', params: { projectId, runId } }"
-        >
-          {{ t('runs.detail.exports') }}
-        </RouterLink>
+        <div class="run-detail-actions">
+          <RouterLink
+            class="run-detail-evaluations"
+            :to="{ name: 'evaluations', params: { projectId, runId } }"
+          >
+            {{ t('runs.detail.evaluations') }}
+          </RouterLink>
 
-        <RunProvenance :run="run.data.value" />
+          <RouterLink
+            class="run-detail-evaluations run-detail-exports"
+            :to="{ name: 'exports', params: { projectId, runId } }"
+          >
+            {{ t('runs.detail.exports') }}
+          </RouterLink>
+        </div>
 
         <section class="run-detail-executions" aria-labelledby="run-executions-heading">
-          <h2 id="run-executions-heading" class="run-detail-heading">
-            {{ t('runs.detail.executions') }}
-          </h2>
+          <div class="run-detail-section-heading">
+            <h2 id="run-executions-heading" class="run-detail-heading">
+              {{ t('runs.detail.executions') }}
+            </h2>
+            <p v-if="isTerminalRun && executions.data.value" class="run-detail-execution-summary">
+              {{
+                t(
+                  executionIssueCount
+                    ? 'runs.detail.methodCountWithIssues'
+                    : 'runs.detail.methodCount',
+                  {
+                    count: n(executions.data.value.length, 'integer'),
+                    issues: n(executionIssueCount, 'integer'),
+                  },
+                )
+              }}
+            </p>
+          </div>
           <p v-if="executions.isPending.value" role="status">{{ t('runs.loading') }}</p>
           <div v-else-if="executions.isError.value" class="run-detail-load-error">
             <p role="alert">{{ t('runs.detail.executionsLoadError') }}</p>
@@ -147,50 +265,85 @@ const connectionLabel = computed(() => {
               v-for="execution in executions.data.value"
               :key="execution.id"
               :execution="execution"
+              :compact="isTerminalRun"
+              :results-to="{
+                name: 'methodExecutionResults',
+                params: { projectId, snapshotId, runId, executionId: execution.id },
+              }"
             />
           </ul>
         </section>
 
         <AggregationSection
-          v-if="executions.data.value"
-          :key="runId"
+          v-if="executions.data.value && !outcomeFirst"
+          :key="`follow-up:${runId}`"
           :project-id="projectId"
-          :run="run.data.value"
+          :run="selectedRun"
           :executions="executions.data.value"
         />
+        <RunProvenance :run="selectedRun" />
       </template>
+      <div v-else class="run-detail-unavailable">
+        <p>{{ t('runs.contextUnavailable') }}</p>
+        <RouterLink :to="{ name: 'projectClassification', params: { projectId } }">{{
+          t('runs.changeSelection')
+        }}</RouterLink>
+      </div>
     </template>
   </main>
 </template>
 
 <style scoped>
 .run-detail {
-  padding: var(--space-8) var(--space-4);
+  flex: 1;
+  min-inline-size: 0;
+  inline-size: 100%;
+  max-inline-size: 60rem;
+  margin-inline: auto;
+  padding: var(--space-8) var(--page-gutter);
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-4);
-  max-width: 48rem;
+  gap: var(--space-6);
 }
 
 .run-detail > * {
   max-width: 100%;
 }
 
-.run-detail-evaluations {
+.run-detail-heading-row,
+.run-detail-actions,
+.run-detail-section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+}
+
+.run-detail-heading-row > div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.run-detail-dataset,
+.run-detail-evaluations,
+.run-detail-unavailable a {
   color: var(--accent);
   font-weight: var(--weight-semibold);
   text-underline-offset: 0.2em;
 }
 
-.run-detail-back {
-  color: var(--accent);
-  text-underline-offset: 0.2em;
+.run-detail-dataset {
+  width: fit-content;
+  color: var(--text-secondary);
+  font-size: var(--font-size-small);
+  font-weight: var(--weight-regular);
 }
 
 .run-detail-title {
   margin: 0;
   font-size: var(--font-size-page);
+  font-weight: var(--weight-semibold);
   line-height: var(--line-height-page);
 }
 
@@ -218,41 +371,59 @@ const connectionLabel = computed(() => {
 .run-detail-summary {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-4);
+  gap: var(--space-3) var(--space-8);
+  margin: 0;
+}
+
+.run-detail-summary-fact {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.run-detail-summary dt {
+  color: var(--text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.run-detail-summary dd {
+  margin: 0;
 }
 
 .run-detail-status {
   font-weight: var(--weight-semibold);
 }
 
-.run-detail-status--completed {
+.run-detail-summary-status--completed {
   color: var(--good);
 }
 
-.run-detail-status--failed,
-.run-detail-status--completed_with_errors {
+.run-detail-summary-status--failed,
+.run-detail-summary-status--completed_with_errors {
   color: var(--critical-text);
 }
 
 .run-detail-created,
-.run-detail-connection,
 .run-detail-counts,
-.run-detail-empty {
+.run-detail-empty,
+.run-detail-execution-summary {
   color: var(--text-secondary);
   font-size: var(--font-size-small);
 }
 
-.run-detail-counts {
+.run-detail-connection,
+.run-detail-execution-summary {
   margin: 0;
 }
 
 .run-detail-executions {
+  display: flex;
   width: 100%;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
 .run-detail-heading {
-  margin: 0 0 var(--space-4);
+  margin: 0;
   font-size: var(--font-size-title);
   font-weight: var(--weight-semibold);
 }

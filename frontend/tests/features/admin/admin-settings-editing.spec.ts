@@ -1,4 +1,4 @@
-import { DOMWrapper, flushPromises } from '@vue/test-utils'
+import { DOMWrapper, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { getActivePinia } from 'pinia'
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -89,11 +89,12 @@ function buttonWithText(
   return button
 }
 
-async function selectStoreValue(
-  wrapper: { get: (selector: string) => { setValue: (value?: unknown) => Promise<void> } },
-  field: string,
-  value: string,
-): Promise<void> {
+async function openField(wrapper: VueWrapper, field: string): Promise<void> {
+  await wrapper.get(`button[aria-controls="admin-settings-${field}-controls"]`).trigger('click')
+}
+
+async function selectStoreValue(wrapper: VueWrapper, field: string, value: string): Promise<void> {
+  await openField(wrapper, field)
   await wrapper.get(`input[name="${field}-mode"][value="set"]`).setValue()
   await wrapper.get(`#admin-settings-${field}`).setValue(value)
 }
@@ -134,9 +135,8 @@ describe.each(['de', 'en'] as const)(
         () => ADMIN_A,
       )
       const wrapper = await mountApplicationAt('/admin/settings', locale, client)
-      await waitFor(() =>
-        expect(wrapper.find('#admin-settings-institution_name').exists()).toBe(true),
-      )
+      await waitFor(() => expect(wrapper.find('.admin-settings-editor').exists()).toBe(true))
+      expect(wrapper.find('#admin-settings-institution_name').exists()).toBe(false)
 
       await selectStoreValue(wrapper, 'institution_name', 'Deployment Institute')
       await buttonWithText(wrapper, messages.editing.save).trigger('click')
@@ -185,7 +185,8 @@ describe.each(['de', 'en'] as const)(
         () => ADMIN_A,
       )
       const wrapper = await mountApplicationAt('/admin/settings', locale, client)
-      await waitFor(() => expect(wrapper.find('#admin-settings-contact_email').exists()).toBe(true))
+      await waitFor(() => expect(wrapper.find('.admin-settings-editor').exists()).toBe(true))
+      await openField(wrapper, 'contact_email')
 
       await wrapper.get('input[name="contact_email-mode"][value="clear"]').setValue()
       expect(wrapper.find('.admin-settings-reset button').exists()).toBe(false)
@@ -238,9 +239,7 @@ describe.each(['de', 'en'] as const)(
         () => ADMIN_A,
       )
       const wrapper = await mountApplicationAt('/admin/settings', locale, client)
-      await waitFor(() =>
-        expect(wrapper.find('#admin-settings-institution_url').exists()).toBe(true),
-      )
+      await waitFor(() => expect(wrapper.find('.admin-settings-editor').exists()).toBe(true))
 
       await selectStoreValue(wrapper, 'institution_url', 'not a URL')
       await buttonWithText(wrapper, messages.editing.save).trigger('click')
@@ -288,9 +287,7 @@ describe.each(['de', 'en'] as const)(
         () => ADMIN_A,
       )
       const wrapper = await mountApplicationAt('/admin/settings', locale, client)
-      await waitFor(() =>
-        expect(wrapper.find('#admin-settings-institution_name').exists()).toBe(true),
-      )
+      await waitFor(() => expect(wrapper.find('.admin-settings-editor').exists()).toBe(true))
 
       await selectStoreValue(wrapper, 'institution_name', 'My draft')
       await buttonWithText(wrapper, messages.editing.save).trigger('click')
@@ -327,9 +324,7 @@ describe.each(['de', 'en'] as const)(
         () => currentUser,
       )
       const wrapper = await mountApplicationAt('/admin/settings', locale, client)
-      await waitFor(() =>
-        expect(wrapper.find('#admin-settings-institution_name').exists()).toBe(true),
-      )
+      await waitFor(() => expect(wrapper.find('.admin-settings-editor').exists()).toBe(true))
       await selectStoreValue(wrapper, 'institution_name', 'My draft')
       await buttonWithText(wrapper, messages.editing.save).trigger('click')
 

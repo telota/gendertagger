@@ -1911,6 +1911,40 @@
         "title": "CursorPage[ManagedProjectSummary]",
         "type": "object"
       },
+      "CursorPage_MethodExecutionResult_": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MethodExecutionResult"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "has_more"
+        ],
+        "title": "CursorPage[MethodExecutionResult]",
+        "type": "object"
+      },
       "CursorPage_PersonRecord_": {
         "additionalProperties": false,
         "properties": {
@@ -1979,6 +2013,40 @@
         "title": "CursorPage[ProjectEligibleUser]",
         "type": "object"
       },
+      "CursorPage_ProjectReviewResult_": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectReviewResult"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "has_more"
+        ],
+        "title": "CursorPage[ProjectReviewResult]",
+        "type": "object"
+      },
       "CursorPage_ReviewItem_": {
         "additionalProperties": false,
         "properties": {
@@ -2045,6 +2113,40 @@
           "has_more"
         ],
         "title": "CursorPage[Run]",
+        "type": "object"
+      },
+      "CursorPage_SnapshotAnnotationItem_": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SnapshotAnnotationItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "has_more"
+        ],
+        "title": "CursorPage[SnapshotAnnotationItem]",
         "type": "object"
       },
       "CursorPage_TeamMember_": {
@@ -2218,6 +2320,42 @@
           "created_at"
         ],
         "title": "DatasetSnapshot",
+        "type": "object"
+      },
+      "DatasetSnapshotStatistics": {
+        "additionalProperties": false,
+        "description": "Immutable source-inventory statistics for one ready dataset snapshot.",
+        "properties": {
+          "dataset_snapshot_id": {
+            "format": "uuid",
+            "title": "Dataset Snapshot Id",
+            "type": "string"
+          },
+          "gnd": {
+            "$ref": "#/components/schemas/SnapshotGndStatistics"
+          },
+          "source_gender": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SnapshotSourceGenderStatistics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total_person_count": {
+            "minimum": 0.0,
+            "title": "Total Person Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "dataset_snapshot_id",
+          "total_person_count",
+          "gnd"
+        ],
+        "title": "DatasetSnapshotStatistics",
         "type": "object"
       },
       "DatasetSnapshotStatus": {
@@ -2948,6 +3086,142 @@
         "title": "MethodDescriptor",
         "type": "object"
       },
+      "MethodExecutionPredictionSummary": {
+        "additionalProperties": false,
+        "description": "Bounded public summary of one persisted method prediction.\n\nThe collection deliberately excludes raw output and normalization metadata.\nThey remain immutable persisted evidence and can be exposed by a focused\ndetail resource when the product needs an audit view.",
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CanonicalLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "method_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method Confidence"
+          },
+          "raw_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Label"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PredictionStatus"
+          }
+        },
+        "required": [
+          "label",
+          "status"
+        ],
+        "title": "MethodExecutionPredictionSummary",
+        "type": "object"
+      },
+      "MethodExecutionResult": {
+        "additionalProperties": false,
+        "description": "One person's bounded method-result projection for an execution.\n\nThe collection contains every person in the execution's immutable snapshot.\nA null ``prediction`` makes an unpersisted output visible, rather than\nsilently omitting it from a partially completed or failed execution.",
+        "properties": {
+          "dataset_snapshot_id": {
+            "format": "uuid",
+            "title": "Dataset Snapshot Id",
+            "type": "string"
+          },
+          "forenames": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Forenames",
+            "type": "array"
+          },
+          "method_execution_id": {
+            "format": "uuid",
+            "title": "Method Execution Id",
+            "type": "string"
+          },
+          "person_record_id": {
+            "format": "uuid",
+            "title": "Person Record Id",
+            "type": "string"
+          },
+          "prediction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MethodExecutionPredictionSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prediction_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prediction Id"
+          },
+          "result_state": {
+            "$ref": "#/components/schemas/MethodExecutionResultState"
+          },
+          "surname": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Surname"
+          },
+          "tei_id": {
+            "minLength": 1,
+            "title": "Tei Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "method_execution_id",
+          "dataset_snapshot_id",
+          "person_record_id",
+          "tei_id",
+          "result_state"
+        ],
+        "title": "MethodExecutionResult",
+        "type": "object"
+      },
+      "MethodExecutionResultState": {
+        "description": "Visible outcome state for one snapshot person in one method execution.\n\n``missing`` means that the execution has not persisted a prediction for the\nperson. It is deliberately separate from a method-level ``abstain`` or\n``error`` prediction.",
+        "enum": [
+          "missing",
+          "success",
+          "abstain",
+          "error"
+        ],
+        "title": "MethodExecutionResultState",
+        "type": "string"
+      },
       "MethodExecutionStatus": {
         "description": "Lifecycle for one method execution within a run.",
         "enum": [
@@ -3675,6 +3949,34 @@
         "title": "ProjectCreate",
         "type": "object"
       },
+      "ProjectDataAvailability": {
+        "additionalProperties": false,
+        "description": "Project-scoped existence of imported data and completed classification results.",
+        "properties": {
+          "has_completed_aggregations": {
+            "description": "Whether any run of this project's snapshots has a completed aggregation, independent of the run's status and the project's working-aggregation pointer.",
+            "title": "Has Completed Aggregations",
+            "type": "boolean"
+          },
+          "has_ready_snapshots": {
+            "description": "Whether this project contains at least one successfully imported snapshot.",
+            "title": "Has Ready Snapshots",
+            "type": "boolean"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "has_ready_snapshots",
+          "has_completed_aggregations"
+        ],
+        "title": "ProjectDataAvailability",
+        "type": "object"
+      },
       "ProjectEligibleUser": {
         "additionalProperties": false,
         "description": "Minimal candidate representation for delegated project membership management.",
@@ -3838,6 +4140,40 @@
           "members"
         ],
         "title": "ProjectMembershipState",
+        "type": "object"
+      },
+      "ProjectReviewResult": {
+        "additionalProperties": false,
+        "description": "One completed aggregation that can be opened for review, with exact provenance.",
+        "properties": {
+          "aggregation": {
+            "$ref": "#/components/schemas/AggregationExecution"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "run": {
+            "$ref": "#/components/schemas/Run"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/DatasetSnapshot"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "aggregation",
+          "run",
+          "snapshot"
+        ],
+        "title": "ProjectReviewResult",
         "type": "object"
       },
       "ProjectRole": {
@@ -4425,6 +4761,127 @@
         "title": "RunStatus",
         "type": "string"
       },
+      "SnapshotAnnotationItem": {
+        "additionalProperties": false,
+        "description": "Imported person and current human decision, independent of classification results.",
+        "properties": {
+          "current_annotation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Annotation Id"
+          },
+          "forenames": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Forenames",
+            "type": "array"
+          },
+          "human_label": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CanonicalLabel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "person_record_id": {
+            "format": "uuid",
+            "title": "Person Record Id",
+            "type": "string"
+          },
+          "review_action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewAction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "review_revision": {
+            "minimum": 0.0,
+            "title": "Review Revision",
+            "type": "integer"
+          },
+          "snapshot_id": {
+            "format": "uuid",
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "surname": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Surname"
+          },
+          "tei_id": {
+            "title": "Tei Id",
+            "type": "string"
+          },
+          "workflow_state": {
+            "$ref": "#/components/schemas/ReviewWorkflowState"
+          }
+        },
+        "required": [
+          "snapshot_id",
+          "person_record_id",
+          "tei_id",
+          "workflow_state",
+          "review_revision"
+        ],
+        "title": "SnapshotAnnotationItem",
+        "type": "object"
+      },
+      "SnapshotGndStatistics": {
+        "additionalProperties": false,
+        "description": "Person-level coverage of source-preserved GND references.",
+        "properties": {
+          "with_reference_and_source_gender_count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "With Reference And Source Gender Count"
+          },
+          "with_reference_count": {
+            "minimum": 0.0,
+            "title": "With Reference Count",
+            "type": "integer"
+          },
+          "without_reference_count": {
+            "minimum": 0.0,
+            "title": "Without Reference Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "with_reference_count",
+          "without_reference_count"
+        ],
+        "title": "SnapshotGndStatistics",
+        "type": "object"
+      },
       "SnapshotImportLimits": {
         "additionalProperties": false,
         "description": "Resolved immutable safety bounds applied by one snapshot import.",
@@ -4467,6 +4924,58 @@
           }
         },
         "title": "SnapshotImportLimits",
+        "type": "object"
+      },
+      "SnapshotSourceGenderStatistics": {
+        "additionalProperties": false,
+        "description": "Person-level coverage and values of direct source ``gender`` elements.",
+        "properties": {
+          "female_count": {
+            "minimum": 0.0,
+            "title": "Female Count",
+            "type": "integer"
+          },
+          "institution_count": {
+            "minimum": 0.0,
+            "title": "Institution Count",
+            "type": "integer"
+          },
+          "male_count": {
+            "minimum": 0.0,
+            "title": "Male Count",
+            "type": "integer"
+          },
+          "other_or_multiple_count": {
+            "minimum": 0.0,
+            "title": "Other Or Multiple Count",
+            "type": "integer"
+          },
+          "unknown_count": {
+            "minimum": 0.0,
+            "title": "Unknown Count",
+            "type": "integer"
+          },
+          "with_element_count": {
+            "minimum": 0.0,
+            "title": "With Element Count",
+            "type": "integer"
+          },
+          "without_element_count": {
+            "minimum": 0.0,
+            "title": "Without Element Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "with_element_count",
+          "without_element_count",
+          "male_count",
+          "female_count",
+          "unknown_count",
+          "institution_count",
+          "other_or_multiple_count"
+        ],
+        "title": "SnapshotSourceGenderStatistics",
         "type": "object"
       },
       "SnapshotSourceMember": {
@@ -10039,6 +10548,120 @@
         ]
       }
     },
+    "/api/v1/projects/{project_id}/data-availability": {
+      "get": {
+        "description": "Read project-wide data existence without selecting a snapshot or a working result.",
+        "operationId": "get_project_data_availability_api_v1_projects__project_id__data_availability_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectDataAvailability"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Project Data Availability",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
     "/api/v1/projects/{project_id}/eligible-users": {
       "get": {
         "description": "Search active direct-team-member candidates without exposing account administration.",
@@ -10686,9 +11309,152 @@
         ]
       }
     },
+    "/api/v1/projects/{project_id}/review-results": {
+      "get": {
+        "description": "List completed results that can be opened for review, with run and snapshot context.",
+        "operationId": "list_review_results_api_v1_projects__project_id__review_results_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 2048,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_ProjectReviewResult_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List Review Results",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
     "/api/v1/projects/{project_id}/snapshots": {
       "get": {
-        "description": "List a project's snapshots newest first, in every lifecycle state.",
+        "description": "List a project's snapshots newest first with optional lifecycle and result filters.",
         "operationId": "list_snapshots_api_v1_projects__project_id__snapshots_get",
         "parameters": [
           {
@@ -10728,6 +11494,38 @@
                 }
               ],
               "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/DatasetSnapshotStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "has_completed_aggregations",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Has Completed Aggregations"
             }
           }
         ],
@@ -11077,7 +11875,7 @@
     },
     "/api/v1/review-items": {
       "get": {
-        "description": "List one aggregation's candidates using explicit server-side filters.",
+        "description": "List aggregation candidates with server-side filters, including exact TEI identity.",
         "operationId": "list_review_items_api_v1_review_items_get",
         "parameters": [
           {
@@ -11088,6 +11886,25 @@
               "format": "uuid",
               "title": "Aggregation Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "Exact, case-sensitive TEI xml:id within the aggregation's snapshot.",
+            "in": "query",
+            "name": "tei_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exact, case-sensitive TEI xml:id within the aggregation's snapshot.",
+              "title": "Tei Id"
             }
           },
           {
@@ -11652,7 +12469,7 @@
     },
     "/api/v1/runs/{run_id}/aggregations": {
       "get": {
-        "description": "List a run's aggregations newest first, in every lifecycle state.",
+        "description": "List a run's aggregations newest first with an optional lifecycle filter.",
         "operationId": "list_aggregations_api_v1_runs__run_id__aggregations_get",
         "parameters": [
           {
@@ -11692,6 +12509,22 @@
                 }
               ],
               "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AggregationExecutionStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
             }
           }
         ],
@@ -12410,6 +13243,210 @@
         ]
       }
     },
+    "/api/v1/runs/{run_id}/executions/{method_execution_id}/results": {
+      "get": {
+        "description": "List every snapshot person and one method execution result per person.",
+        "operationId": "list_run_execution_results_api_v1_runs__run_id__executions__method_execution_id__results_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "method_execution_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Method Execution Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "result_state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/MethodExecutionResultState"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Result State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "label",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CanonicalLabel"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 2048,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_MethodExecutionResult_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List Run Execution Results",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
     "/api/v1/runs/{run_id}/exports": {
       "get": {
         "description": "List a run's exports newest first, in every lifecycle state.",
@@ -12769,6 +13806,322 @@
         ]
       }
     },
+    "/api/v1/snapshots/{snapshot_id}/annotation-items": {
+      "get": {
+        "description": "List imported people and human decisions without requiring machine classification.",
+        "operationId": "list_snapshot_annotation_items_api_v1_snapshots__snapshot_id__annotation_items_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Snapshot Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Match people in any of these review states; empty matches every state.",
+            "in": "query",
+            "name": "workflow_states",
+            "required": false,
+            "schema": {
+              "default": [],
+              "description": "Match people in any of these review states; empty matches every state.",
+              "items": {
+                "$ref": "#/components/schemas/ReviewWorkflowState"
+              },
+              "title": "Workflow States",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "human_label",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CanonicalLabel"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Human Label"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 2048,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_SnapshotAnnotationItem_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List Snapshot Annotation Items",
+        "tags": [
+          "annotations"
+        ]
+      }
+    },
+    "/api/v1/snapshots/{snapshot_id}/annotation-items/{tei_id}": {
+      "get": {
+        "description": "Read one imported person's current human decision in a ready snapshot.",
+        "operationId": "get_snapshot_annotation_item_api_v1_snapshots__snapshot_id__annotation_items__tei_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Snapshot Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "tei_id",
+            "required": true,
+            "schema": {
+              "title": "Tei Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotAnnotationItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Snapshot Annotation Item",
+        "tags": [
+          "annotations"
+        ]
+      }
+    },
     "/api/v1/snapshots/{snapshot_id}/people": {
       "get": {
         "description": "List snapshot people in stable TEI-ID order.",
@@ -13037,7 +14390,7 @@
     },
     "/api/v1/snapshots/{snapshot_id}/runs": {
       "get": {
-        "description": "List a snapshot's runs newest first, in every lifecycle state.",
+        "description": "List a snapshot's runs newest first with an optional completed-result filter.",
         "operationId": "list_runs_api_v1_snapshots__snapshot_id__runs_get",
         "parameters": [
           {
@@ -13077,6 +14430,22 @@
                 }
               ],
               "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "has_completed_aggregations",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Has Completed Aggregations"
             }
           }
         ],
@@ -13291,6 +14660,120 @@
           }
         },
         "summary": "List Snapshot Source Members",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/v1/snapshots/{snapshot_id}/statistics": {
+      "get": {
+        "description": "Read immutable source-inventory statistics for one ready snapshot.",
+        "operationId": "get_snapshot_statistics_api_v1_snapshots__snapshot_id__statistics_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Snapshot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetSnapshotStatistics"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Snapshot Statistics",
         "tags": [
           "projects"
         ]

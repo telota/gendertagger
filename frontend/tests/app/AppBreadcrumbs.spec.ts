@@ -115,6 +115,49 @@ describe.each(['de', 'en'] as const)('header breadcrumbs in %s', (locale) => {
     expect(wrapper.findAll('a')).toHaveLength(1)
   })
 
+  it('links the run hierarchy for a method-results page without resolving extra resources', async () => {
+    const { wrapper } = await render(
+      '/projects/' + PROJECT + '/snapshots/snapshot-id/runs/run-id/executions/execution-id/results',
+      locale,
+    )
+    await waitFor(() => expect(wrapper.findAll('a')).toHaveLength(3))
+    expect(wrapper.findAll('a').map((link) => link.attributes('href'))).toEqual([
+      '/projects/' + PROJECT + '/overview',
+      '/projects/' + PROJECT + '/snapshots/snapshot-id/runs',
+      '/projects/' + PROJECT + '/snapshots/snapshot-id/runs/run-id',
+    ])
+    expect(wrapper.get('[aria-current="page"]').text()).toBe(messages.runs.results.title)
+    expect(wrapper.text()).not.toContain('execution-id')
+  })
+
+  it('links Data as the parent of imported data and import without reading scientific resources', async () => {
+    const requests: string[] = []
+    const client = createApiClient({
+      fetch: (request) => {
+        requests.push(new URL(request.url).pathname)
+        return Promise.resolve(Response.json(project()))
+      },
+    })
+    const { wrapper, router } = await render(`/projects/${PROJECT}/snapshots`, locale, client)
+    await waitFor(() => expect(wrapper.get('[aria-current="page"]').text()).toBe(messages.nav.data))
+    expect(wrapper.findAll('a').map((link) => link.attributes('href'))).toEqual([
+      `/projects/${PROJECT}/overview`,
+    ])
+    await router.push(`/projects/${PROJECT}/snapshots/snapshot-id?person=record-id`)
+    expect(wrapper.findAll('a').map((link) => link.attributes('href'))).toEqual([
+      `/projects/${PROJECT}/overview`,
+      `/projects/${PROJECT}/snapshots`,
+    ])
+    expect(wrapper.get('[aria-current="page"]').text()).toBe(messages.data.detailTitle)
+    expect(wrapper.text()).not.toContain('snapshot-id')
+    expect(wrapper.text()).not.toContain('record-id')
+    await router.push(`/projects/${PROJECT}/import`)
+    expect(wrapper.findAll('a')[1]?.text()).toBe(messages.nav.data)
+    expect(wrapper.get('[aria-current="page"]').text()).toBe(messages.nav.import)
+    expect(requests).toEqual([`/api/v1/projects/${PROJECT}`])
+    await expectNoAxeViolations(wrapper.element)
+  })
+
   it('uses the project as current overview and drops context on global routes', async () => {
     const { wrapper, router } = await render(`/projects/${PROJECT}/overview`, locale)
     await waitFor(() => expect(wrapper.text()).toContain(NAME))

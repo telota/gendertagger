@@ -6,19 +6,86 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 
 from gendertagger.api.authorization import ProjectAccessGuard, get_project_access_guard
-from gendertagger.api.dependencies import get_annotation_service
-from gendertagger.api.errors import ApiRequestError
-from gendertagger.models.review import Annotation, AnnotationCreate, AnnotationHistory
+from gendertagger.api.dependencies import get_annotation_service, get_review_item_service
+from gendertagger.api.errors import ApiRequestError, invalid_cursor_error
+from gendertagger.models.api import CursorPage
+from gendertagger.models.review import (
+    Annotation,
+    AnnotationCreate,
+    AnnotationHistory,
+    SnapshotAnnotationItem,
+    SnapshotAnnotationItemQuery,
+)
 from gendertagger.models.user import ProjectRole
 from gendertagger.services.annotations import AnnotationService
+from gendertagger.services.pagination import InvalidCursorError
 from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
     ReviewConflictError,
 )
 from gendertagger.services.ports.project_access_repository import ProjectScope
+from gendertagger.services.review_items import ReviewItemService
 
 router = APIRouter(tags=["annotations"])
+
+
+@router.get(
+    "/snapshots/{snapshot_id}/annotation-items",
+    response_model=CursorPage[SnapshotAnnotationItem],
+)
+def list_snapshot_annotation_items(
+    snapshot_id: UUID,
+    query: Annotated[SnapshotAnnotationItemQuery, Query()],
+    service: Annotated[ReviewItemService, Depends(get_review_item_service)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
+) -> CursorPage[SnapshotAnnotationItem]:
+    """List imported people and human decisions without requiring machine classification."""
+    access.require(ProjectScope.snapshot, snapshot_id, ProjectRole.viewer)
+    try:
+        return service.list_annotation_items(snapshot_id, query)
+    except ResourceNotFoundError as error:
+        raise _annotation_item_not_found() from error
+    except InvalidResourceStateError as error:
+        raise _snapshot_not_ready() from error
+    except InvalidCursorError as error:
+        raise invalid_cursor_error() from error
+
+
+@router.get(
+    "/snapshots/{snapshot_id}/annotation-items/{tei_id}",
+    response_model=SnapshotAnnotationItem,
+)
+def get_snapshot_annotation_item(
+    snapshot_id: UUID,
+    tei_id: str,
+    service: Annotated[ReviewItemService, Depends(get_review_item_service)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
+) -> SnapshotAnnotationItem:
+    """Read one imported person's current human decision in a ready snapshot."""
+    access.require(ProjectScope.snapshot, snapshot_id, ProjectRole.viewer)
+    try:
+        return service.get_annotation_item(snapshot_id, tei_id)
+    except ResourceNotFoundError as error:
+        raise _annotation_item_not_found() from error
+    except InvalidResourceStateError as error:
+        raise _snapshot_not_ready() from error
+
+
+def _annotation_item_not_found() -> ApiRequestError:
+    return ApiRequestError(
+        status_code=status.HTTP_404_NOT_FOUND,
+        code="resource_not_found",
+        message="The requested snapshot or person does not exist.",
+    )
+
+
+def _snapshot_not_ready() -> ApiRequestError:
+    return ApiRequestError(
+        status_code=status.HTTP_409_CONFLICT,
+        code="resource_conflict",
+        message="The snapshot is not ready for annotation.",
+    )
 
 
 @router.post(

@@ -59,6 +59,8 @@ interface Setup {
   createStatus?: number
   methodsFail?: boolean
   createResponse?: Promise<Response>
+  snapshotProject?: string
+  snapshotStatus?: string
 }
 
 interface Sent {
@@ -88,6 +90,15 @@ function runsClient(setup: Setup, sent: Sent) {
       }
       if (pathname === '/api/v1/methods') {
         return setup.methodsFail ? jsonResponse({}, { status: 500 }) : jsonResponse(METHODS)
+      }
+      if (pathname === `/api/v1/snapshots/${SNAPSHOT_ID}`) {
+        return jsonResponse({
+          id: SNAPSHOT_ID,
+          project_id: setup.snapshotProject ?? PROJECT_ID,
+          status: setup.snapshotStatus ?? 'ready',
+          record_count: 10,
+          created_at: '2026-01-01T09:00:00Z',
+        })
       }
       if (pathname === `/api/v1/snapshots/${SNAPSHOT_ID}/runs`) {
         return jsonResponse({ items: runs, next_cursor: null, has_more: false })
@@ -128,11 +139,17 @@ describe.each(['de', 'en'] as const)('run list and new run in %s', (locale: AppL
   const messages = catalogues[locale].runs
   const path = `/projects/${PROJECT_ID}/snapshots/${SNAPSHOT_ID}/runs`
 
-  async function mountRuns(setup: Setup = {}) {
+  async function mountRuns(setup: Setup = {}, openForm = true) {
     const sent: Sent = { runBodies: [], scheduled: [] }
     const wrapper = await mountApplicationAt(path, locale, runsClient(setup, sent))
-    await waitFor(() => expect(wrapper.find('.run-list').exists()).toBe(true))
+    await waitFor(() =>
+      expect(wrapper.find('.run-list, .run-list-unavailable').exists()).toBe(true),
+    )
     await tick()
+    if (openForm && wrapper.find('.run-list-create').exists()) {
+      await wrapper.get('.run-list-create').trigger('click')
+      await tick()
+    }
     return { wrapper, sent }
   }
 
@@ -214,7 +231,7 @@ describe.each(['de', 'en'] as const)('run list and new run in %s', (locale: AppL
     }
   })
 
-  it('lists the snapshot runs with status, progress and configuration hash', async () => {
+  it('lists the snapshot runs with status, progress and an explicit open action', async () => {
     const { wrapper } = await mountRuns({
       runs: [run('r1', 'completed_with_errors', { failure_diagnostic: 'one method failed' })],
     })
@@ -223,7 +240,8 @@ describe.each(['de', 'en'] as const)('run list and new run in %s', (locale: AppL
     expect(item.get('.run-status').text()).toBe(messages.status.completedWithErrors)
     expect(item.text()).toContain('gender_guesser')
     expect(item.text()).toMatch(/3.*10.*1/)
-    expect(item.get('.run-hash').text()).toBe('e'.repeat(64))
+    expect(item.find('.run-hash').exists()).toBe(false)
+    expect(item.get('.run-open').attributes('href')).toContain('/runs/r1')
     expect(item.get('.run-failure').text()).toBe('one method failed')
   })
 
@@ -283,6 +301,16 @@ describe.each(['de', 'en'] as const)('run list and new run in %s', (locale: AppL
     expect(wrapper.get('.new-run-submit').attributes('disabled')).toBeUndefined()
   })
 
+  it('keeps method and execution configuration behind explicit disclosures', async () => {
+    const { wrapper } = await mountRuns()
+    await pick(wrapper, 'local_llm')
+    const methodConfig = wrapper.get<HTMLDetailsElement>('.new-run-config')
+    expect(methodConfig.element.open).toBe(false)
+    expect(methodConfig.get('summary').text()).toBe(messages.new.configureMethod)
+    expect(wrapper.get<HTMLDetailsElement>('.new-run-advanced').element.open).toBe(false)
+    expect(wrapper.get('.new-run-submit').attributes('disabled')).toBeUndefined()
+  })
+
   it('refuses a configuration that is not a JSON object, before sending', async () => {
     const { wrapper, sent } = await mountRuns()
 
@@ -311,7 +339,7 @@ describe.each(['de', 'en'] as const)('run list and new run in %s', (locale: AppL
     const { wrapper } = await mountRuns({ role: 'viewer' })
 
     expect(wrapper.find('.new-run').exists()).toBe(false)
-    expect(wrapper.get('.run-list-forbidden').text()).toBe(messages.forbidden)
+    expect(wrapper.find('.run-list-create').exists()).toBe(false)
   })
 
   it('retries when the method roster cannot be loaded', async () => {
@@ -319,4 +347,35 @@ describe.each(['de', 'en'] as const)('run list and new run in %s', (locale: AppL
 
     expect(wrapper.get('.new-run-load-error').text()).toContain(messages.new.methodsLoadError)
   })
+
+  it('starts with the run list and preserves a guarded draft when the form is collapsed', async () => {
+    const { wrapper } = await mountRuns({}, false)
+    try {
+      expect(wrapper.find('.new-run').exists()).toBe(false)
+      await wrapper.get('.run-list-create').trigger('click')
+      await tick()
+      expect(document.activeElement?.id).toBe('new-run-heading')
+      await pick(wrapper, 'local_llm')
+      await wrapper.get('#config-local_llm').setValue('{"model":"draft"}')
+      await wrapper.get('.run-list-create').trigger('click')
+      expect(wrapper.get('.new-run').isVisible()).toBe(false)
+      await wrapper.get('.run-list-create').trigger('click')
+      expect(wrapper.get<HTMLTextAreaElement>('#config-local_llm').element.value).toContain('draft')
+      await wrapper.get('.run-list-create').trigger('click')
+      void wrapper.vm.$router.push('/projects')
+      await waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull())
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it.each([{ snapshotProject: 'another-project' }, { snapshotStatus: 'importing' }])(
+    'does not offer a form or runs for an unavailable snapshot context %o',
+    async (setup) => {
+      const { wrapper } = await mountRuns(setup, false)
+      expect(wrapper.find('.run-list-create').exists()).toBe(false)
+      expect(wrapper.find('.run-list').exists()).toBe(false)
+      expect(wrapper.get('.run-list-unavailable').text()).toContain(messages.contextUnavailable)
+    },
+  )
 })

@@ -21,6 +21,14 @@ from gendertagger.models.project import SHA256_PATTERN
 _MINIMUM_TIED_LABEL_COUNT = 2
 
 
+class AggregationExecutionListFilter(BaseModel):
+    """Lifecycle filter for a run's independently persisted aggregations."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status: AggregationExecutionStatus | None = None
+
+
 class AggregationOutcome(StrEnum):
     """Decision state produced by reference aggregation before certainty assignment."""
 

@@ -4,6 +4,7 @@ import { computed, ref, type Ref } from 'vue'
 import { unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
 import { usePolledQuery } from '@/composables/usePolledQuery'
+import { useSessionStore } from '@/stores/session'
 
 import { snapshotListKey } from './useSnapshots'
 
@@ -54,11 +55,24 @@ export function useImportSnapshot() {
 }
 
 /** `GET /snapshots/{snapshot_id}`, polled until the import reaches `ready` or `failed`. */
-export function useSnapshotStatus(snapshotId: Ref<string | null>) {
+export function useSnapshotStatus(
+  snapshotId: Readonly<Ref<string | null>>,
+  projectId?: Readonly<Ref<string>>,
+) {
   const client = useApiClient()
+  const session = useSessionStore()
 
   return usePolledQuery({
-    queryKey: computed(() => ['snapshots', snapshotId.value] as const),
+    queryKey: computed(
+      () =>
+        [
+          'snapshots',
+          'import-status',
+          session.user?.id ?? 'anonymous',
+          projectId?.value ?? null,
+          snapshotId.value,
+        ] as const,
+    ),
     queryFn: () => {
       const id = snapshotId.value
       if (id === null) throw new Error('useSnapshotStatus: no snapshot to poll yet.')
@@ -67,7 +81,7 @@ export function useSnapshotStatus(snapshotId: Ref<string | null>) {
       )
     },
     isTerminal: (snapshot) => TERMINAL_STATUSES.has(snapshot.status),
-    enabled: computed(() => snapshotId.value !== null),
+    enabled: computed(() => snapshotId.value !== null && session.canUsePrivateNavigation),
   })
 }
 
