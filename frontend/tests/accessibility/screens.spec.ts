@@ -19,7 +19,7 @@ import { applicationClient, SCREENS } from './mockApi'
 // The marker that says a screen has finished loading its data (not just its shell).
 const READY: Record<keyof typeof SCREENS, string> = {
   projects: '.project-card, .project-list-item, main li',
-  overview: '.project-overview-data-link',
+  overview: '.project-overview-history-link',
   import: '.import-file-input',
   runs: '.run',
   run: '.execution',

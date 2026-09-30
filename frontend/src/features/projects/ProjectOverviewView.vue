@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+// Übersicht and Daten are one screen (decision, 2026-09-30): the project's facts, its present data
+// state and the action to add to it live together; only the full history of earlier snapshots moves
+// to its own, unlisted page (ProjectSnapshotsView), reachable solely through the link in
+// ProjectCurrentSnapshot.
+import { PhMinus, PhUploadSimple } from '@phosphor-icons/vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -7,10 +12,12 @@ import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useSessionStore } from '@/stores/session'
 
+import { hasProjectRole } from './projectRoles'
 import ProjectGameModeSetting from './ProjectGameModeSetting.vue'
-import ProjectDataStats from './ProjectDataStats.vue'
+import ProjectCurrentSnapshot from './ProjectCurrentSnapshot.vue'
 import ProjectOverviewSection from './ProjectOverviewSection.vue'
 import ProjectReviewStats from './ProjectReviewStats.vue'
+import SnapshotImportForm from './SnapshotImportForm.vue'
 import { useProject } from './useProjects'
 import { useRoleLabel } from './useRoleLabel'
 
@@ -19,6 +26,8 @@ const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
 const roleLabel = useRoleLabel()
+const importOpen = ref(false)
+const importMounted = ref(false)
 
 // Wait for the one loading -> ready transition before deciding, exactly like /change-password and
 // /projects: session.initialize() is still pending on every fresh page load, cookie or not.
@@ -46,6 +55,22 @@ const projectId = computed(() => {
 })
 
 const query = useProject(projectId, isSignedIn)
+const canImport = computed(() => hasProjectRole(query.data.value?.current_user_role, 'operator'))
+
+function resetImport(): void {
+  importOpen.value = false
+  importMounted.value = false
+}
+
+function toggleImport(): void {
+  importOpen.value = !importOpen.value
+  if (importOpen.value) importMounted.value = true
+}
+
+watch([() => session.user?.id, projectId], resetImport)
+watch([canImport, () => query.isSuccess.value], ([allowed, success]) => {
+  if (success && !allowed) resetImport()
+})
 </script>
 
 <template>
@@ -54,7 +79,31 @@ const query = useProject(projectId, isSignedIn)
       <h1 class="project-overview-title app-page-heading__title">
         {{ query.data.value?.display_name ?? t('nav.overview') }}
       </h1>
+      <div v-if="canImport" class="app-page-heading__actions">
+        <AppButton
+          class="project-overview-import"
+          :variant="importOpen ? 'ghost' : 'solid'"
+          :aria-expanded="importOpen"
+          aria-controls="project-import-panel"
+          @click="toggleImport"
+        >
+          <PhMinus v-if="importOpen" :size="18" aria-hidden="true" />
+          <PhUploadSimple v-else :size="18" aria-hidden="true" />
+          {{ importOpen ? t('data.hideImport') : t('data.importAction') }}
+        </AppButton>
+      </div>
     </header>
+    <div
+      v-show="importOpen && canImport"
+      id="project-import-panel"
+      class="project-overview-import-panel"
+    >
+      <SnapshotImportForm
+        v-if="importMounted && session.user && query.data.value"
+        :key="`${session.user.id}:${projectId}`"
+        :project-id="projectId"
+      />
+    </div>
 
     <AppFeedback
       v-if="session.status === 'idle' || session.status === 'loading'"
@@ -121,7 +170,7 @@ const query = useProject(projectId, isSignedIn)
               {{ t('projects.overview.noDescription') }}
             </p>
           </ProjectOverviewSection>
-          <ProjectDataStats :project-id="projectId" />
+          <ProjectCurrentSnapshot :project-id="projectId" />
           <ProjectReviewStats
             :project-id="projectId"
             :aggregation-id="query.data.value.working_aggregation_execution_id ?? null"
@@ -140,6 +189,14 @@ const query = useProject(projectId, isSignedIn)
 <style scoped>
 .project-overview {
   container: project-overview / inline-size;
+}
+
+.project-overview-import svg {
+  flex-shrink: 0;
+}
+
+.project-overview-import-panel {
+  margin-block-end: var(--space-8);
 }
 
 /* Four facts: one column, two, or all four in a row — never three and an orphan. Side by side, a

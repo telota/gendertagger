@@ -474,16 +474,20 @@ this delivery.
   outstanding from M2 and folded in here since M3 is what first needs cross-screen navigation. The project
   switcher was built in M9 (below), and the nested `/projects/:projectId/...` routes were added as their own
   screens landed.
-- `ProjectOverviewView` (`/projects/:projectId/overview`). **Delivered.** One flat panel card with three
-  hairline-divided sections: project details (slug, role, team, creation date, description); imported data
-  (snapshot count, records and import date of the latest ready snapshot, runs on it, and imports in
-  progress or failed only when there are any); and review progress for the project's working aggregation
-  ([ADR-0035](decisions/ADR-0035-project-working-aggregation.md)). The last reads
-  `GET /aggregations/{id}/review-summary` once the aggregation has completed: people reviewed, the three
-  workflow states with the confirmed/corrected split, the same "open of total" per evidence queue as the
-  review workbench, and the final-label distribution. It never uses a confidence threshold. Snapshot and run
-  counts read only the first page and show a lower bound (`n+`) when the server reports more. Each section
-  fails and retries on its own, and the button to Data stays available if its figures do not load.
+- `ProjectOverviewView` (`/projects/:projectId/overview`). **Delivered**, folded together with the former
+  Daten screen since (D23, 2026-09-30). One flat panel card with hairline-divided sections: project details
+  (slug, role, team, creation date, description); the project's data state (`ProjectCurrentSnapshot.vue`:
+  snapshot count, records and import date of the latest *ready* snapshot, runs on it, and imports in progress
+  or failed only when there are any, **plus** the newest snapshot overall — ready, still importing, or failed
+  — shown as its own card, since that one, not necessarily the latest ready one, is the project's present
+  state); the import toggle, in the page's own heading, for a project operator; and review progress for the
+  project's working aggregation ([ADR-0035](decisions/ADR-0035-project-working-aggregation.md)). The review
+  section reads `GET /aggregations/{id}/review-summary` once the aggregation has completed: people reviewed,
+  the three workflow states with the confirmed/corrected split, the same "open of total" per evidence queue as
+  the review workbench, and the final-label distribution. It never uses a confidence threshold. Snapshot and
+  run counts read only the first page and show a lower bound (`n+`) when the server reports more. Each section
+  fails and retries on its own, and the link to the snapshot history stays available if its figures do not
+  load.
 - Import with the full `source_format` × `packaging` matrix; the backend derives the import profile.
   **Delivered.** `ImportView` uploads to `POST /projects/{project_id}/snapshots`, gated to the project's
   own operators (`current_user_role`, not the global roles D6 gives project creation), for every
@@ -511,13 +515,13 @@ line 1, column 1`), so the form also compares the file name with the chosen deli
   not exactly that list, naming expected and found columns. XLSX and JSON cannot be checked without parsing
   them, so they are left to the server; its diagnostic is shown on the snapshot list and the import screen.
 - Snapshot provenance: `source_sha256`, `parser_version`, per-member manifest entries. **Delivered.**
-  The dedicated Data view lists snapshots (`GET /projects/{id}/snapshots`, newest first and cursor-paginated)
-  with import time, lifecycle, record count and source format. Each opens a snapshot detail with source
-  files (name, media type, size and checksum), disclosed import configuration/parser/hash, and read-only
-  raw person records once ready. Source records use the existing cursor and exact TEI-ID endpoints,
-  independently of classification. Project overview links to Data; the import screen's successful state
-  links to its specific snapshot. Principal-scoped queries and project/snapshot checks prevent stale
-  data appearing after account or route changes.
+  `ProjectSnapshotsView` lists every snapshot (`GET /projects/{id}/snapshots`, newest first and
+  cursor-paginated) with import time, lifecycle, record count and source format; since D23 it is a read-only
+  history page, reachable only through the link Übersicht gives it, not a sidebar destination of its own.
+  Each entry opens a snapshot detail with source files (name, media type, size and checksum), disclosed import
+  configuration/parser/hash, and read-only raw person records once ready. Source records use the existing
+  cursor and exact TEI-ID endpoints, independently of classification. Principal-scoped queries and
+  project/snapshot checks prevent stale data appearing after account or route changes.
 
 **Exit criterion.** An operator imports a TEI ZIP and a CSV through the browser and sees both snapshots
 reach `ready` with their checksums. **Met** in the frontend: both formats can be imported and their
@@ -1309,6 +1313,15 @@ leaderboard is persistent engagement metadata and cannot affect annotation
 semantics, queue order, exports, or evaluation. New projects default to disabled; an operator opts in from the
 project overview. Turning it off hides the optional sidebar group and blocks direct game API access while
 retaining completed rounds.
+
+**D23 — Übersicht and Daten are one screen; the snapshot history is unlisted.** Decided 2026-09-30. The
+sidebar's separate Daten entry is removed. `ProjectOverviewView` imports new snapshots (the toggle moves from
+`ProjectSnapshotsView`'s heading to its own) and always shows the newest snapshot, whatever its status: a
+still-importing or failed newest snapshot is the project's present state and is never hidden behind an older,
+ready one. The existing figures (snapshot count, the latest *ready* snapshot's records/import date, its run
+count, in-progress/failed counts) are unchanged, since they answer "is there workable data", a different
+question from "what is current". `ProjectSnapshotsView` keeps the full, newest-first list for every earlier
+snapshot, reachable only through the link Übersicht gives it, never through the sidebar.
 
 ### Accessibility decisions
 

@@ -176,7 +176,12 @@ of the shared query cache, through `useProjects.ts`. Project creation (`POST /pr
 global operators and admins only (decision D6); every other role sees the list without it.
 
 `/projects/:projectId/overview` (`ProjectOverviewView.vue`) shows a project's own facts (name, slug, role,
-description) and links to import. It deliberately does not attempt the wireframe's KPI dashboard yet — that
+description) and, since it absorbed the former Daten screen (decision D23, 2026-09-30), the project's data
+state and import action directly: `ProjectCurrentSnapshot.vue` always shows the newest snapshot, whatever its
+status, plus the usual figures about the latest *ready* one; the import toggle lives in the page's own
+heading for a project operator. Only the full, older history moves to `ProjectSnapshotsView`
+(`/projects/:projectId/snapshots`), an unlisted page reached solely through the link there — the sidebar has
+no separate Daten entry any more. It deliberately does not attempt the wireframe's KPI dashboard yet — that
 reads `GET /aggregations/{id}/review-summary`, which needs a run and an aggregation neither of which can
 exist before M4.
 

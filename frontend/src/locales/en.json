@@ -1,8 +1,9 @@
 {
   "data": {
-    "title": "Imported data",
+    "title": "Data history",
     "importAction": "Import data",
     "hideImport": "Hide form",
+    "viewHistory": "View data history",
     "viewImportedData": "View imported data",
     "empty": "No data has been imported yet.",
     "emptyHint": "A project operator can import a person register to create the first dataset.",
@@ -207,7 +208,7 @@
     "horizontalScrollHint": "Scroll horizontally to see all columns."
   },
   "nav": {
-    "data": "Data",
+    "data": "Data history",
     "skipToContent": "Skip to main content",
     "label": "Main navigation",
     "openNavigation": "Open navigation",
@@ -686,7 +687,7 @@
       "noDescription": "This project has no description yet.",
       "atLeast": "{count}+",
       "data": {
-        "title": "Imported data",
+        "title": "Current data state",
         "loadError": "The imported data could not be loaded.",
         "empty": "No data has been imported into this project yet.",
         "snapshots": "Datasets",

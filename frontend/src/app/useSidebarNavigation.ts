@@ -1,6 +1,5 @@
 import {
   PhChartBar,
-  PhDatabase,
   PhExport,
   PhFolders,
   PhGearSix,
@@ -41,9 +40,10 @@ export interface SidebarNavigationGroup {
 /** Each implemented route belongs to one leaf, including detail views with no separate menu item. */
 const OWNED_ROUTES: Record<string, readonly string[]> = {
   projects: ['projects'],
-  overview: ['projectOverview'],
+  // Daten is folded into Übersicht (decision, 2026-09-30): the history page and the legacy direct-
+  // import route have no nav item of their own, but still highlight Übersicht as the current leaf.
+  overview: ['projectOverview', 'projectSnapshots', 'snapshotDetail', 'projectImport'],
   projectMembers: ['projectMembers'],
-  data: ['projectSnapshots', 'snapshotDetail', 'projectImport'],
   classification: [
     'projectClassification',
     'snapshotRuns',
@@ -116,7 +116,6 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
             link('projectOverview', { projectId }),
           ),
         )
-        items.push(item('data', t('nav.data'), PhDatabase, link('projectSnapshots', { projectId })))
         if (availability.data.value?.has_ready_snapshots) {
           items.push(
             item(

@@ -1,5 +1,4 @@
-import { enableAutoUnmount, flushPromises, type VueWrapper } from '@vue/test-utils'
-import { File as NodeFile } from 'node:buffer'
+import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { createApiClient } from '@/api'
@@ -15,28 +14,8 @@ import { waitFor } from '../../helpers/wait'
 const catalogues = { de, en } as const
 const USER = { id: 'a0000000-0000-0000-0000-000000000001', display_name: 'Operator', roles: [] }
 const PROJECT_ID = 'b0000000-0000-0000-0000-000000000001'
-const PROJECT_B_ID = 'b0000000-0000-0000-0000-000000000002'
 const CHECKSUM = 'ab'.repeat(32)
 const listPath = `/projects/${PROJECT_ID}/snapshots`
-
-function testFile(content: string, name: string, type: string): File {
-  return new NodeFile([content], name, { type }) as unknown as File
-}
-
-function selectFile(wrapper: VueWrapper, file: File): HTMLInputElement {
-  const input = wrapper.get<HTMLInputElement>('.import-file-input').element
-  Object.defineProperty(input, 'files', { value: [file], configurable: true })
-  input.dispatchEvent(new Event('change'))
-  return input
-}
-
-function uploadLimits() {
-  return Response.json({
-    max_upload_part_bytes: 104857600,
-    max_total_upload_bytes: 524288000,
-    import_limits: { max_member_count: 128, max_total_expanded_bytes: 524288000 },
-  })
-}
 
 function snapshot(id: string, overrides: Record<string, unknown> = {}) {
   return {
@@ -135,69 +114,8 @@ describe.each(['de', 'en'] as const)('imported data list in %s', (locale: AppLoc
     }
     expect(paths.some((path) => path.endsWith('/source-members'))).toBe(false)
     expect(paths).not.toContain('/api/v1/snapshot-upload-limits')
-    const importToggle = wrapper.get<HTMLButtonElement>('.project-snapshots-import')
-    expect(importToggle.element.tagName).toBe('BUTTON')
-    expect(importToggle.text()).toBe(messages.importAction)
-    expect(importToggle.attributes('aria-expanded')).toBe('false')
-    expect(importToggle.attributes('aria-controls')).toBe('project-import-panel')
-    expect(wrapper.get('#project-import-panel').isVisible()).toBe(false)
+    expect(wrapper.find('.project-snapshots-import').exists()).toBe(false)
     expect(wrapper.find('.import-file-input').exists()).toBe(false)
-    await expectNoAxeViolations(wrapper.get('main').element)
-  })
-
-  it('opens upload on demand and preserves its draft while collapsed', async () => {
-    let limitRequests = 0
-    const wrapper = await mountApplicationAt(
-      listPath,
-      locale,
-      client((request) => {
-        const { pathname } = new URL(request.url)
-        if (pathname === '/api/v1/snapshot-upload-limits') {
-          limitRequests += 1
-          return uploadLimits()
-        }
-        return isListRequest(request) ? page([]) : undefined
-      }),
-    )
-    await waitFor(() => expect(wrapper.get('main').text()).toContain(messages.empty))
-    const toggle = wrapper.get<HTMLButtonElement>('.project-snapshots-import')
-    expect(toggle.attributes('aria-expanded')).toBe('false')
-    expect(wrapper.find('.snapshot-import-form').exists()).toBe(false)
-    expect(limitRequests).toBe(0)
-
-    await toggle.trigger('click')
-    await waitFor(() => expect(wrapper.find('.import-file-input').exists()).toBe(true))
-    await waitFor(() => expect(limitRequests).toBe(1))
-    expect(toggle.attributes('aria-expanded')).toBe('true')
-    expect(toggle.text()).toBe(messages.hideImport)
-    expect(wrapper.get('#project-import-panel').isVisible()).toBe(true)
-    expect(wrapper.findAll('main h1')).toHaveLength(1)
-    expect(wrapper.get('.snapshot-import-form .import-title').element.tagName).toBe('H2')
-    expect(wrapper.get('.snapshot-import-form').classes()).toContain('app-card')
-
-    const file = testFile('{}', 'people.json', 'application/json')
-    const input = selectFile(wrapper, file)
-    await flushPromises()
-    expect(wrapper.get('.import-detected-source').text()).toContain('JSON')
-    expect(wrapper.get('.import-file-item').text()).toContain('people.json')
-    const resetInput = wrapper.get<HTMLInputElement>('.import-file-input').element
-    expect(resetInput).not.toBe(input)
-    expect(resetInput.files?.length ?? 0).toBe(0)
-
-    toggle.element.focus()
-    await toggle.trigger('click')
-    expect(toggle.attributes('aria-expanded')).toBe('false')
-    expect(wrapper.get('#project-import-panel').isVisible()).toBe(false)
-    expect(wrapper.get<HTMLInputElement>('.import-file-input').element).toBe(resetInput)
-    expect(wrapper.get('.import-file-item').text()).toContain('people.json')
-    expect(document.activeElement).toBe(toggle.element)
-
-    await toggle.trigger('click')
-    expect(wrapper.get('#project-import-panel').isVisible()).toBe(true)
-    expect(wrapper.get('.import-detected-source').text()).toContain('JSON')
-    expect(wrapper.get<HTMLInputElement>('.import-file-input').element).toBe(resetInput)
-    expect(wrapper.get('.import-file-item').text()).toContain('people.json')
-    expect(limitRequests).toBe(1)
     await expectNoAxeViolations(wrapper.get('main').element)
   })
 
@@ -230,77 +148,15 @@ describe.each(['de', 'en'] as const)('imported data list in %s', (locale: AppLoc
     expect(wrapper.findAll('.snapshot-open')).toHaveLength(2)
   })
 
-  it('provides the empty explanation while viewers cannot import', async () => {
-    let limitRequests = 0
+  it('provides the empty explanation regardless of role, with no import control on this page', async () => {
     const wrapper = await mountApplicationAt(
       listPath,
       locale,
-      client((request) => {
-        if (new URL(request.url).pathname === '/api/v1/snapshot-upload-limits') {
-          limitRequests += 1
-          return uploadLimits()
-        }
-        return isListRequest(request) ? page([]) : undefined
-      }, 'viewer'),
+      client((request) => (isListRequest(request) ? page([]) : undefined), 'viewer'),
     )
     await waitFor(() => expect(wrapper.get('main').text()).toContain(messages.empty))
     expect(wrapper.get('main').text()).toContain(messages.emptyHint)
     expect(wrapper.find('.project-snapshots-import').exists()).toBe(false)
-    expect(wrapper.find('.snapshot-import-form').exists()).toBe(false)
-    expect(limitRequests).toBe(0)
-  })
-
-  it('clears an upload draft when its account or project scope changes', async () => {
-    const wrapper = await mountApplicationAt(
-      listPath,
-      locale,
-      client((request) => {
-        const { pathname } = new URL(request.url)
-        if (pathname === '/api/v1/snapshot-upload-limits') return uploadLimits()
-        if (pathname === `/api/v1/projects/${PROJECT_B_ID}`) {
-          return Response.json({
-            id: PROJECT_B_ID,
-            slug: 'project-b',
-            display_name: 'Project B',
-            description: null,
-            current_user_role: 'operator',
-            created_at: '2026-01-01T00:00:00Z',
-          })
-        }
-        if (pathname === `/api/v1/projects/${PROJECT_B_ID}/snapshots`) return page([])
-        return isListRequest(request) ? page([]) : undefined
-      }),
-    )
-    await waitFor(() => expect(wrapper.find('.project-snapshots-import').exists()).toBe(true))
-    let toggle = wrapper.get<HTMLButtonElement>('.project-snapshots-import')
-    await toggle.trigger('click')
-    await waitFor(() => expect(wrapper.find('.import-file-input').exists()).toBe(true))
-    selectFile(wrapper, testFile('<TEI/>', 'previous-account.xml', 'text/xml'))
-    await flushPromises()
-
-    useSessionStore().user = {
-      ...USER,
-      id: 'a0000000-0000-0000-0000-000000000099',
-      display_name: 'Another operator',
-    }
-    await waitFor(() => expect(wrapper.find('.snapshot-import-form').exists()).toBe(false))
-    await waitFor(() => expect(wrapper.find('.project-snapshots-import').exists()).toBe(true))
-    toggle = wrapper.get<HTMLButtonElement>('.project-snapshots-import')
-    expect(toggle.attributes('aria-expanded')).toBe('false')
-    await toggle.trigger('click')
-    await waitFor(() => expect(wrapper.find('.import-file-input').exists()).toBe(true))
-    expect(wrapper.get<HTMLInputElement>('.import-file-input').element.files?.length ?? 0).toBe(0)
-    expect(wrapper.find('.import-file-item').exists()).toBe(false)
-    expect(wrapper.find('.import-detected-source').exists()).toBe(false)
-    expect(wrapper.get<HTMLButtonElement>('.import-submit').element.disabled).toBe(true)
-
-    await wrapper.vm.$router.push(`/projects/${PROJECT_B_ID}/snapshots`)
-    await waitFor(() =>
-      expect(wrapper.vm.$router.currentRoute.value.params.projectId).toBe(PROJECT_B_ID),
-    )
-    await waitFor(() => expect(wrapper.find('.project-snapshots-import').exists()).toBe(true))
-    toggle = wrapper.get<HTMLButtonElement>('.project-snapshots-import')
-    expect(toggle.attributes('aria-expanded')).toBe('false')
     expect(wrapper.find('.snapshot-import-form').exists()).toBe(false)
   })
 

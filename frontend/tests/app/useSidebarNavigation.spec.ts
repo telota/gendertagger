@@ -81,9 +81,9 @@ describe('sidebar route ownership', () => {
     ['projects', 'projects'],
     ['projectOverview', 'overview'],
     ['projectMembers', 'projectMembers'],
-    ['projectSnapshots', 'data'],
-    ['snapshotDetail', 'data'],
-    ['projectImport', 'data'],
+    ['projectSnapshots', 'overview'],
+    ['snapshotDetail', 'overview'],
+    ['projectImport', 'overview'],
     ['projectClassification', 'classification'],
     ['snapshotRuns', 'classification'],
     ['runDetail', 'classification'],
@@ -178,7 +178,6 @@ describe('sidebar route ownership', () => {
     expect(groups.value.flatMap((group) => group.items).map((item) => item.id)).toEqual([
       'projects',
       'overview',
-      'data',
       'projectMembers',
       'administration',
       'teams',
@@ -190,7 +189,7 @@ describe('sidebar route ownership', () => {
   it('hides ineligible destinations instead of offering disabled role-restricted items', async () => {
     const { groups, session } = await navigationAt('people', 'viewer')
     const ids = groups.value.flatMap((group) => group.items).map((item) => item.id)
-    expect(ids).toContain('data')
+    expect(ids).not.toContain('data')
     expect(ids).not.toContain('import')
     expect(ids).not.toContain('review')
     expect(ids).not.toContain('people')

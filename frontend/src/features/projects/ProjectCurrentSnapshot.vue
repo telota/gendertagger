@@ -1,4 +1,10 @@
 <script setup lang="ts">
+// The project's data state, folded into Übersicht (decision, 2026-09-30: Übersicht and Daten are one
+// screen). The figures below summarize the latest snapshot that finished importing, as before; the
+// card beneath them is always the newest snapshot overall, whatever its status — a still-importing or
+// failed newest snapshot IS the project's present state and is never hidden behind an older, ready
+// one. Earlier snapshots stay reachable, but only through the less prominent history page linked
+// below, never as a second list on this screen.
 import { PhArrowRight } from '@phosphor-icons/vue'
 import { computed, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -10,6 +16,7 @@ import { useRunList } from '@/features/runs/useRuns'
 import ProjectOverviewSection from './ProjectOverviewSection.vue'
 import ProjectStat from './ProjectStat.vue'
 import ProjectStatList from './ProjectStatList.vue'
+import SnapshotItem from './SnapshotItem.vue'
 import { snapshotStats } from './projectStats'
 import { useSnapshotList } from './useSnapshots'
 
@@ -24,6 +31,8 @@ const stats = computed(() => {
   return page ? snapshotStats(page.items, page.has_more) : null
 })
 const latest = computed(() => stats.value?.latestReady ?? null)
+// The list is newest first regardless of status, so the first entry is the present one.
+const current = computed(() => snapshots.data.value?.pages[0]?.items[0] ?? null)
 
 const runs = useRunList(
   computed(() => latest.value?.id ?? ''),
@@ -82,15 +91,18 @@ function count(value: number, hasMore: boolean): string {
           {{ n(stats.failed, 'integer') }}
         </ProjectStat>
       </ProjectStatList>
+      <ul v-if="current" class="data-current">
+        <SnapshotItem :snapshot="current" />
+      </ul>
     </template>
-    <!-- Navigation never waits on the figures: the list stays reachable if they fail to load. -->
+    <!-- Navigation never waits on the figures: the link stays reachable if they fail to load. -->
     <div class="data-actions">
       <AppButton
         :to="{ name: 'projectSnapshots', params: { projectId } }"
         variant="ghost"
-        class="project-overview-data-link"
+        class="project-overview-history-link"
       >
-        {{ t('data.viewImportedData') }}
+        {{ t('data.viewHistory') }}
         <PhArrowRight :size="18" aria-hidden="true" />
       </AppButton>
     </div>
@@ -101,6 +113,11 @@ function count(value: number, hasMore: boolean): string {
 .data-empty {
   margin: 0;
   color: var(--text-secondary);
+}
+.data-current {
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
 }
 .data-actions {
   display: flex;

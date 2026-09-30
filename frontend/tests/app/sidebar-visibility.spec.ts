@@ -50,21 +50,13 @@ type ProjectRole = AccessibleProject['current_user_role']
 type SessionStore = ReturnType<typeof useSessionStore>
 type SessionState = Pick<SessionStore, 'status' | 'user' | 'mustChangePassword'>
 type NavKey = keyof typeof en.nav
-const VIEWER_ITEMS: NavKey[] = [
-  'projects',
-  'overview',
-  'data',
-  'classification',
-  'evaluations',
-  'exports',
-]
+const VIEWER_ITEMS: NavKey[] = ['projects', 'overview', 'classification', 'evaluations', 'exports']
 const PROJECT_VIEWER_ITEMS = VIEWER_ITEMS.slice(0, -2)
 const ROLE_ITEMS: Record<ProjectRole, NavKey[]> = {
   viewer: VIEWER_ITEMS,
   reviewer: [
     'projects',
     'overview',
-    'data',
     'classification',
     'review',
     'annotate',
@@ -75,7 +67,6 @@ const ROLE_ITEMS: Record<ProjectRole, NavKey[]> = {
   operator: [
     'projects',
     'overview',
-    'data',
     'classification',
     'review',
     'annotate',
@@ -250,14 +241,14 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
         catalogues[locale].taskEntry.availabilityLoading,
       ),
     )
-    expectItems(wrapper, locale, ['projects', 'overview', 'data'])
+    expectItems(wrapper, locale, ['projects', 'overview'])
     availability.respond({
       project_id: PROJECT_A,
       has_ready_snapshots: false,
       has_completed_aggregations: false,
     })
     await waitFor(() => expect(wrapper.find('.app-sidebar-availability').exists()).toBe(false))
-    expectItems(wrapper, locale, ['projects', 'overview', 'data'])
+    expectItems(wrapper, locale, ['projects', 'overview'])
     expect(wrapper.findAll('nav [aria-disabled="true"]')).toHaveLength(0)
     expect(wrapper.findAll('nav h2')).toHaveLength(1)
   })
@@ -292,7 +283,7 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
           catalogues[locale].taskEntry.availabilityError,
         ),
       )
-      expectItems(wrapper, locale, ['projects', 'overview', 'data'])
+      expectItems(wrapper, locale, ['projects', 'overview'])
       const retry = wrapper.get('.app-sidebar-availability-retry')
       expect(retry.attributes('aria-label')).toBe(catalogues[locale].taskEntry.retryAvailability)
       await retry.trigger('click')
@@ -335,10 +326,10 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
         catalogues[locale].taskEntry.availabilityLoading,
       ),
     )
-    expectItems(wrapper, locale, ['projects', 'overview', 'data'])
+    expectItems(wrapper, locale, ['projects', 'overview'])
     secondAccount.respond({ ...AVAILABLE, has_completed_aggregations: false })
     await waitFor(() =>
-      expectItems(wrapper, locale, ['projects', 'overview', 'data', 'classification', 'annotate']),
+      expectItems(wrapper, locale, ['projects', 'overview', 'classification', 'annotate']),
     )
     await router.push(`/projects/${PROJECT_B}/overview`)
     await waitFor(() =>
@@ -346,14 +337,14 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
         catalogues[locale].taskEntry.availabilityLoading,
       ),
     )
-    expectItems(wrapper, locale, ['projects', 'overview', 'data'])
+    expectItems(wrapper, locale, ['projects', 'overview'])
     secondProject.respond({
       project_id: PROJECT_B,
       has_ready_snapshots: false,
       has_completed_aggregations: false,
     })
     await waitFor(() => expect(wrapper.find('.app-sidebar-availability').exists()).toBe(false))
-    expectItems(wrapper, locale, ['projects', 'overview', 'data'])
+    expectItems(wrapper, locale, ['projects', 'overview'])
     expect(wrapper.find(`nav a[href*="${PROJECT_A}"]`).exists()).toBe(false)
   })
 
@@ -1049,7 +1040,6 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
     expect(wrapper.findAll('nav a').map((item) => item.attributes('href'))).toEqual([
       '/projects',
       `/projects/${PROJECT_B}/overview`,
-      `/projects/${PROJECT_B}/snapshots`,
       `/projects/${PROJECT_B}/classification`,
     ])
   })

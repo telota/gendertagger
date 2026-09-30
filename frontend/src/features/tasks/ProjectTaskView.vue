@@ -395,10 +395,10 @@ watch(activeHeading, focusStep, { flush: 'post' })
               ><AppButton
                 variant="ghost"
                 :to="{
-                  name: mode === 'review' ? 'projectClassification' : 'projectSnapshots',
+                  name: mode === 'review' ? 'projectClassification' : 'projectOverview',
                   params: { projectId },
                 }"
-                >{{ mode === 'review' ? t('nav.classification') : t('nav.data') }}</AppButton
+                >{{ mode === 'review' ? t('nav.classification') : t('nav.overview') }}</AppButton
               ></template
             >
           </AppFeedback>

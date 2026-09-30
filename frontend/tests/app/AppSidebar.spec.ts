@@ -149,7 +149,6 @@ describe.each(['de', 'en'] as const)('AppSidebar project group in %s', (locale: 
     expect(wrapper.findAll('aside nav .nav-item').map((item) => item.text())).toEqual([
       nav.projects,
       nav.overview,
-      nav.data,
     ])
     expect(wrapper.findAll('aside [aria-disabled="true"]')).toHaveLength(0)
     expect(

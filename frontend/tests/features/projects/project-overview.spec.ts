@@ -203,7 +203,7 @@ describe.each(['de', 'en'] as const)('ProjectOverviewView in %s', (locale: AppLo
     expect(wrapper.text()).toContain(messages.overview.noDescription)
   })
 
-  it('links to imported data without duplicating the snapshot list', async () => {
+  it('links to the snapshot history without duplicating the list, and hides import for a viewer', async () => {
     const wrapper = await mountApplicationAt(
       `/projects/${PROJECT_ID}/overview`,
       locale,
@@ -212,10 +212,45 @@ describe.each(['de', 'en'] as const)('ProjectOverviewView in %s', (locale: AppLo
     await flushPromises()
 
     expect(wrapper.get(`main a[href="/projects/${PROJECT_ID}/snapshots"]`).text()).toBe(
-      catalogues[locale].data.viewImportedData,
+      catalogues[locale].data.viewHistory,
     )
     expect(wrapper.find('.snapshot-list').exists()).toBe(false)
     expect(wrapper.find(`main a[href="/projects/${PROJECT_ID}/import"]`).exists()).toBe(false)
+    expect(wrapper.find('.project-overview-import').exists()).toBe(false)
+  })
+
+  it('lets a project operator import a new snapshot right from the overview page', async () => {
+    const dataMessages = catalogues[locale].data
+    const wrapper = await mountApplicationAt(
+      `/projects/${PROJECT_ID}/overview`,
+      locale,
+      apiClientWithRoutes(
+        signedInRoutes(
+          { body: { ...PROJECT, current_user_role: 'operator' } },
+          {
+            [`/api/v1/projects/${PROJECT_ID}/snapshots`]: page([]),
+            '/api/v1/snapshot-upload-limits': {
+              body: {
+                max_upload_part_bytes: 104857600,
+                max_total_upload_bytes: 524288000,
+                import_limits: { max_member_count: 128, max_total_expanded_bytes: 524288000 },
+              },
+            },
+          },
+        ),
+      ),
+    )
+    await waitFor(() => expect(wrapper.find('.project-overview-import').exists()).toBe(true))
+    const toggle = wrapper.get<HTMLButtonElement>('.project-overview-import')
+    expect(toggle.text()).toBe(dataMessages.importAction)
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    expect(wrapper.get('#project-import-panel').isVisible()).toBe(false)
+
+    await toggle.trigger('click')
+    await waitFor(() => expect(wrapper.find('.import-file-input').exists()).toBe(true))
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    expect(toggle.text()).toBe(dataMessages.hideImport)
+    expect(wrapper.get('#project-import-panel').isVisible()).toBe(true)
   })
 
   it('shows a load error and retries when the project fails to load', async () => {
@@ -331,6 +366,24 @@ describe.each(['de', 'en'] as const)(
         expect(stat(wrapper, messages.data.inProgress)).toBe('1')
         expect(stat(wrapper, messages.data.failed)).toBe('1')
       })
+    })
+
+    it('shows the newest snapshot as the present one, even while it is still importing', async () => {
+      const wrapper = await mountOverview(PROJECT, {
+        [`/api/v1/projects/${PROJECT_ID}/snapshots`]: page([
+          snapshot('importing', { id: 'd0000000-0000-0000-0000-000000000009', ready_at: null }),
+          snapshot('ready'),
+        ]),
+        [`/api/v1/snapshots/${SNAPSHOT_ID}/runs`]: page([{ id: RUN_ID }]),
+      })
+
+      await waitFor(() => {
+        expect(wrapper.findAll('.snapshot')).toHaveLength(1)
+      })
+      const card = wrapper.get('.snapshot')
+      expect(card.text()).toContain(catalogues[locale].projects.snapshots.status.importing)
+      // The figures still summarize the last snapshot that finished, not the one shown above.
+      expect(stat(wrapper, messages.data.runs)).toBe('1')
     })
 
     it('does not claim a total when the server has further snapshots', async () => {

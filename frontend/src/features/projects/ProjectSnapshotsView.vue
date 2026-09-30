@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { PhMinus, PhUploadSimple } from '@phosphor-icons/vue'
-import { computed, ref, watch } from 'vue'
+// The full, unlisted history of a project's snapshots (decision, 2026-09-30): Übersicht shows the
+// present one and imports new ones; this page is reached only through its link, never through the
+// sidebar, and stays read-only.
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -10,7 +12,6 @@ import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useSessionStore } from '@/stores/session'
 
 import { hasProjectRole } from './projectRoles'
-import SnapshotImportForm from './SnapshotImportForm.vue'
 import SnapshotList from './SnapshotList.vue'
 import { useProject } from './useProjects'
 
@@ -18,8 +19,6 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
-const importOpen = ref(false)
-const importMounted = ref(false)
 const projectId = computed(() => {
   const raw = route.params.projectId
   return (Array.isArray(raw) ? raw[0] : raw) ?? ''
@@ -35,15 +34,6 @@ const project = computed(() => {
     ? value
     : null
 })
-const hasImportRole = computed(() => {
-  const value = query.data.value
-  return (
-    query.isSuccess.value &&
-    value?.id === projectId.value &&
-    hasProjectRole(value.current_user_role, 'operator')
-  )
-})
-const canImport = computed(() => canUseData.value && hasImportRole.value)
 const accessUnavailable = computed(() => {
   const error = query.error.value
   return (
@@ -51,23 +41,6 @@ const accessUnavailable = computed(() => {
   )
 })
 
-function resetImport(): void {
-  importOpen.value = false
-  importMounted.value = false
-}
-
-function toggleImport(): void {
-  importOpen.value = !importOpen.value
-  if (importOpen.value) importMounted.value = true
-}
-
-watch([() => session.user?.id, projectId], resetImport)
-watch(
-  [accessUnavailable, () => query.isSuccess.value, hasImportRole],
-  ([unavailable, success, allowed]) => {
-    if (unavailable || (success && !allowed)) resetImport()
-  },
-)
 watch(
   [() => session.status, () => session.mustChangePassword],
   ([status, mustChangePassword]) => {
@@ -86,31 +59,7 @@ watch(
   <main class="project-snapshots app-page-frame">
     <header class="project-snapshots-heading app-page-heading">
       <h1 class="app-page-heading__title">{{ t('data.title') }}</h1>
-      <div v-if="canImport" class="app-page-heading__actions">
-        <AppButton
-          class="project-snapshots-import"
-          :variant="importOpen ? 'ghost' : 'solid'"
-          :aria-expanded="importOpen"
-          aria-controls="project-import-panel"
-          @click="toggleImport"
-        >
-          <PhMinus v-if="importOpen" :size="18" aria-hidden="true" />
-          <PhUploadSimple v-else :size="18" aria-hidden="true" />
-          {{ importOpen ? t('data.hideImport') : t('data.importAction') }}
-        </AppButton>
-      </div>
     </header>
-    <div
-      v-show="importOpen && canImport"
-      id="project-import-panel"
-      class="project-snapshots-import-panel"
-    >
-      <SnapshotImportForm
-        v-if="importMounted && session.user && project"
-        :key="`${session.user.id}:${projectId}`"
-        :project-id="project.id"
-      />
-    </div>
     <AppFeedback
       v-if="session.status === 'idle' || session.status === 'loading'"
       class="app-card"
@@ -168,11 +117,5 @@ watch(
 <style scoped>
 .project-snapshots {
   container: snapshot-index / inline-size;
-}
-.project-snapshots-import svg {
-  flex-shrink: 0;
-}
-.project-snapshots-import-panel {
-  margin-block-end: var(--space-8);
 }
 </style>

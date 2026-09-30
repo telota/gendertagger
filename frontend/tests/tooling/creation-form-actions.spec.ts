@@ -56,7 +56,7 @@ const CREATION_TOGGLES = [
   ['admin/AdminUserDirectoryView.vue', 'admin-user-creation-panel', 'creationOpen'],
   ['admin/AdminTeamsView.vue', 'admin-team-creation-panel', 'creationOpen'],
   ['projects/ProjectMembershipView.vue', 'project-member-add-panel', 'addMemberOpen'],
-  ['projects/ProjectSnapshotsView.vue', 'project-import-panel', 'importOpen'],
+  ['projects/ProjectOverviewView.vue', 'project-import-panel', 'importOpen'],
 ] as const
 
 describe('top creation form actions', () => {

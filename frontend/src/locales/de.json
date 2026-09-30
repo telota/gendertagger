@@ -1,8 +1,9 @@
 {
   "data": {
-    "title": "Importierte Daten",
+    "title": "Datenverlauf",
     "importAction": "Daten importieren",
     "hideImport": "Formular ausblenden",
+    "viewHistory": "Datenverlauf ansehen",
     "viewImportedData": "Importierte Daten ansehen",
     "empty": "Es wurden noch keine Daten importiert.",
     "emptyHint": "Eine Person mit der Projektrolle Operator kann ein Personenregister importieren und damit den ersten Datenstand anlegen.",
@@ -207,7 +208,7 @@
     "horizontalScrollHint": "Horizontal scrollen, um alle Spalten zu sehen."
   },
   "nav": {
-    "data": "Daten",
+    "data": "Datenverlauf",
     "skipToContent": "Zum Hauptinhalt springen",
     "label": "Hauptnavigation",
     "openNavigation": "Navigation öffnen",
@@ -686,7 +687,7 @@
       "noDescription": "Für dieses Projekt ist noch keine Beschreibung hinterlegt.",
       "atLeast": "{count}+",
       "data": {
-        "title": "Importierte Daten",
+        "title": "Aktueller Datenstand",
         "loadError": "Die importierten Daten konnten nicht geladen werden.",
         "empty": "In dieses Projekt wurden noch keine Daten importiert.",
         "snapshots": "Datenstände",
