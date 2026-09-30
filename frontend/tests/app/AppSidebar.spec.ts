@@ -114,15 +114,17 @@ describe.each(['de', 'en'] as const)('AppSidebar project group in %s', (locale: 
         apiClientWithRoutes(projectRoutes(working)),
       )
       await waitFor(() =>
-        expect(wrapper.find(`aside a[href="/projects/${PROJECT_ID}/review"]`).exists()).toBe(true),
+        expect(wrapper.find(`aside a[href="/projects/${PROJECT_ID}/annotation"]`).exists()).toBe(
+          true,
+        ),
       )
       expect(wrapper.get(`aside a[href="/projects/${PROJECT_ID}/classification"]`).text()).toBe(
         nav.classification,
       )
-      expect(wrapper.get(`aside a[href="/projects/${PROJECT_ID}/review"]`).text()).toBe(nav.review)
-      expect(wrapper.find(`aside a[href="/projects/${PROJECT_ID}/annotation"]`).exists()).toBe(
-        false,
+      expect(wrapper.get(`aside a[href="/projects/${PROJECT_ID}/annotation"]`).text()).toBe(
+        nav.review,
       )
+      expect(wrapper.find(`aside a[href="/projects/${PROJECT_ID}/review"]`).exists()).toBe(false)
       expect(wrapper.find('aside a[href$="/evaluations"]').exists()).toBe(false)
       expect(wrapper.find('aside a[href$="/exports"]').exists()).toBe(false)
       expect(wrapper.findAll('aside [aria-disabled="true"]')).toHaveLength(0)
@@ -173,7 +175,7 @@ describe.each(['de', 'en'] as const)('AppSidebar project group in %s', (locale: 
     await router.push(`/projects/${PROJECT_ID}/overview`)
     await waitFor(() => expect(wrapper.find('aside a[href$="/exports"]').exists()).toBe(false))
     expect(wrapper.find('aside a[href$="/evaluations"]').exists()).toBe(false)
-    expect(wrapper.find(`aside a[href="/projects/${PROJECT_ID}/review"]`).exists()).toBe(true)
+    expect(wrapper.find(`aside a[href="/projects/${PROJECT_ID}/annotation"]`).exists()).toBe(true)
   })
 
   it('follows the run in the URL rather than the working aggregation', async () => {

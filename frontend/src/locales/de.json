@@ -1667,7 +1667,7 @@
   "taskEntry": {
     "classificationHint": "Wählen Sie einen Datenstand, um automatische Vorschläge zu erstellen oder vorhandene Ergebnisse anzusehen.",
     "reviewHint": "Öffnen Sie ein abgeschlossenes Ergebnis zum Redigieren. Der zugehörige Datenstand und Lauf stehen auf der Karte.",
-    "annotationHint": "Wählen Sie einen Datenstand zum Annotieren. Automatische Vorschläge können Sie optional hinzunehmen.",
+    "annotationHint": "Bearbeiten Sie den aktuellen Datenstand: redigieren Sie automatische Vorschläge oder annotieren Sie direkt manuell. Sie können auch einen anderen Datenstand wählen.",
     "gameHint": "Öffnen Sie ein abgeschlossenes Ergebnis und redigieren Sie dessen unannotierte Personen in einer Runde mit Punktwertung.",
     "selectSnapshot": "Datenstand auswählen",
     "selectRun": "Lauf auswählen",
@@ -1695,7 +1695,7 @@
     "moreRuns": "Weitere Läufe laden",
     "moreResults": "Weitere Ergebnisse laden",
     "reviewResultsTitle": "Abgeschlossene Ergebnisse",
-    "noSnapshots": "Es sind noch keine vollständig importierten Datenstände verfügbar. Importieren Sie zuerst Daten im Bereich Daten.",
+    "noSnapshots": "Es sind noch keine vollständig importierten Datenstände verfügbar. Importieren Sie zuerst Daten auf der Übersicht.",
     "noResults": "Für diese Auswahl sind noch keine abgeschlossenen Ergebnisse verfügbar.",
     "snapshotError": "Die Datenstände konnten nicht geladen werden.",
     "runError": "Die Läufe konnten nicht geladen werden.",
@@ -1710,7 +1710,11 @@
     "availabilityLoading": "Verfügbare Aufgaben werden geprüft …",
     "availabilityError": "Verfügbare Aufgaben konnten nicht geprüft werden.",
     "retryAvailability": "Verfügbare Aufgaben erneut prüfen",
-    "noReviewSnapshots": "Es gibt noch kein abgeschlossenes Ergebnis zum Redigieren. Automatische Vorschläge müssen zuerst erstellt und zu einem Ergebnis zusammengeführt werden."
+    "noReviewSnapshots": "Es gibt noch kein abgeschlossenes Ergebnis zum Redigieren. Automatische Vorschläge müssen zuerst erstellt und zu einem Ergebnis zusammengeführt werden.",
+    "currentDataset": "Aktueller Datenstand",
+    "currentClassifiedHint": "Für diesen Datenstand liegen automatische Vorschläge vor.",
+    "selectOtherSnapshot": "Anderen Datenstand wählen",
+    "openAnnotation": "Manuell annotieren"
   },
   "annotation": {
     "chooseLabel": "Label auswählen",

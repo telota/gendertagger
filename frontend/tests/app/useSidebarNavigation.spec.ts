@@ -149,7 +149,7 @@ describe('sidebar route ownership', () => {
       .filter((item) => ['classification', 'review', 'game'].includes(item.id))
     expect(taskItems.map((item) => [item.id, item.to])).toEqual([
       ['classification', { name: 'projectClassification', params: { projectId: 'project-a' } }],
-      ['review', { name: 'projectReview', params: { projectId: 'project-a' } }],
+      ['review', { name: 'projectAnnotation', params: { projectId: 'project-a' } }],
       ['game', { name: 'projectGame', params: { projectId: 'project-a' } }],
     ])
     expect(groups.value.some((group) => group.id === 'evaluation')).toBe(false)
@@ -158,16 +158,25 @@ describe('sidebar route ownership', () => {
     )
   })
 
-  it('opens the plain annotation entry, not the review workbench, while no classification exists', async () => {
+  it('always opens the one annotation entry, whether or not a classification exists (D25)', async () => {
     const { groups, project, availability } = await navigationAt('projectOverview')
     project.value = { ...project.value!, snapshotId: null, runId: null, aggregationId: null }
+    for (const hasCompletedAggregations of [false, true]) {
+      availability.data.value = {
+        project_id: 'project-a',
+        has_ready_snapshots: true,
+        has_completed_aggregations: hasCompletedAggregations,
+      }
+      const review = groups.value
+        .flatMap((group) => group.items)
+        .find((item) => item.id === 'review')
+      expect(review?.to).toEqual({ name: 'projectAnnotation', params: { projectId: 'project-a' } })
+    }
     availability.data.value = {
       project_id: 'project-a',
       has_ready_snapshots: true,
       has_completed_aggregations: false,
     }
-    const review = groups.value.flatMap((group) => group.items).find((item) => item.id === 'review')
-    expect(review?.to).toEqual({ name: 'projectAnnotation', params: { projectId: 'project-a' } })
     expect(groups.value.flatMap((group) => group.items).map((item) => item.id)).not.toContain(
       'game',
     )

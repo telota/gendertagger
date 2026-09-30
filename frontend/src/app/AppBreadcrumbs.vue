@@ -56,7 +56,7 @@ const crumbs = computed<Breadcrumb[]>(() => {
     projectClassification: t('runs.title'),
     projectReview: t('review.title'),
     projectGame: t('game.title'),
-    projectAnnotation: t('review.people.title'),
+    projectAnnotation: t('nav.review'),
     snapshotAnnotations: t('review.people.title'),
     snapshotRuns: t('runs.title'),
     runDetail: t('runs.detail.title'),

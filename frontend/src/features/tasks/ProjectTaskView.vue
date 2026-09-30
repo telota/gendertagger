@@ -18,6 +18,7 @@ import {
   useTaskRun,
   useProjectReviewResults,
   useWorkingSelection,
+  type Snapshot,
   type TaskMode,
 } from './useTaskData'
 
@@ -42,7 +43,9 @@ const title = computed(() => {
   if (props.mode === 'classification') return t('runs.title')
   if (props.mode === 'review') return t('review.title')
   if (props.mode === 'game') return t('game.title')
-  return t('review.people.title')
+  // The merged Redigieren entry (D25): it resolves to the workbench or to plain annotation per
+  // dataset, so its own heading names the tab, not either destination.
+  return t('nav.review')
 })
 const description = computed(() => {
   if (props.mode === 'classification') return t('taskEntry.classificationHint')
@@ -147,6 +150,30 @@ const working = computed(() =>
     ? workingQuery.data.value
     : null,
 )
+/**
+ * Redigieren's fast path (D25): whatever is relevant right now, one click away, before the reviewer
+ * has to pick anything. A completed classification (the project's explicit working aggregation, ADR-0035)
+ * opens the workbench directly; otherwise the newest ready dataset opens direct manual annotation. Never
+ * a silent choice among several completed aggregations — that stays an explicit pick in the list below.
+ */
+type CurrentDatasetAction =
+  | { kind: 'loading' }
+  | { kind: 'review'; runId: string; aggregationId: string }
+  | { kind: 'annotate'; snapshot: Snapshot }
+const currentDatasetAction = computed<CurrentDatasetAction | null>(() => {
+  if (props.mode !== 'annotation') return null
+  if (workingId.value && workingQuery.isPending.value) return { kind: 'loading' }
+  if (working.value) {
+    return {
+      kind: 'review',
+      runId: working.value.runId,
+      aggregationId: working.value.aggregationId,
+    }
+  }
+  if (snapshotsQuery.isPending.value) return { kind: 'loading' }
+  const newest = snapshots.value[0]
+  return newest ? { kind: 'annotate', snapshot: newest } : null
+})
 const stepHeading = ref<HTMLElement | null>(null)
 const annotationHeading = ref<HTMLElement | null>(null)
 const activeHeading = computed(() =>
@@ -366,84 +393,153 @@ watch(activeHeading, focusStep, { flush: 'post' })
             >{{ t('taskEntry.moreResults') }}</AppButton
           >
         </section>
-        <section v-else-if="!selectedSnapshotId" aria-labelledby="task-snapshots-title">
-          <h2 id="task-snapshots-title" ref="stepHeading" tabindex="-1">
-            {{ t('taskEntry.selectSnapshot') }}
-          </h2>
-          <AppFeedback v-if="snapshotsQuery.isPending.value" class="app-card" announcement="polite">
-            {{ t('data.loading') }}
-          </AppFeedback>
-          <AppFeedback
-            v-if="snapshotsQuery.isError.value"
-            class="app-card"
-            tone="critical"
-            announcement="assertive"
+        <template v-else-if="!selectedSnapshotId">
+          <section
+            v-if="mode === 'annotation' && currentDatasetAction"
+            class="task-current"
+            aria-labelledby="task-current-title"
           >
-            {{ t('taskEntry.snapshotError') }}
-            <template #actions
-              ><AppButton variant="ghost" @click="snapshotsQuery.refetch()">{{
-                t('projects.retry')
-              }}</AppButton></template
+            <h2 id="task-current-title">{{ t('taskEntry.currentDataset') }}</h2>
+            <AppFeedback
+              v-if="currentDatasetAction.kind === 'loading'"
+              class="app-card"
+              announcement="polite"
             >
-          </AppFeedback>
-          <AppFeedback
-            v-else-if="snapshotsQuery.isSuccess.value && !snapshots.length"
-            class="app-card"
-          >
-            {{ mode === 'review' ? t('taskEntry.noReviewSnapshots') : t('taskEntry.noSnapshots') }}
-            <template #actions
-              ><AppButton
-                variant="ghost"
-                :to="{
-                  name: mode === 'review' ? 'projectClassification' : 'projectOverview',
-                  params: { projectId },
-                }"
-                >{{ mode === 'review' ? t('nav.classification') : t('nav.overview') }}</AppButton
-              ></template
+              {{ t('review.loading') }}
+            </AppFeedback>
+            <ul v-else class="task-options">
+              <li class="task-option app-resource-card">
+                <div v-if="currentDatasetAction.kind === 'review'">
+                  <h3>{{ t('taskEntry.currentClassifiedHint') }}</h3>
+                </div>
+                <div v-else>
+                  <h3>
+                    {{
+                      t('data.snapshotTitle', {
+                        date: d(new Date(currentDatasetAction.snapshot.created_at), 'timestamp'),
+                      })
+                    }}
+                  </h3>
+                  <p>
+                    {{
+                      t('taskEntry.recordCount', {
+                        count: n(currentDatasetAction.snapshot.record_count ?? 0, 'integer'),
+                      })
+                    }}
+                  </p>
+                </div>
+                <AppButton
+                  v-if="currentDatasetAction.kind === 'review'"
+                  :to="{
+                    name: 'review',
+                    params: {
+                      projectId,
+                      runId: currentDatasetAction.runId,
+                      aggregationId: currentDatasetAction.aggregationId,
+                    },
+                  }"
+                  >{{ t('taskEntry.openReview') }}</AppButton
+                >
+                <AppButton
+                  v-else
+                  :to="{
+                    name: 'snapshotAnnotations',
+                    params: { projectId, snapshotId: currentDatasetAction.snapshot.id },
+                  }"
+                  >{{ t('taskEntry.openAnnotation') }}</AppButton
+                >
+              </li>
+            </ul>
+          </section>
+          <section aria-labelledby="task-snapshots-title">
+            <h2 id="task-snapshots-title" ref="stepHeading" tabindex="-1">
+              {{
+                mode === 'annotation' && currentDatasetAction
+                  ? t('taskEntry.selectOtherSnapshot')
+                  : t('taskEntry.selectSnapshot')
+              }}
+            </h2>
+            <AppFeedback
+              v-if="snapshotsQuery.isPending.value"
+              class="app-card"
+              announcement="polite"
             >
-          </AppFeedback>
-          <ul class="task-options">
-            <li v-for="entry in snapshots" :key="entry.id" class="task-option app-resource-card">
-              <div>
-                <h3>
-                  {{
-                    t('data.snapshotTitle', { date: d(new Date(entry.created_at), 'timestamp') })
-                  }}
-                </h3>
-                <p>
-                  {{ t('taskEntry.recordCount', { count: n(entry.record_count ?? 0, 'integer') })
-                  }}<span v-if="entry.import_config?.source_format">
-                    {{ String(entry.import_config.source_format).toUpperCase() }}</span
-                  >
-                </p>
-                <span v-if="working?.snapshotId === entry.id" class="task-recommended">{{
-                  t('taskEntry.recommended')
-                }}</span>
-              </div>
-              <AppButton
-                variant="ghost"
-                :aria-label="
-                  t('taskEntry.selectSnapshotNamed', {
-                    date: d(new Date(entry.created_at), 'timestamp'),
-                  })
-                "
-                @click="selectSnapshot(entry.id)"
-                >{{
-                  mode === 'classification'
-                    ? t('taskEntry.openClassification')
-                    : t('taskEntry.select')
-                }}</AppButton
+              {{ t('data.loading') }}
+            </AppFeedback>
+            <AppFeedback
+              v-if="snapshotsQuery.isError.value"
+              class="app-card"
+              tone="critical"
+              announcement="assertive"
+            >
+              {{ t('taskEntry.snapshotError') }}
+              <template #actions
+                ><AppButton variant="ghost" @click="snapshotsQuery.refetch()">{{
+                  t('projects.retry')
+                }}</AppButton></template
               >
-            </li>
-          </ul>
-          <AppButton
-            v-if="snapshotsQuery.hasNextPage.value"
-            variant="ghost"
-            :disabled="snapshotsQuery.isFetchingNextPage.value"
-            @click="snapshotsQuery.fetchNextPage()"
-            >{{ t('taskEntry.moreSnapshots') }}</AppButton
-          >
-        </section>
+            </AppFeedback>
+            <AppFeedback
+              v-else-if="snapshotsQuery.isSuccess.value && !snapshots.length"
+              class="app-card"
+            >
+              {{
+                mode === 'review' ? t('taskEntry.noReviewSnapshots') : t('taskEntry.noSnapshots')
+              }}
+              <template #actions
+                ><AppButton
+                  variant="ghost"
+                  :to="{
+                    name: mode === 'review' ? 'projectClassification' : 'projectOverview',
+                    params: { projectId },
+                  }"
+                  >{{ mode === 'review' ? t('nav.classification') : t('nav.overview') }}</AppButton
+                ></template
+              >
+            </AppFeedback>
+            <ul class="task-options">
+              <li v-for="entry in snapshots" :key="entry.id" class="task-option app-resource-card">
+                <div>
+                  <h3>
+                    {{
+                      t('data.snapshotTitle', { date: d(new Date(entry.created_at), 'timestamp') })
+                    }}
+                  </h3>
+                  <p>
+                    {{ t('taskEntry.recordCount', { count: n(entry.record_count ?? 0, 'integer') })
+                    }}<span v-if="entry.import_config?.source_format">
+                      {{ String(entry.import_config.source_format).toUpperCase() }}</span
+                    >
+                  </p>
+                  <span v-if="working?.snapshotId === entry.id" class="task-recommended">{{
+                    t('taskEntry.recommended')
+                  }}</span>
+                </div>
+                <AppButton
+                  variant="ghost"
+                  :aria-label="
+                    t('taskEntry.selectSnapshotNamed', {
+                      date: d(new Date(entry.created_at), 'timestamp'),
+                    })
+                  "
+                  @click="selectSnapshot(entry.id)"
+                  >{{
+                    mode === 'classification'
+                      ? t('taskEntry.openClassification')
+                      : t('taskEntry.select')
+                  }}</AppButton
+                >
+              </li>
+            </ul>
+            <AppButton
+              v-if="snapshotsQuery.hasNextPage.value"
+              variant="ghost"
+              :disabled="snapshotsQuery.isFetchingNextPage.value"
+              @click="snapshotsQuery.fetchNextPage()"
+              >{{ t('taskEntry.moreSnapshots') }}</AppButton
+            >
+          </section>
+        </template>
         <template v-else>
           <AppFeedback v-if="snapshotQuery.isPending.value" class="app-card" announcement="polite">
             {{ t('data.loading') }}

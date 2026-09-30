@@ -894,11 +894,11 @@ resolve, and the review path works end to end behind a real session.
 
 **Delivery status (2026-09-24).**
 
-- **Sidebar navigation and icons. Delivered**, since updated twice more (D23, D24; see below).
+- **Sidebar navigation and icons. Delivered**, since updated three times more (D23, D24, D25; see below).
   `AppSidebar` carries the groups of the wireframe
   ([`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md)): Projekte; Aktuelles Projekt (Übersicht,
   Klassifikation, Redigieren); Auswertung (Statistik & Methoden, Export); Admin. Daten has no entry of its own
-  (D23) and Redigieren/Manuell annotieren are one entry (D24). The
+  (D23) and Redigieren/Manuell annotieren are one entry, always the same destination (D24, then D25). The
   private navigation and project switcher wait for a resolved, signed-in, password-current session,
   including completion of login's session-flags request. The project group appears only after the current
   project's effective `current_user_role` is resolved successfully. Viewers see Overview and
@@ -909,11 +909,12 @@ resolve, and the review path works end to end behind a real session.
   Users, Teams and Branding settings require a global administrator. Project query caches are scoped
   to the signed-in principal so a different account cannot inherit cached project roles or names.
   Missing roles, loading and failed project reads hide the project group. Classification and Redigieren
-  open independent project-level pickers (2026-09-26; Redigieren's picker automatically targets the full
-  review workbench or the plain manual entry per D24, no longer two separate pickers). Availability
-  comes from the canonical project data summary: ready snapshots enable Classification and Redigieren for
-  reviewers and operators, whichever of the two the latter resolves to; completed aggregations additionally
-  enable Spielmodus for those roles.
+  open independent project-level pickers (2026-09-26). Redigieren's picker opens a per-dataset fast path
+  one click from the exact right task, and its own dataset list is how an older dataset is loaded, each one
+  choosing its own workbench-or-annotation path rather than one choice for the whole project (D25).
+  Availability comes from the canonical project data summary: ready snapshots enable Classification and
+  Redigieren for reviewers and operators; completed aggregations additionally enable Spielmodus for those
+  roles.
   Genuinely unavailable tasks and empty groups are hidden. Loading/error checks show status and retry,
   including on the icon rail. The snapshot history retains read-only inspection for viewers; existing exact
   result links also preserve read-only access. Statistics and Export require an explicitly selected,
@@ -1341,6 +1342,20 @@ simplified screen for the identical case in the identical picker is nothing but 
 `PersonBrowserView` and the `people` route are **not** removed: `ProjectReviewStats` (Übersicht) and
 `AggregationDetailView` still link to it directly, as a deliberately simpler register view for someone who
 already knows which aggregation they mean and does not want the triage framing.
+
+**D25 — Redigieren decides per dataset, not per project; it always has one destination and a fast path.**
+Decided 2026-09-30, superseding D24's project-wide branch. A project can hold both a classified and an
+unclassified dataset at once; D24's single `has_completed_aggregations` branch then sent every reviewer to
+whichever picker matched the _other_ dataset, with no way to reach the right one for both. The sidebar's one
+Redigieren entry now always opens `projectAnnotation`; `projectReview`'s flat cross-dataset results list stays
+as a working, unlinked route (like `projectImport`), not deleted. The picker itself gained a fast path: an
+"Aktueller Datenstand" card above the existing dataset list, one click to the exact right task — the workbench
+if the project's working aggregation ([ADR-0035](decisions/ADR-0035-project-working-aggregation.md)) names a
+completed one, otherwise direct manual annotation of the newest ready dataset, never the with/without-evidence
+choice for that click. The dataset list below is unchanged and remains how an older dataset is loaded, per
+dataset, choosing its own correct path exactly as the fast path does for the current one. The task-entry
+heading itself now reads Redigieren (`nav.review`) instead of Personen, since the screen no longer only leads
+to the plain register.
 
 ### Accessibility decisions
 

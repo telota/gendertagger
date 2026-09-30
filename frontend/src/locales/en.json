@@ -1667,7 +1667,7 @@
   "taskEntry": {
     "classificationHint": "Choose an imported dataset to browse runs or generate suggestions.",
     "reviewHint": "Open a completed result for review. Its dataset and run are shown on the card.",
-    "annotationHint": "Choose a dataset to annotate. Automatic suggestions are optional.",
+    "annotationHint": "Work on the current dataset: correct its automatic suggestions, or annotate it directly. You can also choose a different dataset.",
     "gameHint": "Open a completed result and review its unannotated people in a scored round.",
     "selectSnapshot": "Select dataset",
     "selectRun": "Select run",
@@ -1695,7 +1695,7 @@
     "moreRuns": "Load more runs",
     "moreResults": "Load more results",
     "reviewResultsTitle": "Completed results",
-    "noSnapshots": "No imported datasets are ready yet. Import data in the Data area first.",
+    "noSnapshots": "No fully imported dataset is available yet. Import data on the overview first.",
     "noReviewSnapshots": "No completed result is available for review yet. Automatic suggestions must first be generated and combined into a result.",
     "noResults": "No completed results are available for this selection yet.",
     "snapshotError": "Datasets could not be loaded.",
@@ -1710,7 +1710,11 @@
     "chooseEvidence": "Choose automatic suggestions",
     "availabilityLoading": "Checking available tasks…",
     "availabilityError": "Available tasks could not be checked.",
-    "retryAvailability": "Check available tasks again"
+    "retryAvailability": "Check available tasks again",
+    "currentDataset": "Current dataset",
+    "currentClassifiedHint": "This dataset has automatic suggestions.",
+    "selectOtherSnapshot": "Choose a different dataset",
+    "openAnnotation": "Annotate manually"
   },
   "annotation": {
     "chooseLabel": "Choose a label",

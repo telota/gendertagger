@@ -222,7 +222,9 @@ describe.each(['de', 'en'] as const)('independent project picker in %s', (locale
       'annotation',
       taskServer({ runPages: [[]], resultPages: [[]] }),
     )
-    await waitFor(() => expect(wrapper.findAll('.task-option')).toHaveLength(1))
+    // The fast-path "current dataset" card (D25) and the picker's own entry both name the one
+    // snapshot the fixture serves; only the picker entry is a plain button.
+    await waitFor(() => expect(wrapper.findAll('.task-option')).toHaveLength(2))
     await wrapper.get('.task-option button').trigger('click')
     await waitFor(() => expect(wrapper.find('.task-annotation-choice').exists()).toBe(true))
     const entry = wrapper
@@ -238,9 +240,37 @@ describe.each(['de', 'en'] as const)('independent project picker in %s', (locale
     expect(server.writes).toEqual([])
   })
 
+  it('opens the working classification directly from the current-dataset card (D25)', async () => {
+    const { wrapper } = await mount('annotation', taskServer({ workingId: RESULT }))
+    await waitFor(() => expect(wrapper.find('.task-current').exists()).toBe(true))
+    const current = wrapper.get('.task-current')
+    expect(current.text()).toContain(messages.currentClassifiedHint)
+    const action = current.get('a')
+    expect(action.text()).toBe(messages.openReview)
+    expect(action.attributes('href')).toBe(
+      `/projects/${PROJECT}/runs/${RUN}/aggregations/${RESULT}/review`,
+    )
+    await action.trigger('click')
+    await waitFor(() => expect(wrapper.vm.$router.currentRoute.value.name).toBe('review'))
+  })
+
+  it('opens the newest dataset for direct manual annotation, one click, while none is classified (D25)', async () => {
+    const { wrapper } = await mount('annotation')
+    await waitFor(() => expect(wrapper.find('.task-current').exists()).toBe(true))
+    const action = wrapper.get('.task-current').get('a')
+    expect(action.text()).toBe(messages.openAnnotation)
+    expect(action.attributes('href')).toBe(`/projects/${PROJECT}/snapshots/${SNAPSHOT}/annotations`)
+    await action.trigger('click')
+    await waitFor(() =>
+      expect(wrapper.vm.$router.currentRoute.value.name).toBe('snapshotAnnotations'),
+    )
+    // Direct, not the with/without-evidence choice: the fast path never shows that card.
+    expect(wrapper.find('.task-annotation-choice').exists()).toBe(false)
+  })
+
   it('opens a chosen result in the full review workbench, not the plain register (D24)', async () => {
     const { wrapper } = await mount('annotation')
-    await waitFor(() => expect(wrapper.findAll('.task-option')).toHaveLength(1))
+    await waitFor(() => expect(wrapper.findAll('.task-option')).toHaveLength(2))
     await wrapper.get('.task-option button').trigger('click')
     await waitFor(() => expect(wrapper.find('.task-annotation-choice').exists()).toBe(true))
     const chooseEvidence = wrapper

@@ -131,19 +131,20 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
           hasProjectRole(currentUserRole, 'reviewer') &&
           availability.data.value?.has_ready_snapshots
         ) {
-          // One tab for both: it opens the full Redigieren workbench once a classification exists to
-          // correct, and the plain manual entry otherwise (decision D24) — never two destinations for
-          // the reviewer to choose between.
-          const hasClassification = availability.data.value?.has_completed_aggregations === true
+          // One tab, one destination, always (decision D25): the entry decides per dataset — its own
+          // working classification if there is one, plain manual annotation otherwise — and can still
+          // load an older dataset from its own list. That per-dataset decision cannot be made correctly
+          // at the project level: a project can hold both a classified and an unclassified dataset at
+          // once, and a single project-wide branch (D24) picked the wrong one for whichever wasn't newest.
           items.push(
             item(
               'review',
               t('nav.review'),
               PhPencilSimpleLine,
-              link(hasClassification ? 'projectReview' : 'projectAnnotation', { projectId }),
+              link('projectAnnotation', { projectId }),
             ),
           )
-          if (hasClassification && gameModeEnabled) {
+          if (availability.data.value?.has_completed_aggregations === true && gameModeEnabled) {
             additionalItems.push(
               item('game', t('nav.game'), PhGameController, link('projectGame', { projectId })),
             )

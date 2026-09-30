@@ -372,7 +372,9 @@ describe('named layout recipe adoption', () => {
 
     const projectTask = readFileSync(join(SRC, 'tasks/ProjectTaskView.vue'), 'utf8')
     const taskOptions = [...projectTask.matchAll(/<li\b[^>]*class="([^"]*\btask-option\b[^"]*)"/g)]
-    expect(taskOptions).toHaveLength(4)
+    // D25 added the current-dataset fast path's own card alongside the review-results, snapshot, run
+    // and result pickers.
+    expect(taskOptions).toHaveLength(5)
     for (const [, classes] of taskOptions) {
       expect(classes).toMatch(/\bapp-resource-card\b/)
     }

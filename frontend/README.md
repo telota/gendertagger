@@ -231,9 +231,12 @@ labels, no letter shortcuts, `Tab`/`Enter` for everything else. A method's own c
 `expected_revision`; a `409 annotation_conflict` opens a recovery block instead of retrying.
 The person browser (M6) is the same workbench in `mode="people"` (`PersonBrowserView.vue` and `ReviewView.vue` are
 two thin route components over `ReviewWorkbench.vue`); `PersonRecordDetails.vue` renders the source-preserving fields.
-Its sidebar entry was folded into Redigieren (decision D24, 2026-09-30): the task-entry picker (`ProjectTaskView.vue`,
-`features/tasks/`) now opens the full workbench for a chosen result regardless of how it was reached, so a second,
-simpler screen for the same case is gone from that path. `PersonBrowserView` and its route stay in place for the
+Its sidebar entry was folded into Redigieren (decisions D24/D25, 2026-09-30): the task-entry picker
+(`ProjectTaskView.vue`, `features/tasks/`) always opens the full workbench for a chosen result regardless of how
+it was reached, so a second, simpler screen for the same case is gone from that path. The picker decides per
+dataset, not per project (D25): its fast path opens the working classification directly when the project has
+one, or the newest dataset's plain annotation otherwise, and its dataset list is how an older dataset is loaded,
+each choosing its own correct path the same way. `PersonBrowserView` and its route stay in place for the
 direct links `ProjectReviewStats.vue` and `AggregationDetailView.vue` still give it.
 Bulk decisions (`ReviewBulkBar.vue`, `useBulkDecision.ts`) are a client-side sequence of those same writes with a
 per-person report, because the backend has no batch endpoint. `tests/features/review/fixtures.ts` is the shared stateful test server (it extends its annotation chain on a write

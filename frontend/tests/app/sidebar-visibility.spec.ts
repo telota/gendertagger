@@ -374,7 +374,7 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
     expect(wrapper.find('nav a[href$="/exports"]').exists()).toBe(false)
     snapshotResponse.respond({ id: SNAPSHOT, project_id: PROJECT_A, status: 'ready' })
     await waitFor(() => expect(wrapper.find('nav a[href$="/exports"]').exists()).toBe(true))
-    expect(wrapper.find(`nav a[href="/projects/${PROJECT_A}/review"]`).exists()).toBe(true)
+    expect(wrapper.find(`nav a[href="/projects/${PROJECT_A}/annotation"]`).exists()).toBe(true)
   })
 
   it.each([
@@ -471,7 +471,7 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
         exact: true,
       })
       await waitFor(() => expect(queryClient.isFetching()).toBe(0))
-      expect(wrapper.find(`nav a[href="/projects/${PROJECT_A}/review"]`).exists()).toBe(true)
+      expect(wrapper.find(`nav a[href="/projects/${PROJECT_A}/annotation"]`).exists()).toBe(true)
       expect(wrapper.find('nav a[href$="/exports"]').exists()).toBe(resource === 'aggregation')
       expect(wrapper.find(`nav a[href="/projects/${PROJECT_A}/overview"]`).exists()).toBe(true)
     },
