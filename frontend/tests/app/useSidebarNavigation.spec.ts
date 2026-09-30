@@ -93,9 +93,9 @@ describe('sidebar route ownership', () => {
     ['projectReview', 'review'],
     ['projectGame', 'game'],
     ['game', 'game'],
-    ['people', 'people'],
-    ['projectAnnotation', 'people'],
-    ['snapshotAnnotations', 'people'],
+    ['people', 'review'],
+    ['projectAnnotation', 'review'],
+    ['snapshotAnnotations', 'review'],
     ['evaluations', 'evaluations'],
     ['evaluationDetail', 'evaluations'],
     ['exports', 'exports'],
@@ -146,16 +146,30 @@ describe('sidebar route ownership', () => {
     project.value = { ...project.value!, snapshotId: null, runId: null, aggregationId: null }
     const taskItems = groups.value
       .flatMap((group) => group.items)
-      .filter((item) => ['classification', 'review', 'game', 'people'].includes(item.id))
+      .filter((item) => ['classification', 'review', 'game'].includes(item.id))
     expect(taskItems.map((item) => [item.id, item.to])).toEqual([
       ['classification', { name: 'projectClassification', params: { projectId: 'project-a' } }],
       ['review', { name: 'projectReview', params: { projectId: 'project-a' } }],
-      ['people', { name: 'projectAnnotation', params: { projectId: 'project-a' } }],
       ['game', { name: 'projectGame', params: { projectId: 'project-a' } }],
     ])
     expect(groups.value.some((group) => group.id === 'evaluation')).toBe(false)
     expect(groups.value.flatMap((group) => group.items).every((item) => item.to !== null)).toBe(
       true,
+    )
+  })
+
+  it('opens the plain annotation entry, not the review workbench, while no classification exists', async () => {
+    const { groups, project, availability } = await navigationAt('projectOverview')
+    project.value = { ...project.value!, snapshotId: null, runId: null, aggregationId: null }
+    availability.data.value = {
+      project_id: 'project-a',
+      has_ready_snapshots: true,
+      has_completed_aggregations: false,
+    }
+    const review = groups.value.flatMap((group) => group.items).find((item) => item.id === 'review')
+    expect(review?.to).toEqual({ name: 'projectAnnotation', params: { projectId: 'project-a' } })
+    expect(groups.value.flatMap((group) => group.items).map((item) => item.id)).not.toContain(
+      'game',
     )
   })
 

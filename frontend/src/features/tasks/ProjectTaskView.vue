@@ -646,7 +646,7 @@ watch(activeHeading, focusStep, { flush: 'post' })
                     <AppButton
                       variant="ghost"
                       :to="{
-                        name: mode === 'review' ? 'review' : mode === 'game' ? 'game' : 'people',
+                        name: mode === 'game' ? 'game' : 'review',
                         params: { projectId, runId: run.id, aggregationId: entry.id },
                       }"
                       :aria-label="
@@ -655,11 +655,7 @@ watch(activeHeading, focusStep, { flush: 'post' })
                         })
                       "
                       >{{
-                        mode === 'review'
-                          ? t('taskEntry.openReview')
-                          : mode === 'game'
-                            ? t('taskEntry.openGame')
-                            : t('taskEntry.openAnnotation')
+                        mode === 'game' ? t('taskEntry.openGame') : t('taskEntry.openReview')
                       }}</AppButton
                     >
                   </li>

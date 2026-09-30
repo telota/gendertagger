@@ -106,7 +106,7 @@ describe.each(['de', 'en'] as const)('AppSidebar project group in %s', (locale: 
   })
 
   it.each([AGGREGATION_ID, null])(
-    'opens independent task pickers regardless of working pointer %s',
+    'opens the one Redigieren task picker regardless of working pointer %s',
     async (working) => {
       const wrapper = await mountApplicationAt(
         `/projects/${PROJECT_ID}/overview`,
@@ -119,8 +119,9 @@ describe.each(['de', 'en'] as const)('AppSidebar project group in %s', (locale: 
       expect(wrapper.get(`aside a[href="/projects/${PROJECT_ID}/classification"]`).text()).toBe(
         nav.classification,
       )
-      expect(wrapper.get(`aside a[href="/projects/${PROJECT_ID}/annotation"]`).text()).toBe(
-        nav.annotate,
+      expect(wrapper.get(`aside a[href="/projects/${PROJECT_ID}/review"]`).text()).toBe(nav.review)
+      expect(wrapper.find(`aside a[href="/projects/${PROJECT_ID}/annotation"]`).exists()).toBe(
+        false,
       )
       expect(wrapper.find('aside a[href$="/evaluations"]').exists()).toBe(false)
       expect(wrapper.find('aside a[href$="/exports"]').exists()).toBe(false)

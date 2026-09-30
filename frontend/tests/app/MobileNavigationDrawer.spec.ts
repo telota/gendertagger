@@ -344,7 +344,6 @@ describe.each(['de', 'en'] as const)('mobile navigation in %s', (locale: AppLoca
     const persistentItems = wrapper.findAll('aside nav .nav-item').map((item) => item.text())
     const drawer = await open()
     expect(drawer.findAll('nav .nav-item').map((item) => item.text())).toEqual(persistentItems)
-    expect(persistentItems).not.toContain(messages.nav.annotate)
     expect(persistentItems).not.toContain(messages.nav.data)
     expect(persistentItems).not.toContain(messages.nav.import)
     expect(persistentItems).not.toContain(messages.nav.review)

@@ -477,7 +477,7 @@ this delivery.
 - `ProjectOverviewView` (`/projects/:projectId/overview`). **Delivered**, folded together with the former
   Daten screen since (D23, 2026-09-30). One flat panel card with hairline-divided sections: project details
   (slug, role, team, creation date, description); the project's data state (`ProjectCurrentSnapshot.vue`:
-  snapshot count, records and import date of the latest *ready* snapshot, runs on it, and imports in progress
+  snapshot count, records and import date of the latest _ready_ snapshot, runs on it, and imports in progress
   or failed only when there are any, **plus** the newest snapshot overall — ready, still importing, or failed
   — shown as its own card, since that one, not necessarily the latest ready one, is the project's present
   state); the import toggle, in the page's own heading, for a project operator; and review progress for the
@@ -894,25 +894,29 @@ resolve, and the review path works end to end behind a real session.
 
 **Delivery status (2026-09-24).**
 
-- **Sidebar navigation and icons. Delivered.** `AppSidebar` now carries the groups of the wireframe
+- **Sidebar navigation and icons. Delivered**, since updated twice more (D23, D24; see below).
+  `AppSidebar` carries the groups of the wireframe
   ([`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md)): Projekte; Aktuelles Projekt (Übersicht,
-  Import, Klassifikation, Redigieren, Manuell annotieren); Auswertung (Statistik & Methoden, Export); Admin. The
+  Klassifikation, Redigieren); Auswertung (Statistik & Methoden, Export); Admin. Daten has no entry of its own
+  (D23) and Redigieren/Manuell annotieren are one entry (D24). The
   private navigation and project switcher wait for a resolved, signed-in, password-current session,
   including completion of login's session-flags request. The project group appears only after the current
-  project's effective `current_user_role` is resolved successfully. Viewers see Overview, Data and
-  available Classification, Statistics and existing Exports; reviewers additionally see available
-  Review and Manual annotation. Operators can import from Data and create runs, aggregations and
+  project's effective `current_user_role` is resolved successfully. Viewers see Overview and
+  available Classification, Statistics and existing Exports; reviewers additionally see the merged
+  Redigieren entry. Operators can import from Übersicht and create runs, aggregations and
   exports in their respective screens. Global operator status never substitutes
   for project membership; administrators use the effective operator role returned by the backend.
   Users, Teams and Branding settings require a global administrator. Project query caches are scoped
   to the signed-in principal so a different account cannot inherit cached project roles or names.
-  Missing roles, loading and failed project reads hide the project group. As of 2026-09-26,
-  Classification, Review and Manual annotation open independent project-level pickers. Availability
-  comes from the canonical project data summary: ready snapshots enable Classification; reviewers and
-  operators can annotate them without a run; completed aggregations enable Review for those roles.
+  Missing roles, loading and failed project reads hide the project group. Classification and Redigieren
+  open independent project-level pickers (2026-09-26; Redigieren's picker automatically targets the full
+  review workbench or the plain manual entry per D24, no longer two separate pickers). Availability
+  comes from the canonical project data summary: ready snapshots enable Classification and Redigieren for
+  reviewers and operators, whichever of the two the latter resolves to; completed aggregations additionally
+  enable Spielmodus for those roles.
   Genuinely unavailable tasks and empty groups are hidden. Loading/error checks show status and retry,
-  including on the icon rail. Data retains read-only inspection for viewers; existing exact result
-  links also preserve read-only access. Statistics and Export require an explicitly selected,
+  including on the icon rail. The snapshot history retains read-only inspection for viewers; existing exact
+  result links also preserve read-only access. Statistics and Export require an explicitly selected,
   validated run and never borrow the working result when entering from Members or Overview.
   The working pointer marks recommendations in the picker; it neither selects a result automatically
   nor changes on task entry. Explicit resource links validate project/snapshot/run relationships and
@@ -1318,10 +1322,25 @@ retaining completed rounds.
 sidebar's separate Daten entry is removed. `ProjectOverviewView` imports new snapshots (the toggle moves from
 `ProjectSnapshotsView`'s heading to its own) and always shows the newest snapshot, whatever its status: a
 still-importing or failed newest snapshot is the project's present state and is never hidden behind an older,
-ready one. The existing figures (snapshot count, the latest *ready* snapshot's records/import date, its run
+ready one. The existing figures (snapshot count, the latest _ready_ snapshot's records/import date, its run
 count, in-progress/failed counts) are unchanged, since they answer "is there workable data", a different
 question from "what is current". `ProjectSnapshotsView` keeps the full, newest-first list for every earlier
 snapshot, reachable only through the link Übersicht gives it, never through the sidebar.
+
+**D24 — Redigieren and Manuell annotieren are one sidebar entry.** Decided 2026-09-30. The two task-entry
+pickers of `ProjectTaskView` (`mode: 'review'`, gated on a completed aggregation; `mode: 'annotation'`, gated
+on a ready snapshot) keep existing as separate routes and components, but the sidebar offers only one entry,
+labelled Redigieren, whenever the project has a ready snapshot: it resolves to the `review` picker (results
+across every aggregation, the common case) once a classification exists, and to the `annotation` picker (pick
+a snapshot, annotate with or without a run's evidence) while none does — active depending on whether the
+project had an automatic classification, never two destinations for the reviewer to choose between. Choosing
+a result from the `annotation` picker's evidence path now opens the same full Redigieren workbench
+(`review` route) as the `review` picker does, rather than the simpler register (`people` route,
+`PersonBrowserView`): the workbench's own "Alle Personen" queue already covers plain browsing, so a second,
+simplified screen for the identical case in the identical picker is nothing but a fork of the same task.
+`PersonBrowserView` and the `people` route are **not** removed: `ProjectReviewStats` (Übersicht) and
+`AggregationDetailView` still link to it directly, as a deliberately simpler register view for someone who
+already knows which aggregation they mean and does not want the triage framing.
 
 ### Accessibility decisions
 

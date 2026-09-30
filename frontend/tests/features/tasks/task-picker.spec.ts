@@ -238,6 +238,28 @@ describe.each(['de', 'en'] as const)('independent project picker in %s', (locale
     expect(server.writes).toEqual([])
   })
 
+  it('opens a chosen result in the full review workbench, not the plain register (D24)', async () => {
+    const { wrapper } = await mount('annotation')
+    await waitFor(() => expect(wrapper.findAll('.task-option')).toHaveLength(1))
+    await wrapper.get('.task-option button').trigger('click')
+    await waitFor(() => expect(wrapper.find('.task-annotation-choice').exists()).toBe(true))
+    const chooseEvidence = wrapper
+      .findAll('.task-annotation-choice a')
+      .find((a) => a.text() === messages.chooseEvidence)!
+    await chooseEvidence.trigger('click')
+    await waitFor(() => expect(wrapper.find('#task-runs-title').exists()).toBe(true))
+    const selectRun = wrapper.findAll('.task-option a').find((a) => a.text() === messages.select)!
+    await selectRun.trigger('click')
+    await waitFor(() => expect(wrapper.find('#task-results-title').exists()).toBe(true))
+    const option = wrapper.get('.task-option a')
+    expect(option.text()).toBe(messages.openReview)
+    expect(option.attributes('href')).toBe(
+      `/projects/${PROJECT}/runs/${RUN}/aggregations/${RESULT}/review`,
+    )
+    await option.trigger('click')
+    await waitFor(() => expect(wrapper.vm.$router.currentRoute.value.name).toBe('review'))
+  })
+
   it('distinguishes review result load failures from an empty collection', async () => {
     const { wrapper } = await mount(
       'review',

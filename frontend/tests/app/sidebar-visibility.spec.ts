@@ -54,26 +54,8 @@ const VIEWER_ITEMS: NavKey[] = ['projects', 'overview', 'classification', 'evalu
 const PROJECT_VIEWER_ITEMS = VIEWER_ITEMS.slice(0, -2)
 const ROLE_ITEMS: Record<ProjectRole, NavKey[]> = {
   viewer: VIEWER_ITEMS,
-  reviewer: [
-    'projects',
-    'overview',
-    'classification',
-    'review',
-    'annotate',
-    'game',
-    'evaluations',
-    'exports',
-  ],
-  operator: [
-    'projects',
-    'overview',
-    'classification',
-    'review',
-    'annotate',
-    'game',
-    'evaluations',
-    'exports',
-  ],
+  reviewer: ['projects', 'overview', 'classification', 'review', 'game', 'evaluations', 'exports'],
+  operator: ['projects', 'overview', 'classification', 'review', 'game', 'evaluations', 'exports'],
 }
 
 function project(id: string, role: ProjectRole): AccessibleProject {
@@ -329,7 +311,7 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
     expectItems(wrapper, locale, ['projects', 'overview'])
     secondAccount.respond({ ...AVAILABLE, has_completed_aggregations: false })
     await waitFor(() =>
-      expectItems(wrapper, locale, ['projects', 'overview', 'classification', 'annotate']),
+      expectItems(wrapper, locale, ['projects', 'overview', 'classification', 'review']),
     )
     await router.push(`/projects/${PROJECT_B}/overview`)
     await waitFor(() =>

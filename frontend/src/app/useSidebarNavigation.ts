@@ -7,7 +7,6 @@ import {
   PhPencilSimpleLine,
   PhSquaresFour,
   PhTreeStructure,
-  PhUserList,
   PhUsers,
   PhUsersThree,
 } from '@phosphor-icons/vue'
@@ -51,9 +50,11 @@ const OWNED_ROUTES: Record<string, readonly string[]> = {
     'methodExecutionResults',
     'aggregationDetail',
   ],
-  review: ['projectReview', 'review'],
+  // Redigieren and Manuell annotieren are one sidebar entry (D24, 2026-09-30): whichever route it
+  // resolves to for the current data state, and the plain register it can still lead to, all
+  // highlight the same leaf.
+  review: ['projectReview', 'review', 'projectAnnotation', 'snapshotAnnotations', 'people'],
   game: ['projectGame', 'game'],
-  people: ['projectAnnotation', 'snapshotAnnotations', 'people'],
   evaluations: ['evaluations', 'evaluationDetail'],
   exports: ['exports', 'exportDetail'],
   administration: ['adminUsers'],
@@ -126,30 +127,25 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
             ),
           )
         }
-        if (hasProjectRole(currentUserRole, 'reviewer')) {
-          if (availability.data.value?.has_completed_aggregations) {
-            items.push(
-              item(
-                'review',
-                t('nav.review'),
-                PhPencilSimpleLine,
-                link('projectReview', { projectId }),
-              ),
-            )
-            if (gameModeEnabled) {
-              additionalItems.push(
-                item('game', t('nav.game'), PhGameController, link('projectGame', { projectId })),
-              )
-            }
-          }
-          if (availability.data.value?.has_ready_snapshots) {
-            items.push(
-              item(
-                'people',
-                t('nav.annotate'),
-                PhUserList,
-                link('projectAnnotation', { projectId }),
-              ),
+        if (
+          hasProjectRole(currentUserRole, 'reviewer') &&
+          availability.data.value?.has_ready_snapshots
+        ) {
+          // One tab for both: it opens the full Redigieren workbench once a classification exists to
+          // correct, and the plain manual entry otherwise (decision D24) — never two destinations for
+          // the reviewer to choose between.
+          const hasClassification = availability.data.value?.has_completed_aggregations === true
+          items.push(
+            item(
+              'review',
+              t('nav.review'),
+              PhPencilSimpleLine,
+              link(hasClassification ? 'projectReview' : 'projectAnnotation', { projectId }),
+            ),
+          )
+          if (hasClassification && gameModeEnabled) {
+            additionalItems.push(
+              item('game', t('nav.game'), PhGameController, link('projectGame', { projectId })),
             )
           }
         }
