@@ -19,7 +19,7 @@ services:
       LOG_FORMAT: text
       GENDERTAGGER_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-gendertagger}
       GENDERTAGGER_CODE_GIT_COMMIT: ${GENDERTAGGER_CODE_GIT_COMMIT:-local-development}
-      GENDERTAGGER_DEPENDENCY_LOCK_SHA256: ${GENDERTAGGER_DEPENDENCY_LOCK_SHA256:-3c28c4065fe0dd5004e8564fc326c257869b6928730971ad6f3ad964541fd5e6}
+      GENDERTAGGER_DEPENDENCY_LOCK_SHA256: ${GENDERTAGGER_DEPENDENCY_LOCK_SHA256:-2a07ac7e58c912fa7d098923203c4fb1b5e799a1bd0ce5d4e998faefecf92124}
 
   worker-cpu:
     build:
@@ -29,6 +29,8 @@ services:
       - ./backend/src:/app/src
     environment:
       LOG_FORMAT: text
+      GENDERTAGGER_CODE_GIT_COMMIT: ${GENDERTAGGER_CODE_GIT_COMMIT:-local-development}
+      GENDERTAGGER_DEPENDENCY_LOCK_SHA256: ${GENDERTAGGER_DEPENDENCY_LOCK_SHA256:-2a07ac7e58c912fa7d098923203c4fb1b5e799a1bd0ce5d4e998faefecf92124}
       GENDERTAGGER_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-gendertagger}
 
   worker-gpu:
@@ -39,6 +41,8 @@ services:
       - ./backend/src:/app/src
     environment:
       LOG_FORMAT: text
+      GENDERTAGGER_CODE_GIT_COMMIT: ${GENDERTAGGER_CODE_GIT_COMMIT:-local-development}
+      GENDERTAGGER_DEPENDENCY_LOCK_SHA256: ${GENDERTAGGER_DEPENDENCY_LOCK_SHA256:-2a07ac7e58c912fa7d098923203c4fb1b5e799a1bd0ce5d4e998faefecf92124}
 
   worker-llm:
     build:
@@ -48,6 +52,8 @@ services:
       - ./backend/src:/app/src
     environment:
       LOG_FORMAT: text
+      GENDERTAGGER_CODE_GIT_COMMIT: ${GENDERTAGGER_CODE_GIT_COMMIT:-local-development}
+      GENDERTAGGER_DEPENDENCY_LOCK_SHA256: ${GENDERTAGGER_DEPENDENCY_LOCK_SHA256:-2a07ac7e58c912fa7d098923203c4fb1b5e799a1bd0ce5d4e998faefecf92124}
       LLM_BASE_URL: ${LLM_BASE_URL:-}
 
   worker-external:
@@ -58,6 +64,8 @@ services:
       - ./backend/src:/app/src
     environment:
       LOG_FORMAT: text
+      GENDERTAGGER_CODE_GIT_COMMIT: ${GENDERTAGGER_CODE_GIT_COMMIT:-local-development}
+      GENDERTAGGER_DEPENDENCY_LOCK_SHA256: ${GENDERTAGGER_DEPENDENCY_LOCK_SHA256:-2a07ac7e58c912fa7d098923203c4fb1b5e799a1bd0ce5d4e998faefecf92124}
 
   migrate:
     build:
@@ -67,6 +75,8 @@ services:
       - ./backend/src:/app/src
     environment:
       LOG_FORMAT: text
+      GENDERTAGGER_CODE_GIT_COMMIT: ${GENDERTAGGER_CODE_GIT_COMMIT:-local-development}
+      GENDERTAGGER_DEPENDENCY_LOCK_SHA256: ${GENDERTAGGER_DEPENDENCY_LOCK_SHA256:-2a07ac7e58c912fa7d098923203c4fb1b5e799a1bd0ce5d4e998faefecf92124}
 
   frontend:
     # Never replace the static frontend image used by production with a Vite image.

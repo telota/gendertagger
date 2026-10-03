@@ -10,7 +10,7 @@ requirements (ADR-0031):
   ``GET /me``, ``GET /auth/session``, ``POST /auth/logout``, ``POST /me/password``.
 - :func:`create_unauthenticated_router` — reachable before a session exists: ``POST /auth/login`` and
   ``GET /branding``/``GET /branding/logo`` (ADR-0036), which carry no scientific or project-scoped
-  data and need no grant at all.
+  data and need no grant at all, and the anonymous name-classification surface (ADR-0044).
 
 ``gendertagger.api.app.create_app`` mounts all three.
 """
@@ -34,6 +34,7 @@ from gendertagger.api.routes.game_rounds import router as game_rounds_router
 from gendertagger.api.routes.methods import router as methods_router
 from gendertagger.api.routes.project_members import router as project_members_router
 from gendertagger.api.routes.projects import router as projects_router
+from gendertagger.api.routes.public_classification import router as public_classification_router
 from gendertagger.api.routes.review_items import router as review_items_router
 from gendertagger.api.routes.runs import router as runs_router
 from gendertagger.api.routes.teams import router as teams_router
@@ -93,4 +94,5 @@ def create_unauthenticated_router() -> APIRouter:
     router = APIRouter(prefix="/api/v1", responses=_ERROR_RESPONSES)
     router.include_router(login_router)
     router.include_router(branding_router)
+    router.include_router(public_classification_router)
     return router

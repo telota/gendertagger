@@ -990,6 +990,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/classification-jobs/{classification_job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Public Classification Job
+         * @description Read one anonymous classification job using its private retrieval capability.
+         */
+        get: operations["get_public_classification_job_api_v1_public_classification_jobs__classification_job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/classify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Classify Public Names
+         * @description Classify a bounded name request immediately or return its persisted asynchronous job.
+         */
+        post: operations["classify_public_names_api_v1_public_classify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Public Methods
+         * @description Discover deployment-allowlisted anonymous methods without exposing their configuration.
+         */
+        get: operations["list_public_methods_api_v1_public_methods_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/review-items": {
         parameters: {
             query?: never;
@@ -3240,6 +3300,171 @@ export interface components {
         ProjectWorkingAggregationUpdate: {
             /** Aggregation Execution Id */
             aggregation_execution_id?: string | null;
+        };
+        /**
+         * PublicClassificationJob
+         * @description Secret-free domain resource returned on acceptance and capability-authorized polling.
+         */
+        PublicClassificationJob: {
+            /** Completed At */
+            completed_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Failure Code */
+            failure_code?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name Count */
+            name_count: number;
+            provenance: components["schemas"]["PublicClassificationProvenance"];
+            response?: components["schemas"]["PublicClassificationResponse"] | null;
+            /** Started At */
+            started_at?: string | null;
+            status: components["schemas"]["PublicClassificationStatus"];
+        };
+        /**
+         * PublicClassificationJobAccepted
+         * @description Accepted job and its one-time polling capability, never included in ordinary reads.
+         */
+        PublicClassificationJobAccepted: {
+            /** Completed At */
+            completed_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Failure Code */
+            failure_code?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name Count */
+            name_count: number;
+            provenance: components["schemas"]["PublicClassificationProvenance"];
+            response?: components["schemas"]["PublicClassificationResponse"] | null;
+            /** Retrieval Token */
+            retrieval_token: string;
+            /** Started At */
+            started_at?: string | null;
+            status: components["schemas"]["PublicClassificationStatus"];
+        };
+        /**
+         * PublicClassificationMethod
+         * @description One selectable method and whether it always uses a persisted job.
+         */
+        PublicClassificationMethod: {
+            /** Asynchronous */
+            asynchronous: boolean;
+            descriptor: components["schemas"]["MethodDescriptor"];
+        };
+        /**
+         * PublicClassificationMethods
+         * @description Deployment-owned anonymous classification capabilities.
+         */
+        PublicClassificationMethods: {
+            /**
+             * Maximum Batch Size
+             * @default 10000
+             */
+            maximum_batch_size: number;
+            /** Methods */
+            methods: components["schemas"]["PublicClassificationMethod"][];
+            /** Synchronous Batch Size */
+            synchronous_batch_size: number;
+        };
+        /**
+         * PublicClassificationProvenance
+         * @description Public, secret-free method versions and the exact execution environment.
+         */
+        PublicClassificationProvenance: {
+            /**
+             * Aggregation Strategy
+             * @default reference_v1_or_selected_subset
+             */
+            aggregation_strategy: string;
+            /** Application Version */
+            application_version: string;
+            /** Code Git Commit */
+            code_git_commit: string;
+            /** Container Image Digest */
+            container_image_digest?: string | null;
+            /** Dependency Lock Sha256 */
+            dependency_lock_sha256: string;
+            /** Dependency Versions */
+            dependency_versions: {
+                [key: string]: string;
+            };
+            /** Method Configs */
+            method_configs: {
+                [key: string]: {
+                    [key: string]: components["schemas"]["JsonValue"];
+                };
+            };
+            /** Method Revisions */
+            method_revisions?: {
+                [key: string]: string;
+            };
+            /** Methods */
+            methods: components["schemas"]["MethodDescriptor"][];
+            /** Python Version */
+            python_version: string;
+            /** Resolved Config Sha256 */
+            resolved_config_sha256: string;
+        };
+        /**
+         * PublicClassificationResponse
+         * @description Classification outputs plus the selected methods and execution provenance.
+         */
+        PublicClassificationResponse: {
+            /**
+             * Predictions
+             * @description Method raw outputs and normalization provenance, with secrets and diagnostics removed.
+             */
+            predictions: {
+                [key: string]: components["schemas"]["PredictionResult"];
+            }[];
+            provenance: components["schemas"]["PublicClassificationProvenance"];
+            /**
+             * Results
+             * @description Classification results in input name order.
+             */
+            results: components["schemas"]["NameClassificationResult"][];
+        };
+        /**
+         * PublicClassificationStatus
+         * @description Durable public classification job lifecycle.
+         * @enum {string}
+         */
+        PublicClassificationStatus: "queued" | "running" | "completed" | "failed";
+        /**
+         * PublicClassifyNamesRequest
+         * @description Bounded names and optional server-allowlisted methods, without configuration overrides.
+         */
+        PublicClassifyNamesRequest: {
+            /**
+             * Methods
+             * @description Distinct public method identifiers; defaults to the deployment allowlist.
+             */
+            methods?: string[] | null;
+            /**
+             * Name
+             * @description One name; mutually exclusive with names.
+             */
+            name?: string | null;
+            /**
+             * Names
+             * @description Ordered batch of names; mutually exclusive with name.
+             */
+            names?: string[] | null;
         };
         /**
          * ResultMethodPrediction
@@ -9193,6 +9418,299 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AccessibleProject"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_public_classification_job_api_v1_public_classification_jobs__classification_job_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Classification-Token"?: string | null;
+            };
+            path: {
+                classification_job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicClassificationJob"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    classify_public_names_api_v1_public_classify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicClassifyNamesRequest"];
+            };
+        };
+        responses: {
+            /** @description Immediate classification result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicClassificationResponse"];
+                };
+            };
+            /** @description Classification job accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicClassificationJobAccepted"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    list_public_methods_api_v1_public_methods_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicClassificationMethods"];
                 };
             };
             /** @description Invalid request */

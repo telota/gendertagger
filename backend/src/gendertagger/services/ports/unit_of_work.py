@@ -13,6 +13,9 @@ from gendertagger.services.ports.export_repository import ExportRepository
 from gendertagger.services.ports.game_repository import GameRepository
 from gendertagger.services.ports.project_access_repository import ProjectAccessRepository
 from gendertagger.services.ports.project_repository import ProjectRepository
+from gendertagger.services.ports.public_classification_repository import (
+    PublicClassificationRepository,
+)
 from gendertagger.services.ports.review_repository import ReviewRepository
 from gendertagger.services.ports.run_repository import RunRepository
 from gendertagger.services.ports.settings_repository import SettingsRepository
@@ -60,6 +63,11 @@ class UnitOfWork(Protocol):
     @property
     def dispatches(self) -> DispatchRepository:
         """Return durable dispatch persistence bound to the current transaction."""
+        ...
+
+    @property
+    def public_classifications(self) -> PublicClassificationRepository:
+        """Return anonymous classification persistence bound to the current transaction."""
         ...
 
     @property

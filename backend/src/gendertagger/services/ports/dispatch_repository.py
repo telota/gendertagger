@@ -16,6 +16,8 @@ from gendertagger.models.dispatch import (
     EvaluationDispatchCreate,
     ExportDispatch,
     ExportDispatchCreate,
+    PublicClassificationDispatch,
+    PublicClassificationDispatchCreate,
     SnapshotDispatch,
     SnapshotDispatchCreate,
 )
@@ -41,6 +43,12 @@ class DispatchRepository(Protocol):
 
     @overload
     def ensure_dispatch(self, command: ExportDispatchCreate) -> ExportDispatch: ...
+
+    @overload
+    def ensure_dispatch(
+        self,
+        command: PublicClassificationDispatchCreate,
+    ) -> PublicClassificationDispatch: ...
 
     def ensure_dispatch(self, command: DispatchCreate) -> Dispatch:
         """Idempotently persist one exact target-aware dispatch intent."""
@@ -74,6 +82,13 @@ class DispatchRepository(Protocol):
 
     def get_dispatch_for_export(self, export_execution_id: UUID) -> ExportDispatch | None:
         """Return the unique dispatch for an export, or ``None`` when absent."""
+        ...
+
+    def get_dispatch_for_classification(
+        self,
+        classification_job_id: UUID,
+    ) -> PublicClassificationDispatch | None:
+        """Return the unique dispatch for an anonymous classification job."""
         ...
 
     def claim_available(

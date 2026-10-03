@@ -413,6 +413,12 @@ GLOBAL_ROUTES = {
     ("GET", "/branding/logo"),
 }
 
+PUBLIC_CLASSIFICATION_ROUTES = {
+    ("GET", "/public/methods"),
+    ("POST", "/public/classify"),
+    ("GET", "/public/classification-jobs/{classification_job_id}"),
+}
+
 
 def _unused_unit_of_work_factory() -> UnitOfWork:
     raise AssertionError("an unauthorized request must not reach persistence")
@@ -439,7 +445,11 @@ def _request(client: TestClient, route: _ScopedRoute) -> Any:
 
 def test_every_versioned_route_has_a_declared_access_rule() -> None:
     schema = _client(_FixedProjectAccess()).app.openapi()  # type: ignore[attr-defined]  # FastAPI.
-    declared = GLOBAL_ROUTES | {(route.method, route.path) for route in PROJECT_SCOPED_ROUTES}
+    declared = (
+        GLOBAL_ROUTES
+        | PUBLIC_CLASSIFICATION_ROUTES
+        | {(route.method, route.path) for route in PROJECT_SCOPED_ROUTES}
+    )
     published = {
         (method.upper(), path.removeprefix("/api/v1"))
         for path, operations in schema["paths"].items()

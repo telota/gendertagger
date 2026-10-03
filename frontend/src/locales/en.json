@@ -221,7 +221,6 @@
     "administration": "Users",
     "teams": "Teams",
     "settings": "Settings",
-    "currentProject": "Current project",
     "overview": "Overview",
     "import": "Import",
     "classification": "Automatic suggestions",
@@ -1603,7 +1602,6 @@
   "projectSwitcher": {
     "empty": "No projects yet.",
     "loadError": "The projects could not be loaded.",
-    "action": "Change project",
     "currentLabel": "Change project. Current project: {project}",
     "loading": "Loading projects…"
   },

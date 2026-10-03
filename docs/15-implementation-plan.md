@@ -1,5 +1,16 @@
 # Implementation plan
 
+## Public name-classification increment
+
+[ADR-0044](decisions/ADR-0044-public-name-classification.md) extends the completed application boundaries
+with anonymous single/batch classification while preserving private project workflows. Canonical contracts,
+server-owned selectable methods, immediate bounded rule execution, durable asynchronous job acceptance,
+capability-authorized polling, environment and raw-evidence provenance, routed outbox recovery, renewable
+worker leases, and migration constraints are delivered. Public gateway limits and generated OpenAPI/frontend
+transport contracts accompany the implementation. Focused tests cover anonymous isolation, invalid input,
+selection/routing, capabilities, immutable completion, provenance drift, database migration and recovery,
+and an actual Redis worker execution.
+
 The order is intentional: contracts and scientific regression behavior first, infrastructure composition later.
 CI starts with repository initialization and grows with every phase. Phase 7 hardens delivery and
 deployment before Phase 8 adds the browser client.

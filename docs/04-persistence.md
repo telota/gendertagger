@@ -1,5 +1,15 @@
 # Persistence design
 
+## Public classification jobs
+
+[ADR-0044](decisions/ADR-0044-public-name-classification.md) adds `public_classification_jobs` separately
+from project snapshots and predictions. The row freezes ordered names, selected methods, validated server
+configuration, route queue, exact environment provenance, and a SHA-256 retrieval-capability digest.
+Acceptance and its typed task-outbox intent share one transaction. The raw token is never persisted.
+Atomic leases admit queued and stale running jobs; lease IDs fence renewal and terminal writes.
+Completed/failed jobs and submitted inputs are immutable, with database triggers enforcing the invariant.
+Successful jobs retain both the ordinary classification response and complete canonical raw predictions.
+
 ## Database
 
 PostgreSQL is the durable source of truth for application state, scientific results, annotation history, and

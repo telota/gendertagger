@@ -22,6 +22,7 @@ from gendertagger.db.rows.projects import (
     ProjectRow,
     SnapshotSourceMemberRow,
 )
+from gendertagger.db.rows.public_classification import PublicClassificationJobRow
 from gendertagger.db.rows.reviews import AnnotationRow, ReviewStateRow
 from gendertagger.db.rows.settings import DeploymentSettingsRow
 from gendertagger.db.rows.teams import TeamMembershipRow, TeamRow
@@ -38,6 +39,7 @@ ORM_ROW_TYPES: tuple[type[Base], ...] = (
     MethodExecutionRow,
     TaskBatchRow,
     DispatchOutboxRow,
+    PublicClassificationJobRow,
     PredictionRow,
     AggregationExecutionRow,
     AggregationMethodExecutionRow,

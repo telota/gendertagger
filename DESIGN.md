@@ -16,21 +16,26 @@ colors:
     focus-blue: "#1f5aa0"
     verified-green: "#088a08"
     caution-gold: "#fab219"
+    caution-gold-text: "#7a5900"
+    caution-gold-tint: "#fdf5e5"
     critical-red: "#d03b3b"
     critical-red-text: "#bf3333"
+    critical-red-tint: "#fbeceb"
+    information-blue-text: "#1f5aa0"
+    information-blue-tint: "#e9f1fa"
     overlay-backdrop: "rgba(11, 11, 11, 0.4)"
-    male-blue: "#2a78d6"
-    male-blue-text: "#1f5aa0"
-    male-blue-tint: "#e9f1fa"
-    female-coral: "#eb6834"
-    female-coral-text: "#b04e27"
-    female-coral-tint: "#fdefea"
-    institution-green: "#1baf7a"
-    institution-green-text: "#127a55"
-    institution-green-tint: "#e8f7f1"
-    unknown-amber: "#eda100"
-    unknown-amber-text: "#7a5900"
-    unknown-amber-tint: "#fdf5e5"
+    male-violet: "#7056ad"
+    male-violet-text: "#60458f"
+    male-violet-tint: "#f2edf9"
+    female-teal: "#14847d"
+    female-teal-text: "#09665f"
+    female-teal-tint: "#e7f4f0"
+    institution-ochre: "#ae7620"
+    institution-ochre-text: "#7d530f"
+    institution-ochre-tint: "#faf2e2"
+    unknown-gray: "#85817a"
+    unknown-gray-text: "#52514e"
+    unknown-gray-tint: "#f2f1ee"
     night-quiet-parchment: "#1a1917"
     night-paper-panel: "#232220"
     night-raised-paper: "#2c2a27"
@@ -44,21 +49,26 @@ colors:
     night-focus-blue: "#8fbdf0"
     night-verified-green: "#4fc94f"
     night-caution-gold: "#f0b843"
+    night-caution-gold-text: "#e8bd5e"
+    night-caution-gold-tint: "#332813"
     night-critical-red: "#f0736f"
     night-critical-red-text: "#f0736f"
+    night-critical-red-tint: "#3d201e"
+    night-information-blue-text: "#8fbdf0"
+    night-information-blue-tint: "#17293d"
     night-overlay-backdrop: "rgba(0, 0, 0, 0.6)"
-    night-male-blue: "#5a9ee8"
-    night-male-blue-text: "#8fbdf0"
-    night-male-blue-tint: "#17293d"
-    night-female-coral: "#f08055"
-    night-female-coral-text: "#f0a184"
-    night-female-coral-tint: "#3a1e14"
-    night-institution-green: "#35c894"
-    night-institution-green-text: "#6fd6ae"
-    night-institution-green-tint: "#102e24"
-    night-unknown-amber: "#e8b53c"
-    night-unknown-amber-text: "#e8bd5e"
-    night-unknown-amber-tint: "#332813"
+    night-male-violet: "#a68ad6"
+    night-male-violet-text: "#c5b1eb"
+    night-male-violet-tint: "#30223f"
+    night-female-teal: "#52bcb0"
+    night-female-teal-text: "#7bd3c8"
+    night-female-teal-tint: "#112f2a"
+    night-institution-ochre: "#d6ad58"
+    night-institution-ochre-text: "#e5c078"
+    night-institution-ochre-tint: "#362b19"
+    night-unknown-gray: "#9c9890"
+    night-unknown-gray-text: "#c2bfb8"
+    night-unknown-gray-tint: "#2c2a27"
 typography:
     caption:
         fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif"
@@ -165,8 +175,8 @@ components:
         rounded: "{rounded.control}"
         padding: "0.5rem 0.75rem"
     vocabulary-badge:
-        backgroundColor: "{colors.female-coral-tint}"
-        textColor: "{colors.female-coral-text}"
+        backgroundColor: "{colors.female-teal-tint}"
+        textColor: "{colors.female-teal-text}"
         typography: "{typography.mono-data}"
         rounded: "{rounded.full}"
         padding: "0 0.5rem"
@@ -200,9 +210,17 @@ The light theme places **Quiet Parchment** behind white paper panels and the nea
 
 **Annotation Marks Place.** Annotation Ink is the violet navigation and selection color. It identifies the current route, selected option, or editorial focus. It is not the default call-to-action color.
 
-**Registry Teal Commits Work.** Registry Teal belongs to primary actions and deliberate state changes. A view should expose one visually dominant action. Do not spread teal across decoration, charts, or passive metadata.
+**Registry Teal Commits Work.** Registry Teal belongs to primary actions and deliberate state changes. A view should expose one visually dominant action. Reserve the Registry Teal action token for these controls; vocabulary and charts use their own semantic tokens, including female teal.
 
-**Vocabulary Is Data.** Male blue, female coral, institution green, and unknown amber are fixed semantic families. Each family has a border, readable text tone, and quiet tint; use all three together. Always print the canonical token or an explicit state alongside color. Certainty tiers reuse these families deliberately: `contested` uses coral, `low` uses amber, and `thin` uses blue.
+**Vocabulary Is Data.** Male violet, female teal, unknown gray, and institution ochre are fixed semantic
+families in both themes. Each family has a border, readable text tone, and quiet tint; use all three
+together. Always print the canonical token or an explicit state alongside color. Source distribution
+bars use the corresponding label solid. Other or multiple source values use a neutral hatch so they
+remain distinct from the substantive `unknown` label.
+
+Certainty uses independent status families: `contested` uses critical red, `low` caution gold, and
+`thin` information blue. These tones describe evidence support rather than classification. Their
+plain-language gloss inherits the readable foreground of its status tint.
 
 Verified green, caution gold, and critical red communicate status. Put them beside literal status or error text. Use `--critical-text` for error and destructive-action text on page, panel, and raised surfaces; reserve `--critical` for fills and borders. Filled destructive buttons keep `--panel` text, verified in both themes. Status colors are not suitable as white-text filled badges unless contrast is independently rechecked for the exact theme.
 
@@ -280,7 +298,7 @@ Structural borders are 1px. Keyboard focus is a 2px focus-blue outline with a 2p
 
 **Compact listboxes.** The trigger uses small type and control geometry. The option popup uses the input radius, one-step internal spacing, the overlay shadow, tonal hover, and Annotation Ink for the selected option. Accessible naming and keyboard behavior come from the headless control, not custom pointer-only behavior.
 
-**Header.** Short breadcrumbs identify the authorized project and current destination. The account name opens Personal settings and Sign out. Project switching sits above project destinations in the sidebar, including its rail and mobile drawer. Names wrap, scientific context and actions stay in their view, and registered unsaved input requires Stay or Discard and leave before path changes or sign-out. See [the global header guidelines](docs/25-frontend-design-guidelines.md#global-header).
+**Header.** Short breadcrumbs identify the authorized project and current destination. The account name opens Personal settings and Sign out. Project switching sits above project destinations in the sidebar, including its rail and mobile drawer. The current project name labels the switcher button, combining identity and switching without a separate project heading. Names wrap, scientific context and actions stay in their view, and registered unsaved input requires Stay or Discard and leave before path changes or sign-out. See [the global header guidelines](docs/25-frontend-design-guidelines.md#global-header).
 
 **Navigation.** Sidebar entries pair a 20px icon with a text label. Hover uses the raised surface; the active route adds Annotation Ink and semibold weight. Disabled destinations are non-links, unfocusable, and visibly subdued. On the icon rail, labels become visually hidden rather than removed.
 
@@ -290,7 +308,7 @@ Structural borders are 1px. Keyboard focus is a 2px focus-blue outline with a 2p
 
 **Review rows.** Rows are transparent at rest, tonal on hover, and both tonal and violet-bordered when selected. A semibold name and small identifier sit opposite stacked vocabulary and workflow states. Selection remains explicit through `aria-current` and must survive keyboard navigation.
 
-**Progress and overlays.** Native progress remains a simple full-width track with Registry Teal fill. Dialogs use modal radius, paper panels, the overlay shadow, and a theme backdrop; they trap focus, label their purpose, and return focus when dismissed.
+**Progress and overlays.** Task progress remains a simple full-width track with Registry Teal fill. Source distributions use their label tokens and a neutral hatch for other values. Dialogs use modal radius, paper panels, the overlay shadow, and a theme backdrop; they trap focus, label their purpose, and return focus when dismissed.
 
 **One Primary Action.** Component variants describe consequence, not visual preference. Adding another solid button to solve hierarchy confusion is a content-structure failure; clarify the workflow instead.
 

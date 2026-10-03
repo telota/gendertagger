@@ -12,7 +12,7 @@ const props = defineProps<{
   gloss?: string
   /** Drives the colour: a canonical label uses its own token, everything else is neutral. */
   kind?: 'label' | 'tier' | 'state'
-  /** Tier tone for certainty badges (`contested`, `low`, `thin`). */
+  /** Independent status tone for certainty badges (`contested`, `low`, `thin`). */
   tone?: 'contested' | 'low' | 'thin' | 'neutral'
 }>()
 
@@ -63,7 +63,7 @@ const labelClass = computed(() =>
 
 .vocab-gloss {
   min-width: 0;
-  color: var(--text-secondary);
+  color: inherit;
 }
 
 /* The "none" wording is for assistive technology; the dash is what sighted users see. */
@@ -101,20 +101,20 @@ const labelClass = computed(() =>
 }
 
 .vocab--contested {
-  background: var(--female-tint);
-  border-color: var(--female);
-  color: var(--female-text);
+  background: var(--critical-tint);
+  border-color: var(--critical);
+  color: var(--critical-text);
 }
 
 .vocab--low {
-  background: var(--unknown-tint);
-  border-color: var(--unknown);
-  color: var(--unknown-text);
+  background: var(--warning-tint);
+  border-color: var(--warning-text);
+  color: var(--warning-text);
 }
 
 .vocab--thin {
-  background: var(--male-tint);
-  border-color: var(--male);
-  color: var(--male-text);
+  background: var(--info-tint);
+  border-color: var(--info-text);
+  color: var(--info-text);
 }
 </style>

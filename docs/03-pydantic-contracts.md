@@ -1,5 +1,20 @@
 # Pydantic contracts
 
+## Anonymous classification contracts
+
+[ADR-0044](decisions/ADR-0044-public-name-classification.md) defines closed `PublicClassifyNamesRequest`
+contracts with exactly one of `name` or `names` and optional distinct method identifiers. The public
+request accepts no configuration overrides. `PublicClassificationResponse` adds selected method versions,
+exact installed dependency versions, configuration digest, raw method outputs, and normalization metadata
+to the existing classification result. Public evidence removes deployment credentials, endpoints, paths,
+and detailed errors; jobs retain the complete original evidence internally.
+
+`PublicClassificationJob` is a domain resource with a durable identifier, lifecycle, name count, provenance,
+and terminal response. Acceptance adds a one-time retrieval token. Internal `PublicClassificationJobRecord`
+also freezes submitted names, exact validated configurations, capability digest, persisted routing, and
+lease-fenced original method evidence. `PublicClassificationTaskMessage` contains only the job identifier.
+These contracts grant no project identity or person-identity mapping to anonymous names.
+
 ## Principle
 
 Pydantic is the canonical language for typed contracts across the application. These contracts are not

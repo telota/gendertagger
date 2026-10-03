@@ -117,7 +117,6 @@ onUnmounted(() => {
       'project-switcher--mobile': mobile,
     }"
   >
-    <p class="project-switcher-current">{{ project.display_name }}</p>
     <Menu v-if="(mobile || !isNarrow) && !recovery.isOpen.value" v-slot="{ open, close }" as="div">
       <SidebarTooltip
         v-slot="{ triggerProps }"
@@ -129,7 +128,7 @@ onUnmounted(() => {
       >
         <MenuButton v-bind="triggerProps" class="project-switcher-button" :aria-label="label">
           <PhFolderSimple :size="20" aria-hidden="true" />
-          <span class="project-switcher-action">{{ t('projectSwitcher.action') }}</span>
+          <span class="project-switcher-current">{{ project.display_name }}</span>
           <PhCaretDown class="project-switcher-caret" :size="14" aria-hidden="true" />
         </MenuButton>
       </SidebarTooltip>
@@ -193,15 +192,6 @@ onUnmounted(() => {
   margin-bottom: var(--space-3);
 }
 
-.project-switcher-current {
-  margin: 0 0 var(--space-2);
-  padding-inline: var(--space-3);
-  color: var(--text-primary);
-  font-size: var(--font-size-body-strong);
-  font-weight: var(--weight-semibold);
-  overflow-wrap: anywhere;
-}
-
 .project-switcher-button {
   display: flex;
   align-items: center;
@@ -227,9 +217,10 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
-.project-switcher-action {
+.project-switcher-current {
   flex: 1;
   min-width: 0;
+  font-weight: var(--weight-semibold);
   overflow-wrap: anywhere;
 }
 
@@ -281,7 +272,6 @@ onUnmounted(() => {
 
 @media (min-width: 1080px) {
   .project-switcher--collapsed .project-switcher-current,
-  .project-switcher--collapsed .project-switcher-action,
   .project-switcher--collapsed .project-switcher-caret {
     display: none;
   }
@@ -294,7 +284,6 @@ onUnmounted(() => {
 
 @media (720px <= width < 1080px) {
   .project-switcher:not(.project-switcher--mobile) .project-switcher-current,
-  .project-switcher:not(.project-switcher--mobile) .project-switcher-action,
   .project-switcher:not(.project-switcher--mobile) .project-switcher-caret {
     display: none;
   }

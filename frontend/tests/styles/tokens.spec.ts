@@ -72,6 +72,9 @@ describe.each(['light', 'dark'] as const)('contrast in the %s theme', (theme) =>
     ['critical-text', 'page', 4.5],
     ['critical-text', 'panel', 4.5],
     ['critical-text', 'surface-1', 4.5],
+    ['critical-text', 'critical-tint', 4.5],
+    ['warning-text', 'warning-tint', 4.5],
+    ['info-text', 'info-tint', 4.5],
     // Filled destructive buttons keep the panel foreground on the critical solid.
     ['panel', 'critical', 4.5],
     ['focus-ring', 'page', 3],
@@ -82,6 +85,10 @@ describe.each(['light', 'dark'] as const)('contrast in the %s theme', (theme) =>
 
   it.each(LABELS)('%s text on its own tint meets AA for text', (label) => {
     expect(ratio(theme, `${label}-text`, `${label}-tint`)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it.each(LABELS)('%s chart marks and borders remain visible on the panel', (label) => {
+    expect(ratio(theme, label, 'panel')).toBeGreaterThanOrEqual(3)
   })
 })
 
@@ -100,10 +107,13 @@ describe('documented measurements', () => {
     ['light', 'critical-text', 'surface-1', 5.47],
     ['light', 'panel', 'critical', 4.8],
     ['light', 'focus-ring', 'page', 6.14],
-    ['light', 'male-text', 'male-tint', 6.08],
-    ['light', 'female-text', 'female-tint', 4.72],
-    ['light', 'institution-text', 'institution-tint', 4.82],
-    ['light', 'unknown-text', 'unknown-tint', 5.95],
+    ['light', 'male-text', 'male-tint', 6.65],
+    ['light', 'female-text', 'female-tint', 6.04],
+    ['light', 'institution-text', 'institution-tint', 6.05],
+    ['light', 'unknown-text', 'unknown-tint', 7.03],
+    ['light', 'critical-text', 'critical-tint', 4.9],
+    ['light', 'warning-text', 'warning-tint', 5.95],
+    ['light', 'info-text', 'info-tint', 6.08],
     ['dark', 'text-primary', 'page', 15.83],
     ['dark', 'text-primary', 'panel', 14.32],
     ['dark', 'text-secondary', 'panel', 8.66],
@@ -117,6 +127,13 @@ describe('documented measurements', () => {
     ['dark', 'warning', 'panel', 8.81],
     ['dark', 'good', 'panel', 7.42],
     ['dark', 'focus-ring', 'page', 8.96],
+    ['dark', 'male-text', 'male-tint', 7.62],
+    ['dark', 'female-text', 'female-tint', 8.19],
+    ['dark', 'institution-text', 'institution-tint', 8.01],
+    ['dark', 'unknown-text', 'unknown-tint', 7.79],
+    ['dark', 'critical-text', 'critical-tint', 5.19],
+    ['dark', 'warning-text', 'warning-tint', 8.17],
+    ['dark', 'info-text', 'info-tint', 7.53],
   ] as const)('%s: %s on %s measures %s', (theme, foreground, background, expected) => {
     expect(ratio(theme, foreground, background)).toBeCloseTo(expected, 2)
   })

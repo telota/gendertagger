@@ -45,6 +45,7 @@ from gendertagger.services.password_hashing import Argon2PasswordHasher
 from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.services.project_access import ProjectAccessService
 from gendertagger.services.projects import ProjectService
+from gendertagger.services.public_classification import PublicClassificationService
 from gendertagger.services.review_items import ReviewItemService
 from gendertagger.services.runs import RunProvenance, RunService
 from gendertagger.services.teams import TeamService
@@ -191,6 +192,21 @@ def create_app(
         method_registry=method_registry,
         unit_of_work_factory=unit_of_work_factory,
     )
+    public_classification_service = PublicClassificationService(
+        unit_of_work_factory=unit_of_work_factory,
+        method_registry=method_registry,
+        direct_service=classification_service,
+        policy=resolved_settings.public_classification,
+        asset_resolver=lookup_asset_resolver,
+        provenance=RunProvenance(
+            code_git_commit=resolved_settings.code_git_commit,
+            application_version=application_version,
+            python_version=python_version(),
+            dependency_lock_sha256=resolved_settings.dependency_lock_sha256,
+            container_image_digest=resolved_settings.container_image_digest,
+        ),
+        clock=partial(datetime.now, UTC),
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
@@ -234,6 +250,7 @@ def create_app(
     application.state.review_item_service = review_item_service
     application.state.run_scheduler = run_scheduler
     application.state.classification_service = classification_service
+    application.state.public_classification_service = public_classification_service
     return application
 
 

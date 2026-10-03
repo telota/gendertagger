@@ -18,6 +18,7 @@ from gendertagger.services.method_registry import MethodRegistry
 from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.services.project_access import ProjectAccessService
 from gendertagger.services.projects import ProjectService
+from gendertagger.services.public_classification import PublicClassificationService
 from gendertagger.services.review_items import ReviewItemService
 from gendertagger.services.runs import RunService
 from gendertagger.services.teams import TeamService
@@ -93,6 +94,11 @@ def get_run_scheduler(request: Request) -> RunScheduler:
 def get_classification_service(request: Request) -> DirectClassificationService:
     """Return the composed direct classification application service."""
     return cast(DirectClassificationService, request.app.state.classification_service)
+
+
+def get_public_classification_service(request: Request) -> PublicClassificationService:
+    """Return the composed anonymous classification application service."""
+    return cast(PublicClassificationService, request.app.state.public_classification_service)
 
 
 def get_authentication_service(request: Request) -> AuthenticationService:

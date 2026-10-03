@@ -135,8 +135,8 @@ against the snapshot in front of the reviewer. See
 
 ### Durable cross-run method cache
 
-The current method cache is per-process, serves the synchronous `POST /classify` endpoint only, and is
-never persisted. There is deliberately no `method_cache_entries` table.
+The current method cache is per-process, serves authenticated on-demand classification and the anonymous
+synchronous/job service, and is never persisted. There is deliberately no `method_cache_entries` table.
 
 A durable cross-run cache would have to key entries on the exact person-input fingerprint plus the fully
 resolved method configuration, model revision, and normalization version, so that a configuration change

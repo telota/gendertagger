@@ -7,11 +7,13 @@ from gendertagger.models.dispatch import DispatchMessage
 from gendertagger.models.evaluation import EvaluationTaskMessage
 from gendertagger.models.export import ExportTaskMessage
 from gendertagger.models.project import SnapshotImportTaskMessage
+from gendertagger.models.public_classification import PublicClassificationTaskMessage
 from gendertagger.models.run import TaskBatchMessage
 from gendertagger.tasks.aggregation import EXECUTE_AGGREGATION_TASK_NAME
 from gendertagger.tasks.evaluation import EXECUTE_EVALUATION_TASK_NAME
 from gendertagger.tasks.execution import EXECUTE_BATCH_TASK_NAME
 from gendertagger.tasks.export import EXECUTE_EXPORT_TASK_NAME
+from gendertagger.tasks.public_classification import EXECUTE_PUBLIC_CLASSIFICATION_TASK_NAME
 from gendertagger.tasks.snapshot_import import EXECUTE_SNAPSHOT_IMPORT_TASK_NAME
 
 
@@ -62,6 +64,12 @@ class CeleryMessagePublisher:
             kwargs = {
                 "export_execution_id": str(message.export_execution_id),
             }
+        elif isinstance(message, PublicClassificationTaskMessage):
+            if task_id != message.classification_job_id:
+                msg = "broker task_id must match the public classification message"
+                raise ValueError(msg)
+            task_name = EXECUTE_PUBLIC_CLASSIFICATION_TASK_NAME
+            kwargs = {"classification_job_id": str(message.classification_job_id)}
         else:
             if task_id != message.aggregation_execution_id:
                 msg = "broker task_id must match the aggregation message"

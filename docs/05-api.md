@@ -50,8 +50,27 @@ The project working-aggregation pointer selects the completed aggregation summar
 Changing it is an explicit project operation; creating an aggregation never moves it implicitly. See
 [ADR-0035](decisions/ADR-0035-project-working-aggregation.md).
 
-Only the unversioned liveness endpoints `/health` and `/ready` are public without authentication. Readiness
-checks the database and artifact root.
+The unversioned liveness endpoints `/health` and `/ready`, login, branding, and the explicitly public
+classification surface require no account. Readiness checks the database and artifact root. All other
+project and administrative resources retain the authentication and authorization boundary.
+
+### Anonymous name classification
+
+[ADR-0044](decisions/ADR-0044-public-name-classification.md) adds `GET /api/v1/public/methods` for the
+deployment's selectable method descriptors and `POST /api/v1/public/classify`. Supply either
+`{"name": "Maria", "methods": ["gender_guesser"]}` or
+`{"names": ["Maria", "Heinrich"], "methods": ["gender_guesser"]}`. Method selection is optional;
+it defaults to the public deployment allowlist. Per-method configuration belongs to the operator.
+Up to 20 names with only quick local methods return a result and method/environment provenance with
+`200`; larger batches and other method selections return a persisted classification job with `202`.
+The maximum batch is 10,000 nonblank names, each at most 512 characters.
+
+Save the acceptance response's `retrieval_token` and poll its `Location` using
+`X-Classification-Token: <retrieval_token>`. The polling resource reports `queued`, `running`,
+`completed`, or `failed` and includes the classification response only after completion. A token is
+required for this anonymous resource to protect submitted names; it grants no project or account access.
+Responses use `Cache-Control: no-store`. Raw diagnostics and deployment configuration secrets are never
+returned. The authenticated `/api/v1/classify` endpoint keeps its existing contract.
 
 ## Teams and delegated project membership
 

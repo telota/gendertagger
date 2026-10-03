@@ -249,6 +249,45 @@ describe.each(['de', 'en'] as const)('imported data list in %s', (locale: AppLoc
     expect(wrapper.find('.snapshot-list-load-more').exists()).toBe(false)
   })
 
+  it('preserves newest import first and the server tie order across cursor pages', async () => {
+    const newest = snapshot('c0000000-0000-0000-0000-000000000001', {
+      created_at: '2026-03-04T10:15:00Z',
+      ready_at: '2026-03-04T10:16:00Z',
+    })
+    const tiedHigher = snapshot('c0000000-0000-0000-0000-000000000003', {
+      created_at: '2026-03-03T10:15:00Z',
+      ready_at: '2026-03-04T10:17:00Z',
+    })
+    const tiedLower = snapshot('c0000000-0000-0000-0000-000000000002', {
+      created_at: '2026-03-03T10:15:00Z',
+      ready_at: '2026-03-04T10:18:00Z',
+    })
+    const oldest = snapshot('c0000000-0000-0000-0000-000000000004', {
+      created_at: '2026-03-02T10:15:00Z',
+      ready_at: '2026-03-04T10:19:00Z',
+    })
+    const cursors: (string | null)[] = []
+    const wrapper = await mountApplicationAt(
+      listPath,
+      locale,
+      client((request) => {
+        if (!isListRequest(request)) return undefined
+        const cursor = new URL(request.url).searchParams.get('cursor')
+        cursors.push(cursor)
+        return cursor === null ? page([newest, tiedHigher], 'next') : page([tiedLower, oldest])
+      }),
+    )
+    await waitFor(() => expect(wrapper.findAll('.snapshot')).toHaveLength(2))
+    await wrapper.get('.snapshot-list-load-more').trigger('click')
+    await waitFor(() => expect(wrapper.findAll('.snapshot')).toHaveLength(4))
+
+    expect(wrapper.findAll('.snapshot-title-link').map((link) => link.attributes('href'))).toEqual(
+      [newest, tiedHigher, tiedLower, oldest].map((item) => `${listPath}/${item.id}`),
+    )
+    expect(cursors).toEqual([null, 'next'])
+    expect(wrapper.find('.snapshot-list-load-more').exists()).toBe(false)
+  })
+
   it('hides loaded rows when a later request reports lost access', async () => {
     let calls = 0
     const wrapper = await mountApplicationAt(

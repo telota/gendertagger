@@ -209,7 +209,7 @@ describe.each(['de', 'en'] as const)('header breadcrumbs in %s', (locale) => {
     const { wrapper } = await render(`/projects/${PROJECT}/overview`, locale, client)
     await waitFor(() => expect(wrapper.find('button').exists()).toBe(true))
     expect(wrapper.text()).toContain(messages.breadcrumbs.projectLoadError)
-    expect(wrapper.text()).not.toContain(messages.projectSwitcher.action)
+    expect(wrapper.find('.project-switcher').exists()).toBe(false)
     await wrapper.get('button').trigger('click')
     await waitFor(() => expect(wrapper.text()).toContain(NAME))
     expect(wrapper.find('button').exists()).toBe(false)

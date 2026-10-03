@@ -102,7 +102,7 @@ describe.each(['de', 'en'] as const)('AppSidebar project group in %s', (locale: 
     const wrapper = await mountApplicationAt('/projects', locale, apiClientWithRoutes(SIGNED_IN))
     await waitFor(() => expect(wrapper.find('aside a[href="/projects"]').exists()).toBe(true))
 
-    expect(wrapper.get('aside').text()).not.toContain(nav.currentProject)
+    expect(wrapper.find('aside .project-switcher').exists()).toBe(false)
   })
 
   it.each([AGGREGATION_ID, null])(

@@ -33,6 +33,7 @@ def test_celery_app_uses_json_only_durable_friendly_defaults() -> None:
         "gendertagger.tasks.execution",
         "gendertagger.tasks.export",
         "gendertagger.tasks.snapshot_import",
+        "gendertagger.tasks.public_classification",
     }
 
 
@@ -75,6 +76,7 @@ def test_fresh_worker_loads_every_dispatch_task() -> None:
         "gendertagger.tasks.execute_evaluation",
         "gendertagger.tasks.execute_export",
         "gendertagger.tasks.execute_snapshot_import",
+        "gendertagger.tasks.execute_public_classification",
     }
 
 

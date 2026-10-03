@@ -216,6 +216,9 @@ describe.each(['de', 'en'] as const)('mobile navigation in %s', (locale: AppLoca
     expect(drawer.get('.project-switcher').classes()).toContain('project-switcher--mobile')
     expect(drawer.get('.project-switcher-current').text()).toBe('Project A')
     const switcher = drawer.get<HTMLButtonElement>('.project-switcher-button')
+    expect(switcher.text()).toBe('Project A')
+    expect(drawer.findAll('.project-switcher-current')).toHaveLength(1)
+    expect(switcher.element.closest('.app-sidebar-section')?.querySelector('h2')).toBeNull()
     switcher.element.focus()
     await switcher.trigger('keydown', { key: 'ArrowDown' })
     await waitFor(() => expect(drawer.find('[role="menu"]').exists()).toBe(true))
@@ -340,7 +343,7 @@ describe.each(['de', 'en'] as const)('mobile navigation in %s', (locale: AppLoca
 
   it('shows the same viewer destinations as the persistent navigation', async () => {
     const { wrapper, open } = await application(locale, { path: `/projects/${PROJECT}/overview` })
-    await waitFor(() => expect(wrapper.get('aside').text()).toContain(messages.nav.currentProject))
+    await waitFor(() => expect(wrapper.find('aside .project-switcher').exists()).toBe(true))
     const persistentItems = wrapper.findAll('aside nav .nav-item').map((item) => item.text())
     const drawer = await open()
     expect(drawer.findAll('nav .nav-item').map((item) => item.text())).toEqual(persistentItems)

@@ -4424,6 +4424,412 @@
         "title": "ProjectWorkingAggregationUpdate",
         "type": "object"
       },
+      "PublicClassificationJob": {
+        "additionalProperties": false,
+        "description": "Secret-free domain resource returned on acceptance and capability-authorized polling.",
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name_count": {
+            "minimum": 1.0,
+            "title": "Name Count",
+            "type": "integer"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/PublicClassificationProvenance"
+          },
+          "response": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicClassificationResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PublicClassificationStatus"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "name_count",
+          "provenance",
+          "created_at"
+        ],
+        "title": "PublicClassificationJob",
+        "type": "object"
+      },
+      "PublicClassificationJobAccepted": {
+        "additionalProperties": false,
+        "description": "Accepted job and its one-time polling capability, never included in ordinary reads.",
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name_count": {
+            "minimum": 1.0,
+            "title": "Name Count",
+            "type": "integer"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/PublicClassificationProvenance"
+          },
+          "response": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicClassificationResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "retrieval_token": {
+            "title": "Retrieval Token",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PublicClassificationStatus"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "name_count",
+          "provenance",
+          "created_at",
+          "retrieval_token"
+        ],
+        "title": "PublicClassificationJobAccepted",
+        "type": "object"
+      },
+      "PublicClassificationMethod": {
+        "additionalProperties": false,
+        "description": "One selectable method and whether it always uses a persisted job.",
+        "properties": {
+          "asynchronous": {
+            "title": "Asynchronous",
+            "type": "boolean"
+          },
+          "descriptor": {
+            "$ref": "#/components/schemas/MethodDescriptor"
+          }
+        },
+        "required": [
+          "descriptor",
+          "asynchronous"
+        ],
+        "title": "PublicClassificationMethod",
+        "type": "object"
+      },
+      "PublicClassificationMethods": {
+        "additionalProperties": false,
+        "description": "Deployment-owned anonymous classification capabilities.",
+        "properties": {
+          "maximum_batch_size": {
+            "default": 10000,
+            "title": "Maximum Batch Size",
+            "type": "integer"
+          },
+          "methods": {
+            "items": {
+              "$ref": "#/components/schemas/PublicClassificationMethod"
+            },
+            "title": "Methods",
+            "type": "array"
+          },
+          "synchronous_batch_size": {
+            "title": "Synchronous Batch Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "methods",
+          "synchronous_batch_size"
+        ],
+        "title": "PublicClassificationMethods",
+        "type": "object"
+      },
+      "PublicClassificationProvenance": {
+        "additionalProperties": false,
+        "description": "Public, secret-free method versions and the exact execution environment.",
+        "properties": {
+          "aggregation_strategy": {
+            "default": "reference_v1_or_selected_subset",
+            "title": "Aggregation Strategy",
+            "type": "string"
+          },
+          "application_version": {
+            "title": "Application Version",
+            "type": "string"
+          },
+          "code_git_commit": {
+            "title": "Code Git Commit",
+            "type": "string"
+          },
+          "container_image_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Container Image Digest"
+          },
+          "dependency_lock_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Dependency Lock Sha256",
+            "type": "string"
+          },
+          "dependency_versions": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Dependency Versions",
+            "type": "object"
+          },
+          "method_configs": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "title": "Method Configs",
+            "type": "object"
+          },
+          "method_revisions": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Method Revisions",
+            "type": "object"
+          },
+          "methods": {
+            "items": {
+              "$ref": "#/components/schemas/MethodDescriptor"
+            },
+            "title": "Methods",
+            "type": "array"
+          },
+          "python_version": {
+            "title": "Python Version",
+            "type": "string"
+          },
+          "resolved_config_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Resolved Config Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "methods",
+          "method_configs",
+          "resolved_config_sha256",
+          "code_git_commit",
+          "application_version",
+          "python_version",
+          "dependency_lock_sha256",
+          "dependency_versions"
+        ],
+        "title": "PublicClassificationProvenance",
+        "type": "object"
+      },
+      "PublicClassificationResponse": {
+        "additionalProperties": false,
+        "description": "Classification outputs plus the selected methods and execution provenance.",
+        "properties": {
+          "predictions": {
+            "description": "Method raw outputs and normalization provenance, with secrets and diagnostics removed.",
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/PredictionResult"
+              },
+              "type": "object"
+            },
+            "title": "Predictions",
+            "type": "array"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/PublicClassificationProvenance"
+          },
+          "results": {
+            "description": "Classification results in input name order.",
+            "items": {
+              "$ref": "#/components/schemas/NameClassificationResult"
+            },
+            "title": "Results",
+            "type": "array"
+          }
+        },
+        "required": [
+          "results",
+          "provenance",
+          "predictions"
+        ],
+        "title": "PublicClassificationResponse",
+        "type": "object"
+      },
+      "PublicClassificationStatus": {
+        "description": "Durable public classification job lifecycle.",
+        "enum": [
+          "queued",
+          "running",
+          "completed",
+          "failed"
+        ],
+        "title": "PublicClassificationStatus",
+        "type": "string"
+      },
+      "PublicClassifyNamesRequest": {
+        "additionalProperties": false,
+        "description": "Bounded names and optional server-allowlisted methods, without configuration overrides.",
+        "properties": {
+          "methods": {
+            "anyOf": [
+              {
+                "items": {
+                  "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+                  "type": "string"
+                },
+                "maxItems": 20,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Distinct public method identifiers; defaults to the deployment allowlist.",
+            "title": "Methods"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "One name; mutually exclusive with names.",
+            "title": "Name"
+          },
+          "names": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 512,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 10000,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ordered batch of names; mutually exclusive with name.",
+            "title": "Names"
+          }
+        },
+        "title": "PublicClassifyNamesRequest",
+        "type": "object"
+      },
       "ResultMethodPrediction": {
         "additionalProperties": false,
         "description": "One selected method's persisted output for the person behind an aggregated result.\n\n``prediction`` is ``None`` when the method execution persisted no prediction for the\nperson, which stays distinct from an explicit ``abstain`` or ``error`` result. Each\n``method_confidence`` is method-specific and is not comparable across methods.",
@@ -12480,6 +12886,361 @@
         "summary": "Set Working Aggregation",
         "tags": [
           "projects"
+        ]
+      }
+    },
+    "/api/v1/public/classification-jobs/{classification_job_id}": {
+      "get": {
+        "description": "Read one anonymous classification job using its private retrieval capability.",
+        "operationId": "get_public_classification_job_api_v1_public_classification_jobs__classification_job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "classification_job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Classification Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Classification-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Classification-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicClassificationJob"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Public Classification Job",
+        "tags": [
+          "public classification"
+        ]
+      }
+    },
+    "/api/v1/public/classify": {
+      "post": {
+        "description": "Classify a bounded name request immediately or return its persisted asynchronous job.",
+        "operationId": "classify_public_names_api_v1_public_classify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicClassifyNamesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicClassificationResponse"
+                }
+              }
+            },
+            "description": "Immediate classification result"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicClassificationJobAccepted"
+                }
+              }
+            },
+            "description": "Classification job accepted"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Classify Public Names",
+        "tags": [
+          "public classification"
+        ]
+      }
+    },
+    "/api/v1/public/methods": {
+      "get": {
+        "description": "Discover deployment-allowlisted anonymous methods without exposing their configuration.",
+        "operationId": "list_public_methods_api_v1_public_methods_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicClassificationMethods"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List Public Methods",
+        "tags": [
+          "public classification"
         ]
       }
     },

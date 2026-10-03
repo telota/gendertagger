@@ -195,7 +195,12 @@ function progressLabel(label: string, count: number, total: number): string {
           }}
         </p>
         <ul v-if="sourceGender" class="snapshot-statistics-list snapshot-statistics-distribution">
-          <li v-for="item in distribution" :key="item.key" class="snapshot-statistic">
+          <li
+            v-for="item in distribution"
+            :key="item.key"
+            class="snapshot-statistic"
+            :class="`snapshot-statistic--${item.key}`"
+          >
             <div class="snapshot-statistic-copy">
               <span class="snapshot-statistic-label">{{ item.label }}</span>
               <span class="snapshot-statistic-value">{{ n(item.count, 'integer') }}</span>
@@ -306,7 +311,57 @@ function progressLabel(label: string, count: number, total: number): string {
 }
 
 .snapshot-statistics-distribution progress {
-  accent-color: var(--accent-b);
+  appearance: none;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--grid);
+  color: var(--distribution-fill, var(--muted));
+  accent-color: var(--distribution-fill, var(--muted));
+}
+
+.snapshot-statistics-distribution progress::-webkit-progress-bar {
+  background: var(--grid);
+}
+
+.snapshot-statistics-distribution progress::-webkit-progress-value {
+  background: var(--distribution-fill, var(--muted));
+}
+
+.snapshot-statistics-distribution progress::-moz-progress-bar {
+  background: var(--distribution-fill, var(--muted));
+}
+
+.snapshot-statistic--male {
+  --distribution-fill: var(--male);
+}
+
+.snapshot-statistic--female {
+  --distribution-fill: var(--female);
+}
+
+.snapshot-statistic--unknown {
+  --distribution-fill: var(--unknown);
+}
+
+.snapshot-statistic--institution {
+  --distribution-fill: var(--institution);
+}
+
+/* Source values outside the canonical labels stay neutral and visibly distinct from unknown. */
+.snapshot-statistic--other progress::-webkit-progress-value {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--muted) 0 var(--space-1),
+    var(--surface-1) var(--space-1) var(--space-2)
+  );
+}
+
+.snapshot-statistic--other progress::-moz-progress-bar {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--muted) 0 var(--space-1),
+    var(--surface-1) var(--space-1) var(--space-2)
+  );
 }
 
 .snapshot-statistic--unavailable {

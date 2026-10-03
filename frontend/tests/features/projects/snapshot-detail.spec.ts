@@ -180,6 +180,19 @@ describe.each(['de', 'en'] as const)('snapshot detail in %s', (locale) => {
     const inventory = wrapper.get('.snapshot-statistics')
     expect(inventory.text()).toContain(locale === 'de' ? 'Bestandsübersicht' : 'Dataset inventory')
     expect(inventory.findAll('progress')).toHaveLength(8)
+    const distribution = inventory.findAll('.snapshot-statistics-distribution .snapshot-statistic')
+    expect(distribution).toHaveLength(5)
+    for (const [index, category] of [
+      'male',
+      'female',
+      'unknown',
+      'institution',
+      'other',
+    ].entries()) {
+      expect(distribution[index]?.classes()).toContain(`snapshot-statistic--${category}`)
+      expect(distribution[index]?.get('progress').attributes('aria-label')).toBeTruthy()
+    }
+    expect(distribution[4]?.classes()).not.toContain('snapshot-statistic--unknown')
     expect(inventory.text()).toContain(locale === 'de' ? '1 von 2' : '1 of 2')
     expect(wrapper.get('.snapshot-record-gnd-badge').attributes('aria-label')).toContain(
       '118540238',

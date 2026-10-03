@@ -164,7 +164,6 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
       if (items.length) {
         groups.push({
           id: 'project',
-          label: t('nav.currentProject'),
           items,
           ...(currentUserRole !== null && availability.data.value === undefined
             ? {

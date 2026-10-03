@@ -1,5 +1,33 @@
 # Deployment and operations
 
+## Anonymous classification operations
+
+[ADR-0044](decisions/ADR-0044-public-name-classification.md) exposes only name classification, not project
+data. Configure `GENDERTAGGER_PUBLIC_CLASSIFICATION` as a JSON policy object on the API and executing workers,
+for example `{"methods":["gender_guesser","parenthetical_qualifier"],"method_configs":{}}`. The default
+allowlist is `gender_guesser`, `nomquamgender`, and `parenthetical_qualifier`; immediate execution is limited
+to at most 20 names using `gender_guesser` and `parenthetical_qualifier`. All other selections are jobs.
+Provision local lookup/model artifacts before adding their methods; acceptance freezes artifact hashes.
+LLM configuration is explicitly opt-in, uses a deployment-owned `base_url`, and requires the `llm` worker
+profile. Its operator must supply a nonblank immutable model revision through
+`method_revisions.local_llm` and keep the configured model alias bound to those weights; an external
+OpenAI-compatible endpoint cannot independently attest its weight digest. Model identifiers that contain
+filesystem paths are removed from public projections. Every executing worker must receive the API's source
+revision, lock digest, and optional image
+digest and run the identical resolved Python environment. The base and development Compose files pass
+source revision, lock digest, and public policy to workers. Public job inputs/results belong in database backup and
+retention planning; no anonymous listing or automatic deletion is introduced.
+
+The gateway limits public acceptance to 10 requests/minute/client with burst 2 and 5 requests/second
+globally with burst 5; concurrent requests are bounded to 2/client and 20 total. Classification bodies are
+limited to 24 MiB independently of the name-count limit. Clients whose JSON representation exceeds this
+ceiling must split the batch; ordinary UTF-8 avoids unnecessary Unicode escape expansion. Public discovery and polling are limited
+to 5 requests/second/client with burst 10. Rejections use the API error envelope (`413` or `429`), with
+`Retry-After: 6` on rate/concurrency rejection. Classification and job responses are not cached.
+Keep the API internal behind this gateway; direct deployments must provide equivalent bounds. Behind
+another proxy, configure trusted `set_real_ip_from`/`real_ip_header` so per-client limits use the actual
+client address, as with login throttling. Never trust an arbitrary forwarding header from the internet.
+
 ## Initial deployment
 
 Use Docker Compose. Keep the service topology boring and inspectable.

@@ -232,7 +232,7 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
     await waitFor(() => expect(wrapper.find('.app-sidebar-availability').exists()).toBe(false))
     expectItems(wrapper, locale, ['projects', 'overview'])
     expect(wrapper.findAll('nav [aria-disabled="true"]')).toHaveLength(0)
-    expect(wrapper.findAll('nav h2')).toHaveLength(1)
+    expect(wrapper.findAll('nav h2')).toHaveLength(0)
   })
 
   it.each([false, true])(
@@ -338,7 +338,6 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
       await waitFor(() => expectItems(wrapper, locale, ROLE_ITEMS[role]))
       await waitFor(() => expect(wrapper.findAll('nav [aria-disabled="true"]')).toHaveLength(0))
       expect(wrapper.findAll('nav h2').map((heading) => heading.text())).toEqual([
-        messages.currentProject,
         ...(role === 'viewer' ? [] : [messages.additionalGroup]),
         messages.evaluationGroup,
       ])
@@ -798,7 +797,6 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
       expect(wrapper.find('nav a[href$="/exports"]').exists()).toBe(false)
       expect(wrapper.find('nav a[href$="/evaluations"]').exists()).toBe(false)
       expect(wrapper.findAll('nav h2').map((heading) => heading.text())).toEqual([
-        messages.currentProject,
         ...(role === 'viewer' ? [] : [messages.additionalGroup]),
       ])
     },

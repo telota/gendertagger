@@ -1,5 +1,21 @@
 # Task queue and worker design
 
+## Public classification execution
+
+[ADR-0044](decisions/ADR-0044-public-name-classification.md) adds an identifier-only
+`PublicClassificationTaskMessage`. The worker calls `PublicClassificationService.execute_job` directly.
+The persisted job and outbox intent are accepted together; broker availability is not required for `202`.
+The outbox coordinator restores missing intents and rearms queued or expired-running jobs. The chosen queue
+is frozen at acceptance: CPU-only selections use `cpu`; mixed selections requiring one dedicated queue
+(currently `local_llm` uses `llm`) use that worker, which also executes their CPU adapters. Selections that
+require more than one distinct dedicated worker fail acceptance rather than silently changing routing.
+
+Workers verify the accepted method and execution-environment provenance, execute names in bounded chunks,
+and renew their token-fenced lease while adapters run. Terminal writes require the current lease ID.
+Duplicate messages and stale workers cannot change completed results. Transient database outages retry
+through Celery; durable reconciliation also restores abandoned execution. The LLM deployment profile and
+server-owned local endpoint must be enabled before making `local_llm` publicly selectable.
+
 ## Stack
 
 `gendertagger.tasks.celery_app` builds the Celery application over a Redis broker. The result

@@ -14,6 +14,9 @@ from gendertagger.db.repositories.export_repository import SqlAlchemyExportRepos
 from gendertagger.db.repositories.game_repository import SqlAlchemyGameRepository
 from gendertagger.db.repositories.project_access_repository import SqlAlchemyProjectAccessRepository
 from gendertagger.db.repositories.project_repository import SqlAlchemyProjectRepository
+from gendertagger.db.repositories.public_classification_repository import (
+    SqlAlchemyPublicClassificationRepository,
+)
 from gendertagger.db.repositories.review_repository import SqlAlchemyReviewRepository
 from gendertagger.db.repositories.run_repository import SqlAlchemyRunRepository
 from gendertagger.db.repositories.settings_repository import SqlAlchemySettingsRepository
@@ -81,6 +84,11 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
     def dispatches(self) -> SqlAlchemyDispatchRepository:
         """Return durable dispatch persistence bound to the active session."""
         return SqlAlchemyDispatchRepository(self._require_session())
+
+    @property
+    def public_classifications(self) -> SqlAlchemyPublicClassificationRepository:
+        """Return anonymous classification persistence bound to the active session."""
+        return SqlAlchemyPublicClassificationRepository(self._require_session())
 
     @property
     def evaluations(self) -> SqlAlchemyEvaluationRepository:

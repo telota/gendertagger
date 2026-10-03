@@ -62,6 +62,7 @@ def create_celery_app(settings: CelerySettings | None = None) -> Celery:
             "gendertagger.tasks.snapshot_import",
             "gendertagger.tasks.evaluation",
             "gendertagger.tasks.export",
+            "gendertagger.tasks.public_classification",
         ],
     )
     configuration: dict[str, Any] = {

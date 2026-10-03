@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from tests.seeding import (
     SEED_TIME,
     always_abstain,
+    legacy_snapshot_statistics,
     seed_completed_aggregation,
     seed_completed_run,
     seed_pending_snapshot,
@@ -28,6 +29,49 @@ from gendertagger.models.run import RunListFilter
 from gendertagger.services.pagination import CreationPosition
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
+
+
+def test_snapshots_page_by_import_acceptance_date_with_stable_uuid_ties(
+    db_session: Session,
+) -> None:
+    repositories = session_repositories(db_session)
+    project = seed_project(repositories)
+    newest, tied_lower, tied_higher, oldest = sorted(
+        (seed_pending_snapshot(repositories, project.id) for _ in range(4)),
+        key=lambda item: item.id,
+    )
+    # Deliberately oppose UUID and completion order to import acceptance order.
+    for snapshot, accepted_minutes, completed_minutes in (
+        (newest, 3, 4),
+        (tied_lower, 2, 6),
+        (tied_higher, 2, 5),
+        (oldest, 1, 7),
+    ):
+        db_session.execute(
+            update(DatasetSnapshotRow)
+            .where(DatasetSnapshotRow.id == snapshot.id)
+            .values(created_at=SEED_TIME + timedelta(minutes=accepted_minutes))
+        )
+        repositories.projects.claim_snapshot_import(snapshot.id)
+        repositories.projects.complete_snapshot_import(
+            snapshot.id,
+            statistics=legacy_snapshot_statistics(snapshot.id, []),
+            ready_at=SEED_TIME + timedelta(minutes=completed_minutes),
+        )
+    db_session.flush()
+
+    filters = DatasetSnapshotListFilter(status=DatasetSnapshotStatus.ready)
+    first_page = repositories.projects.list_snapshots(project.id, limit=2, filters=filters)
+    assert [item.id for item in first_page] == [newest.id, tied_higher.id]
+    after = CreationPosition(created_at=first_page[-1].created_at, id=first_page[-1].id)
+    second_page = repositories.projects.list_snapshots(
+        project.id, limit=2, filters=filters, after=after
+    )
+    assert [item.id for item in second_page] == [tied_lower.id, oldest.id]
+    after = CreationPosition(created_at=second_page[-1].created_at, id=second_page[-1].id)
+    assert not repositories.projects.list_snapshots(
+        project.id, limit=2, filters=filters, after=after
+    )
 
 
 def test_snapshot_filters_find_older_results_and_do_not_cross_project_boundaries(

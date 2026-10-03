@@ -134,7 +134,9 @@ describe.each(['de', 'en'] as const)('ProjectSwitcher in %s', (locale: AppLocale
       expect(wrapper.get('aside .project-switcher-current').text()).toBe('Project A')
     })
     const button = wrapper.get('aside .project-switcher-button')
-    expect(button.text()).toBe(messages.action)
+    expect(button.text()).toBe('Project A')
+    expect(wrapper.findAll('aside .project-switcher-current')).toHaveLength(1)
+    expect(button.element.closest('.app-sidebar-section')?.querySelector('h2')).toBeNull()
     expect(button.attributes('aria-label')).toBe(
       messages.currentLabel.replace('{project}', 'Project A'),
     )

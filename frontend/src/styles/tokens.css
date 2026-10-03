@@ -29,26 +29,31 @@
   --focus-ring: #1f5aa0;
   --good: #088a08;
   --warning: #fab219;
+  --warning-text: #7a5900;
+  --warning-tint: #fdf5e5;
   --critical: #d03b3b;
   --critical-text: #bf3333;
+  --critical-tint: #fbeceb;
+  --info-text: #1f5aa0;
+  --info-tint: #e9f1fa;
 
   /* Elevation: reserved for menus and modals, the only layers that genuinely float (docs/25) */
   --shadow-menu: 0 4px 12px rgba(11, 11, 11, 0.16);
   --backdrop: rgba(11, 11, 11, 0.4);
 
   /* Canonical labels: solid (fills, borders, chart marks), text, tint */
-  --male: #2a78d6;
-  --male-text: #1f5aa0;
-  --male-tint: #e9f1fa;
-  --female: #eb6834;
-  --female-text: #b04e27;
-  --female-tint: #fdefea;
-  --institution: #1baf7a;
-  --institution-text: #127a55;
-  --institution-tint: #e8f7f1;
-  --unknown: #eda100;
-  --unknown-text: #7a5900;
-  --unknown-tint: #fdf5e5;
+  --male: #7056ad;
+  --male-text: #60458f;
+  --male-tint: #f2edf9;
+  --female: #14847d;
+  --female-text: #09665f;
+  --female-tint: #e7f4f0;
+  --institution: #ae7620;
+  --institution-text: #7d530f;
+  --institution-tint: #faf2e2;
+  --unknown: #85817a;
+  --unknown-text: #52514e;
+  --unknown-tint: #f2f1ee;
 }
 
 :root[data-theme='dark'] {
@@ -68,25 +73,30 @@
   --focus-ring: #8fbdf0;
   --good: #4fc94f;
   --warning: #f0b843;
+  --warning-text: #e8bd5e;
+  --warning-tint: #332813;
   --critical: #f0736f;
   --critical-text: #f0736f;
+  --critical-tint: #3d201e;
+  --info-text: #8fbdf0;
+  --info-tint: #17293d;
 
   /* Weaker than the light theme's, per docs/25: elevation reads through surface lightness here. */
   --shadow-menu: 0 4px 12px rgba(0, 0, 0, 0.4);
   --backdrop: rgba(0, 0, 0, 0.6);
 
-  --male: #5a9ee8;
-  --male-text: #8fbdf0;
-  --male-tint: #17293d;
-  --female: #f08055;
-  --female-text: #f0a184;
-  --female-tint: #3a1e14;
-  --institution: #35c894;
-  --institution-text: #6fd6ae;
-  --institution-tint: #102e24;
-  --unknown: #e8b53c;
-  --unknown-text: #e8bd5e;
-  --unknown-tint: #332813;
+  --male: #a68ad6;
+  --male-text: #c5b1eb;
+  --male-tint: #30223f;
+  --female: #52bcb0;
+  --female-text: #7bd3c8;
+  --female-tint: #112f2a;
+  --institution: #d6ad58;
+  --institution-text: #e5c078;
+  --institution-tint: #362b19;
+  --unknown: #9c9890;
+  --unknown-text: #c2bfb8;
+  --unknown-tint: #2c2a27;
 }
 
 /* Theme-independent scales */

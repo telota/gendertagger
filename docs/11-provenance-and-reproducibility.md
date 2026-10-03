@@ -1,5 +1,18 @@
 # Provenance and reproducibility
 
+## Anonymous name classification
+
+[ADR-0044](decisions/ADR-0044-public-name-classification.md) freezes public job inputs, method descriptors,
+validated configuration, and artifact digests before dispatch. Provenance records the application version,
+source revision, Python version, exact installed dependency versions, lock digest, and optional image digest.
+The worker rejects a changed execution environment rather than recording outputs under stale provenance.
+Complete raw method output and normalization metadata remain immutable with completed jobs.
+An enabled external LLM also records the operator's immutable model revision. The operator must bind its
+model alias to those weights; provenance does not independently attest an external server's weight files.
+Public responses expose secret-free scientific configurations, their complete configuration digest,
+normalization evidence, and exact environment versions. Immediate responses carry the same provenance
+while preserving the synchronous interface's documented non-persistence behavior.
+
 ## Goal
 
 A result should answer: **what input, code, configuration, method/model/data revision, and decision process produced this label?**

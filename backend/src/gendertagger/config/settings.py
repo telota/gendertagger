@@ -13,6 +13,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
 
+from gendertagger.config.public_classification import PublicClassificationPolicy
+
 
 class GendertaggerSettings(BaseSettings):
     """Common loading rules: the ``GENDERTAGGER_`` prefix, frozen values, no echoed input."""
@@ -55,3 +57,6 @@ class RuntimeSettings(ArtifactStorageSettings):
 
     model_cache_root: Path = Path("data/model-cache")
     tei_import_batch_record_count: int = Field(default=500, gt=0, le=10_000)
+    public_classification: PublicClassificationPolicy = Field(
+        default_factory=PublicClassificationPolicy
+    )

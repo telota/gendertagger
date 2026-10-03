@@ -15,6 +15,7 @@ from gendertagger.db.rows.evaluations import EvaluationExecutionRow
 from gendertagger.db.rows.executions import MethodExecutionRow, RunRow, TaskBatchRow
 from gendertagger.db.rows.exports import ExportExecutionRow
 from gendertagger.db.rows.projects import DatasetSnapshotRow
+from gendertagger.db.rows.public_classification import PublicClassificationJobRow
 from gendertagger.models.aggregation import AggregationTaskMessage
 from gendertagger.models.common import normalize_utc_datetime
 from gendertagger.models.dispatch import (
@@ -30,6 +31,8 @@ from gendertagger.models.dispatch import (
     EvaluationDispatchCreate,
     ExportDispatch,
     ExportDispatchCreate,
+    PublicClassificationDispatch,
+    PublicClassificationDispatchCreate,
     SnapshotDispatch,
     SnapshotDispatchCreate,
 )
@@ -45,6 +48,10 @@ from gendertagger.models.lifecycle import (
     TaskBatchStatus,
 )
 from gendertagger.models.project import SnapshotImportTaskMessage
+from gendertagger.models.public_classification import (
+    PublicClassificationStatus,
+    PublicClassificationTaskMessage,
+)
 from gendertagger.models.queues import CPU_QUEUE
 from gendertagger.models.run import TaskBatchMessage
 from gendertagger.services.ports.persistence_errors import (
@@ -96,6 +103,12 @@ class SqlAlchemyDispatchRepository:
     @overload
     def ensure_dispatch(self, command: ExportDispatchCreate) -> ExportDispatch: ...
 
+    @overload
+    def ensure_dispatch(
+        self,
+        command: PublicClassificationDispatchCreate,
+    ) -> PublicClassificationDispatch: ...
+
     def ensure_dispatch(self, command: DispatchCreate) -> Dispatch:
         """Idempotently persist one exact target-aware dispatch without committing."""
         if isinstance(command, BatchDispatchCreate):
@@ -106,7 +119,54 @@ class SqlAlchemyDispatchRepository:
             return self._ensure_snapshot_dispatch(command)
         if isinstance(command, EvaluationDispatchCreate):
             return self._ensure_evaluation_dispatch(command)
+        if isinstance(command, PublicClassificationDispatchCreate):
+            return self._ensure_public_classification_dispatch(command)
         return self._ensure_export_dispatch(command)
+
+    def _ensure_public_classification_dispatch(
+        self,
+        command: PublicClassificationDispatchCreate,
+    ) -> PublicClassificationDispatch:
+        job = self._session.get(PublicClassificationJobRow, command.classification_job_id)
+        if job is None:
+            msg = f"classification job {command.classification_job_id} does not exist"
+            raise ResourceNotFoundError(msg)
+        if job.status not in {
+            PublicClassificationStatus.queued,
+            PublicClassificationStatus.running,
+        }:
+            msg = f"classification job {job.id} is not dispatchable from {job.status}"
+            raise InvalidResourceStateError(msg)
+        if command.queue_name != job.queue_name:
+            msg = "public classification dispatch queue must match its persisted job queue"
+            raise InvalidResourceStateError(msg)
+        dispatch_table = cast(Table, DispatchOutboxRow.__table__)
+        self._session.execute(
+            insert(dispatch_table)
+            .values(
+                id=uuid4(),
+                classification_job_id=command.classification_job_id,
+                queue_name=command.queue_name,
+                payload=command.payload.model_dump(mode="json"),
+                status=DispatchStatus.pending,
+                attempt_count=0,
+                available_at=command.available_at,
+            )
+            .on_conflict_do_nothing(constraint="classification_job_single_dispatch")
+        )
+        self._session.flush()
+        row = self._session.scalar(
+            select(DispatchOutboxRow).where(DispatchOutboxRow.classification_job_id == job.id)
+        )
+        if row is None:  # pragma: no cover - insert/select in one transaction.
+            msg = f"dispatch for classification job {job.id} could not be persisted"
+            raise RuntimeError(msg)
+        self._require_matching_intent(row, command)
+        dispatch = self._dispatch_from_row(row)
+        if not isinstance(dispatch, PublicClassificationDispatch):  # pragma: no cover - invariant.
+            msg = f"dispatch for classification job {job.id} has the wrong target type"
+            raise RuntimeError(msg)
+        return dispatch
 
     def _ensure_batch_dispatch(self, command: BatchDispatchCreate) -> BatchDispatch:
         batch = self._session.get(TaskBatchRow, command.task_batch_id)
@@ -476,6 +536,26 @@ class SqlAlchemyDispatchRepository:
             raise RuntimeError(msg)
         return dispatch
 
+    def get_dispatch_for_classification(
+        self,
+        classification_job_id: UUID,
+    ) -> PublicClassificationDispatch | None:
+        """Return the unique durable dispatch for an anonymous classification job."""
+        row = self._session.scalar(
+            select(DispatchOutboxRow).where(
+                DispatchOutboxRow.classification_job_id == classification_job_id
+            )
+        )
+        if row is None:
+            return None
+        dispatch = self._dispatch_from_row(row)
+        if not isinstance(dispatch, PublicClassificationDispatch):  # pragma: no cover - invariant.
+            msg = (
+                f"dispatch for classification job {classification_job_id} has the wrong target type"
+            )
+            raise RuntimeError(msg)
+        return dispatch
+
     def claim_available(
         self,
         *,
@@ -640,12 +720,34 @@ class SqlAlchemyDispatchRepository:
                 ExportExecutionRow.status.in_(_DISPATCHABLE_EXPORT_STATUSES),
             )
         )
+        classification_candidates = (
+            select(
+                literal(DispatchTarget.public_classification_job.value).label("target"),
+                PublicClassificationJobRow.id.label("target_id"),
+                PublicClassificationJobRow.created_at.label("created_at"),
+            )
+            .outerjoin(
+                DispatchOutboxRow,
+                DispatchOutboxRow.classification_job_id == PublicClassificationJobRow.id,
+            )
+            .where(
+                DispatchOutboxRow.id.is_(None),
+                or_(
+                    PublicClassificationJobRow.status == PublicClassificationStatus.queued,
+                    (
+                        (PublicClassificationJobRow.status == PublicClassificationStatus.running)
+                        & (PublicClassificationJobRow.lease_until <= available_at)
+                    ),
+                ),
+            )
+        )
         candidates = union_all(
             batch_candidates,
             aggregation_candidates,
             snapshot_candidates,
             evaluation_candidates,
             export_candidates,
+            classification_candidates,
         ).subquery()
         rows = tuple(
             self._session.execute(
@@ -711,6 +813,18 @@ class SqlAlchemyDispatchRepository:
                         evaluation_execution_id=evaluation.id,
                         queue_name=CPU_QUEUE,
                         payload=EvaluationTaskMessage(evaluation_execution_id=evaluation.id),
+                        available_at=available_at,
+                    )
+                )
+            elif target == DispatchTarget.public_classification_job.value:
+                job = self._lock_dispatchable_classification(target_id, now=available_at)
+                if job is None or self.get_dispatch_for_classification(job.id) is not None:
+                    continue
+                self.ensure_dispatch(
+                    PublicClassificationDispatchCreate(
+                        classification_job_id=job.id,
+                        queue_name=job.queue_name,
+                        payload=PublicClassificationTaskMessage(classification_job_id=job.id),
                         available_at=available_at,
                     )
                 )
@@ -830,12 +944,36 @@ class SqlAlchemyDispatchRepository:
                 ExportExecutionRow.status.in_(_DISPATCHABLE_EXPORT_STATUSES),
             )
         )
+        classification_candidates = (
+            select(
+                DispatchOutboxRow.id.label("dispatch_id"),
+                literal(DispatchTarget.public_classification_job.value).label("target"),
+                PublicClassificationJobRow.id.label("target_id"),
+                DispatchOutboxRow.published_at.label("published_at"),
+            )
+            .join(
+                PublicClassificationJobRow,
+                PublicClassificationJobRow.id == DispatchOutboxRow.classification_job_id,
+            )
+            .where(
+                DispatchOutboxRow.status == DispatchStatus.published,
+                DispatchOutboxRow.published_at <= stale_before,
+                or_(
+                    PublicClassificationJobRow.status == PublicClassificationStatus.queued,
+                    (
+                        (PublicClassificationJobRow.status == PublicClassificationStatus.running)
+                        & (PublicClassificationJobRow.lease_until <= rearm_time)
+                    ),
+                ),
+            )
+        )
         candidates = union_all(
             batch_candidates,
             aggregation_candidates,
             snapshot_candidates,
             evaluation_candidates,
             export_candidates,
+            classification_candidates,
         ).subquery()
         rows = tuple(
             self._session.execute(
@@ -862,6 +1000,9 @@ class SqlAlchemyDispatchRepository:
                     continue
             elif target == DispatchTarget.evaluation_execution.value:
                 if self._lock_dispatchable_evaluation(target_id) is None:
+                    continue
+            elif target == DispatchTarget.public_classification_job.value:
+                if self._lock_dispatchable_classification(target_id, now=rearm_time) is None:
                     continue
             else:
                 if self._lock_dispatchable_export(target_id) is None:
@@ -958,6 +1099,28 @@ class SqlAlchemyDispatchRepository:
             .with_for_update(skip_locked=True, of=ExportExecutionRow)
         )
 
+    def _lock_dispatchable_classification(
+        self,
+        classification_job_id: UUID,
+        *,
+        now: datetime,
+    ) -> PublicClassificationJobRow | None:
+        """Lock queued or expired classification work without waiting on active workers."""
+        return self._session.scalar(
+            select(PublicClassificationJobRow)
+            .where(
+                PublicClassificationJobRow.id == classification_job_id,
+                or_(
+                    PublicClassificationJobRow.status == PublicClassificationStatus.queued,
+                    (
+                        (PublicClassificationJobRow.status == PublicClassificationStatus.running)
+                        & (PublicClassificationJobRow.lease_until <= now)
+                    ),
+                ),
+            )
+            .with_for_update(skip_locked=True, of=PublicClassificationJobRow)
+        )
+
     def _require_claimed(self, dispatch_id: UUID, lease_owner: str) -> DispatchOutboxRow:
         row = self._session.get(
             DispatchOutboxRow,
@@ -1012,6 +1175,7 @@ class SqlAlchemyDispatchRepository:
             and row.dataset_snapshot_id is None
             and row.evaluation_execution_id is None
             and row.export_execution_id is None
+            and row.classification_job_id is None
         ):
             return BatchDispatch(
                 id=row.id,
@@ -1034,6 +1198,7 @@ class SqlAlchemyDispatchRepository:
             and row.dataset_snapshot_id is None
             and row.evaluation_execution_id is None
             and row.export_execution_id is None
+            and row.classification_job_id is None
         ):
             return AggregationDispatch(
                 id=row.id,
@@ -1056,6 +1221,7 @@ class SqlAlchemyDispatchRepository:
             and row.aggregation_execution_id is None
             and row.evaluation_execution_id is None
             and row.export_execution_id is None
+            and row.classification_job_id is None
         ):
             return SnapshotDispatch(
                 id=row.id,
@@ -1078,6 +1244,7 @@ class SqlAlchemyDispatchRepository:
             and row.aggregation_execution_id is None
             and row.dataset_snapshot_id is None
             and row.export_execution_id is None
+            and row.classification_job_id is None
         ):
             return EvaluationDispatch(
                 id=row.id,
@@ -1100,12 +1267,36 @@ class SqlAlchemyDispatchRepository:
             and row.aggregation_execution_id is None
             and row.dataset_snapshot_id is None
             and row.evaluation_execution_id is None
+            and row.classification_job_id is None
         ):
             return ExportDispatch(
                 id=row.id,
                 export_execution_id=row.export_execution_id,
                 queue_name=row.queue_name,
                 payload=ExportTaskMessage.model_validate(row.payload),
+                status=row.status,
+                attempt_count=row.attempt_count,
+                available_at=row.available_at,
+                lease_owner=row.lease_owner,
+                lease_until=row.lease_until,
+                published_at=row.published_at,
+                last_error=row.last_error,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+            )
+        if (
+            row.classification_job_id is not None
+            and row.task_batch_id is None
+            and row.aggregation_execution_id is None
+            and row.dataset_snapshot_id is None
+            and row.evaluation_execution_id is None
+            and row.export_execution_id is None
+        ):
+            return PublicClassificationDispatch(
+                id=row.id,
+                classification_job_id=row.classification_job_id,
+                queue_name=row.queue_name,
+                payload=PublicClassificationTaskMessage.model_validate(row.payload),
                 status=row.status,
                 attempt_count=row.attempt_count,
                 available_at=row.available_at,

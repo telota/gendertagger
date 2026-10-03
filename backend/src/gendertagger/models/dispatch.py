@@ -11,6 +11,7 @@ from gendertagger.models.common import UtcDatetime
 from gendertagger.models.evaluation import EvaluationTaskMessage
 from gendertagger.models.export import ExportTaskMessage
 from gendertagger.models.project import SnapshotImportTaskMessage
+from gendertagger.models.public_classification import PublicClassificationTaskMessage
 from gendertagger.models.run import QUEUE_NAME_PATTERN, TaskBatchMessage
 
 
@@ -22,6 +23,7 @@ class DispatchTarget(StrEnum):
     dataset_snapshot = "dataset_snapshot"
     evaluation_execution = "evaluation_execution"
     export = "export"
+    public_classification_job = "public_classification_job"
 
 
 class DispatchStatus(StrEnum):
@@ -149,6 +151,32 @@ class ExportDispatchCreate(BaseModel):
     def target_id(self) -> UUID:
         """Return the stable work and broker-task identifier."""
         return self.export_execution_id
+
+
+class PublicClassificationDispatchCreate(BaseModel):
+    """Validated dispatch intent for a persisted anonymous classification job."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    target: Literal[DispatchTarget.public_classification_job] = (
+        DispatchTarget.public_classification_job
+    )
+    classification_job_id: UUID
+    queue_name: str = Field(pattern=QUEUE_NAME_PATTERN, max_length=100)
+    payload: PublicClassificationTaskMessage
+    available_at: UtcDatetime
+
+    @model_validator(mode="after")
+    def _validate_payload_identity(self) -> Self:
+        if self.payload.classification_job_id != self.classification_job_id:
+            msg = "dispatch payload classification_job_id must match its durable dispatch"
+            raise ValueError(msg)
+        return self
+
+    @property
+    def target_id(self) -> UUID:
+        """Return the stable job and broker-task identifier."""
+        return self.classification_job_id
 
 
 class BatchDispatch(BatchDispatchCreate):
@@ -346,16 +374,61 @@ class ExportDispatch(ExportDispatchCreate):
         return self
 
 
+class PublicClassificationDispatch(PublicClassificationDispatchCreate):
+    """Canonical delivery state for one anonymous classification dispatch."""
+
+    id: UUID
+    status: DispatchStatus
+    attempt_count: int = Field(ge=0)
+    lease_owner: str | None = Field(default=None, max_length=255)
+    lease_until: UtcDatetime | None = None
+    published_at: UtcDatetime | None = None
+    last_error: str | None = None
+    created_at: UtcDatetime
+    updated_at: UtcDatetime
+
+    @field_validator("lease_owner")
+    @classmethod
+    def _validate_lease_owner(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            msg = "dispatch lease_owner must not be blank"
+            raise ValueError(msg)
+        return value
+
+    @model_validator(mode="after")
+    def _validate_delivery_state(self) -> Self:
+        if (self.lease_owner is None) != (self.lease_until is None):
+            msg = "dispatch lease_owner and lease_until must be present together"
+            raise ValueError(msg)
+        if self.status is DispatchStatus.pending:
+            if self.published_at is not None:
+                msg = "a pending dispatch must not have published_at"
+                raise ValueError(msg)
+        elif self.published_at is None:
+            msg = "a published dispatch requires published_at"
+            raise ValueError(msg)
+        elif self.lease_owner is not None:
+            msg = "a published dispatch must not retain a relay lease"
+            raise ValueError(msg)
+        return self
+
+
 DispatchCreate: TypeAlias = Annotated[
     BatchDispatchCreate
     | AggregationDispatchCreate
     | SnapshotDispatchCreate
     | EvaluationDispatchCreate
-    | ExportDispatchCreate,
+    | ExportDispatchCreate
+    | PublicClassificationDispatchCreate,
     Field(discriminator="target"),
 ]
 Dispatch: TypeAlias = Annotated[
-    BatchDispatch | AggregationDispatch | SnapshotDispatch | EvaluationDispatch | ExportDispatch,
+    BatchDispatch
+    | AggregationDispatch
+    | SnapshotDispatch
+    | EvaluationDispatch
+    | ExportDispatch
+    | PublicClassificationDispatch,
     Field(discriminator="target"),
 ]
 DispatchMessage: TypeAlias = (
@@ -364,4 +437,5 @@ DispatchMessage: TypeAlias = (
     | SnapshotImportTaskMessage
     | EvaluationTaskMessage
     | ExportTaskMessage
+    | PublicClassificationTaskMessage
 )

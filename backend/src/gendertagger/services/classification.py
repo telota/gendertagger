@@ -78,6 +78,16 @@ class DirectClassificationService:
         Raises:
             UnknownMethodError: If an unknown method name is requested.
         """
+        response, _ = self.classify_names_with_evidence(names, methods, method_configs)
+        return response
+
+    def classify_names_with_evidence(
+        self,
+        names: Sequence[str],
+        methods: Sequence[str] | None = None,
+        method_configs: Mapping[str, Mapping[str, JsonValue]] | None = None,
+    ) -> tuple[ClassifyNamesResponse, list[dict[str, PredictionResult]]]:
+        """Return ordinary classification results together with immutable raw method evidence."""
         selected_registrations = self._resolve_registrations(methods)
         people = [
             PersonInput(tei_id=f"name_{index + 1}", forenames=[name])
@@ -123,7 +133,7 @@ class DirectClassificationService:
                 )
             )
 
-        return ClassifyNamesResponse(results=results)
+        return ClassifyNamesResponse(results=results), predictions_by_name
 
     def _resolve_registrations(self, methods: Sequence[str] | None) -> tuple[Any, ...]:
         if methods is None:

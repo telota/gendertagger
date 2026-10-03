@@ -35,8 +35,9 @@ Both themes ship from the first milestone (decision D8). Tokens are **semantic a
 component references `--text-secondary`, never a hex value and never a theme-specific name. Every token
 below is defined once per theme, so no component is ever written against a single palette.
 
-The light palette is inherited from the wireframe and is normative. No colour outside these tokens may
-appear in the application.
+The surface and accent palette retains the wireframe's warm archive character. The canonical label
+palette approved on 2026-10-03 uses male violet, female teal, unknown gray, and institution ochre.
+These tokens are normative; no colour outside them may appear in the application.
 
 | Role                   | Token              | Value                 |
 | ---------------------- | ------------------ | --------------------- |
@@ -53,17 +54,22 @@ appear in the application.
 | Focus ring             | `--focus-ring`     | `#1f5aa0`             |
 | Success                | `--good`           | `#088a08`             |
 | Warning                | `--warning`        | `#fab219`             |
+| Warning text           | `--warning-text`   | `#7a5900`             |
+| Warning tint           | `--warning-tint`   | `#fdf5e5`             |
 | Critical fill / border | `--critical`       | `#d03b3b`             |
 | Critical text          | `--critical-text`  | `#bf3333`             |
+| Critical tint          | `--critical-tint`  | `#fbeceb`             |
+| Information text       | `--info-text`      | `#1f5aa0`             |
+| Information tint       | `--info-tint`      | `#e9f1fa`             |
 
 Each canonical label carries three tokens — a solid, a text colour, and a tint:
 
 | Label         | Solid     | Text      | Tint      |
 | ------------- | --------- | --------- | --------- |
-| `male`        | `#2a78d6` | `#1f5aa0` | `#e9f1fa` |
-| `female`      | `#eb6834` | `#b04e27` | `#fdefea` |
-| `institution` | `#1baf7a` | `#127a55` | `#e8f7f1` |
-| `unknown`     | `#eda100` | `#7a5900` | `#fdf5e5` |
+| `male`        | `#7056ad` | `#60458f` | `#f2edf9` |
+| `female`      | `#14847d` | `#09665f` | `#e7f4f0` |
+| `unknown`     | `#85817a` | `#52514e` | `#f2f1ee` |
+| `institution` | `#ae7620` | `#7d530f` | `#faf2e2` |
 
 The wireframe names this fourth group `--uncertain*`. It is renamed to `--unknown*` per decision D3: it
 renders the canonical label `unknown`, and `uncertain` is a certainty tier. Reusing one name for both is the
@@ -90,28 +96,33 @@ re-verified before it lands.
 | `--focus-ring`     | `#1f5aa0`             | `#8fbdf0`                |
 | `--good`           | `#088a08`             | `#4fc94f`                |
 | `--warning`        | `#fab219`             | `#f0b843`                |
+| `--warning-text`   | `#7a5900`             | `#e8bd5e`                |
+| `--warning-tint`   | `#fdf5e5`             | `#332813`                |
 | `--critical`       | `#d03b3b`             | `#f0736f`                |
 | `--critical-text`  | `#bf3333`             | `#f0736f`                |
+| `--critical-tint`  | `#fbeceb`             | `#3d201e`                |
+| `--info-text`      | `#1f5aa0`             | `#8fbdf0`                |
+| `--info-tint`      | `#e9f1fa`             | `#17293d`                |
 
 Label tokens invert their relationship: the tint becomes a dark, desaturated ground and the text colour
 becomes light.
 
 | Label         | Dark solid | Dark text | Dark tint |
 | ------------- | ---------- | --------- | --------- |
-| `male`        | `#5a9ee8`  | `#8fbdf0` | `#17293d` |
-| `female`      | `#f08055`  | `#f0a184` | `#3a1e14` |
-| `institution` | `#35c894`  | `#6fd6ae` | `#102e24` |
-| `unknown`     | `#e8b53c`  | `#e8bd5e` | `#332813` |
+| `male`        | `#a68ad6`  | `#c5b1eb` | `#30223f` |
+| `female`      | `#52bcb0`  | `#7bd3c8` | `#112f2a` |
+| `unknown`     | `#9c9890`  | `#c2bfb8` | `#2c2a27` |
+| `institution` | `#d6ad58`  | `#e5c078` | `#362b19` |
 
-Measured dark-theme ratios: label text on its own tint 7.37–8.28; `--text-primary` on panel 14.32;
+Measured dark-theme ratios: label text on its own tint 7.62–8.19; `--text-primary` on panel 14.32;
 `--text-secondary` 8.66; `--muted` 5.53; `--accent` 6.54; `--accent-b` 7.12; `--critical-text` 5.59;
 `--warning` 8.81; `--good` 7.42; focus ring on page 8.96. Label solids as borders on the dark panel measure
-5.67–8.41. Critical text also measures 6.18 on page and 5.03 on `--surface-1`; the inverse
+5.47–7.55. Critical text also measures 6.18 on page and 5.03 on `--surface-1`; the inverse
 `--panel` foreground on a `--critical` destructive button measures 5.59.
 
 Rules specific to the dark theme:
 
-- **Solids are theme-scoped and must not cross over.** The dark solids measure 1.89–2.80 on a white panel
+- **Solids are theme-scoped and must not cross over.** The dark solids measure 2.10–2.91 on a white panel
   and fail there; the light solids are dimmer than they should be on a dark panel. A component that
   hard-codes either has a bug.
 - Do not render pure white text on pure black. `--text-primary` on `--page` measures 15.83, which is high
@@ -139,33 +150,36 @@ Measured against WCAG 2.1 AA. These are computed values, not estimates. The tabl
 theme; the dark theme's measured values are listed in [Dark theme](#dark-theme). **Both themes are
 verified independently** — passing in one proves nothing about the other.
 
-| Pair                                       | Ratio     | Verdict           |
-| ------------------------------------------ | --------- | ----------------- |
-| label text on its own tint (`male`)        | 6.08      | passes AA text    |
-| label text on its own tint (`female`)      | 4.72      | passes AA text    |
-| label text on its own tint (`institution`) | 4.82      | passes AA text    |
-| label text on its own tint (`unknown`)     | 5.95      | passes AA text    |
-| `--text-primary` on `--page`               | 17.43     | passes            |
-| `--text-secondary` on `--panel`            | 7.94      | passes            |
-| `--accent` on `--panel`                    | 8.56      | passes            |
-| `--accent-b` on `--panel`                  | 5.27      | passes            |
-| `--critical-text` on `--page`              | 4.98      | passes            |
-| `--critical-text` on `--panel`             | 5.62      | passes            |
-| `--critical-text` on `--surface-1`         | 5.47      | passes            |
-| `--panel` text on `--critical` fill        | 4.80      | passes            |
-| `--critical` as text on `--page`           | 4.25      | **fails AA text** |
-| `--focus-ring` on `--page`                 | 6.14      | passes            |
-| label **solid** as text on `--panel`       | 2.17–4.42 | **fails**         |
-| `--muted` `#898781` on `--panel`           | 3.59      | **fails AA text** |
-| `--warning` as text on `--panel`           | 1.83      | **fails**         |
-| `--good` behind white glyphs               | 3.35      | **fails**         |
+| Pair                                       | Ratio     | Verdict                   |
+| ------------------------------------------ | --------- | ------------------------- |
+| label text on its own tint (`male`)        | 6.65      | passes AA text            |
+| label text on its own tint (`female`)      | 6.04      | passes AA text            |
+| label text on its own tint (`unknown`)     | 7.03      | passes AA text            |
+| label text on its own tint (`institution`) | 6.05      | passes AA text            |
+| critical text on its status tint           | 4.90      | passes AA text            |
+| warning text on its status tint            | 5.95      | passes AA text            |
+| information text on its status tint        | 6.08      | passes AA text            |
+| `--text-primary` on `--page`               | 17.43     | passes                    |
+| `--text-secondary` on `--panel`            | 7.94      | passes                    |
+| `--accent` on `--panel`                    | 8.56      | passes                    |
+| `--accent-b` on `--panel`                  | 5.27      | passes                    |
+| `--critical-text` on `--page`              | 4.98      | passes                    |
+| `--critical-text` on `--panel`             | 5.62      | passes                    |
+| `--critical-text` on `--surface-1`         | 5.47      | passes                    |
+| `--panel` text on `--critical` fill        | 4.80      | passes                    |
+| `--critical` as text on `--page`           | 4.25      | **fails AA text**         |
+| `--focus-ring` on `--page`                 | 6.14      | passes                    |
+| label **solid** as text on `--panel`       | 3.88–5.80 | **mixed; use text token** |
+| `--muted` `#898781` on `--panel`           | 3.59      | **fails AA text**         |
+| `--warning` as text on `--panel`           | 1.83      | **fails**                 |
+| `--good` behind white glyphs               | 3.35      | **fails**                 |
 
 The failures are corrections already applied to the token tables above, and the rules behind them are
 binding:
 
 1. **Solid label colours are fills, borders, and chart marks only.** They never carry text. The badge
-   pattern is tint background, solid border, `-text` foreground — which is why the wireframe's badges pass
-   while a solid-coloured label would not.
+   pattern is tint background, solid border, `-text` foreground. The text tokens pass consistently;
+   the solids do not all meet the body-text threshold.
 2. **`--muted` is `#706e68`, darkened from the wireframe's `#898781`** (4.51 on page, 5.10 on panel). The
    wireframe applies `--muted` to 10–11 px captions, the worst case for a failing ratio. If a lighter grey
    is wanted for decoration, introduce a separate non-text token rather than relaxing this one.
@@ -179,13 +193,14 @@ binding:
 ### Colour usage rules
 
 - Colour never carries meaning alone. Every label, tier, and status is also distinguishable by text, shape,
-  or icon. Roughly one in twelve men has a colour-vision deficiency, and this palette places `male` blue
-  next to `female` orange and `institution` green.
+  or icon. This remains necessary with violet, teal, gray, and ochre and their theme-specific variants.
 - The two accents are not interchangeable. `--accent` marks navigation and current location; `--accent-b`
   marks actions and confirmation.
 - Never introduce a colour scale for certainty. Tiers are categorical, not ordinal-continuous — see
   [Rendering the scientific vocabulary](#rendering-the-scientific-vocabulary).
 - Charts use the label tokens for label-keyed series only. Any other series uses a neutral ramp.
+  Snapshot source distributions use the corresponding label solid; other or multiple source values
+  use a neutral hatch and an explicit separate label, preserving their distinction from `unknown`.
 - Charts are hand-rolled SVG against the tokens (decision D10), so they inherit both themes and the label
   palette for free. This covers the distribution bars, the Cohen's κ matrix, and the confusion matrices.
 
@@ -274,6 +289,12 @@ decision is, and they are categorical.
 distinct: the first is disagreement between methods, the second is absence of corroboration. On the case
 study register they are 3.6 % and 12.7 % of entries respectively. A design that merges them into one
 "needs attention" bucket buries the contested cases in the larger thin-evidence set.
+
+Certainty badge tones use independent status tokens: `contested` uses `--critical-text` and
+`--critical-tint`, `low` uses `--warning-text` and `--warning-tint`, and thin evidence uses
+`--info-text` and `--info-tint`. They do not borrow canonical label colours. Their gloss inherits
+the foreground of the status tint. Text on these tints measures 4.90, 5.95, and 6.08 in light;
+5.19, 8.17, and 7.53 in dark.
 
 ### Agreement tiers
 
@@ -466,6 +487,9 @@ project role before the shell requests readable project identity. Management alo
 destination without scientific project navigation. Members has its own active state; it never
 highlights Overview. No managed-project pagination is added for decoration.
 
+The current project's name is the switcher button's visible label. This single control combines
+project identity and switching above its destinations, replacing the separate name, action row, and
+"Current project" heading. Its accessible name explains switching and includes the current project.
 Project alternatives use the first server-ordered page of `useProjectList`, with loading, empty and
 retry states. The Projects destination directly above the switcher opens the full list; the quick menu
 does not duplicate that link. A failed alternatives read does not erase the separately authorized

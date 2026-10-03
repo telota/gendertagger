@@ -1,6 +1,8 @@
 # Authentication and authorization
 
-Authentication is required because the system supports imports, compute jobs, and scholarly annotations.
+Authentication is required for project imports, compute jobs, and scholarly annotations. The bounded
+anonymous name-classification exception is defined in
+[ADR-0044](decisions/ADR-0044-public-name-classification.md) and grants no access to those resources.
 
 ## Role model
 
@@ -189,8 +191,13 @@ is recorded in [`22-future-development.md`](22-future-development.md).
 - `GET /me`, `GET /auth/session`, `POST /auth/logout`, and `POST /me/password` carry only
   `require_csrf_protection`, so a flagged account can learn about the flag and still reach the one route
   that clears it.
-- `POST /auth/login` is the only unauthenticated route, since no session exists yet. A failed login
+- `POST /auth/login`, `GET /branding`, and `GET /branding/logo` are unauthenticated. A failed login
   returns a generic `401 invalid_credentials` whether or not the username exists.
+- `/public/methods` and `/public/classify` are explicitly anonymous with bounded input, a deployment-owned
+  method allowlist, and server-owned configuration. Polling `/public/classification-jobs/{id}` additionally
+  requires the random retrieval capability in `X-Classification-Token`; inaccessible IDs return `404`.
+  These routes have no project or administrative dependencies and disclose no submitted inputs to other
+  callers. Request body and acceptance rate limits are enforced by the deployment gateway.
 
 Same-origin deployment uses secure HTTP-only session cookies with appropriate `Secure`,
 `HttpOnly`, and `SameSite` settings, so authentication secrets are never stored in

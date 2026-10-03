@@ -52,9 +52,10 @@ class DispatchOutboxRow(UuidPrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, Bas
             "export_execution_id",
             name="export_execution_single_dispatch",
         ),
+        UniqueConstraint("classification_job_id", name="classification_job_single_dispatch"),
         CheckConstraint(
             "num_nonnulls(task_batch_id, aggregation_execution_id, dataset_snapshot_id, "
-            "evaluation_execution_id, export_execution_id) = 1",
+            "evaluation_execution_id, export_execution_id, classification_job_id) = 1",
             name="exactly_one_target",
         ),
         CheckConstraint(
@@ -99,6 +100,10 @@ class DispatchOutboxRow(UuidPrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, Bas
     export_execution_id: Mapped[UUID | None] = mapped_column(
         POSTGRESQL_UUID(as_uuid=True),
         ForeignKey("export_executions.id", ondelete="RESTRICT"),
+    )
+    classification_job_id: Mapped[UUID | None] = mapped_column(
+        POSTGRESQL_UUID(as_uuid=True),
+        ForeignKey("public_classification_jobs.id", ondelete="RESTRICT"),
     )
     queue_name: Mapped[str] = mapped_column(String(100), nullable=False)
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)

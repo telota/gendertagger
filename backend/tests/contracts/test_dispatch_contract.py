@@ -12,9 +12,11 @@ from gendertagger.models.dispatch import (
     DispatchCreate,
     DispatchStatus,
     DispatchTarget,
+    PublicClassificationDispatchCreate,
     SnapshotDispatchCreate,
 )
 from gendertagger.models.project import SnapshotImportTaskMessage
+from gendertagger.models.public_classification import PublicClassificationTaskMessage
 from gendertagger.models.run import TaskBatchMessage
 
 
@@ -83,6 +85,33 @@ def test_dispatch_create_union_supports_dataset_snapshot_target() -> None:
 
     assert isinstance(command, SnapshotDispatchCreate)
     assert command.target_id == dataset_snapshot_id
+
+
+def test_public_classification_dispatch_requires_matching_job_identity() -> None:
+    with pytest.raises(ValidationError, match="classification_job_id must match"):
+        PublicClassificationDispatchCreate(
+            classification_job_id=uuid4(),
+            queue_name="cpu",
+            payload=PublicClassificationTaskMessage(classification_job_id=uuid4()),
+            available_at=datetime.now(UTC),
+        )
+
+
+def test_dispatch_create_union_supports_public_classification_job_target() -> None:
+    job_id = uuid4()
+
+    command: DispatchCreate = TypeAdapter(DispatchCreate).validate_python(
+        {
+            "target": DispatchTarget.public_classification_job,
+            "classification_job_id": job_id,
+            "queue_name": "cpu",
+            "payload": {"classification_job_id": job_id},
+            "available_at": datetime.now(UTC),
+        }
+    )
+
+    assert isinstance(command, PublicClassificationDispatchCreate)
+    assert command.target_id == job_id
 
 
 def test_dispatch_create_normalizes_available_time_to_utc() -> None:
