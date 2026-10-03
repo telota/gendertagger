@@ -75,11 +75,23 @@ Run from the repository root with `npm --prefix frontend run <script>`, or from 
 | `lint` | ESLint with the Vue, TypeScript, accessibility, and i18n rules; warnings fail |
 | `format:check` | Prettier |
 | `typecheck` | `vue-tsc` over the application, the tests, and the tool configuration |
-| `test` | Vitest with an 80 % branch-coverage floor |
+| `test` | Uncovered Vitest run for focused development feedback |
+| `test:watch` | Uncovered watch mode; reuses transformed modules between edits |
+| `test:coverage` | Full Vitest run with an 80 % branch-coverage floor |
 | `api:generate` | Regenerate `src/api/schema.d.ts` from the OpenAPI contract |
 | `api:check` | Fail when `src/api/schema.d.ts` is stale |
 | `i18n:check` | Fail on message-catalogue drift between locales |
-| `check` | `typecheck`, `i18n:check`, `api:check`, and `test` in one run; the pre-push hook |
+| `check` | `typecheck`, `i18n:check`, `api:check`, and `test:coverage`; used by affected push checks |
+
+Vitest assigns pure parser and source-policy tests to its Node project and browser-dependent tests to
+isolated jsdom. Application mounts own their teardown, including Vue unmount and query-client cleanup;
+mutable routers, stores, clients, and mock servers stay fresh per test. CI publishes JUnit timings alongside
+the combined coverage report. Source-policy tests read files directly, so run the Node project on frontend
+source changes even when a related-test import graph would not select them:
+
+```bash
+npm --prefix frontend test -- --project node
+```
 
 ## Transport contract
 

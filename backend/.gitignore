@@ -13,6 +13,7 @@
 /coverage.xml
 /coverage-*.xml
 /htmlcov/
+/junit-*.xml
 
 # Celery beat state
 celerybeat-schedule

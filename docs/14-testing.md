@@ -215,3 +215,41 @@ generated from the committed snapshot, and the `frontend_quality` CI job fails w
 Test markers, coverage thresholds, and CI requirements are defined in
 [`18-engineering-and-quality.md`](18-engineering-and-quality.md). Exact local and service-backed commands are
 maintained in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+
+### Canonical ordinary profiles
+
+[`run_tests.py`](../backend/scripts/run_tests.py) defines the selections used by local development,
+push checks, and CI. Each collected ordinary case must match exactly one profile before marker deselection:
+
+| Profile | Selection |
+|---|---|
+| `fast` | No infrastructure, end-to-end, or protected markers |
+| `postgres` | PostgreSQL required, Redis not required, no protected markers |
+| `redis` | Redis required, no protected markers; may also require PostgreSQL |
+
+`slow`, `gpu`, and `external` cases remain explicitly protected. An `integration` or `e2e` case without
+an infrastructure or protected marker fails collection with its node ID instead of silently disappearing
+from CI. PostgreSQL cases do not also need `integration`; a case requiring both databases belongs to the
+Redis suite. Collection-only profile runs require neither running services nor TestClient support.
+
+Execution fails early when service-backed profiles lack their explicit test URLs, or when the bounded
+asyncio probe detects a runner that cannot support TestClient. Covered runs retain separate coverage data
+and the existing partial thresholds. Every profile reports slow setup/call/teardown durations; CI also
+publishes JUnit case timings. Full handoff and CI coverage combination still require all three suites.
+
+### Reusable setup and fresh state
+
+Ordinary development runs omit coverage and use focused paths; frontend watch mode reuses transformed
+modules. The frontend partitions pure Node tests and isolated jsdom tests with complementary file patterns.
+Shared application mounts dispose Vue instances and query clients after each test. Routers, stores,
+dependency overrides, mock servers, and mutable records remain independent.
+
+Backend authentication fixtures reuse real Argon2 seed hashes for fixed synthetic passwords within one
+process. They still create fresh accounts, credentials, sessions, and cookies; login verification and
+password-change hashing use the production hasher. PostgreSQL schema migration already has session scope;
+transaction and committed-row cleanup retain their current isolation until separately optimized.
+
+Push checks supplement hook filenames from validated Git refs with a NUL-delimited diff that includes
+deleted files and both sides of renames. They always validate documentation and select affected components
+conservatively. Uninspectable refs, shared inputs, unknown paths, and an empty path set select both components.
+Successful checks are not cached. Full CI remains unconditional while impact selection is validated locally.

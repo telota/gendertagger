@@ -68,14 +68,15 @@ backend_lockfile:
     - uv lock --check
 
 backend_repository_policy:
-  extends: .backend_python_job
+  extends: .backend_uv_job
   stage: validate
   timeout: 10 minutes
   script:
-    - uv run --locked python scripts/check_documentation.py
-    - uv run --locked python scripts/check_contract_naming.py
-    - uv run --locked python scripts/check_package_initializers.py
-    - uv run --locked python scripts/check_dead_code.py
+    # These checks use only the standard library; installing model dependencies adds no validation.
+    - python scripts/check_documentation.py
+    - python scripts/check_contract_naming.py
+    - python scripts/check_package_initializers.py
+    - python scripts/check_dead_code.py
 
 backend_quality:
   extends: .backend_python_job
@@ -139,22 +140,19 @@ backend_fast_test:
   # The fast suite has a 70% non-regression floor. Service-specific jobs publish
   # partial data; the combined backend_coverage enforces the authoritative 85% project floor.
   script:
-    - uv run --locked python scripts/check_asyncio_runner.py --timeout-seconds 5
     - >-
       timeout --signal=TERM --kill-after=30s 15m
-      uv run --locked pytest
-      -m "not integration and not postgres and not redis and not e2e and not slow and not gpu and not external"
-      --hypothesis-profile=ci
-      --cov
-      --cov-report=term-missing
-      --cov-report=xml:coverage-fast.xml
-      --cov-fail-under=70
+      uv run --locked python scripts/run_tests.py fast
+      --coverage --junitxml junit-fast.xml
   artifacts:
     when: always
     expire_in: 1 week
     paths:
       - backend/.coverage.fast
       - backend/coverage-fast.xml
+      - backend/junit-fast.xml
+    reports:
+      junit: backend/junit-fast.xml
 
 frontend_test:
   extends: .frontend_node_job
@@ -162,12 +160,13 @@ frontend_test:
   timeout: 15 minutes
   # Vitest enforces the 80 % branch-coverage floor itself (decision D11) and fails the job below it.
   script:
-    - npm test
+    - npm run test:coverage -- --reporter=default --reporter=junit --outputFile.junit=junit-frontend.xml
   coverage: '/Branches\s*:\s*(\d+(?:\.\d+)?)%/'
   artifacts:
     when: always
     expire_in: 1 week
     reports:
+      junit: frontend/junit-frontend.xml
       coverage_report:
         coverage_format: cobertura
         path: frontend/coverage/cobertura-coverage.xml
@@ -194,24 +193,21 @@ backend_postgres_test:
     GENDERTAGGER_TEST_DATABASE_URL: postgresql+psycopg://gendertagger:gendertagger_ci@postgres:5432/gendertagger_ci
     COVERAGE_FILE: .coverage.postgres
   script:
-    - uv run --locked python scripts/check_asyncio_runner.py --timeout-seconds 5
     - uv run --locked alembic upgrade head
     - uv run --locked alembic check
     - >-
       timeout --signal=TERM --kill-after=30s 20m
-      uv run --locked pytest
-      -m "integration and postgres"
-      --hypothesis-profile=ci
-      --cov
-      --cov-report=term-missing
-      --cov-report=xml:coverage-postgres.xml
-      --cov-fail-under=0
+      uv run --locked python scripts/run_tests.py postgres
+      --coverage --junitxml junit-postgres.xml
   artifacts:
     when: always
     expire_in: 1 week
     paths:
       - backend/.coverage.postgres
       - backend/coverage-postgres.xml
+      - backend/junit-postgres.xml
+    reports:
+      junit: backend/junit-postgres.xml
 
 backend_celery_test:
   extends: .backend_python_job
@@ -233,27 +229,23 @@ backend_celery_test:
     COVERAGE_FILE: .coverage.redis
   script:
     - uv run --locked alembic upgrade head
-    # A real Redis broker drives an in-process worker; disable pytest's
-    # unraisable-exception plugin because redis-py's client is finalized by GC.
+    # The Redis profile drives a real broker/worker and supplies its required pytest plugin options.
     - >-
       timeout --signal=TERM --kill-after=30s 20m
-      uv run --locked pytest
-      -m "redis"
-      --hypothesis-profile=ci
-      --cov
-      --cov-report=term-missing
-      --cov-report=xml:coverage-redis.xml
-      --cov-fail-under=0
-      -p no:unraisableexception
+      uv run --locked python scripts/run_tests.py redis
+      --coverage --junitxml junit-redis.xml
   artifacts:
     when: always
     expire_in: 1 week
     paths:
       - backend/.coverage.redis
       - backend/coverage-redis.xml
+      - backend/junit-redis.xml
+    reports:
+      junit: backend/junit-redis.xml
 
 backend_coverage:
-  extends: .backend_python_job
+  extends: .backend_uv_job
   stage: coverage
   timeout: 10 minutes
   needs:
@@ -264,17 +256,19 @@ backend_coverage:
     - job: backend_celery_test
       artifacts: true
   script:
+    # Reporting requires the locked test tools, without the application or model dependencies.
+    - uv sync --locked --only-group test --no-install-project
     - >-
-      uv run --locked coverage combine
+      uv run --locked --no-sync coverage combine
       .coverage.fast
       .coverage.postgres
       .coverage.redis
-    - uv run --locked coverage xml --fail-under=0 -o coverage.xml
-    - uv run --locked coverage report --fail-under=85
-    - uv run --locked coverage report --include=src/gendertagger/methods/normalization.py --fail-under=100
-    - uv run --locked coverage report --include=src/gendertagger/domain/aggregation.py --fail-under=100
-    - uv run --locked coverage report --include=src/gendertagger/domain/aggregation_assessment.py --fail-under=100
-    - uv run --locked coverage report --include=src/gendertagger/export/tei_profile.py --fail-under=100
+    - uv run --locked --no-sync coverage xml --fail-under=0 -o coverage.xml
+    - uv run --locked --no-sync coverage report --fail-under=85
+    - uv run --locked --no-sync coverage report --include=src/gendertagger/methods/normalization.py --fail-under=100
+    - uv run --locked --no-sync coverage report --include=src/gendertagger/domain/aggregation.py --fail-under=100
+    - uv run --locked --no-sync coverage report --include=src/gendertagger/domain/aggregation_assessment.py --fail-under=100
+    - uv run --locked --no-sync coverage report --include=src/gendertagger/export/tei_profile.py --fail-under=100
   coverage: '/TOTAL.*\s+([0-9]+(?:\.[0-9]+)?%)/'
   artifacts:
     when: always
@@ -287,12 +281,12 @@ backend_coverage:
         path: backend/coverage.xml
 
 backend_build:
-  extends: .backend_python_job
+  extends: .backend_uv_job
   stage: package
   timeout: 10 minutes
   script:
     - uv build --no-sources
-    - uv run --locked python scripts/check_distribution.py dist/*
+    - python scripts/check_distribution.py dist/*
   artifacts:
     expire_in: 1 week
     paths:

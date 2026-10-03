@@ -14,6 +14,7 @@ from alembic.config import Config
 from hypothesis import settings
 from psycopg import sql
 from redis import Redis
+from scripts.run_tests import partition_tests
 from sqlalchemy import Connection, Engine, create_engine
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.orm import Session
@@ -36,6 +37,21 @@ settings.register_profile(
     print_blob=True,
 )
 DatabaseFactory: TypeAlias = Callable[[], str]
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Validate the ordinary profile inventory before pytest deselects any items."""
+    try:
+        partitions = partition_tests(
+            {item.nodeid: {marker.name for marker in item.iter_markers()} for item in items}
+        )
+    except ValueError as error:
+        raise pytest.UsageError(str(error)) from error
+    reporter = config.pluginmanager.get_plugin("terminalreporter")
+    if reporter is not None:
+        counts = ", ".join(f"{name}={len(tests)}" for name, tests in partitions.items())
+        reporter.write_line(f"Ordinary test profiles: {counts}")
 
 
 def _alembic_config(database_url: str) -> Config:

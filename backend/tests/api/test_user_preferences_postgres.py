@@ -10,6 +10,7 @@ from fastapi import Request
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from sqlalchemy import Engine
+from tests.passwords import hash_fixture_password
 
 from gendertagger.api.app import create_app
 from gendertagger.api.authentication import CSRF_COOKIE_NAME, CSRF_HEADER_NAME, SESSION_COOKIE_NAME
@@ -17,7 +18,6 @@ from gendertagger.api.settings import AppSettings
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.models.user import UserCreate
-from gendertagger.services.password_hashing import Argon2PasswordHasher
 from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
@@ -53,7 +53,7 @@ class _Deployment:
             return SqlAlchemyUnitOfWork(session_factory)
 
         self.unit_of_work_factory: UnitOfWorkFactory = unit_of_work_factory
-        self.password_hash = Argon2PasswordHasher().hash(PASSWORD)
+        self.password_hash = hash_fixture_password(PASSWORD)
         self.application = create_app(
             settings=AppSettings(
                 database_url=SecretStr("postgresql+psycopg://unused:unused@localhost/unused"),

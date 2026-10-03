@@ -8,6 +8,17 @@ import { defineConfig } from 'vitest/config'
 // access. This server-only setting points at the API container, or the host API by default.
 const API_DEVELOPMENT_TARGET = process.env.GENDERTAGGER_DEV_API_TARGET || 'http://localhost:8000'
 
+// These specs exercise strings, contracts or files without browser APIs. The DOM project includes
+// every spec except this same list, so new specs remain included and no spec runs in both projects.
+const NODE_TEST_FILES = [
+  'tests/styles/**/*.spec.ts',
+  'tests/tooling/**/*.spec.ts',
+  'tests/api/csrf.spec.ts',
+  'tests/api/errors.spec.ts',
+  'tests/app/publication.spec.ts',
+  'tests/features/evaluation/report-schema.spec.ts',
+]
+
 export default defineConfig({
   plugins: [vue()],
   resolve: {
@@ -21,9 +32,27 @@ export default defineConfig({
     },
   },
   test: {
-    environment: 'jsdom',
-    setupFiles: ['./tests/setup.ts'],
-    include: ['tests/**/*.spec.ts'],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'node',
+          environment: 'node',
+          include: NODE_TEST_FILES,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'dom',
+          environment: 'jsdom',
+          setupFiles: ['./tests/setup.ts'],
+          include: ['tests/**/*.spec.ts'],
+          exclude: NODE_TEST_FILES,
+          isolate: true,
+        },
+      },
+    ],
     // The first test of a file that mounts a lazy route imports that whole screen cold; with coverage
     // instrumentation and many files in parallel that can pass the 5 s default on a loaded machine.
     testTimeout: 20_000,

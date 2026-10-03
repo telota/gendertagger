@@ -67,45 +67,16 @@ repos:
             tests/tooling/test_policy_scripts\.py|pyproject\.toml
           )$
         pass_filenames: false
-      - id: mypy
-        name: Strict mypy
-        entry: uv run --locked --directory backend mypy
+      - id: affected-verification
+        name: Verify affected components
+        entry: python3 backend/scripts/check_project.py --
         language: system
         stages: [pre-push]
         always_run: true
-        pass_filenames: false
-      - id: pyright
-        name: Pyright analysis
-        entry: npm --prefix backend run typecheck:pyright
-        language: system
-        stages: [pre-push]
-        always_run: true
-        pass_filenames: false
-      - id: import-linter
-        name: Import boundaries
-        entry: uv run --locked --directory backend lint-imports
-        language: system
-        stages: [pre-push]
-        always_run: true
-        pass_filenames: false
-      - id: asyncio-runner
-        name: Asyncio runner capabilities
-        entry: uv run --locked --directory backend python scripts/check_asyncio_runner.py
-        language: system
-        stages: [pre-push]
-        always_run: true
-        pass_filenames: false
-      - id: fast-tests
-        name: Fast tests
-        entry: >-
-          uv run --locked --directory backend pytest
-          -m "not integration and not postgres and not redis and not e2e and not slow and not gpu and not external"
-          --hypothesis-profile=ci --cov --cov-report=term-missing --cov-report=xml
-          --cov-fail-under=70
-        language: system
-        stages: [pre-push]
-        always_run: true
-        pass_filenames: false
+        # Pre-commit passes all changed paths in the pushed range. One invocation must see
+        # the complete path set so shared/unknown inputs trigger the conservative fallback.
+        pass_filenames: true
+        require_serial: true
       - id: frontend-format
         name: Frontend format check
         entry: npm --prefix frontend run format:check
@@ -117,11 +88,4 @@ repos:
         entry: npm --prefix frontend run lint
         language: system
         files: ^frontend/(?:src|tests|scripts|public)/.*\.(?:ts|vue|js|mjs|json)$|^frontend/eslint\.config\.js$
-        pass_filenames: false
-      - id: frontend-checks
-        name: Frontend typecheck, catalogues, and transport drift
-        entry: npm --prefix frontend run check
-        language: system
-        stages: [pre-push]
-        always_run: true
         pass_filenames: false

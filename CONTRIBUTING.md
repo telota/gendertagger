@@ -25,9 +25,39 @@ After the Git repository has been initialized, install the local hooks (still fr
 uv run --locked pre-commit install --install-hooks
 ```
 
-The hooks format and lint changed files, validate documentation and contract naming, validate the lockfile and
-repository metadata, run strict typing and import-boundary checks, and run the fast test suite before a push.
-CI remains authoritative.
+The commit hooks format and lint changed files and validate repository policies. Before a push, one
+verification runner checks the affected components from the complete pushed path set. Frontend-only
+changes avoid backend application checks; backend contract, shared deployment, verification configuration,
+and unknown paths conservatively select both components. Documentation validation always runs.
+CI and the full handoff checks below remain authoritative.
+
+## Fast feedback while editing
+
+Run focused tests without coverage during iteration. The backend runner owns the shared marker selections,
+prints the slowest tests, and probes TestClient runner support before execution:
+
+```bash
+cd backend
+uv run --locked python scripts/run_tests.py fast -- tests/contracts -q
+uv run --locked python scripts/run_tests.py postgres --collect-only
+uv run --locked python scripts/run_tests.py --list-profiles
+```
+
+From the repository root, frontend watch mode reuses transformed modules between edits:
+
+```bash
+npm --prefix frontend test -- tests/app/ProjectSwitcher.spec.ts
+npm --prefix frontend run test:watch -- tests/app/ProjectSwitcher.spec.ts
+python3 backend/scripts/check_project.py --dry-run frontend/src/app/ProjectSwitcher.vue
+python3 backend/scripts/check_project.py --full --dry-run
+```
+
+`check_project.py` orchestrates push checks, not the complete service-backed handoff. In push hooks it
+supplements filenames with a NUL-delimited Git diff, preserving deleted files and both sides of renames.
+Missing or unsupported push refs, failed inspection, an empty path set, or unknown paths select both
+components. It does not cache successful test results. `npm test` is uncovered; `test:coverage` and `check` enforce the frontend
+coverage gate. Pure frontend policy/parser tests use Node, while browser-dependent tests retain isolated
+jsdom environments and fresh application state.
 
 ## Required checks
 
@@ -47,25 +77,17 @@ npm audit --audit-level=high
 npm run typecheck:pyright
 uv run --locked lint-imports
 uv audit --locked
-uv run --locked python scripts/check_asyncio_runner.py
-COVERAGE_FILE=.coverage.fast uv run --locked pytest \
-  -m "not integration and not postgres and not redis and not e2e and not slow and not gpu and not external" \
-  --hypothesis-profile=ci --cov --cov-report=term-missing \
-  --cov-report=xml:coverage-fast.xml --cov-fail-under=70
+uv run --locked python scripts/run_tests.py fast --coverage --junitxml junit-fast.xml
 GENDERTAGGER_DATABASE_URL=postgresql+psycopg://user:password@localhost/gendertagger \
   uv run --locked alembic upgrade head
 GENDERTAGGER_DATABASE_URL=postgresql+psycopg://user:password@localhost/gendertagger \
   uv run --locked alembic check
 GENDERTAGGER_TEST_DATABASE_URL=postgresql+psycopg://user:password@localhost/postgres \
-  COVERAGE_FILE=.coverage.postgres uv run --locked pytest \
-  -m "integration and postgres" --hypothesis-profile=ci --cov \
-  --cov-report=term-missing --cov-report=xml:coverage-postgres.xml --cov-fail-under=0
+  uv run --locked python scripts/run_tests.py postgres --coverage --junitxml junit-postgres.xml
 GENDERTAGGER_DATABASE_URL=postgresql+psycopg://user:password@localhost/gendertagger \
   GENDERTAGGER_TEST_DATABASE_URL=postgresql+psycopg://user:password@localhost/postgres \
   GENDERTAGGER_TEST_REDIS_URL=redis://localhost:6379/15 \
-  COVERAGE_FILE=.coverage.redis uv run --locked pytest -m "redis" \
-  --hypothesis-profile=ci --cov --cov-report=term-missing \
-  --cov-report=xml:coverage-redis.xml --cov-fail-under=0 -p no:unraisableexception
+  uv run --locked python scripts/run_tests.py redis --coverage --junitxml junit-redis.xml
 uv run --locked coverage combine \
   .coverage.fast .coverage.postgres .coverage.redis
 uv run --locked coverage xml --fail-under=0 -o coverage.xml
@@ -89,7 +111,7 @@ npm --prefix frontend run typecheck
 npm --prefix frontend run i18n:check
 npm --prefix frontend run api:check
 npm --prefix frontend audit --audit-level=high
-npm --prefix frontend test
+npm --prefix frontend run test:coverage
 npm --prefix frontend run build
 ```
 
@@ -117,8 +139,9 @@ assessment, and TEI projection. Every partial suite remains independently blocki
 
 From `backend/`, use `uv run --locked pre-commit run --all-files` to exercise all pre-commit-stage hooks
 manually.
-Use `uv run --locked pre-commit run --all-files --hook-stage pre-push` to exercise the mypy/Pyright,
-import-boundary, runner-capability, and fast-test hooks without pushing.
+Use `uv run --locked pre-commit run --all-files --hook-stage pre-push` to exercise both components'
+push checks without pushing. For an explicit affected path set, use `python3 backend/scripts/check_project.py`
+from the repository root; inspect its selection with `--dry-run` first when useful.
 
 ## Change discipline
 

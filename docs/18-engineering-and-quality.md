@@ -16,8 +16,9 @@ does not precede a deployable, tested vertical slice.
   `engine-strict=true`, so `npm ci` in `frontend/` needs the Node version in its `engines` field.
 - Direct development tools are pinned in `pyproject.toml`; the lockfile records the complete transitive
   Python environment. JavaScript development tools are pinned exactly in `package.json`.
-- Runtime libraries belong in `[project.dependencies]`. Heavy method/model dependencies should use
-  deliberate optional groups and must not enter ordinary CI accidentally.
+- Runtime libraries belong in `[project.dependencies]`, including the method libraries required by
+  [ADR-0029](decisions/ADR-0029-unconditional-method-dependencies.md). Ordinary test environments install
+  those locked libraries; model downloads, external inference and GPU execution remain explicitly protected.
 - CI exercises the minimum supported Python. The checked-in `.python-version` selects that interpreter for
   local development; `requires-python` in `pyproject.toml` remains the authoritative compatibility
   declaration.
@@ -93,6 +94,12 @@ Markers define execution requirements rather than importance:
 - `e2e`: a full supported workflow over a tiny fixture;
 - `slow`, `gpu`, and `external`: excluded from ordinary CI and enabled only explicitly.
 
+The canonical profile runner in `backend/scripts/run_tests.py` generates the marker expressions for local,
+push, and CI runs. Collection validates that every ordinary test belongs to exactly one profile:
+infrastructure-free cases are fast, PostgreSQL-only cases are postgres, and Redis cases are redis even when
+they also require PostgreSQL. Explicit protected markers exclude a case from ordinary profiles. Missing
+infrastructure assignment is a collection error; no ordinary test may silently fall outside every suite.
+
 Every test must be independent of execution order and shared mutable state. PostgreSQL-specific behavior is
 tested on PostgreSQL, and at least one Celery path uses a real Redis broker/worker rather than eager mode.
 
@@ -136,6 +143,18 @@ The merge-request pipeline covers PostgreSQL/Alembic, API/OpenAPI, Redis/Celery,
 every reference adapter, and the complete evaluation/export workflow, plus packaging, secret detection,
 and the frontend jobs described above. Image publishing and image SBOM generation run only on the
 default branch; heavy-model checks remain on protected or scheduled runners.
+
+Local push checks use `backend/scripts/check_project.py` to select affected components from all pushed paths.
+Documentation validation always runs. Backend contract inputs, deployment/configuration shared by both
+clients, verification tooling, and unknown paths conservatively select both components; an empty path set
+also selects both. This feedback optimization does not reduce required full handoff checks or make CI jobs
+conditional. Until exact-input reuse is separately specified, every selected check executes afresh.
+
+Repository-policy scripts run on the pinned Python interpreter without installing application dependencies.
+Package construction uses isolated build tooling, and combined coverage installs only the locked test-tool
+group. Tests and type analysis keep the complete locked application environment. CI publishes JUnit timing
+reports for each backend profile and the frontend alongside coverage artifacts. Coverage combination keeps
+all three suite artifacts from the same pipeline and preserves every threshold.
 
 Ordinary merge-request jobs have no production secrets and must not use private-network, GPU, model, or
 deployment runners. Such runners are protected and accept only trusted protected refs or schedules.

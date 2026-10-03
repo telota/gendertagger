@@ -4,3 +4,4 @@ coverage/
 .vite/
 .npm/
 *.log
+/junit-*.xml

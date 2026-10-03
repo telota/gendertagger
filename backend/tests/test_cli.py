@@ -17,7 +17,8 @@ from gendertagger.db.repositories.artifact_repository import SqlAlchemyArtifactR
 from gendertagger.db.repositories.auth_repository import SqlAlchemyAuthRepository
 from gendertagger.db.repositories.user_repository import SqlAlchemyUserRepository
 from gendertagger.models.artifact import LookupArtifactMetadata
-from gendertagger.models.user import GlobalRole
+from gendertagger.models.project import ProjectMembershipState
+from gendertagger.models.user import GlobalRole, ProjectRole
 from gendertagger.services.password_hashing import Argon2PasswordHasher
 from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
 from gendertagger.storage.local import LocalArtifactStorage
@@ -314,6 +315,10 @@ def test_projects_cli_grants_changes_lists_and_revokes_membership(
         session.commit()
     main(["users", "create", "--display-name", "Member One", "--username", "member.one"])
     user_id = json.loads(capsys.readouterr().out)["user_id"]
+    with Session(postgres_engine) as session:
+        # ADR-0041 requires direct team membership before granting a project role.
+        session_repositories(session).teams.add_member(project.team.id, UUID(user_id))
+        session.commit()
     membership = ["--project", "cli-membership", "--username", "Member.One"]
 
     main(["projects", "add-member", *membership, "--role", "viewer"])
@@ -321,19 +326,24 @@ def test_projects_cli_grants_changes_lists_and_revokes_membership(
     main(["projects", "add-member", *membership, "--role", "reviewer"])
     changed = json.loads(capsys.readouterr().out)
     main(["projects", "list-members", "--project", "cli-membership"])
-    listed = json.loads(capsys.readouterr().out)
+    listed = ProjectMembershipState.model_validate(json.loads(capsys.readouterr().out))
     main(["projects", "remove-member", *membership])
     removed = json.loads(capsys.readouterr().out)
     main(["projects", "list-members", "--project", "cli-membership"])
-    listed_after_removal = json.loads(capsys.readouterr().out)
+    listed_after_removal = ProjectMembershipState.model_validate(
+        json.loads(capsys.readouterr().out)
+    )
 
     assert (granted["user_id"], granted["role"]) == (user_id, "viewer")
     assert changed["role"] == "reviewer"
-    assert [(member["display_name"], member["role"]) for member in listed] == [
-        ("Member One", "reviewer")
+    assert [(member.display_name, member.role) for member in listed.members] == [
+        ("Member One", ProjectRole.reviewer)
     ]
+    assert listed.manager.user_id == project.manager_user_id
+    assert listed.manager.project_role is None
     assert removed == {"project_id": str(project.id), "user_id": user_id}
-    assert listed_after_removal == []
+    assert listed_after_removal.members == []
+    assert listed_after_removal.manager == listed.manager
 
 
 @pytest.mark.postgres
@@ -348,14 +358,18 @@ def test_projects_cli_rejects_unknown_projects_users_and_memberships(
         "GENDERTAGGER_DATABASE_URL", database_url.render_as_string(hide_password=False)
     )
     with Session(postgres_engine) as session:
-        seed_project(
+        project = seed_project(
             session_repositories(session),
             slug="cli-unknowns",
             display_name="CLI unknowns",
         )
         session.commit()
     main(["users", "create", "--display-name", "Outsider", "--username", "outsider"])
-    capsys.readouterr()
+    user_id = UUID(json.loads(capsys.readouterr().out)["user_id"])
+    with Session(postgres_engine) as session:
+        # Keep the account team-eligible while leaving its project grant absent.
+        session_repositories(session).teams.add_member(project.team.id, user_id)
+        session.commit()
 
     with pytest.raises(ValueError, match="project 'missing' does not exist"):
         main(["projects", "list-members", "--project", "missing"])

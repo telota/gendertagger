@@ -16,12 +16,13 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json && vue-tsc --noEmit -p tsconfig.test.json && vue-tsc --noEmit -p tsconfig.node.json",
-    "test": "vitest run --coverage",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "api:generate": "node scripts/generate-api.mjs",
     "api:check": "node scripts/generate-api.mjs --check",
     "i18n:check": "node scripts/check-i18n.mjs",
-    "check": "npm run typecheck && npm run i18n:check && npm run api:check && npm test"
+    "check": "npm run typecheck && npm run i18n:check && npm run api:check && npm run test:coverage"
   },
   "dependencies": {
     "@headlessui/vue": "1.7.23",

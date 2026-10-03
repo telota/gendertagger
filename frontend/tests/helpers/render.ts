@@ -13,7 +13,9 @@ import { API_CLIENT_KEY } from '@/composables/useApiClient'
 
 // The fixture locale also establishes browser fallback for account locale null and anonymous visitors.
 let restoreBrowserLanguages: (() => void) | undefined
+const mountedApplications = new Set<() => void>()
 afterEach(() => {
+  for (const dispose of mountedApplications) dispose()
   restoreBrowserLanguages?.()
   restoreBrowserLanguages = undefined
 })
@@ -23,6 +25,8 @@ afterEach(() => {
  *
  * A caller that needs the router beforehand — to build a client whose `onUnauthorized` hook
  * navigates it, for instance — creates one and passes it in; everyone else gets a fresh default.
+ * The helper owns teardown after each test. Explicit unmounting also disposes the query cache and
+ * is safe to repeat, including in tests that additionally use `enableAutoUnmount`.
  */
 export async function mountApplicationAt(
   path: string,
@@ -35,18 +39,25 @@ export async function mountApplicationAt(
   restoreBrowserLanguages = () => languageSpy.mockRestore()
   await router.push(path)
   await router.isReady()
+  const queryClient = createQueryClient()
   const wrapper = mount(App, {
     attachTo: document.body,
     global: {
-      plugins: [
-        createPinia(),
-        createAppI18n(locale),
-        router,
-        [VueQueryPlugin, { queryClient: createQueryClient() }],
-      ],
+      plugins: [createPinia(), createAppI18n(locale), router, [VueQueryPlugin, { queryClient }]],
       provide: { [API_CLIENT_KEY as symbol]: client },
     },
   })
+  const unmount = wrapper.unmount.bind(wrapper)
+  function dispose(): void {
+    if (!mountedApplications.delete(dispose)) return
+    try {
+      unmount()
+    } finally {
+      queryClient.clear()
+    }
+  }
+  mountedApplications.add(dispose)
+  wrapper.unmount = dispose
   await flushPromises()
   return wrapper
 }

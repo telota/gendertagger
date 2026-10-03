@@ -230,6 +230,7 @@ markers = [
   "external: tests requiring an explicitly enabled external service",
 ]
 minversion = "9.1"
+pythonpath = ["."] # Shared verification tooling lives in the backend scripts package.
 testpaths = ["tests"]
 xfail_strict = true
 

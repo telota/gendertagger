@@ -8,13 +8,13 @@ from uuid import UUID
 
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
+from tests.passwords import hash_fixture_password
 
 from gendertagger.api.app import create_app
 from gendertagger.api.authentication import CSRF_COOKIE_NAME, CSRF_HEADER_NAME, SESSION_COOKIE_NAME
 from gendertagger.api.settings import AppSettings
 from gendertagger.models.auth import LocalCredential, UserSession
 from gendertagger.models.user import GlobalRole, User, UserCreate
-from gendertagger.services.password_hashing import Argon2PasswordHasher
 from gendertagger.services.ports.auth_repository import AuthRepository
 from gendertagger.services.ports.unit_of_work import UnitOfWork
 from gendertagger.services.ports.user_repository import UserRepository
@@ -46,7 +46,7 @@ class _InMemoryStore:
             USER_ID: LocalCredential(
                 user_id=USER_ID,
                 username=USERNAME,
-                password_hash=Argon2PasswordHasher().hash(PASSWORD),
+                password_hash=hash_fixture_password(PASSWORD),
                 must_change_password=must_change_password,
                 updated_at=NOW,
             )
