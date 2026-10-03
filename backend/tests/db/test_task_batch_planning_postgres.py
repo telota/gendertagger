@@ -124,6 +124,7 @@ def _ready_execution(
     return runs, execution
 
 
+@pytest.mark.postgres_rollback
 def test_planned_batches_persist_contiguous_slices(db_session: Session) -> None:
     runs, execution = _ready_execution(db_session, record_count=5)
 
@@ -138,6 +139,7 @@ def test_planned_batches_persist_contiguous_slices(db_session: Session) -> None:
     assert {batch.queue_name for batch in batches} == {"cpu"}
 
 
+@pytest.mark.postgres_rollback
 def test_replanning_is_idempotent(db_session: Session) -> None:
     runs, execution = _ready_execution(db_session, record_count=5)
 
@@ -148,12 +150,14 @@ def test_replanning_is_idempotent(db_session: Session) -> None:
     assert [batch.id for batch in first] == [batch.id for batch in second]
 
 
+@pytest.mark.postgres_rollback
 def test_empty_plan_persists_no_batches(db_session: Session) -> None:
     runs, execution = _ready_execution(db_session, record_count=0)
 
     assert runs.create_task_batches(execution.id, plan_task_batches(0, batch_size=2)) == []
 
 
+@pytest.mark.postgres_rollback
 def test_planning_unknown_execution_is_rejected(db_session: Session) -> None:
     runs, _ = _ready_execution(db_session, record_count=1)
 

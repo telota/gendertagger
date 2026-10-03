@@ -258,7 +258,8 @@ State changes use the short state-motion token. Honor reduced-motion preference 
 
 ## Optional game-mode character
 
-The optional game mode adds a storybook archive otter in warm brown cut-paper collage, with a violet bookmark.
+The optional game mode adds a storybook archive otter in warm brown cut-paper collage, holding a
+small silvery-blue paper fish.
 It rests beside round setup, follows completed records along the progress track, and presses a stamp
 only after an annotation saves. All three poses keep the same bare-eyed appearance; the completed-round
 otter holds a library ticket, and paper stars appear once the server saves the round. These moments acknowledge contributions and round

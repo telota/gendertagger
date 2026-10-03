@@ -38,16 +38,17 @@ prints the slowest tests, and probes TestClient runner support before execution:
 
 ```bash
 cd backend
-uv run --locked python scripts/run_tests.py fast -- tests/contracts -q
+uv run --locked python scripts/run_tests.py core -- tests/contracts -q
 uv run --locked python scripts/run_tests.py postgres --collect-only
 uv run --locked python scripts/run_tests.py --list-profiles
 ```
 
-From the repository root, frontend watch mode reuses transformed modules between edits:
+From the repository root, local frontend test and watch commands reuse transformed modules between edits:
 
 ```bash
 npm --prefix frontend test -- tests/app/ProjectSwitcher.spec.ts
 npm --prefix frontend run test:watch -- tests/app/ProjectSwitcher.spec.ts
+npm --prefix frontend run test:uncached -- tests/app/ProjectSwitcher.spec.ts
 python3 backend/scripts/check_project.py --dry-run frontend/src/app/ProjectSwitcher.vue
 python3 backend/scripts/check_project.py --full --dry-run
 ```
@@ -55,9 +56,10 @@ python3 backend/scripts/check_project.py --full --dry-run
 `check_project.py` orchestrates push checks, not the complete service-backed handoff. In push hooks it
 supplements filenames with a NUL-delimited Git diff, preserving deleted files and both sides of renames.
 Missing or unsupported push refs, failed inspection, an empty path set, or unknown paths select both
-components. It does not cache successful test results. `npm test` is uncovered; `test:coverage` and `check` enforce the frontend
-coverage gate. Pure frontend policy/parser tests use Node, while browser-dependent tests retain isolated
-jsdom environments and fresh application state.
+components. It does not cache successful test results. `npm test` is uncovered and caches transformed
+modules; `test:uncached` provides a diagnostic fallback. `test:coverage` and `check` use fresh transformations
+and enforce the frontend coverage gate. Pure frontend policy/parser tests use Node, while browser-dependent
+tests retain isolated jsdom environments and fresh application state.
 
 ## Required checks
 
@@ -77,7 +79,7 @@ npm audit --audit-level=high
 npm run typecheck:pyright
 uv run --locked lint-imports
 uv audit --locked
-uv run --locked python scripts/run_tests.py fast --coverage --junitxml junit-fast.xml
+uv run --locked python scripts/run_tests.py core --coverage --junitxml junit-core.xml
 GENDERTAGGER_DATABASE_URL=postgresql+psycopg://user:password@localhost/gendertagger \
   uv run --locked alembic upgrade head
 GENDERTAGGER_DATABASE_URL=postgresql+psycopg://user:password@localhost/gendertagger \
@@ -89,7 +91,7 @@ GENDERTAGGER_DATABASE_URL=postgresql+psycopg://user:password@localhost/gendertag
   GENDERTAGGER_TEST_REDIS_URL=redis://localhost:6379/15 \
   uv run --locked python scripts/run_tests.py redis --coverage --junitxml junit-redis.xml
 uv run --locked coverage combine \
-  .coverage.fast .coverage.postgres .coverage.redis
+  .coverage.core .coverage.postgres .coverage.redis
 uv run --locked coverage xml --fail-under=0 -o coverage.xml
 uv run --locked coverage report --fail-under=85
 uv run --locked coverage report --include=src/gendertagger/methods/normalization.py --fail-under=100
@@ -132,8 +134,8 @@ randomly named database per migration/repository scope and removes it after the 
 Redis tests require `GENDERTAGGER_TEST_REDIS_URL` to select a dedicated nonzero database. The test fixture
 purges that database before and after every Redis-marked test; never point it at a shared or production broker.
 
-The 70% fast-suite threshold is a quick non-regression signal. It does not replace or lower the mandatory
-85% project floor, which is evaluated after combining the fast, PostgreSQL, and Redis coverage data. The
+The Core profile's 70% threshold is a quick non-regression signal. It does not replace or lower the mandatory
+85% project floor, which is evaluated after combining the Core, PostgreSQL, and Redis coverage data. The
 combined report also requires 100% branch coverage for normalization, reference aggregation, certainty
 assessment, and TEI projection. Every partial suite remains independently blocking on test failures.
 

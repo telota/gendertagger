@@ -10,6 +10,7 @@ from gendertagger.services.ports.persistence_errors import DuplicateTeamSlugErro
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 
 
+@pytest.mark.postgres_rollback
 def test_team_repository_creates_lists_and_renames_a_team(db_session: Session) -> None:
     repository = SqlAlchemyTeamRepository(db_session)
     created = repository.add_team(
@@ -24,6 +25,7 @@ def test_team_repository_creates_lists_and_renames_a_team(db_session: Session) -
     assert updated.display_name == "Renamed editorial group"
 
 
+@pytest.mark.postgres_rollback
 def test_team_repository_enforces_canonical_slug_uniqueness(db_session: Session) -> None:
     repository = SqlAlchemyTeamRepository(db_session)
     repository.add_team(TeamCreate(slug="editorial-group", display_name="Editorial group"))
@@ -32,6 +34,7 @@ def test_team_repository_enforces_canonical_slug_uniqueness(db_session: Session)
         repository.add_team(TeamCreate(slug="editorial-group", display_name="Duplicate"))
 
 
+@pytest.mark.postgres_rollback
 def test_team_repository_keys_direct_memberships_by_team_and_user(db_session: Session) -> None:
     users = SqlAlchemyUserRepository(db_session)
     user = users.add_user(UserCreate(display_name="Synthetic member"))

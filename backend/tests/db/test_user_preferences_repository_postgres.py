@@ -27,6 +27,7 @@ def _add_user(session: Session) -> UUID:
     return row.id
 
 
+@pytest.mark.postgres_rollback
 def test_preferences_read_does_not_materialize_defaults(db_session: Session) -> None:
     user_id = _add_user(db_session)
     repository = SqlAlchemyUserPreferencesRepository(db_session)
@@ -35,6 +36,7 @@ def test_preferences_read_does_not_materialize_defaults(db_session: Session) -> 
     assert db_session.scalar(select(func.count()).select_from(UserPreferencesRow)) == 0
 
 
+@pytest.mark.postgres_rollback
 def test_preferences_repository_round_trip_keeps_account_values_separate(
     db_session: Session,
 ) -> None:
@@ -70,6 +72,7 @@ def test_preferences_repository_round_trip_keeps_account_values_separate(
         {"revision": None},
     ],
 )
+@pytest.mark.postgres_rollback
 def test_preferences_database_rejects_invalid_values(
     db_session: Session, invalid_values: dict[str, Any]
 ) -> None:
@@ -78,6 +81,7 @@ def test_preferences_database_rejects_invalid_values(
         db_session.execute(insert(UserPreferencesRow).values(user_id=user_id, **invalid_values))
 
 
+@pytest.mark.postgres_rollback
 def test_preferences_database_rejects_missing_owner_and_duplicate_rows(db_session: Session) -> None:
     with pytest.raises(IntegrityError), db_session.begin_nested():
         db_session.execute(insert(UserPreferencesRow).values(user_id=uuid4()))

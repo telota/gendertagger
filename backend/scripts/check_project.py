@@ -208,7 +208,7 @@ def verification_commands(selection: CheckSelection) -> tuple[CheckCommand, ...]
                 ("uv", "run", "--locked", "mypy"),
                 ("npm", "run", "typecheck:pyright"),
                 ("uv", "run", "--locked", "lint-imports"),
-                ("uv", "run", "--locked", "python", "scripts/run_tests.py", "fast", "--coverage"),
+                ("uv", "run", "--locked", "python", "scripts/run_tests.py", "core", "--coverage"),
             )
         )
     if "frontend" in selection.components:

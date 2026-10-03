@@ -31,6 +31,7 @@ def _auth_repository_with_session(db_session: Session) -> SqlAlchemyAuthReposito
     return auth
 
 
+@pytest.mark.postgres_rollback
 def test_created_session_round_trips_its_kind_and_limits(db_session: Session) -> None:
     auth = _auth_repository_with_session(db_session)
 
@@ -42,6 +43,7 @@ def test_created_session_round_trips_its_kind_and_limits(db_session: Session) ->
     assert session.absolute_expires_at == LOGIN_AT + timedelta(days=30)
 
 
+@pytest.mark.postgres_rollback
 def test_renew_session_moves_the_expiry_forward_but_never_backwards(db_session: Session) -> None:
     auth = _auth_repository_with_session(db_session)
 
@@ -54,6 +56,7 @@ def test_renew_session_moves_the_expiry_forward_but_never_backwards(db_session: 
     assert session.expires_at == LOGIN_AT + timedelta(days=8)
 
 
+@pytest.mark.postgres_rollback
 def test_renew_session_leaves_a_revoked_session_untouched(db_session: Session) -> None:
     auth = _auth_repository_with_session(db_session)
     auth.revoke_session(SESSION_ID)
@@ -67,6 +70,7 @@ def test_renew_session_leaves_a_revoked_session_untouched(db_session: Session) -
     assert session.expires_at == LOGIN_AT + timedelta(days=7)
 
 
+@pytest.mark.postgres_rollback
 def test_session_expiry_cannot_pass_its_absolute_limit(db_session: Session) -> None:
     auth = _auth_repository_with_session(db_session)
 
@@ -74,6 +78,7 @@ def test_session_expiry_cannot_pass_its_absolute_limit(db_session: Session) -> N
         auth.renew_session(SESSION_ID, expires_at=LOGIN_AT + timedelta(days=31))
 
 
+@pytest.mark.postgres_rollback
 def test_duplicate_username_is_translated_to_application_error(db_session: Session) -> None:
     users = SqlAlchemyUserRepository(db_session)
     first_user = users.add_user(UserCreate(display_name="First local user"))

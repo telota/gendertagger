@@ -11,6 +11,7 @@ from gendertagger.models.admin_settings import BrandingOverrides, DeploymentSett
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 
 
+@pytest.mark.postgres_rollback
 def test_settings_repository_retains_sparse_null_and_empty_list_overrides(
     db_session: Session,
 ) -> None:
@@ -42,6 +43,7 @@ def test_settings_repository_retains_sparse_null_and_empty_list_overrides(
     assert settings.branding_overrides.model_fields_set == {"contact_email", "editors"}
 
 
+@pytest.mark.postgres_rollback
 def test_settings_repository_locks_and_persists_a_complete_changed_document(
     db_session: Session,
 ) -> None:

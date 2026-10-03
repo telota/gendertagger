@@ -7,9 +7,9 @@ from scripts.run_tests import PROFILES, main, partition_tests, pytest_arguments
 @pytest.mark.parametrize(
     ("markers", "expected"),
     [
-        (set(), "fast"),
-        ({"unit", "scientific"}, "fast"),
-        ({"contract"}, "fast"),
+        (set(), "core"),
+        ({"unit", "scientific"}, "core"),
+        ({"contract"}, "core"),
         ({"postgres"}, "postgres"),
         ({"integration", "postgres"}, "postgres"),
         ({"redis", "integration", "e2e"}, "redis"),
@@ -67,7 +67,7 @@ def test_generated_marker_expressions_match_the_partition_rules(
     assert expression.evaluate(matches) == PROFILES[name].accepts(markers)
 
 
-@pytest.mark.parametrize(("name", "floor"), [("fast", "70"), ("postgres", "0"), ("redis", "0")])
+@pytest.mark.parametrize(("name", "floor"), [("core", "70"), ("postgres", "0"), ("redis", "0")])
 def test_covered_profiles_preserve_the_partial_coverage_gates(name: str, floor: str) -> None:
     arguments = pytest_arguments(name, coverage=True, junitxml=f"junit-{name}.xml")
 
@@ -79,7 +79,7 @@ def test_covered_profiles_preserve_the_partial_coverage_gates(name: str, floor: 
 
 
 def test_uncovered_focused_profile_does_not_require_a_full_coverage_percentage() -> None:
-    arguments = pytest_arguments("fast", extra_arguments=["tests/contracts", "-k", "prediction"])
+    arguments = pytest_arguments("core", extra_arguments=["tests/contracts", "-k", "prediction"])
 
     assert not any(argument.startswith("--cov") for argument in arguments)
     assert arguments[-3:] == ["tests/contracts", "-k", "prediction"]
@@ -105,7 +105,7 @@ def test_missing_infrastructure_configuration_fails_before_tests_can_skip(
 )
 def test_pytest_extras_cannot_replace_the_authoritative_profile_or_coverage(argument: str) -> None:
     with pytest.raises(SystemExit, match="2"):
-        main(["fast", "--", argument])
+        main(["core", "--", argument])
 
 
 def test_collection_only_does_not_probe_testclient_or_require_service_configuration(

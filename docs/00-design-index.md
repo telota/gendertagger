@@ -29,4 +29,5 @@
 | [`26-frontend-coding-guidelines.md`](26-frontend-coding-guidelines.md) | Vue 3 + TypeScript conventions, boundaries, testing, and validation |
 | [`27-frontend-improvement-plan.md`](27-frontend-improvement-plan.md) | Shared foundations, per-view improvements, header content design, sidebar sequencing, and verification |
 | [`28-aggregation-workflow-plan.md`](28-aggregation-workflow-plan.md) | Proposed automatic aggregation, reusable configuration, terminology, and reviewed-export implementation |
+| [`29-wiki-gendersort-compatibility.md`](29-wiki-gendersort-compatibility.md) | Observable name-cleaning and assignment behavior, replacement provenance, and compatibility verification |
 | [Architecture Decision Records](decisions/) | Accepted decisions and ADR template |

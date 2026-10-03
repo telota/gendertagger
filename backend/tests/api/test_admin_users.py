@@ -1,8 +1,11 @@
+from collections.abc import Generator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from unittest.mock import Mock
 from uuid import UUID
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
@@ -45,8 +48,10 @@ def _admin() -> CurrentUser:
     return CurrentUser(id=USER_ID, display_name="Administrator", roles={GlobalRole.admin})
 
 
-def _client(service: object) -> TestClient:
-    application = create_app(
+@pytest.fixture(scope="module")
+def admin_users_application() -> FastAPI:
+    """Compose fixed user administration routes while clients own their mutable dependencies."""
+    return create_app(
         settings=AppSettings(
             database_url=SecretStr(DATABASE_URL),
             code_git_commit="a" * 40,
@@ -55,13 +60,30 @@ def _client(service: object) -> TestClient:
         unit_of_work_factory=_unused_unit_of_work_factory,
         request_id_factory=lambda: "request-123",
     )
-    application.dependency_overrides[require_authenticated_user] = _admin
-    application.dependency_overrides[require_csrf_protection] = lambda: None
-    application.dependency_overrides[get_user_administration_service] = lambda: service
-    return TestClient(application)
 
 
-def test_admin_user_route_serializes_page_and_forwards_query() -> None:
+@contextmanager
+def _client(
+    application: FastAPI, service: object, user: CurrentUser | None = None
+) -> Generator[TestClient, None, None]:
+    previous_overrides = application.dependency_overrides
+    assert previous_overrides == {}, "a previous user administration case leaked overrides"
+    principal = _admin() if user is None else user
+    application.dependency_overrides = {
+        require_authenticated_user: lambda: principal,
+        require_csrf_protection: lambda: None,
+        get_user_administration_service: lambda: service,
+    }
+    try:
+        with TestClient(application) as client:
+            yield client
+    finally:
+        application.dependency_overrides = previous_overrides
+
+
+def test_admin_user_route_serializes_page_and_forwards_query(
+    admin_users_application: FastAPI,
+) -> None:
     service = Mock(spec=UserAdministrationService)
     user = AdminUser(
         id=USER_ID,
@@ -78,10 +100,11 @@ def test_admin_user_route_serializes_page_and_forwards_query() -> None:
         has_more=False,
     )
 
-    response = _client(service).get(
-        "/api/v1/admin/users",
-        params={"query": "admin", "limit": 25},
-    )
+    with _client(admin_users_application, service) as client:
+        response = client.get(
+            "/api/v1/admin/users",
+            params={"query": "admin", "limit": 25},
+        )
 
     assert response.status_code == 200
     assert response.json() == {
@@ -92,17 +115,22 @@ def test_admin_user_route_serializes_page_and_forwards_query() -> None:
     service.list_users.assert_called_once_with(query="admin", limit=25, cursor=None)
 
 
-def test_admin_user_route_normalizes_invalid_cursor_error() -> None:
+def test_admin_user_route_normalizes_invalid_cursor_error(
+    admin_users_application: FastAPI,
+) -> None:
     service = Mock(spec=UserAdministrationService)
     service.list_users.side_effect = InvalidCursorError("unreadable")
 
-    response = _client(service).get("/api/v1/admin/users", params={"cursor": "invalid"})
+    with _client(admin_users_application, service) as client:
+        response = client.get("/api/v1/admin/users", params={"cursor": "invalid"})
 
     assert response.status_code == 422
     assert response.json()["error"]["details"] == {"reason": "invalid_cursor"}
 
 
-def test_admin_user_creation_returns_temporary_password_without_cache() -> None:
+def test_admin_user_creation_returns_temporary_password_without_cache(
+    admin_users_application: FastAPI,
+) -> None:
     service = Mock(spec=UserAdministrationService)
     account = AdminUser(
         id=USER_ID,
@@ -118,14 +146,15 @@ def test_admin_user_creation_returns_temporary_password_without_cache() -> None:
         temporary_password="temporary-password",
     )
 
-    response = _client(service).post(
-        "/api/v1/admin/users",
-        json={
-            "display_name": "New user",
-            "username": "NEW.USER",
-            "roles": ["operator"],
-        },
-    )
+    with _client(admin_users_application, service) as client:
+        response = client.post(
+            "/api/v1/admin/users",
+            json={
+                "display_name": "New user",
+                "username": "NEW.USER",
+                "roles": ["operator"],
+            },
+        )
 
     assert response.status_code == 201
     assert response.headers["cache-control"] == "no-store"
@@ -144,27 +173,33 @@ def test_admin_user_creation_returns_temporary_password_without_cache() -> None:
     )
 
 
-def test_admin_user_creation_maps_duplicate_username_to_stable_conflict() -> None:
+def test_admin_user_creation_maps_duplicate_username_to_stable_conflict(
+    admin_users_application: FastAPI,
+) -> None:
     service = Mock(spec=UserAdministrationService)
     service.create_user.side_effect = DuplicateUsernameError("existing")
 
-    response = _client(service).post(
-        "/api/v1/admin/users",
-        json={"display_name": "Duplicate", "username": "existing", "roles": []},
-    )
+    with _client(admin_users_application, service) as client:
+        response = client.post(
+            "/api/v1/admin/users",
+            json={"display_name": "Duplicate", "username": "existing", "roles": []},
+        )
 
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "username_conflict"
     assert "temporary_password" not in response.text
 
 
-def test_admin_user_password_reset_discloses_temporary_password_without_cache() -> None:
+def test_admin_user_password_reset_discloses_temporary_password_without_cache(
+    admin_users_application: FastAPI,
+) -> None:
     service = Mock(spec=UserAdministrationService)
     service.reset_user_password.return_value = AdminUserPasswordResetResult(
         temporary_password="new-temporary-password"
     )
 
-    response = _client(service).post(f"/api/v1/admin/users/{USER_ID}/reset-password")
+    with _client(admin_users_application, service) as client:
+        response = client.post(f"/api/v1/admin/users/{USER_ID}/reset-password")
 
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store"
@@ -176,10 +211,13 @@ def test_admin_user_password_reset_discloses_temporary_password_without_cache() 
     )
 
 
-def test_admin_user_session_revocation_returns_no_content() -> None:
+def test_admin_user_session_revocation_returns_no_content(
+    admin_users_application: FastAPI,
+) -> None:
     service = Mock(spec=UserAdministrationService)
 
-    response = _client(service).post(f"/api/v1/admin/users/{USER_ID}/revoke-sessions")
+    with _client(admin_users_application, service) as client:
+        response = client.post(f"/api/v1/admin/users/{USER_ID}/revoke-sessions")
 
     assert response.status_code == 204
     assert response.content == b""
@@ -190,17 +228,22 @@ def test_admin_user_session_revocation_returns_no_content() -> None:
     )
 
 
-def test_admin_user_session_revocation_maps_missing_local_account() -> None:
+def test_admin_user_session_revocation_maps_missing_local_account(
+    admin_users_application: FastAPI,
+) -> None:
     service = Mock(spec=UserAdministrationService)
     service.revoke_user_sessions.side_effect = ResourceNotFoundError("not local")
 
-    response = _client(service).post(f"/api/v1/admin/users/{USER_ID}/revoke-sessions")
+    with _client(admin_users_application, service) as client:
+        response = client.post(f"/api/v1/admin/users/{USER_ID}/revoke-sessions")
 
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "resource_not_found"
 
 
-def test_admin_user_update_forwards_patch_and_serializes_account() -> None:
+def test_admin_user_update_forwards_patch_and_serializes_account(
+    admin_users_application: FastAPI,
+) -> None:
     service = Mock(spec=UserAdministrationService)
     account = AdminUser(
         id=USER_ID,
@@ -213,10 +256,11 @@ def test_admin_user_update_forwards_patch_and_serializes_account() -> None:
     )
     service.update_user.return_value = account
 
-    response = _client(service).patch(
-        f"/api/v1/admin/users/{USER_ID}",
-        json={"display_name": "Renamed administrator", "roles": ["admin", "operator"]},
-    )
+    with _client(admin_users_application, service) as client:
+        response = client.patch(
+            f"/api/v1/admin/users/{USER_ID}",
+            json={"display_name": "Renamed administrator", "roles": ["admin", "operator"]},
+        )
 
     assert response.status_code == 200
     assert response.json() == account.model_dump(mode="json")
@@ -242,12 +286,14 @@ def test_admin_user_update_forwards_patch_and_serializes_account() -> None:
     ],
 )
 def test_admin_user_update_rejects_null_blank_and_immutable_fields(
+    admin_users_application: FastAPI,
     payload: dict[str, object],
 ) -> None:
-    response = _client(Mock(spec=UserAdministrationService)).patch(
-        f"/api/v1/admin/users/{USER_ID}",
-        json=payload,
-    )
+    with _client(admin_users_application, Mock(spec=UserAdministrationService)) as client:
+        response = client.patch(
+            f"/api/v1/admin/users/{USER_ID}",
+            json=payload,
+        )
 
     assert response.status_code == 422
 
@@ -262,14 +308,17 @@ def test_admin_user_update_rejects_null_blank_and_immutable_fields(
         ),
     ],
 )
-def test_admin_user_update_maps_not_found_and_state_conflicts(error: Exception) -> None:
+def test_admin_user_update_maps_not_found_and_state_conflicts(
+    admin_users_application: FastAPI, error: Exception
+) -> None:
     service = Mock(spec=UserAdministrationService)
     service.update_user.side_effect = error
 
-    response = _client(service).patch(
-        f"/api/v1/admin/users/{USER_ID}",
-        json={"display_name": "Unchanged"},
-    )
+    with _client(admin_users_application, service) as client:
+        response = client.patch(
+            f"/api/v1/admin/users/{USER_ID}",
+            json={"display_name": "Unchanged"},
+        )
 
     expected_status = 404 if isinstance(error, ResourceNotFoundError) else 409
     assert response.status_code == expected_status
@@ -279,3 +328,43 @@ def test_admin_user_update_maps_not_found_and_state_conflicts(error: Exception) 
         else "self_deactivation_forbidden"
     )
     assert response.json()["error"]["code"] == expected_code
+
+
+def test_admin_user_clients_isolate_services_principals_and_state_after_a_case_fails(
+    admin_users_application: FastAPI,
+) -> None:
+    first_service = Mock(spec=UserAdministrationService)
+    first_service.list_users.return_value = CursorPage(items=[], has_more=False)
+    second_service = Mock(spec=UserAdministrationService)
+    second_service.list_users.return_value = CursorPage(items=[], has_more=False)
+    first_admin = _admin()
+
+    def fail_first_case() -> None:
+        with _client(admin_users_application, first_service, first_admin) as first:
+            first.cookies.set("admin-user-case", "first")
+            first.headers["X-Admin-User-Case"] = "first"
+            first.app_state["admin_user_case"] = "first"
+            assert first.get("/api/v1/admin/users").status_code == 200
+            first_admin.roles.clear()
+            assert first.get("/api/v1/admin/users").status_code == 403
+            raise RuntimeError("admin user case failed")
+
+    with pytest.raises(RuntimeError, match="admin user case failed"):
+        fail_first_case()
+
+    assert admin_users_application.dependency_overrides == {}
+    operator = CurrentUser(id=USER_ID, display_name="Operator", roles={GlobalRole.operator})
+    with _client(admin_users_application, second_service, operator) as second:
+        assert second.cookies.get("admin-user-case") is None
+        assert second.headers.get("X-Admin-User-Case") is None
+        assert "admin_user_case" not in second.app_state
+        assert second.get("/api/v1/admin/users").status_code == 403
+    second_service.list_users.assert_not_called()
+
+    with _client(admin_users_application, second_service) as third:
+        assert third.get("/api/v1/admin/users").status_code == 200
+
+    first_service.list_users.assert_called_once_with(query=None, limit=100, cursor=None)
+    second_service.list_users.assert_called_once_with(query=None, limit=100, cursor=None)
+    assert first_admin.roles == set()
+    assert admin_users_application.dependency_overrides == {}

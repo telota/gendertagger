@@ -222,7 +222,7 @@ def test_docs_only_changes_run_documentation_without_component_checks() -> None:
     assert commands[0].cwd.is_absolute()
 
 
-def test_backend_checks_keep_fast_coverage_and_frontend_changes_do_not_run_backend_tests() -> None:
+def test_backend_checks_keep_core_coverage_and_frontend_changes_do_not_run_backend_tests() -> None:
     backend_commands = check_project.verification_commands(
         check_project.select_checks(["backend/tests/domain/test_aggregation.py"])
     )
@@ -231,7 +231,7 @@ def test_backend_checks_keep_fast_coverage_and_frontend_changes_do_not_run_backe
     )
 
     assert any(
-        command.arguments[-3:] == ("scripts/run_tests.py", "fast", "--coverage")
+        command.arguments[-3:] == ("scripts/run_tests.py", "core", "--coverage")
         for command in backend_commands
     )
     assert all("scripts/run_tests.py" not in command.arguments for command in frontend_commands)

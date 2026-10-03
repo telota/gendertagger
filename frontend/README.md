@@ -75,8 +75,9 @@ Run from the repository root with `npm --prefix frontend run <script>`, or from 
 | `lint` | ESLint with the Vue, TypeScript, accessibility, and i18n rules; warnings fail |
 | `format:check` | Prettier |
 | `typecheck` | `vue-tsc` over the application, the tests, and the tool configuration |
-| `test` | Uncovered Vitest run for focused development feedback |
-| `test:watch` | Uncovered watch mode; reuses transformed modules between edits |
+| `test` | Uncovered Vitest run; reuses transformed modules across focused runs |
+| `test:uncached` | Uncovered Vitest run with fresh module transformations |
+| `test:watch` | Uncovered watch mode; reuses transformed modules between edits and process restarts |
 | `test:coverage` | Full Vitest run with an 80 % branch-coverage floor |
 | `api:generate` | Regenerate `src/api/schema.d.ts` from the OpenAPI contract |
 | `api:check` | Fail when `src/api/schema.d.ts` is stale |
@@ -92,6 +93,29 @@ source changes even when a related-test import graph would not select them:
 ```bash
 npm --prefix frontend test -- --project node
 ```
+
+Local `test` and `test:watch` use Vitest's
+[persistent module cache](https://vitest.dev/config/fsmodulecache). It stores transformed code under
+`node_modules/.vitest-cache`, with source content, configuration and lockfile changes invalidating the
+relevant entries. Every test file still gets its isolated environment and every test gets fresh mutable
+fixtures. Use `test:uncached` when diagnosing transformations or changing a plugin whose output depends
+on files outside its ordinary inputs. The authoritative `test:coverage` command uses fresh transformations.
+Pass a test path to keep the feedback loop focused:
+
+```bash
+npm --prefix frontend test -- tests/features/projects/import.spec.ts
+```
+
+On a busy or memory-constrained machine, try a bounded worker count:
+
+```bash
+npm --prefix frontend test -- --maxWorkers=4
+```
+
+A fixed ten-file, 307-case local pilot was about 10% faster with four workers and used about 35% less
+summed process RSS than the default on a twelve-CPU runner. Smaller machines and the full covered suite
+may behave differently; the default and CI worker policies are unchanged. See the
+[testing measurements](../docs/14-testing.md#optimization-rollout-and-evidence).
 
 ## Transport contract
 

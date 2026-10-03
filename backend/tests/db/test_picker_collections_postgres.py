@@ -31,6 +31,7 @@ from gendertagger.services.pagination import CreationPosition
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 
 
+@pytest.mark.postgres_rollback
 def test_snapshots_page_by_import_acceptance_date_with_stable_uuid_ties(
     db_session: Session,
 ) -> None:
@@ -74,6 +75,7 @@ def test_snapshots_page_by_import_acceptance_date_with_stable_uuid_ties(
     )
 
 
+@pytest.mark.postgres_rollback
 def test_snapshot_filters_find_older_results_and_do_not_cross_project_boundaries(
     db_session: Session,
 ) -> None:
@@ -128,6 +130,7 @@ def test_snapshot_filters_find_older_results_and_do_not_cross_project_boundaries
     )
 
 
+@pytest.mark.postgres_rollback
 def test_run_and_aggregation_filters_page_eligible_results_under_their_owning_parent(
     db_session: Session,
 ) -> None:
@@ -209,6 +212,7 @@ def test_run_and_aggregation_filters_page_eligible_results_under_their_owning_pa
     ] == [pending.id]
 
 
+@pytest.mark.postgres_rollback
 def test_project_review_results_page_completed_results_with_context(
     db_session: Session,
 ) -> None:

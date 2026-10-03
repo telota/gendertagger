@@ -20,21 +20,28 @@ variables:
   SECRET_DETECTION_ENABLED: "true"
   UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
   UV_LINK_MODE: copy
+  UV_CACHE_POLICY: pull
+  NPM_CACHE_POLICY: pull
   SAST_EXCLUDED_ANALYZERS: "pmd-apex"
 
 default:
   interruptible: true
-  cache:
-    key:
-      files:
-        - backend/uv.lock
-    paths:
-      - .uv-cache/
 
 # Python jobs run from the backend project root; before_script and script share one shell, so the
 # `cd backend` below applies to every script line.
 .backend_uv_job:
   image: python:3.11.9-slim-bookworm@sha256:8fb099199b9f2d70342674bd9dbccd3ed03a258f26bbd1d556822c6dfc60c317
+  # Cache package-manager downloads, never an installed environment. All pinned job images use
+  # Linux; uv still selects compatible platform-tagged wheels on each runner.
+  cache:
+    key:
+      prefix: uv-0.12.5-python-3.11.9-slim-bookworm-8fb099199b9f-linux
+      files:
+        - backend/uv.lock
+        - backend/pyproject.toml
+    paths:
+      - .uv-cache/
+    policy: $UV_CACHE_POLICY
   before_script:
     - python -m pip install --no-cache-dir "uv==0.12.5"
     - cd backend
@@ -52,10 +59,13 @@ default:
   image: node:26.9.0-alpine@sha256:dbaa92e5758cbbcf85d65d5403fdb530fe3442cbe8c6dbfb7ef23365450d5070
   cache:
     key:
+      prefix: npm-node-26.9.0-alpine-dbaa92e5758c-linux
       files:
         - frontend/package-lock.json
+        - frontend/package.json
     paths:
       - frontend/.npm/
+    policy: $NPM_CACHE_POLICY
   before_script:
     - cd frontend
     - npm ci --cache .npm --prefer-offline --ignore-scripts --no-audit --no-fund
@@ -71,6 +81,7 @@ backend_repository_policy:
   extends: .backend_uv_job
   stage: validate
   timeout: 10 minutes
+  cache: []
   script:
     # These checks use only the standard library; installing model dependencies adds no validation.
     - python scripts/check_documentation.py
@@ -82,6 +93,9 @@ backend_quality:
   extends: .backend_python_job
   stage: validate
   timeout: 15 minutes
+  # One writer avoids parallel jobs uploading competing versions of the same cache archive.
+  variables:
+    UV_CACHE_POLICY: pull-push
   script:
     - uv run --locked ruff format --check .
     - uv run --locked ruff check .
@@ -114,6 +128,8 @@ frontend_quality:
   extends: .frontend_node_job
   stage: validate
   timeout: 15 minutes
+  variables:
+    NPM_CACHE_POLICY: pull-push
   script:
     - npm run lint
     - npm run format:check
@@ -131,33 +147,39 @@ frontend_dependency_audit:
   script:
     - npm audit --audit-level=high
 
-backend_fast_test:
+backend_core_test:
   extends: .backend_python_job
   stage: test
   timeout: 20 minutes
   variables:
-    COVERAGE_FILE: .coverage.fast
-  # The fast suite has a 70% non-regression floor. Service-specific jobs publish
+    COVERAGE_FILE: .coverage.core
+  # The core suite has a 70% non-regression floor. Service-specific jobs publish
   # partial data; the combined backend_coverage enforces the authoritative 85% project floor.
   script:
     - >-
       timeout --signal=TERM --kill-after=30s 15m
-      uv run --locked python scripts/run_tests.py fast
-      --coverage --junitxml junit-fast.xml
+      uv run --locked python scripts/run_tests.py core
+      --coverage --junitxml junit-core.xml
   artifacts:
     when: always
     expire_in: 1 week
     paths:
-      - backend/.coverage.fast
-      - backend/coverage-fast.xml
-      - backend/junit-fast.xml
+      - backend/.coverage.core
+      - backend/coverage-core.xml
+      - backend/junit-core.xml
     reports:
-      junit: backend/junit-fast.xml
+      junit: backend/junit-core.xml
 
 frontend_test:
   extends: .frontend_node_job
   stage: test
   timeout: 15 minutes
+  # Frontend results can arrive while independent backend validation is still running.
+  needs:
+    - job: frontend_quality
+      artifacts: false
+    - job: frontend_dependency_audit
+      artifacts: false
   # Vitest enforces the 80 % branch-coverage floor itself (decision D11) and fails the job below it.
   script:
     - npm run test:coverage -- --reporter=default --reporter=junit --outputFile.junit=junit-frontend.xml
@@ -175,6 +197,9 @@ frontend_build:
   extends: .frontend_node_job
   stage: package
   timeout: 10 minutes
+  needs:
+    - job: frontend_test
+      artifacts: false
   script:
     - npm run build
 
@@ -249,7 +274,7 @@ backend_coverage:
   stage: coverage
   timeout: 10 minutes
   needs:
-    - job: backend_fast_test
+    - job: backend_core_test
       artifacts: true
     - job: backend_postgres_test
       artifacts: true
@@ -260,7 +285,7 @@ backend_coverage:
     - uv sync --locked --only-group test --no-install-project
     - >-
       uv run --locked --no-sync coverage combine
-      .coverage.fast
+      .coverage.core
       .coverage.postgres
       .coverage.redis
     - uv run --locked --no-sync coverage xml --fail-under=0 -o coverage.xml
@@ -284,6 +309,11 @@ backend_build:
   extends: .backend_uv_job
   stage: package
   timeout: 10 minutes
+  needs:
+    - job: backend_lockfile
+      artifacts: false
+    - job: backend_repository_policy
+      artifacts: false
   script:
     - uv build --no-sources
     - python scripts/check_distribution.py dist/*

@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { type VueWrapper } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 
 import { createApiClient, type components } from '@/api'
 import de from '@/locales/de.json'
@@ -324,6 +325,82 @@ describe.each(['de', 'en'] as const)('game mode in %s', (locale) => {
     expect(wrapper.get('.game-complete').text()).toContain('10')
     expect(wrapper.get('.game-leaderboard__current').text()).toContain('Op')
     await expectNoAxeViolations(wrapper.get('.game-mode').element)
+  })
+})
+
+describe('game clock', () => {
+  it('advances only while playing, preserves answer time in feedback, and disposes its interval', async () => {
+    let clockNow = Date.now()
+    let clockTick: (() => void) | undefined
+    let clockHandle: number | undefined
+    let wrapper: VueWrapper | undefined
+    const timers: Pick<Window, 'setInterval' | 'clearInterval'> = window
+    const originalSetInterval = timers.setInterval.bind(window)
+    const interval = vi
+      .spyOn(timers, 'setInterval')
+      .mockImplementation((handler, delay, ...args) => {
+        if (delay === 250 && typeof handler === 'function') {
+          clockTick = () => handler(...args)
+          // Keep ordinary timers for query/mount work; drive only the game clock explicitly.
+          clockHandle = originalSetInterval(() => undefined, delay)
+          return clockHandle
+        }
+        return originalSetInterval(handler, delay, ...args)
+      })
+    const clearInterval = vi.spyOn(timers, 'clearInterval')
+    const now = vi.spyOn(Date, 'now').mockImplementation(() => clockNow)
+
+    try {
+      const { wrapper: game } = await mountGame('en')
+      wrapper = game
+      expect(interval.mock.calls.filter(([, delay]) => delay === 250)).toHaveLength(1)
+      if (clockTick === undefined || clockHandle === undefined) {
+        throw new Error('The game clock interval was not registered')
+      }
+
+      clockNow += 10_000
+      now.mockClear()
+      clockTick()
+      expect(now).not.toHaveBeenCalled()
+      expect(game.find('.game-hud').exists()).toBe(false)
+
+      await game.get<HTMLButtonElement>('.game-setup__start button').trigger('click')
+      await waitFor(() =>
+        expect(
+          game.get<HTMLButtonElement>('.game-answer--female').attributes('disabled'),
+        ).toBeUndefined(),
+      )
+      expect(game.get('.game-hud__stats > div:last-child dd').text()).toBe('0:00')
+
+      clockNow += 65_000
+      now.mockClear()
+      clockTick()
+      expect(now).toHaveBeenCalledOnce()
+      await nextTick()
+      expect(game.get('.game-hud__stats > div:last-child dd').text()).toBe('1:05')
+
+      await game.get<HTMLButtonElement>('.game-answer--female').trigger('click')
+      await waitFor(() => expect(game.find('.game-feedback').exists()).toBe(true))
+      clockNow += 33_000
+      now.mockClear()
+      clockTick()
+      expect(now).not.toHaveBeenCalled()
+      await nextTick()
+      expect(game.get('.game-hud__stats > div:last-child dd').text()).toBe('1:05')
+
+      await game.get<HTMLButtonElement>('.game-feedback__next button').trigger('click')
+      await waitFor(() => expect(game.find('.game-complete').exists()).toBe(true))
+      expect(game.get('.game-complete__stats > div:nth-child(2) dd').text()).toBe('1:05')
+
+      game.unmount()
+      expect(clearInterval).toHaveBeenCalledWith(clockHandle)
+    } finally {
+      wrapper?.unmount()
+      if (clockHandle !== undefined) window.clearInterval(clockHandle)
+      now.mockRestore()
+      clearInterval.mockRestore()
+      interval.mockRestore()
+    }
   })
 })
 

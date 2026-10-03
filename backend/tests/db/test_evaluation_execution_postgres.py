@@ -75,6 +75,7 @@ def _create(run_id: UUID, method_execution_ids: tuple[UUID, ...]) -> EvaluationE
     )
 
 
+@pytest.mark.postgres_rollback
 def test_evaluation_requires_every_definition_method_exactly_once(db_session: Session) -> None:
     run_id, execution_ids, _person_id = _seed_reference_run(db_session)
     repository = SqlAlchemyEvaluationRepository(db_session)
@@ -86,6 +87,7 @@ def test_evaluation_requires_every_definition_method_exactly_once(db_session: Se
         repository.add_evaluation(_create(run_id, execution_ids[:-1]))
 
 
+@pytest.mark.postgres_rollback
 def test_repository_claims_and_completes_with_a_report_artifact(db_session: Session) -> None:
     run_id, execution_ids, person_id = _seed_reference_run(db_session)
     repository = SqlAlchemyEvaluationRepository(db_session)
@@ -133,6 +135,7 @@ def test_repository_claims_and_completes_with_a_report_artifact(db_session: Sess
         repository.load_evaluation_inputs(evaluation.id)
 
 
+@pytest.mark.postgres_rollback
 def test_repository_fails_without_reopening_after_completeness_failure(
     db_session: Session,
 ) -> None:
@@ -154,6 +157,7 @@ def test_repository_fails_without_reopening_after_completeness_failure(
     assert repository.claim_evaluation(evaluation.id, started_at=NOW) is None
 
 
+@pytest.mark.postgres_rollback
 def test_mark_finished_rejects_completion_without_a_report_artifact(
     db_session: Session,
 ) -> None:
@@ -194,6 +198,7 @@ def test_concurrent_workers_claim_an_evaluation_only_once(postgres_engine: Engin
     assert claims.count(False) == 1
 
 
+@pytest.mark.postgres_rollback
 def test_evaluation_inputs_include_ensemble_evidence_from_a_completed_aggregation(
     db_session: Session,
 ) -> None:
@@ -221,6 +226,7 @@ def test_evaluation_inputs_include_ensemble_evidence_from_a_completed_aggregatio
     assert inputs.human_correction_count == 0
 
 
+@pytest.mark.postgres_rollback
 def test_add_evaluation_rejects_an_incomplete_aggregation(db_session: Session) -> None:
     _run_id, _execution_ids, _person_id, aggregation_id = (
         _seed_reference_run_with_completed_aggregation(db_session)

@@ -223,6 +223,7 @@ markers = [
   "scientific: normative or legacy-characterization behavior tests",
   "integration: tests spanning process or infrastructure boundaries",
   "postgres: tests requiring PostgreSQL",
+  "postgres_rollback: audited db_session-only tests requiring proven outer rollback isolation",
   "redis: tests requiring Redis",
   "e2e: end-to-end workflow tests",
   "slow: tests excluded from the ordinary merge-request suite",

@@ -32,7 +32,7 @@ class TestProfile:
 
 
 PROFILES = {
-    "fast": TestProfile(
+    "core": TestProfile(
         required=frozenset(),
         excluded=_PROTECTED_MARKERS | {"integration", "postgres", "redis", "e2e"},
     ),
@@ -87,7 +87,7 @@ def pytest_arguments(
     if collect_only:
         arguments.append("--collect-only")
     if coverage:
-        threshold = "70" if profile_name == "fast" else "0"
+        threshold = "70" if profile_name == "core" else "0"
         arguments.extend(
             [
                 "--cov",
@@ -149,7 +149,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     # Script invocation puts scripts/, rather than backend/, on sys.path. Use the same root as
     # `python -m pytest` so importlib-mode conftest and tooling imports resolve consistently.
     sys.path.insert(0, str(_BACKEND_ROOT))
-    if not args.collect_only and args.profile in {"fast", "postgres"}:
+    if not args.collect_only and args.profile in {"core", "postgres"}:
         from scripts.check_asyncio_runner import main as check_runner
 
         if check_runner(["--timeout-seconds", "5"]) != 0:

@@ -156,6 +156,7 @@ def assert_database_rejects_mutation(
     session.expire_all()
 
 
+@pytest.mark.postgres_rollback
 def test_artifact_content_identity_rejects_ambiguous_records(db_session: Session) -> None:
     artifacts = SqlAlchemyArtifactRepository(db_session)
     for storage_uri in ("file:///first.sqlite3", "file:///second.sqlite3"):
@@ -188,6 +189,7 @@ def test_artifact_content_identity_rejects_ambiguous_records(db_session: Session
         ),
     ],
 )
+@pytest.mark.postgres_rollback
 def test_person_records_require_fields_matching_the_snapshot_profile(
     db_session: Session,
     profile: TeiImportProfile | TabularImportProfile,
@@ -262,6 +264,7 @@ def test_person_records_require_fields_matching_the_snapshot_profile(
     )
 
 
+@pytest.mark.postgres_rollback
 def test_modern_snapshot_requires_complete_config_and_primary_artifact_provenance(
     db_session: Session,
 ) -> None:
@@ -375,6 +378,7 @@ def test_modern_snapshot_requires_complete_config_and_primary_artifact_provenanc
         )
 
 
+@pytest.mark.postgres_rollback
 def test_modern_non_loose_source_member_must_be_primary_artifact(
     db_session: Session,
 ) -> None:
@@ -453,6 +457,7 @@ def test_modern_non_loose_source_member_must_be_primary_artifact(
     assert ready.record_count == 0
 
 
+@pytest.mark.postgres_rollback
 def test_ready_transition_rejects_missing_or_malformed_modern_source_sets(
     db_session: Session,
 ) -> None:
@@ -569,6 +574,7 @@ def test_ready_transition_rejects_missing_or_malformed_modern_source_sets(
         )
 
 
+@pytest.mark.postgres_rollback
 def test_ready_transition_rechecks_modern_parser_provenance(db_session: Session) -> None:
     projects = SqlAlchemyProjectRepository(db_session)
     artifacts = SqlAlchemyArtifactRepository(db_session)
@@ -623,6 +629,7 @@ def test_ready_transition_rechecks_modern_parser_provenance(db_session: Session)
         )
 
 
+@pytest.mark.postgres_rollback
 def test_legacy_ready_snapshot_derives_gnd_statistics(db_session: Session) -> None:
     repositories = session_repositories(db_session)
     project = seed_project(
@@ -664,6 +671,7 @@ def test_legacy_ready_snapshot_derives_gnd_statistics(db_session: Session) -> No
     assert statistics.gnd.with_reference_and_source_gender_count is None
 
 
+@pytest.mark.postgres_rollback
 def test_source_members_and_imported_person_provenance_round_trip(db_session: Session) -> None:
     artifacts = SqlAlchemyArtifactRepository(db_session)
     projects = SqlAlchemyProjectRepository(db_session)
@@ -869,6 +877,7 @@ def test_source_members_and_imported_person_provenance_round_trip(db_session: Se
     )
 
 
+@pytest.mark.postgres_rollback
 def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> None:
     now = datetime.now(UTC)
     projects = SqlAlchemyProjectRepository(db_session)
@@ -1336,6 +1345,7 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
     )
 
 
+@pytest.mark.postgres_rollback
 def test_method_execution_results_project_every_snapshot_person_and_preserve_states(
     db_session: Session,
 ) -> None:

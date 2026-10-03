@@ -80,6 +80,12 @@ recognized; missing gender and other retained entity types emit `Unbekannt`. The
 URI, preferred name, normalized and raw entity types, and source record status remain in raw output.
 
 
+Wiki-Gendersort candidate generation and native assignment follow the
+[compatible implementation specification](29-wiki-gendersort-compatibility.md) and
+[ADR-0045](decisions/ADR-0045-wiki-gendersort-compatible-implementation.md). The replacement implementation
+is `wiki_gendersort_v2`; normalization stays `wiki_gendersort_v1`, including all native-label, abstention,
+unknown, consensus, and raw-evidence semantics.
+
 ## Per-method result
 
 Every adapter returns:

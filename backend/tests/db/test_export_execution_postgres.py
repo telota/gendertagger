@@ -99,6 +99,7 @@ def _create(run_id: UUID, aggregation_execution_id: UUID) -> ExportExecutionCrea
     )
 
 
+@pytest.mark.postgres_rollback
 def test_add_export_rejects_an_incomplete_aggregation(db_session: Session) -> None:
     projects = SqlAlchemyProjectRepository(db_session)
     project = seed_project(
@@ -198,6 +199,7 @@ def test_add_export_rejects_an_incomplete_aggregation(db_session: Session) -> No
         )
 
 
+@pytest.mark.postgres_rollback
 def test_add_export_rejects_a_run_mismatched_aggregation(db_session: Session) -> None:
     run_id, aggregation_id, _person_id = _seed_reference_run_with_completed_aggregation(db_session)
     _other_run_id, _other_aggregation_id, _other_person_id = (
@@ -212,6 +214,7 @@ def test_add_export_rejects_a_run_mismatched_aggregation(db_session: Session) ->
     assert run_id != _other_run_id
 
 
+@pytest.mark.postgres_rollback
 def test_repository_claims_and_completes_with_a_manifest_artifact(db_session: Session) -> None:
     run_id, aggregation_id, person_id = _seed_reference_run_with_completed_aggregation(db_session)
     repository = SqlAlchemyExportRepository(db_session)
@@ -257,6 +260,7 @@ def test_repository_claims_and_completes_with_a_manifest_artifact(db_session: Se
         repository.load_export_inputs(export.id)
 
 
+@pytest.mark.postgres_rollback
 def test_repository_fails_without_reopening_after_failure(db_session: Session) -> None:
     run_id, aggregation_id, _person_id = _seed_reference_run_with_completed_aggregation(db_session)
     repository = SqlAlchemyExportRepository(db_session)
@@ -276,6 +280,7 @@ def test_repository_fails_without_reopening_after_failure(db_session: Session) -
     assert repository.claim_export(export.id, started_at=NOW) is None
 
 
+@pytest.mark.postgres_rollback
 def test_mark_finished_rejects_completion_without_a_manifest_artifact(
     db_session: Session,
 ) -> None:
@@ -356,6 +361,7 @@ def _seed_zero_person_run_with_completed_aggregation(
     return completed.run.id, aggregation.id
 
 
+@pytest.mark.postgres_rollback
 def test_load_export_inputs_rejects_tei_format_for_a_non_tei_snapshot(
     db_session: Session,
 ) -> None:
@@ -383,6 +389,7 @@ def test_load_export_inputs_rejects_tei_format_for_a_non_tei_snapshot(
         repository.load_export_inputs(export.id)
 
 
+@pytest.mark.postgres_rollback
 def test_load_export_inputs_rejects_tei_format_for_unsupported_packaging(
     db_session: Session,
 ) -> None:
@@ -410,6 +417,7 @@ def test_load_export_inputs_rejects_tei_format_for_unsupported_packaging(
         repository.load_export_inputs(export.id)
 
 
+@pytest.mark.postgres_rollback
 def test_load_export_inputs_projects_human_overrides_when_policy_is_human_overrides(
     db_session: Session,
 ) -> None:

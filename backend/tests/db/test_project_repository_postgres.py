@@ -33,6 +33,7 @@ from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
 pytestmark = [pytest.mark.integration, pytest.mark.postgres]
 
 
+@pytest.mark.postgres_rollback
 def test_data_availability_distinguishes_absent_and_empty_projects(db_session: Session) -> None:
     repositories = session_repositories(db_session)
     project = seed_project(repositories)
@@ -45,6 +46,7 @@ def test_data_availability_distinguishes_absent_and_empty_projects(db_session: S
     )
 
 
+@pytest.mark.postgres_rollback
 def test_data_availability_requires_ready_imports_and_is_project_scoped(
     db_session: Session,
 ) -> None:
@@ -85,6 +87,7 @@ def test_data_availability_requires_ready_imports_and_is_project_scoped(
     assert not availability.has_completed_aggregations
 
 
+@pytest.mark.postgres_rollback
 def test_data_availability_requires_completed_aggregation_without_a_working_pointer(
     db_session: Session,
 ) -> None:
@@ -140,6 +143,7 @@ def test_data_availability_requires_completed_aggregation_without_a_working_poin
 
 
 @pytest.mark.parametrize("run_status", [RunStatus.running, RunStatus.failed])
+@pytest.mark.postgres_rollback
 def test_data_availability_does_not_require_the_run_to_be_completed(
     db_session: Session,
     run_status: RunStatus,
@@ -201,6 +205,7 @@ def test_data_availability_does_not_require_the_run_to_be_completed(
     ] == [run.id]
 
 
+@pytest.mark.postgres_rollback
 def test_set_working_aggregation_rejects_an_unknown_project(db_session: Session) -> None:
     """The HTTP route's ``ProjectAccessGuard`` already hides an unknown project with 404 before
     the service is called, so this defensive repository branch is only reachable directly."""
@@ -211,6 +216,7 @@ def test_set_working_aggregation_rejects_an_unknown_project(db_session: Session)
         repository.set_working_aggregation(missing_project_id, aggregation_execution_id=None)
 
 
+@pytest.mark.postgres_rollback
 def test_set_working_aggregation_rejects_an_unknown_aggregation(db_session: Session) -> None:
     repository = SqlAlchemyProjectRepository(db_session)
     project = seed_project(

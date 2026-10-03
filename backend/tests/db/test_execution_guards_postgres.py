@@ -142,6 +142,7 @@ _EXECUTION_TABLES: list[tuple[str, _Create, _Fail, str]] = [
 
 
 @pytest.mark.parametrize(("table", "create", "fail", "provenance_change"), _EXECUTION_TABLES)
+@pytest.mark.postgres_rollback
 def test_database_rejects_skipping_the_lifecycle(
     db_session: Session, table: str, create: _Create, fail: _Fail, provenance_change: str
 ) -> None:
@@ -158,6 +159,7 @@ def test_database_rejects_skipping_the_lifecycle(
 
 
 @pytest.mark.parametrize(("table", "create", "fail", "provenance_change"), _EXECUTION_TABLES)
+@pytest.mark.postgres_rollback
 def test_database_rejects_deleting_an_execution(
     db_session: Session, table: str, create: _Create, fail: _Fail, provenance_change: str
 ) -> None:
@@ -173,6 +175,7 @@ def test_database_rejects_deleting_an_execution(
 
 
 @pytest.mark.parametrize(("table", "create", "fail", "provenance_change"), _EXECUTION_TABLES)
+@pytest.mark.postgres_rollback
 def test_database_rejects_changing_creation_provenance(
     db_session: Session, table: str, create: _Create, fail: _Fail, provenance_change: str
 ) -> None:
@@ -188,6 +191,7 @@ def test_database_rejects_changing_creation_provenance(
 
 
 @pytest.mark.parametrize(("table", "create", "fail", "provenance_change"), _EXECUTION_TABLES)
+@pytest.mark.postgres_rollback
 def test_database_rejects_changing_a_terminal_execution(
     db_session: Session, table: str, create: _Create, fail: _Fail, provenance_change: str
 ) -> None:
@@ -203,6 +207,7 @@ def test_database_rejects_changing_a_terminal_execution(
     )
 
 
+@pytest.mark.postgres_rollback
 def test_database_rejects_changing_evaluation_membership(db_session: Session) -> None:
     evaluation_id = _evaluation(db_session, _seed(db_session))
 
@@ -215,6 +220,7 @@ def test_database_rejects_changing_evaluation_membership(db_session: Session) ->
     )
 
 
+@pytest.mark.postgres_rollback
 def test_database_rejects_membership_added_after_queuing(db_session: Session) -> None:
     seeded = _seed(db_session)
     evaluation_id = _evaluation(db_session, seeded)
@@ -230,6 +236,7 @@ def test_database_rejects_membership_added_after_queuing(db_session: Session) ->
     )
 
 
+@pytest.mark.postgres_rollback
 def test_database_rejects_a_member_from_another_run(db_session: Session) -> None:
     evaluation_id = _evaluation(db_session, _seed(db_session))
     foreign_execution_id = _seed(db_session).execution_ids["gnd"]
@@ -244,6 +251,7 @@ def test_database_rejects_a_member_from_another_run(db_session: Session) -> None
     )
 
 
+@pytest.mark.postgres_rollback
 def test_database_rejects_failure_class_on_a_run_that_did_not_fail(db_session: Session) -> None:
     repositories = session_repositories(db_session)
     project = seed_project(repositories, slug_prefix="execution-guards")
@@ -261,6 +269,7 @@ def test_database_rejects_failure_class_on_a_run_that_did_not_fail(db_session: S
     )
 
 
+@pytest.mark.postgres_rollback
 def test_database_rejects_failure_class_on_a_snapshot_that_did_not_fail(
     db_session: Session,
 ) -> None:
@@ -285,6 +294,7 @@ def test_database_rejects_failure_class_on_a_snapshot_that_did_not_fail(
         "DELETE FROM dataset_snapshots WHERE id = :id",
     ],
 )
+@pytest.mark.postgres_rollback
 def test_database_seals_a_failed_snapshot(db_session: Session, statement: str) -> None:
     repositories = session_repositories(db_session)
     project = seed_project(repositories, slug_prefix="execution-guards")

@@ -1,8 +1,11 @@
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, cast
 from uuid import UUID
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
@@ -424,8 +427,10 @@ def _unused_unit_of_work_factory() -> UnitOfWork:
     raise AssertionError("an unauthorized request must not reach persistence")
 
 
-def _client(access: _FixedProjectAccess, user: CurrentUser | None = None) -> TestClient:
-    application = create_app(
+@pytest.fixture(scope="module")
+def authorization_application() -> FastAPI:
+    """Compose real routes once; authorization failures must never reach persistence."""
+    return create_app(
         settings=AppSettings(
             database_url=SecretStr(DATABASE_URL),
             code_git_commit="a" * 40,
@@ -433,18 +438,35 @@ def _client(access: _FixedProjectAccess, user: CurrentUser | None = None) -> Tes
         ),
         unit_of_work_factory=_unused_unit_of_work_factory,
     )
-    application.dependency_overrides[require_authenticated_user] = lambda: user or _user()
-    application.dependency_overrides[require_csrf_protection] = lambda: None
-    application.dependency_overrides[get_project_access_service] = lambda: access
-    return TestClient(application)
+
+
+@contextmanager
+def _client(
+    application: FastAPI, access: _FixedProjectAccess, user: CurrentUser | None = None
+) -> Generator[TestClient, None, None]:
+    previous_overrides = application.dependency_overrides
+    assert previous_overrides == {}, "a previous authorization case leaked dependency overrides"
+    principal = user or _user()
+    application.dependency_overrides = {
+        require_authenticated_user: lambda: principal,
+        require_csrf_protection: lambda: None,
+        get_project_access_service: lambda: access,
+    }
+    try:
+        with TestClient(application) as client:
+            yield client
+    finally:
+        application.dependency_overrides = previous_overrides
 
 
 def _request(client: TestClient, route: _ScopedRoute) -> Any:
     return client.request(route.method, route.url, **route.request)
 
 
-def test_every_versioned_route_has_a_declared_access_rule() -> None:
-    schema = _client(_FixedProjectAccess()).app.openapi()  # type: ignore[attr-defined]  # FastAPI.
+def test_every_versioned_route_has_a_declared_access_rule(
+    authorization_application: FastAPI,
+) -> None:
+    schema = authorization_application.openapi()
     declared = (
         GLOBAL_ROUTES
         | PUBLIC_CLASSIFICATION_ROUTES
@@ -463,10 +485,12 @@ def test_every_versioned_route_has_a_declared_access_rule() -> None:
 @pytest.mark.parametrize("route", PROJECT_SCOPED_ROUTES, ids=lambda route: route.path)
 def test_project_scoped_route_hides_resources_outside_the_callers_projects(
     route: _ScopedRoute,
+    authorization_application: FastAPI,
 ) -> None:
     access = _FixedProjectAccess(role=None)
 
-    response = _request(_client(access), route)
+    with _client(authorization_application, access) as client:
+        response = _request(client, route)
 
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "resource_not_found"
@@ -480,68 +504,121 @@ def test_project_scoped_route_hides_resources_outside_the_callers_projects(
 )
 def test_project_scoped_route_forbids_the_role_below_its_least_role(
     route: _ScopedRoute,
+    authorization_application: FastAPI,
 ) -> None:
     ranking = tuple(ProjectRole)
     below = ranking[ranking.index(route.least_role) - 1]
 
-    response = _request(_client(_FixedProjectAccess(role=below)), route)
+    with _client(authorization_application, _FixedProjectAccess(role=below)) as client:
+        response = _request(client, route)
 
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "forbidden"
 
 
-def test_member_administration_hides_projects_the_caller_cannot_manage() -> None:
-    client = _client(_FixedProjectAccess(role=ProjectRole.operator), _user(GlobalRole.operator))
-
-    responses = [
-        client.get(f"/api/v1/projects/{_ID}/members"),
-        client.put(f"/api/v1/projects/{_ID}/members/{_OTHER}", json={"role": "viewer"}),
-        client.delete(f"/api/v1/projects/{_ID}/members/{_OTHER}"),
-    ]
+def test_member_administration_hides_projects_the_caller_cannot_manage(
+    authorization_application: FastAPI,
+) -> None:
+    with _client(
+        authorization_application,
+        _FixedProjectAccess(role=ProjectRole.operator),
+        _user(GlobalRole.operator),
+    ) as client:
+        responses = [
+            client.get(f"/api/v1/projects/{_ID}/members"),
+            client.put(f"/api/v1/projects/{_ID}/members/{_OTHER}", json={"role": "viewer"}),
+            client.delete(f"/api/v1/projects/{_ID}/members/{_OTHER}"),
+        ]
 
     assert [response.status_code for response in responses] == [404, 404, 404]
 
 
-def test_user_administration_requires_a_global_admin() -> None:
-    client = _client(_FixedProjectAccess(), _user(GlobalRole.operator))
-
-    responses = [
-        client.get("/api/v1/admin/users"),
-        client.post(
-            "/api/v1/admin/users",
-            json={"display_name": "Denied", "username": "denied", "roles": []},
-        ),
-        client.patch(
-            f"/api/v1/admin/users/{_OTHER}",
-            json={"display_name": "Denied"},
-        ),
-        client.post(f"/api/v1/admin/users/{_OTHER}/reset-password"),
-        client.post(f"/api/v1/admin/users/{_OTHER}/revoke-sessions"),
-    ]
+def test_user_administration_requires_a_global_admin(
+    authorization_application: FastAPI,
+) -> None:
+    with _client(
+        authorization_application, _FixedProjectAccess(), _user(GlobalRole.operator)
+    ) as client:
+        responses = [
+            client.get("/api/v1/admin/users"),
+            client.post(
+                "/api/v1/admin/users",
+                json={"display_name": "Denied", "username": "denied", "roles": []},
+            ),
+            client.patch(
+                f"/api/v1/admin/users/{_OTHER}",
+                json={"display_name": "Denied"},
+            ),
+            client.post(f"/api/v1/admin/users/{_OTHER}/reset-password"),
+            client.post(f"/api/v1/admin/users/{_OTHER}/revoke-sessions"),
+        ]
 
     assert [response.status_code for response in responses] == [403, 403, 403, 403, 403]
     assert all(response.json()["error"]["code"] == "forbidden" for response in responses)
 
 
-def test_project_creation_requires_a_global_operator() -> None:
-    client = _client(_FixedProjectAccess(role=ProjectRole.operator))
-
-    response = client.post("/api/v1/projects", json={"slug": "denied", "display_name": "Denied"})
-
-    assert response.status_code == 403
-
-
-def test_method_catalog_requires_some_grant() -> None:
-    client = _client(_FixedProjectAccess(any_grant=False))
-
-    response = client.get("/api/v1/methods")
+def test_project_creation_requires_a_global_operator(
+    authorization_application: FastAPI,
+) -> None:
+    with _client(
+        authorization_application, _FixedProjectAccess(role=ProjectRole.operator)
+    ) as client:
+        response = client.post(
+            "/api/v1/projects", json={"slug": "denied", "display_name": "Denied"}
+        )
 
     assert response.status_code == 403
 
 
-def test_snapshot_upload_limits_require_some_grant() -> None:
-    client = _client(_FixedProjectAccess(any_grant=False))
-
-    response = client.get("/api/v1/snapshot-upload-limits")
+def test_method_catalog_requires_some_grant(authorization_application: FastAPI) -> None:
+    with _client(authorization_application, _FixedProjectAccess(any_grant=False)) as client:
+        response = client.get("/api/v1/methods")
 
     assert response.status_code == 403
+
+
+def test_snapshot_upload_limits_require_some_grant(authorization_application: FastAPI) -> None:
+    with _client(authorization_application, _FixedProjectAccess(any_grant=False)) as client:
+        response = client.get("/api/v1/snapshot-upload-limits")
+
+    assert response.status_code == 403
+
+
+def test_authorization_clients_isolate_state_after_a_case_fails(
+    authorization_application: FastAPI,
+) -> None:
+    route = next(
+        route for route in PROJECT_SCOPED_ROUTES if route.least_role is ProjectRole.operator
+    )
+    first_access = _FixedProjectAccess(role=ProjectRole.viewer)
+    second_access = _FixedProjectAccess(role=None)
+
+    def fail_first_case() -> None:
+        with _client(authorization_application, first_access, _user(GlobalRole.operator)) as first:
+            first.cookies.set("authorization-case", "first")
+            first.headers["X-Authorization-Case"] = "first"
+            first.app_state["authorization_case"] = "first"
+            principal = first.get("/api/v1/me")
+
+            assert principal.status_code == 200
+            assert principal.json()["roles"] == ["operator"]
+            assert _request(first, route).status_code == 403
+            raise RuntimeError("case failed after its request")
+
+    with pytest.raises(RuntimeError, match="case failed after its request"):
+        fail_first_case()
+
+    assert authorization_application.dependency_overrides == {}
+    with _client(authorization_application, second_access) as second:
+        assert second.cookies.get("authorization-case") is None
+        assert second.headers.get("X-Authorization-Case") is None
+        assert "authorization_case" not in second.app_state
+        principal = second.get("/api/v1/me")
+
+        assert principal.status_code == 200
+        assert principal.json()["roles"] == []
+        assert _request(second, route).status_code == 404
+
+    assert first_access.calls == [(route.scope, RESOURCE_ID)]
+    assert second_access.calls == [(route.scope, RESOURCE_ID)]
+    assert authorization_application.dependency_overrides == {}

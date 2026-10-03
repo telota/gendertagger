@@ -243,6 +243,7 @@ def _assert_deferred_constraints_reject(session: Session, *, message: str) -> No
     session.expire_all()
 
 
+@pytest.mark.postgres_rollback
 def test_run_advances_through_its_happy_path(db_session: Session) -> None:
     runs, execution, batch, person_id = _setup(db_session)
     run_id = execution.run_id
@@ -267,6 +268,7 @@ def test_run_advances_through_its_happy_path(db_session: Session) -> None:
     assert finished.finished_at == LATER
 
 
+@pytest.mark.postgres_rollback
 def test_run_rejects_illegal_and_non_terminal_transitions(db_session: Session) -> None:
     runs, execution, _, _ = _setup(db_session)
     run_id = execution.run_id
@@ -281,6 +283,7 @@ def test_run_rejects_illegal_and_non_terminal_transitions(db_session: Session) -
         runs.mark_run_finished(run_id, status=RunStatus.failed, finished_at=LATER)
 
 
+@pytest.mark.postgres_rollback
 def test_execution_advances_and_records_failure(db_session: Session) -> None:
     runs, execution, batch, _ = _setup(db_session)
 
@@ -306,6 +309,7 @@ def test_execution_advances_and_records_failure(db_session: Session) -> None:
     assert finished.failure_diagnostic == "adapter crashed"
 
 
+@pytest.mark.postgres_rollback
 def test_execution_cannot_finish_with_a_nonterminal_batch(db_session: Session) -> None:
     runs, execution, _batch, _person_id = _setup(db_session)
     _start_execution(runs, execution)
@@ -322,6 +326,7 @@ def test_execution_cannot_finish_with_a_nonterminal_batch(db_session: Session) -
     )
 
 
+@pytest.mark.postgres_rollback
 def test_run_cannot_finish_with_a_nonterminal_execution(db_session: Session) -> None:
     runs, execution, _batch, _person_id = _setup(db_session)
     runs.mark_run_queued(execution.run_id)
@@ -339,6 +344,7 @@ def test_run_cannot_finish_with_a_nonterminal_execution(db_session: Session) -> 
     )
 
 
+@pytest.mark.postgres_rollback
 def test_batch_claimed_then_completed_records_tallies(db_session: Session) -> None:
     runs, execution, batch, person_id = _setup(db_session)
 
@@ -366,6 +372,7 @@ def test_batch_claimed_then_completed_records_tallies(db_session: Session) -> No
     assert completed.success_count == 1
 
 
+@pytest.mark.postgres_rollback
 def test_batch_cannot_finish_before_it_starts(db_session: Session) -> None:
     runs, execution, batch, _ = _setup(db_session)
     _start_execution(runs, execution)
@@ -374,6 +381,7 @@ def test_batch_cannot_finish_before_it_starts(db_session: Session) -> None:
         runs.mark_batch_finished(batch.id, status=TaskBatchStatus.completed, finished_at=LATER)
 
 
+@pytest.mark.postgres_rollback
 def test_completed_batch_tallies_must_cover_its_record_slice(db_session: Session) -> None:
     runs, execution, batch, _ = _setup(db_session)
     _start_execution(runs, execution)
@@ -387,6 +395,7 @@ def test_completed_batch_tallies_must_cover_its_record_slice(db_session: Session
         )
 
 
+@pytest.mark.postgres_rollback
 def test_failed_batch_counts_every_record_as_error(db_session: Session) -> None:
     runs, execution, batch, _ = _setup(db_session)
     _start_execution(runs, execution)
@@ -412,6 +421,7 @@ def test_failed_batch_counts_every_record_as_error(db_session: Session) -> None:
     assert failed.error_count == batch.record_count
 
 
+@pytest.mark.postgres_rollback
 def test_transitions_reject_unknown_resources(db_session: Session) -> None:
     _setup(db_session)
     runs = SqlAlchemyRunRepository(db_session)
@@ -420,6 +430,7 @@ def test_transitions_reject_unknown_resources(db_session: Session) -> None:
         runs.mark_run_queued(uuid4())
 
 
+@pytest.mark.postgres_rollback
 def test_prediction_writes_require_the_running_lifecycle(db_session: Session) -> None:
     runs, execution, batch, person_id = _setup(db_session)
     prediction = _prediction(person_id, batch.id)
@@ -441,6 +452,7 @@ def test_prediction_writes_require_the_running_lifecycle(db_session: Session) ->
         runs.add_predictions(execution.id, [prediction])
 
 
+@pytest.mark.postgres_rollback
 def test_prediction_writes_require_one_exact_batch_slice(db_session: Session) -> None:
     runs, execution, batch, person_id = _setup(db_session)
     _start_execution(runs, execution)
@@ -468,6 +480,7 @@ def test_prediction_writes_require_one_exact_batch_slice(db_session: Session) ->
         ("batch", "record_offset", 1),
     ],
 )
+@pytest.mark.postgres_rollback
 def test_database_rejects_execution_provenance_mutation(
     db_session: Session,
     resource: str,
@@ -489,6 +502,7 @@ def test_database_rejects_execution_provenance_mutation(
     )
 
 
+@pytest.mark.postgres_rollback
 def test_database_rejects_skipping_run_lifecycle_states(db_session: Session) -> None:
     _runs, execution, _batch, _person_id = _setup(db_session)
     row = db_session.get(RunRow, execution.run_id)
@@ -507,6 +521,7 @@ def test_database_rejects_skipping_run_lifecycle_states(db_session: Session) -> 
     )
 
 
+@pytest.mark.postgres_rollback
 def test_database_seals_terminal_execution_rows(db_session: Session) -> None:
     runs, execution, batch, _person_id = _setup(db_session)
     _start_execution(runs, execution)
@@ -530,6 +545,7 @@ def test_database_seals_terminal_execution_rows(db_session: Session) -> None:
     )
 
 
+@pytest.mark.postgres_rollback
 def test_deferred_guard_rejects_predictions_without_batch_completion(
     db_session: Session,
 ) -> None:
@@ -544,6 +560,7 @@ def test_deferred_guard_rejects_predictions_without_batch_completion(
     )
 
 
+@pytest.mark.postgres_rollback
 def test_deferred_guard_rejects_completed_batch_without_predictions(
     db_session: Session,
 ) -> None:
@@ -567,6 +584,7 @@ def test_deferred_guard_rejects_completed_batch_without_predictions(
     "child_resource",
     ["method execution", "task batch"],
 )
+@pytest.mark.postgres_rollback
 def test_database_rejects_child_inserts_after_parent_is_terminal(
     db_session: Session,
     child_resource: str,
@@ -605,6 +623,7 @@ def test_database_rejects_child_inserts_after_parent_is_terminal(
 
 
 @pytest.mark.parametrize("resource", ["run", "method execution", "task batch", "aggregation"])
+@pytest.mark.postgres_rollback
 def test_database_rejects_deleting_lifecycle_rows(
     db_session: Session,
     resource: str,
@@ -639,6 +658,7 @@ def test_database_rejects_deleting_lifecycle_rows(
     )
 
 
+@pytest.mark.postgres_rollback
 def test_database_rejects_running_lifecycle_without_start_timestamp(
     db_session: Session,
 ) -> None:
@@ -655,6 +675,7 @@ def test_database_rejects_running_lifecycle_without_start_timestamp(
     )
 
 
+@pytest.mark.postgres_rollback
 def test_database_rejects_failed_lifecycle_without_failure_details(
     db_session: Session,
 ) -> None:
@@ -677,6 +698,7 @@ def test_database_rejects_failed_lifecycle_without_failure_details(
     )
 
 
+@pytest.mark.postgres_rollback
 def test_database_rejects_raw_prediction_insert_outside_running_lifecycle(
     db_session: Session,
 ) -> None:
@@ -700,6 +722,7 @@ def test_database_rejects_raw_prediction_insert_outside_running_lifecycle(
     )
 
 
+@pytest.mark.postgres_rollback
 def test_database_rejects_raw_prediction_outside_the_batch_slice(
     db_session: Session,
 ) -> None:

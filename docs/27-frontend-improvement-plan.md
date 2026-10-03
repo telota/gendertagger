@@ -78,7 +78,7 @@ use a server identity filter, including people beyond a fuzzy-search page. Viewe
 to Data, and the picker transfers keyboard focus after asynchronous step loading. No persistence
 migration or scientific behavior change is involved.
 
-Backend validation passes 1,364 fast tests and 243 PostgreSQL integration tests using isolated
+Backend validation passes 1,364 Core tests and 243 PostgreSQL integration tests using isolated
 temporary databases. Combined coverage is 86.07% against the 85% floor; normalization, reference
 aggregation, certainty assessment and TEI projection each retain 100% branch coverage. Locked
 documentation, naming, initializer, dead-code, Ruff, mypy/Pyright, import-boundary and runner checks,
@@ -117,7 +117,7 @@ history before using its revision. Bulk decisions use the same snapshot-wide ref
 Shared navigation/detail snapshot reads reuse the active import's two-second polling interval, while
 settled/error states and explicit invalidation still revalidate immediately.
 
-Validation: 127 focused backend tests and 1,345 fast tests pass (71.77% coverage against the fast
+Validation: 127 focused backend tests and 1,345 Core tests pass (71.77% coverage against the Core
 70% floor), including PostgreSQL project isolation, role access, lifecycle states and eligible data
 beyond the first page. Locked policy, Ruff, mypy/Pyright, Import Linter, package build/distribution and
 dependency audit checks pass. Full PostgreSQL/Redis coverage combination was not rerun for this batch.
@@ -152,7 +152,7 @@ The frontend regression suite passes all 1,066 tests with 82.7% branch coverage.
 type checking, locale completeness, generated-transport drift, and the production build pass. Focused
 regressions cover skip-link focus across routes and the prohibited-ARIA rule, including incomplete axe
 results. Locked backend policy checks, Ruff, mypy/Pyright, Import Linter, package build/distribution,
-and 1,343 fast tests also pass (71.79% coverage, above the separate 70% fast-suite floor). Service
+and 1,343 Core tests also pass (71.79% coverage, above the separate 70% Core profile floor). Service
 integration suites and the combined coverage gate were not rerun for this frontend-only change.
 Live keyboard/scroll/focus and desktop/mobile visual checks remain pending: this session had no connected
 browser and could not open Chrome. These automated results do not close the live checks.
@@ -453,7 +453,7 @@ sign-in changes landed during this session; the final suite includes their updat
 replacing that work.
 
 The unchanged backend retains this session's passing locked policy, lint/type/import checks, package
-build/distribution and 1,343 fast-test results (71.79% coverage). Service integration and combined
+build/distribution and 1,343 Core profile results (71.79% coverage). Service integration and combined
 coverage were not rerun for this frontend increment. No connected browser is available: rendered
 desktop/mobile geometry, tooltip placement, keyboard visibility, zoom/reflow and assistive-technology
 checks remain open. The single-project overview design and remaining V packages are not closed by this

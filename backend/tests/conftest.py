@@ -2,6 +2,7 @@
 
 import os
 from collections.abc import Callable, Iterator
+from contextlib import nullcontext
 from functools import partial
 from typing import TypeAlias, cast
 from urllib.parse import urlsplit
@@ -19,9 +20,14 @@ from sqlalchemy import Connection, Engine, create_engine
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.orm import Session
 
-from gendertagger.db.base import Base
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
+from tests.postgres_isolation import (
+    RollbackIsolation,
+    repository_session,
+    truncate_repository_tables,
+    validate_rollback_marker,
+)
 
 settings.register_profile(
     "ci",
@@ -42,6 +48,8 @@ DatabaseFactory: TypeAlias = Callable[[], str]
 @pytest.hookimpl(tryfirst=True)
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Validate the ordinary profile inventory before pytest deselects any items."""
+    for item in items:
+        validate_rollback_marker(item)
     try:
         partitions = partition_tests(
             {item.nodeid: {marker.name for marker in item.iter_markers()} for item in items}
@@ -108,31 +116,42 @@ def repository_database_url(postgres_database_factory: DatabaseFactory) -> str:
 def postgres_engine(repository_database_url: str) -> Iterator[Engine]:
     """Return a PostgreSQL engine for the migrated repository database."""
     engine = create_engine(repository_database_url, pool_pre_ping=True)
-    yield engine
-    engine.dispose()
+    try:
+        # Migration seed rows must not make the first repository case differ from later cases.
+        # Migration behavior is tested on independently created databases.
+        truncate_repository_tables(engine)
+        yield engine
+    finally:
+        engine.dispose()
 
 
 @pytest.fixture(autouse=True)
-def isolate_postgres_test(request: pytest.FixtureRequest) -> Iterator[None]:
-    """Remove committed rows after each test that uses the shared PostgreSQL database."""
+def isolate_postgres_test(request: pytest.FixtureRequest) -> Iterator[RollbackIsolation | None]:
+    """Remove committed rows unless an explicit opt-in proves complete rollback isolation."""
     needs_database = request.node.get_closest_marker("postgres") is not None or any(
         fixture_name in request.fixturenames
         for fixture_name in ("db_session", "postgres_engine", "postgres_unit_of_work")
     )
     if not needs_database:
-        yield
+        yield None
         return
 
     engine = cast(Engine, request.getfixturevalue("postgres_engine"))
-    yield
+    isolation = (
+        RollbackIsolation() if request.node.get_closest_marker("postgres_rollback") else None
+    )
+    observation = isolation.observe() if isolation is not None else nullcontext()
+    with observation:
+        yield isolation
 
-    with engine.begin() as connection:
-        preparer = connection.dialect.identifier_preparer
-        table_names = ", ".join(
-            preparer.format_table(table)
-            for table in sorted(Base.metadata.tables.values(), key=lambda table: table.fullname)
-        )
-        connection.exec_driver_sql(f"TRUNCATE TABLE {table_names} CASCADE")
+    if isolation is not None and not isolation.requires_cleanup:
+        return
+
+    truncate_repository_tables(engine)
+
+    if isolation is not None:
+        reasons = ", ".join(sorted(isolation.violations)) or "outer rollback was not completed"
+        pytest.fail(f"postgres_rollback isolation was not proven: {reasons}")
 
 
 @pytest.fixture(autouse=True)
@@ -166,17 +185,12 @@ def isolate_redis_test(
 
 
 @pytest.fixture
-def db_session(postgres_engine: Engine) -> Iterator[Session]:
+def db_session(
+    postgres_engine: Engine, isolate_postgres_test: RollbackIsolation | None
+) -> Iterator[Session]:
     """Run each repository test inside a rolled-back outer transaction."""
-    with postgres_engine.connect() as connection:
-        transaction = connection.begin()
-        session = Session(bind=connection, autoflush=False, expire_on_commit=False)
-        try:
-            yield session
-        finally:
-            session.close()
-            if transaction.is_active:
-                transaction.rollback()
+    with repository_session(postgres_engine, isolate_postgres_test) as session:
+        yield session
 
 
 @pytest.fixture

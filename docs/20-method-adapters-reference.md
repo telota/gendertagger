@@ -97,13 +97,14 @@ The pipeline contains ten components across five methodological families. Nine c
 ### 4. Wiki-Gendersort (`wiki_gendersort`)
 
 - **Module**: [`gendertagger.methods.adapters.wiki_gendersort`](../backend/src/gendertagger/methods/adapters/wiki_gendersort.py)
-- **ADR**: [ADR-0013](decisions/ADR-0013-wiki-gendersort-adapter.md), [ADR-0029](decisions/ADR-0029-unconditional-method-dependencies.md)
+- **ADR**: [ADR-0045](decisions/ADR-0045-wiki-gendersort-compatible-implementation.md), [ADR-0023](decisions/ADR-0023-content-addressed-sqlite-method-lookups.md), [ADR-0029](decisions/ADR-0029-unconditional-method-dependencies.md)
 - **Role**: Pooled voter in reference ensemble.
 - **Dependencies**: Built-in `sqlite3` and standard dependency `unidecode`.
 - **Configuration**: `LookupMethodConfig` requiring `lookup_sha256` digest of the compiled Wiki-Gendersort SQLite artifact.
 - **Normalization Profile**: `wiki_gendersort_v1`.
+- **Implementation Version**: `wiki_gendersort_v2`; replacement rules follow [the behavior specification](29-wiki-gendersort-compatibility.md).
 - **Inputs Consumed**: Forename tokens from `person.forenames` or `person.name_forms`.
-- **Behavior**: Queries local SQLite frequency table for normalized forename tokens. Computes token-level consensus. Maps `M` -> `male`, `F` -> `female`, `UNI` / `unisex` -> `unknown`, `UNK` -> `unknown`, and abstains on unindexed names (`INI`).
+- **Behavior**: Generates ordered compatible name candidates and resolves them against an immutable local SQLite label table. Computes the existing consensus across all usable forename tokens. Maps `M` -> `male`, `F` -> `female`, and `UNI` / `UNK` to substantive `unknown`; `INI` maps to `no_name` and abstains. A usable name missing from the table returns `UNK`, whereas a nonempty token with no usable candidates returns `INI`. Retains native labels, matched candidates, token results, and normalization provenance; emits no `method_confidence`.
 
 ### 5. HIVOTO (`hivoto`)
 
@@ -179,7 +180,7 @@ The pipeline contains ten components across five methodological families. Nine c
 | GND Local Snapshot | [`gendertagger.methods.adapters.gnd`](../backend/src/gendertagger/methods/adapters/gnd.py) | [ADR-0023](decisions/ADR-0023-content-addressed-sqlite-method-lookups.md) |
 | GND lookup compiler (offline, not a method) | [`gendertagger.methods.gnd_snapshot`](../backend/src/gendertagger/methods/gnd_snapshot.py) | [ADR-0023](decisions/ADR-0023-content-addressed-sqlite-method-lookups.md) |
 | gender-guesser | [`gendertagger.methods.adapters.gender_guesser`](../backend/src/gendertagger/methods/adapters/gender_guesser.py) | [ADR-0012](decisions/ADR-0012-name-based-classifier-adapter-pattern.md) |
-| Wiki-Gendersort | [`gendertagger.methods.adapters.wiki_gendersort`](../backend/src/gendertagger/methods/adapters/wiki_gendersort.py) | [ADR-0013](decisions/ADR-0013-wiki-gendersort-adapter.md) |
+| Wiki-Gendersort | [`gendertagger.methods.adapters.wiki_gendersort`](../backend/src/gendertagger/methods/adapters/wiki_gendersort.py) | [ADR-0045](decisions/ADR-0045-wiki-gendersort-compatible-implementation.md) |
 | HIVOTO | [`gendertagger.methods.adapters.hivoto`](../backend/src/gendertagger/methods/adapters/hivoto.py) | [ADR-0018](decisions/ADR-0018-hivoto-adapter.md) |
 | nomquamgender | [`gendertagger.methods.adapters.nomquamgender`](../backend/src/gendertagger/methods/adapters/nomquamgender.py) | [ADR-0019](decisions/ADR-0019-nomquamgender-adapter.md) |
 | Hugging Face DistilBERT | [`gendertagger.methods.adapters.hf_distilbert`](../backend/src/gendertagger/methods/adapters/hf_distilbert.py) | [ADR-0024](decisions/ADR-0024-hf-transformer-model-manifest-adapters.md) |

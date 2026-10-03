@@ -1,4 +1,5 @@
-from collections.abc import Sequence
+from collections.abc import Generator, Sequence
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from types import TracebackType
@@ -218,20 +219,45 @@ def _service(
     )
 
 
-@pytest.fixture
-def deployment() -> tuple[TestClient, PublicClassificationService, _UnitOfWork]:
-    unit_of_work = _UnitOfWork()
-    service = _service(unit_of_work)
-    application = create_app(
+def _unused_unit_of_work_factory() -> UnitOfWork:
+    raise AssertionError("the overridden public route must not access application persistence")
+
+
+@pytest.fixture(scope="module")
+def public_classification_application() -> FastAPI:
+    """Compose fixed routes once while each deployment owns fresh service and job state."""
+    return create_app(
         settings=AppSettings(
             database_url=SecretStr("postgresql+psycopg://unused:unused@localhost/unused"),
             code_git_commit="a" * 40,
             dependency_lock_sha256="b" * 64,
         ),
-        unit_of_work_factory=lambda: cast(UnitOfWork, unit_of_work),
+        unit_of_work_factory=_unused_unit_of_work_factory,
     )
-    application.dependency_overrides[get_public_classification_service] = lambda: service
-    return TestClient(application), service, unit_of_work
+
+
+@contextmanager
+def _deployment(
+    application: FastAPI,
+) -> Generator[tuple[TestClient, PublicClassificationService, _UnitOfWork], None, None]:
+    previous_overrides = application.dependency_overrides
+    assert previous_overrides == {}, "a previous public route case leaked dependency overrides"
+    unit_of_work = _UnitOfWork()
+    service = _service(unit_of_work)
+    application.dependency_overrides = {get_public_classification_service: lambda: service}
+    try:
+        with TestClient(application) as client:
+            yield client, service, unit_of_work
+    finally:
+        application.dependency_overrides = previous_overrides
+
+
+@pytest.fixture
+def deployment(
+    public_classification_application: FastAPI,
+) -> Generator[tuple[TestClient, PublicClassificationService, _UnitOfWork], None, None]:
+    with _deployment(public_classification_application) as deployed:
+        yield deployed
 
 
 def test_public_single_name_without_session_or_csrf_returns_evidence_and_provenance(
@@ -440,3 +466,42 @@ def test_public_acceptance_contract_contains_single_and_batch_names(
     assert responses["202"]["content"]["application/json"]["schema"] == {
         "$ref": "#/components/schemas/PublicClassificationJobAccepted"
     }
+
+
+def test_public_deployments_isolate_jobs_and_client_state_after_a_case_fails(
+    public_classification_application: FastAPI,
+) -> None:
+    accepted_jobs: list[tuple[str, str, _UnitOfWork]] = []
+
+    def fail_first_case() -> None:
+        with _deployment(public_classification_application) as (first, _, unit_of_work):
+            first.cookies.set("public-case", "first")
+            first.headers["X-Public-Case"] = "first"
+            first.app_state["public_case"] = "first"
+            accepted = first.post(
+                "/api/v1/public/classify", json={"name": "Maria", "methods": ["slow_method"]}
+            )
+            assert accepted.status_code == 202
+            accepted_jobs.append(
+                (accepted.headers["location"], accepted.json()["retrieval_token"], unit_of_work)
+            )
+            assert len(unit_of_work.public_classifications.jobs) == 1
+            assert unit_of_work.commit_count == 1
+            raise RuntimeError("public case failed")
+
+    with pytest.raises(RuntimeError, match="public case failed"):
+        fail_first_case()
+
+    assert public_classification_application.dependency_overrides == {}
+    location, token, first_unit_of_work = accepted_jobs[0]
+    with _deployment(public_classification_application) as (second, _, second_unit_of_work):
+        assert second.cookies.get("public-case") is None
+        assert second.headers.get("X-Public-Case") is None
+        assert "public_case" not in second.app_state
+        assert second_unit_of_work.public_classifications.jobs == {}
+        assert second_unit_of_work.dispatches.intents == []
+        assert second_unit_of_work.commit_count == 0
+        assert second.get(location, headers={"X-Classification-Token": token}).status_code == 404
+
+    assert len(first_unit_of_work.public_classifications.jobs) == 1
+    assert public_classification_application.dependency_overrides == {}

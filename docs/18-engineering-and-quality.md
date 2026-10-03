@@ -91,22 +91,30 @@ Markers define execution requirements rather than importance:
 
 - `unit`, `contract`, and `scientific`: deterministic, offline merge-request tests;
 - `integration`, `postgres`, and `redis`: service-backed tests introduced with their phases;
+- `postgres_rollback`: individually audited `db_session` cases that require proven outer rollback;
 - `e2e`: a full supported workflow over a tiny fixture;
 - `slow`, `gpu`, and `external`: excluded from ordinary CI and enabled only explicitly.
 
 The canonical profile runner in `backend/scripts/run_tests.py` generates the marker expressions for local,
 push, and CI runs. Collection validates that every ordinary test belongs to exactly one profile:
-infrastructure-free cases are fast, PostgreSQL-only cases are postgres, and Redis cases are redis even when
-they also require PostgreSQL. Explicit protected markers exclude a case from ordinary profiles. Missing
+infrastructure-free cases are Core (`core`), PostgreSQL-only cases are PostgreSQL (`postgres`), and Redis
+cases are Redis (`redis`) even when they also require PostgreSQL. Explicit protected markers exclude a
+case from ordinary profiles. Missing
 infrastructure assignment is a collection error; no ordinary test may silently fall outside every suite.
 
 Every test must be independent of execution order and shared mutable state. PostgreSQL-specific behavior is
 tested on PostgreSQL, and at least one Celery path uses a real Redis broker/worker rather than eager mode.
 
+PostgreSQL committed cleanup remains the default. The `postgres_rollback` opt-in requires a reviewed test
+that uses only the supplied SQLAlchemy session. Collection rejects inherited or incompatible opt-ins;
+teardown skips truncation only after confirmed rollback with no observed transaction escape across function
+fixture setup, execution, and teardown. Failure to prove isolation retains truncation and fails the test.
+Direct DBAPI calls and textual transaction-control statements require the default cleanup.
+
 The overall coverage floor is 85%, enforced in `pyproject.toml` and `.gitlab-ci.yml`. Ratcheting it further
 is an operational decision once real coverage headroom is measured, not tied to a specific phase. CI records
-separate data from the fast, PostgreSQL, and Redis suites, then combines those data before enforcing the
-project floor. The fast suite
+separate data from the Core, PostgreSQL, and Redis profiles, then combines those data before enforcing the
+Backend project floor. The Core profile
 also has a 70% non-regression floor so unit and contract coverage cannot silently collapse behind integration
 coverage. A zero threshold on a service-specific partial run only defers percentage evaluation; test failures
 remain blocking. Normative normalization, reference aggregation, certainty assessment, and TEI-projection
@@ -122,7 +130,7 @@ The initial GitLab pipeline performs:
    checks;
 3. Ruff, strict mypy, complementary Pyright, and import-boundary checks;
 4. locked Python and npm dependency vulnerability audits;
-5. the fast, PostgreSQL, and Redis pytest suites with combined branch coverage;
+5. the Core, PostgreSQL, and Redis pytest profiles with combined Backend branch coverage;
 6. wheel and source-distribution construction plus a sensitive-content policy check;
 7. GitLab SAST and secret detection;
 8. frontend lint, formatting, type checking, message-catalogue and transport-drift checks, npm audit, Vitest
@@ -155,6 +163,14 @@ Package construction uses isolated build tooling, and combined coverage installs
 group. Tests and type analysis keep the complete locked application environment. CI publishes JUnit timing
 reports for each backend profile and the frontend alongside coverage artifacts. Coverage combination keeps
 all three suite artifacts from the same pipeline and preserves every threshold.
+
+Package-manager caches are scoped to the pinned image/tool family and both project manifests and lockfiles.
+Only the backend and frontend quality jobs upload their respective caches; other consumers only pull, and
+the standard-library repository-policy job does not transfer a package cache. Installed virtual environments
+and `node_modules` are not shared as artifacts. Frontend tests depend on frontend validation/audit, frontend
+builds depend on those tests, and Python distribution checks depend on lockfile and repository policy.
+Those dependencies suppress unrelated artifact downloads and allow component feedback sooner. All other
+quality and coverage jobs remain mandatory, and image publishing retains the full stage barrier.
 
 Ordinary merge-request jobs have no production secrets and must not use private-network, GPU, model, or
 deployment runners. Such runners are protected and accept only trusted protected refs or schedules.

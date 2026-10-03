@@ -123,6 +123,7 @@ def _guesser_female_gnd_error(method_name: str, person: PersonRecord) -> Predict
     return PredictionResult(label=None, status=PredictionStatus.abstain)
 
 
+@pytest.mark.postgres_rollback
 def test_reference_selection_requires_every_stable_method_once(db_session: Session) -> None:
     run_id, execution_ids, _person_id = _seed_reference_run(db_session)
     repository = SqlAlchemyAggregationRepository(db_session)
@@ -139,6 +140,7 @@ def test_reference_selection_requires_every_stable_method_once(db_session: Sessi
         )
 
 
+@pytest.mark.postgres_rollback
 def test_repository_claims_and_completes_exactly_one_full_snapshot_result(
     db_session: Session,
 ) -> None:
@@ -188,6 +190,7 @@ def test_repository_claims_and_completes_exactly_one_full_snapshot_result(
         repository.add_results(aggregation.id, [])
 
 
+@pytest.mark.postgres_rollback
 def test_database_rejects_reopening_a_selected_execution(
     db_session: Session,
 ) -> None:
@@ -215,6 +218,7 @@ def test_database_rejects_reopening_a_selected_execution(
     )
 
 
+@pytest.mark.postgres_rollback
 def test_database_rejects_changing_selected_execution_run_ownership(
     db_session: Session,
 ) -> None:
@@ -249,6 +253,7 @@ def test_database_rejects_changing_selected_execution_run_ownership(
     )
 
 
+@pytest.mark.postgres_rollback
 def test_repository_rejects_completion_with_partial_results(db_session: Session) -> None:
     run_id, execution_ids, _person_id = _seed_reference_run(db_session)
     repository = SqlAlchemyAggregationRepository(db_session)
@@ -277,6 +282,7 @@ def test_repository_rejects_completion_with_partial_results(db_session: Session)
         )
 
 
+@pytest.mark.postgres_rollback
 def test_database_rejects_aggregation_provenance_mutation(db_session: Session) -> None:
     run_id, execution_ids, _person_id = _seed_reference_run(db_session)
     aggregation = SqlAlchemyAggregationRepository(db_session).add_aggregation(
@@ -302,6 +308,7 @@ def test_database_rejects_aggregation_provenance_mutation(db_session: Session) -
         ("config_sha256", "e" * 64),
     ],
 )
+@pytest.mark.postgres_rollback
 def test_database_rejects_aggregation_configuration_provenance_mutation(
     db_session: Session,
     attribute: str,
@@ -325,6 +332,7 @@ def test_database_rejects_aggregation_configuration_provenance_mutation(
     )
 
 
+@pytest.mark.postgres_rollback
 def test_database_rejects_aggregation_membership_deletion(db_session: Session) -> None:
     run_id, execution_ids, _person_id = _seed_reference_run(db_session)
     repository = SqlAlchemyAggregationRepository(db_session)
@@ -348,6 +356,7 @@ def test_database_rejects_aggregation_membership_deletion(db_session: Session) -
     )
 
 
+@pytest.mark.postgres_rollback
 def test_database_rejects_queuing_aggregation_without_membership(
     db_session: Session,
 ) -> None:
@@ -370,6 +379,7 @@ def test_database_rejects_queuing_aggregation_without_membership(
     )
 
 
+@pytest.mark.postgres_rollback
 def test_deferred_guard_rejects_results_without_aggregation_completion(
     db_session: Session,
 ) -> None:
@@ -399,6 +409,7 @@ def test_deferred_guard_rejects_results_without_aggregation_completion(
     )
 
 
+@pytest.mark.postgres_rollback
 def test_deferred_guard_rejects_completed_aggregation_without_results(
     db_session: Session,
 ) -> None:
@@ -425,6 +436,7 @@ def test_deferred_guard_rejects_completed_aggregation_without_results(
     )
 
 
+@pytest.mark.postgres_rollback
 def test_database_rejects_raw_result_insert_after_aggregation_finished(
     db_session: Session,
 ) -> None:
@@ -473,6 +485,7 @@ def test_database_rejects_raw_result_insert_after_aggregation_finished(
     )
 
 
+@pytest.mark.postgres_rollback
 def test_repository_does_not_reopen_a_failed_aggregation(db_session: Session) -> None:
     run_id, execution_ids, _person_id = _seed_reference_run(db_session)
     repository = SqlAlchemyAggregationRepository(db_session)
@@ -633,6 +646,7 @@ def test_aggregation_creation_rolls_back_when_dispatch_intent_cannot_persist(
         )
 
 
+@pytest.mark.postgres_rollback
 def test_repository_rejects_absent_runs_and_unowned_method_selections(
     db_session: Session,
 ) -> None:
@@ -653,6 +667,7 @@ def test_repository_rejects_absent_runs_and_unowned_method_selections(
         )
 
 
+@pytest.mark.postgres_rollback
 def test_repository_distinguishes_missing_aggregations_from_illegal_transitions(
     db_session: Session,
 ) -> None:
@@ -678,6 +693,7 @@ def test_repository_distinguishes_missing_aggregations_from_illegal_transitions(
         repository.mark_aggregation_queued(aggregation.id)
 
 
+@pytest.mark.postgres_rollback
 def test_repository_rejects_duplicate_results_and_invalid_finish_commands(
     db_session: Session,
 ) -> None:

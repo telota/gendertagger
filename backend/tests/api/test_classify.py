@@ -1,7 +1,11 @@
-from collections.abc import Sequence
-from typing import Any
+from collections.abc import Generator, Sequence
+from contextlib import contextmanager
+from typing import Any, cast
+from unittest.mock import Mock
 from uuid import UUID
 
+import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
@@ -17,10 +21,10 @@ from gendertagger.methods.adapters.gender_guesser import GenderGuesserMethod
 from gendertagger.methods.adapters.nomquamgender import NomquamgenderMethod
 from gendertagger.methods.adapters.parenthetical_qualifier import ParentheticalQualifierMethod
 from gendertagger.methods.base import MethodConfig, MethodDependencyError
-from gendertagger.models.classification import PredictionResult
+from gendertagger.models.classification import CanonicalLabel, PredictionResult, PredictionStatus
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.person import PersonInput
-from gendertagger.models.user import CurrentUser, ProjectRole
+from gendertagger.models.user import CurrentUser, GlobalRole, ProjectRole
 from gendertagger.services.classification import DirectClassificationService
 from gendertagger.services.method_registry import MethodRegistration, MethodRegistry
 from gendertagger.services.ports.project_access_repository import ProjectScope
@@ -109,11 +113,8 @@ def _authenticated_user() -> CurrentUser:
     )
 
 
-def _application_client(
-    registry: MethodRegistry | None = None,
-    user: CurrentUser | None = None,
-) -> TestClient:
-    application = create_app(
+def _application() -> FastAPI:
+    return create_app(
         settings=AppSettings(
             database_url=SecretStr(DATABASE_URL),
             code_git_commit=CODE_GIT_COMMIT,
@@ -121,6 +122,23 @@ def _application_client(
         ),
         unit_of_work_factory=_unused_unit_of_work_factory,
     )
+
+
+@pytest.fixture(scope="module")
+def classification_application() -> FastAPI:
+    """Compose routes once for cases that override the mutable method registry and service."""
+    return _application()
+
+
+@contextmanager
+def _application_client(
+    application: FastAPI,
+    registry: MethodRegistry | None = None,
+    user: CurrentUser | None = None,
+) -> Generator[TestClient, None, None]:
+    previous_overrides = application.dependency_overrides
+    assert previous_overrides == {}, "a previous classification case leaked overrides"
+    application.dependency_overrides = {}
     if user is not None:
         application.dependency_overrides[require_authenticated_user] = lambda: user
     else:
@@ -132,7 +150,11 @@ def _application_client(
         application.dependency_overrides[get_classification_service] = lambda: (
             DirectClassificationService(method_registry=registry)
         )
-    return TestClient(application)
+    try:
+        with TestClient(application) as client:
+            yield client
+    finally:
+        application.dependency_overrides = previous_overrides
 
 
 def test_classify_endpoint_requires_authentication() -> None:
@@ -149,176 +171,263 @@ def test_classify_endpoint_requires_authentication() -> None:
     assert response.status_code == 401
 
 
-def test_classify_endpoint_accepts_single_name_field() -> None:
-    client = _application_client(registry=_build_test_registry())
-    response = client.post(
-        "/api/v1/classify",
-        json={"name": "Maria", "methods": ["gender_guesser"]},
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data["results"]) == 1
-    assert data["results"][0]["name"] == "Maria"
-    classifications = data["results"][0]["classifications"]
-    assert "gender_guesser" in classifications
-    assert classifications["gender_guesser"]["label"] == "female"
-    assert classifications["gender_guesser"]["status"] == "success"
-    assert data["results"][0]["aggregated"]["label"] == "female"
-    assert data["results"][0]["aggregated"]["outcome"] == "decided"
+def test_classify_endpoint_accepts_single_name_field(
+    classification_application: FastAPI,
+) -> None:
+    with _application_client(classification_application, registry=_build_test_registry()) as client:
+        response = client.post(
+            "/api/v1/classify",
+            json={"name": "Maria", "methods": ["gender_guesser"]},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["results"]) == 1
+        assert data["results"][0]["name"] == "Maria"
+        classifications = data["results"][0]["classifications"]
+        assert "gender_guesser" in classifications
+        assert classifications["gender_guesser"]["label"] == "female"
+        assert classifications["gender_guesser"]["status"] == "success"
+        assert data["results"][0]["aggregated"]["label"] == "female"
+        assert data["results"][0]["aggregated"]["outcome"] == "decided"
 
 
-def test_classify_endpoint_accepts_names_string() -> None:
-    client = _application_client(registry=_build_test_registry())
-    response = client.post(
-        "/api/v1/classify",
-        json={"names": "Maria", "methods": ["gender_guesser"]},
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data["results"]) == 1
-    assert data["results"][0]["name"] == "Maria"
+def test_classify_endpoint_accepts_names_string(
+    classification_application: FastAPI,
+) -> None:
+    with _application_client(classification_application, registry=_build_test_registry()) as client:
+        response = client.post(
+            "/api/v1/classify",
+            json={"names": "Maria", "methods": ["gender_guesser"]},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["results"]) == 1
+        assert data["results"][0]["name"] == "Maria"
 
 
-def test_classify_endpoint_accepts_list_of_names_and_defaults_to_all_methods() -> None:
-    client = _application_client(registry=_build_test_registry())
-    response = client.post(
-        "/api/v1/classify",
-        json={"names": ["Maria", "Heinrich", "Schmidt (Frau des Heinrich)"]},
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data["results"]) == 3
+def test_classify_endpoint_accepts_list_of_names_and_defaults_to_all_methods(
+    classification_application: FastAPI,
+) -> None:
+    with _application_client(classification_application, registry=_build_test_registry()) as client:
+        response = client.post(
+            "/api/v1/classify",
+            json={"names": ["Maria", "Heinrich", "Schmidt (Frau des Heinrich)"]},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["results"]) == 3
 
-    # Maria
-    maria = data["results"][0]
-    assert maria["name"] == "Maria"
-    assert maria["classifications"]["gender_guesser"]["label"] == "female"
-    assert maria["classifications"]["nomquamgender"]["label"] == "female"
-    assert maria["classifications"]["parenthetical_qualifier"]["status"] == "abstain"
+        # Maria
+        maria = data["results"][0]
+        assert maria["name"] == "Maria"
+        assert maria["classifications"]["gender_guesser"]["label"] == "female"
+        assert maria["classifications"]["nomquamgender"]["label"] == "female"
+        assert maria["classifications"]["parenthetical_qualifier"]["status"] == "abstain"
 
-    # Frau
-    frau = data["results"][2]
-    assert frau["name"] == "Schmidt (Frau des Heinrich)"
-    assert frau["classifications"]["parenthetical_qualifier"]["label"] == "female"
-    assert frau["classifications"]["parenthetical_qualifier"]["status"] == "success"
-
-
-def test_classify_endpoint_with_custom_method_config() -> None:
-    client = _application_client(registry=_build_test_registry())
-    response = client.post(
-        "/api/v1/classify",
-        json={
-            "names": ["Maria"],
-            "methods": ["nomquamgender"],
-            "method_configs": {"nomquamgender": {"threshold": 0.2}},
-        },
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["results"][0]["classifications"]["nomquamgender"]["label"] == "female"
+        # Frau
+        frau = data["results"][2]
+        assert frau["name"] == "Schmidt (Frau des Heinrich)"
+        assert frau["classifications"]["parenthetical_qualifier"]["label"] == "female"
+        assert frau["classifications"]["parenthetical_qualifier"]["status"] == "success"
 
 
-def test_classify_endpoint_handles_method_error_gracefully() -> None:
-    client = _application_client(registry=_build_test_registry())
-    response = client.post(
-        "/api/v1/classify",
-        json={"names": ["Maria"], "methods": ["gender_guesser", "failing_method"]},
-    )
-    assert response.status_code == 200
-    data = response.json()
-    classifications = data["results"][0]["classifications"]
-    assert classifications["gender_guesser"]["status"] == "success"
-    assert classifications["failing_method"]["status"] == "error"
-    assert classifications["failing_method"]["label"] is None
-    assert (
-        "Failing adapter dependency missing" in classifications["failing_method"]["error_message"]
-    )
+def test_classify_endpoint_with_custom_method_config(
+    classification_application: FastAPI,
+) -> None:
+    with _application_client(classification_application, registry=_build_test_registry()) as client:
+        response = client.post(
+            "/api/v1/classify",
+            json={
+                "names": ["Maria"],
+                "methods": ["nomquamgender"],
+                "method_configs": {"nomquamgender": {"threshold": 0.2}},
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["results"][0]["classifications"]["nomquamgender"]["label"] == "female"
 
 
-def test_classify_endpoint_rejects_unknown_method_with_422() -> None:
-    client = _application_client(registry=_build_test_registry())
-    response = client.post(
-        "/api/v1/classify",
-        json={"names": ["Maria"], "methods": ["nonexistent_method"]},
-    )
-    assert response.status_code == 422
-    assert "nonexistent_method" in response.json()["error"]["message"]
+def test_classify_endpoint_handles_method_error_gracefully(
+    classification_application: FastAPI,
+) -> None:
+    with _application_client(classification_application, registry=_build_test_registry()) as client:
+        response = client.post(
+            "/api/v1/classify",
+            json={"names": ["Maria"], "methods": ["gender_guesser", "failing_method"]},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        classifications = data["results"][0]["classifications"]
+        assert classifications["gender_guesser"]["status"] == "success"
+        assert classifications["failing_method"]["status"] == "error"
+        assert classifications["failing_method"]["label"] is None
+        assert (
+            "Failing adapter dependency missing"
+            in classifications["failing_method"]["error_message"]
+        )
 
 
-def test_classify_endpoint_rejects_invalid_method_name_pattern() -> None:
-    client = _application_client(registry=_build_test_registry())
-    response = client.post(
-        "/api/v1/classify",
-        json={"names": ["Maria"], "methods": ["INVALID-NAME!"]},
-    )
-    assert response.status_code == 422
+def test_classify_endpoint_rejects_unknown_method_with_422(
+    classification_application: FastAPI,
+) -> None:
+    with _application_client(classification_application, registry=_build_test_registry()) as client:
+        response = client.post(
+            "/api/v1/classify",
+            json={"names": ["Maria"], "methods": ["nonexistent_method"]},
+        )
+        assert response.status_code == 422
+        assert "nonexistent_method" in response.json()["error"]["message"]
 
 
-def test_classify_endpoint_rejects_empty_names() -> None:
-    client = _application_client(registry=_build_test_registry())
-    response = client.post("/api/v1/classify", json={"names": []})
-    assert response.status_code == 422
+def test_classify_endpoint_rejects_invalid_method_name_pattern(
+    classification_application: FastAPI,
+) -> None:
+    with _application_client(classification_application, registry=_build_test_registry()) as client:
+        response = client.post(
+            "/api/v1/classify",
+            json={"names": ["Maria"], "methods": ["INVALID-NAME!"]},
+        )
+        assert response.status_code == 422
 
 
-def test_classify_endpoint_rejects_blank_names() -> None:
-    client = _application_client(registry=_build_test_registry())
-    response = client.post("/api/v1/classify", json={"names": ["  "]})
-    assert response.status_code == 422
+def test_classify_endpoint_rejects_empty_names(
+    classification_application: FastAPI,
+) -> None:
+    with _application_client(classification_application, registry=_build_test_registry()) as client:
+        response = client.post("/api/v1/classify", json={"names": []})
+        assert response.status_code == 422
 
 
-def test_classify_endpoint_rejects_exceeding_max_batch_size() -> None:
-    client = _application_client(registry=_build_test_registry())
-    response = client.post("/api/v1/classify", json={"names": ["Maria"] * 1001})
-    assert response.status_code == 422
+def test_classify_endpoint_rejects_blank_names(
+    classification_application: FastAPI,
+) -> None:
+    with _application_client(classification_application, registry=_build_test_registry()) as client:
+        response = client.post("/api/v1/classify", json={"names": ["  "]})
+        assert response.status_code == 422
+
+
+def test_classify_endpoint_rejects_exceeding_max_batch_size(
+    classification_application: FastAPI,
+) -> None:
+    with _application_client(classification_application, registry=_build_test_registry()) as client:
+        response = client.post("/api/v1/classify", json={"names": ["Maria"] * 1001})
+        assert response.status_code == 422
 
 
 def test_classify_endpoint_runs_full_default_method_suite() -> None:
-    client = _application_client()
-    response = client.post(
-        "/api/v1/classify",
-        json={"names": ["Maria", "Heinrich", "Schmidt (Frau des Heinrich)"]},
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data["results"]) == 3
+    with _application_client(_application()) as client:
+        response = client.post(
+            "/api/v1/classify",
+            json={"names": ["Maria", "Heinrich", "Schmidt (Frau des Heinrich)"]},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["results"]) == 3
 
-    expected_methods = {
-        "gender_guesser",
-        "gnd",
-        "hf_distilbert",
-        "hf_genderize",
-        "hivoto",
-        "hivoto_xgboost",
-        "local_llm",
-        "nomquamgender",
-        "parenthetical_qualifier",
-        "wiki_gendersort",
-    }
+        expected_methods = {
+            "gender_guesser",
+            "gnd",
+            "hf_distilbert",
+            "hf_genderize",
+            "hivoto",
+            "hivoto_xgboost",
+            "local_llm",
+            "nomquamgender",
+            "parenthetical_qualifier",
+            "wiki_gendersort",
+        }
 
-    for result in data["results"]:
-        assert set(result["classifications"].keys()) == expected_methods
+        for result in data["results"]:
+            assert set(result["classifications"].keys()) == expected_methods
 
-    # Maria checks
-    maria_classifications = data["results"][0]["classifications"]
-    assert maria_classifications["gender_guesser"]["label"] == "female"
-    assert maria_classifications["gender_guesser"]["status"] == "success"
-    assert maria_classifications["parenthetical_qualifier"]["status"] == "abstain"
+        # Maria checks
+        maria_classifications = data["results"][0]["classifications"]
+        assert maria_classifications["gender_guesser"]["label"] == "female"
+        assert maria_classifications["gender_guesser"]["status"] == "success"
+        assert maria_classifications["parenthetical_qualifier"]["status"] == "abstain"
 
-    # Heinrich checks
-    heinrich_classifications = data["results"][1]["classifications"]
-    assert heinrich_classifications["gender_guesser"]["label"] == "male"
-    assert heinrich_classifications["gender_guesser"]["status"] == "success"
+        # Heinrich checks
+        heinrich_classifications = data["results"][1]["classifications"]
+        assert heinrich_classifications["gender_guesser"]["label"] == "male"
+        assert heinrich_classifications["gender_guesser"]["status"] == "success"
 
-    # Frau checks
-    frau_classifications = data["results"][2]["classifications"]
-    assert frau_classifications["parenthetical_qualifier"]["label"] == "female"
-    assert frau_classifications["parenthetical_qualifier"]["status"] == "success"
+        # Frau checks
+        frau_classifications = data["results"][2]["classifications"]
+        assert frau_classifications["parenthetical_qualifier"]["label"] == "female"
+        assert frau_classifications["parenthetical_qualifier"]["status"] == "success"
 
-    # Aggregated results for full suite
-    assert data["results"][0]["aggregated"]["label"] == "female"
-    assert data["results"][0]["aggregated"]["outcome"] == "decided"
-    assert data["results"][0]["aggregated"]["certainty_tier"] is not None
-    assert data["results"][1]["aggregated"]["label"] == "male"
-    assert data["results"][1]["aggregated"]["outcome"] == "decided"
-    assert data["results"][2]["aggregated"]["label"] == "female"
-    assert data["results"][2]["aggregated"]["override_source"] == "parenthetical_qualifier"
+        # Aggregated results for full suite
+        assert data["results"][0]["aggregated"]["label"] == "female"
+        assert data["results"][0]["aggregated"]["outcome"] == "decided"
+        assert data["results"][0]["aggregated"]["certainty_tier"] is not None
+        assert data["results"][1]["aggregated"]["label"] == "male"
+        assert data["results"][1]["aggregated"]["outcome"] == "decided"
+        assert data["results"][2]["aggregated"]["label"] == "female"
+        assert data["results"][2]["aggregated"]["override_source"] == "parenthetical_qualifier"
+
+
+def test_classification_clients_isolate_registries_principals_and_state_after_a_case_fails(
+    classification_application: FastAPI,
+) -> None:
+    first_adapter = Mock(spec=GenderGuesserMethod)
+    first_adapter.predict_batch.return_value = [
+        PredictionResult(label=CanonicalLabel.male, status=PredictionStatus.success)
+    ]
+    second_adapter = Mock(spec=GenderGuesserMethod)
+    second_adapter.predict_batch.return_value = [
+        PredictionResult(label=CanonicalLabel.female, status=PredictionStatus.success)
+    ]
+
+    def registry(adapter: Mock) -> MethodRegistry:
+        return MethodRegistry(
+            [
+                MethodRegistration(
+                    descriptor=GenderGuesserMethod.descriptor,
+                    config_model=GenderGuesserMethod.config_model,
+                    adapter=cast(Any, adapter),
+                    queue_name="cpu",
+                    batch_size=100,
+                )
+            ]
+        )
+
+    def fail_first_case() -> None:
+        principal = _authenticated_user().model_copy(update={"roles": {GlobalRole.operator}})
+        with _application_client(
+            classification_application, registry(first_adapter), principal
+        ) as first:
+            first.cookies.set("classification-case", "first")
+            first.headers["X-Classification-Case"] = "first"
+            first.app_state["classification_case"] = "first"
+            assert first.get("/api/v1/me").json()["roles"] == ["operator"]
+            response = first.post(
+                "/api/v1/classify", json={"name": "Same name", "methods": ["gender_guesser"]}
+            )
+            assert response.status_code == 200
+            assert (
+                response.json()["results"][0]["classifications"]["gender_guesser"]["label"]
+                == "male"
+            )
+            raise RuntimeError("classification case failed")
+
+    with pytest.raises(RuntimeError, match="classification case failed"):
+        fail_first_case()
+
+    assert classification_application.dependency_overrides == {}
+    with _application_client(classification_application, registry(second_adapter)) as second:
+        assert second.cookies.get("classification-case") is None
+        assert second.headers.get("X-Classification-Case") is None
+        assert "classification_case" not in second.app_state
+        assert second.get("/api/v1/me").json()["roles"] == []
+        response = second.post(
+            "/api/v1/classify", json={"name": "Same name", "methods": ["gender_guesser"]}
+        )
+        assert response.status_code == 200
+        assert (
+            response.json()["results"][0]["classifications"]["gender_guesser"]["label"] == "female"
+        )
+
+    first_adapter.predict_batch.assert_called_once()
+    second_adapter.predict_batch.assert_called_once()
+    assert classification_application.dependency_overrides == {}

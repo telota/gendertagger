@@ -13,6 +13,7 @@ from gendertagger.methods.adapters.wiki_gendersort import (
     compile_wiki_gendersort_lookup,
 )
 from gendertagger.methods.base import MethodDependencyError
+from gendertagger.methods.wiki_gendersort_rules import clean_candidates
 from gendertagger.models.classification import (
     CanonicalLabel,
     PredictionResult,
@@ -65,7 +66,7 @@ def _predict(mapping: dict[str, tuple[str, str | None]], person: PersonInput) ->
 def test_descriptor_declares_versioned_confidence_free_method() -> None:
     descriptor = WikiGendersortMethod.descriptor
     assert descriptor.name == "wiki_gendersort"
-    assert descriptor.implementation_version == "wiki_gendersort_v1"
+    assert descriptor.implementation_version == "wiki_gendersort_v2"
     assert descriptor.normalization_version == "wiki_gendersort_v1"
     assert descriptor.method_confidence_range is None
 
@@ -173,14 +174,12 @@ def test_missing_dependency_is_a_permanent_failure() -> None:
         method.predict_batch([_person("Karl")], _CONFIG)
 
 
-def test_clean_name_ports_the_reference_candidate_generation() -> None:
-    from gendertagger.methods.adapters.wiki_gendersort import _clean_name
-
+def test_clean_name_matches_the_reference_candidate_generation() -> None:
     transliterate = unidecode
-    assert _clean_name("Anna", transliterate) == ["Anna"]
-    assert _clean_name("J.", transliterate) == []
-    assert _clean_name("Jean-Paul", transliterate) == ["Jean-paul", "Jean", "Paul"]
-    assert _clean_name("Élise", transliterate) == ["Élise", "Elise"]
+    assert clean_candidates("Anna", transliterate) == ["Anna"]
+    assert clean_candidates("J.", transliterate) == []
+    assert clean_candidates("Jean-Paul", transliterate) == ["Jean-paul", "Jean", "Paul"]
+    assert clean_candidates("Élise", transliterate) == ["Élise", "Elise"]
 
 
 def test_compiled_table_assign_preserves_candidate_behavior(tmp_path: Path) -> None:

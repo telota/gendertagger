@@ -42,7 +42,7 @@ approved implementation design.
 
 ### Verification and security
 
-- [ ] Run the complete CI-equivalent matrix: fast, PostgreSQL, Redis, frontend, package-build, contract, and deployment checks.
+- [ ] Run the complete CI-equivalent matrix: Core, PostgreSQL, Redis, frontend, package-build, contract, and deployment checks.
 - [ ] Exercise one supported end-to-end workflow using sample data: import → run → aggregation → review → export.
 - [ ] Run locked dependency and image vulnerability scans; resolve or document accepted findings.
 - [ ] Run secret and sensitive-content checks; confirm no credentials, private corpora, personal data, databases, model weights, or unintended build artefacts are tracked.

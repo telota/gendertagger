@@ -1,9 +1,8 @@
 """Adapter and SQLite compiler for the Wiki-Gendersort name table.
 
 Provisioning compiles the published ``NamesOut.txt`` once into an immutable
-content-addressed lookup. Prediction preserves the ported Wiki-Gendersort
-``nameclean``/``assign`` behavior and frozen normalization. See ADR-0013 and
-ADR-0023.
+content-addressed lookup. Prediction uses the compatible rules in ADR-0045 and preserves the frozen
+normalization. SQLite provisioning follows ADR-0023.
 """
 
 from __future__ import annotations
@@ -23,6 +22,7 @@ from gendertagger.methods.sqlite_lookup import (
     finalize_lookup_database,
     open_lookup_database,
 )
+from gendertagger.methods.wiki_gendersort_rules import clean_candidates, resolve_candidates
 from gendertagger.models.classification import PredictionResult
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.person import PersonInput
@@ -40,18 +40,10 @@ _PRIORITY: Final[tuple[str, ...]] = ("no_name", "unknown", "unisex", "male", "fe
 _MALE_LABELS: Final[frozenset[str]] = frozenset({"male"})
 _FEMALE_LABELS: Final[frozenset[str]] = frozenset({"female"})
 
-_UNKNOWN_NATIVE: Final = "UNK"
-_UNISEX_NATIVE: Final = "UNI"
-_INITIALS_NATIVE: Final = "INI"
-
 WIKI_GENDERSORT_LOOKUP_LOGICAL_TYPE: Final = "wiki_gendersort_lookup"
 WIKI_GENDERSORT_LOOKUP_SCHEMA_VERSION: Final = "wiki_gendersort_lookup_v1"
 WIKI_GENDERSORT_LOOKUP_COMPILER_VERSION: Final = "wiki_gendersort_lookup_compiler_v1"
 _SQLITE_PARAMETER_BATCH_SIZE: Final = 900
-# Upstream ``nameclean`` length limits for splitting a fused trailing initial ("AnnaM.")
-# and for dropping the period from a short abbreviation ("M.", "Ma.").
-_FUSED_INITIAL_MIN_LENGTH: Final = 4
-_ABBREVIATION_LENGTH_LIMIT: Final = 4
 # A ``NamesOut.txt`` line holds a name and a trailing native label, separated by tabs.
 _NAMES_OUT_MIN_FIELDS: Final = 2
 _NATIVE_LABELS: Final = frozenset(_LABEL_MAP)
@@ -81,103 +73,8 @@ def _load_transliterate() -> Transliterate:
     return transliterate
 
 
-def _count_alpha(name: str, transliterate: Transliterate) -> int:
-    letters = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-    return sum(1 for char in name if transliterate(char) in letters)
-
-
-def _count_vowel(name: str, transliterate: Transliterate) -> int:
-    return sum(1 for char in name if transliterate(char) in "aeiouyAEIOUY")
-
-
-# Kept structurally aligned with upstream ``nameclean`` so the port stays auditable.
-def _clean_name(first_name: str, transliterate: Transliterate) -> list[str]:  # noqa: C901
-    """Port of Wiki-Gendersort ``nameclean`` returning candidate lookup strings.
-
-    Adapted verbatim for single-token inputs: quoted/parenthetical text is moved
-    to the end, the name is split on non-letter characters, periods and fused
-    initials are separated, hyphenated names keep the compound and their parts,
-    and the surviving candidates are normalized and transliterated.
-    """
-    name = first_name
-    while True:
-        left_i = right_i = -1
-        if '"' in name and name.find('"') != name.rfind('"'):
-            left_i = name.find('"')
-            right_i = left_i + 1 + name[left_i + 1 :].find('"')
-        if "(" in name and ")" in name and name.find("(") < name.rfind(")"):
-            left_i = name.find("(")
-            right_i = name.rfind(")")
-        if left_i != -1 and right_i != -1:
-            name = name[:left_i] + " " + name[right_i + 1 :] + " " + name[left_i + 1 : right_i]
-        else:
-            break
-
-    joined = ""
-    for char in name:
-        if _count_alpha(char, transliterate) >= 1 or char in {".", "-"}:
-            joined += char
-        else:
-            joined += " "
-    candidates = [part for part in joined.split() if _count_alpha(part, transliterate) != 0]
-
-    index = 0
-    while index < len(candidates):
-        current = candidates[index]
-        if (
-            len(current) >= _FUSED_INITIAL_MIN_LENGTH
-            and current[-1] == "."
-            and current[-2].isupper()
-            and current[-3].islower()
-        ):
-            candidates.insert(index + 1, current[-2:])
-            candidates[index] = current[:-2]
-        if candidates[index][-1] == "." and _ABBREVIATION_LENGTH_LIMIT > len(candidates[index]) > 1:
-            candidates.append(candidates[index][:-1])
-            del candidates[index]
-            index -= 1
-        index += 1
-
-    index = 0
-    while index < len(candidates):
-        if "." in candidates[index]:
-            split = candidates[index].split(".")[::-1]
-            for part in split:
-                candidates.insert(index + 1, part)
-            del candidates[index]
-            index += len(split) - 1
-        index += 1
-
-    index = 0
-    while index < len(candidates):
-        while candidates[index] and candidates[index][0] == "-":
-            candidates[index] = candidates[index][1:]
-        while candidates[index] and candidates[index][-1] == "-":
-            candidates[index] = candidates[index][:-1]
-        if "-" in candidates[index]:
-            for part in candidates[index].split("-")[::-1]:
-                candidates.insert(index + 1, part)
-        index += 1
-
-    cleaned: list[str] = []
-    for candidate in candidates:
-        if (
-            _count_alpha(candidate, transliterate) > 1
-            and _count_vowel(candidate, transliterate) > 0
-        ):
-            if len(candidate) <= 1:
-                normalized = candidate.upper()
-            else:
-                normalized = candidate[0].upper() + candidate[1:].lower()
-            cleaned.append(normalized)
-            transliterated = transliterate(normalized)
-            if normalized != transliterated:
-                cleaned.append(transliterated)
-    return cleaned
-
-
 class WikiGendersortTable:
-    """Read-only SQLite table with the ported Wiki-Gendersort assign behavior."""
+    """Resolve compatible name candidates through an immutable SQLite lookup."""
 
     def __init__(self, lookup_path: Path) -> None:
         self._transliterate = _load_transliterate()
@@ -193,7 +90,10 @@ class WikiGendersortTable:
 
     def assign_many(self, names: Sequence[str]) -> list[tuple[str, str | None]]:
         """Resolve tokens through one bulk candidate lookup."""
-        candidate_lists = [_clean_name(name, self._transliterate) for name in names]
+        candidates_by_name = {
+            name: clean_candidates(name, self._transliterate) for name in dict.fromkeys(names)
+        }
+        candidate_lists = [candidates_by_name[name] for name in names]
         unique_candidates = tuple(
             dict.fromkeys(candidate for candidates in candidate_lists for candidate in candidates)
         )
@@ -208,32 +108,9 @@ class WikiGendersortTable:
             rows = self._connection.execute(statement, batch)
             native_by_candidate.update((str(row["name"]), str(row["native_label"])) for row in rows)
         return [
-            self._assign_from_candidates(name, candidates, native_by_candidate)
+            resolve_candidates(name, candidates, native_by_candidate)
             for name, candidates in zip(names, candidate_lists, strict=True)
         ]
-
-    @staticmethod
-    def _assign_from_candidates(
-        name: str,
-        candidates: Sequence[str],
-        native_by_candidate: dict[str, str],
-    ) -> tuple[str, str | None]:
-        native = _UNKNOWN_NATIVE
-        matched: str | None = None
-        for candidate in candidates:
-            found = native_by_candidate.get(candidate)
-            if found is not None and found != _UNKNOWN_NATIVE:
-                if matched is None:
-                    matched = candidate
-                native = found
-            if native not in {_UNKNOWN_NATIVE, _UNISEX_NATIVE}:
-                matched = candidate
-                break
-        if not candidates and name:
-            native = _INITIALS_NATIVE
-        if name.upper() == "NULL":
-            native = _UNKNOWN_NATIVE
-        return native, matched
 
 
 def compile_wiki_gendersort_lookup(
@@ -296,7 +173,7 @@ class WikiGendersortMethod:
 
     descriptor = MethodDescriptor(
         name="wiki_gendersort",
-        implementation_version="wiki_gendersort_v1",
+        implementation_version="wiki_gendersort_v2",
         normalization_version=WIKI_GENDERSORT_NORMALIZATION.normalization_version,
     )
     config_model = WikiGendersortConfig
