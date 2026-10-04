@@ -174,6 +174,22 @@ the same application service and forced-change behavior. See
 [ADR-0031](decisions/ADR-0031-local-database-authentication.md) for the exact credential, session, endpoint,
 and cookie contract. Institutional SSO remains a later, additive `AuthenticationBackend` implementation.
 
+Own-password changes, HTTP administrative resets, and CLI resets serialize on the owning account row
+before rereading and locking its local credential. Verification, password replacement, and the
+forced-change flag are protected until transaction completion. Reads under these locks refresh any
+previously loaded account or credential state. A self-service change requires a currently active account;
+an administrative reset may replace an inactive account's credential without reactivating it. Reset
+password replacement and session revocation commit or roll back together.
+
+If a reset commits first, a waiting own-password request using the replaced password returns the existing
+`400 invalid_current_password` response and cannot clear `must_change_password` or replace the reset
+credential. The same response covers a missing credential or an account that became inactive after
+request authentication. If an own-password change commits first, the waiting reset replaces that password,
+sets the forced-change flag, and revokes the account's sessions. Concurrent own-password changes using the
+same current password also serialize: after one replacement, the other's obsolete password fails
+verification. Ordinary own-password changes retain existing sessions; session revocation and subsequent
+login continue to follow the established policy.
+
 The gateway throttles `POST /api/v1/auth/login` per client address: six attempts at once, then one every
 12 seconds, answering further attempts with `429 rate_limited` in the API's error envelope and a
 `Retry-After` header ([`deploy/proxy/nginx.conf`](../deploy/proxy/nginx.conf)). Every attempt costs an

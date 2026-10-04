@@ -60,6 +60,13 @@ class SqlAlchemyAuthRepository:
         row = self._session.get(UserCredentialRow, user_id)
         return None if row is None else self._credential_from_row(row)
 
+    def get_credential_for_update(self, user_id: UUID) -> LocalCredential | None:
+        """Refresh and lock a credential after its owning user has been locked."""
+        row = self._session.get(
+            UserCredentialRow, user_id, with_for_update=True, populate_existing=True
+        )
+        return None if row is None else self._credential_from_row(row)
+
     def list_admin_users(
         self,
         *,

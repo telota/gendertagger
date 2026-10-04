@@ -31,7 +31,7 @@ class UserRepository(Protocol):
         ...
 
     def get_user_for_update(self, user_id: UUID) -> User | None:
-        """Return one user under a write lock, or ``None`` when absent."""
+        """Refresh one user under a write lock, or return ``None`` when absent."""
         ...
 
     def update_user(

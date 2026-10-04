@@ -18,7 +18,7 @@ reviewed records; **release task** means work needed to establish publication re
 
 | ID | Priority | Finding | Status |
 |---|---|---|---|
-| RG-01 | P1 | Password changes can overwrite administrative resets | Open; reproduced on PostgreSQL |
+| RG-01 | P1 | Password changes can overwrite administrative resets | Fixed; PostgreSQL regression coverage added |
 | RG-02 | P1 | Private frontend caches survive account replacement | Open; reproduced in mounted app |
 | RG-03 | P1 | Research data and personal metadata need publication clearance | Decision needed |
 | RG-04 | P1 | Wiki-Gendersort publication rights and replacement provenance | Replacement verified; history/data decisions remain |
@@ -57,6 +57,31 @@ Verify both orderings of user change versus administrative reset, concurrent use
 forced-change flag, and revoked sessions. The losing stale operation must not undo a completed reset.
 Ordinary login after session revocation is allowed by the existing policy; an in-flight login versus
 revocation alone is not treated here as a separate confirmed defect.
+
+**Remediation (2026-10-04).** Own-password changes and both HTTP/CLI reset paths now lock the owning
+account before rereading and locking its credential. Locking reads refresh previously loaded ORM state;
+verification, password replacement, and forced-change state remain protected until transaction completion.
+Self-service changes recheck that the account is active. A request using a password superseded by a
+completed reset or change fails with the existing `400 invalid_current_password` response. Resets retain
+atomic password replacement/session revocation and permit inactive targets without reactivation. The
+[security specification](docs/13-auth-and-security.md) records these semantics.
+
+[PostgreSQL regressions](backend/tests/services/test_authentication_postgres.py) use independent sessions,
+explicit barriers, observed database lock waits, and production Argon2 hashing. They cover both race
+orderings through administrative and direct/CLI services, concurrent own-password changes, reset rollback,
+forced-change flags, session revocation/retention, account deactivation, and stale ORM state. Application
+and HTTP regressions retain the existing secret-free response contract.
+
+**Verification (2026-10-04).** The remediation working tree based on
+`b7a5b17d973facde7d50ac9a7c33ef5508707c06` passed the locked Core (1,685), PostgreSQL (290), and Redis
+(7) suites, including all ten new credential-concurrency cases. Combined coverage is 87.60%; normalization,
+reference aggregation, certainty assessment, and TEI projection each retain 100% coverage. Lock consistency,
+documentation, contract naming, package initializers, dead-code policy, Ruff formatting/lint, mypy,
+Pyright, Import Linter, Python/Node dependency audits, Alembic upgrade/schema-drift checks, isolated package
+build/distribution validation, and generated frontend contract drift checks passed. Python was 3.11.15;
+the unchanged backend `uv.lock` SHA-256 is
+`2a07ac7e58c912fa7d098923203c4fb1b5e799a1bd0ce5d4e998faefecf92124`.
+The final publication-commit verification record remains RG-17.
 
 ### RG-02: Scope private browser state to the authenticated account
 

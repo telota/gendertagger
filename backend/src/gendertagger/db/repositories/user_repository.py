@@ -69,8 +69,8 @@ class SqlAlchemyUserRepository:
         return set(self._session.scalars(statement))
 
     def get_user_for_update(self, user_id: UUID) -> User | None:
-        """Return one user under a write lock, or ``None`` when absent."""
-        row = self._session.get(UserRow, user_id, with_for_update=True)
+        """Refresh one user under a write lock, or return ``None`` when absent."""
+        row = self._session.get(UserRow, user_id, with_for_update=True, populate_existing=True)
         if row is None:
             return None
         roles = set(

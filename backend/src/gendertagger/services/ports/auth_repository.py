@@ -34,6 +34,15 @@ class AuthRepository(Protocol):
         """Return the credential for a user ID, or ``None`` when the user has no local credential."""
         ...
 
+    def get_credential_for_update(self, user_id: UUID) -> LocalCredential | None:
+        """Reread a credential under a write lock after locking its owning user.
+
+        Refresh any previously loaded credential so a transaction waiting for an account lock
+        cannot verify or replace a password using stale state. The lock lasts until transaction
+        completion; return ``None`` for a user without a local credential.
+        """
+        ...
+
     def list_admin_users(
         self,
         *,

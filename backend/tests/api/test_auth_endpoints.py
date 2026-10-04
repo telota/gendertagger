@@ -64,6 +64,9 @@ class _InMemoryUserRepository:
     def get_user(self, user_id: UUID) -> User | None:
         return self._store.users.get(user_id)
 
+    def get_user_for_update(self, user_id: UUID) -> User | None:
+        return self._store.users.get(user_id)
+
 
 class _InMemoryAuthRepository:
     def __init__(self, store: _InMemoryStore) -> None:
@@ -81,6 +84,9 @@ class _InMemoryAuthRepository:
         return None
 
     def get_credential(self, user_id: UUID) -> LocalCredential | None:
+        return self._store.credentials.get(user_id)
+
+    def get_credential_for_update(self, user_id: UUID) -> LocalCredential | None:
         return self._store.credentials.get(user_id)
 
     def set_password(

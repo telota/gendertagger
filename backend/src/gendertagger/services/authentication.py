@@ -15,6 +15,7 @@ from uuid import UUID
 from gendertagger.models.common import UtcDatetime
 from gendertagger.models.user import CurrentUser, GlobalRole, User, UserCreate
 from gendertagger.services.password_hashing import PasswordHasherProtocol
+from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
 from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 Clock = Callable[[], UtcDatetime]
@@ -165,9 +166,18 @@ class AuthenticationService:
             unit_of_work.commit()
 
     def change_password(self, *, user_id: UUID, current_password: str, new_password: str) -> None:
-        """Verify the current password, set a new one, and clear the forced-change flag."""
+        """Verify and replace a current password while serializing account credential changes.
+
+        Lock the user before rereading and locking its credential. A completed reset or password
+        change invalidates a waiting request's old password; an inactive or absent account also
+        raises ``InvalidCurrentPasswordError``. Success clears the forced-change flag and retains
+        existing sessions, following the ordinary own-password-change policy.
+        """
         with self._unit_of_work_factory() as unit_of_work:
-            credential = unit_of_work.auth.get_credential(user_id)
+            user = unit_of_work.users.get_user_for_update(user_id)
+            if user is None or not user.is_active:
+                raise InvalidCurrentPasswordError
+            credential = unit_of_work.auth.get_credential_for_update(user_id)
             if credential is None or not self._password_hasher.verify(
                 credential.password_hash, current_password
             ):
@@ -208,7 +218,18 @@ class AuthenticationService:
     def reset_password_in_transaction(
         self, *, unit_of_work: UnitOfWork, user_id: UUID, new_password: str
     ) -> None:
-        """Apply a password reset using a transaction owned by the calling service."""
+        """Lock the account and credential, then reset and revoke sessions in the owned transaction.
+
+        HTTP and CLI callers use the same user-before-credential lock order as own-password
+        changes. Missing users or local credentials raise ``ResourceNotFoundError``. Inactive
+        accounts may be reset without changing their activation state. Locks, password replacement,
+        and session revocation belong to the caller's transaction and roll back together.
+        """
+        user = unit_of_work.users.get_user_for_update(user_id)
+        credential = unit_of_work.auth.get_credential_for_update(user_id)
+        if user is None or credential is None:
+            msg = f"local account {user_id} does not exist"
+            raise ResourceNotFoundError(msg)
         unit_of_work.auth.set_password(
             user_id=user_id,
             password_hash=self._password_hasher.hash(new_password),

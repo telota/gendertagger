@@ -1707,9 +1707,13 @@ def test_authentication_service_logout_revokes_hashed_session_and_commits() -> N
 
 
 def test_authentication_service_change_password_verifies_current_and_clears_flag() -> None:
+    users_repository = Mock(spec=UserRepository)
+    users_repository.get_user_for_update.return_value = _local_user()
     auth_repository = Mock(spec=AuthRepository)
-    auth_repository.get_credential.return_value = _local_credential(must_change_password=True)
-    unit_of_work = StubUnitOfWork(auth=auth_repository)
+    auth_repository.get_credential_for_update.return_value = _local_credential(
+        must_change_password=True
+    )
+    unit_of_work = StubUnitOfWork(users=users_repository, auth=auth_repository)
     service = _authentication_service(unit_of_work=unit_of_work)
 
     service.change_password(
@@ -1727,9 +1731,11 @@ def test_authentication_service_change_password_verifies_current_and_clears_flag
 
 
 def test_authentication_service_change_password_rejects_wrong_current_password() -> None:
+    users_repository = Mock(spec=UserRepository)
+    users_repository.get_user_for_update.return_value = _local_user()
     auth_repository = Mock(spec=AuthRepository)
-    auth_repository.get_credential.return_value = _local_credential()
-    unit_of_work = StubUnitOfWork(auth=auth_repository)
+    auth_repository.get_credential_for_update.return_value = _local_credential()
+    unit_of_work = StubUnitOfWork(users=users_repository, auth=auth_repository)
     service = _authentication_service(unit_of_work=unit_of_work)
 
     with pytest.raises(InvalidCurrentPasswordError):
@@ -1740,6 +1746,49 @@ def test_authentication_service_change_password_rejects_wrong_current_password()
         )
 
     assert auth_repository.set_password.call_count == 0
+    assert unit_of_work.commit_count == 0
+
+
+@pytest.mark.parametrize("user", [None, _local_user(is_active=False)])
+def test_authentication_service_change_password_rejects_unavailable_account(
+    user: User | None,
+) -> None:
+    users_repository = Mock(spec=UserRepository)
+    users_repository.get_user_for_update.return_value = user
+    auth_repository = Mock(spec=AuthRepository)
+    password_hasher = Mock(spec=PasswordHasherProtocol)
+    unit_of_work = StubUnitOfWork(users=users_repository, auth=auth_repository)
+    service = _authentication_service(unit_of_work=unit_of_work, password_hasher=password_hasher)
+
+    with pytest.raises(InvalidCurrentPasswordError):
+        service.change_password(
+            user_id=AUTH_USER_ID,
+            current_password="correct-horse-battery",
+            new_password="a-brand-new-passphrase",
+        )
+
+    auth_repository.get_credential_for_update.assert_not_called()
+    auth_repository.set_password.assert_not_called()
+    password_hasher.verify.assert_not_called()
+    assert unit_of_work.commit_count == 0
+
+
+def test_authentication_service_change_password_rejects_missing_local_credential() -> None:
+    users_repository = Mock(spec=UserRepository)
+    users_repository.get_user_for_update.return_value = _local_user()
+    auth_repository = Mock(spec=AuthRepository)
+    auth_repository.get_credential_for_update.return_value = None
+    unit_of_work = StubUnitOfWork(users=users_repository, auth=auth_repository)
+    service = _authentication_service(unit_of_work=unit_of_work)
+
+    with pytest.raises(InvalidCurrentPasswordError):
+        service.change_password(
+            user_id=AUTH_USER_ID,
+            current_password="correct-horse-battery",
+            new_password="a-brand-new-passphrase",
+        )
+
+    auth_repository.set_password.assert_not_called()
     assert unit_of_work.commit_count == 0
 
 
@@ -1770,8 +1819,11 @@ def test_authentication_service_create_local_account_persists_user_and_credentia
 
 
 def test_authentication_service_reset_password_revokes_every_session() -> None:
+    users_repository = Mock(spec=UserRepository)
+    users_repository.get_user_for_update.return_value = _local_user()
     auth_repository = Mock(spec=AuthRepository)
-    unit_of_work = StubUnitOfWork(auth=auth_repository)
+    auth_repository.get_credential_for_update.return_value = _local_credential()
+    unit_of_work = StubUnitOfWork(users=users_repository, auth=auth_repository)
     service = _authentication_service(unit_of_work=unit_of_work)
 
     service.reset_password(user_id=AUTH_USER_ID, new_password="a-forced-new-passphrase")
@@ -1783,3 +1835,24 @@ def test_authentication_service_reset_password_revokes_every_session() -> None:
     )
     auth_repository.revoke_all_sessions.assert_called_once_with(AUTH_USER_ID)
     assert unit_of_work.commit_count == 1
+
+
+@pytest.mark.parametrize("has_user", [False, True])
+def test_authentication_service_reset_password_rejects_missing_local_account(
+    *, has_user: bool
+) -> None:
+    users_repository = Mock(spec=UserRepository)
+    users_repository.get_user_for_update.return_value = _local_user() if has_user else None
+    auth_repository = Mock(spec=AuthRepository)
+    auth_repository.get_credential_for_update.return_value = (
+        None if has_user else _local_credential()
+    )
+    unit_of_work = StubUnitOfWork(users=users_repository, auth=auth_repository)
+    service = _authentication_service(unit_of_work=unit_of_work)
+
+    with pytest.raises(ResourceNotFoundError, match="local account"):
+        service.reset_password(user_id=AUTH_USER_ID, new_password="a-forced-new-passphrase")
+
+    auth_repository.set_password.assert_not_called()
+    auth_repository.revoke_all_sessions.assert_not_called()
+    assert unit_of_work.commit_count == 0
