@@ -322,6 +322,9 @@ This section records development from the initial architecture-only reset throug
 - Documentation checks now use an explicit maintained/archive inventory and validate local Markdown
   heading targets offline, including repeated/Unicode headings, strict encodings, front matter, and
   fenced examples. Pre-commit, push verification, and CI use the documented scope.
+- Paper/tool-capture retention and research/manuscript duplicate consolidation remain deferred pending
+  explicit ownership, archival provenance, and clearance decisions. No historical artifact was removed
+  or newly ignored.
 - Batch failures now share the URL-credential redaction and bounded detailed-diagnostic policy used by
   aggregation, evaluation, export, and dispatch. Redaction occurs before the 500-character limit;
   authenticated method summaries cannot retain credential-bearing URL user information from batch

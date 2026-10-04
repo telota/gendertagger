@@ -960,7 +960,7 @@ Current remediation status is recorded below; the original review evidence remai
 | FQ-08 | P3 | Frontend | An orphan component, unused exported types, and dead CSS survive checks | Fixed; obsolete code removed and a bounded production-root graph gate covers files/exports/types/imports |
 | DQ-01 | P2 | Documentation | Overlapping guidance and undated reports now disagree | Fixed; current owners/routes reconcile and historical records identify their evidence limits |
 | DQ-02 | P2 | Documentation | The documentation gate omits maintained files and section targets | Fixed; explicit maintained/archive scope, aligned hooks, and offline heading-fragment checks passed |
-| DQ-03 | P3 | Repository | Generated paper output and disposable development metadata are tracked | Open; publication-artifact retention decisions deferred |
+| DQ-03 | P3 | Repository | Generated paper output and disposable development metadata are tracked | Deferred; manuscript build ownership and paper/tool-capture retention need approval |
 | DQ-04 | P3 | Repository | Exact research/manuscript copies lack a deliberate archival policy | Deferred; archival retention and clearance need approval |
 
 ### Backend findings
@@ -1461,6 +1461,12 @@ deliberate dated verification purpose. This cleanup is separate from RG-03–05 
 **Closure.** A clean manuscript build creates no unintended tracked changes; every retained paper/tool
 file has a documented purpose; builds do not depend on developer paths; current design sources agree.
 
+**Disposition — 2026-10-04: deferred.** No tracked manuscript output, template resource, tool capture,
+or design snapshot was removed or newly ignored. Choosing the maintained manuscript build and retained
+publication/review artifacts requires an explicit retention decision; reproducibility and purpose are
+not established merely by a generated-looking filename. The documentation gate's archival structural
+exemption is not deletion approval. Current frontend guidance is reconciled independently.
+
 #### DQ-04: Consolidate verified duplicate artifacts with recorded provenance
 
 **Evidence.** Byte and SHA-256 comparisons confirmed these identical pairs:
@@ -1481,6 +1487,12 @@ and are not confirmed safe duplicates. Keep scientific characterization/referenc
 
 **Closure.** Retained artifacts have purpose, origin, checksum, and appropriate clearance; necessary
 historical aliases remain traceable; consolidation does not discard distinct study evidence.
+
+**Disposition — 2026-10-04: deferred.** Exact byte identity establishes duplication, not permission to
+discard a historical run or publication alias. Research CSVs, both manuscript PDFs, source references,
+and scientific fixtures remain unchanged. Consolidation requires a chosen archival owner/location,
+alias/provenance retention, and applicable publication/data clearance; no implicit reset or deletion
+was performed.
 
 ### Suggested cleanup sequence
 
