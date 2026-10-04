@@ -319,6 +319,9 @@ This section records development from the initial architecture-only reset throug
 - Current frontend guidance now agrees on settings, branding, and shared module ownership. Historical
   audit/delivery records state their baseline or missing metadata, and overlapping release checklists
   point to the authoritative release-gap register; accepted ADR history remains unchanged.
+- Documentation checks now use an explicit maintained/archive inventory and validate local Markdown
+  heading targets offline, including repeated/Unicode headings, strict encodings, front matter, and
+  fenced examples. Pre-commit, push verification, and CI use the documented scope.
 - Batch failures now share the URL-credential redaction and bounded detailed-diagnostic policy used by
   aggregation, evaluation, export, and dispatch. Redaction occurs before the 500-character limit;
   authenticated method summaries cannot retain credential-bearing URL user information from batch

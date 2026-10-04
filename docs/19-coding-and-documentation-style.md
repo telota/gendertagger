@@ -93,8 +93,17 @@ may use a path-specific exclusion, but generated files must be clearly identifie
 
 ## Markdown documents
 
-Maintained project documentation consists of the top-level contributor/specification files, all Markdown
-below `docs/`, and `frontend/README.md`. Each maintained document has:
+The explicit maintained-document inventory in `backend/scripts/check_documentation.py` requires root
+`README.md`, `QUICKSTART.md`, `CONTRIBUTING.md`, `SPEC.md`, `AGENTS.md`, `DESIGN.md`, `PRODUCT.md`,
+`IDEAS.md`, `audit.md`, `CHANGELOG.md`, and `RELEASE_GAPS.md`, plus `backend/README.md`,
+`frontend/README.md`, `contracts/README.md`, `docs/00-design-index.md`, and
+`docs/decisions/TEMPLATE.md`. All other Markdown below `docs/` is discovered automatically except
+`docs/paper/` (manuscript/reviewer history) and `docs/poster/` (conference-submission history). These
+archives and root research files are not maintained guidance; linking to one checks its target, not its
+document structure. The documentation pre-commit selector covers the maintained inventory and checker/tests.
+It deliberately also covers archival Markdown below `docs/`: target-heading changes can break inbound
+links from maintained guidance even when the target's structure is outside the gate. CI and push
+verification run the gate unconditionally. Each maintained document has:
 
 - exactly one H1 as its first content line;
 - optional closed YAML front matter may precede the H1 in non-ADR documents and is treated as metadata
@@ -102,6 +111,29 @@ below `docs/`, and `frontend/README.md`. Each maintained document has:
 - headings that descend one level at a time;
 - balanced fenced code blocks with a language identifier where one is meaningful;
 - portable relative links for repository content and HTTPS links for external content.
+
+Local links to Markdown headings use GitHub-style generated IDs, without the renderer's `user-content-`
+DOM prefix. ATX headings (up to three leading spaces, optional whitespace-separated closing hashes) and
+Setext paragraph headings are recognized outside closed YAML front matter and fenced code. A fence closes
+only with the same marker, at least its opening length, and no trailing text. Code and metadata do not
+create heading targets.
+
+IDs use rendered inline heading text: emphasis/strikethrough markers and HTML tags disappear, inline code
+keeps its text, links/images contribute their labels rather than destinations, escapes are interpreted, and
+HTML entities are decoded. Lowercase Unicode letters and combining marks are preserved without
+transliteration or Unicode normalization, as are decimal/letter numbers and connector punctuation such as
+underscores. ASCII spaces become hyphens; ASCII hyphens remain. Other punctuation, symbols, other numbers
+(such as superscripts), control characters, and non-ASCII separators disappear. Repeated spaces are not
+collapsed. Repeated IDs receive `-1`, `-2`, etc., skipping **all** IDs already generated in document order:
+`Foo`, `Foo`, `Foo-1`, `Foo` produce `foo`, `foo-1`, `foo-1-1`, `foo-2`.
+
+Paths and fragments are percent-decoded once as strict UTF-8. Fragments match generated IDs exactly,
+including case and normalization; `#` with no fragment means the document top. Missing heading targets
+produce `DOC203`; malformed encodings, unsupported schemes, absolute paths, and repository escapes produce
+`DOC201`. Custom HTML IDs, explicit heading-ID extensions, and Git source-line fragments in Markdown are
+not heading targets and are rejected unless they coincide with a generated heading ID. Fragments on
+non-Markdown files are outside this heading gate: only their file existence and relative path are checked.
+HTTP(S) and mail links remain offline; the checker performs no network or source-line validation.
 
 Wrap prose near 100 characters where practical for reviewable diffs. Tables, long identifiers, URLs, code,
 and scientifically significant source text may exceed that target; line length is therefore advisory for
@@ -139,5 +171,6 @@ uv run --locked python scripts/check_dead_code.py
 The documentation validator checks structure, local link targets, numbered-document/index coverage, and ADR
 shape without accessing the network. The naming validator emits stable `GTN` rule
 codes for the additional contract vocabulary rules. The initializer validator enforces regular package
-markers without hidden imports or behavior. The dead-code validator enforces clean symbol definitions without
-unreferenced functions or broken protocols. All four run in pre-commit and GitLab CI.
+markers without hidden imports or behavior. The dead-code validator is a declaration/reference/protocol
+heuristic for unreferenced symbols and broken protocols, not proof of production reachability. Production
+reachability analysis remains deferred under BQ-07. All four run in pre-commit and GitLab CI.

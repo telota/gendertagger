@@ -33,7 +33,9 @@ repos:
         language: system
         files: >-
           (?x)^(?:
-            [^/]+\.md|docs/.*\.md|(?:frontend|backend|contracts)/README\.md|
+            (?:README|QUICKSTART|CONTRIBUTING|SPEC|AGENTS|DESIGN|PRODUCT|IDEAS|
+            audit|CHANGELOG|RELEASE_GAPS)\.md|docs/.*\.md|
+            (?:frontend|backend|contracts)/README\.md|
             backend/scripts/check_documentation\.py|backend/tests/tooling/test_policy_scripts\.py
           )$
         pass_filenames: false

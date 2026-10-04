@@ -959,7 +959,7 @@ Current remediation status is recorded below; the original review evidence remai
 | FQ-07 | P2 | Frontend | Repeated native fields bypass incomplete shared field primitives | Fixed; shared native field composition and typed/null/boolean/accessibility checks passed |
 | FQ-08 | P3 | Frontend | An orphan component, unused exported types, and dead CSS survive checks | Fixed; obsolete code removed and a bounded production-root graph gate covers files/exports/types/imports |
 | DQ-01 | P2 | Documentation | Overlapping guidance and undated reports now disagree | Fixed; current owners/routes reconcile and historical records identify their evidence limits |
-| DQ-02 | P2 | Documentation | The documentation gate omits maintained files and section targets | Open |
+| DQ-02 | P2 | Documentation | The documentation gate omits maintained files and section targets | Fixed; explicit maintained/archive scope, aligned hooks, and offline heading-fragment checks passed |
 | DQ-03 | P3 | Repository | Generated paper output and disposable development metadata are tracked | Open; publication-artifact retention decisions deferred |
 | DQ-04 | P3 | Repository | Exact research/manuscript copies lack a deliberate archival policy | Deferred; archival retention and clearance need approval |
 
@@ -1358,7 +1358,7 @@ ordinary API. Validation and uncertainty semantics remain feature/server-owned.
 
 #### FQ-08: Remove confirmed orphan frontend code and cover unused exports
 
-**Evidence.** [AppListbox](frontend/src/components/base/AppListbox.vue) has no application import,
+**Evidence.** The former `frontend/src/components/base/AppListbox.vue` had no application import,
 router registration, or dynamic/global reference; its only consumer is its component test.
 [SidebarPreferences](frontend/src/app/SidebarPreferences.vue), lines 182–243, implements its own
 HeadlessUI listboxes. The delivery plan still claims the live switchers use AppListbox. Six exported
@@ -1432,6 +1432,14 @@ including repeated headings, front matter, fenced examples, and the chosen rende
 
 **Closure.** All intended maintained files enter the gate; missing files and section targets fail; valid
 links pass; archival treatment is explicit. Do not hide the omissions by weakening Markdown rules.
+
+**Remediation — 2026-10-04.** The checker requires the documented root/application README inventory
+and maintained design/ADR tree. Paper/poster history is exempt from structural maintenance, but
+inbound local links still validate its targets. Hooks cover that inventory and archival target
+changes; CI/push checks run the policy. Offline fragment validation handles rendered inline text,
+Unicode and strict percent-decoding, duplicate IDs, ATX/Setext headings, front matter, and fences.
+Missing targets produce `DOC203`; path/encoding violations retain `DOC201`. The current repository
+passed the real command, and deterministic policy regressions cover valid and invalid boundaries.
 
 #### DQ-03: Stop tracking disposable build and tool metadata
 
