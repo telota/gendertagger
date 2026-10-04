@@ -295,6 +295,9 @@ the phased plan that resumes application code.
   keeping claims, rollback, terminal failure, and scientific/artifact completion explicit.
 - Dispatch persistence shares typed insertion, replay matching, and operational-field projection for
   all six target variants without changing target validation, queue routing, lock order, or leases.
+- Historical fingerprint/state retirement and the Python production-reachability redesign remain
+  deferred pending explicit provenance/reset and framework-root decisions; no compatibility path or
+  historical scientific evidence was removed.
 
 - Evaluation-report downloads advertise the canonical Pydantic schema without reserializing immutable
   artifact bytes. Frontend report and export-manifest parsers use generated transport types and retain

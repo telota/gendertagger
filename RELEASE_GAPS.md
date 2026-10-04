@@ -1129,6 +1129,11 @@ and historical characterization fixtures; do not mutate successfully imported sn
 fails explicitly; fingerprints use the approved representation; relevant migration, provenance, and
 scientific checks pass without runtime support for obsolete development state.
 
+**Disposition (2026-10-04).** Deferred under the requested open-question boundary. No fingerprint,
+legacy snapshot reconstruction, packaging default, or development-data reset changed. Closure requires
+an approved current fingerprint/provenance representation and an explicitly authorized reset/reimport,
+with the governing design/ADR recorded before cutover.
+
 #### BQ-07: Make dead-code checks distinguish references from reachability
 
 **Evidence.** [The current checker](backend/scripts/check_dead_code.py), lines 119–131 and 188–205,
@@ -1146,6 +1151,11 @@ recursive orphan groups. Keep Ruff and Import Linter for their complementary pur
 **Closure.** Regression cases detect comment-only references, isolated recursion, and orphan decorated
 helpers, while real FastAPI dependencies, Pydantic validators, Celery registrations, and protocols pass.
 Unused-code evidence identifies the owning symbol rather than relying on global name occurrences.
+
+**Disposition (2026-10-04).** Production reachability changes remain deferred until the Python graph's
+FastAPI/CLI/Celery roots and narrow framework, protocol, and supported-extension exemptions are agreed.
+The existing heuristic is retained and documented as such; its passing result is not production
+reachability evidence. The frontend uses a separate bounded production-root graph (FQ-08).
 
 ### Frontend findings
 
