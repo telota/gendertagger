@@ -313,6 +313,20 @@ def test_modern_snapshot_requires_complete_config_and_primary_artifact_provenanc
         )
     )
 
+    for missing_field in ("source_format", "packaging"):
+        incomplete_config = modern_import_config()
+        del incomplete_config[missing_field]
+        with pytest.raises(InvalidResourceStateError, match="complete supported"):
+            projects.add_snapshot(
+                DatasetSnapshotCreate(
+                    project_id=project.id,
+                    source_artifact_id=primary.id,
+                    source_sha256=primary.sha256,
+                    parser_version=modern_parser_version(),
+                    import_config=incomplete_config,
+                )
+            )
+
     with pytest.raises(InvalidResourceStateError, match="complete supported"):
         projects.add_snapshot(
             DatasetSnapshotCreate(
@@ -631,12 +645,55 @@ def test_ready_transition_rechecks_modern_parser_provenance(db_session: Session)
 
 
 @pytest.mark.postgres_rollback
-def test_legacy_ready_snapshot_derives_gnd_statistics(db_session: Session) -> None:
+@pytest.mark.parametrize("corruption", ["missing_format", "missing_packaging", "invalid_packaging"])
+def test_person_record_provenance_rejects_incomplete_persisted_choices(
+    db_session: Session,
+    corruption: str,
+) -> None:
     repositories = session_repositories(db_session)
     project = seed_project(
         repositories,
-        slug_prefix="legacy-statistics",
-        display_name="Legacy statistics fixture",
+        slug_prefix="invalid-record-config",
+        display_name="Invalid record provenance fixture",
+    )
+    snapshot = seed_pending_snapshot(repositories, project.id)
+    assert repositories.projects.claim_snapshot_import(snapshot.id) is not None
+    row = db_session.get(DatasetSnapshotRow, snapshot.id)
+    assert row is not None
+    config = dict(row.import_config)
+    if corruption == "missing_format":
+        del config["source_format"]
+    elif corruption == "missing_packaging":
+        del config["packaging"]
+    else:
+        config["packaging"] = "unsupported"
+    row.import_config = config
+    db_session.flush()
+
+    with pytest.raises(InvalidResourceStateError, match="complete supported"):
+        repositories.projects.add_imported_person_records(
+            snapshot.id,
+            [
+                ImportedPerson(
+                    person=PersonInput(
+                        tei_id="p1",
+                        surname="Example",
+                        name_forms=[PersonNameForm(type=PersonNameType.regular, surname="Example")],
+                    ),
+                    source_member_name="source.xml",
+                    source_record_locator="xml:id:p1",
+                )
+            ],
+        )
+
+
+@pytest.mark.postgres_rollback
+def test_ready_snapshot_without_persisted_statistics_is_rejected(db_session: Session) -> None:
+    repositories = session_repositories(db_session)
+    project = seed_project(
+        repositories,
+        slug_prefix="missing-statistics",
+        display_name="Missing statistics fixture",
     )
     snapshot = seed_pending_snapshot(repositories, project.id)
     assert repositories.projects.claim_snapshot_import(snapshot.id) is not None
@@ -662,14 +719,8 @@ def test_legacy_ready_snapshot_derives_gnd_statistics(db_session: Session) -> No
     row.status = DatasetSnapshotStatus.ready
     db_session.flush()
 
-    statistics = repositories.projects.get_snapshot_statistics(snapshot.id)
-
-    assert statistics is not None
-    assert statistics.total_person_count == 1
-    assert statistics.source_gender is None
-    assert statistics.gnd.with_reference_count == 1
-    assert statistics.gnd.without_reference_count == 0
-    assert statistics.gnd.with_reference_and_source_gender_count is None
+    with pytest.raises(InvalidResourceStateError, match="no persisted statistics"):
+        repositories.projects.get_snapshot_statistics(snapshot.id)
 
 
 @pytest.mark.postgres_rollback

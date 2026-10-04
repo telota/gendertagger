@@ -3,6 +3,7 @@
 from gendertagger.ingestion.tabular import TABULAR_PERSON_PARSER_VERSION
 from gendertagger.ingestion.tei import TEI_PARSER_VERSION
 from gendertagger.models.project import (
+    SnapshotImportConfig,
     SnapshotImportRequest,
     SourceFormat,
     SourcePackaging,
@@ -19,7 +20,7 @@ _TEI_PACKAGING_VERSIONS = {
 
 
 def version_for_snapshot_import(
-    command: SnapshotImportRequest,
+    command: SnapshotImportRequest | SnapshotImportConfig,
 ) -> str:
     """Return the exact semantic-parser and source-reader implementation version."""
     if command.source_format is SourceFormat.tei:

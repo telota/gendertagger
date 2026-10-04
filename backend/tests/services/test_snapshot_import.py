@@ -452,10 +452,21 @@ def test_terminal_failure_persistence_error_is_retryable_while_budget_remains() 
         {},
         {"profile": "unsupported_profile", "source_format": "tei"},
         {"profile": "tei_p5_person_register"},
+        {
+            key: value
+            for key, value in _DEFAULT_CONFIG.model_dump(mode="json").items()
+            if key != "packaging"
+        },
+        {
+            key: value
+            for key, value in _DEFAULT_CONFIG.model_dump(mode="json").items()
+            if key != "source_format"
+        },
+        {**_DEFAULT_CONFIG.model_dump(mode="json"), "packaging": "unsupported"},
     ],
 )
 def test_executor_rejects_incomplete_or_invalid_import_config(
-    import_config: dict[str, str],
+    import_config: dict[str, object],
 ) -> None:
     projects = Mock(spec=ProjectRepository)
     artifacts = Mock(spec=ArtifactRepository)

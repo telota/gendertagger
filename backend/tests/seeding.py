@@ -13,7 +13,6 @@ transaction and commit it themselves.
 
 from __future__ import annotations
 
-import hashlib
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -52,6 +51,8 @@ from gendertagger.models.project import (
     SnapshotImportConfig,
     SnapshotImportLimits,
     SnapshotSourceMemberCreate,
+    SourceFormat,
+    SourcePackaging,
     TeiImportProfile,
 )
 from gendertagger.models.run import (
@@ -63,6 +64,7 @@ from gendertagger.models.run import (
 )
 from gendertagger.models.team import TeamCreate
 from gendertagger.models.user import ProjectRole, User, UserCreate
+from gendertagger.services.execution import _person_input_fingerprint
 from gendertagger.services.ports.aggregation_repository import AggregationRepository
 from gendertagger.services.ports.artifact_repository import ArtifactRepository
 from gendertagger.services.ports.project_repository import ProjectRepository
@@ -243,6 +245,8 @@ def seed_pending_snapshot(
     """
     artifact = source or seed_artifact(repositories, project_id)
     import_config = import_config or SnapshotImportConfig(
+        source_format=SourceFormat.tei,
+        packaging=SourcePackaging.single,
         profile=TeiImportProfile.tei_p5_person_register,
         limits=SnapshotImportLimits(),
     )
@@ -414,7 +418,7 @@ def seed_completed_run(
                 PredictionWrite(
                     person_record_id=person.id,
                     task_batch_id=batch.id,
-                    input_fingerprint=_input_fingerprint(method_name, person),
+                    input_fingerprint=_person_input_fingerprint(person),
                     result=predict(method_name, person),
                 )
                 for person in batch_people
@@ -502,7 +506,3 @@ def _assessed_result(
         ),
         metadata={"strategy": "reference_v1"},
     )
-
-
-def _input_fingerprint(method_name: str, person: PersonRecord) -> str:
-    return hashlib.sha256(f"{method_name}:{person.tei_id}".encode()).hexdigest()

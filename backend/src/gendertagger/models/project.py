@@ -173,13 +173,13 @@ class SnapshotSourceMember(SnapshotSourceMemberCreate):
     created_at: UtcDatetime
 
 
-class SnapshotImportRequest(BaseModel):
-    """Public multipart options for one source-preserving snapshot import."""
+class _SnapshotImportChoices(BaseModel):
+    """Required source choices and shared format/packaging constraints."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    source_format: SourceFormat = DEFAULT_SOURCE_FORMAT
-    packaging: SourcePackaging = DEFAULT_SOURCE_PACKAGING
+    source_format: SourceFormat
+    packaging: SourcePackaging
 
     @model_validator(mode="after")
     def _validate_packaging_for_source(self) -> Self:
@@ -190,6 +190,13 @@ class SnapshotImportRequest(BaseModel):
             msg = "tabular imports require packaging='single'"
             raise ValueError(msg)
         return self
+
+
+class SnapshotImportRequest(_SnapshotImportChoices):
+    """Public multipart options for one source-preserving snapshot import."""
+
+    source_format: SourceFormat = DEFAULT_SOURCE_FORMAT
+    packaging: SourcePackaging = DEFAULT_SOURCE_PACKAGING
 
 
 class SnapshotImportLimits(BaseModel):
@@ -219,7 +226,7 @@ class SnapshotUploadLimits(BaseModel):
     import_limits: SnapshotImportLimits
 
 
-class SnapshotImportConfig(SnapshotImportRequest):
+class SnapshotImportConfig(_SnapshotImportChoices):
     """Persisted import choices plus the exact resolved safety limits."""
 
     profile: ImportProfile

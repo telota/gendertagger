@@ -76,6 +76,8 @@ from gendertagger.models.project import (
     SnapshotImportLimits,
     SnapshotImportTaskMessage,
     SnapshotSourceMemberCreate,
+    SourceFormat,
+    SourcePackaging,
     TeiImportProfile,
 )
 from gendertagger.models.public_classification import (
@@ -135,6 +137,8 @@ def _execution_context(
         )
     )
     import_config = SnapshotImportConfig(
+        source_format=SourceFormat.tei,
+        packaging=SourcePackaging.single,
         profile=TeiImportProfile.tei_p5_person_register,
         limits=SnapshotImportLimits(),
     )
@@ -325,6 +329,8 @@ def _pending_snapshot_context(
         )
     )
     import_config = SnapshotImportConfig(
+        source_format=SourceFormat.tei,
+        packaging=SourcePackaging.single,
         profile=TeiImportProfile.tei_p5_person_register,
         limits=SnapshotImportLimits(),
     )

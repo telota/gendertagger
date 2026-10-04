@@ -193,6 +193,57 @@ def test_run_executes_end_to_end_and_completes(
     assert persisted == 4
 
 
+def test_executor_persists_the_complete_current_input_fingerprint(
+    postgres_unit_of_work: tuple[UnitOfWorkFactory, Connection],
+) -> None:
+    factory, connection = postgres_unit_of_work
+    registry = default_method_registry()
+    with factory() as unit_of_work:
+        project = seed_project(unit_of_work, slug_prefix="exec-fingerprint")
+        snapshot = seed_ready_snapshot(
+            unit_of_work,
+            project.id,
+            [tei_person_input(tei_id="p1", surname="Example", forenames=["Anna"])],
+        )
+        run = seed_run(unit_of_work, snapshot.id, [MethodRunConfig(name="parenthetical_qualifier")])
+        unit_of_work.commit()
+
+    (scheduled,) = RunScheduler(
+        unit_of_work_factory=factory, method_registry=registry, clock=lambda: NOW
+    ).schedule_run(run.id)
+    executor = BatchExecutor(
+        unit_of_work_factory=factory,
+        method_registry=registry,
+        clock=lambda: LATER,
+        worker_provenance=seed_worker_provenance(),
+    )
+
+    batch = executor.execute(
+        scheduled.message(), worker_task_id="fingerprint-worker", attempt_count=1
+    )
+
+    assert batch.status is TaskBatchStatus.completed
+    with factory() as unit_of_work:
+        (record,) = unit_of_work.projects.list_person_records_slice(snapshot.id, offset=0, limit=1)
+        assert record.events == []
+        assert record.source_member_name == "source.xml"
+        assert record.source_record_locator == "1"
+
+    persisted = connection.execute(
+        select(
+            PredictionRow.person_record_id,
+            PredictionRow.task_batch_id,
+            PredictionRow.input_fingerprint,
+        ).where(PredictionRow.method_execution_id == scheduled.method_execution_id)
+    ).one()
+    assert persisted.person_record_id == record.id
+    assert persisted.task_batch_id == scheduled.task_batch_id
+    assert (
+        persisted.input_fingerprint
+        == "ad85526684837b8b50c36ac1c8778f61ba28bd41fb8008592d334fbc981edfd0"
+    )
+
+
 def test_batch_execution_is_idempotent(
     postgres_unit_of_work: tuple[UnitOfWorkFactory, Connection],
 ) -> None:

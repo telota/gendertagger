@@ -45,7 +45,6 @@ from gendertagger.models.project import (
     Project,
     ProjectCreate,
     ProjectDataAvailability,
-    SnapshotGndStatistics,
     SnapshotImportConfig,
     SnapshotSourceMember,
     SnapshotSourceMemberCreate,
@@ -239,7 +238,7 @@ class SqlAlchemyProjectRepository:
         self,
         snapshot_id: UUID,
     ) -> DatasetSnapshotStatistics | None:
-        """Return materialized statistics, deriving GND coverage for legacy snapshots."""
+        """Return validated persisted statistics for a ready snapshot."""
         row = self._session.get(DatasetSnapshotRow, snapshot_id)
         if row is None:
             return None
@@ -256,34 +255,8 @@ class SqlAlchemyProjectRepository:
                 raise InvalidResourceStateError(msg)
             return statistics
 
-        with_gnd_count = (
-            self._session.scalar(
-                select(func.count(PersonExternalIdRow.id))
-                .join(
-                    PersonRecordRow,
-                    PersonRecordRow.id == PersonExternalIdRow.person_record_id,
-                )
-                .where(
-                    PersonRecordRow.dataset_snapshot_id == snapshot_id,
-                    PersonExternalIdRow.scheme == "gnd",
-                )
-            )
-            or 0
-        )
-        total_person_count = row.record_count
-        if total_person_count is None:
-            msg = f"ready dataset snapshot {snapshot_id} has no record count"
-            raise InvalidResourceStateError(msg)
-        return DatasetSnapshotStatistics(
-            dataset_snapshot_id=snapshot_id,
-            total_person_count=total_person_count,
-            source_gender=None,
-            gnd=SnapshotGndStatistics(
-                with_reference_count=with_gnd_count,
-                without_reference_count=total_person_count - with_gnd_count,
-                with_reference_and_source_gender_count=None,
-            ),
-        )
+        msg = f"ready dataset snapshot {snapshot_id} has no persisted statistics"
+        raise InvalidResourceStateError(msg)
 
     def list_snapshots(
         self,
@@ -668,7 +641,10 @@ class SqlAlchemyProjectRepository:
                 raise InvalidResourceStateError(msg)
 
         referenced_names = {imported.source_member_name for imported in people}
-        packaging = self._source_packaging(snapshot)
+        packaging = self._validated_import_config(
+            snapshot.import_config,
+            snapshot_id=snapshot.id,
+        ).packaging
         if packaging in {SourcePackaging.zip, SourcePackaging.tar_gz}:
             source_member_count = self._session.scalar(
                 select(func.count(SnapshotSourceMemberRow.id)).where(
@@ -798,15 +774,6 @@ class SqlAlchemyProjectRepository:
                 artifacts[member.artifact_id],
                 expected_logical_type=expected_logical_type,
             )
-
-    @staticmethod
-    def _source_packaging(snapshot: DatasetSnapshotRow) -> SourcePackaging:
-        raw_packaging = snapshot.import_config.get("packaging", SourcePackaging.single.value)
-        try:
-            return SourcePackaging(raw_packaging)
-        except (TypeError, ValueError) as error:
-            msg = f"snapshot {snapshot.id} has unsupported source packaging"
-            raise InvalidResourceStateError(msg) from error
 
     def get_person_record_by_tei_id(
         self,

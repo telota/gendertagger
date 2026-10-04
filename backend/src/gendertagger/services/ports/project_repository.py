@@ -90,7 +90,7 @@ class ProjectRepository(Protocol):
         self,
         snapshot_id: UUID,
     ) -> DatasetSnapshotStatistics | None:
-        """Return persisted or legacy-derived statistics for a ready snapshot."""
+        """Return validated persisted statistics; reject ready snapshots without inventory."""
         ...
 
     def list_snapshots(

@@ -20,6 +20,8 @@ from gendertagger.models.project import (
     SnapshotImportConfig,
     SnapshotImportLimits,
     SnapshotSourceMemberCreate,
+    SourceFormat,
+    SourcePackaging,
     TeiImportProfile,
 )
 from gendertagger.models.run import MethodExecution, MethodExecutionCreate, RunCreate
@@ -52,6 +54,8 @@ def _ready_execution(
         )
     )
     import_config = SnapshotImportConfig(
+        source_format=SourceFormat.tei,
+        packaging=SourcePackaging.single,
         profile=TeiImportProfile.tei_p5_person_register,
         limits=SnapshotImportLimits(),
     )

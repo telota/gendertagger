@@ -95,15 +95,6 @@ def _person_input_fingerprint(person: PersonRecord) -> str:
         mode="json",
         include=set(PersonInput.model_fields),
     )
-    if payload["name_forms"] is None:
-        # Preserve the historical fingerprint for parser-v1 snapshots, whose
-        # contracts predate structured name capture.
-        del payload["name_forms"]
-    if not payload["events"]:
-        # Events were added after the initial fingerprint contract.  An empty
-        # event projection carries no new source information and must not
-        # rewrite fingerprints for immutable legacy snapshots.
-        del payload["events"]
     return canonical_json_sha256(payload)
 
 

@@ -288,6 +288,12 @@ This section records development from the initial architecture-only reset throug
 - Removed the redundant tabular import-version mapper, unused public-job recovery enumerator, and
   unused reject-all authentication provider. Canonical import registry and dispatch recovery remain
   the sole application paths; database authentication, provider injection, and request guards are unchanged.
+- Retired legacy person-fingerprint omissions, ready-snapshot statistics reconstruction, and persisted
+  import-packaging defaults under
+  [ADR-0049](docs/decisions/ADR-0049-current-person-input-fingerprints-and-snapshot-metadata.md).
+  New fingerprints include every canonical input field; stored format/packaging choices and ready inventory
+  are required. Public request defaults remain supported; incomplete snapshots require a new import rather
+  than rewriting historical snapshots, Predictions, or annotations.
 - Worker task families share one lazy process-owned pool/resource context and the existing bounded
   jitter policy. Fork/reset/shutdown preserve parent connections, reject stale owners, and keep each
   operation and heartbeat in a separate transaction scope.

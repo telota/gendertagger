@@ -210,6 +210,8 @@ def test_snapshot_import_config_freezes_resolved_positive_limits() -> None:
         max_cell_bytes=10_000,
     )
     config = SnapshotImportConfig(
+        source_format=SourceFormat.tei,
+        packaging=SourcePackaging.single,
         profile=TeiImportProfile.tei_p5_person_register,
         limits=limits,
     )
@@ -236,9 +238,29 @@ def test_snapshot_import_config_rejects_mismatched_derived_profile(
     with pytest.raises(ValidationError, match="provenance requires"):
         SnapshotImportConfig(
             source_format=source_format,
+            packaging=SourcePackaging.single,
             profile=profile,
             limits=SnapshotImportLimits(),
         )
+
+
+@pytest.mark.parametrize("missing_field", ["source_format", "packaging", "profile", "limits"])
+def test_snapshot_import_config_requires_resolved_persisted_choices(missing_field: str) -> None:
+    payload = SnapshotImportConfig(
+        source_format=SourceFormat.tei,
+        packaging=SourcePackaging.single,
+        profile=TeiImportProfile.tei_p5_person_register,
+        limits=SnapshotImportLimits(),
+    ).model_dump(mode="json")
+    del payload[missing_field]
+
+    with pytest.raises(ValidationError) as error:
+        SnapshotImportConfig.model_validate(payload)
+
+    assert any(
+        detail["loc"] == (missing_field,) and detail["type"] == "missing"
+        for detail in error.value.errors()
+    )
 
 
 @pytest.mark.parametrize("slug", ["Uppercase", "two_words", "-leading", "trailing-"])

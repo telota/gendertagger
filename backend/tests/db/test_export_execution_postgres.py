@@ -118,6 +118,8 @@ def test_add_export_rejects_an_incomplete_aggregation(db_session: Session) -> No
         )
     )
     import_config = SnapshotImportConfig(
+        source_format=SourceFormat.tei,
+        packaging=SourcePackaging.single,
         profile=TeiImportProfile.tei_p5_person_register,
         limits=SnapshotImportLimits(),
     )
