@@ -168,6 +168,19 @@ policy, including rollback of the worker receipt. Actual worker identity stays i
 public method summaries.
 
 
+## Worker resource ownership
+
+`tasks/worker_resources.py` owns one lazy, lock-protected infrastructure context per process. All six
+task families share its database pool while every operation and heartbeat enters a fresh UoW/session.
+Ordinary imports and artifact execution load runtime settings without classification build identity;
+classification registries, resolvers, actual-worker provenance, and the bounded public prediction cache
+are initialized only when needed.
+
+Fork hooks detach inherited pools without closing the parent's connections. Process initialization,
+shutdown, and explicit reset reject stale resource use and permit lazy reinitialization; callers stop
+their operation/heartbeat threads before explicit reset. Task names, envelopes, executor composition,
+and resource-specific failure types remain explicit outside FastAPI.
+
 ## Retry policy
 
 Differentiate:
@@ -176,6 +189,10 @@ Differentiate:
 - validation/scientific input errors: persist as `error`/diagnostic, usually no retry
 - LLM schema validation failure: bounded retries according to method config
 - permanent model/config errors: fail MethodExecution promptly
+
+The six worker wrappers use `services/dispatch.py::jittered_exponential_retry_delay` with a two-second
+base and sixty-second cap. Celery's zero-based retry count becomes a one-based delivery attempt; ordinary
+three-attempt budgets and the public job's five-retry budget remain unchanged.
 
 For snapshot imports, malformed or unsupported source content, an unsafe archive/workbook, an incompatible
 persisted profile, or a duplicate collection-wide `xml:id` is a permanent input failure. The complete import

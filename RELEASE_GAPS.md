@@ -945,7 +945,7 @@ Current remediation status is recorded below; the original review evidence remai
 |---|---|---|---|---|
 | BQ-01 | P2 | Backend | Copied diagnostic formatters have inconsistent credential redaction | Fixed; shared formatter and persisted/API smoke verified |
 | BQ-02 | P3 | Backend | Redundant helpers and dormant recovery/authentication surfaces remain | Helpers fixed; authentication extension decision deferred |
-| BQ-03 | P2 | Backend | Worker retry policy and infrastructure construction are copied | Open |
+| BQ-03 | P2 | Backend | Worker retry policy and infrastructure construction are copied | Fixed; shared process owner, retry windows, real-worker and fork/reset checks passed |
 | BQ-04 | P3 | Backend | Three executors repeat transaction, retry, and terminal-failure policy | Open |
 | BQ-05 | P2 | Backend | Dispatch persistence repeats common intent handling and field projection | Open |
 | BQ-06 | P3 | Backend | Historical runtime snapshot/configuration compatibility can be retired | Deferred; fingerprint representation and development-data reset need approval |
@@ -1053,6 +1053,14 @@ explicit. Worker composition belongs outside FastAPI and still calls application
 **Closure.** One retry algorithm and one resource-ownership path serve the workers. Existing envelope,
 routing, retry, and concurrency checks pass; imports remain lazy; shutdown and process reinitialization
 dispose or recreate owned resources correctly.
+
+**Remediation (2026-10-04).** All six task families use the existing bounded jitter primitive with
+their unchanged attempt numbering and limits. One lazy process owner supplies the pool, fresh UoW/session
+scopes, storage, and classification-only resources. Shutdown/reset and fork hooks close owned idle
+pools or detach inherited pools without closing parent connections. All six real Redis worker paths
+passed; concurrent PostgreSQL scopes used distinct sessions/backends, and actual child reset/reinitialization
+preserved the live parent connection. Ordinary aggregation/evaluation/export composition required no
+classification build identity.
 
 #### BQ-04: Extract repeated executor policy without a universal pipeline
 

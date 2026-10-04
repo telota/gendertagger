@@ -51,7 +51,7 @@ def test_task_retries_only_transient_export_failures(
     retry = Mock(side_effect=Retry())
     monkeypatch.setattr(export_task, "_export_executor", lambda: executor)
     monkeypatch.setattr(export_task.execute_export, "retry", retry)
-    monkeypatch.setattr(export_task, "_retry_countdown", lambda _retries: 2.0)
+    monkeypatch.setattr("gendertagger.services.dispatch.random.uniform", lambda _low, _high: 2.0)
 
     with pytest.raises(Retry):
         _task_proxy().run(

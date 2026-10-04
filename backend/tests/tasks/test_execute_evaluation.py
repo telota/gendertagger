@@ -51,7 +51,7 @@ def test_task_retries_only_transient_evaluation_failures(
     retry = Mock(side_effect=Retry())
     monkeypatch.setattr(evaluation_task, "_evaluation_executor", lambda: executor)
     monkeypatch.setattr(evaluation_task.execute_evaluation, "retry", retry)
-    monkeypatch.setattr(evaluation_task, "_retry_countdown", lambda _retries: 2.0)
+    monkeypatch.setattr("gendertagger.services.dispatch.random.uniform", lambda _low, _high: 2.0)
 
     with pytest.raises(Retry):
         _task_proxy().run(

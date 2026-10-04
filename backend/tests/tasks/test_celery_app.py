@@ -34,6 +34,7 @@ def test_celery_app_uses_json_only_durable_friendly_defaults() -> None:
         "gendertagger.tasks.export",
         "gendertagger.tasks.snapshot_import",
         "gendertagger.tasks.public_classification",
+        "gendertagger.tasks.worker_resources",
     }
 
 

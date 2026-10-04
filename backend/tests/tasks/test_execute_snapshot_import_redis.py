@@ -25,9 +25,9 @@ from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.services.projects import ProjectService
 from gendertagger.storage.local import LocalArtifactStorage
-from gendertagger.tasks import snapshot_import as snapshot_import_module
 from gendertagger.tasks.celery_app import create_celery_app
 from gendertagger.tasks.dispatch import CeleryMessagePublisher
+from gendertagger.tasks.worker_resources import reset_worker_resources
 
 pytestmark = [pytest.mark.integration, pytest.mark.redis, pytest.mark.e2e]
 
@@ -76,7 +76,7 @@ def test_snapshot_import_runs_through_relay_and_real_worker(
     monkeypatch.setenv("GENDERTAGGER_DATABASE_URL", repository_database_url)
     monkeypatch.setenv("GENDERTAGGER_ARTIFACT_ROOT", str(tmp_path))
     monkeypatch.setenv("GENDERTAGGER_TEI_IMPORT_BATCH_RECORD_COUNT", "1")
-    snapshot_import_module._snapshot_import_executor.cache_clear()
+    reset_worker_resources()
 
     factory: UnitOfWorkFactory = partial(
         SqlAlchemyUnitOfWork,
@@ -150,4 +150,4 @@ def test_snapshot_import_runs_through_relay_and_real_worker(
         assert dispatch.status is DispatchStatus.published
     finally:
         app.close()
-        snapshot_import_module._snapshot_import_executor.cache_clear()
+        reset_worker_resources()

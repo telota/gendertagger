@@ -10,7 +10,6 @@ from typing import cast
 import pytest
 from sqlalchemy import Engine
 
-import gendertagger.tasks.public_classification as public_task
 from gendertagger.config.public_classification import PublicClassificationPolicy
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
@@ -29,6 +28,7 @@ from gendertagger.services.public_classification import PublicClassificationServ
 from gendertagger.services.runs import RunProvenance
 from gendertagger.tasks.celery_app import create_celery_app
 from gendertagger.tasks.dispatch import CeleryMessagePublisher
+from gendertagger.tasks.worker_resources import reset_worker_resources
 
 pytestmark = [pytest.mark.integration, pytest.mark.redis, pytest.mark.e2e]
 
@@ -46,7 +46,7 @@ def test_public_names_job_runs_through_outbox_and_real_worker_with_persisted_evi
     monkeypatch.setenv("GENDERTAGGER_CODE_GIT_COMMIT", "redis-synthetic")
     monkeypatch.setenv("GENDERTAGGER_DEPENDENCY_LOCK_SHA256", "a" * 64)
     monkeypatch.delenv("GENDERTAGGER_CONTAINER_IMAGE_DIGEST", raising=False)
-    public_task._public_classification_service.cache_clear()
+    reset_worker_resources()
     factory: UnitOfWorkFactory = partial(
         SqlAlchemyUnitOfWork,
         create_session_factory(postgres_engine),
@@ -122,4 +122,4 @@ def test_public_names_job_runs_through_outbox_and_real_worker_with_persisted_evi
             assert unit_of_work.public_classifications.get_job(accepted.id) == persisted
     finally:
         app.close()
-        public_task._public_classification_service.cache_clear()
+        reset_worker_resources()

@@ -51,7 +51,7 @@ def test_task_retries_only_transient_aggregation_failures(
     retry = Mock(side_effect=Retry())
     monkeypatch.setattr(aggregation_task, "_aggregation_executor", lambda: executor)
     monkeypatch.setattr(aggregation_task.execute_aggregation, "retry", retry)
-    monkeypatch.setattr(aggregation_task, "_retry_countdown", lambda _retries: 2.0)
+    monkeypatch.setattr("gendertagger.services.dispatch.random.uniform", lambda _low, _high: 2.0)
 
     with pytest.raises(Retry):
         _task_proxy().run(

@@ -57,6 +57,7 @@ def create_celery_app(settings: CelerySettings | None = None) -> Celery:
         # Imported lazily on worker finalize, so API clients that only send by
         # name never pull the execution module's heavy imports.
         include=[
+            "gendertagger.tasks.worker_resources",
             "gendertagger.tasks.execution",
             "gendertagger.tasks.aggregation",
             "gendertagger.tasks.snapshot_import",

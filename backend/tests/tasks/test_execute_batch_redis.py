@@ -28,9 +28,9 @@ from gendertagger.services.execution import RunScheduler
 from gendertagger.services.method_registry import default_method_registry
 from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.services.runtime_provenance import capture_worker_provenance
-from gendertagger.tasks import execution as execution_module
 from gendertagger.tasks.celery_app import create_celery_app
 from gendertagger.tasks.dispatch import CeleryMessagePublisher
+from gendertagger.tasks.worker_resources import reset_worker_resources
 
 pytestmark = [pytest.mark.integration, pytest.mark.redis, pytest.mark.e2e]
 
@@ -76,7 +76,7 @@ def test_cheap_method_runs_asynchronously_end_to_end(
         code_git_commit=SEED_CODE_GIT_COMMIT,
         dependency_lock_sha256=SEED_DEPENDENCY_LOCK_SHA256,
     )
-    execution_module._batch_executor.cache_clear()
+    reset_worker_resources()
 
     factory: UnitOfWorkFactory = partial(
         SqlAlchemyUnitOfWork, create_session_factory(postgres_engine)
@@ -130,4 +130,4 @@ def test_cheap_method_runs_asynchronously_end_to_end(
         assert persisted_run.dependency_versions == provenance.dependency_versions
     finally:
         app.close()
-        execution_module._batch_executor.cache_clear()
+        reset_worker_resources()

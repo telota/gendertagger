@@ -75,7 +75,7 @@ def test_public_classification_task_retries_transient_database_failures(
     monkeypatch.setattr(public_task, "_public_classification_service", lambda: service)
     monkeypatch.setattr(public_task.execute_public_classification, "retry", retry)
     monkeypatch.setattr(
-        "gendertagger.tasks.public_classification.random.uniform",
+        "gendertagger.services.dispatch.random.uniform",
         lambda _minimum, _maximum: 1.0,
     )
 

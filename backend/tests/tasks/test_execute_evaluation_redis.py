@@ -28,9 +28,9 @@ from gendertagger.services.evaluations import EvaluationService
 from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.storage.local import LocalArtifactStorage
-from gendertagger.tasks import evaluation as evaluation_module
 from gendertagger.tasks.celery_app import create_celery_app
 from gendertagger.tasks.dispatch import CeleryMessagePublisher
+from gendertagger.tasks.worker_resources import reset_worker_resources
 
 pytestmark = [pytest.mark.integration, pytest.mark.redis, pytest.mark.e2e]
 
@@ -74,7 +74,7 @@ def test_gnd_benchmark_evaluation_runs_through_relay_and_real_worker(
 
     monkeypatch.setenv("GENDERTAGGER_DATABASE_URL", repository_database_url)
     monkeypatch.setenv("GENDERTAGGER_ARTIFACT_ROOT", str(tmp_path))
-    evaluation_module._evaluation_executor.cache_clear()
+    reset_worker_resources()
     factory: UnitOfWorkFactory = partial(
         SqlAlchemyUnitOfWork,
         create_session_factory(postgres_engine),
@@ -123,4 +123,4 @@ def test_gnd_benchmark_evaluation_runs_through_relay_and_real_worker(
         assert dispatch is not None
     finally:
         app.close()
-        evaluation_module._evaluation_executor.cache_clear()
+        reset_worker_resources()

@@ -7,70 +7,36 @@ imports the FastAPI layer.
 
 from __future__ import annotations
 
-import random
-from datetime import UTC, datetime
-from functools import lru_cache, partial
+from datetime import UTC, datetime, timedelta
+from functools import partial
 from typing import Any
-from weakref import finalize
 
 from celery import shared_task
 
-from gendertagger.config.settings import ClassificationRuntimeSettings
-from gendertagger.db.session import create_database_engine, create_session_factory
-from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.models.run import TaskBatchMessage
+from gendertagger.services.dispatch import jittered_exponential_retry_delay
 from gendertagger.services.execution import (
     DEFAULT_MAX_BATCH_ATTEMPTS,
     BatchExecutor,
     TransientBatchError,
 )
-from gendertagger.services.lookup_assets import RegisteredLookupAssetResolver
-from gendertagger.services.method_registry import default_method_registry
-from gendertagger.services.model_assets import RegisteredModelDirectoryResolver
-from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
-from gendertagger.services.runtime_provenance import capture_worker_provenance
-from gendertagger.storage.local import LocalArtifactStorage
+from gendertagger.tasks.worker_resources import get_worker_resources
 
 EXECUTE_BATCH_TASK_NAME = "gendertagger.tasks.execute_batch"
-_RETRY_BASE_SECONDS = 2.0
-_RETRY_MAX_SECONDS = 60.0
 
 
-def _retry_countdown(retries: int) -> float:
-    """Exponential backoff with full jitter, bounded to a maximum delay."""
-    ceiling = min(_RETRY_BASE_SECONDS * (2**retries), _RETRY_MAX_SECONDS)
-    return random.uniform(0.0, ceiling)  # noqa: S311 - retry jitter is not security-sensitive
-
-
-@lru_cache(maxsize=1)
 def _batch_executor() -> BatchExecutor:
-    """Build the process-wide batch executor from worker settings once."""
-    settings = ClassificationRuntimeSettings()  # type: ignore[call-arg]  # Environment sources.
-    engine = create_database_engine(settings.database_url.get_secret_value())
-    session_factory = create_session_factory(engine)
-    unit_of_work_factory: UnitOfWorkFactory = partial(SqlAlchemyUnitOfWork, session_factory)
-    lookup_resolver = RegisteredLookupAssetResolver(
-        unit_of_work_factory=unit_of_work_factory,
-        artifact_storage=LocalArtifactStorage(settings.artifact_root),
-    )
-    model_resolver = RegisteredModelDirectoryResolver(
-        lookup_asset_resolver=lookup_resolver,
-        cache_root=settings.model_cache_root,
-    )
-    executor = BatchExecutor(
-        unit_of_work_factory=unit_of_work_factory,
-        method_registry=default_method_registry(lookup_resolver, model_resolver),
+    """Compose the batch executor from the executing process's shared resources."""
+    resources = get_worker_resources()
+    classification = resources.classification
+    return BatchExecutor(
+        unit_of_work_factory=resources.create_unit_of_work,
+        method_registry=classification.method_registry,
         clock=partial(datetime.now, UTC),
-        worker_provenance=capture_worker_provenance(
-            code_git_commit=settings.code_git_commit,
-            dependency_lock_sha256=settings.dependency_lock_sha256,
-            container_image_digest=settings.container_image_digest,
-        ),
-        lookup_asset_resolver=lookup_resolver,
-        model_directory_resolver=model_resolver,
+        worker_provenance=classification.worker_provenance,
+        lookup_asset_resolver=classification.lookup_resolver,
+        model_directory_resolver=classification.model_resolver,
     )
-    finalize(executor, engine.dispose)
-    return executor
 
 
 # Celery's shared_task is untyped; the task body below is fully annotated.
@@ -93,4 +59,9 @@ def execute_batch(self: Any, *, method_execution_id: str, task_batch_id: str) ->
             max_attempts=DEFAULT_MAX_BATCH_ATTEMPTS,
         )
     except TransientBatchError as error:
-        raise self.retry(exc=error, countdown=_retry_countdown(self.request.retries)) from error
+        countdown = jittered_exponential_retry_delay(
+            self.request.retries + 1,
+            base=timedelta(seconds=2),
+            maximum=timedelta(seconds=60),
+        ).total_seconds()
+        raise self.retry(exc=error, countdown=countdown) from error

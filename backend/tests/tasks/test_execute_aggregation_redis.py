@@ -27,9 +27,9 @@ from gendertagger.services.aggregations import AggregationService
 from gendertagger.services.dispatch import OutboxRelay
 from gendertagger.services.pagination import CursorCodec
 from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
-from gendertagger.tasks import aggregation as aggregation_module
 from gendertagger.tasks.celery_app import create_celery_app
 from gendertagger.tasks.dispatch import CeleryMessagePublisher
+from gendertagger.tasks.worker_resources import reset_worker_resources
 
 pytestmark = [pytest.mark.integration, pytest.mark.postgres, pytest.mark.redis]
 
@@ -71,7 +71,7 @@ def test_reference_aggregation_runs_through_relay_and_real_worker(
     from celery.contrib.testing.worker import start_worker
 
     monkeypatch.setenv("GENDERTAGGER_DATABASE_URL", repository_database_url)
-    aggregation_module._aggregation_executor.cache_clear()
+    reset_worker_resources()
     factory: UnitOfWorkFactory = partial(
         SqlAlchemyUnitOfWork,
         create_session_factory(postgres_engine),
@@ -126,4 +126,4 @@ def test_reference_aggregation_runs_through_relay_and_real_worker(
         assert dispatch is not None
     finally:
         app.close()
-        aggregation_module._aggregation_executor.cache_clear()
+        reset_worker_resources()

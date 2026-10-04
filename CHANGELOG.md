@@ -288,7 +288,9 @@ the phased plan that resumes application code.
 - Removed the redundant tabular import-version mapper and unused public-job recovery enumerator.
   Canonical import registry and dispatch recovery remain the sole application paths; the documented
   authentication-extension decision stays deferred.
-
+- Worker task families share one lazy process-owned pool/resource context and the existing bounded
+  jitter policy. Fork/reset/shutdown preserve parent connections, reject stale owners, and keep each
+  operation and heartbeat in a separate transaction scope.
 
 - Evaluation-report downloads advertise the canonical Pydantic schema without reserializing immutable
   artifact bytes. Frontend report and export-manifest parsers use generated transport types and retain
