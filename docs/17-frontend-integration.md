@@ -77,6 +77,14 @@ evidence deep links use the `tei_id` identity filter, never the first page of fu
 If a cached projection has outlived
 its ownership metadata, refresh it conservatively rather than assuming it is unrelated.
 
+Aggregation, evaluation, and export detail pages resolve the canonical resource-to-run-to-snapshot-to-project
+chain with ordinary authenticated API reads. A resource ID, run ID, snapshot ID, or project-ownership
+mismatch fails closed before artifact status, provenance, evidence, actions, or detail links render.
+Fresh deep links remain unresolved until ownership is known. Full route-context changes invalidate
+pending reads and export download/hash continuations, including navigation away and back; an old
+response cannot revive evidence or save bytes beneath a replacement context. These checks prevent
+misleading client context and do not replace server authorization.
+
 Review-specific behavior is defined in
 [`09-annotation-and-review.md`](09-annotation-and-review.md). The client never silently overwrites a conflict
 or treats an optimistic local state as a completed scholarly write.
@@ -122,8 +130,8 @@ the same account may retry eligible requests; replacement, logout, or returning 
 cannot replay an old request. Queries pass cancellation signals to transport, and displayed data must
 resolve the current principal's exact cache key. Authorization denials (`401`, `403`, `404`) hide retained
 private data. Export download buffers, checksum inputs, and pending download ownership are cleared on
-replacement, logout, resource changes, or lost access; obsolete responses and hashing completions cannot
-display or save bytes. Run event streams close on ownership changes and ignore obsolete callbacks.
+replacement, logout, project/run/resource changes, or lost access; obsolete responses and hashing
+completions cannot display or save bytes. Run event streams close on ownership changes and ignore obsolete callbacks.
 Credential inputs clear on account replacement; recovery passwords also clear when the dialog closes
 and after successful sign-in. Late session, password, and multi-command callbacks cannot restore state
 or continue work under a replacement account.

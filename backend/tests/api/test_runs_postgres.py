@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -7,9 +8,12 @@ from fastapi import Request
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from sqlalchemy import Engine, select
+from tests.seeding import seed_worker_provenance
 
 from gendertagger.api.app import create_app
 from gendertagger.api.authentication import AuthenticationBackend
+from gendertagger.api.routes import runs as run_routes
+from gendertagger.api.routes.run_events import stream_run_events
 from gendertagger.api.settings import AppSettings
 from gendertagger.db.rows.dispatches import DispatchOutboxRow
 from gendertagger.db.rows.executions import MethodExecutionRow, TaskBatchRow
@@ -25,10 +29,20 @@ from gendertagger.models.dispatch import DispatchStatus
 from gendertagger.models.lifecycle import RunStatus, TaskBatchStatus
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.project import SnapshotImportTaskMessage
-from gendertagger.models.run import MethodExecutionCreate, PredictionWrite, TaskBatchPlan
+from gendertagger.models.run import (
+    MethodExecutionCreate,
+    MethodExecutionStateEvent,
+    PredictionWrite,
+    RunStateEvent,
+    TaskBatchMessage,
+    TaskBatchPlan,
+)
 from gendertagger.models.team import TeamCreate
 from gendertagger.models.user import GlobalRole, UserCreate
+from gendertagger.services.execution import BatchExecutor
+from gendertagger.services.method_registry import default_method_registry
 from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
+from gendertagger.services.runtime_provenance import capture_worker_provenance
 from gendertagger.services.snapshot_import import SnapshotImportExecutor
 from gendertagger.storage.local import LocalArtifactStorage
 
@@ -103,6 +117,7 @@ def _ready_snapshot_id(
     artifact_root: Path,
     *,
     source: bytes = VALID_TEI,
+    import_batch_record_count: int = 1,
 ) -> UUID:
     project_response = client.post(
         "/api/v1/projects",
@@ -122,7 +137,7 @@ def _ready_snapshot_id(
         unit_of_work_factory=unit_of_work_factory,
         artifact_storage=LocalArtifactStorage(artifact_root),
         parser=TeiPersonParser(),
-        import_batch_record_count=1,
+        import_batch_record_count=import_batch_record_count,
         clock=lambda: datetime(2026, 8, 14, 12, tzinfo=UTC),
     ).execute(
         SnapshotImportTaskMessage(dataset_snapshot_id=snapshot_id),
@@ -282,6 +297,135 @@ def test_run_and_executions_expose_progress(
     run_progress = client.get(f"/api/v1/runs/{run_id}").json()["progress"]
     assert run_progress["total"] == 1
     assert run_progress["completed"] == 0
+
+
+def test_multi_batch_get_and_sse_expose_identical_current_progress(
+    postgres_engine: Engine,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, factory = _client(postgres_engine, tmp_path)
+    people = "".join(
+        f'<person xml:id="p{index:04d}"><persName type="reg"><surname>'
+        f"{'Example (Frau des Heinrich)' if index % 2 == 0 else 'Example'}"
+        "</surname></persName></person>"
+        for index in range(400)
+    )
+    source = (
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><listPerson>'
+        f"{people}</listPerson></body></text></TEI>"
+    ).encode()
+    snapshot_id = _ready_snapshot_id(
+        client, factory, tmp_path, source=source, import_batch_record_count=200
+    )
+    created = client.post(
+        "/api/v1/runs",
+        json={
+            "dataset_snapshot_id": str(snapshot_id),
+            "config": {
+                "methods": [{"name": "parenthetical_qualifier"}, {"name": "gender_guesser"}]
+            },
+        },
+    )
+    assert created.status_code == 202
+    run_id = UUID(created.json()["id"])
+    assert client.post(f"/api/v1/runs/{run_id}/executions").status_code == 202
+    with factory() as unit_of_work:
+        executions = unit_of_work.runs.list_method_executions(run_id)
+        by_name = {execution.method_name: execution for execution in executions}
+    with postgres_engine.connect() as connection:
+        messages = [
+            TaskBatchMessage(method_execution_id=execution.id, task_batch_id=batch_id)
+            for name in ("parenthetical_qualifier", "gender_guesser")
+            for execution in (by_name[name],)
+            for batch_id in connection.scalars(
+                select(TaskBatchRow.id)
+                .where(TaskBatchRow.method_execution_id == execution.id)
+                .order_by(TaskBatchRow.batch_index)
+            )
+        ]
+    assert len(messages) == 4
+    executor = BatchExecutor(
+        unit_of_work_factory=factory,
+        method_registry=default_method_registry(),
+        clock=lambda: datetime(2026, 8, 14, 12, 5, tzinfo=UTC),
+        worker_provenance=capture_worker_provenance(
+            code_git_commit=CODE_GIT_COMMIT,
+            dependency_lock_sha256=DEPENDENCY_LOCK_SHA256,
+        ),
+    )
+    # Bound the real endpoint to one poll, so an intermediate stream can end without fake data.
+    monkeypatch.setattr(
+        run_routes,
+        "stream_run_events",
+        partial(stream_run_events, max_stream_seconds=1.0),
+    )
+    for finished_batches in range(5):
+        if finished_batches:
+            executor.execute(
+                messages[finished_batches - 1],
+                worker_task_id=f"api-progress-{finished_batches}",
+                attempt_count=1,
+            )
+        run_response = client.get(f"/api/v1/runs/{run_id}")
+        execution_response = client.get(f"/api/v1/runs/{run_id}/executions")
+        assert run_response.status_code == 200
+        assert execution_response.status_code == 200
+        run = run_response.json()
+        current_executions = execution_response.json()
+        assert run["progress"] == {
+            "total": 800,
+            "completed": finished_batches * 200,
+            "failed": 0,
+            "percentage": finished_batches * 25.0,
+        }
+        assert run["progress"]["completed"] == sum(
+            execution["progress"]["completed"] for execution in current_executions
+        )
+        assert run["status"] == ("completed" if finished_batches == 4 else "running")
+        if finished_batches == 1:
+            qualifier = next(
+                execution
+                for execution in current_executions
+                if execution["method_name"] == "parenthetical_qualifier"
+            )
+            assert qualifier["status"] == "running"
+            assert qualifier["progress"] == {
+                "total": 400,
+                "completed": 200,
+                "failed": 0,
+                "percentage": 50.0,
+            }
+        with client.stream("GET", f"/api/v1/runs/{run_id}/events") as response:
+            assert response.status_code == 200
+            event_frames = response.read().decode().strip().split("\n\n")
+            frames = {
+                frame.splitlines()[0].removeprefix("event: "): frame for frame in event_frames
+            }
+        run_event = RunStateEvent.model_validate_json(
+            frames["run.progress"].splitlines()[1].removeprefix("data: ")
+        )
+        assert str(run_event.run_id) == run["id"]
+        assert run_event.status.value == run["status"]
+        assert run_event.progress.model_dump(mode="json") == run["progress"]
+        execution_frames = [
+            frame
+            for frame in event_frames
+            if frame.startswith("event: method_execution.progress\n")
+        ]
+        assert len(execution_frames) == 2
+        for frame in execution_frames:
+            event = MethodExecutionStateEvent.model_validate_json(
+                frame.splitlines()[1].removeprefix("data: ")
+            )
+            detail = next(
+                execution
+                for execution in current_executions
+                if execution["id"] == str(event.method_execution_id)
+            )
+            assert event.status.value == detail["status"]
+            assert event.progress.model_dump(mode="json") == detail["progress"]
+        assert ("run.completed" in frames) is (finished_batches == 4)
 
 
 def test_list_executions_rejects_unknown_run(
@@ -460,6 +604,7 @@ def _persist_method_execution_results(
                 worker_task_id=f"method-result-{batch.batch_index}",
                 started_at=now,
                 attempt_count=1,
+                worker_provenance=seed_worker_provenance(),
             )
             assert claimed is not None
             result = expected.get(record.tei_id)

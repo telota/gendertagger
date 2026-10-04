@@ -14,6 +14,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
 
 from gendertagger.config.public_classification import PublicClassificationPolicy
+from gendertagger.models.project import SHA256_PATTERN
 
 
 class GendertaggerSettings(BaseSettings):
@@ -60,3 +61,19 @@ class RuntimeSettings(ArtifactStorageSettings):
     public_classification: PublicClassificationPolicy = Field(
         default_factory=PublicClassificationPolicy
     )
+
+
+class ClassificationRuntimeSettings(RuntimeSettings):
+    """Require one shared build identity for API and classification-worker provenance."""
+
+    code_git_commit: str = Field(min_length=1, max_length=100)
+    dependency_lock_sha256: str = Field(pattern=SHA256_PATTERN)
+    container_image_digest: str | None = None
+
+    @field_validator("code_git_commit")
+    @classmethod
+    def _validate_code_git_commit(cls, value: str) -> str:
+        if not value.strip():
+            msg = "code_git_commit must not be blank"
+            raise ValueError(msg)
+        return value

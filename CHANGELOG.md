@@ -286,6 +286,32 @@ the phased plan that resumes application code.
 
 ### Fixed
 
+- Aggregation, evaluation, and export detail screens validate canonical resource/run/snapshot/project
+  ownership before showing status, evidence, actions, or links. Rapid context changes fail closed;
+  invalidated export downloads and hashing continuations cannot save or display stale bytes.
+- Method and run progress refresh after every terminal batch instead of waiting for the entire method.
+  Concurrent finalizers preserve committed tallies without conflicting with Prediction foreign-key
+  locks; duplicate deliveries and final lifecycle semantics remain unchanged.
+- Delivery plans and the frontend overview now separate implemented capabilities, local verification,
+  and deferred release automation. Manual digest-based promotion remains the publication process;
+  fresh-install/restore evidence is retained without claiming prior-release upgrade readiness.
+
+- Project batches reject implementation/normalization, build/environment, frozen-configuration, and
+  pinned lookup/model drift before adapter computation or Prediction persistence. Runs record exact
+  installed dependency versions; canonical actual-worker receipts are captured atomically on claims and
+  remain immutable. Migration `20261004_0014` preserves unknown historical provenance as null; legacy
+  runs without dependency evidence require a newly accepted run. OpenAPI and frontend Run types were
+  regenerated. See [ADR-0048](docs/decisions/ADR-0048-project-worker-provenance-compatibility.md).
+- Direct classification caches no longer retain technical failures. Complete descriptor/resolved-config
+  identity separates changed methods, models, and artifacts; successful unknowns and abstentions still
+  cache, and returned mutable evidence cannot alter cached results. Recovery does not rewrite completed
+  public classification jobs.
+- Newly generated CSV analysis exports quote all cells and protect formula, full-width formula,
+  whitespace, and control/format prefixes with an ASCII apostrophe. Canonical records, JSON, and
+  previously stored artifacts remain unchanged. The supported LibreOffice Calc text-import settings,
+  verified non-formula behavior, and non-lossless/non-universal spreadsheet limits are documented in
+  [the export design](docs/08-ingestion-and-export.md#spreadsheet-safe-csv-analysis) and
+  [ADR-0047](docs/decisions/ADR-0047-spreadsheet-safe-csv-analysis.md).
 - GND implementation `gnd_v2` now gives entity type precedence over source gender: only persons
   receive male/female labels, corporate bodies remain institutions, and all other authority types
   remain substantive unknown even with explicit gender. Preserved source evidence and existing
@@ -311,6 +337,10 @@ the phased plan that resumes application code.
   `403 forbidden`. The client now reads `csrf_token`.
 
 ### Removed
+
+- The misleading `deploy/scripts/test_migration.sh` helper, which neither established a previous
+  application schema nor exposed the readiness endpoint it probed. Existing-installation upgrade
+  rehearsal remains an explicit operator gate in the production runbook.
 
 - Legacy research pipeline: the classification implementation under `src/gendertagger/backend/`, and the
   analysis, plotting, and orchestration scripts in `scripts/` (including `run_all_methods.py`,

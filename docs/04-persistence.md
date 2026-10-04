@@ -129,6 +129,19 @@ Creation-time scientific provenance is immutable. While work is active, only ope
 progress, attempt/worker metadata, tallies, timestamps, and sanitized failure details may change. Once a
 resource is terminal, the entire row is sealed. Lifecycle resources are not deleted to rewrite history.
 
+Every terminal TaskBatch refreshes its MethodExecution's success/abstain and technical-error tallies in
+the same worker transaction, before deciding whether the method can finish. Execution finalizers serialize
+with `FOR NO KEY UPDATE`, preserving row-level concurrency protection without conflicting with
+Prediction foreign-key `KEY SHARE` locks. Parent and child ORM state is refreshed after acquiring the
+serialization lock so a competing worker's committed progress cannot be lost to cached rows. Outstanding
+work retains a running lifecycle and no finish timestamp; terminal resources remain sealed no-ops.
+
+Run `dependency_versions` is immutable acceptance-time provenance. TaskBatch `worker_provenance`
+records a canonical actual worker receipt only in its initial pending/queued-to-running claim; PostgreSQL
+rejects pre-claim assignment and every subsequent receipt rewrite, including while the batch is running.
+Historical rows retain null rather than fabricated evidence. See
+[ADR-0048](decisions/ADR-0048-project-worker-provenance-compatibility.md).
+
 These database guards cover runs, method executions, task batches, and aggregation, evaluation, and export
 executions alike. For evaluations and exports, the only fields that may change after creation are the
 lifecycle columns plus the report or manifest artifact that marks completion. Aggregation and evaluation
@@ -255,6 +268,9 @@ compiled derivatives remain independently attributable. See
 
 Caches are optimizations, not truth. Run execution persists every Prediction with Run-local provenance.
 
-The synchronous classification service may use a bounded in-process cache keyed by method, resolved
-configuration, and input name. It is process-local, non-durable, and never substitutes for Prediction rows. A
-durable cross-run cache remains deferred in [`22-future-development.md`](22-future-development.md).
+The synchronous classification service uses a bounded, process-local cache keyed by method name, the
+canonical complete descriptor/resolved-configuration digest, and exact input name. Technical errors are
+not cacheable; successful substantive unknowns and normal abstentions remain cacheable. Cached evidence
+is isolated from mutable returned results. See [the API cache policy](05-api.md#anonymous-name-classification).
+This non-durable optimization never substitutes for Prediction rows or rewrites completed public jobs.
+A durable cross-run cache remains deferred in [`22-future-development.md`](22-future-development.md).

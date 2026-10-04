@@ -311,4 +311,76 @@ Every successful download includes `Content-Disposition: attachment` with the ou
 of the downloaded artifact. For a multi-output export these headers describe `manifest.json` itself;
 the checksums of the individual outputs remain in the manifest's `outputs` descriptors.
 
+## Spreadsheet-safe CSV analysis
+
+Newly generated CSV analysis exports follow
+[ADR-0047](decisions/ADR-0047-spreadsheet-safe-csv-analysis.md). All cells are double-quoted, embedded
+double quotes are doubled, and nonempty text beginning with `=`, `+`, `-`, `@`, their full-width
+equivalents (`＝`, `＋`, `－`, `＠`), Unicode whitespace, or a Unicode control/format character
+(categories `Cc` and `Cf`) receives one leading ASCII apostrophe (`'`). This includes space, tab,
+CR/LF, NUL, DEL, C1 controls, non-breaking space, zero-width formatting, and BOM. The complete source
+text follows that protective prefix unchanged, even when the original prefix precedes ordinary text
+rather than a formula. The policy applies to every data cell. Canonical arbitrary text occurs in
+`tei_id` and `resp`; `evidence`, `cert`, labels, tiers, and booleans retain their constrained values.
+Optional absent values remain empty, and ordinary text is unchanged after CSV parsing.
+
+CSV quoting alone cannot prevent spreadsheet formula evaluation. The supported spreadsheet workflow
+is LibreOffice Calc's **Text CSV** import, using UTF-8, comma as the only separator, double quote as
+the string delimiter, **Format quoted field as text** enabled, **Evaluate formulas** disabled, and
+**Trim spaces** and **Merge delimiters** disabled. Select **Text** for all columns to avoid numeric
+or date conversion. See the
+[LibreOffice Text Import documentation](https://help.libreoffice.org/latest/en-US/text/shared/00/00000208.html).
+Check the import options rather than relying on settings remembered from another file. Protected
+cells must be text, not evaluated results; the apostrophe may remain visible.
+
+### Verified Calc import
+
+An isolated headless import on 2026-10-04 used **LibreOffice 26.8.0.3 680(Build:3)**, CSV bytes
+from `build_csv_analysis`, and the following filter string:
+
+```text
+44,34,76,1,1/2/2/2/3/2/4/2/5/2/6/2/7/2/8/2,1033,true,false,true,false,false,0,false,false,false
+```
+
+The [official CSV filter reference](https://help.libreoffice.org/latest/en-US/text/shared/guide/csv_params.html)
+defines comma (`44`), double quote (`34`), UTF-8 (`76`), row 1, Text (`2`) for all eight columns,
+English-US (`1033`), quoted fields as text (token 7), and disabled special-number detection
+(token 8), trimming (token 11), formula evaluation (token 13), and scientific-number detection
+(token 15). No `/MRG` suffix is present, so delimiters are not merged. Tokens 9, 10, 12, and 14
+are export-only options and do not change this import.
+
+The smoke imported 32 canonical records with hazardous and ordinary `tei_id`/`resp` values,
+then exported an XLSX workbook for `openpyxl` inspection with formula values exposed
+(`data_only=False`). All **264 cells** (header plus 32 eight-column rows) were string cells;
+**none was a formula**. ASCII/full-width formula starts, whitespace, Cc/Cf controls, BOM,
+original apostrophes, leading-zero/date/scientific-looking identifiers, commas, quotes, and
+multiline fields stayed text. Added and genuine apostrophes remained in the cell contents.
+Calc normalized CR/CRLF to LF; XML-ineligible controls were represented by XLSX `_xNNNN_`
+escapes. Decoding those transport escapes gave the expected text with that newline
+normalization. This is evidence for text/non-formula handling, not a lossless spreadsheet
+round trip or a claim about graphical display. NUL is rejected by canonical tabular ingestion
+and was not injected into this smoke.
+
+To repeat the import, generate `analysis.csv` with the actual serializer in a temporary
+directory, then use `--headless`, a unique `-env:UserInstallation=file:///.../profile`,
+`--infilter="Text - txt - csv (StarCalc):<filter string above>"`,
+`--convert-to "xlsx:Calc MS Excel 2007 XML"`, and `--outdir` pointing to that same temporary
+directory. Inspect types and contents before deleting the temporary CSV, XLSX, and profile.
+Never use a user's office profile or a real document for the smoke.
+
+### Representation limits
+
+There is no universal safe CSV encoding across spreadsheet applications.
+[OWASP](https://owasp.org/www-community/attacks/CSV_Injection) warns that Excel may remove protective
+characters when saving and reopening CSV. Other spreadsheet tools, copying cells into formula contexts,
+and spreadsheet CSV save/reopen are not supported safety guarantees.
+
+CSV analysis is a human-viewing representation, not a lossless identifier round-trip format. A CSV
+parser retains the added apostrophe, and blindly removing leading apostrophes can corrupt genuine
+source text. Use JSON for lossless machine-readable results and canonical identifiers. Serialization
+never mutates records, JSON, TEI, or source artifacts. Existing persisted exports/downloads retain
+their exact original bytes and checksums; create a new CSV export to use this policy. The CSV columns,
+API/Pydantic contracts, and manifest schema remain unchanged; new manifest descriptors checksum the
+new output bytes.
+
 Never mutate the original source artifact in place.

@@ -4,10 +4,13 @@ The Vue 3 + TypeScript + Vite client for the gendertagger `/api/v1` service. It 
 under [ADR-0006](../docs/decisions/ADR-0006-vue-browser-client-boundary.md): it holds no scientific logic,
 never talks to Celery, Redis, or the database, and depends on no filesystem detail.
 
-The milestone plan is [`docs/24-frontend-delivery-plan.md`](../docs/24-frontend-delivery-plan.md). Milestone M1
-(scaffold and transport) is in place; the application shell (M2) and every screen after it are not.
-`gendertagger.html` is the accepted wireframe. It is a layout and information-architecture reference only, and
-its interaction markup must not be carried over.
+The [milestone plan](../docs/24-frontend-delivery-plan.md) records delivery and remaining acceptance work.
+The application shell, projects/import, runs/aggregation, review/person history, evaluation/export,
+game mode, personal settings, and account/team/project administration screens are implemented. This is
+not an M1-only scaffold. Implementation does not imply completed accessibility acceptance or public
+release verification; retain the plan's explicit conformance and deployment limits.
+The [wireframe inventory](../docs/23-wireframe-ui-inventory.md) is a layout and information-architecture
+reference only; its interaction markup must not be carried over.
 
 Read before changing anything here:
 
@@ -143,8 +146,8 @@ src/
   api/          generated types, typed client, error and CSRF handling
   app/          composition root, router, i18n, sidebar, header, footer, query client
   components/   base primitives (button, text field, listbox) and domain components (still empty)
-  composables/  reusable stateful logic: the injected API client, GET /api/v1/branding, theme, locale
-  features/     one directory per screen: home, legal notice, login, change password, projects, not found
+  composables/  reusable query, session, route-context, branding, theme, and locale logic
+  features/     public/auth, project/data, task/run, review/game, evaluation/export, settings/admin views
   locales/      message catalogues, one JSON file per locale
   stores/       Pinia stores for shared client state: the session and its roles
   styles/       design tokens and global styles
@@ -154,10 +157,11 @@ public/         theme-init.js, resolved before first paint
 nginx/          history-mode fallback for the production image
 ```
 
-The shell is a fixed sidebar (`AppSidebar`: brand and the one navigation surface per decision D7, with a project
-group that follows the run in the URL or else the project's working aggregation, and Phosphor icons) plus a
-content region (`AppHeader`: locale/theme switches and session state; the routed view; `AppFooter`), per
-[`docs/25-frontend-design-guidelines.md`](../docs/25-frontend-design-guidelines.md).
+The signed-in, password-current shell combines a responsive project-aware sidebar (`AppSidebar`) with
+the global header, routed content, and footer. Project switching and task navigation stay in the
+sidebar; the header carries validated breadcrumbs and the account menu. Signed-out, unresolved, and
+forced-password-change states omit private navigation. Layout, theme/locale controls, and responsive
+behavior follow the [design guidelines](../docs/25-frontend-design-guidelines.md).
 
 Design tokens in `src/styles/tokens.css` are semantic and theme-scoped. `tests/styles/tokens.spec.ts` checks
 that both themes stay complete and that each pairing published in the design guidelines still measures what
@@ -172,7 +176,7 @@ an SBOM. Versions were chosen for mutual compatibility, not recency: TypeScript 
 | Package | Licence | Why the platform is not enough |
 |---|---|---|
 | `vue` | MIT | The framework fixed by ADR-0006 |
-| `vue-router` | MIT | History-mode routing (decision D13), needed by the public legal notice route and, from M2, project navigation |
+| `vue-router` | MIT | History-mode routing (decision D13) for public, account, and project workflow routes |
 | `vue-i18n` | MIT | Locale-aware plural, date, and number formatting (ADR-0030) |
 | `pinia` | MIT | The session and its roles — genuinely shared client state, per docs/26-frontend-coding-guidelines.md |
 | `@headlessui/vue` | MIT | The one behavioural dependency decision D9 admits, for Menu, Dialog, and Listbox; brings its own `@tanstack/vue-virtual` (MIT). Covers three of the four named primitives — it ships no Tooltip, which is hand-rolled in-house per D9's resolution in [`24-frontend-delivery-plan.md`](../docs/24-frontend-delivery-plan.md) |
@@ -198,10 +202,10 @@ and `GET /api/v1/auth/session`, and backs `/login`, `/change-password`, and the 
 (ADR-0031, ADR-0032). `useApiClient()` is called at the top of the store's `setup()` so Pinia's
 inject()-in-setup-stores support resolves it correctly; do not call it lazily inside an action.
 
-A view that must not render while signed out (so far, `/change-password` and `/projects`) has to wait for
-the store's one `loading` -> `ready` transition before deciding, rather than reading `isSignedIn`
-immediately on mount — `session.initialize()` is still pending at that point on every fresh page load,
-cookie or not. `session.status` also distinguishes an ordinary `401` (not signed in) from any other
+Private and forced-password-change views wait for the store's `loading` -> `ready` transition before
+deciding what can render, rather than reading `isSignedIn` immediately on mount. Every fresh page load
+starts with `session.initialize()` pending, cookie or not.
+`session.status` also distinguishes an ordinary `401` (not signed in) from any other
 failure — a `5xx`, a network error — as its own `error` status, so a genuine server problem at boot renders
 as one rather than as a misleading "please sign in".
 
@@ -217,9 +221,8 @@ state and import action directly: `ProjectCurrentSnapshot.vue` always shows the 
 status, plus the usual figures about the latest *ready* one; the import toggle lives in the page's own
 heading for a project operator. Only the full, older history moves to `ProjectSnapshotsView`
 (`/projects/:projectId/snapshots`), an unlisted page reached solely through the link there — the sidebar has
-no separate Daten entry any more. It deliberately does not attempt the wireframe's KPI dashboard yet — that
-reads `GET /aggregations/{id}/review-summary`, which needs a run and an aggregation neither of which can
-exist before M4.
+no separate Daten entry any more. Review statistics remain a separate aggregation-backed projection
+through `GET /aggregations/{id}/review-summary`; they are not fabricated for projects without results.
 
 `/projects/:projectId/import` (`ImportView.vue`, `useSnapshotImport.ts`) uploads one file to
 `POST /projects/{project_id}/snapshots` and polls `GET /snapshots/{snapshot_id}` via the new
@@ -240,7 +243,7 @@ Other nested `/projects/:projectId/...` routes from
 [`docs/23-wireframe-ui-inventory.md`](../docs/23-wireframe-ui-inventory.md) are added as their own screens
 land, not stubbed ahead of them.
 
-## Runs (M4, in progress)
+## Runs and aggregation (M4 implementation)
 
 `features/runs/` holds the run screens; the route is
 `/projects/:projectId/snapshots/:snapshotId/runs`, reached from every `ready` snapshot on the project overview.

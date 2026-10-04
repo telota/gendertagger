@@ -48,6 +48,7 @@ from gendertagger.services.projects import ProjectService
 from gendertagger.services.public_classification import PublicClassificationService
 from gendertagger.services.review_items import ReviewItemService
 from gendertagger.services.runs import RunProvenance, RunService
+from gendertagger.services.runtime_provenance import installed_dependency_versions
 from gendertagger.services.teams import TeamService
 from gendertagger.services.user_administration import UserAdministrationService
 from gendertagger.services.user_preferences import UserPreferencesService
@@ -76,6 +77,7 @@ def create_app(
     configure_logging()
     resolved_settings = settings or load_settings()
     application_version = version("gendertagger")
+    dependency_versions = installed_dependency_versions()
     engine: Engine | None = None
     if unit_of_work_factory is None:
         engine = create_database_engine(
@@ -159,6 +161,7 @@ def create_app(
             container_image_digest=resolved_settings.container_image_digest,
         ),
         cursor_codec=cursor_codec,
+        dependency_versions=dependency_versions,
     )
     aggregation_service = AggregationService(
         unit_of_work_factory=unit_of_work_factory,
@@ -206,6 +209,7 @@ def create_app(
             container_image_digest=resolved_settings.container_image_digest,
         ),
         clock=partial(datetime.now, UTC),
+        dependency_versions=dependency_versions,
     )
 
     @asynccontextmanager

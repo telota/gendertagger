@@ -184,6 +184,37 @@ class RunCreateRequest(BaseModel):
     config: RunConfig
 
 
+class WorkerProvenance(BaseModel):
+    """Actual immutable worker identity recorded when a task batch is claimed."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    code_git_commit: str = Field(min_length=1, max_length=100)
+    application_version: str = Field(min_length=1, max_length=100)
+    python_version: str = Field(min_length=1, max_length=100)
+    dependency_lock_sha256: str = Field(pattern=SHA256_PATTERN)
+    dependency_versions: dict[str, str] = Field(min_length=1)
+    container_image_digest: str | None = None
+    hostname: str = Field(min_length=1, max_length=255)
+    process_id: int = Field(ge=1)
+
+    @field_validator("code_git_commit", "application_version", "python_version", "hostname")
+    @classmethod
+    def _validate_nonblank_provenance(cls, value: str) -> str:
+        if not value.strip():
+            msg = "worker provenance values must not be blank"
+            raise ValueError(msg)
+        return value
+
+    @field_validator("dependency_versions")
+    @classmethod
+    def _validate_dependency_versions(cls, value: dict[str, str]) -> dict[str, str]:
+        if any(not name.strip() or not version.strip() for name, version in value.items()):
+            msg = "dependency names and versions must not be blank"
+            raise ValueError(msg)
+        return value
+
+
 class RunCreate(BaseModel):
     """Validated configuration and provenance used to create a run."""
 
@@ -197,6 +228,10 @@ class RunCreate(BaseModel):
     python_version: str = Field(min_length=1, max_length=100)
     dependency_lock_sha256: str | None = Field(default=None, pattern=SHA256_PATTERN)
     dependency_lock_artifact_id: UUID | None = None
+    dependency_versions: dict[str, str] | None = Field(
+        default=None,
+        description="Exact installed dependency versions at acceptance; null for unknown historical provenance.",
+    )
 
     @field_validator("code_git_commit", "application_version", "python_version")
     @classmethod
@@ -362,6 +397,7 @@ class TaskBatch(TaskBatchCreate):
     id: UUID
     status: TaskBatchStatus
     worker_task_id: str | None = None
+    worker_provenance: WorkerProvenance | None = None
     attempt_count: int = Field(ge=0)
     success_count: int = Field(ge=0)
     abstain_count: int = Field(ge=0)

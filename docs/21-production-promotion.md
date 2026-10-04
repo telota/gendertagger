@@ -1,7 +1,8 @@
 # Production Promotion
 
-This document describes manual promotion of a tested, CI-built `gendertagger` commit to production.
-Image publication does not deploy anything. The local-image workflow in
+This document defines the manual publication-scope process for promoting a tested, CI-built
+`gendertagger` commit to production. Image publication does not deploy anything, and version-tag
+publication automation remains deferred. The local-image workflow in
 [QUICKSTART.md](../QUICKSTART.md) remains available for development and locally built installations;
 this runbook promotes already-published images without rebuilding them on the deployment host.
 
@@ -21,12 +22,35 @@ this runbook promotes already-published images without rebuilding them on the de
 3. **Backup**: Take a fresh backup of PostgreSQL and artifact storage immediately before deployment.
    Use `deploy/scripts/backup.sh` only with its expected Compose project and named-volume layout;
    installations with bind mounts need their corresponding verified backup procedure.
-4. **Independent migration rehearsal**: Rehearse the target image's migrations against an isolated
-   staging copy of the actual previous schema and representative data, and verify application startup
-   and the restore procedure there. `deploy/scripts/test_migration.sh` is not evidence of a
-   previous-to-current upgrade: it starts PostgreSQL without establishing the previous application
-   schema, and its host-side readiness probe has no corresponding API port published by
-   `compose.test.yaml`. Do not use that helper as this promotion gate.
+4. **Independent migration rehearsal**: For an existing installation, rehearse the target image's
+   migrations against an isolated copy of its actual previous schema and representative data. Verify
+   application startup, database-and-artifact restore, and the selected rollback path there. The
+   misleading `deploy/scripts/test_migration.sh` helper has been retired: it never established the
+   previous application schema or exposed the readiness endpoint it probed.
+   For a genuinely new installation with no previous schema/data, record an empty-database migration
+   and startup instead, explicitly marking upgrade and previous-image rollback as unverified.
+
+## Verification Scope and Required Record
+
+CI's clean-database `alembic upgrade head`, `alembic check`, and migration regression cases are not a
+rehearsal of a deployed previous release. No previous tagged release is defined in this repository.
+The [local fresh-install/restore record](../RELEASE_GAPS.md#rg-13-local-fresh-install-and-restore-evidence-2026-10-04)
+uses synthetic data and locked source processes, not published target/previous application images.
+It does not establish upgrade readiness or production promotion.
+
+Retain one operator-owned record for each promotion, outside CI's one-week artifact expiry:
+
+| Field | Required evidence |
+|---|---|
+| Previous and target identity | Application versions, full source commits, backend/frontend image digests, lockfile hashes, and matching Compose/configuration; use `none` only for a genuinely new installation |
+| Database baseline | Previous Alembic revision, isolated-copy procedure, data scope/counts, and confirmation that production was not modified during rehearsal |
+| Backup and restore | Database dump and artifact-backup locations/checksums, stopped-write procedure, restored revision/data checks, and output artifact checksums |
+| Target verification | Migration command/result, startup, `/health`, `/ready`, coordinator/outbox operation, and an authenticated representative workflow |
+| Rollback verification | Schema/data compatibility decision, exact previous-image or backup-restore procedure, resulting revision/data/artifact checks, and repeated smoke results |
+| Outcome and limits | Date, operator, failures, unexercised checks, and explicit first-install-only limitations where no previous deployment exists |
+
+Do not label a gate complete because a script exists or a partial local check passed. Deployment
+approval requires the record for the selected artifacts and installation.
 
 ## Promotion Steps
 

@@ -27,6 +27,7 @@ from gendertagger.models.classification import (
     PredictionResult,
     PredictionStatus,
 )
+from gendertagger.models.common import canonical_json_sha256
 from gendertagger.models.person import PersonInput
 from gendertagger.models.synchronous_classification import (
     AggregatedClassification,
@@ -41,7 +42,14 @@ DEFAULT_CACHE_MAX_SIZE = 50_000
 
 
 class DirectClassificationService:
-    """Classify arbitrary names synchronously across registered classification adapters."""
+    """Classify names with a bounded process-local cache of non-error predictions.
+
+    Identity covers the complete method descriptor and validated, resolved configuration.
+    Technical failures are never cached or retried automatically. Concurrent misses may
+    execute independently; only cacheable outcomes can insert or evict entries. Stored
+    evidence and cache hits are independent deep copies, protecting future executions
+    without changing any previously persisted public-job outputs.
+    """
 
     def __init__(
         self,
@@ -87,7 +95,11 @@ class DirectClassificationService:
         methods: Sequence[str] | None = None,
         method_configs: Mapping[str, Mapping[str, JsonValue]] | None = None,
     ) -> tuple[ClassifyNamesResponse, list[dict[str, PredictionResult]]]:
-        """Return ordinary classification results together with immutable raw method evidence."""
+        """Return classification results and independent raw method evidence.
+
+        Returned models remain mutable for consumers; nested mutations cannot alter the
+        cache's retained evidence or another cache hit.
+        """
         selected_registrations = self._resolve_registrations(methods)
         people = [
             PersonInput(tei_id=f"name_{index + 1}", forenames=[name])
@@ -159,8 +171,11 @@ class DirectClassificationService:
         method_name = registration.descriptor.name
         try:
             config = self._resolve_config(registration, raw_config)
-            config_key = (
-                config.model_dump_json() if hasattr(config, "model_dump_json") else str(config)
+            config_key = canonical_json_sha256(
+                {
+                    "descriptor": registration.descriptor.model_dump(mode="json"),
+                    "config": config.model_dump(mode="json"),
+                }
             )
         # Any adapter failure becomes a per-record `error` prediction rather than aborting the request.
         except Exception as error:  # noqa: BLE001
@@ -186,14 +201,7 @@ class DirectClassificationService:
                 cached = self._cache.get(cache_key)
                 if cached is not None:
                     self._cache.move_to_end(cache_key)
-                    results[index] = PredictionResult(
-                        label=cached.label,
-                        status=cached.status,
-                        method_confidence=cached.method_confidence,
-                        raw_label=cached.raw_label,
-                        raw_output=dict(cached.raw_output),
-                        metadata=dict(cached.metadata),
-                    )
+                    results[index] = cached.model_copy(deep=True)
                 else:
                     miss_indices.append(index)
                     miss_people.append(people[index])
@@ -221,10 +229,11 @@ class DirectClassificationService:
                 for miss_idx, pred in zip(miss_indices, new_predictions, strict=True):
                     results[miss_idx] = pred
                     cache_key = (method_name, config_key, names[miss_idx])
-                    self._cache[cache_key] = pred
-                    self._cache.move_to_end(cache_key)
-                    if len(self._cache) > self._cache_max_size:
-                        self._cache.popitem(last=False)
+                    if pred.status is not PredictionStatus.error:
+                        self._cache[cache_key] = pred.model_copy(deep=True)
+                        self._cache.move_to_end(cache_key)
+                        if len(self._cache) > self._cache_max_size:
+                            self._cache.popitem(last=False)
 
         return [r for r in results if r is not None]
 

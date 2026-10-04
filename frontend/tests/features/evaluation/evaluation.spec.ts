@@ -247,6 +247,19 @@ function evaluationClient(server: Server) {
           python_version: '3.12',
         })
       }
+      if (pathname === `/api/v1/snapshots/${SNAPSHOT_ID}`) {
+        return jsonResponse({
+          id: SNAPSHOT_ID,
+          project_id: PROJECT_ID,
+          source_artifact_id: 'artifact',
+          source_sha256: 'a'.repeat(64),
+          parser_version: '1',
+          status: 'ready',
+          record_count: 7,
+          created_at: '2026-01-01T00:00:00Z',
+          import_config: { source_format: 'tei', packaging: 'single' },
+        })
+      }
       if (pathname === `/api/v1/runs/${RUN_ID}/executions`) {
         return jsonResponse([
           execution(EXEC.pq, 'parenthetical_qualifier'),

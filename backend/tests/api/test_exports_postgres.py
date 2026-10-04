@@ -28,12 +28,20 @@ from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.domain.aggregation import REFERENCE_REQUIRED_METHODS
 from gendertagger.ingestion.tei import TeiPersonParser
+from gendertagger.models.artifact import ArtifactCreate
 from gendertagger.models.classification import CanonicalLabel
-from gendertagger.models.export import ExportFormat, ExportManifest, ExportTaskMessage
+from gendertagger.models.export import (
+    ExportExecutionCreate,
+    ExportFormat,
+    ExportManifest,
+    ExportManifestOutput,
+    ExportTaskMessage,
+)
 from gendertagger.models.lifecycle import DatasetSnapshotStatus, ExportExecutionStatus
 from gendertagger.models.project import (
     SnapshotImportRequest,
     SnapshotImportTaskMessage,
+    SourceFormat,
     SourcePackaging,
 )
 from gendertagger.models.user import ProjectRole, UserCreate
@@ -78,6 +86,8 @@ def _seed_completed_aggregation(
     unit_of_work_factory: UnitOfWorkFactory,
     storage: LocalArtifactStorage,
     source_names: tuple[str, ...],
+    *,
+    json_identifier: str | None = None,
 ) -> tuple[UUID, UUID, UUID, UUID]:
     with unit_of_work_factory() as unit_of_work:
         project = seed_project(unit_of_work, slug_prefix="export")
@@ -96,6 +106,7 @@ def _seed_completed_aggregation(
     ).import_snapshot(
         project_id=project.id,
         command=SnapshotImportRequest(
+            source_format=SourceFormat.json if json_identifier is not None else SourceFormat.tei,
             packaging=SourcePackaging.single if len(source_names) == 1 else SourcePackaging.loose,
         ),
         sources=[
@@ -103,11 +114,27 @@ def _seed_completed_aggregation(
                 filename=source_name,
                 source=BytesIO(
                     (
-                        '<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><listPerson>'
-                        f'<person xml:id="p{index}"><persName type="reg">'
-                        "<surname>Example</surname></persName></person>"
-                        "</listPerson></body></text></TEI>"
-                    ).encode(),
+                        json.dumps(
+                            [
+                                {
+                                    "xml:id": json_identifier,
+                                    "persName": [{"type": "reg", "name": "Example"}],
+                                    "birth": None,
+                                    "death": None,
+                                    "event": [],
+                                    "note": None,
+                                    "idno": [],
+                                }
+                            ]
+                        )
+                        if json_identifier is not None
+                        else (
+                            '<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><listPerson>'
+                            f'<person xml:id="p{index}"><persName type="reg">'
+                            "<surname>Example</surname></persName></person>"
+                            "</listPerson></body></text></TEI>"
+                        )
+                    ).encode("utf-8")
                 ),
             )
             for index, source_name in enumerate(source_names, start=1)
@@ -312,3 +339,148 @@ def test_queued_export_executes_and_output_round_trips_through_http(
         ),
     ]
     assert [response.status_code for response in hidden_responses] == [404, 404, 404, 404, 404]
+
+
+def test_csv_download_preserves_legacy_bytes_while_new_exports_protect_identifiers(
+    postgres_engine: Engine, tmp_path: Path
+) -> None:
+    unit_of_work_factory, _session_factory = _unit_of_work_factory(postgres_engine)
+    storage = LocalArtifactStorage(tmp_path)
+    identifier = '=1+1,"source"\r\nnext'
+    user_id, _viewer_id, run_id, aggregation_id = _seed_completed_aggregation(
+        unit_of_work_factory, storage, ("source.json",), json_identifier=identifier
+    )
+    legacy_buffer = StringIO()
+    legacy_writer = csv.writer(legacy_buffer, lineterminator="\n")
+    legacy_writer.writerow(
+        [
+            "tei_id",
+            "label",
+            "evidence",
+            "resp",
+            "cert",
+            "agreement_tier",
+            "certainty_tier",
+            "human_reviewed",
+        ]
+    )
+    legacy_writer.writerow(
+        [identifier, "male", "assigned", "#gendertagger", "high", "unanimous", "high", "false"]
+    )
+    legacy_content = legacy_buffer.getvalue().encode("utf-8")
+    with unit_of_work_factory() as unit_of_work:
+        legacy_export = unit_of_work.exports.add_export(
+            ExportExecutionCreate(
+                run_id=run_id,
+                aggregation_execution_id=aggregation_id,
+                format=ExportFormat.csv,
+            )
+        )
+        unit_of_work.exports.claim_export(legacy_export.id, started_at=NOW)
+        inputs = unit_of_work.exports.load_export_inputs(legacy_export.id)
+        stored = storage.store(BytesIO(legacy_content), max_byte_size=1_000_000)
+        output = unit_of_work.artifacts.add_artifact(
+            ArtifactCreate(
+                logical_type="export_output_csv",
+                storage_uri=stored.storage_uri,
+                sha256=stored.sha256,
+                byte_size=stored.byte_size,
+                media_type="text/csv",
+                run_id=run_id,
+                export_execution_id=legacy_export.id,
+            )
+        )
+        legacy_manifest = ExportManifest(
+            export_execution_id=legacy_export.id,
+            dataset_snapshot_id=inputs.dataset_snapshot_id,
+            source_snapshot_sha256=inputs.source_snapshot_sha256,
+            run_id=run_id,
+            aggregation_execution_id=aggregation_id,
+            format=ExportFormat.csv,
+            label_source_policy=legacy_export.label_source_policy,
+            generated_at=NOW,
+            outputs=(
+                ExportManifestOutput(
+                    logical_name="export.csv",
+                    sha256=output.sha256,
+                    byte_size=output.byte_size,
+                    media_type=output.media_type,
+                ),
+            ),
+        )
+        manifest_bytes = legacy_manifest.model_dump_json().encode("utf-8")
+        stored_manifest = storage.store(BytesIO(manifest_bytes), max_byte_size=1_000_000)
+        manifest_artifact = unit_of_work.artifacts.add_artifact(
+            ArtifactCreate(
+                logical_type="export_manifest",
+                storage_uri=stored_manifest.storage_uri,
+                sha256=stored_manifest.sha256,
+                byte_size=stored_manifest.byte_size,
+                media_type="application/json",
+                run_id=run_id,
+                export_execution_id=legacy_export.id,
+            )
+        )
+        unit_of_work.exports.mark_export_finished(
+            legacy_export.id,
+            status=ExportExecutionStatus.completed,
+            finished_at=NOW,
+            manifest_artifact_id=manifest_artifact.id,
+        )
+        unit_of_work.commit()
+    application = create_app(
+        settings=AppSettings(
+            database_url=SecretStr(DATABASE_URL),
+            code_git_commit=CODE_GIT_COMMIT,
+            dependency_lock_sha256=DEPENDENCY_LOCK_SHA256,
+            artifact_root=tmp_path,
+        ),
+        unit_of_work_factory=unit_of_work_factory,
+        authentication_backend=StaticAuthenticationBackend(user_id),
+    )
+    client = TestClient(application)
+    executor = ExportExecutor(
+        unit_of_work_factory=unit_of_work_factory,
+        artifact_storage=storage,
+        max_output_bytes=1_000_000,
+        clock=lambda: NOW,
+    )
+    for export_format in ("csv", "json"):
+        response = client.post(
+            "/api/v1/exports",
+            json={
+                "run_id": str(run_id),
+                "aggregation_execution_id": str(aggregation_id),
+                "format": export_format,
+            },
+        )
+        assert response.status_code == 202
+        execution_id = UUID(response.json()["id"])
+        completed = executor.execute(
+            ExportTaskMessage(export_execution_id=execution_id), attempt_count=1
+        )
+        assert completed.status is ExportExecutionStatus.completed
+        download = client.get(f"/api/v1/exports/{execution_id}/download")
+        assert download.status_code == 200
+        if export_format == "csv":
+            row = next(csv.DictReader(StringIO(download.text)))
+            assert row["tei_id"] == "'" + identifier
+            manifest_response = client.get(f"/api/v1/exports/{execution_id}/manifest")
+            assert manifest_response.status_code == 200
+            descriptor = manifest_response.json()["outputs"][0]
+            assert descriptor["sha256"] == hashlib.sha256(download.content).hexdigest()
+            assert descriptor["byte_size"] == len(download.content)
+        else:
+            assert download.json()[0]["tei_id"] == identifier
+
+    retained = executor.execute(
+        ExportTaskMessage(export_execution_id=legacy_export.id), attempt_count=2
+    )
+    assert retained.manifest_artifact_id == manifest_artifact.id
+    legacy_download = client.get(f"/api/v1/exports/{legacy_export.id}/download")
+    assert legacy_download.status_code == 200
+    assert legacy_download.content == legacy_content
+    assert legacy_download.headers["x-checksum-sha256"] == output.sha256
+    legacy_manifest_response = client.get(f"/api/v1/exports/{legacy_export.id}/manifest")
+    assert legacy_manifest_response.status_code == 200
+    assert legacy_manifest_response.json() == json.loads(manifest_bytes)

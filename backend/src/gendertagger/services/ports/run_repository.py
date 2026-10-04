@@ -23,6 +23,7 @@ from gendertagger.models.run import (
     RunListFilter,
     TaskBatch,
     TaskBatchPlan,
+    WorkerProvenance,
 )
 from gendertagger.services.pagination import CreationPosition
 
@@ -145,6 +146,7 @@ class RunRepository(Protocol):
         *,
         method_execution_id: UUID,
         worker_task_id: str,
+        worker_provenance: WorkerProvenance,
         started_at: datetime,
         attempt_count: int,
     ) -> TaskBatch | None:
@@ -173,7 +175,7 @@ class RunRepository(Protocol):
     def finalize_execution_if_complete(
         self, method_execution_id: UUID, *, finished_at: datetime
     ) -> MethodExecution:
-        """Finalize a running execution once all its batches are terminal."""
+        """Refresh execution tallies, then finalize only after all batches are terminal."""
         ...
 
     def finalize_run_if_complete(self, run_id: UUID, *, finished_at: datetime) -> Run:

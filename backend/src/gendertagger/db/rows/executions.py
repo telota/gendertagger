@@ -47,6 +47,10 @@ class RunRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
             name="dependency_lock_sha256_format",
         ),
         CheckConstraint(
+            "dependency_versions IS NULL OR jsonb_typeof(dependency_versions) = 'object'",
+            name="dependency_versions_object",
+        ),
+        CheckConstraint(
             "finished_at IS NULL OR started_at IS NOT NULL",
             name="run_timing_order_present",
         ),
@@ -72,6 +76,7 @@ class RunRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
     container_image_digest: Mapped[str | None] = mapped_column(Text)
     python_version: Mapped[str] = mapped_column(String(100), nullable=False)
     dependency_lock_sha256: Mapped[str | None] = mapped_column(String(64))
+    dependency_versions: Mapped[dict[str, str] | None] = mapped_column(JSONB(none_as_null=True))
     dependency_lock_artifact_id: Mapped[UUID | None] = mapped_column(
         POSTGRESQL_UUID(as_uuid=True),
         ForeignKey("artifacts.id", ondelete="RESTRICT", use_alter=True),
@@ -187,6 +192,10 @@ class TaskBatchRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
             "finished_at IS NULL OR started_at IS NOT NULL",
             name="batch_timing_order_present",
         ),
+        CheckConstraint(
+            "worker_provenance IS NULL OR jsonb_typeof(worker_provenance) = 'object'",
+            name="worker_provenance_object",
+        ),
         Index("ix_task_batches_method_execution_id_status", "method_execution_id", "status"),
     )
 
@@ -206,6 +215,7 @@ class TaskBatchRow(UuidPrimaryKeyMixin, CreatedAtMixin, Base):
     )
     queue_name: Mapped[str] = mapped_column(String(100), nullable=False)
     worker_task_id: Mapped[str | None] = mapped_column(String(255))
+    worker_provenance: Mapped[dict[str, JsonValue] | None] = mapped_column(JSONB(none_as_null=True))
     attempt_count: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
     )

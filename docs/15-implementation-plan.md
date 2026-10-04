@@ -160,16 +160,26 @@ Exit criterion: reference study outputs can be regenerated from a stored run.
 
 ## Phase 7: deployment hardening
 
-- production Compose profile for API, workers, and data services [DONE]
-- CPU/GPU/LLM worker separation [DONE]
-- reverse proxy [DONE]
-- backup/restore test [DONE]
-- health/readiness [DONE]
-- structured logging [DONE]
-- resource limits [DONE]
-- protected tagged artifact/image publication with checksums, SBOM, and provenance [DONE]
-- previous-release migration rehearsal and deployment smoke tests [DONE]
-- manual production promotion of immutable artifacts [DONE]
+- production Compose profile for API, workers, and data services [IMPLEMENTED]
+- CPU/GPU/LLM worker separation [IMPLEMENTED]
+- reverse proxy [IMPLEMENTED]
+- database and named-volume artifact backup/restore helpers [IMPLEMENTED; local synthetic restore verified]
+- health/readiness [IMPLEMENTED; locked-source startup verified locally]
+- structured logging [IMPLEMENTED]
+- resource limits [IMPLEMENTED]
+- default-branch commit-SHA image publication and digest-based SBOM jobs [IMPLEMENTED IN CI]
+- manual promotion using retained image digests and matching source/configuration [DOCUMENTED]
+- protected version-tag publication with release checksums/SBOM/provenance [DEFERRED]
+- previous-deployment migration, startup, restore, and rollback rehearsal [NOT VERIFIED]
+
+Implementation is not release verification. The publication scope uses the
+[manual production runbook](21-production-promotion.md), not automated version-tag publication. No
+previous tagged release is defined; the package version remains `0.0.0`. The
+[2026-10-04 local record](../RELEASE_GAPS.md#rg-13-local-fresh-install-and-restore-evidence-2026-10-04)
+establishes fresh-schema migration, locked-source startup, and synthetic backup/restore behavior only.
+It does not verify published application images, an upgrade of an existing installation, or production
+promotion. An operator updating an existing installation must rehearse its actual previous schema/data
+and retain the evidence required by the runbook before promotion.
 
 ## Phase 8: Vue annotation/review UI
 
@@ -188,13 +198,18 @@ responsibilities. It preserves this phase's scope and the verification requireme
 - add review-stream revision conflict handling (`409`) [DONE]
 - scaffold Vue 3 + TypeScript + Vite in `frontend/` [DONE]
 - generate transport client/types from FastAPI OpenAPI [DONE]
-- use a server-state query/cache layer; keep Pinia for genuinely shared client state only
-- frontend browse/game interface
-- verify/correct/defer actions
-- audit/history view
-- secure HTTP-only session + CSRF integration (backend provider done per
-  [ADR-0031](decisions/ADR-0031-local-database-authentication.md); client session handling remains)
-- same-origin production build/routing
+- use a server-state query/cache layer; keep Pinia for genuinely shared client state only [IMPLEMENTED]
+- frontend browse/game interface [IMPLEMENTED]
+- verify/correct/defer actions [IMPLEMENTED]
+- audit/history view [IMPLEMENTED]
+- secure HTTP-only session + CSRF integration [IMPLEMENTED]
+- same-origin production build/routing [IMPLEMENTED]
+
+These markers describe delivered capabilities, not a completed public-release or accessibility
+acceptance pass. The shell, projects/import, runs/aggregation, review/person history, evaluation/export,
+game mode, and account/administration screens exist. Remaining conformance assignments and
+surface-specific verification limits are recorded in the
+[frontend delivery plan](24-frontend-delivery-plan.md#accessibility-as-a-delivery-workstream).
 
 Exit criterion: a reviewer can correct a machine result and the final-decision view changes without mutating Predictions/AggregatedResults.
 

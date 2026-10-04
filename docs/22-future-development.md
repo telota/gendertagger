@@ -335,10 +335,13 @@ enforced mechanically rather than by reviewer memory.
 
 ### Automated production promotion
 
-Production promotion is a documented manual SOP: pull tagged images, run the one-shot migration service,
-restart services, verify health, with a scripted rollback path.
+Production promotion is a documented manual SOP: select images from one successful default-branch
+pipeline, verify their retained digests, run the one-shot migration service, restart services, and
+verify health and the representative workflow. Rollback is an operator-owned compatibility or
+backup-restore procedure, not an automated release rollback script.
 
-A CD or GitOps pipeline could automate it, but the properties the manual procedure guarantees must
-survive: immutable tagged artifacts, a fresh backup taken immediately before deployment, a rehearsed
-migration, and an unambiguous rollback. Automation must not make it easier to deploy an unrehearsed
-migration. See [`21-production-promotion.md`](21-production-promotion.md).
+A CD or GitOps pipeline could automate it, but the manual procedure's required gates must survive:
+digest-identified retained artifacts, a fresh verified backup, rehearsal against the actual previous
+schema/data, and an unambiguous rollback. Commit-SHA tags are not registry immutability guarantees,
+and written gates are not completed verification. Automation must not make it easier to deploy an
+unrehearsed migration. See [the production runbook](21-production-promotion.md).

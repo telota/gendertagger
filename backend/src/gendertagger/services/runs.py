@@ -23,6 +23,7 @@ from gendertagger.services.pagination import (
 from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
 from gendertagger.services.ports.run_repository import MethodExecutionResultCursor
 from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.runtime_provenance import installed_dependency_versions
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,10 +47,16 @@ class RunService:
         method_registry: MethodRegistry,
         provenance: RunProvenance,
         cursor_codec: CursorCodec,
+        dependency_versions: dict[str, str] | None = None,
     ) -> None:
         self._unit_of_work_factory = unit_of_work_factory
         self._method_registry = method_registry
         self._provenance = provenance
+        self._dependency_versions = (
+            installed_dependency_versions()
+            if dependency_versions is None
+            else dict(dependency_versions)
+        )
         self._cursor_codec = cursor_codec
 
     def create_run(self, command: RunCreateRequest) -> Run:
@@ -65,6 +72,7 @@ class RunService:
                     container_image_digest=self._provenance.container_image_digest,
                     python_version=self._provenance.python_version,
                     dependency_lock_sha256=self._provenance.dependency_lock_sha256,
+                    dependency_versions=self._dependency_versions,
                 )
             )
             unit_of_work.commit()

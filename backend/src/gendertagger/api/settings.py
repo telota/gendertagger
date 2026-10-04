@@ -2,12 +2,11 @@
 
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic_settings import SettingsConfigDict
 
-from gendertagger.config.settings import RuntimeSettings
+from gendertagger.config.settings import ClassificationRuntimeSettings
 from gendertagger.models.branding import BrandingInitiative, BrandingLegalEntity
-from gendertagger.models.project import SHA256_PATTERN
 from gendertagger.services.authentication import (
     DEFAULT_KEEP_SIGNED_IN_IDLE,
     DEFAULT_SESSION_IDLE,
@@ -36,14 +35,11 @@ class BrandingSettings(BaseModel):
     legal_entity: BrandingLegalEntity | None = None
 
 
-class AppSettings(RuntimeSettings):
+class AppSettings(ClassificationRuntimeSettings):
     """Validated API process settings loaded from ``GENDERTAGGER_*`` variables."""
 
     model_config = SettingsConfigDict(env_nested_delimiter="__")
 
-    code_git_commit: str = Field(min_length=1, max_length=100)
-    dependency_lock_sha256: str = Field(pattern=SHA256_PATTERN)
-    container_image_digest: str | None = None
     database_echo: bool = Field(
         default=False,
         description="Emit SQLAlchemy SQL logs for local diagnostics.",
@@ -74,14 +70,6 @@ class AppSettings(RuntimeSettings):
         description="Absolute limit of any session from its login, however active (ADR-0032).",
     )
     branding: BrandingSettings = Field(default_factory=BrandingSettings)
-
-    @field_validator("code_git_commit")
-    @classmethod
-    def _validate_code_git_commit(cls, value: str) -> str:
-        if not value.strip():
-            msg = "code_git_commit must not be blank"
-            raise ValueError(msg)
-        return value
 
 
 def load_settings() -> AppSettings:

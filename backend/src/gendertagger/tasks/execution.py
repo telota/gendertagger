@@ -15,7 +15,7 @@ from weakref import finalize
 
 from celery import shared_task
 
-from gendertagger.config.settings import RuntimeSettings
+from gendertagger.config.settings import ClassificationRuntimeSettings
 from gendertagger.db.session import create_database_engine, create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.models.run import TaskBatchMessage
@@ -28,6 +28,7 @@ from gendertagger.services.lookup_assets import RegisteredLookupAssetResolver
 from gendertagger.services.method_registry import default_method_registry
 from gendertagger.services.model_assets import RegisteredModelDirectoryResolver
 from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
+from gendertagger.services.runtime_provenance import capture_worker_provenance
 from gendertagger.storage.local import LocalArtifactStorage
 
 EXECUTE_BATCH_TASK_NAME = "gendertagger.tasks.execute_batch"
@@ -44,7 +45,7 @@ def _retry_countdown(retries: int) -> float:
 @lru_cache(maxsize=1)
 def _batch_executor() -> BatchExecutor:
     """Build the process-wide batch executor from worker settings once."""
-    settings = RuntimeSettings()  # type: ignore[call-arg]  # Values come from settings sources.
+    settings = ClassificationRuntimeSettings()  # type: ignore[call-arg]  # Environment sources.
     engine = create_database_engine(settings.database_url.get_secret_value())
     session_factory = create_session_factory(engine)
     unit_of_work_factory: UnitOfWorkFactory = partial(SqlAlchemyUnitOfWork, session_factory)
@@ -60,6 +61,13 @@ def _batch_executor() -> BatchExecutor:
         unit_of_work_factory=unit_of_work_factory,
         method_registry=default_method_registry(lookup_resolver, model_resolver),
         clock=partial(datetime.now, UTC),
+        worker_provenance=capture_worker_provenance(
+            code_git_commit=settings.code_git_commit,
+            dependency_lock_sha256=settings.dependency_lock_sha256,
+            container_image_digest=settings.container_image_digest,
+        ),
+        lookup_asset_resolver=lookup_resolver,
+        model_directory_resolver=model_resolver,
     )
     finalize(executor, engine.dispose)
     return executor

@@ -182,9 +182,12 @@ pipeline using its full SHA, retain the digest references and SBOMs, and follow 
 [production runbook](21-production-promotion.md). Commit-SHA tagging alone does not enforce registry
 immutability; digests identify the exact artifacts. CI does not publish version tags or deploy any environment.
 
-Versioned release automation remains deferred. Future tagged releases should promote the already-tested
-artifacts with checksums/SBOM/provenance and manual production approval. Database deployment requires a
-migration rehearsal and a verified backup/restore policy. Ordinary branches never deploy production.
+Versioned release automation remains deferred. The publication scope uses the manual runbook above;
+future tagged releases should promote the already-tested artifacts with checksums/SBOM/provenance and
+manual production approval. For an existing installation, database deployment requires rehearsal
+against its actual previous schema/data, including startup, restore, and rollback. A fresh-install
+check is not upgrade evidence; retain the runbook's installation-specific verification record.
+Ordinary branches never deploy production.
 
 ## Repository controls
 

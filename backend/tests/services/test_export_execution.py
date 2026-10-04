@@ -226,10 +226,15 @@ def test_executor_fails_terminally_when_export_inputs_are_invalid() -> None:
     assert factory.units[0].commit_count == 1
 
 
-def test_executor_duplicate_delivery_returns_terminal_resource_without_reexecution() -> None:
+@pytest.mark.parametrize("export_format", [ExportFormat.json, ExportFormat.csv])
+def test_executor_duplicate_delivery_returns_terminal_resource_without_reexecution(
+    export_format: ExportFormat,
+) -> None:
     repository = Mock(spec=ExportRepository)
     repository.claim_export.return_value = None
-    repository.get_export.return_value = _export(ExportExecutionStatus.completed)
+    repository.get_export.return_value = _export(
+        ExportExecutionStatus.completed, export_format=export_format
+    )
     artifacts = Mock()
     storage = _StubArtifactStorage()
     executor, factory = _executor(repository, cast(ArtifactStorage, storage), artifacts)
@@ -243,6 +248,7 @@ def test_executor_duplicate_delivery_returns_terminal_resource_without_reexecuti
     repository.load_export_inputs.assert_not_called()
     repository.mark_export_finished.assert_not_called()
     assert factory.units[0].commit_count == 0
+    assert storage.stored == []
 
 
 def test_executor_retries_unclassified_errors_then_redacts_final_diagnostic() -> None:

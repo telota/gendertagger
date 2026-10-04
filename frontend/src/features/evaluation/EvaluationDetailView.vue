@@ -6,6 +6,7 @@ import { RouterLink } from 'vue-router'
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
+import { useArtifactRouteContext } from '@/features/runs/useArtifactRouteContext'
 import { useRunExecutions } from '@/features/runs/useRunDetail'
 import { useStatusLabel } from '@/features/runs/useStatusLabel'
 
@@ -25,8 +26,10 @@ const projectId = useRouteParam('projectId')
 const runId = useRouteParam('runId')
 const evaluationId = useRouteParam('evaluationId')
 
-const evaluation = useEvaluation(evaluationId, isSignedIn)
-const executions = useRunExecutions(runId, isSignedIn)
+const query = useEvaluation(evaluationId, isSignedIn)
+const context = useArtifactRouteContext(evaluationId, query)
+const evaluation = { ...query, ...context }
+const executions = useRunExecutions(runId, context.valid)
 
 const isCompleted = computed(
   () => isSignedIn.value && evaluation.data.value?.status === 'completed',
@@ -61,7 +64,7 @@ const downloadUrl = computed(() => `/api/v1/evaluations/${evaluationId.value}/re
 <template>
   <main class="evaluation-detail app-page-frame">
     <RouterLink
-      v-if="isSignedIn"
+      v-if="context.valid.value"
       class="evaluation-detail-back"
       :to="{ name: 'evaluations', params: { projectId, runId } }"
     >

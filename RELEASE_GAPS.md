@@ -25,13 +25,13 @@ reviewed records; **release task** means work needed to establish publication re
 | RG-05 | P1 | HIVOTO-trained model lacks an explicit redistribution/licensing decision | Decision needed |
 | RG-06 | P1 | Manuscript reports the wrong NQG threshold | Open |
 | RG-07 | P2 | Method reference contradicts implemented contracts | Fixed; GND entity-type precedence restored |
-| RG-08 | P2 | Project workers accept outputs under stale execution provenance | Open; reproduced |
-| RG-09 | P2 | Technical classification errors remain cached after recovery | Open; reproduced |
-| RG-10 | P2 | CSV analysis exports preserve spreadsheet-active values | Open; reproduced |
+| RG-08 | P2 | Project workers accept outputs under stale execution provenance | Fixed; compatibility and actual-worker receipts enforced |
+| RG-09 | P2 | Technical classification errors remain cached after recovery | Fixed; technical errors excluded and cache evidence isolated |
+| RG-10 | P2 | CSV analysis exports preserve spreadsheet-active values | Fixed; protected text encoding and supported Calc import verified |
 | RG-11 | P2 | Quickstart omits required team bootstrap and roster membership | Open |
-| RG-12 | P2 | Artifact detail screens do not validate route ownership | Open; reproduced |
-| RG-13 | P2 | Delivery documents overstate release and migration verification | Open |
-| RG-14 | P3 | Progress counts remain zero until an entire method completes | Open; reproduced |
+| RG-12 | P2 | Artifact detail screens do not validate route ownership | Fixed; canonical ownership and stale-navigation regressions verified |
+| RG-13 | P2 | Delivery documents overstate release and migration verification | Corrected; manual process and local fresh-install/restore evidence recorded |
+| RG-14 | P3 | Progress counts remain zero until an entire method completes | Fixed; intermediate/concurrent progress and GET/SSE verified |
 | RG-15 | P2 | Human-override exports lack exact annotation-input provenance | Known open limitation |
 | RG-16 | P2 | Publication version, immutable citation, and retained artifacts are unset | Release task |
 | RG-17 | P1 | Final publication commit needs one complete verification record | Release task |
@@ -313,8 +313,8 @@ fixed-publication-revision pipeline; frontend and provisioned HF/LLM inference w
 
 ### RG-08: Reject incompatible project workers before producing predictions
 
-**Evidence.** [BatchExecutor](backend/src/gendertagger/services/execution.py) resolves the current
-registry adapter and validates against its current descriptor, without comparing the persisted method
+**Original evidence (2026-10-03).** [BatchExecutor](backend/src/gendertagger/services/execution.py) resolved the current
+registry adapter and validated against its current descriptor, without comparing the persisted method
 implementation/normalization versions or Run runtime identity. A focused probe accepted v2 output for
 a persisted v1 execution. A deployment between acceptance and execution can therefore attribute new
 outputs to old immutable metadata. Worker metadata also needs an actual execution identity.
@@ -330,9 +330,37 @@ artifact/model drift. Compatible workers complete normally; incompatible workers
 and a persisted, diagnosable outcome. Cover retry/duplicate delivery. Review migrations and regenerate
 OpenAPI/frontend types if public contracts change.
 
+**Status: Fixed (2026-10-04).** Compatibility, canonical worker receipts, unknown historical evidence,
+and recovery are specified in
+[ADR-0048](docs/decisions/ADR-0048-project-worker-provenance-compatibility.md) and the provenance/task
+designs. Workers compare implementation/normalization, declared source/lock/image identity, actual
+application/Python versions and installed dependencies, and the frozen config before adapter computation.
+Pinned lookup/model pointers, types, checksums, byte sizes, manifest identity, registered members, and
+materialized model files are verified. Mismatches persist `IncompatibleWorkerError` with no Predictions.
+
+New Run `dependency_versions` is immutable acceptance-time evidence. TaskBatch `WorkerProvenance`
+captures actual hostname/PID and environment plus declared build identity in the atomic claim; PostgreSQL
+prevents receipt assignment before claim or rewriting afterward. Migration `20261004_0014` preserves
+historical nulls without backfill and restores the previous guards on downgrade. Identifier-only task
+envelopes remain unchanged; public Run schema and generated frontend types include the dependency map.
+Legacy queued work without dependency evidence requires a newly accepted Run. Failed mismatched work
+requires matching deployment and new acceptance, not reopening its terminal batch or changing its outputs.
+
+**Evidence after remediation.** A real PostgreSQL service smoke completed a compatible batch with one
+female result and one abstention. A source-identity mismatch failed permanently with zero new Predictions;
+compatible redelivery retained the failed batch and original receipt byte-for-byte. The captured worker
+reported Python `3.11.15`, application `0.0.0`, and 137 installed dependencies. Real Redis/Celery execution
+persisted the actual receipt and matching dependency map. Regression coverage exercises all runtime and
+method version boundaries, historical unknowns, frozen configuration, lookup/model byte drift, materialized
+member drift, database bypasses, transient rollback, and duplicate delivery. Migration tests verify
+upgrade/downgrade/re-upgrade while preserving historical resource payloads. Actual locked Alembic
+upgrade-to-head and schema-drift checks passed on an owned temporary database, removed afterward.
+Out-of-band LLM aliases remain operator-declared; this does not attest remote weights or reproduce
+provisioned HF/LLM inference.
+
 ### RG-09: Prevent technical error results from poisoning classification caches
 
-**Evidence.** [DirectClassificationService](backend/src/gendertagger/services/classification.py) caches
+**Original evidence (2026-10-03).** [DirectClassificationService](backend/src/gendertagger/services/classification.py) cached
 all predictions, including technical errors, without expiry. A fail-once adapter returned an error for
 the same name twice with one adapter call; another name succeeded after recovery. Cached failures can
 affect both direct requests and public jobs using this service.
@@ -345,10 +373,25 @@ determine output. Preserve the normal distinction between a substantive unknown 
 Successful cache hits remain effective, and concurrent calls/eviction do not corrupt results. Do not
 mutate previously persisted immutable job outputs as part of cache recovery.
 
+**Status: Fixed (2026-10-04).** Technical errors, including synthesized raised/boundary failures, never
+enter the bounded process-local cache or evict successful evidence. Identity uses method name, the
+canonical complete descriptor/resolved-configuration digest, and exact name; default-equivalent
+configurations share entries, while method/model/artifact changes do not. Successful substantive unknowns
+and normal abstentions remain cacheable. Deep copies isolate stored and returned nested evidence.
+No error expiry, automatic retry, durable cross-run cache, or completed-job rewrite was introduced.
+
+**Evidence after remediation.** A fail-once wrapper around the installed GenderGuesser adapter processed
+`Maria` three times with `error`, `success`, `success`, two adapter calls, and the recovered `female`
+label. Direct-service regressions cover returned/raised/boundary errors, mixed batches, nested mutations,
+LRU/disabled-cache behavior, canonical identity, pinned/latest/missing artifacts, and a deterministic
+late-error race. Public-job regressions prove a fresh job recovers while the earlier errored job and its
+completed outputs remain byte-for-byte unchanged on redelivery. The cache policy is documented in the
+API and persistence designs.
+
 ### RG-10: Make analysis downloads safe for spreadsheet use
 
-**Evidence.** The JSON/tabular path accepts identifiers such as `=1+1`;
-[the CSV serializer](backend/src/gendertagger/export/csv_analysis.py) emits them verbatim. CSV quoting
+**Original evidence (2026-10-03).** The JSON/tabular path accepted identifiers such as `=1+1`;
+[the CSV serializer](backend/src/gendertagger/export/csv_analysis.py) emitted them verbatim. CSV quoting
 does not prevent spreadsheet applications from interpreting such cells as formulas. Other exported
 free-text fields need the same review.
 
@@ -361,6 +404,29 @@ design and add an ADR where scientific/output semantics change.
 **Closure.** Regression cases cover `=`, `+`, `-`, `@`, prefix variations, and normal text. Opening the
 intended analysis download in supported spreadsheet tools treats those values as text. JSON/canonical
 identifiers and existing stored artifacts remain unchanged.
+
+**Status: Fixed (2026-10-04).**
+[ADR-0047](docs/decisions/ADR-0047-spreadsheet-safe-csv-analysis.md) and
+[the export policy](docs/08-ingestion-and-export.md#spreadsheet-safe-csv-analysis) define quoting every
+cell and prefixing hazardous text with exactly one ASCII apostrophe. ASCII/full-width `=`, `+`, `-`,
+`@`, Unicode whitespace, and Cc/Cf control/format prefixes are covered without removing source text.
+Canonical IDs/records, JSON, TEI, completed export bytes, and existing manifests are not rewritten.
+
+**Evidence after remediation.** Valid canonical regression records cover both arbitrary-text columns
+(`tei_id`, `resp`), ordinary text, absent values, quoting/newlines, original apostrophes, and unchanged
+JSON. A real PostgreSQL/storage/download regression verifies old CSV/manifest downloads remain unchanged
+while new CSV is protected and new JSON retains exact identifiers, with matching persisted sizes/hashes
+and duplicate-safe export execution. An isolated LibreOffice Calc `26.8.0.3 680(Build:3)` headless
+text import of actual serializer bytes produced 264 string cells and zero formula cells. The exact
+supported filter and reproduction recipe are recorded in the export design; its temporary CSV/XLSX and
+office profile were removed.
+
+The supported workflow is explicit Calc Text CSV import with UTF-8, comma only, double-quote delimiter,
+quoted fields as text, every column Text, and formula evaluation/trimming/delimiter merging disabled.
+Protective apostrophes may remain visible. Calc newline normalization and XLSX control escapes mean this
+is text/non-formula proof, not a lossless spreadsheet round trip or graphical-display proof. Excel,
+arbitrary import defaults, copying into formula contexts, and CSV save/reopen are not safety guarantees;
+JSON/source artifacts remain the canonical round-trip formats.
 
 ### RG-11: Add team bootstrap to the quickstart
 
@@ -388,11 +454,11 @@ under RG-17 rather than assuming they remain failures.
 
 ### RG-12: Validate detail-resource ownership against route context
 
-**Evidence.** [ExportDetailView](frontend/src/features/export/ExportDetailView.vue) fetches an export
-without validating its relationship to route project/run IDs, then builds aggregation links from those
-IDs. A reproduction opened an export beneath an unrelated project/run and produced the wrong link.
-[EvaluationDetailView](frontend/src/features/evaluation/EvaluationDetailView.vue) and
-[AggregationDetailView](frontend/src/features/runs/AggregationDetailView.vue) have equivalent gaps.
+**Original evidence (2026-10-03).** [ExportDetailView](frontend/src/features/export/ExportDetailView.vue)
+fetched an export without validating its relationship to route project/run IDs, then built aggregation
+links from those IDs. A reproduction opened an export beneath an unrelated project/run and produced
+the wrong link. [EvaluationDetailView](frontend/src/features/evaluation/EvaluationDetailView.vue) and
+[AggregationDetailView](frontend/src/features/runs/AggregationDetailView.vue) had equivalent gaps.
 Server authorization still applies; this finding concerns inconsistent client context, not a confirmed
 server authorization bypass.
 
@@ -404,32 +470,48 @@ page-specific backend endpoints.
 **Closure.** Test mismatched project/run/resource IDs, direct refreshes, rapid route changes, and correct
 deep links for all three screens. No artifact or evidence is presented under an unrelated context.
 
+**Remediation (2026-10-04).** All three screens share
+[`useArtifactRouteContext`](frontend/src/features/runs/useArtifactRouteContext.ts), reusing the existing
+project/run/snapshot queries to validate canonical ownership before exposing detail data. Manifest/report
+reads and export download/hash continuations require that valid context. Principal and complete-route
+changes invalidate pending download ownership, including navigation away and back. Mounted regressions
+cover mismatched IDs at every link in the chain, delayed reads, deep links, and stale downloads; real
+Chromium verified correct links, rejection states, and cancellation of an obsolete HTTP download.
+
 ### RG-13: Align delivery claims with implemented and verified operations
 
-**Evidence.** [The implementation plan](docs/15-implementation-plan.md#phase-7-deployment-hardening)
-marks protected tagged publication and previous-release migration rehearsal complete.
+**Original evidence (2026-10-03).** [The implementation plan](docs/15-implementation-plan.md#phase-7-deployment-hardening)
+marked protected tagged publication and previous-release migration rehearsal complete.
 [Engineering policy](docs/18-engineering-and-quality.md) and
-[the production runbook](docs/21-production-promotion.md) describe commit-based publication, deferred
-versioned-release automation, and a migration helper that does not establish a previous schema or expose
-the readiness endpoint it probes. [The frontend overview](frontend/README.md) also understates delivered
+[the production runbook](docs/21-production-promotion.md) instead described commit-based publication,
+deferred versioned-release automation, and a helper that established neither a previous schema nor the
+readiness endpoint it probed. [The frontend overview](frontend/README.md) also understated delivered
 screens.
 
 **Plan.** Distinguish implemented capability, completed verification, and deferred automation. Correct
 the roadmap/overviews immediately. Choose a documented manual or automated release process for the
 publication scope. Before claiming upgrade readiness, rehearse target migrations against an isolated
-copy of the actual previous schema/data and verify startup, restore, and rollback. Repair or retire
-[the misleading helper](deploy/scripts/test_migration.sh).
+copy of the actual previous schema/data and verify startup, restore, and rollback. Retire the
+misleading `deploy/scripts/test_migration.sh` helper rather than treating it as upgrade evidence.
 
 **Closure.** Documentation agrees with CI and operational commands. A retained rehearsal record names
 previous/target versions, images, database state, backup/restore checks, and smoke-test results. Where no
 previous release exists, record fresh-install evidence and the upgrade limitation explicitly.
 
+**Remediation (2026-10-04).** Plans, overviews, and operational guidance now distinguish implementation,
+completed checks, and deferred automation. Manual digest-based promotion remains the publication
+process; the misleading migration helper is removed. The
+[local fresh-install/restore record](#rg-13-local-fresh-install-and-restore-evidence-2026-10-04)
+names the tested source/environment, service digests, database baseline, backup checksums, restored data,
+and startup results. No previous tagged release is defined, and existing-installation upgrade,
+previous-image rollback, and published-image promotion are explicitly unverified operator gates.
+
 ### RG-14: Refresh progress after every terminal batch
 
-**Evidence.** [Execution finalization](backend/src/gendertagger/db/repositories/run_repository.py)
-returns while any batch is outstanding before refreshing execution tallies. With one completed
+**Original evidence (2026-10-03).** [Execution finalization](backend/src/gendertagger/db/repositories/run_repository.py)
+returned while any batch was outstanding before refreshing execution tallies. With one completed
 200-record batch and another pending batch in a 400-record execution, progress stayed zero. Run GET and
-SSE inherit these counts.
+SSE inherited those counts.
 
 **Plan.** Refresh tallies independently of the terminal-state decision, under the existing concurrency
 protection, and aggregate run progress consistently. Preserve definitions of completed/failed counts
@@ -437,6 +519,14 @@ and the separation between success, abstention, and technical errors.
 
 **Closure.** Multi-batch and concurrent-worker tests show accurate intermediate counts, identical
 GET/SSE state, no duplicate counting, and unchanged final lifecycle transitions.
+
+**Remediation (2026-10-04).** Every terminal batch refreshes execution tallies before the terminal-state
+decision. Serialized `FOR NO KEY UPDATE` finalization avoids conflicts with Prediction foreign-key
+locks, and refreshed ORM state observes competing workers' commits. Regressions cover concurrent
+completion with/without outstanding work, cached parent/child rows, duplicate deliveries, partial/all
+batch failures, outcome distinctions, and GET/SSE equality. An actual 400-record run reported
+`200 completed / 0 failed / 50%` while still running; redelivery left 200 Predictions and counts unchanged,
+and its final batch reached `400 / 0 / 100%` with the normal completed lifecycle.
 
 ### RG-15: Persist the review inputs used by human-override exports
 
@@ -499,11 +589,11 @@ tool versions, tested artifacts, and actual outcomes without embedding credentia
 | Step | Work | Dependencies and exit |
 |---|---|---|
 | 1 | Establish publication scope and rights inventory: RG-03, RG-04, RG-05 | Record decisions for every redistributed source/data/model asset; no history rewrite as an incidental cleanup |
-| 2 | Fix credential concurrency and private account state: RG-01, RG-02 | Add deterministic PostgreSQL and mounted-app regressions; preserve API/session and principal boundaries |
-| 3 | Correct manuscript and method documentation: RG-06, RG-07 | Ground prose in study artifacts and accepted contracts; preserve approved scientific outputs |
-| 4 | Harden worker provenance and caches: RG-08, RG-09 | Define compatibility/recovery first; incompatible workers write no predictions; recovered methods retry errors |
-| 5 | Repair export and navigation correctness: RG-10, RG-12, RG-15 | Design/version export changes first; retain canonical IDs, immutable outputs, and append-only review history |
-| 6 | Repair setup, progress, and delivery claims: RG-11, RG-13, RG-14 | Fresh-install/browser and migration/restore evidence match the documentation |
+| 2 | Completed: credential concurrency and private account state, RG-01/RG-02 | PostgreSQL and mounted-app regressions passed; API/session and principal boundaries preserved |
+| 3 | RG-07 completed; manuscript threshold RG-06 remains open | Method prose follows accepted contracts; the manuscript still needs its separate correction |
+| 4 | Completed: worker provenance and caches, RG-08/RG-09 | Compatibility/recovery specified first; mismatches write no predictions; recovered methods retry uncached errors |
+| 5 | RG-10/RG-12 completed; annotation-input provenance RG-15 remains open | CSV policy, canonical route ownership, stale-navigation regressions, and real browser behavior verified |
+| 6 | RG-13/RG-14 completed; setup RG-11 remains open | Documentation matches manual delivery and local fresh-install/restore evidence; intermediate progress is verified; deployed upgrade/rollback still requires operator rehearsal |
 | 7 | Prepare publication version and citation metadata: RG-16 | Make metadata changes before freezing the release candidate |
 | 8 | Stabilize the tree and run every gate: RG-17 | One complete passing verification record for the chosen commit |
 | 9 | Publish and retain verified artifacts: RG-16 | Metadata matches the verified commit and published artifact digests; archive only cleared material |
@@ -541,12 +631,109 @@ Temporary review probes were stored outside Git. Their behavior is described abo
 depend on those ephemeral files; maintain regression tests with each implementation fix instead of
 committing local scripts, credentials, private data, or runtime artifacts.
 
-**Current document-preparation recheck (2026-10-03):** both previously failing CLI tests now pass
-against isolated temporary PostgreSQL databases, and Pyright reports zero errors/warnings. These
-specific historical failures are resolved in the rechecked workspace; they are not current blockers.
-This targeted recheck does not replace the final full suite or verify unrelated concurrent changes.
-The main implementation/documentation findings were rechecked in source and remain open; the rights
-findings still require recorded decisions.
+**Historical document-preparation recheck (2026-10-03):** both previously failing CLI tests passed
+against isolated temporary PostgreSQL databases, and Pyright reported zero errors/warnings. Those
+specific historical failures were resolved; this targeted recheck did not replace a full suite or verify
+unrelated concurrent changes. Other findings were still open at that initial-review snapshot.
+The gap register and individual remediation records above are authoritative for current status, including
+the completed RG-01, RG-02, RG-07, RG-08 through RG-10, and RG-12 through RG-14 corrections. Rights findings still require decisions.
+
+### RG-08 through RG-10 integrated verification (2026-10-04)
+
+This verifies the changed working tree based on HEAD `0509115`, not a frozen publication revision.
+The earlier RG-01/RG-02/RG-07 closures remain intact; unrelated publication, rights, manuscript,
+navigation, and annotation-provenance findings retain their own statuses.
+
+| Check | Observed result |
+|---|---|
+| Backend Core profile | 1,775 passed; final focused cache/CSV/export cases also passed |
+| Backend PostgreSQL profile | Final complete run: 313 passed after correcting three new fixture setup failures |
+| Backend Redis/Celery profile | All seven passed on dedicated Redis DB 15 and isolated PostgreSQL databases; final worker-receipt case also passed |
+| Combined backend coverage | 87.83%; normalization, reference aggregation, certainty assessment, and TEI projection each reached 100% including branches |
+| Backend policy/static gates | Locked environment, documentation, contract naming, package initializers, dead code, Ruff formatting/lint, mypy, Pyright, and all six Import Linter contracts passed |
+| Migration proof | Actual locked Alembic upgrade-to-head/check passed; forward/downgrade/re-upgrade regression preserved historical payloads and enforced new receipt guards |
+| Canonical transport contract | OpenAPI snapshot and frontend transport types regenerated; backend snapshot tests and frontend drift check passed |
+| Backend package artifacts | Final wheel/source distribution built; distribution policy passed for both |
+| Dependency audits | Locked Python audit: no known vulnerabilities/adverse statuses in 143 packages; backend/frontend npm audits: zero vulnerabilities |
+| Frontend checks | Lint, formatting, typechecks, i18n, transport drift, and production build passed |
+| Frontend covered suite | 1,811 passed in 93 files; 90.92% statement and 84.53% branch coverage |
+| Runtime proof | Compatible worker completed; incompatible source wrote zero Predictions; terminal redelivery was unchanged; recovered real adapter returned fresh output; actual Calc import contained zero formulas |
+
+Backend runtime: Python `3.11.15`, application `0.0.0`, pytest `9.1.1`, PostgreSQL `16.15`.
+The unchanged locked environment digest was:
+
+```text
+backend/uv.lock SHA-256: 2a07ac7e58c912fa7d098923203c4fb1b5e799a1bd0ce5d4e998faefecf92124
+```
+
+Temporary worker-smoke databases and Calc CSV/XLSX/profile files were removed. No production database,
+user office profile, source editorial data, provisioned HF/LLM inference, or graphical spreadsheet
+surface was used for these checks. This record does not close RG-17 or claim release-artifact publication.
+
+### RG-13 local fresh-install and restore evidence (2026-10-04)
+
+This record covers locked source from HEAD `05091151bc6726cd3a1b49379c806fad3ec36126` plus the
+release-gap working-tree changes. It is not a publication commit or a target-image promotion record.
+`git tag --list` returned no tags; the package version is `0.0.0`. No previous tagged application
+release or published previous/target image pair was identified, so upgrade and previous-image rollback
+remain **unverified**. Manual digest-based promotion is the documented publication process; version-tag
+automation remains deferred.
+
+| Field | Observed evidence |
+|---|---|
+| Previous/target application | Previous release: none defined; target: local locked-source `0.0.0` working tree, not published application images |
+| Source/environment identity | Backend lock SHA-256 `2a07ac7e58c912fa7d098923203c4fb1b5e799a1bd0ce5d4e998faefecf92124`; frontend lock SHA-256 `d94f8d1d274c7c25404b66c409fd845f0e1655af90cea3b360caec127de40f5c`; uv `0.12.21`, Node `26.10.0`, npm `12.2.0` |
+| Isolated services | Fresh Compose project `gendertagger-rg13-smoke`; PostgreSQL `postgres@sha256:44c4ee9810eff91f7eab4d822642e01115b1a9eccce4bcbdde7604752d68eac6`; Redis `redis@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2` |
+| Database baseline/target | Empty new PostgreSQL volume, migrated by locked `alembic upgrade head` to `20261004_0014`; `alembic check` found no new upgrade operations |
+| Representative data | Existing development seed invoked as `uv run --locked python -m scripts.seed_frontend_development --confirm-development-database`; two synthetic projects, completed evaluation/export, and lifecycle/error fixtures |
+| Startup/workflow | Actual Uvicorn application startup; `/health` and `/ready` returned `OK` after artifact-root initialization; real Chromium login reached the authenticated client |
+| Backup helpers | Actual `deploy/scripts/backup.sh` and `restore.sh` with the isolated Compose project and expected named-volume layout; generated source-smoke artifacts copied into that separate volume for helper verification |
+| Backup identity | Database dump SHA-256 `b8343bbf852fe6f6788160e8eb8d6ec536ef36237457e4fd08e16c1cbc85fc0b`; artifact archive SHA-256 `93a7ac262040c8d04c300b745a29e69d0160a236a549e713c1e80e0f1fc6fb96` |
+| Restore checks | API stopped before restore; post-backup project-description mutation reverted, both projects and `20261004_0014` restored, and a post-backup artifact marker removed; all three original artifact SHA-256 values matched |
+| Restored startup | The same locked-source application restarted successfully; `/health` and `/ready` again returned `OK` |
+| Limits | No existing deployment/schema/data or production services changed; no prior-image rollback, published target-image startup, gateway/worker/coordinator promotion, or production acceptance was exercised |
+
+The direct-file seed invocation first failed because repository-only `tests` imports were not on its
+module path; the module invocation above supplied that context. Readiness initially returned
+`503 Artifact storage unavailable` before the seed initialized storage; after initialization it returned
+`OK`. These prerequisite failures are retained rather than counted as an uninterrupted install.
+This local record closes inaccurate capability/verification claims, not RG-16 or RG-17.
+
+### RG-12 and RG-14 integrated verification (2026-10-04)
+
+This verifies the release-gap working tree based on HEAD
+`05091151bc6726cd3a1b49379c806fad3ec36126`, not a frozen publication revision. Lock hashes and the
+isolated runtime are recorded in the RG-13 section above. No schema or public API shape changed for
+these fixes; OpenAPI and generated frontend types remain consistent without regeneration.
+
+| Check | Observed result |
+|---|---|
+| Backend Core profile | 1,775 passed |
+| Backend PostgreSQL profile | Final complete run: 323 passed, including concurrent workers, lifecycle/failure cases, cached ORM state, and intermediate GET/SSE equality |
+| Backend Redis/Celery profile | All seven passed using isolated PostgreSQL databases and dedicated Redis DB 15 |
+| Combined backend coverage | 87.85%; normalization, reference aggregation, certainty assessment, and TEI projection each reached 100% including branches |
+| Backend policy/static gates | Lockfile, documentation, contract naming, package initializers, dead code, Ruff formatting/lint, mypy, Pyright, and all six Import Linter contracts passed |
+| Backend package artifacts | Wheel/source distribution built; distribution policy passed for both |
+| Dependency audits | Locked Python audit reported no known vulnerabilities/adverse statuses in 143 packages; backend/frontend npm audits reported zero vulnerabilities |
+| Frontend static/build gates | Lint, formatting, typechecks, i18n, transport drift, and production build passed |
+| Frontend covered suite | 1,844 passed in 93 files; 91% statement and 84.76% branch coverage |
+| Actual artifact UI | Fresh valid export/evaluation/aggregation links resolved canonical ownership and produced correct detail links; wrong project or run hid content/status/evidence/actions and all main-content links |
+| Download ownership | A real export download delayed at the browser transport was cancelled with `net::ERR_ABORTED` on project change; no stale links/checksum controls appeared. A later valid response produced the manifest-matching SHA-256 and 2,323-byte size |
+| Visual scope | Real Chromium desktop/narrow captures; valid and rejected export states and rejected aggregation state remained usable; the valid 390px surface had no page-level horizontal overflow. Mechanical detector reported no findings |
+| Actual progress path | Real authenticated TEI import of 400 records, API scheduling, and actual Celery task entry points: first 200-record batch gave running `200/400`, zero failed, 50% in GET, SSE, and the native UI progress element |
+| Idempotency/completion | Repeating batch zero preserved counts and exactly 100 success + 100 abstain Predictions; batch one reached completed `400/400`, zero failed, 100%, with exactly 200 success + 200 abstain Predictions |
+
+The first frontend run exposed an evaluation fixture missing canonical snapshot ownership data; the
+first backend pass exposed a new API test using a nonexistent repository selector. Both fixture errors
+were corrected before the final passing suites. Formatting and a dynamic-delete lint error were also
+corrected. Failed passes are not release evidence.
+
+The local API/Vite processes, isolated Compose project/volumes, synthetic artifacts/backups, and
+throwaway task smoke were removed after verification. No existing development or production database
+was modified. This closes RG-12/RG-14 correctness checks and RG-13's documentation correction, not
+release-image publication, deployed upgrade/rollback readiness, full accessibility acceptance, or RG-17.
+
+
 
 ## Future improvement analysis: streamlined deployment and data/model provisioning
 
@@ -707,10 +894,11 @@ These foundations are specified in
 
 [Backup](deploy/scripts/backup.sh) and [restore](deploy/scripts/restore.sh) scripts assume a particular
 Compose container naming and named-volume layout; bind-mount installations require a corresponding
-verified procedure. The production runbook explicitly warns that the existing
-[migration helper](deploy/scripts/test_migration.sh) is not evidence of a previous-to-current upgrade
-rehearsal. The implementation plan nevertheless marks deployment hardening and rehearsal complete.
-These operational claims and verification gaps remain RG-13 rather than becoming a new release item.
+verified procedure. The original 2026-10-03 review found that the migration helper did not establish a
+previous schema or expose readiness, despite completed-rehearsal claims in the implementation plan.
+The [RG-13 correction](#rg-13-align-delivery-claims-with-implemented-and-verified-operations) retired that
+helper and corrected the claims; local fresh-install/restore evidence does not remove the need for an
+installation-specific upgrade/rollback rehearsal.
 
 ### Inputs to a future design
 

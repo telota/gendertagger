@@ -72,6 +72,20 @@ deterministic slice it covers as `record_offset` and `record_count`. Every adapt
 registry registers the same `_CPU_BATCH_SIZE` of 200 records per batch. Resource-class-specific
 tuning is discussed in [`22-future-development.md`](22-future-development.md).
 
+## Incremental progress
+
+A terminal batch refreshes execution tallies in its existing worker transaction, independently of
+whether other batches remain pending/running. Execution finalizers serialize on the existing parent
+row with `FOR NO KEY UPDATE` and refresh cached ORM state after locking; Prediction foreign-key
+`KEY SHARE` checks do not force competing workers into lock-upgrade deadlocks.
+
+Completed work is batch `success_count + abstain_count`; failed work is `error_count`, including the
+entire assigned slice of a technically failed batch even when no Predictions were written. A successful
+substantive `unknown`, abstention, and technical failure remain distinct method outcomes. Run progress
+sums the current execution counters in record-method work units. GET and SSE read that same persisted
+state. Duplicate batch delivery cannot add counts or outputs, and outstanding batches prevent terminal
+lifecycle transitions without suppressing intermediate progress.
+
 ## Transactional dispatch handoff
 
 Scheduling must not commit durable work and then publish its Celery message from the API. PostgreSQL and Redis
@@ -135,6 +149,24 @@ TaskBatch provenance, while its Run, MethodExecution, or TaskBatch is outside `r
 that batch's slice. Deferred database checks prevent a caller from committing the outputs without the matching
 completed batch state. Conflicting output is never overwritten, and delivery after terminal completion is a
 no-op at claim time.
+
+## Project worker compatibility
+
+[ADR-0048](decisions/ADR-0048-project-worker-provenance-compatibility.md) extends the public-job provenance
+check to project TaskBatches. Workers require configured source revision and dependency-lock digest, capture
+their actual application/Python/installed-dependency/image identity, and record canonical hostname/process
+provenance in the atomic claim. MethodExecution's immutable metadata and identifier-only task envelopes
+remain unchanged.
+
+Before any adapter call, implementation/normalization versions and every accepted Run environment field
+must match; the resolved configuration and applicable pinned lookup/model bytes must also retain their
+accepted identities. A mismatch or missing historical dependency evidence fails permanently with a
+diagnosable `IncompatibleWorkerError` and zero Predictions. Redelivery of that failed batch is a no-op.
+Finish unclaimed work with its matching environment or accept a new Run; never replace accepted provenance
+or silently reopen terminal work. Transient infrastructure failures retain the existing rollback/retry
+policy, including rollback of the worker receipt. Actual worker identity stays internal rather than entering
+public method summaries.
+
 
 ## Retry policy
 

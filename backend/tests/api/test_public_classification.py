@@ -176,6 +176,7 @@ def _service(
     dependency_versions: dict[str, str] | None = None,
     queue_name: str = "cpu",
     pinned_asset: bool = False,
+    slow_method: _SlowMethod | None = None,
     asset_resolver: LookupAssetResolver | None = None,
 ) -> PublicClassificationService:
     registry = MethodRegistry(
@@ -190,7 +191,7 @@ def _service(
             MethodRegistration(
                 descriptor=_SlowMethod.descriptor,
                 config_model=LookupMethodConfig if pinned_asset else MethodConfig,
-                adapter=cast(Any, _SlowMethod()),
+                adapter=cast(Any, slow_method if slow_method is not None else _SlowMethod()),
                 queue_name=queue_name,
                 batch_size=200,
                 data_artifact_logical_type="test_lookup" if pinned_asset else None,
@@ -418,6 +419,58 @@ def test_public_job_requires_capability_and_retains_private_evidence_after_compl
     }
     service.execute_job(record.id)
     assert unit_of_work.public_classifications.jobs[record.id] == record
+
+
+def test_public_job_error_output_remains_immutable_after_same_name_recovers() -> None:
+    class RecoveringMethod(_SlowMethod):
+        def __init__(self) -> None:
+            self.call_count = 0
+
+        def predict_batch(
+            self, people: Sequence[object], config: MethodConfig
+        ) -> list[PredictionResult]:
+            self.call_count += 1
+            if self.call_count == 1:
+                raise MethodDependencyError("temporary backend outage")
+            return super().predict_batch(people, config)
+
+    adapter = RecoveringMethod()
+    unit_of_work = _UnitOfWork()
+    service = _service(unit_of_work, slow_method=adapter)
+    command = PublicClassifyNamesRequest(name="Maria", methods=["slow_method"])
+    first = service.classify(command)
+    assert isinstance(first, PublicClassificationJobAccepted)
+    service.execute_job(first.id)
+    first_record = unit_of_work.public_classifications.jobs[first.id]
+    assert first_record.status is PublicClassificationStatus.completed
+    assert first_record.raw_predictions is not None
+    assert first_record.raw_predictions[0]["slow_method"].status is PredictionStatus.error
+    retained_record = first_record.model_dump_json()
+    retained_projection = service.get_job(first.id, first.retrieval_token).model_dump_json()
+    assert adapter.call_count == 1
+
+    recovered = service.classify(command)
+    assert isinstance(recovered, PublicClassificationJobAccepted)
+    service.execute_job(recovered.id)
+    recovered_job = service.get_job(recovered.id, recovered.retrieval_token)
+    assert recovered_job.status is PublicClassificationStatus.completed
+    assert recovered_job.response is not None
+    assert recovered_job.response.results[0].classifications["slow_method"].label is (
+        CanonicalLabel.female
+    )
+    assert recovered_job.response.predictions[0]["slow_method"].status is PredictionStatus.success
+    assert adapter.call_count == 2
+
+    cached = service.classify(command)
+    assert isinstance(cached, PublicClassificationJobAccepted)
+    service.execute_job(cached.id)
+    cached_job = service.get_job(cached.id, cached.retrieval_token)
+    assert cached_job.response == recovered_job.response
+    service.execute_job(first.id)
+    service.execute_job(recovered.id)
+    assert adapter.call_count == 2
+    assert unit_of_work.public_classifications.jobs[first.id].model_dump_json() == retained_record
+    assert service.get_job(first.id, first.retrieval_token).model_dump_json() == retained_projection
 
 
 def test_public_job_rejects_execution_environment_drift(

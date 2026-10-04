@@ -8,6 +8,7 @@ from pydantic import SecretStr, ValidationError
 from sqlalchemy.exc import OperationalError
 
 import gendertagger.tasks.public_classification as public_task
+from gendertagger.config.settings import ClassificationRuntimeSettings
 from gendertagger.models.public_classification import PublicClassificationTaskMessage
 from gendertagger.tasks.dispatch import CeleryMessagePublisher
 
@@ -100,9 +101,9 @@ def test_public_classification_publisher_rejects_mismatched_task_identifier() ->
     celery_app.send_task.assert_not_called()
 
 
-def test_public_classification_worker_requires_explicit_nonblank_build_provenance() -> None:
+def test_classification_workers_require_explicit_nonblank_build_provenance() -> None:
     with pytest.raises(ValidationError, match="code_git_commit"):
-        public_task.PublicClassificationWorkerSettings(
+        ClassificationRuntimeSettings(
             database_url=SecretStr("postgresql+psycopg://user:password@localhost/test"),
             code_git_commit=" ",
             dependency_lock_sha256="a" * 64,

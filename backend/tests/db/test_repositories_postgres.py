@@ -14,6 +14,7 @@ from tests.seeding import (
     seed_project,
     seed_ready_snapshot,
     seed_run,
+    seed_worker_provenance,
     session_repositories,
 )
 
@@ -1015,6 +1016,7 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
         worker_task_id="fixture-gender-guesser",
         started_at=now,
         attempt_count=1,
+        worker_provenance=seed_worker_provenance(),
     )
     assert claimed_batch is not None
     prediction_result = PredictionResult(
@@ -1096,6 +1098,7 @@ def test_domain_contracts_round_trip_without_orm_leak(db_session: Session) -> No
             worker_task_id=f"fixture-{method_name}",
             started_at=now,
             attempt_count=1,
+            worker_provenance=seed_worker_provenance(),
         )
         assert claimed_additional_batch is not None
         runs.add_predictions(
@@ -1407,6 +1410,7 @@ def test_method_execution_results_project_every_snapshot_person_and_preserve_sta
             worker_task_id=f"method-results-{batch.batch_index}",
             started_at=now,
             attempt_count=1,
+            worker_provenance=seed_worker_provenance(),
         )
         assert claimed is not None
         result = expected.get(person.tei_id)

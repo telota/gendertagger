@@ -54,7 +54,13 @@ from gendertagger.models.project import (
     SnapshotSourceMemberCreate,
     TeiImportProfile,
 )
-from gendertagger.models.run import MethodExecutionCreate, PredictionWrite, Run, RunCreate
+from gendertagger.models.run import (
+    MethodExecutionCreate,
+    PredictionWrite,
+    Run,
+    RunCreate,
+    WorkerProvenance,
+)
 from gendertagger.models.team import TeamCreate
 from gendertagger.models.user import ProjectRole, User, UserCreate
 from gendertagger.services.ports.aggregation_repository import AggregationRepository
@@ -71,6 +77,20 @@ SEED_CODE_GIT_COMMIT = "c" * 40
 SEED_DEPENDENCY_LOCK_SHA256 = "d" * 64
 SEED_SOURCE_SHA256 = "a" * 64
 SEED_BATCH_SIZE = 100
+
+
+def seed_worker_provenance() -> WorkerProvenance:
+    """Return the exact, deterministic environment accepted by synthetic runs."""
+    return WorkerProvenance(
+        code_git_commit=SEED_CODE_GIT_COMMIT,
+        application_version="0.0.0",
+        python_version="3.11.0",
+        dependency_lock_sha256=SEED_DEPENDENCY_LOCK_SHA256,
+        dependency_versions={"pydantic": "2.11.0", "sqlalchemy": "2.0.0"},
+        hostname="fixture-worker",
+        process_id=1,
+    )
+
 
 PredictionFactory = Callable[[str, PersonRecord], PredictionResult]
 """Return the prediction one method makes for one person, keyed by method name."""
@@ -312,17 +332,22 @@ def seed_run(
     repositories: SeedRepositories,
     snapshot_id: UUID,
     config: RunConfig | Sequence[MethodRunConfig],
+    *,
+    worker_provenance: WorkerProvenance | None = None,
 ) -> Run:
     """Create a run in the ``created`` state, as ``RunService.create_run`` does."""
     resolved_config = config if isinstance(config, RunConfig) else RunConfig(methods=list(config))
+    provenance = worker_provenance or seed_worker_provenance()
     return repositories.runs.add_run(
         RunCreate(
             dataset_snapshot_id=snapshot_id,
             resolved_config=resolved_config,
-            code_git_commit=SEED_CODE_GIT_COMMIT,
-            application_version="0.0.0",
-            python_version="3.11.0",
-            dependency_lock_sha256=SEED_DEPENDENCY_LOCK_SHA256,
+            code_git_commit=provenance.code_git_commit,
+            application_version=provenance.application_version,
+            python_version=provenance.python_version,
+            dependency_lock_sha256=provenance.dependency_lock_sha256,
+            dependency_versions=provenance.dependency_versions,
+            container_image_digest=provenance.container_image_digest,
         )
     )
 
@@ -379,6 +404,7 @@ def seed_completed_run(
                 batch.id,
                 method_execution_id=execution.id,
                 worker_task_id=f"seed-{method_name}-{batch.batch_index}",
+                worker_provenance=seed_worker_provenance(),
                 started_at=at,
                 attempt_count=1,
             )

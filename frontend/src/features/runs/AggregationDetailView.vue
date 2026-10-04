@@ -9,7 +9,8 @@ import { useRequireSession, useRouteParam } from '@/composables/useRequireSessio
 
 import RunProvenance from './RunProvenance.vue'
 import { useAggregation } from './useAggregations'
-import { useRun, useRunExecutions } from './useRunDetail'
+import { useArtifactRouteContext } from './useArtifactRouteContext'
+import { useRunExecutions } from './useRunDetail'
 import { useStatusLabel } from './useStatusLabel'
 
 const { t, d } = useI18n()
@@ -20,9 +21,11 @@ const projectId = useRouteParam('projectId')
 const runId = useRouteParam('runId')
 const aggregationId = useRouteParam('aggregationId')
 
-const aggregation = useAggregation(aggregationId, isSignedIn)
-const run = useRun(runId, isSignedIn)
-const executions = useRunExecutions(runId, isSignedIn)
+const query = useAggregation(aggregationId, isSignedIn)
+const context = useArtifactRouteContext(aggregationId, query)
+const aggregation = { ...query, ...context }
+const run = { data: context.run }
+const executions = useRunExecutions(runId, context.valid)
 
 // The selection is stored as execution ids; the reader wants method names and versions.
 const selection = computed(() => {

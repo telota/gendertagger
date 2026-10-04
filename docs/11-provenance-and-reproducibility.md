@@ -29,10 +29,16 @@ Persist at least:
 - container image digest when containerized
 - Python/runtime version
 - dependency lockfile/artifact reference
+- exact installed dependency versions
 - start/end timestamps
 
 The Run's snapshot, resolved configuration/hash, code/application/runtime versions, and dependency provenance
 are sealed at creation. Only validated lifecycle fields may change afterward.
+
+[ADR-0048](decisions/ADR-0048-project-worker-provenance-compatibility.md) requires project workers to
+match that accepted environment and the MethodExecution implementation/normalization before prediction.
+New runs capture the installed dependency map; historical runs retain null rather than fabricated
+versions and cannot execute on guarded workers without newly accepting the work.
 
 ## DatasetSnapshot import provenance
 
@@ -95,6 +101,23 @@ Persist:
 A Prediction may be created only for the exact person slice of its running TaskBatch while the owning
 MethodExecution and Run are also running. Its creation and TaskBatch completion share one transaction. The
 row is immutable afterward, so its method and batch provenance cannot be detached from the output.
+
+## TaskBatch execution provenance
+
+An atomic claim records a canonical `WorkerProvenance` with the worker's actual hostname, process ID,
+source/application/Python versions, dependency-lock digest, exact installed dependencies, and optional
+image digest. That receipt is immutable after claim and stays internal; MethodExecution's already sealed
+metadata is not repurposed as mutable worker state. Duplicate delivery cannot replace a receipt or output.
+Transient rollback removes the claim and receipt; the completing attempt supplies the final receipt.
+
+Before invoking an adapter, compare its persisted implementation/normalization and every accepted Run
+environment field with the worker. Validate the persisted configuration digest and pinned asset bytes,
+including model-manifest membership and the materialized files consumed by the model. An incompatible
+worker records a permanent `IncompatibleWorkerError` with no Predictions. Restore the matching environment
+for unclaimed work, or accept a new Run; terminal failed batches are never reopened and accepted scientific
+provenance is never rewritten. External LLM model identity remains operator-declared, not independent
+attestation of a server's weights. See [ADR-0048](decisions/ADR-0048-project-worker-provenance-compatibility.md).
+
 
 ## Aggregation provenance
 

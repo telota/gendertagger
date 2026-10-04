@@ -39,6 +39,7 @@ from gendertagger.models.run import (
     RunListFilter,
     TaskBatch,
     TaskBatchPlan,
+    WorkerProvenance,
 )
 from gendertagger.services.pagination import CreationPosition
 from gendertagger.services.ports.persistence_errors import (
@@ -96,6 +97,7 @@ class SqlAlchemyRunRepository:
             python_version=command.python_version,
             dependency_lock_sha256=command.dependency_lock_sha256,
             dependency_lock_artifact_id=command.dependency_lock_artifact_id,
+            dependency_versions=command.dependency_versions,
             started_at=None,
             finished_at=None,
             failure_class=None,
@@ -482,6 +484,7 @@ class SqlAlchemyRunRepository:
         *,
         method_execution_id: UUID,
         worker_task_id: str,
+        worker_provenance: WorkerProvenance,
         started_at: datetime,
         attempt_count: int,
     ) -> TaskBatch | None:
@@ -496,6 +499,7 @@ class SqlAlchemyRunRepository:
             .values(
                 status=TaskBatchStatus.running,
                 worker_task_id=worker_task_id,
+                worker_provenance=worker_provenance.model_dump(mode="json"),
                 started_at=started_at,
                 attempt_count=attempt_count,
             )
@@ -572,12 +576,19 @@ class SqlAlchemyRunRepository:
     def finalize_execution_if_complete(
         self, method_execution_id: UUID, *, finished_at: datetime
     ) -> MethodExecution:
-        """Finalize a running execution once all its batches are terminal.
+        """Refresh terminal-batch tallies and finalize when all batches are terminal.
 
-        Locks the execution row so concurrent batch workers cannot both finalize
-        it; a no-op while batches are outstanding or the execution is terminal.
+        Lock and refresh the execution row to serialize concurrent batch workers.
+        ``FOR NO KEY UPDATE`` admits their Prediction foreign-key checks without
+        lock-upgrade deadlocks. Outstanding batches leave current progress on a
+        running execution; terminal executions remain unchanged.
         """
-        row = self._session.get(MethodExecutionRow, method_execution_id, with_for_update=True)
+        row = self._session.scalar(
+            select(MethodExecutionRow)
+            .where(MethodExecutionRow.id == method_execution_id)
+            .with_for_update(key_share=True)
+            .execution_options(populate_existing=True)
+        )
         if row is None:
             msg = f"method execution {method_execution_id} does not exist"
             raise ResourceNotFoundError(msg)
@@ -585,13 +596,16 @@ class SqlAlchemyRunRepository:
             return self._method_execution_from_row(row)
         batches = tuple(
             self._session.scalars(
-                select(TaskBatchRow).where(TaskBatchRow.method_execution_id == method_execution_id)
+                select(TaskBatchRow)
+                .where(TaskBatchRow.method_execution_id == method_execution_id)
+                .execution_options(populate_existing=True)
             )
         )
-        if any(batch.status not in _BATCH_TERMINAL_STATUSES for batch in batches):
-            return self._method_execution_from_row(row)
         row.completed_count = sum(batch.success_count + batch.abstain_count for batch in batches)
         row.failed_count = sum(batch.error_count for batch in batches)
+        if any(batch.status not in _BATCH_TERMINAL_STATUSES for batch in batches):
+            self._session.flush()
+            return self._method_execution_from_row(row)
         failed_batches = [batch for batch in batches if batch.status is TaskBatchStatus.failed]
         if batches and len(failed_batches) == len(batches):
             row.status = MethodExecutionStatus.failed
@@ -613,7 +627,7 @@ class SqlAlchemyRunRepository:
         Locks the run row so concurrent workers cannot both finalize it; a no-op
         while any execution is outstanding or the run is terminal.
         """
-        row = self._session.get(RunRow, run_id, with_for_update=True)
+        row = self._session.get(RunRow, run_id, with_for_update=True, populate_existing=True)
         if row is None:
             msg = f"run {run_id} does not exist"
             raise ResourceNotFoundError(msg)
@@ -621,7 +635,9 @@ class SqlAlchemyRunRepository:
             return self._run_from_row(row)
         executions = tuple(
             self._session.scalars(
-                select(MethodExecutionRow).where(MethodExecutionRow.run_id == run_id)
+                select(MethodExecutionRow)
+                .where(MethodExecutionRow.run_id == run_id)
+                .execution_options(populate_existing=True)
             )
         )
         if any(item.status not in _EXECUTION_TERMINAL_STATUSES for item in executions):
@@ -866,6 +882,7 @@ class SqlAlchemyRunRepository:
             python_version=row.python_version,
             dependency_lock_sha256=row.dependency_lock_sha256,
             dependency_lock_artifact_id=row.dependency_lock_artifact_id,
+            dependency_versions=row.dependency_versions,
             started_at=row.started_at,
             finished_at=row.finished_at,
             failure_class=row.failure_class,
@@ -920,6 +937,11 @@ class SqlAlchemyRunRepository:
             record_offset=row.record_offset,
             record_count=row.record_count,
             worker_task_id=row.worker_task_id,
+            worker_provenance=(
+                None
+                if row.worker_provenance is None
+                else WorkerProvenance.model_validate(row.worker_provenance)
+            ),
             attempt_count=row.attempt_count,
             success_count=row.success_count,
             abstain_count=row.abstain_count,

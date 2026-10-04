@@ -25,8 +25,10 @@ Phase 8's backend prerequisites and blocking semantic decisions are met.
 | Collections to navigate by     | **Met.** `GET /projects/{id}/snapshots`, `GET /snapshots/{id}/runs`, and `GET /runs/{id}/aggregations`, `/evaluations`, and `/exports` list their resources newest first, so the routes can recover the identifiers they carry. | —      |
 | Blocking semantic decisions    | **Met.** D1–D6 are resolved. See [Decisions](#decisions-taken).                                                                                                                                                                 | —      |
 
-M1 is delivered and M2 is not blocked, since a real authentication backend is in place. No milestone waits on
-a missing read endpoint any more.
+The shell and the M3–M9 workflow screens are now implemented, as recorded in their delivery sections
+below and the [client overview](../frontend/README.md). M1-only descriptions are historical, not the
+current capability inventory. Implementation does not close the outstanding accessibility assignments
+or establish a verified public release.
 
 ## Existing scaffolding and what it still needs
 
@@ -65,11 +67,10 @@ Deployment and CI already anticipate the client. Reusing it correctly is cheaper
   Source edits, dependency refreshes, and explicit worker/migration steps are documented in the
   [quickstart development workflow](../QUICKSTART.md#development-workflow).
 
-**Still needed.**
-
-- `frontend_sbom` now produces a real dependency tree. The repository's provenance and licence culture applies
-  to npm packages too: the M1 and M2 dependencies are justified in [`frontend/README.md`](../frontend/README.md),
-  including the headless accessibility library chosen under decision D9.
+**Dependency accountability.** The frontend SBOM job is configured to scan the built image by digest.
+Direct npm dependencies and licences are justified in [the client overview](../frontend/README.md).
+Configured CI jobs are not evidence of a published release or retained SBOM; promotion still requires
+the [selected pipeline's artifacts and verification record](21-production-promotion.md).
 
 ## Accessibility as a delivery workstream
 
@@ -206,7 +207,7 @@ contract change fails CI.
   (unchecked by default), logout, role-aware hiding and disabling, and the forced password change (D1).
   Project controls follow `current_user_role` on the current project; only project creation and membership
   administration follow the global roles on `GET /me` (D6).
-  **Partly delivered.** `useSessionStore` (Pinia; session and roles are exactly the "genuinely shared client
+  **Implemented.** `useSessionStore` (Pinia; session and roles are exactly the "genuinely shared client
   state" docs/26-frontend-coding-guidelines.md assigns there) resolves the session once at app start,
   and `/login` and `/change-password` cover login with "keep me signed in", the forced-password-change
   gate and its own view, and logout — verified against a real Chrome instance over the DevTools Protocol,
@@ -215,13 +216,11 @@ contract change fails CI.
   page reload. `initialize()` also distinguishes an ordinary `401` (not signed in) from any other failure —
   a `5xx`, a network error, an unparseable response — as its own `error` status, so a genuine server problem
   at boot renders as one rather than as a misleading "please sign in" (see the M2 exit criterion below).
-  Role-aware hiding and `current_user_role`-scoped project controls remain open: there is no
-  project-scoped screen yet for them to apply to. The separate ADR-0039 administrative increment now
-  delivers the corresponding global-admin read path: `/admin/users` waits for session initialization, is
-  available only to a password-current global administrator, and keeps a signed-in non-administrator in an
-  explicit permission state. Its TanStack Query pages are scoped to the principal and server-side search
-  tuple, and are cancelled and removed on access loss. Account creation, mutation, reset, revocation, and
-  membership screens remain pending.
+  Project-scoped screens now use `current_user_role`; account/team/settings administration and project
+  membership screens are also implemented. Their later delivery sections record capability and
+  verification separately. `/admin/users` waits for session initialization, is available only to a
+  password-current global administrator, and gives signed-in non-administrators an explicit permission
+  state. Principal-scoped TanStack Query requests are cancelled and removed on access loss.
 - Recovery from a `401` at any moment: keep the unsent decision, offer an inline sign-in, and retry the
   request rather than redirecting away and losing the user's place (D1). **Delivered.** The API client takes
   an `onUnauthorized(request)` hook (`src/api/client.ts`); on a `401` it clones the request up front (so a

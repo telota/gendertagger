@@ -3,10 +3,11 @@ from uuid import UUID
 
 import pytest
 from pydantic import ValidationError
+from tests.seeding import seed_worker_provenance
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.models.classification import CanonicalLabel, PredictionResult, PredictionStatus
-from gendertagger.models.lifecycle import MethodExecutionStatus, RunStatus
+from gendertagger.models.lifecycle import MethodExecutionStatus, RunStatus, TaskBatchStatus
 from gendertagger.models.method import MethodDescriptor
 from gendertagger.models.run import (
     MethodExecution,
@@ -20,6 +21,8 @@ from gendertagger.models.run import (
     Progress,
     Run,
     RunCreateRequest,
+    TaskBatch,
+    WorkerProvenance,
 )
 
 RUN_ID = UUID("50000000-0000-0000-0000-000000000001")
@@ -240,3 +243,52 @@ def test_method_execution_result_projection_distinguishes_missing_from_unknown()
             label=CanonicalLabel.unknown,
             result_state=MethodExecutionResultState.abstain,
         )
+
+
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"code_git_commit": " "},
+        {"code_git_commit": "c" * 101},
+        {"application_version": "a" * 101},
+        {"python_version": "p" * 101},
+        {"application_version": ""},
+        {"python_version": " "},
+        {"dependency_lock_sha256": "not-a-digest"},
+        {"dependency_versions": {}},
+        {"dependency_versions": {"": "1"}},
+        {"dependency_versions": {"pydantic": " "}},
+        {"hostname": " "},
+        {"process_id": 0},
+        {"undeclared_identity": "forbidden"},
+        {"hostname": "h" * 256},
+    ],
+)
+def test_worker_provenance_rejects_incomplete_or_open_identity(
+    override: dict[str, object],
+) -> None:
+    with pytest.raises(ValidationError):
+        WorkerProvenance.model_validate({**seed_worker_provenance().model_dump(), **override})
+
+
+def test_worker_receipt_is_frozen_and_historical_reads_preserve_unknown_evidence() -> None:
+    worker = seed_worker_provenance()
+    with pytest.raises(ValidationError, match="frozen"):
+        worker.hostname = "rewritten"
+    historical_run = Run.model_validate(run_payload())
+    historical_batch = TaskBatch(
+        id=BATCH_ID,
+        method_execution_id=EXECUTION_ID,
+        batch_index=0,
+        queue_name="cpu",
+        record_offset=0,
+        record_count=1,
+        status=TaskBatchStatus.pending,
+        attempt_count=0,
+        success_count=0,
+        abstain_count=0,
+        error_count=0,
+        created_at=CREATED_AT,
+    )
+    assert historical_run.dependency_versions is None
+    assert historical_batch.worker_provenance is None

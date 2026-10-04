@@ -5244,6 +5244,21 @@
             ],
             "title": "Dependency Lock Sha256"
           },
+          "dependency_versions": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Exact installed dependency versions at acceptance; null for unknown historical provenance.",
+            "title": "Dependency Versions"
+          },
           "failure_class": {
             "anyOf": [
               {

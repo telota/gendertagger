@@ -14,13 +14,11 @@ from uuid import UUID
 from weakref import finalize
 
 from celery import shared_task
-from pydantic import Field, field_validator
 from sqlalchemy.exc import OperationalError
 
-from gendertagger.config.settings import RuntimeSettings
+from gendertagger.config.settings import ClassificationRuntimeSettings
 from gendertagger.db.session import create_database_engine, create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
-from gendertagger.models.project import SHA256_PATTERN
 from gendertagger.models.public_classification import PublicClassificationTaskMessage
 from gendertagger.services.classification import DirectClassificationService
 from gendertagger.services.lookup_assets import RegisteredLookupAssetResolver
@@ -35,26 +33,10 @@ EXECUTE_PUBLIC_CLASSIFICATION_TASK_NAME = "gendertagger.tasks.execute_public_cla
 _MAX_DATABASE_RETRIES = 5
 
 
-class PublicClassificationWorkerSettings(RuntimeSettings):
-    """Require the worker's build environment to match persisted job provenance."""
-
-    code_git_commit: str = Field(min_length=1, max_length=100)
-    dependency_lock_sha256: str = Field(pattern=SHA256_PATTERN)
-    container_image_digest: str | None = None
-
-    @field_validator("code_git_commit")
-    @classmethod
-    def _validate_code_git_commit(cls, value: str) -> str:
-        if not value.strip():
-            msg = "code_git_commit must not be blank"
-            raise ValueError(msg)
-        return value
-
-
 @lru_cache(maxsize=1)
 def _public_classification_service() -> PublicClassificationService:
     """Compose the process-scoped worker service with local model and lookup assets."""
-    settings = PublicClassificationWorkerSettings()  # type: ignore[call-arg]  # Environment sources.
+    settings = ClassificationRuntimeSettings()  # type: ignore[call-arg]  # Environment sources.
     engine = create_database_engine(settings.database_url.get_secret_value())
     session_factory = create_session_factory(engine)
     unit_of_work_factory: UnitOfWorkFactory = partial(SqlAlchemyUnitOfWork, session_factory)

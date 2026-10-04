@@ -72,6 +72,30 @@ required for this anonymous resource to protect submitted names; it grants no pr
 Responses use `Cache-Control: no-store`. Raw diagnostics and deployment configuration secrets are never
 returned. The authenticated `/api/v1/classify` endpoint keeps its existing contract.
 
+### On-demand prediction caching and recovery
+
+The authenticated synchronous endpoint and anonymous classification share a process-local,
+thread-safe LRU cache, bounded to 50,000 predictions by default. A cache hit avoids adapter
+execution. Cache identity includes the exact submitted name, method name, and a canonical JSON
+digest of the complete method descriptor and validated, resolved configuration. Implementation
+and normalization versions, the confidence contract, model selection, and lookup/model artifact
+digests therefore separate outputs. Equivalent validated configurations share entries: JSON object
+ordering and omitted fields equal to their defaults do not create separate identities.
+
+Successful predictions, including the substantive `unknown` label, and normal `abstain`
+outcomes are cacheable. Technical `error` predictions are not, whether the adapter returns them
+or the service synthesizes them from a dependency, configuration, or execution failure. A later
+request for the same name executes again and can observe recovery; the service adds neither an
+automatic retry nor error expiry. Concurrent misses may execute independently. A late technical
+failure cannot replace a recovered success or evict another cached prediction. Cache hits refresh
+LRU recency, and only cacheable insertions can evict entries.
+
+Insertion and retrieval deep-copy nested raw output and metadata, so adapter or consumer mutation
+cannot change retained cache evidence. This cache changes only future executions. Completed
+anonymous jobs retain their original predictions and provenance, including recorded technical
+errors; recovery requires a new request and never rewrites or re-executes a terminal job.
+HTTP `Cache-Control: no-store` remains a separate boundary for submitted names and job responses.
+
 ## Teams and delegated project membership
 
 All paths below are relative to `/api/v1`. `GET /teams` returns a cursor-paginated, roster-free

@@ -155,6 +155,13 @@ Before creating a Run, the server-side registry validates every method, applies 
 the fully resolved configuration. That object and its canonical hash are persisted. Workers load it from
 PostgreSQL and never reinterpret client input.
 
+Run responses also carry the exact accepted `dependency_versions`; null represents unknown historical
+evidence, not an empty installed environment. The internal `WorkerProvenance` freezes a closed execution
+identity and actual hostname/process ID for each TaskBatch claim. Workers compare the accepted method and
+environment before prediction under
+[ADR-0048](decisions/ADR-0048-project-worker-provenance-compatibility.md). Worker receipts do not enter
+public MethodExecution summaries.
+
 ## Task messages and dispatch
 
 Celery messages are frozen identifier-only Pydantic envelopes. Workers load people, configuration,
@@ -168,8 +175,12 @@ closed publisher mapping prevents target kind, task name, queue, owner, and payl
 
 ## Browser and API support
 
-Public MethodExecution summaries exclude queue names and worker metadata. Progress counts are authoritative;
-percentage is derived, and an unknown total remains representable.
+Public MethodExecution summaries exclude queue names and worker metadata. Progress counts are authoritative
+and refresh after each terminal batch, even while the method remains running. `completed` sums successful
+and abstained records; `failed` sums technical errors, including every record assigned to a permanently
+failed batch without inventing Predictions. Substantive `unknown` remains a successful method output.
+Run progress sums execution work units, not distinct people. Percentage derives from completed plus
+failed work, and an unknown total remains representable. GET and SSE expose the same persisted state.
 
 Cursor pages require `has_more` and `next_cursor` to agree. Cursors are opaque and bound to their resource
 scope, filters, and sort. Summary models support collection rendering while large raw scientific output stays

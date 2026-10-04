@@ -3638,6 +3638,13 @@ export interface components {
             dependency_lock_artifact_id?: string | null;
             /** Dependency Lock Sha256 */
             dependency_lock_sha256?: string | null;
+            /**
+             * Dependency Versions
+             * @description Exact installed dependency versions at acceptance; null for unknown historical provenance.
+             */
+            dependency_versions?: {
+                [key: string]: string;
+            } | null;
             /** Failure Class */
             failure_class?: string | null;
             /** Failure Diagnostic */

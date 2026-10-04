@@ -8,7 +8,12 @@ from sqlalchemy import Engine, insert, select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 from tests.factories import tei_person_input
-from tests.seeding import legacy_snapshot_statistics, seed_project, session_repositories
+from tests.seeding import (
+    legacy_snapshot_statistics,
+    seed_project,
+    seed_worker_provenance,
+    session_repositories,
+)
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.db.repositories.artifact_repository import SqlAlchemyArtifactRepository
@@ -789,6 +794,7 @@ def test_reconciler_does_not_rearm_a_batch_already_claimed_by_a_worker(
         worker_task_id="worker-task-1",
         started_at=now,
         attempt_count=1,
+        worker_provenance=seed_worker_provenance(),
     )
     assert claimed_batch is not None
 

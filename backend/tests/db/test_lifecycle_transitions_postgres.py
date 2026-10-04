@@ -9,7 +9,12 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 from tests.factories import tei_person_input
-from tests.seeding import legacy_snapshot_statistics, seed_project, session_repositories
+from tests.seeding import (
+    legacy_snapshot_statistics,
+    seed_project,
+    seed_worker_provenance,
+    session_repositories,
+)
 
 from gendertagger.config.run import MethodRunConfig, RunConfig
 from gendertagger.db.repositories.artifact_repository import SqlAlchemyArtifactRepository
@@ -128,6 +133,7 @@ def _setup(
             application_version="0.0.0",
             python_version="3.11.0",
             dependency_lock_sha256="b" * 64,
+            dependency_versions=seed_worker_provenance().dependency_versions,
         )
     )
     execution = runs.add_method_execution(
@@ -164,6 +170,7 @@ def _claim_batch(
         worker_task_id="task-1",
         started_at=NOW,
         attempt_count=1,
+        worker_provenance=seed_worker_provenance(),
     )
     assert claimed is not None
 
@@ -355,6 +362,7 @@ def test_batch_claimed_then_completed_records_tallies(db_session: Session) -> No
         worker_task_id="task-1",
         started_at=NOW,
         attempt_count=1,
+        worker_provenance=seed_worker_provenance(),
     )
     assert running is not None
     assert running.status is TaskBatchStatus.running
@@ -745,4 +753,64 @@ def test_database_rejects_raw_prediction_outside_the_batch_slice(
         lambda: db_session.add(row),
         sqlstate="23514",
         message="prediction person must belong to the owning batch slice",
+    )
+
+
+@pytest.mark.parametrize("terminal", [False, True])
+@pytest.mark.postgres_rollback
+def test_database_rejects_run_dependency_evidence_rewrite(
+    db_session: Session, terminal: bool
+) -> None:
+    runs, execution, batch, _person_id = _setup(db_session)
+    if terminal:
+        _fail_execution(runs, execution, batch)
+        runs.finalize_run_if_complete(execution.run_id, finished_at=LATER)
+    row = db_session.get(RunRow, execution.run_id)
+    assert row is not None
+    _assert_database_rejects(
+        db_session,
+        lambda: setattr(row, "dependency_versions", {"pydantic": "tampered"}),
+        sqlstate="55000",
+        message="immutable",
+    )
+
+
+@pytest.mark.parametrize("lifecycle", ["pending", "running", "completed"])
+@pytest.mark.postgres_rollback
+def test_database_rejects_worker_receipt_creation_or_rewrite_outside_claim(
+    db_session: Session, lifecycle: str
+) -> None:
+    runs, execution, batch, person_id = _setup(db_session)
+    if lifecycle != "pending":
+        _start_execution(runs, execution)
+        _claim_batch(runs, execution, batch)
+        claimed = runs.get_task_batch(batch.id)
+        assert claimed is not None
+        assert claimed.worker_provenance == seed_worker_provenance()
+    if lifecycle == "completed":
+        runs.add_predictions(execution.id, [_prediction(person_id, batch.id)])
+        runs.mark_batch_finished(
+            batch.id,
+            status=TaskBatchStatus.completed,
+            finished_at=LATER,
+            success_count=1,
+        )
+        runs.finalize_execution_if_complete(execution.id, finished_at=LATER)
+        runs.finalize_run_if_complete(execution.run_id, finished_at=LATER)
+        completed = runs.get_task_batch(batch.id)
+        assert completed is not None
+        assert completed.status is TaskBatchStatus.completed
+        assert completed.worker_provenance == seed_worker_provenance()
+    row = db_session.get(TaskBatchRow, batch.id)
+    assert row is not None
+    forged = {**seed_worker_provenance().model_dump(mode="json"), "hostname": "forged"}
+    _assert_database_rejects(
+        db_session,
+        lambda: setattr(row, "worker_provenance", forged),
+        sqlstate="55000",
+        message=(
+            "terminal task_batches rows are immutable"
+            if lifecycle == "completed"
+            else "task batch worker provenance"
+        ),
     )

@@ -8,6 +8,7 @@ import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useApiClient } from '@/composables/useApiClient'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
+import { useArtifactRouteContext } from '@/features/runs/useArtifactRouteContext'
 import { useStatusLabel } from '@/features/runs/useStatusLabel'
 
 import { downloadExport, saveDownload, type DownloadedExport } from './exportDownload'
@@ -22,7 +23,9 @@ const projectId = useRouteParam('projectId')
 const runId = useRouteParam('runId')
 const exportId = useRouteParam('exportId')
 
-const item = useExport(exportId, isSignedIn)
+const query = useExport(exportId, isSignedIn)
+const context = useArtifactRouteContext(exportId, query)
+const item = { ...query, ...context }
 const isCompleted = computed(() => isSignedIn.value && item.data.value?.status === 'completed')
 const manifest = useExportManifest(exportId, isCompleted)
 
@@ -51,17 +54,42 @@ watch(
     [
       session.principalRevision,
       exportId.value,
+      projectId.value,
+      runId.value,
+      context.valid.value,
+      context.isError.value,
       session.canUsePrivateNavigation,
       item.error.value,
       manifest.error.value,
     ] as const,
-  ([revision, resourceId, canRead, itemError, manifestError], previous) => {
+  (
+    [
+      revision,
+      resourceId,
+      routeProject,
+      routeRun,
+      valid,
+      invalid,
+      canRead,
+      itemError,
+      manifestError,
+    ],
+    previous,
+  ) => {
     const denied = [itemError, manifestError].some(
       (error) => error instanceof ApiError && [401, 403, 404].includes(error.status ?? 0),
     )
-    if (denied || (previous && (previous[0] !== revision || previous[1] !== resourceId)))
+    if (
+      denied ||
+      invalid ||
+      (previous &&
+        (previous[0] !== revision ||
+          previous[1] !== resourceId ||
+          previous[2] !== routeProject ||
+          previous[3] !== routeRun))
+    )
       clearDownload()
-    else if (!canRead) abortDownload()
+    else if (!valid || !canRead) abortDownload()
   },
   { flush: 'sync' },
 )
@@ -69,8 +97,12 @@ onScopeDispose(clearDownload)
 
 async function download(): Promise<void> {
   const current = item.data.value
-  if (!current || downloading.value || !session.canUsePrivateNavigation) return
+  if (!current || !isCompleted.value || downloading.value || !session.canUsePrivateNavigation)
+    return
   const principalRevision = session.principalRevision
+  const routeProject = projectId.value
+  const routeRun = runId.value
+  const snapshotId = context.snapshotId.value
   const controller = new AbortController()
   downloadController = controller
   const ownsDownload = () =>
@@ -78,6 +110,10 @@ async function download(): Promise<void> {
     !controller.signal.aborted &&
     session.principalRevision === principalRevision &&
     session.canUsePrivateNavigation &&
+    context.valid.value &&
+    projectId.value === routeProject &&
+    runId.value === routeRun &&
+    context.snapshotId.value === snapshotId &&
     exportId.value === current.id &&
     item.data.value?.id === current.id
   downloading.value = true
@@ -133,7 +169,7 @@ const verdict = computed<Verdict>(() => {
 <template>
   <main class="export-detail app-page-frame">
     <RouterLink
-      v-if="isSignedIn"
+      v-if="context.valid.value"
       class="export-detail-back"
       :to="{ name: 'exports', params: { projectId, runId } }"
     >

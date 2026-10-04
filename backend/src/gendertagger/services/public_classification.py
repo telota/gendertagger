@@ -5,7 +5,6 @@ import hmac
 import secrets
 from collections.abc import Callable
 from datetime import timedelta
-from importlib.metadata import distributions
 from threading import Event, Thread
 from uuid import UUID, uuid4
 
@@ -39,6 +38,7 @@ from gendertagger.services.method_registry import MethodRegistry
 from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
 from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 from gendertagger.services.runs import RunProvenance
+from gendertagger.services.runtime_provenance import installed_dependency_versions
 
 _PRIVATE_CONFIG_FIELDS = frozenset(
     {
@@ -65,16 +65,6 @@ class PublicMethodUnavailableError(ValueError):
 
 class PublicClassificationUnavailableError(RuntimeError):
     """Deployment-owned configuration or assets cannot serve anonymous classification."""
-
-
-def installed_dependency_versions() -> dict[str, str]:
-    """Record the exact installed distribution environment in deterministic name order."""
-    return dict(
-        sorted(
-            (distribution.metadata["Name"].lower(), distribution.version)
-            for distribution in distributions()
-        )
-    )
 
 
 def _public_value(value: JsonValue) -> JsonValue:

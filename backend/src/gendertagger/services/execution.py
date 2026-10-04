@@ -3,6 +3,9 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
+from hashlib import file_digest
+from os import fstat
+from pathlib import Path
 from typing import Any
 from uuid import UUID
 
@@ -13,6 +16,9 @@ from gendertagger.methods.base import (
     MethodDependencyError,
     validate_prediction_batch,
 )
+from gendertagger.methods.model_manifest import ModelDirectoryResolver
+from gendertagger.methods.sqlite_lookup import LookupAssetResolver
+from gendertagger.models.artifact import ModelManifestMetadata
 from gendertagger.models.classification import PredictionResult, PredictionStatus
 from gendertagger.models.common import canonical_json_sha256
 from gendertagger.models.dispatch import BatchDispatchCreate
@@ -25,8 +31,9 @@ from gendertagger.models.run import (
     Run,
     TaskBatch,
     TaskBatchMessage,
+    WorkerProvenance,
 )
-from gendertagger.services.method_registry import MethodRegistry
+from gendertagger.services.method_registry import MethodRegistration, MethodRegistry
 from gendertagger.services.ports.artifact_repository import AmbiguousArtifactError
 from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
@@ -47,6 +54,24 @@ class TransientBatchError(RuntimeError):
 
 class PermanentBatchError(RuntimeError):
     """Raised when a batch fails for a non-retryable scientific or config reason."""
+
+
+class IncompatibleWorkerError(PermanentBatchError):
+    """Reject computation that cannot reproduce the accepted execution identity."""
+
+
+def _assert_file_identity(path: Path, *, sha256: str, byte_size: int) -> None:
+    """Verify the actual consumed file without exposing storage paths in diagnostics."""
+    try:
+        with path.open("rb") as source:
+            actual_byte_size = fstat(source.fileno()).st_size
+            actual_sha256 = file_digest(source, "sha256").hexdigest()
+    except OSError as error:
+        msg = "accepted method artifact is unavailable"
+        raise MethodDependencyError(msg) from error
+    if actual_sha256 != sha256 or actual_byte_size != byte_size:
+        msg = "method artifact bytes differ from the accepted checksum or size"
+        raise IncompatibleWorkerError(msg)
 
 
 def _sanitized_diagnostic(error: BaseException) -> str:
@@ -195,10 +220,16 @@ class BatchExecutor:
         unit_of_work_factory: UnitOfWorkFactory,
         method_registry: MethodRegistry,
         clock: Clock,
+        worker_provenance: WorkerProvenance,
+        lookup_asset_resolver: LookupAssetResolver | None = None,
+        model_directory_resolver: ModelDirectoryResolver | None = None,
     ) -> None:
         self._unit_of_work_factory = unit_of_work_factory
         self._method_registry = method_registry
         self._clock = clock
+        self._worker_provenance = worker_provenance
+        self._lookup_asset_resolver = lookup_asset_resolver
+        self._model_directory_resolver = model_directory_resolver
 
     def execute(
         self,
@@ -220,6 +251,7 @@ class BatchExecutor:
                 message.task_batch_id,
                 method_execution_id=message.method_execution_id,
                 worker_task_id=worker_task_id,
+                worker_provenance=self._worker_provenance,
                 started_at=self._clock(),
                 attempt_count=attempt_count,
             )
@@ -281,7 +313,15 @@ class BatchExecutor:
         if registration is None:
             msg = f"method {execution.method_name!r} is not registered"
             raise PermanentBatchError(msg)
+        self._verify_execution_identity(execution, run, registration)
         config: Any = registration.config_model.model_validate(execution.resolved_config)
+        if (
+            canonical_json_sha256(execution.resolved_config) != execution.config_sha256
+            or config.model_dump(mode="json") != execution.resolved_config
+        ):
+            msg = "method configuration differs from the accepted execution"
+            raise IncompatibleWorkerError(msg)
+        self._verify_pinned_assets(unit_of_work, execution, registration)
         records = unit_of_work.projects.list_person_records_slice(
             run.dataset_snapshot_id,
             offset=batch.record_offset,
@@ -311,6 +351,106 @@ class BatchExecutor:
         ]
         unit_of_work.runs.add_predictions(execution.id, writes)
         return results
+
+    def _verify_execution_identity(
+        self, execution: MethodExecution, run: Run, registration: MethodRegistration
+    ) -> None:
+        for field in ("implementation_version", "normalization_version"):
+            if getattr(execution, field) != getattr(registration.descriptor, field):
+                msg = f"method {field} differs from the accepted execution"
+                raise IncompatibleWorkerError(msg)
+        if not run.dependency_versions:
+            msg = "accepted run lacks exact dependency_versions evidence"
+            raise IncompatibleWorkerError(msg)
+        for field in (
+            "code_git_commit",
+            "application_version",
+            "python_version",
+            "dependency_lock_sha256",
+            "dependency_versions",
+            "container_image_digest",
+        ):
+            if getattr(run, field) != getattr(self._worker_provenance, field):
+                msg = f"worker {field} differs from the accepted run"
+                raise IncompatibleWorkerError(msg)
+
+    def _verify_pinned_assets(
+        self,
+        unit_of_work: UnitOfWork,
+        execution: MethodExecution,
+        registration: MethodRegistration,
+    ) -> None:
+        logical_type = registration.data_artifact_logical_type
+        if logical_type is None:
+            return
+        sha256 = execution.resolved_config.get("lookup_sha256")
+        artifact = (
+            unit_of_work.artifacts.get_artifact(execution.data_artifact_id)
+            if execution.data_artifact_id is not None
+            else None
+        )
+        if (
+            not isinstance(sha256, str)
+            or artifact is None
+            or artifact.logical_type != logical_type
+            or artifact.sha256 != sha256
+        ):
+            msg = "method artifact reference differs from the accepted configuration"
+            raise IncompatibleWorkerError(msg)
+        resolver = self._lookup_asset_resolver
+        if resolver is None:
+            msg = "worker method artifact resolver is not configured"
+            raise MethodDependencyError(msg)
+        path = resolver.materialize(logical_type, sha256)
+        _assert_file_identity(path, sha256=sha256, byte_size=artifact.byte_size)
+        if logical_type.endswith("_model_manifest"):
+            manifest = ModelManifestMetadata.model_validate_json(path.read_bytes())
+            self._verify_model_manifest(execution, logical_type, sha256, manifest)
+
+    def _verify_model_manifest(
+        self,
+        execution: MethodExecution,
+        logical_type: str,
+        sha256: str,
+        manifest: ModelManifestMetadata,
+    ) -> None:
+        if manifest.method_name != execution.method_name:
+            msg = "model manifest method differs from the accepted execution"
+            raise IncompatibleWorkerError(msg)
+        for field, actual in (
+            ("model_identifier", manifest.source_identifier),
+            ("model_revision", manifest.source_revision),
+            ("schema_version", manifest.model_schema_version),
+            ("model_checksum", sha256),
+        ):
+            expected = getattr(execution, field)
+            if expected is not None and expected != actual:
+                msg = f"model {field} differs from the accepted execution"
+                raise IncompatibleWorkerError(msg)
+        resolver = self._lookup_asset_resolver
+        directory_resolver = self._model_directory_resolver
+        if resolver is None or directory_resolver is None:
+            msg = "worker model resolvers are not configured"
+            raise MethodDependencyError(msg)
+        member_type = logical_type.removesuffix("_manifest") + "_file"
+        for member in manifest.members:
+            _assert_file_identity(
+                resolver.materialize(member_type, member.sha256),
+                sha256=member.sha256,
+                byte_size=member.byte_size,
+            )
+        directory = directory_resolver.materialize_directory(
+            manifest_logical_type=logical_type,
+            member_logical_type=member_type,
+            manifest_sha256=sha256,
+            expected_method_name=execution.method_name,
+        )
+        for member in manifest.members:
+            _assert_file_identity(
+                directory / member.relative_path,
+                sha256=member.sha256,
+                byte_size=member.byte_size,
+            )
 
     def _fail_batch(
         self,

@@ -9,6 +9,11 @@ import * as queryClients from '@/app/queryClient'
 import { useSessionStore } from '@/stores/session'
 
 import { mountApplicationAt } from '../helpers/render'
+import {
+  result as aggregationFixture,
+  run as runFixture,
+  snapshot as snapshotFixture,
+} from '../helpers/taskFixtures'
 import { waitFor } from '../helpers/wait'
 import seedReport from './evaluation/fixtures/seed-report.json'
 
@@ -140,10 +145,20 @@ interface Server {
   nextArtifact?: Promise<Response>
   nextDownload?: Promise<Response>
   requests: { account: Account; path: string }[]
+  responses: Record<string, unknown>
+  deferredResponses: Record<string, Promise<Response>>
+  downloadSignal?: AbortSignal
 }
 
 function newServer(): Server {
-  return { account: 'a', detailStatus: 200, artifactStatus: 200, requests: [] }
+  return {
+    account: 'a',
+    detailStatus: 200,
+    artifactStatus: 200,
+    requests: [],
+    responses: {},
+    deferredResponses: {},
+  }
 }
 
 function clientFor(server: Server) {
@@ -152,6 +167,13 @@ function clientFor(server: Server) {
       const { pathname } = new URL(request.url)
       const account = server.account
       server.requests.push({ account, path: pathname })
+      if (pathname.endsWith('/download')) server.downloadSignal = request.signal
+      const pending = server.deferredResponses[pathname]
+      if (pending) {
+        Reflect.deleteProperty(server.deferredResponses, pathname)
+        return pending
+      }
+      if (pathname in server.responses) return jsonResponse(server.responses[pathname])
       if (pathname === '/api/v1/branding') return jsonResponse({})
       if (pathname === '/api/v1/me') return jsonResponse(USERS[account])
       if (pathname === '/api/v1/auth/login') {
@@ -579,5 +601,261 @@ describe('export download state ownership in the mounted app', () => {
     expect(wrapper.get<HTMLInputElement>('#export-expected').element.value).toBe(outputSha('a'))
     expect(wrapper.get('.export-detail-result .export-detail-hash').text()).toBe(outputSha('a'))
     expect(saved).toHaveLength(1)
+  })
+})
+
+type DetailKind = ArtifactKind | 'aggregation'
+const OTHER_PROJECT_ID = 'b0000000-0000-0000-0000-000000000002'
+const OTHER_RUN_ID = 'd0000000-0000-0000-0000-000000000002'
+const OTHER_SNAPSHOT_ID = 'c0000000-0000-0000-0000-000000000002'
+const OTHER_RESOURCE_ID = 'e3000000-0000-0000-0000-000000000002'
+
+function screenPaths(
+  kind: DetailKind,
+  projectId = PROJECT_ID,
+  runId = RUN_ID,
+  resourceId = kind === 'export' ? EXPORT_ID : kind === 'evaluation' ? EVALUATION_ID : AGG_ID,
+) {
+  const plural = kind === 'aggregation' ? 'aggregations' : `${kind}s`
+  const apiDetail = `/api/v1/${plural}/${resourceId}`
+  return {
+    detail: `/projects/${projectId}/runs/${runId}/${plural}/${resourceId}`,
+    apiDetail,
+    artifact:
+      kind === 'aggregation' ? null : `${apiDetail}/${kind === 'export' ? 'manifest' : 'report'}`,
+  }
+}
+
+function screenResource(kind: DetailKind, id?: string) {
+  const value =
+    kind === 'aggregation'
+      ? aggregationFixture(AGG_ID, {
+          resolved_config: { source: 'private-a-provenance' },
+          method_execution_ids: [EXECUTION_ID],
+        })
+      : detail(kind, 'a')
+  return { ...value, id: id ?? value.id }
+}
+
+function expectNoDetail(wrapper: Application, kind: DetailKind): void {
+  const screen = wrapper.get(`.${kind}-detail`)
+  expect(screen.find(`.${kind}-detail-status`).exists()).toBe(false)
+  expect(screen.find(`.${kind}-detail-facts`).exists()).toBe(false)
+  expect(screen.find(`.${kind}-detail-back`).exists()).toBe(false)
+  expect(screen.find(`.${kind}-detail-aggregation`).exists()).toBe(false)
+  expect(screen.find(`.${kind}-detail-download`).exists()).toBe(false)
+  expect(screen.find('.aggregation-detail-actions, .provenance').exists()).toBe(false)
+  expect(screen.text()).not.toContain('private-a')
+}
+
+describe.each(['export', 'evaluation', 'aggregation'] as const)(
+  '%s canonical detail route context',
+  (kind) => {
+    it.each([
+      'project route',
+      'run route',
+      'resource response',
+      'run response',
+      'snapshot response',
+      'snapshot project',
+    ] as const)('rejects mismatched %s before exposing artifacts', async (mismatch) => {
+      const server = newServer()
+      const canonical = screenPaths(kind)
+      server.responses[canonical.apiDetail] = screenResource(kind)
+      let route = canonical.detail
+      if (mismatch === 'project route') {
+        route = screenPaths(kind, OTHER_PROJECT_ID).detail
+        server.responses[`/api/v1/projects/${OTHER_PROJECT_ID}`] = {
+          id: OTHER_PROJECT_ID,
+          display_name: 'Other project',
+          current_user_role: 'operator',
+        }
+      } else if (mismatch === 'run route') {
+        route = screenPaths(kind, PROJECT_ID, OTHER_RUN_ID).detail
+        server.responses[`/api/v1/runs/${OTHER_RUN_ID}`] = runFixture(OTHER_RUN_ID)
+      } else if (mismatch === 'resource response') {
+        server.responses[canonical.apiDetail] = screenResource(kind, OTHER_RESOURCE_ID)
+      } else if (mismatch === 'run response') {
+        server.responses[`/api/v1/runs/${RUN_ID}`] = runFixture(OTHER_RUN_ID)
+      } else if (mismatch === 'snapshot response') {
+        server.responses[`/api/v1/snapshots/${SNAPSHOT_ID}`] = snapshotFixture(OTHER_SNAPSHOT_ID)
+      } else {
+        server.responses[`/api/v1/snapshots/${SNAPSHOT_ID}`] = snapshotFixture(SNAPSHOT_ID, {
+          project_id: OTHER_PROJECT_ID,
+        })
+      }
+
+      const wrapper = await mountApplicationAt(route, 'en', clientFor(server))
+      await waitFor(() => expect(wrapper.find(`.${kind}-detail-retry`).exists()).toBe(true))
+      expectNoDetail(wrapper, kind)
+      if (canonical.artifact) {
+        expect(server.requests.some((request) => request.path === canonical.artifact)).toBe(false)
+      }
+      expect(server.requests.some((request) => request.path.endsWith('/download'))).toBe(false)
+    })
+
+    it('opens a fresh deep link only after canonical snapshot ownership resolves', async () => {
+      const server = newServer()
+      const route = screenPaths(kind)
+      server.responses[route.apiDetail] = screenResource(kind)
+      const pendingSnapshot = deferred<Response>()
+      server.deferredResponses[`/api/v1/snapshots/${SNAPSHOT_ID}`] = pendingSnapshot.promise
+      const wrapper = await mountApplicationAt(route.detail, 'en', clientFor(server))
+      await waitFor(() =>
+        expect(
+          server.requests.some((request) => request.path === `/api/v1/snapshots/${SNAPSHOT_ID}`),
+        ).toBe(true),
+      )
+      expectNoDetail(wrapper, kind)
+      if (route.artifact) {
+        expect(server.requests.some((request) => request.path === route.artifact)).toBe(false)
+      }
+
+      pendingSnapshot.resolve(jsonResponse(snapshotFixture()))
+      await waitFor(() => expect(wrapper.find(`.${kind}-detail-facts`).exists()).toBe(true))
+      expect(wrapper.get(`.${kind}-detail`).text()).toContain('private-a-provenance')
+      const target =
+        kind === 'aggregation'
+          ? `/projects/${PROJECT_ID}/snapshots/${SNAPSHOT_ID}/runs/${RUN_ID}`
+          : `/projects/${PROJECT_ID}/runs/${RUN_ID}/${kind}s`
+      expect(wrapper.get(`.${kind}-detail-back`).attributes('href')).toBe(target)
+      if (kind === 'aggregation') {
+        expect(wrapper.get('.aggregation-detail-review').attributes('href')).toBe(
+          `/projects/${PROJECT_ID}/runs/${RUN_ID}/aggregations/${AGG_ID}/review`,
+        )
+        expect(wrapper.get('.provenance-fact[data-key="codeCommit"]').text()).toContain('abc')
+      } else {
+        await expectArtifact(wrapper, kind, 'a')
+        expect(wrapper.get(`.${kind}-detail-aggregation`).attributes('href')).toBe(
+          `/projects/${PROJECT_ID}/runs/${RUN_ID}/aggregations/${AGG_ID}`,
+        )
+        expect(wrapper.find(`.${kind}-detail-download`).exists()).toBe(true)
+      }
+    })
+
+    it('cannot revive a stale detail response after rapid resource navigation', async () => {
+      const server = newServer()
+      const first = screenPaths(kind)
+      const second = screenPaths(kind, PROJECT_ID, RUN_ID, OTHER_RESOURCE_ID)
+      const pending = deferred<Response>()
+      server.deferredResponses[first.apiDetail] = pending.promise
+      server.responses[second.apiDetail] = {
+        ...screenResource(kind, OTHER_RESOURCE_ID),
+        run_id: OTHER_RUN_ID,
+      }
+      const wrapper = await mountApplicationAt(first.detail, 'en', clientFor(server))
+      await waitFor(() =>
+        expect(server.requests.some((request) => request.path === first.apiDetail)).toBe(true),
+      )
+
+      await wrapper.vm.$router.push(second.detail)
+      await waitFor(() => expect(wrapper.find(`.${kind}-detail-retry`).exists()).toBe(true))
+      pending.resolve(jsonResponse(screenResource(kind)))
+      await flushPromises()
+
+      expectNoDetail(wrapper, kind)
+      expect(wrapper.vm.$route.fullPath).toBe(second.detail)
+      expect(server.requests.some((request) => request.path === second.artifact)).toBe(false)
+    })
+
+    it('hides evidence when only the project or run route changes', async () => {
+      const server = newServer()
+      const route = screenPaths(kind)
+      server.responses[route.apiDetail] = screenResource(kind)
+      server.responses[`/api/v1/projects/${OTHER_PROJECT_ID}`] = {
+        id: OTHER_PROJECT_ID,
+        display_name: 'Other project',
+        current_user_role: 'operator',
+      }
+      server.responses[`/api/v1/runs/${OTHER_RUN_ID}`] = runFixture(OTHER_RUN_ID)
+      const wrapper = await mountApplicationAt(route.detail, 'en', clientFor(server))
+      await waitFor(() => expect(wrapper.find(`.${kind}-detail-facts`).exists()).toBe(true))
+      if (kind !== 'aggregation') await expectArtifact(wrapper, kind, 'a')
+      const mountedScreen = wrapper.get(`.${kind}-detail`).element
+
+      await wrapper.vm.$router.push(screenPaths(kind, OTHER_PROJECT_ID).detail)
+      await flushPromises()
+      expect(wrapper.get(`.${kind}-detail`).element).toBe(mountedScreen)
+      expectNoDetail(wrapper, kind)
+      await wrapper.vm.$router.push(screenPaths(kind, PROJECT_ID, OTHER_RUN_ID).detail)
+      await flushPromises()
+      expectNoDetail(wrapper, kind)
+    })
+  },
+)
+
+describe.each(['export', 'evaluation'] as const)('%s late artifact route ownership', (kind) => {
+  it('does not render a late manifest or report beneath an invalidated project context', async () => {
+    const server = newServer()
+    const route = screenPaths(kind)
+    const pending = deferred<Response>()
+    server.nextArtifact = pending.promise
+    server.responses[`/api/v1/projects/${OTHER_PROJECT_ID}`] = {
+      id: OTHER_PROJECT_ID,
+      current_user_role: 'operator',
+    }
+    const { wrapper } = await mountArtifact(kind, server)
+    await waitFor(() =>
+      expect(server.requests.some((request) => request.path === route.artifact)).toBe(true),
+    )
+    await wrapper.vm.$router.push(screenPaths(kind, OTHER_PROJECT_ID).detail)
+    pending.resolve(jsonResponse(artifact(kind, 'a')))
+    await flushPromises()
+
+    expectNoDetail(wrapper, kind)
+  })
+})
+
+describe('export asynchronous route ownership', () => {
+  it.each(['project', 'run', 'resource'] as const)(
+    'aborts an in-flight download on a changed %s and never saves a late response',
+    async (change) => {
+      const server = newServer()
+      const pending = deferred<Response>()
+      server.nextDownload = pending.promise
+      const { wrapper } = await mountArtifact('export', server)
+      await expectArtifact(wrapper, 'export', 'a')
+      await wrapper.get('.export-detail-download').trigger('click')
+      await waitFor(() => expect(server.downloadSignal).toBeDefined())
+      const signal = server.downloadSignal
+      const destination =
+        change === 'project'
+          ? screenPaths('export', OTHER_PROJECT_ID).detail
+          : change === 'run'
+            ? screenPaths('export', PROJECT_ID, OTHER_RUN_ID).detail
+            : screenPaths('export', PROJECT_ID, RUN_ID, OTHER_RESOURCE_ID).detail
+      await wrapper.vm.$router.push(destination)
+      expect(signal?.aborted).toBe(true)
+      pending.resolve(
+        new Response(output('a'), { headers: { 'content-type': 'application/tei+xml' } }),
+      )
+      await flushPromises()
+
+      expect(saved).toEqual([])
+      expect(wrapper.find('.export-detail-result').exists()).toBe(false)
+      expect(wrapper.find('#export-expected').exists()).toBe(false)
+    },
+  )
+
+  it('drops checksum results after leaving and returning to the valid context', async () => {
+    const server = newServer()
+    const digest = deferred<ArrayBuffer>()
+    const digestStarted = vi.fn(() => digest.promise)
+    vi.stubGlobal('crypto', { subtle: { digest: digestStarted } })
+    const { wrapper } = await mountArtifact('export', server)
+    await expectArtifact(wrapper, 'export', 'a')
+    await wrapper.get('.export-detail-download').trigger('click')
+    await waitFor(() => expect(digestStarted).toHaveBeenCalledOnce())
+
+    await wrapper.vm.$router.push(screenPaths('export', PROJECT_ID, OTHER_RUN_ID).detail)
+    await flushPromises()
+    await wrapper.vm.$router.push(paths('export').detail)
+    await expectArtifact(wrapper, 'export', 'a')
+    digest.resolve(new Uint8Array(32).buffer)
+    await flushPromises()
+
+    expect(saved).toEqual([])
+    expect(wrapper.find('.export-detail-result').exists()).toBe(false)
+    expect(wrapper.find('#export-expected').exists()).toBe(false)
   })
 })
