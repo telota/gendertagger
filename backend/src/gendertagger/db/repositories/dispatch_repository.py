@@ -2,12 +2,12 @@
 
 from collections.abc import Sequence
 from datetime import datetime
-from typing import cast, overload
+from typing import TypedDict, cast, overload
 from uuid import UUID, uuid4
 
 from sqlalchemy import Table, literal, or_, select, union_all
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from gendertagger.db.rows.aggregations import AggregationExecutionRow
 from gendertagger.db.rows.dispatches import DispatchOutboxRow
@@ -79,6 +79,22 @@ _LEASE_OWNER_MAX_LENGTH = 255
 _STALE_REARM_DIAGNOSTIC = "published dispatch was not claimed before reconciliation timeout"
 
 
+class _DispatchOperationalFields(TypedDict):
+    """Typed delivery-state projection shared by the six dispatch read contracts."""
+
+    id: UUID
+    queue_name: str
+    status: DispatchStatus
+    attempt_count: int
+    available_at: datetime
+    lease_owner: str | None
+    lease_until: datetime | None
+    published_at: datetime | None
+    last_error: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
 class SqlAlchemyDispatchRepository:
     """Map dispatch contracts to rows within a caller-owned SQLAlchemy session."""
 
@@ -140,29 +156,11 @@ class SqlAlchemyDispatchRepository:
         if command.queue_name != job.queue_name:
             msg = "public classification dispatch queue must match its persisted job queue"
             raise InvalidResourceStateError(msg)
-        dispatch_table = cast(Table, DispatchOutboxRow.__table__)
-        self._session.execute(
-            insert(dispatch_table)
-            .values(
-                id=uuid4(),
-                classification_job_id=command.classification_job_id,
-                queue_name=command.queue_name,
-                payload=command.payload.model_dump(mode="json"),
-                status=DispatchStatus.pending,
-                attempt_count=0,
-                available_at=command.available_at,
-            )
-            .on_conflict_do_nothing(constraint="classification_job_single_dispatch")
+        dispatch = self._persist_dispatch(
+            command,
+            target_column=DispatchOutboxRow.classification_job_id,
+            conflict_constraint="classification_job_single_dispatch",
         )
-        self._session.flush()
-        row = self._session.scalar(
-            select(DispatchOutboxRow).where(DispatchOutboxRow.classification_job_id == job.id)
-        )
-        if row is None:  # pragma: no cover - insert/select in one transaction.
-            msg = f"dispatch for classification job {job.id} could not be persisted"
-            raise RuntimeError(msg)
-        self._require_matching_intent(row, command)
-        dispatch = self._dispatch_from_row(row)
         if not isinstance(dispatch, PublicClassificationDispatch):  # pragma: no cover - invariant.
             msg = f"dispatch for classification job {job.id} has the wrong target type"
             raise RuntimeError(msg)
@@ -183,38 +181,11 @@ class SqlAlchemyDispatchRepository:
             msg = "dispatch payload method_execution_id must own its task batch"
             raise InvalidResourceStateError(msg)
 
-        dispatch_table = cast(Table, DispatchOutboxRow.__table__)
-        statement = (
-            insert(dispatch_table)
-            .values(
-                id=uuid4(),
-                task_batch_id=command.task_batch_id,
-                aggregation_execution_id=None,
-                dataset_snapshot_id=None,
-                evaluation_execution_id=None,
-                export_execution_id=None,
-                queue_name=command.queue_name,
-                payload=command.payload.model_dump(mode="json"),
-                status=DispatchStatus.pending,
-                attempt_count=0,
-                available_at=command.available_at,
-                lease_owner=None,
-                lease_until=None,
-                published_at=None,
-                last_error=None,
-            )
-            .on_conflict_do_nothing(constraint="task_batch_single_dispatch")
+        dispatch = self._persist_dispatch(
+            command,
+            target_column=DispatchOutboxRow.task_batch_id,
+            conflict_constraint="task_batch_single_dispatch",
         )
-        self._session.execute(statement)
-        self._session.flush()
-        row = self._session.scalar(
-            select(DispatchOutboxRow).where(DispatchOutboxRow.task_batch_id == batch.id)
-        )
-        if row is None:  # pragma: no cover - guarded by insert/select in one transaction.
-            msg = f"dispatch for task batch {batch.id} could not be persisted"
-            raise RuntimeError(msg)
-        self._require_matching_intent(row, command)
-        dispatch = self._dispatch_from_row(row)
         if not isinstance(dispatch, BatchDispatch):  # pragma: no cover - database invariant.
             msg = f"dispatch for task batch {batch.id} has the wrong target type"
             raise RuntimeError(msg)
@@ -241,40 +212,11 @@ class SqlAlchemyDispatchRepository:
             msg = f"aggregation dispatches must use the {CPU_QUEUE} queue"
             raise InvalidResourceStateError(msg)
 
-        dispatch_table = cast(Table, DispatchOutboxRow.__table__)
-        statement = (
-            insert(dispatch_table)
-            .values(
-                id=uuid4(),
-                task_batch_id=None,
-                aggregation_execution_id=command.aggregation_execution_id,
-                dataset_snapshot_id=None,
-                evaluation_execution_id=None,
-                export_execution_id=None,
-                queue_name=command.queue_name,
-                payload=command.payload.model_dump(mode="json"),
-                status=DispatchStatus.pending,
-                attempt_count=0,
-                available_at=command.available_at,
-                lease_owner=None,
-                lease_until=None,
-                published_at=None,
-                last_error=None,
-            )
-            .on_conflict_do_nothing(constraint="aggregation_execution_single_dispatch")
+        dispatch = self._persist_dispatch(
+            command,
+            target_column=DispatchOutboxRow.aggregation_execution_id,
+            conflict_constraint="aggregation_execution_single_dispatch",
         )
-        self._session.execute(statement)
-        self._session.flush()
-        row = self._session.scalar(
-            select(DispatchOutboxRow).where(
-                DispatchOutboxRow.aggregation_execution_id == aggregation.id
-            )
-        )
-        if row is None:  # pragma: no cover - guarded by insert/select in one transaction.
-            msg = f"dispatch for aggregation execution {aggregation.id} could not be persisted"
-            raise RuntimeError(msg)
-        self._require_matching_intent(row, command)
-        dispatch = self._dispatch_from_row(row)
         if not isinstance(
             dispatch,
             AggregationDispatch,
@@ -298,38 +240,11 @@ class SqlAlchemyDispatchRepository:
             msg = f"snapshot import dispatches must use the {CPU_QUEUE} queue"
             raise InvalidResourceStateError(msg)
 
-        dispatch_table = cast(Table, DispatchOutboxRow.__table__)
-        statement = (
-            insert(dispatch_table)
-            .values(
-                id=uuid4(),
-                task_batch_id=None,
-                aggregation_execution_id=None,
-                dataset_snapshot_id=command.dataset_snapshot_id,
-                evaluation_execution_id=None,
-                export_execution_id=None,
-                queue_name=command.queue_name,
-                payload=command.payload.model_dump(mode="json"),
-                status=DispatchStatus.pending,
-                attempt_count=0,
-                available_at=command.available_at,
-                lease_owner=None,
-                lease_until=None,
-                published_at=None,
-                last_error=None,
-            )
-            .on_conflict_do_nothing(constraint="dataset_snapshot_single_dispatch")
+        dispatch = self._persist_dispatch(
+            command,
+            target_column=DispatchOutboxRow.dataset_snapshot_id,
+            conflict_constraint="dataset_snapshot_single_dispatch",
         )
-        self._session.execute(statement)
-        self._session.flush()
-        row = self._session.scalar(
-            select(DispatchOutboxRow).where(DispatchOutboxRow.dataset_snapshot_id == snapshot.id)
-        )
-        if row is None:  # pragma: no cover - guarded by insert/select in one transaction.
-            msg = f"dispatch for dataset snapshot {snapshot.id} could not be persisted"
-            raise RuntimeError(msg)
-        self._require_matching_intent(row, command)
-        dispatch = self._dispatch_from_row(row)
         if not isinstance(dispatch, SnapshotDispatch):  # pragma: no cover - database invariant.
             msg = f"dispatch for dataset snapshot {snapshot.id} has the wrong target type"
             raise RuntimeError(msg)
@@ -355,40 +270,11 @@ class SqlAlchemyDispatchRepository:
             msg = f"evaluation dispatches must use the {CPU_QUEUE} queue"
             raise InvalidResourceStateError(msg)
 
-        dispatch_table = cast(Table, DispatchOutboxRow.__table__)
-        statement = (
-            insert(dispatch_table)
-            .values(
-                id=uuid4(),
-                task_batch_id=None,
-                aggregation_execution_id=None,
-                dataset_snapshot_id=None,
-                evaluation_execution_id=command.evaluation_execution_id,
-                export_execution_id=None,
-                queue_name=command.queue_name,
-                payload=command.payload.model_dump(mode="json"),
-                status=DispatchStatus.pending,
-                attempt_count=0,
-                available_at=command.available_at,
-                lease_owner=None,
-                lease_until=None,
-                published_at=None,
-                last_error=None,
-            )
-            .on_conflict_do_nothing(constraint="evaluation_execution_single_dispatch")
+        dispatch = self._persist_dispatch(
+            command,
+            target_column=DispatchOutboxRow.evaluation_execution_id,
+            conflict_constraint="evaluation_execution_single_dispatch",
         )
-        self._session.execute(statement)
-        self._session.flush()
-        row = self._session.scalar(
-            select(DispatchOutboxRow).where(
-                DispatchOutboxRow.evaluation_execution_id == evaluation.id
-            )
-        )
-        if row is None:  # pragma: no cover - guarded by insert/select in one transaction.
-            msg = f"dispatch for evaluation execution {evaluation.id} could not be persisted"
-            raise RuntimeError(msg)
-        self._require_matching_intent(row, command)
-        dispatch = self._dispatch_from_row(row)
         if not isinstance(dispatch, EvaluationDispatch):  # pragma: no cover - database invariant.
             msg = f"dispatch for evaluation execution {evaluation.id} has the wrong target type"
             raise RuntimeError(msg)
@@ -409,16 +295,30 @@ class SqlAlchemyDispatchRepository:
             msg = f"export dispatches must use the {CPU_QUEUE} queue"
             raise InvalidResourceStateError(msg)
 
+        dispatch = self._persist_dispatch(
+            command,
+            target_column=DispatchOutboxRow.export_execution_id,
+            conflict_constraint="export_execution_single_dispatch",
+        )
+        if not isinstance(dispatch, ExportDispatch):  # pragma: no cover - database invariant.
+            msg = f"dispatch for export {export.id} has the wrong target type"
+            raise RuntimeError(msg)
+        return dispatch
+
+    def _persist_dispatch(
+        self,
+        command: DispatchCreate,
+        *,
+        target_column: InstrumentedAttribute[UUID | None],
+        conflict_constraint: str,
+    ) -> Dispatch:
+        """Insert or retrieve an exact intent without resetting its delivery state."""
         dispatch_table = cast(Table, DispatchOutboxRow.__table__)
         statement = (
             insert(dispatch_table)
+            .values({target_column: command.target_id})
             .values(
                 id=uuid4(),
-                task_batch_id=None,
-                aggregation_execution_id=None,
-                dataset_snapshot_id=None,
-                evaluation_execution_id=None,
-                export_execution_id=command.export_execution_id,
                 queue_name=command.queue_name,
                 payload=command.payload.model_dump(mode="json"),
                 status=DispatchStatus.pending,
@@ -429,22 +329,17 @@ class SqlAlchemyDispatchRepository:
                 published_at=None,
                 last_error=None,
             )
-            .on_conflict_do_nothing(constraint="export_execution_single_dispatch")
+            .on_conflict_do_nothing(constraint=conflict_constraint)
         )
         self._session.execute(statement)
         self._session.flush()
         row = self._session.scalar(
-            select(DispatchOutboxRow).where(DispatchOutboxRow.export_execution_id == export.id)
+            select(DispatchOutboxRow).where(target_column == command.target_id)
         )
         if row is None:  # pragma: no cover - guarded by insert/select in one transaction.
-            msg = f"dispatch for export {export.id} could not be persisted"
+            msg = f"dispatch for {command.target.value} {command.target_id} could not be persisted"
             raise RuntimeError(msg)
-        self._require_matching_intent(row, command)
-        dispatch = self._dispatch_from_row(row)
-        if not isinstance(dispatch, ExportDispatch):  # pragma: no cover - database invariant.
-            msg = f"dispatch for export {export.id} has the wrong target type"
-            raise RuntimeError(msg)
-        return dispatch
+        return self._require_matching_intent(row, command)
 
     def get_dispatch(self, dispatch_id: UUID) -> Dispatch | None:
         """Return a dispatch contract by ID without exposing its row."""
@@ -1140,7 +1035,8 @@ class SqlAlchemyDispatchRepository:
     def _require_matching_intent(
         row: DispatchOutboxRow,
         command: DispatchCreate,
-    ) -> None:
+    ) -> Dispatch:
+        """Match immutable intent; availability belongs to mutable delivery state."""
         persisted = SqlAlchemyDispatchRepository._dispatch_from_row(row)
         if (
             persisted.target != command.target
@@ -1150,6 +1046,7 @@ class SqlAlchemyDispatchRepository:
         ):
             msg = f"{command.target.value} {command.target_id} has a different dispatch intent"
             raise InvalidResourceStateError(msg)
+        return persisted
 
     @staticmethod
     def _validate_lease_owner(lease_owner: str) -> str:
@@ -1169,6 +1066,19 @@ class SqlAlchemyDispatchRepository:
 
     @staticmethod
     def _dispatch_from_row(row: DispatchOutboxRow) -> Dispatch:
+        operational_fields: _DispatchOperationalFields = {
+            "id": row.id,
+            "queue_name": row.queue_name,
+            "status": row.status,
+            "attempt_count": row.attempt_count,
+            "available_at": row.available_at,
+            "lease_owner": row.lease_owner,
+            "lease_until": row.lease_until,
+            "published_at": row.published_at,
+            "last_error": row.last_error,
+            "created_at": row.created_at,
+            "updated_at": row.updated_at,
+        }
         if (
             row.task_batch_id is not None
             and row.aggregation_execution_id is None
@@ -1178,19 +1088,9 @@ class SqlAlchemyDispatchRepository:
             and row.classification_job_id is None
         ):
             return BatchDispatch(
-                id=row.id,
                 task_batch_id=row.task_batch_id,
-                queue_name=row.queue_name,
                 payload=TaskBatchMessage.model_validate(row.payload),
-                status=row.status,
-                attempt_count=row.attempt_count,
-                available_at=row.available_at,
-                lease_owner=row.lease_owner,
-                lease_until=row.lease_until,
-                published_at=row.published_at,
-                last_error=row.last_error,
-                created_at=row.created_at,
-                updated_at=row.updated_at,
+                **operational_fields,
             )
         if (
             row.aggregation_execution_id is not None
@@ -1201,19 +1101,9 @@ class SqlAlchemyDispatchRepository:
             and row.classification_job_id is None
         ):
             return AggregationDispatch(
-                id=row.id,
                 aggregation_execution_id=row.aggregation_execution_id,
-                queue_name=row.queue_name,
                 payload=AggregationTaskMessage.model_validate(row.payload),
-                status=row.status,
-                attempt_count=row.attempt_count,
-                available_at=row.available_at,
-                lease_owner=row.lease_owner,
-                lease_until=row.lease_until,
-                published_at=row.published_at,
-                last_error=row.last_error,
-                created_at=row.created_at,
-                updated_at=row.updated_at,
+                **operational_fields,
             )
         if (
             row.dataset_snapshot_id is not None
@@ -1224,19 +1114,9 @@ class SqlAlchemyDispatchRepository:
             and row.classification_job_id is None
         ):
             return SnapshotDispatch(
-                id=row.id,
                 dataset_snapshot_id=row.dataset_snapshot_id,
-                queue_name=row.queue_name,
                 payload=SnapshotImportTaskMessage.model_validate(row.payload),
-                status=row.status,
-                attempt_count=row.attempt_count,
-                available_at=row.available_at,
-                lease_owner=row.lease_owner,
-                lease_until=row.lease_until,
-                published_at=row.published_at,
-                last_error=row.last_error,
-                created_at=row.created_at,
-                updated_at=row.updated_at,
+                **operational_fields,
             )
         if (
             row.evaluation_execution_id is not None
@@ -1247,19 +1127,9 @@ class SqlAlchemyDispatchRepository:
             and row.classification_job_id is None
         ):
             return EvaluationDispatch(
-                id=row.id,
                 evaluation_execution_id=row.evaluation_execution_id,
-                queue_name=row.queue_name,
                 payload=EvaluationTaskMessage.model_validate(row.payload),
-                status=row.status,
-                attempt_count=row.attempt_count,
-                available_at=row.available_at,
-                lease_owner=row.lease_owner,
-                lease_until=row.lease_until,
-                published_at=row.published_at,
-                last_error=row.last_error,
-                created_at=row.created_at,
-                updated_at=row.updated_at,
+                **operational_fields,
             )
         if (
             row.export_execution_id is not None
@@ -1270,19 +1140,9 @@ class SqlAlchemyDispatchRepository:
             and row.classification_job_id is None
         ):
             return ExportDispatch(
-                id=row.id,
                 export_execution_id=row.export_execution_id,
-                queue_name=row.queue_name,
                 payload=ExportTaskMessage.model_validate(row.payload),
-                status=row.status,
-                attempt_count=row.attempt_count,
-                available_at=row.available_at,
-                lease_owner=row.lease_owner,
-                lease_until=row.lease_until,
-                published_at=row.published_at,
-                last_error=row.last_error,
-                created_at=row.created_at,
-                updated_at=row.updated_at,
+                **operational_fields,
             )
         if (
             row.classification_job_id is not None
@@ -1293,19 +1153,9 @@ class SqlAlchemyDispatchRepository:
             and row.export_execution_id is None
         ):
             return PublicClassificationDispatch(
-                id=row.id,
                 classification_job_id=row.classification_job_id,
-                queue_name=row.queue_name,
                 payload=PublicClassificationTaskMessage.model_validate(row.payload),
-                status=row.status,
-                attempt_count=row.attempt_count,
-                available_at=row.available_at,
-                lease_owner=row.lease_owner,
-                lease_until=row.lease_until,
-                published_at=row.published_at,
-                last_error=row.last_error,
-                created_at=row.created_at,
-                updated_at=row.updated_at,
+                **operational_fields,
             )
         msg = f"dispatch {row.id} does not reference exactly one work target"
         raise RuntimeError(msg)

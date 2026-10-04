@@ -947,7 +947,7 @@ Current remediation status is recorded below; the original review evidence remai
 | BQ-02 | P3 | Backend | Redundant helpers and dormant recovery/authentication surfaces remain | Helpers fixed; authentication extension decision deferred |
 | BQ-03 | P2 | Backend | Worker retry policy and infrastructure construction are copied | Fixed; shared process owner, retry windows, real-worker and fork/reset checks passed |
 | BQ-04 | P3 | Backend | Three executors repeat transaction, retry, and terminal-failure policy | Fixed; shared attempt policy with explicit resource transactions and passing lifecycle checks |
-| BQ-05 | P2 | Backend | Dispatch persistence repeats common intent handling and field projection | Open |
+| BQ-05 | P2 | Backend | Dispatch persistence repeats common intent handling and field projection | Fixed; six-target PostgreSQL insertion, replay, race, lease, and recovery checks passed |
 | BQ-06 | P3 | Backend | Historical runtime snapshot/configuration compatibility can be retired | Deferred; fingerprint representation and development-data reset need approval |
 | BQ-07 | P2 | Backend | The dead-code gate counts words rather than application reachability | Deferred; framework/protocol roots and exemption scope need a design decision |
 | FQ-01 | P2 | Frontend | Query keys, cursors, polling, and invalidation need shared ownership | Open |
@@ -1102,6 +1102,13 @@ repository. Coordinate public-job recovery with BQ-02.
 **Closure.** Common operational fields and intent behavior have one maintained path. PostgreSQL checks
 still cover every target, concurrent idempotent creation, mismatched intent, leases, missing/stale
 recovery, and target-specific invariants.
+
+**Remediation (2026-10-04).** Typed same-file helpers share conflict-ignore insertion, flush/retrieval,
+intent matching, and the operational-field projection across all six target variants. Target validation,
+envelopes, recovery candidates, queue selection, and lock/lease policy remain explicit. Six-kind
+PostgreSQL race/replay checks preserve immutable intent and operational timestamps/leases; the complete
+PostgreSQL and real Redis suites passed. Actual broker unavailability returned the claimed intent to
+pending with its lease cleared and next retry persisted.
 
 #### BQ-06: Remove runtime compatibility maintained only for old development state
 

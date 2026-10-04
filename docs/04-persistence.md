@@ -158,8 +158,9 @@ failed method executions and task batches.
 ## Transactional dispatch outbox
 
 Each outbox row belongs to exactly one durable work target: task batch, aggregation execution, dataset
-snapshot, evaluation execution, or export. Database and Pydantic constraints require one owner, one outbox row
-per target, and agreement among owner type, identifier-only payload, task name, and queue.
+snapshot, evaluation execution, export, or public classification job. Database and Pydantic constraints
+require one owner, one outbox row per target, and agreement among owner type, identifier-only payload,
+task name, and queue.
 
 The target and dispatch intent are created in the same transaction. Relay and reconciliation update delivery
 metadata without owning scientific state. Claims use row locking that permits concurrent workers while
@@ -167,6 +168,11 @@ preventing duplicate ownership; age alone never proves a worker stopped. See
 [ADR-0015](decisions/ADR-0015-transactional-batch-dispatch-outbox.md),
 [ADR-0016](decisions/ADR-0016-asynchronous-aggregation-outbox.md), and
 [ADR-0020](decisions/ADR-0020-asynchronous-snapshot-import-outbox.md).
+
+`DispatchRepository` keeps all six target-specific validation and typed envelope branches explicit.
+Same-file helpers centralize conflict-ignore insertion, flush/retrieval, immutable intent matching,
+and the common operational-field projection. Replaying an identical intent preserves its availability,
+delivery/lease state, timestamps, and diagnostics; scheduling is not part of immutable intent equality.
 
 ## Annotation history and review state
 

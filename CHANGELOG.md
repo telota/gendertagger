@@ -293,6 +293,8 @@ the phased plan that resumes application code.
   operation and heartbeat in a separate transaction scope.
 - Aggregation, evaluation, and export share positive attempt validation and retry-budget policy while
   keeping claims, rollback, terminal failure, and scientific/artifact completion explicit.
+- Dispatch persistence shares typed insertion, replay matching, and operational-field projection for
+  all six target variants without changing target validation, queue routing, lock order, or leases.
 
 - Evaluation-report downloads advertise the canonical Pydantic schema without reserializing immutable
   artifact bytes. Frontend report and export-manifest parsers use generated transport types and retain
