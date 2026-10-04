@@ -62,7 +62,3 @@ class PublicClassificationRepository(Protocol):
     ) -> bool:
         """Persist a sanitized terminal failure only for the current lease."""
         ...
-
-    def list_recoverable_jobs(self, *, now: datetime, limit: int) -> list[UUID]:
-        """Return queued or expired running job IDs in stable creation order."""
-        ...

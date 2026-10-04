@@ -152,20 +152,6 @@ class SqlAlchemyPublicClassificationRepository:
             raw_predictions=None,
         )
 
-    def list_recoverable_jobs(self, *, now: datetime, limit: int) -> list[UUID]:
-        """List queued and expired running jobs in stable creation order."""
-        if limit <= 0:
-            msg = "classification recovery limit must be positive"
-            raise ValueError(msg)
-        return list(
-            self._session.scalars(
-                select(PublicClassificationJobRow.id)
-                .where(self._recoverable_condition(normalize_utc_datetime(now)))
-                .order_by(PublicClassificationJobRow.created_at, PublicClassificationJobRow.id)
-                .limit(limit)
-            )
-        )
-
     def _finish_job(
         self,
         classification_job_id: UUID,

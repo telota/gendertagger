@@ -12,14 +12,11 @@ from typing import Any
 import pytest
 
 from gendertagger.ingestion.tabular import (
-    TABULAR_PERSON_PARSER_VERSION,
     TEI_EQUIVALENT_HEADERS,
-    TEI_EQUIVALENT_PERSON_REGISTER_PROFILE,
     TabularImportError,
     TabularImportPolicy,
     TabularSourceReadError,
     TeiEquivalentPersonRegisterParser,
-    version_for_profile,
 )
 from gendertagger.models.person import PersonEvent, PersonInput, PersonNameForm, PersonNameType
 
@@ -178,13 +175,6 @@ def _rewrite_zip_members(
 def _xlsx_member(source: bytes, name: str) -> bytes:
     with zipfile.ZipFile(io.BytesIO(source), mode="r") as archive:
         return archive.read(name)
-
-
-def test_version_for_profile_is_stable() -> None:
-    assert TEI_EQUIVALENT_PERSON_REGISTER_PROFILE.value == "tei_equivalent_person_register_v1"
-    assert (
-        version_for_profile(TEI_EQUIVALENT_PERSON_REGISTER_PROFILE) == TABULAR_PERSON_PARSER_VERSION
-    )
 
 
 def test_json_csv_and_xlsx_produce_equivalent_person_inputs() -> None:

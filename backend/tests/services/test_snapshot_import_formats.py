@@ -20,8 +20,7 @@ from uuid import UUID
 import pytest
 
 from gendertagger.ingestion.registry import version_for_snapshot_import
-from gendertagger.ingestion.tabular import TEI_EQUIVALENT_HEADERS
-from gendertagger.ingestion.tabular import version_for_profile as tabular_version_for_profile
+from gendertagger.ingestion.tabular import TABULAR_PERSON_PARSER_VERSION, TEI_EQUIVALENT_HEADERS
 from gendertagger.ingestion.tei import TeiPersonParser
 from gendertagger.models.artifact import Artifact
 from gendertagger.models.lifecycle import DatasetSnapshotStatus
@@ -65,7 +64,6 @@ LIMITS = SnapshotImportLimits(
 )
 TEI_PROFILE = TeiImportProfile.tei_p5_person_register
 TABULAR_PROFILE = TabularImportProfile.tei_equivalent_person_register_v1
-TABULAR_PARSER_VERSION = tabular_version_for_profile(TABULAR_PROFILE)
 
 # openpyxl ships no type information; the workbook fixture only uses its dynamic API.
 openpyxl: Any = importlib.import_module("openpyxl")
@@ -663,7 +661,7 @@ def test_json_csv_and_xlsx_imports_have_equivalent_person_projections_and_row_pr
         snapshot = _snapshot(
             primary,
             config=config,
-            parser_version=TABULAR_PARSER_VERSION,
+            parser_version=TABULAR_PERSON_PARSER_VERSION,
         )
         harness = _harness(snapshot, members=members, artifacts_by_id={primary.id: primary})
 
@@ -825,7 +823,7 @@ def test_single_tabular_source_uses_the_smaller_member_and_total_byte_limit(
         profile=TABULAR_PROFILE,
         limits=limits,
     )
-    snapshot = _snapshot(primary, config=config, parser_version=TABULAR_PARSER_VERSION)
+    snapshot = _snapshot(primary, config=config, parser_version=TABULAR_PERSON_PARSER_VERSION)
     harness = _harness(snapshot, members=(member,), artifacts_by_id={primary.id: primary})
 
     result = _executor(harness, storage).execute(
@@ -865,7 +863,7 @@ def test_persisted_cell_limit_is_enforced_as_utf8_bytes(tmp_path: Path) -> None:
         profile=TABULAR_PROFILE,
         limits=limits,
     )
-    snapshot = _snapshot(primary, config=config, parser_version=TABULAR_PARSER_VERSION)
+    snapshot = _snapshot(primary, config=config, parser_version=TABULAR_PERSON_PARSER_VERSION)
     harness = _harness(snapshot, members=(member,), artifacts_by_id={primary.id: primary})
 
     result = _executor(harness, storage).execute(

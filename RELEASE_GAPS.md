@@ -944,7 +944,7 @@ Current remediation status is recorded below; the original review evidence remai
 | ID | Priority | Area | Finding | Status |
 |---|---|---|---|---|
 | BQ-01 | P2 | Backend | Copied diagnostic formatters have inconsistent credential redaction | Fixed; shared formatter and persisted/API smoke verified |
-| BQ-02 | P3 | Backend | Redundant helpers and dormant recovery/authentication surfaces remain | Open; authentication extension decision deferred |
+| BQ-02 | P3 | Backend | Redundant helpers and dormant recovery/authentication surfaces remain | Helpers fixed; authentication extension decision deferred |
 | BQ-03 | P2 | Backend | Worker retry policy and infrastructure construction are copied | Open |
 | BQ-04 | P3 | Backend | Three executors repeat transaction, retry, and terminal-failure policy | Open |
 | BQ-05 | P2 | Backend | Dispatch persistence repeats common intent handling and field projection | Open |
@@ -1023,6 +1023,12 @@ history and the provider-neutral boundary.
 **Closure.** Every retained surface has an application consumer or an explicit tested extension purpose.
 Do not remove persistence assertion seams such as `get_dispatch` or `get_prediction`, framework
 callbacks, or development seeding operations solely because they lack ordinary application callers.
+
+**Remediation (2026-10-04).** The redundant tabular import-version mapper and repository/port recovery
+enumerator are removed. Tests use the canonical import registry and actual dispatch recovery/lease
+transitions. Real JSON, CSV, and XLSX imports completed through Celery with the canonical parser version;
+public-job missing-intent and expired-lease recovery completed without reopening immutable results.
+`RejectAllAuthenticationBackend` remains unchanged pending a supported-extension decision.
 
 #### BQ-03: Reuse worker retry policy and infrastructure ownership
 

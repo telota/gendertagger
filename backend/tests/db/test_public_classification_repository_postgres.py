@@ -176,8 +176,7 @@ def test_public_job_expired_lease_fences_previous_worker_and_failure_is_sanitize
     old_token, new_token = uuid4(), uuid4()
     expiry = NOW + timedelta(minutes=5)
     assert repository.claim_job(job.id, now=NOW, lease_until=expiry, lease_id=old_token)
-    assert repository.list_recoverable_jobs(now=NOW, limit=10) == []
-    assert repository.list_recoverable_jobs(now=expiry, limit=10) == [job.id]
+    assert repository.claim_job(job.id, now=NOW, lease_until=expiry, lease_id=uuid4()) is None
 
     reclaimed = repository.claim_job(
         job.id, now=expiry, lease_until=expiry + timedelta(minutes=5), lease_id=new_token
@@ -198,7 +197,12 @@ def test_public_job_expired_lease_fences_previous_worker_and_failure_is_sanitize
     assert failed.status is PublicClassificationStatus.failed
     assert failed.failure_code == "classification_failed"
     assert failed.raw_predictions is None
-    assert repository.list_recoverable_jobs(now=expiry, limit=10) == []
+    assert (
+        repository.claim_job(
+            job.id, now=expiry, lease_until=expiry + timedelta(minutes=1), lease_id=uuid4()
+        )
+        is None
+    )
 
 
 @pytest.mark.parametrize("field_name", ["names", "resolved_method_configs", "provenance"])
@@ -328,14 +332,12 @@ def test_public_job_dispatch_rejects_invalid_resource_state_queue_and_payload(
         dispatches.ensure_dispatch(_dispatch(job.id))
 
 
-def test_public_job_repository_rejects_invalid_lease_expiry_and_recovery_limit(
+def test_public_job_repository_rejects_invalid_lease_expiry(
     db_session: Session,
 ) -> None:
     repository = SqlAlchemyPublicClassificationRepository(db_session)
     with pytest.raises(ValueError, match="later than now"):
         repository.claim_job(uuid4(), now=NOW, lease_until=NOW, lease_id=uuid4())
-    with pytest.raises(ValueError, match="limit must be positive"):
-        repository.list_recoverable_jobs(now=NOW, limit=0)
 
 
 def test_public_job_heartbeat_extends_only_the_current_lease(db_session: Session) -> None:
@@ -349,7 +351,7 @@ def test_public_job_heartbeat_extends_only_the_current_lease(db_session: Session
     assert not repository.renew_job_lease(job.id, lease_id=uuid4(), lease_until=extended)
     assert repository.renew_job_lease(job.id, lease_id=lease_id, lease_until=extended)
 
-    assert repository.list_recoverable_jobs(now=expiry, limit=10) == []
+    assert repository.claim_job(job.id, now=expiry, lease_until=extended, lease_id=uuid4()) is None
     current = repository.get_job(job.id)
     assert current is not None
     assert current.lease_until == extended

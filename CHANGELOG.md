@@ -285,6 +285,10 @@ the phased plan that resumes application code.
   its snapshot-only filters and decisions.
 
 ### Fixed
+- Removed the redundant tabular import-version mapper and unused public-job recovery enumerator.
+  Canonical import registry and dispatch recovery remain the sole application paths; the documented
+  authentication-extension decision stays deferred.
+
 
 - Evaluation-report downloads advertise the canonical Pydantic schema without reserializing immutable
   artifact bytes. Frontend report and export-manifest parsers use generated transport types and retain

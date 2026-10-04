@@ -141,18 +141,6 @@ class _Workbook(Protocol):
     def close(self) -> None: ...
 
 
-def version_for_profile(profile: TabularImportProfile) -> str:
-    """Return the implementation version for one supported tabular profile."""
-    versions: dict[TabularImportProfile, str] = {
-        TEI_EQUIVALENT_PERSON_REGISTER_PROFILE: TABULAR_PERSON_PARSER_VERSION,
-    }
-    try:
-        return versions[profile]
-    except KeyError as error:
-        msg = f"unsupported tabular import profile {profile!r}"
-        raise ValueError(msg) from error
-
-
 class TeiEquivalentPersonRegisterParser:
     """Parse strict TEI-equivalent rows into canonical person inputs."""
 
