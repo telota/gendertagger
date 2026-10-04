@@ -79,6 +79,13 @@ as `no_gnd`; a corporate body emits `organisation`; a person emits the stable ma
 recognized; missing gender and other retained entity types emit `Unbekannt`. The exact source label, gender
 URI, preferred name, normalized and raw entity types, and source record status remain in raw output.
 
+GND implementation `gnd_v2` enforces entity-type precedence before using the compiled gender label:
+only `person` rows may produce male/female; all non-person/non-corporate rows produce `Unbekannt`
+even when the source supplies a recognized gender. The source gender remains in raw evidence.
+Normalization stays `gnd_v1`; configuration, lookup schema/compiler, and immutable snapshot bytes
+are unchanged, so no lookup recompilation or historical Prediction rewrite is needed. See
+[ADR-0046](decisions/ADR-0046-gnd-entity-type-precedence.md).
+
 
 Wiki-Gendersort candidate generation and native assignment follow the
 [compatible implementation specification](29-wiki-gendersort-compatibility.md) and

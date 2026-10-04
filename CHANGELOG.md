@@ -286,6 +286,16 @@ the phased plan that resumes application code.
 
 ### Fixed
 
+- GND implementation `gnd_v2` now gives entity type precedence over source gender: only persons
+  receive male/female labels, corporate bodies remain institutions, and all other authority types
+  remain substantive unknown even with explicit gender. Preserved source evidence and existing
+  snapshot bytes; normalization, configuration, and historical predictions are unchanged. Added
+  compiled-snapshot boundary regressions and [ADR-0046](docs/decisions/ADR-0046-gnd-entity-type-precedence.md).
+- Reconciled all ten entries in the [method adapter reference](docs/20-method-adapters-reference.md)
+  with their closed configurations, consumed inputs, token reductions, raw evidence, confidence,
+  versions, and artifact selection. Added schema-valid configuration examples, corrected NQG's
+  threshold and HF hard-label contracts, and documented the originally discovered GND discrepancy
+  without changing scientific implementations or regression expectations.
 - `PersonRecord.name_forms` is persisted as SQL `NULL` rather than JSON `null` when a snapshot profile
   captures no structured name forms. The JSONB column previously violated its own `name_forms_array` check
   constraint, which made every TEI-profile-v1 person insert fail.

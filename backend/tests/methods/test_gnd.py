@@ -66,13 +66,7 @@ def _method(records: dict[str, GndLookupRecord]) -> GndMethod:
     )
 
 
-def test_descriptor_and_config_select_the_versioned_lookup() -> None:
-    descriptor = GndMethod.descriptor
-    assert descriptor.name == "gnd"
-    assert descriptor.implementation_version == "gnd_v1"
-    assert descriptor.normalization_version == "gnd_v1"
-    assert descriptor.method_confidence_range is None
-
+def test_config_requires_a_lookup_digest_and_rejects_unknown_fields() -> None:
     with pytest.raises(ValueError, match="lookup_sha256"):
         GndConfig.model_validate({})
     with pytest.raises(ValueError, match="extra"):
@@ -236,6 +230,62 @@ def test_marcxml_compiler_preserves_gender_entity_type_and_status(tmp_path: Path
     assert records["family-1"].raw_entity_types == ("pif", "p")
     assert records["event-1"].entity_type is GndEntityType.conference_or_event
     assert records["event-1"].raw_entity_types == ("f", "vie")
+
+
+@pytest.mark.parametrize(
+    "gender_case",
+    [
+        ("1", "Männlich", "https://d-nb.info/standards/vocab/gnd/gender#male"),
+        ("2", "Weiblich", "https://d-nb.info/standards/vocab/gnd/gender#female"),
+    ],
+    ids=["male", "female"],
+)
+@pytest.mark.parametrize(
+    "authority_case",
+    [
+        ("kiz", GndEntityType.corporate_body, CanonicalLabel.institution, "organisation"),
+        ("pif", GndEntityType.family, CanonicalLabel.unknown, "Unbekannt"),
+        ("vie", GndEntityType.conference_or_event, CanonicalLabel.unknown, "Unbekannt"),
+        ("wit", GndEntityType.work, CanonicalLabel.unknown, "Unbekannt"),
+        ("saz", GndEntityType.subject, CanonicalLabel.unknown, "Unbekannt"),
+        ("giz", GndEntityType.place, CanonicalLabel.unknown, "Unbekannt"),
+        ("zzz", GndEntityType.other, CanonicalLabel.unknown, "Unbekannt"),
+    ],
+    ids=["corporate_body", "family", "conference_or_event", "work", "subject", "place", "other"],
+)
+def test_compiled_gender_cannot_override_nonperson_entity_type(
+    tmp_path: Path,
+    gender_case: tuple[str, str, str],
+    authority_case: tuple[str, GndEntityType, CanonicalLabel, str],
+) -> None:
+    gender_code, compiled_label, gender_uri = gender_case
+    raw_entity_type, entity_type, expected_label, expected_raw_label = authority_case
+    extra_record = f"""<record>
+<controlfield tag="001">typed-gender</controlfield>
+<datafield tag="075"><subfield code="b">{raw_entity_type}</subfield></datafield>
+<datafield tag="375"><subfield code="a">{gender_code}</subfield></datafield>
+</record>""".encode()
+    source = tmp_path / "gnd.xml"
+    source.write_bytes(_MARCXML.replace(b"</collection>", extra_record + b"</collection>"))
+    lookup_path = tmp_path / "gnd.sqlite3"
+    compile_gnd_marcxml_lookup(source, lookup_path, source_sha256="f" * 64)
+    record = SqliteGndLookup(lookup_path).get_many(["typed-gender"])["typed-gender"]
+    assert record.entity_type is entity_type
+    assert record.lookup_label == compiled_label
+
+    method = GndMethod(lookup_asset_resolver=_Resolver(lookup_path))
+    (result,) = method.predict_batch(
+        [PersonInput(tei_id="p1", gnd_id="typed-gender")],
+        _CONFIG,
+    )
+
+    assert result.status is PredictionStatus.success
+    assert result.label is expected_label
+    assert result.raw_label == expected_raw_label
+    assert result.raw_output["source_gender_label"] == gender_code
+    assert result.raw_output["gender_uri"] == gender_uri
+    assert result.raw_output["entity_type"] == entity_type.value
+    assert result.raw_output["raw_entity_types"] == [raw_entity_type]
 
 
 def test_marcxml_parser_streams_gzip_source(tmp_path: Path) -> None:

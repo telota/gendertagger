@@ -112,11 +112,11 @@ def _optional_text(value: object) -> str | None:
 
 
 class GndMethod:
-    """Classify records from local GND gender and entity-type evidence."""
+    """Classify GND authority records with entity-type precedence (ADR-0046)."""
 
     descriptor = MethodDescriptor(
         name="gnd",
-        implementation_version="gnd_v1",
+        implementation_version="gnd_v2",
         normalization_version=GND_NORMALIZATION.normalization_version,
     )
     config_model = GndConfig
@@ -164,11 +164,12 @@ class GndMethod:
                 },
             )
 
-        raw_label = (
-            "organisation"
-            if record.entity_type is GndEntityType.corporate_body
-            else record.lookup_label
-        )
+        if record.entity_type is GndEntityType.corporate_body:
+            raw_label = "organisation"
+        elif record.entity_type is GndEntityType.person:
+            raw_label = record.lookup_label
+        else:
+            raw_label = "Unbekannt"
         return normalize_raw_label(
             GND_NORMALIZATION,
             raw_label,

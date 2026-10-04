@@ -24,7 +24,7 @@ reviewed records; **release task** means work needed to establish publication re
 | RG-04 | P1 | Wiki-Gendersort publication rights and replacement provenance | Replacement verified; history/data decisions remain |
 | RG-05 | P1 | HIVOTO-trained model lacks an explicit redistribution/licensing decision | Decision needed |
 | RG-06 | P1 | Manuscript reports the wrong NQG threshold | Open |
-| RG-07 | P2 | Method reference contradicts implemented contracts | Open |
+| RG-07 | P2 | Method reference contradicts implemented contracts | Fixed; GND entity-type precedence restored |
 | RG-08 | P2 | Project workers accept outputs under stale execution provenance | Open; reproduced |
 | RG-09 | P2 | Technical classification errors remain cached after recovery | Open; reproduced |
 | RG-10 | P2 | CSV analysis exports preserve spreadsheet-active values | Open; reproduced |
@@ -207,21 +207,70 @@ and accepted ADR. Rebuild and visually inspect the manuscript; retain approved s
 
 ### RG-07: Reconcile the method reference with canonical contracts
 
-**Evidence.** [The method reference](docs/20-method-adapters-reference.md) advertises a nonexistent
-`GenderGuesserConfig.detector_type`, describes first-token-only behavior, and maps `unknown` to
-abstention. [The adapter](backend/src/gendertagger/methods/adapters/gender_guesser.py) has no such
-configuration parameter and classifies all tokens; [normalization](backend/src/gendertagger/methods/normalization.py)
-preserves a successful substantive `unknown`. The reference also omits NQG's threshold configuration
-and promises HF softmax `method_confidence` despite the implemented hard-label output contracts.
+**Original evidence.** [The method reference](docs/20-method-adapters-reference.md) advertised a
+nonexistent `GenderGuesserConfig.detector_type`, described first-token-only behavior, and mapped
+`unknown` to abstention. [The adapter](backend/src/gendertagger/methods/adapters/gender_guesser.py)
+accepts no such configuration parameter and classifies all tokens;
+[normalization](backend/src/gendertagger/methods/normalization.py) preserves a successful substantive
+`unknown`. The reference also omitted NQG's threshold configuration and promised HF softmax
+`method_confidence` despite the implemented hard-label output contracts.
 
-**Plan.** Review every method entry against its Pydantic configuration, descriptor, input selection,
-adapter, normalization profile, provenance, and accepted ADR. Correct examples and output claims.
-Use [the normative scientific specification](docs/07-methods-and-aggregation.md) to resolve differences;
-stop and resolve genuine specification conflicts rather than silently choosing a behavior.
+**Correction (2026-10-04).** Reviewed all ten entries against their Pydantic configuration,
+descriptor, inputs, adapter/backend, normalization, evidence, artifact provenance, and governing
+decisions. The reference now documents closed configuration examples, forenames-only input for
+name-based methods, six shared priority reducers versus the experimental XGBoost reduction, native
+Wiki labels and final no-name abstention, NQG's finite `(0, 0.5)` threshold/default `0.1`, HF argmax
+outputs without confidence, and the local LLM's response, confidence, error, and routing boundaries.
+The reference-only correction left scientific implementations, accepted ADRs, and golden regression
+expectations unchanged.
 
-**Closure.** Documented example configurations validate, claimed output fields match actual results,
-and `unknown`, `abstain`, `error`, raw evidence, and method-specific confidence stay distinct. The
-documentation policy passes; scientific regression expectations remain unchanged for prose corrections.
+**Verification.** All ten documented configuration examples validated against the registered
+Pydantic models. Live gender-guesser and NQG runs confirmed multi-token, recognized-name,
+unrecognized-name, and no-name outcomes. Probes verified the ten normalization profiles' distinct
+unknown/abstain/error results and retained raw evidence, plus the LLM's batch-level confidence-range
+failure for `1.1`.
+
+The focused locked Core run below passed **476 tests**, including adapter conformance,
+normalization, the paired scientific regressions, prediction/method contracts, and registry
+validation:
+
+```bash
+uv run --locked python scripts/run_tests.py core -- \
+  tests/methods tests/domain tests/contracts/test_method.py \
+  tests/contracts/test_prediction.py tests/services/test_method_registry.py -q
+```
+
+Documentation, contract-naming, package-initializer, dead-code, Ruff format/lint, mypy, Pyright,
+Import Linter, lockfile, package-build, and distribution checks passed. This is documentation-scoped
+verification, not RG-17's fixed-revision release pipeline. PostgreSQL/Redis workflows, provisioned
+HF-model inference, and a hosted LLM endpoint were not exercised.
+
+**GND implementation correction (2026-10-04).** The user subsequently authorized correcting the
+discovered conformance issue under
+[ADR-0046](docs/decisions/ADR-0046-gnd-entity-type-precedence.md). Implementation `gnd_v2` now uses
+recognized gender only for persons, preserves corporate-body institution classification, and emits
+`Unbekannt`/`success + unknown` for every other entity type regardless of source gender. The
+normalization profile, configuration, compiler/schema, immutable snapshots, and historical predictions
+are unchanged.
+
+The new compiled-snapshot regression failed before the fix on a male-coded family record. A runtime
+smoke after the fix confirmed that male-coded place and female-coded family records become unknown
+while retaining their gender evidence, snapshot bytes stay identical, and such records no longer
+override a pooled female decision. Person and corporate-body authority overrides and missing-ID/row
+abstention remain intact. This synthetic evidence does not establish affected production records.
+
+**GND correction verification.** The compiled-snapshot regression now passes all **14** combinations
+of recognized male/female gender with corporate bodies and the six other non-person entity families.
+The complete Backend profiles passed: **1,699 Core**, **290 PostgreSQL**, and **7 Redis** tests,
+including unchanged scientific golden expectations. Combined branch-inclusive coverage was
+**87.76%**, exceeding the 85% floor; normalization, reference aggregation, certainty assessment, and
+TEI projection each passed their 100% gates.
+
+Documentation, lockfile, naming, package-initializer, dead-code, Ruff format/lint, mypy, Pyright,
+Import Linter, package-build/distribution, and locked Python/npm dependency-audit checks passed.
+Alembic upgrade-to-head and drift checks passed against a newly created temporary database, which
+was removed afterward. This verifies the Backend correction in the changing workspace, not RG-17's
+fixed-publication-revision pipeline; frontend and provisioned HF/LLM inference were not exercised.
 
 ### RG-08: Reject incompatible project workers before producing predictions
 
