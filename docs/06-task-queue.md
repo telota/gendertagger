@@ -194,6 +194,11 @@ The six worker wrappers use `services/dispatch.py::jittered_exponential_retry_de
 base and sixty-second cap. Celery's zero-based retry count becomes a one-based delivery attempt; ordinary
 three-attempt budgets and the public job's five-retry budget remain unchanged.
 
+Aggregation, evaluation, and export share `services/execution_attempts.py::execution_attempt_may_retry`
+for positive one-based attempt validation and remaining retry budget. Each executor still owns its
+permanent-error taxonomy, claim/completion transaction, rollback, and fresh final-failure claim; this
+helper does not generalize scientific calculations or artifact handling into a pipeline.
+
 For snapshot imports, malformed or unsupported source content, an unsafe archive/workbook, an incompatible
 persisted profile, or a duplicate collection-wide `xml:id` is a permanent input failure. The complete import
 transaction rolls back before a fresh transaction records the failed lifecycle and sanitized diagnostic.

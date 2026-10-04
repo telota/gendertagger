@@ -16,6 +16,7 @@ from gendertagger.models.evaluation import (
 )
 from gendertagger.models.lifecycle import EvaluationExecutionStatus
 from gendertagger.services.diagnostics import sanitized_diagnostic
+from gendertagger.services.execution_attempts import execution_attempt_may_retry
 from gendertagger.services.ports.artifact_storage import ArtifactStorage
 from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
@@ -86,17 +87,12 @@ class EvaluationExecutor:
                 another attempt remains.
             ValueError: If attempt counts are not positive.
         """
-        if attempt_count <= 0:
-            msg = "attempt_count must be positive"
-            raise ValueError(msg)
-        if max_attempts <= 0:
-            msg = "max_attempts must be positive"
-            raise ValueError(msg)
+        may_retry = execution_attempt_may_retry(attempt_count, max_attempts)
 
         try:
             return self._execute_once(message)
         except Exception as error:
-            if attempt_count < max_attempts:
+            if may_retry:
                 msg = (
                     f"evaluation {message.evaluation_execution_id} failed "
                     f"on attempt {attempt_count}"

@@ -291,6 +291,8 @@ the phased plan that resumes application code.
 - Worker task families share one lazy process-owned pool/resource context and the existing bounded
   jitter policy. Fork/reset/shutdown preserve parent connections, reject stale owners, and keep each
   operation and heartbeat in a separate transaction scope.
+- Aggregation, evaluation, and export share positive attempt validation and retry-budget policy while
+  keeping claims, rollback, terminal failure, and scientific/artifact completion explicit.
 
 - Evaluation-report downloads advertise the canonical Pydantic schema without reserializing immutable
   artifact bytes. Frontend report and export-manifest parsers use generated transport types and retain

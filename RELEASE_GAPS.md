@@ -946,7 +946,7 @@ Current remediation status is recorded below; the original review evidence remai
 | BQ-01 | P2 | Backend | Copied diagnostic formatters have inconsistent credential redaction | Fixed; shared formatter and persisted/API smoke verified |
 | BQ-02 | P3 | Backend | Redundant helpers and dormant recovery/authentication surfaces remain | Helpers fixed; authentication extension decision deferred |
 | BQ-03 | P2 | Backend | Worker retry policy and infrastructure construction are copied | Fixed; shared process owner, retry windows, real-worker and fork/reset checks passed |
-| BQ-04 | P3 | Backend | Three executors repeat transaction, retry, and terminal-failure policy | Open |
+| BQ-04 | P3 | Backend | Three executors repeat transaction, retry, and terminal-failure policy | Fixed; shared attempt policy with explicit resource transactions and passing lifecycle checks |
 | BQ-05 | P2 | Backend | Dispatch persistence repeats common intent handling and field projection | Open |
 | BQ-06 | P3 | Backend | Historical runtime snapshot/configuration compatibility can be retired | Deferred; fingerprint representation and development-data reset need approval |
 | BQ-07 | P2 | Backend | The dead-code gate counts words rather than application reachability | Deferred; framework/protocol roots and exemption scope need a design decision |
@@ -1078,6 +1078,13 @@ executor base class is not required; retain duplication where extraction would o
 
 **Closure.** Shared lifecycle policy has one maintained implementation where useful, and duplicate
 delivery, transient rollback, final failure, and atomic completion still pass for all three resources.
+
+**Remediation (2026-10-04).** One small typed helper validates positive attempt bounds and decides
+the remaining unclassified-error retry budget for aggregation, evaluation, and export. Claims,
+permanent exception lists, rollback, fresh terminal claims, and atomic scientific/artifact completion
+stay explicit in each executor. Existing Core/PostgreSQL lifecycle regressions passed; actual completed
+resource replays remained immutable. The complementary smoke did not repeat fresh computation or
+fault-injected rollback; those branches remain covered by the existing lifecycle suites.
 
 #### BQ-05: Consolidate common dispatch persistence mechanics
 
