@@ -9,7 +9,11 @@ from gendertagger.api.authorization import ProjectAccessGuard, get_project_acces
 from gendertagger.api.dependencies import get_evaluation_service
 from gendertagger.api.errors import ApiRequestError, invalid_cursor_error
 from gendertagger.models.api import CursorPage
-from gendertagger.models.evaluation import EvaluationCreateRequest, EvaluationExecution
+from gendertagger.models.evaluation import (
+    EvaluationCreateRequest,
+    EvaluationExecution,
+    EvaluationReport,
+)
 from gendertagger.models.user import ProjectRole
 from gendertagger.services.evaluations import EvaluationService
 from gendertagger.services.pagination import InvalidCursorError
@@ -78,7 +82,7 @@ def get_evaluation(
         raise _not_found() from error
 
 
-@router.get("/evaluations/{evaluation_id}/report")
+@router.get("/evaluations/{evaluation_id}/report", response_model=EvaluationReport)
 def get_evaluation_report(
     evaluation_id: UUID,
     service: Annotated[EvaluationService, Depends(get_evaluation_service)],

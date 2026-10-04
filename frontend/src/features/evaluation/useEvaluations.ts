@@ -5,6 +5,7 @@ import { unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
 import { usePolledQuery } from '@/composables/usePolledQuery'
 import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
+import { cursorQueryOptions, liveListPolling } from '@/composables/cursorQuery'
 
 import { parseEvaluationReport } from './reportSchema'
 
@@ -34,25 +35,19 @@ export function useEvaluationList(runId: Ref<string>, enabled: Ref<boolean> = re
   const scope = usePrivateQueryScope(enabled)
   const key = scope.key(() => evaluationListKey(runId.value))
 
-  const query = useInfiniteQuery({
-    queryKey: key,
-    queryFn: ({ queryKey, pageParam, signal }) =>
-      unwrap(
-        client.GET('/api/v1/runs/{run_id}/evaluations', {
-          params: { path: { run_id: queryKey[1] }, query: { cursor: pageParam } },
-          signal,
-        }),
-      ),
-    initialPageParam: null as string | null,
-    getNextPageParam: (lastPage) =>
-      lastPage.has_more ? (lastPage.next_cursor ?? null) : undefined,
-    refetchInterval: (query) => {
-      const pages = query.state.data?.pages ?? []
-      const anyLive = pages.some((page) => page.items.some((item) => !isTerminalEvaluation(item)))
-      return anyLive ? LIST_POLL_MS : false
-    },
-    enabled: scope.canRead,
-  })
+  const query = useInfiniteQuery({ queryKey: key,
+  queryFn: ({ queryKey, pageParam, signal }) =>
+    unwrap(
+      client.GET('/api/v1/runs/{run_id}/evaluations', {
+        params: { path: { run_id: queryKey[1] }, query: { cursor: pageParam } },
+        signal,
+      }),
+    ), ...cursorQueryOptions, refetchInterval: (query) => {
+    const pages = query.state.data?.pages ?? []
+    const anyLive = pages.some((page) => page.items.some((item) => !isTerminalEvaluation(item)))
+    return anyLive ? LIST_POLL_MS : false
+  },
+  enabled: scope.canRead, })
   return { ...query, data: scope.data(query, key) }
 }
 
@@ -96,7 +91,7 @@ export function useCreateEvaluation() {
 
 /**
  * `GET /evaluations/{id}/report` of a completed evaluation: the stored report, validated. The
- * response is untyped in OpenAPI, so a body of the wrong shape becomes an error, not a bad table.
+ * canonical OpenAPI type does not replace runtime checks before the artifact reaches a table.
  */
 export function useEvaluationReport(evaluationId: Ref<string>, enabled: Ref<boolean>) {
   const client = useApiClient()

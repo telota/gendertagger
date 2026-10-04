@@ -1,4 +1,4 @@
-import json
+import hashlib
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -24,7 +24,11 @@ from gendertagger.api.settings import AppSettings
 from gendertagger.db.session import create_session_factory
 from gendertagger.db.unit_of_work import SqlAlchemyUnitOfWork
 from gendertagger.models.classification import CanonicalLabel
-from gendertagger.models.evaluation import EvaluationDefinition, EvaluationTaskMessage
+from gendertagger.models.evaluation import (
+    EvaluationDefinition,
+    EvaluationReport,
+    EvaluationTaskMessage,
+)
 from gendertagger.models.lifecycle import EvaluationExecutionStatus
 from gendertagger.models.user import UserCreate
 from gendertagger.services.evaluation_execution import EvaluationExecutor
@@ -106,6 +110,7 @@ def test_queued_evaluation_executes_and_report_round_trips_through_http(
     )
     client = TestClient(application)
 
+    storage = LocalArtifactStorage(tmp_path)
     create_response = client.post(
         "/api/v1/evaluations",
         json={
@@ -124,7 +129,7 @@ def test_queued_evaluation_executes_and_report_round_trips_through_http(
 
     completed = EvaluationExecutor(
         unit_of_work_factory=unit_of_work_factory,
-        artifact_storage=LocalArtifactStorage(tmp_path),
+        artifact_storage=storage,
         max_report_bytes=1_000_000,
         clock=lambda: NOW,
     ).execute(
@@ -133,11 +138,20 @@ def test_queued_evaluation_executes_and_report_round_trips_through_http(
     )
     assert completed.status is EvaluationExecutionStatus.completed
     assert completed.report_artifact_id is not None
+    with unit_of_work_factory() as unit_of_work:
+        report_artifact = unit_of_work.artifacts.get_artifact(completed.report_artifact_id)
+    assert report_artifact is not None
+    with storage.open(report_artifact.storage_uri) as source:
+        stored_report_bytes = source.read()
 
     report_response = client.get(f"/api/v1/evaluations/{evaluation_id}/report")
     assert report_response.status_code == 200
-    assert report_response.headers["content-type"].startswith("application/json")
-    report_body = json.loads(report_response.content)
+    assert report_response.headers["content-type"] == report_artifact.media_type
+    assert report_response.content == stored_report_bytes
+    assert hashlib.sha256(report_response.content).hexdigest() == report_artifact.sha256
+    assert len(report_response.content) == report_artifact.byte_size
+    report_body = report_response.json()
+    EvaluationReport.model_validate(report_body)
     assert report_body["definition"] == "gnd_benchmark_v1"
     assert report_body["benchmark"]["size"] == 1
     assert len(report_body["coverage"]) == len(DEFINITION.required_methods)

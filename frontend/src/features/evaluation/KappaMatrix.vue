@@ -69,7 +69,7 @@ const DASH = '—'
             <td v-for="entry in line.cells" :key="entry.column" class="num">
               <span v-if="entry.cell === null" aria-hidden="true">{{ DASH }}</span>
               <template v-else>
-                <template v-if="entry.cell.kappa !== null">{{
+                <template v-if="entry.cell.kappa !== null && entry.cell.kappa !== undefined">{{
                   n(entry.cell.kappa, 'ratio')
                 }}</template>
                 <span

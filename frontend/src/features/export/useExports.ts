@@ -5,12 +5,12 @@ import { unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
 import { usePolledQuery } from '@/composables/usePolledQuery'
 import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
+import { cursorQueryOptions, liveListPolling } from '@/composables/cursorQuery'
 
 export type ExportExecution = components['schemas']['ExportExecution']
 export type ExportCreateRequest = components['schemas']['ExportCreateRequest']
 export type ExportFormat = components['schemas']['ExportFormat']
 export type LabelSourcePolicy = components['schemas']['LabelSourcePolicy']
-export type ExportManifestRecord = components['schemas']['ExportManifest']
 
 const TERMINAL_STATUSES = new Set<ExportExecution['status']>(['completed', 'failed', 'cancelled'])
 export const isTerminalExport = (item: ExportExecution): boolean =>
@@ -28,25 +28,19 @@ export function useExportList(runId: Ref<string>, enabled: Ref<boolean> = ref(tr
   const scope = usePrivateQueryScope(enabled)
   const key = scope.key(() => exportListKey(runId.value))
 
-  const query = useInfiniteQuery({
-    queryKey: key,
-    queryFn: ({ queryKey, pageParam, signal }) =>
-      unwrap(
-        client.GET('/api/v1/runs/{run_id}/exports', {
-          params: { path: { run_id: queryKey[1] }, query: { cursor: pageParam } },
-          signal,
-        }),
-      ),
-    initialPageParam: null as string | null,
-    getNextPageParam: (lastPage) =>
-      lastPage.has_more ? (lastPage.next_cursor ?? null) : undefined,
-    refetchInterval: (query) => {
-      const pages = query.state.data?.pages ?? []
-      const anyLive = pages.some((page) => page.items.some((item) => !isTerminalExport(item)))
-      return anyLive ? LIST_POLL_MS : false
-    },
-    enabled: scope.canRead,
-  })
+  const query = useInfiniteQuery({ queryKey: key,
+  queryFn: ({ queryKey, pageParam, signal }) =>
+    unwrap(
+      client.GET('/api/v1/runs/{run_id}/exports', {
+        params: { path: { run_id: queryKey[1] }, query: { cursor: pageParam } },
+        signal,
+      }),
+    ), ...cursorQueryOptions, refetchInterval: (query) => {
+    const pages = query.state.data?.pages ?? []
+    const anyLive = pages.some((page) => page.items.some((item) => !isTerminalExport(item)))
+    return anyLive ? LIST_POLL_MS : false
+  },
+  enabled: scope.canRead, })
   return { ...query, data: scope.data(query, key) }
 }
 

@@ -2,7 +2,8 @@ import { webcrypto } from 'node:crypto'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { parseExportManifest, sha256Hex } from '@/features/export/exportDownload'
+import { createApiClient } from '@/api'
+import { downloadExport, parseExportManifest, sha256Hex } from '@/features/export/exportDownload'
 
 import realManifest from './fixtures/seed-manifest.json'
 
@@ -50,6 +51,21 @@ describe('parseExportManifest', () => {
     expect(parsed?.outputs[0]?.logical_name).toBe('a.xml')
   })
 
+  it('keeps nullable profile defaults and zero-byte outputs', () => {
+    const body: Record<string, unknown> = {
+      ...manifest(),
+      format: 'json',
+      outputs: [{ ...manifest().outputs[0], byte_size: 0 }],
+    }
+    delete body['tei_profile']
+
+    expect(parseExportManifest(JSON.stringify(body), ID)?.tei_profile).toBeNull()
+    expect(parseExportManifest(JSON.stringify(body), ID)?.outputs[0]?.byte_size).toBe(0)
+    expect(
+      parseExportManifest(JSON.stringify({ ...body, tei_profile: null }), ID)?.tei_profile,
+    ).toBeNull()
+  })
+
   it.each([
     ['a JSON result bundle (an array)', JSON.stringify([{ tei_id: 'x' }])],
     ['text that is not JSON', '<TEI/>'],
@@ -67,8 +83,53 @@ describe('parseExportManifest', () => {
       'a source hash that is not a checksum',
       JSON.stringify({ ...manifest(), source_snapshot_sha256: 'nope' }),
     ],
+    ['an unsupported format', JSON.stringify({ ...manifest(), format: 'pdf' })],
+    [
+      'an unsupported label policy',
+      JSON.stringify({ ...manifest(), label_source_policy: 'other' }),
+    ],
+    ['an unsupported profile', JSON.stringify({ ...manifest(), tei_profile: 'other' })],
+    ['an incorrectly shaped profile', JSON.stringify({ ...manifest(), tei_profile: {} })],
+    [
+      'a negative output size',
+      JSON.stringify({ ...manifest(), outputs: [{ ...manifest().outputs[0], byte_size: -1 }] }),
+    ],
+    [
+      'a fractional output size',
+      JSON.stringify({ ...manifest(), outputs: [{ ...manifest().outputs[0], byte_size: 0.5 }] }),
+    ],
+    ['an array instead of an output', JSON.stringify({ ...manifest(), outputs: [[]] })],
   ])('does not take %s for a manifest', (_name, text) => {
     expect(parseExportManifest(text, ID)).toBeNull()
+  })
+})
+
+describe('downloadExport', () => {
+  it.each<[string, string, boolean]>([
+    ['a single JSON output', '{ "records": [] }\n', false],
+    ['a manifest', JSON.stringify(manifest(), null, 2) + '\n', true],
+  ])('retains the exact bytes and checksum of %s', async (_name, text, isManifest) => {
+    const bytes = new TextEncoder().encode(text)
+    const client = createApiClient({
+      fetch: async () =>
+        new Response(bytes, {
+          headers: {
+            'content-type': 'application/json',
+            'content-disposition': 'attachment; filename="stored.json"',
+          },
+        }),
+    })
+
+    const downloaded = await downloadExport(client, ID, 'json')
+
+    expect(Array.from(new Uint8Array(await downloaded.blob.arrayBuffer()))).toEqual(
+      Array.from(bytes),
+    )
+    expect(downloaded.sha256).toBe(await sha256Hex(bytes.buffer))
+    expect(downloaded.byteSize).toBe(bytes.byteLength)
+    expect(downloaded.mediaType).toBe('application/json')
+    expect(downloaded.filename).toBe('stored.json')
+    expect(downloaded.manifest !== null).toBe(isManifest)
   })
 })
 

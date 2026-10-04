@@ -952,7 +952,7 @@ Current remediation status is recorded below; the original review evidence remai
 | BQ-07 | P2 | Backend | The dead-code gate counts words rather than application reachability | Deferred; framework/protocol roots and exemption scope need a design decision |
 | FQ-01 | P2 | Frontend | Query keys, cursors, polling, and invalidation need shared ownership | Open |
 | FQ-02 | P2 | Frontend | Shared domain UI and helpers remain coupled to feature folders | Open |
-| FQ-03 | P2 | Frontend | Artifact interfaces duplicate canonical Pydantic contracts | Open |
+| FQ-03 | P2 | Frontend | Artifact interfaces duplicate canonical Pydantic contracts | Fixed; generated schemas, parser boundaries, and stored-byte HTTP identity exercised |
 | FQ-04 | P2 | Frontend | Dialog structure and overlay styling are implemented repeatedly | Open |
 | FQ-05 | P2 | Frontend | Creation disclosure and cursor-list feedback are copied between views | Open |
 | FQ-06 | P2 | Frontend | Lifecycle, provenance, prediction, and annotation-history presentation repeat | Open |
@@ -1181,6 +1181,18 @@ shape checks; generated TypeScript alone does not validate downloaded JSON.
 **Closure.** Artifact shapes have one Pydantic authority reflected in generated TypeScript; malformed
 artifacts still fail safely; exact artifact bytes/checksums and scientific definitions remain unchanged.
 Coordinate future manifest work with RG-15 without adding obsolete readers merely for development data.
+
+**Remediation (2026-10-04).** Report and manifest mirrors and the unused manifest alias are removed.
+The report endpoint advertises `EvaluationReport` while retaining raw stored-byte delivery; the OpenAPI
+snapshot and frontend transport were regenerated through the existing generators. Parsers retain
+structural discrimination, canonical vocabulary checks, nullable/omitted optional fields, finite values,
+and zero-valued evidence.
+
+Focused parser/download verification passed 38 cases, and the complete PostgreSQL profile passed the
+report byte/hash regression. A real authenticated API smoke compared its 7,777-byte report with the
+persisted artifact and SHA-256 `fa1705020f39e343d48c38922a7ecdaad8d3049779589ab1e7fbb29d37e80611`.
+Chromium fetched and parsed the same bytes through the production frontend parser and displayed the
+evaluation sections. This is byte/contract verification, not full UI accessibility conformance.
 
 #### FQ-04: Reuse a presentational dialog shell
 

@@ -159,6 +159,18 @@ The bounded synchronous `/classify` operation is the deliberate exception to que
 persists no Prediction; see
 [ADR-0028](decisions/ADR-0028-synchronous-on-demand-classification-api.md).
 
+## Artifact downloads
+
+`GET /evaluations/{evaluation_id}/report` advertises the canonical `EvaluationReport` JSON schema in
+OpenAPI while returning the persisted report bytes unchanged. The response model describes the artifact;
+it is not a reserialization step. Artifact size and SHA-256 remain those recorded when the executor
+stored the report.
+
+Frontend report and export-manifest types come from the generated canonical schemas. Runtime parsers
+still discriminate downloaded artifacts and reject malformed structure or unsupported vocabulary.
+Generated TypeScript does not replace validation, and neither parser recomputes scientific metrics.
+Export downloads retain their stored bytes, content type, filename, and checksum behavior.
+
 ## Collections
 
 Potentially large or changing collections use opaque keyset cursors and stable server-side ordering. Clients

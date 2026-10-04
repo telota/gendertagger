@@ -1085,6 +1085,47 @@
         "title": "AttributedAnnotation",
         "type": "object"
       },
+      "BenchmarkSummary": {
+        "additionalProperties": false,
+        "description": "Size and per-label composition of the resolved benchmark subset.",
+        "properties": {
+          "class_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/CanonicalLabel"
+            },
+            "title": "Class Counts",
+            "type": "object"
+          },
+          "labels": {
+            "items": {
+              "$ref": "#/components/schemas/CanonicalLabel"
+            },
+            "title": "Labels",
+            "type": "array"
+          },
+          "method_name": {
+            "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+            "title": "Method Name",
+            "type": "string"
+          },
+          "size": {
+            "minimum": 0.0,
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "method_name",
+          "labels",
+          "size",
+          "class_counts"
+        ],
+        "title": "BenchmarkSummary",
+        "type": "object"
+      },
       "Body_import_snapshot_api_v1_projects__project_id__snapshots_post": {
         "properties": {
           "packaging": {
@@ -2375,6 +2416,61 @@
         "title": "DatasetSnapshotStatus",
         "type": "string"
       },
+      "EnsembleMetrics": {
+        "additionalProperties": false,
+        "description": "Record-level aggregation and review metrics over an evaluated run snapshot.",
+        "properties": {
+          "agreement_tier_distribution": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/AgreementTier"
+            },
+            "title": "Agreement Tier Distribution",
+            "type": "object"
+          },
+          "canonical_label_distribution": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/CanonicalLabel"
+            },
+            "title": "Canonical Label Distribution",
+            "type": "object"
+          },
+          "certainty_tier_distribution": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/CertaintyTier"
+            },
+            "title": "Certainty Tier Distribution",
+            "type": "object"
+          },
+          "human_correction_count": {
+            "minimum": 0.0,
+            "title": "Human Correction Count",
+            "type": "integer"
+          },
+          "human_reviewed_count": {
+            "minimum": 0.0,
+            "title": "Human Reviewed Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "canonical_label_distribution",
+          "agreement_tier_distribution",
+          "certainty_tier_distribution",
+          "human_reviewed_count",
+          "human_correction_count"
+        ],
+        "title": "EnsembleMetrics",
+        "type": "object"
+      },
       "EvaluationCreateRequest": {
         "additionalProperties": false,
         "description": "Public command selecting one run, definition, and exact method executions.",
@@ -2566,6 +2662,58 @@
         ],
         "title": "EvaluationExecutionStatus",
         "type": "string"
+      },
+      "EvaluationReport": {
+        "additionalProperties": false,
+        "description": "Immutable computed evaluation output, persisted as a checksummed JSON artifact.",
+        "properties": {
+          "accuracy": {
+            "items": {
+              "$ref": "#/components/schemas/MethodAccuracy"
+            },
+            "title": "Accuracy",
+            "type": "array"
+          },
+          "benchmark": {
+            "$ref": "#/components/schemas/BenchmarkSummary"
+          },
+          "coverage": {
+            "items": {
+              "$ref": "#/components/schemas/MethodCoverage"
+            },
+            "title": "Coverage",
+            "type": "array"
+          },
+          "definition": {
+            "$ref": "#/components/schemas/EvaluationDefinitionId"
+          },
+          "ensemble": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnsembleMetrics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kappa_matrix": {
+            "items": {
+              "$ref": "#/components/schemas/KappaCell"
+            },
+            "title": "Kappa Matrix",
+            "type": "array"
+          }
+        },
+        "required": [
+          "definition",
+          "benchmark",
+          "coverage",
+          "accuracy",
+          "kappa_matrix"
+        ],
+        "title": "EvaluationReport",
+        "type": "object"
       },
       "ExecutionConfig": {
         "additionalProperties": false,
@@ -3093,6 +3241,47 @@
         "type": "string"
       },
       "JsonValue": {},
+      "KappaCell": {
+        "additionalProperties": false,
+        "description": "Pairwise Cohen's kappa restricted to entries both methods answered.",
+        "properties": {
+          "co_answered_count": {
+            "minimum": 0.0,
+            "title": "Co Answered Count",
+            "type": "integer"
+          },
+          "kappa": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": -1.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kappa"
+          },
+          "method_a": {
+            "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+            "title": "Method A",
+            "type": "string"
+          },
+          "method_b": {
+            "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+            "title": "Method B",
+            "type": "string"
+          }
+        },
+        "required": [
+          "method_a",
+          "method_b",
+          "co_answered_count"
+        ],
+        "title": "KappaCell",
+        "type": "object"
+      },
       "LabelSourcePolicy": {
         "description": "Which final-decision label an export projects for each person.",
         "enum": [
@@ -3163,6 +3352,73 @@
           "team"
         ],
         "title": "ManagedProjectSummary",
+        "type": "object"
+      },
+      "MethodAccuracy": {
+        "additionalProperties": false,
+        "description": "Benchmark-scoped accuracy, recall, and confusion matrix for one scored method.",
+        "properties": {
+          "accuracy": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Accuracy",
+            "type": "number"
+          },
+          "answered_count": {
+            "minimum": 0.0,
+            "title": "Answered Count",
+            "type": "integer"
+          },
+          "confusion_matrix": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "propertyNames": {
+                "$ref": "#/components/schemas/CanonicalLabel"
+              },
+              "type": "object"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/CanonicalLabel"
+            },
+            "title": "Confusion Matrix",
+            "type": "object"
+          },
+          "correct_count": {
+            "minimum": 0.0,
+            "title": "Correct Count",
+            "type": "integer"
+          },
+          "effective_accuracy": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Effective Accuracy",
+            "type": "number"
+          },
+          "method_name": {
+            "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+            "title": "Method Name",
+            "type": "string"
+          },
+          "recall": {
+            "items": {
+              "$ref": "#/components/schemas/RecallWithCI"
+            },
+            "title": "Recall",
+            "type": "array"
+          }
+        },
+        "required": [
+          "method_name",
+          "answered_count",
+          "correct_count",
+          "accuracy",
+          "effective_accuracy",
+          "confusion_matrix",
+          "recall"
+        ],
+        "title": "MethodAccuracy",
         "type": "object"
       },
       "MethodClassification": {
@@ -3245,6 +3501,64 @@
           "maximum"
         ],
         "title": "MethodConfidenceRange",
+        "type": "object"
+      },
+      "MethodCoverage": {
+        "additionalProperties": false,
+        "description": "Corpus-wide coverage and label distribution for one evaluated method.",
+        "properties": {
+          "abstain_count": {
+            "minimum": 0.0,
+            "title": "Abstain Count",
+            "type": "integer"
+          },
+          "coverage_count": {
+            "minimum": 0.0,
+            "title": "Coverage Count",
+            "type": "integer"
+          },
+          "coverage_share": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Coverage Share",
+            "type": "number"
+          },
+          "error_count": {
+            "minimum": 0.0,
+            "title": "Error Count",
+            "type": "integer"
+          },
+          "label_distribution": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/CanonicalLabel"
+            },
+            "title": "Label Distribution",
+            "type": "object"
+          },
+          "method_name": {
+            "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+            "title": "Method Name",
+            "type": "string"
+          },
+          "total": {
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "method_name",
+          "total",
+          "coverage_count",
+          "coverage_share",
+          "label_distribution",
+          "abstain_count",
+          "error_count"
+        ],
+        "title": "MethodCoverage",
         "type": "object"
       },
       "MethodDescriptor": {
@@ -4828,6 +5142,53 @@
           }
         },
         "title": "PublicClassifyNamesRequest",
+        "type": "object"
+      },
+      "RecallWithCI": {
+        "additionalProperties": false,
+        "description": "Per-class recall against the benchmark, with a two-sided confidence interval.",
+        "properties": {
+          "ci_high": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Ci High",
+            "type": "number"
+          },
+          "ci_low": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Ci Low",
+            "type": "number"
+          },
+          "class_size": {
+            "minimum": 0.0,
+            "title": "Class Size",
+            "type": "integer"
+          },
+          "correct": {
+            "minimum": 0.0,
+            "title": "Correct",
+            "type": "integer"
+          },
+          "label": {
+            "$ref": "#/components/schemas/CanonicalLabel"
+          },
+          "recall": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Recall",
+            "type": "number"
+          }
+        },
+        "required": [
+          "label",
+          "class_size",
+          "correct",
+          "recall",
+          "ci_low",
+          "ci_high"
+        ],
+        "title": "RecallWithCI",
         "type": "object"
       },
       "ResultMethodPrediction": {
@@ -9608,7 +9969,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationReport"
+                }
               }
             },
             "description": "Successful Response"

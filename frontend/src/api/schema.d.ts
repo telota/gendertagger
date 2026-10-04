@@ -1909,6 +1909,22 @@ export interface components {
             /** Tei Id */
             tei_id: string;
         };
+        /**
+         * BenchmarkSummary
+         * @description Size and per-label composition of the resolved benchmark subset.
+         */
+        BenchmarkSummary: {
+            /** Class Counts */
+            class_counts: {
+                [key: string]: number;
+            };
+            /** Labels */
+            labels: components["schemas"]["CanonicalLabel"][];
+            /** Method Name */
+            method_name: string;
+            /** Size */
+            size: number;
+        };
         /** Body_import_snapshot_api_v1_projects__project_id__snapshots_post */
         Body_import_snapshot_api_v1_projects__project_id__snapshots_post: {
             /** @default single */
@@ -2334,6 +2350,28 @@ export interface components {
          */
         DatasetSnapshotStatus: "pending" | "importing" | "ready" | "failed";
         /**
+         * EnsembleMetrics
+         * @description Record-level aggregation and review metrics over an evaluated run snapshot.
+         */
+        EnsembleMetrics: {
+            /** Agreement Tier Distribution */
+            agreement_tier_distribution: {
+                [key: string]: number;
+            };
+            /** Canonical Label Distribution */
+            canonical_label_distribution: {
+                [key: string]: number;
+            };
+            /** Certainty Tier Distribution */
+            certainty_tier_distribution: {
+                [key: string]: number;
+            };
+            /** Human Correction Count */
+            human_correction_count: number;
+            /** Human Reviewed Count */
+            human_reviewed_count: number;
+        };
+        /**
          * EvaluationCreateRequest
          * @description Public command selecting one run, definition, and exact method executions.
          */
@@ -2406,6 +2444,21 @@ export interface components {
          * @enum {string}
          */
         EvaluationExecutionStatus: "pending" | "queued" | "running" | "completed" | "failed" | "cancelled";
+        /**
+         * EvaluationReport
+         * @description Immutable computed evaluation output, persisted as a checksummed JSON artifact.
+         */
+        EvaluationReport: {
+            /** Accuracy */
+            accuracy: components["schemas"]["MethodAccuracy"][];
+            benchmark: components["schemas"]["BenchmarkSummary"];
+            /** Coverage */
+            coverage: components["schemas"]["MethodCoverage"][];
+            definition: components["schemas"]["EvaluationDefinitionId"];
+            ensemble?: components["schemas"]["EnsembleMetrics"] | null;
+            /** Kappa Matrix */
+            kappa_matrix: components["schemas"]["KappaCell"][];
+        };
         /**
          * ExecutionConfig
          * @description Resolved orchestration behavior for a run.
@@ -2691,6 +2744,20 @@ export interface components {
         GlobalRole: "operator" | "admin";
         JsonValue: unknown;
         /**
+         * KappaCell
+         * @description Pairwise Cohen's kappa restricted to entries both methods answered.
+         */
+        KappaCell: {
+            /** Co Answered Count */
+            co_answered_count: number;
+            /** Kappa */
+            kappa?: number | null;
+            /** Method A */
+            method_a: string;
+            /** Method B */
+            method_b: string;
+        };
+        /**
          * LabelSourcePolicy
          * @description Which final-decision label an export projects for each person.
          * @enum {string}
@@ -2732,6 +2799,30 @@ export interface components {
             team: components["schemas"]["TeamSummary"];
         };
         /**
+         * MethodAccuracy
+         * @description Benchmark-scoped accuracy, recall, and confusion matrix for one scored method.
+         */
+        MethodAccuracy: {
+            /** Accuracy */
+            accuracy: number;
+            /** Answered Count */
+            answered_count: number;
+            /** Confusion Matrix */
+            confusion_matrix: {
+                [key: string]: {
+                    [key: string]: number;
+                };
+            };
+            /** Correct Count */
+            correct_count: number;
+            /** Effective Accuracy */
+            effective_accuracy: number;
+            /** Method Name */
+            method_name: string;
+            /** Recall */
+            recall: components["schemas"]["RecallWithCI"][];
+        };
+        /**
          * MethodClassification
          * @description Outcome of one method for one name.
          */
@@ -2765,6 +2856,28 @@ export interface components {
             maximum: number;
             /** Minimum */
             minimum: number;
+        };
+        /**
+         * MethodCoverage
+         * @description Corpus-wide coverage and label distribution for one evaluated method.
+         */
+        MethodCoverage: {
+            /** Abstain Count */
+            abstain_count: number;
+            /** Coverage Count */
+            coverage_count: number;
+            /** Coverage Share */
+            coverage_share: number;
+            /** Error Count */
+            error_count: number;
+            /** Label Distribution */
+            label_distribution: {
+                [key: string]: number;
+            };
+            /** Method Name */
+            method_name: string;
+            /** Total */
+            total: number;
         };
         /**
          * MethodDescriptor
@@ -3465,6 +3578,23 @@ export interface components {
              * @description Ordered batch of names; mutually exclusive with name.
              */
             names?: string[] | null;
+        };
+        /**
+         * RecallWithCI
+         * @description Per-class recall against the benchmark, with a two-sided confidence interval.
+         */
+        RecallWithCI: {
+            /** Ci High */
+            ci_high: number;
+            /** Ci Low */
+            ci_low: number;
+            /** Class Size */
+            class_size: number;
+            /** Correct */
+            correct: number;
+            label: components["schemas"]["CanonicalLabel"];
+            /** Recall */
+            recall: number;
         };
         /**
          * ResultMethodPrediction
@@ -6933,7 +7063,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["EvaluationReport"];
                 };
             };
             /** @description Invalid request */

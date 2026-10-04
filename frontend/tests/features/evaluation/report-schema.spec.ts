@@ -47,6 +47,24 @@ describe('parseEvaluationReport', () => {
     expect(parsed.ensemble).toBeNull()
   })
 
+  it('normalizes omitted nullable defaults without confusing zero with undefined', () => {
+    const body = valid()
+    const omitted = parseEvaluationReport({
+      ...body,
+      kappa_matrix: [{ method_a: 'a', method_b: 'b', co_answered_count: 0 }],
+    })
+    const zero = parseEvaluationReport({
+      ...body,
+      ensemble: null,
+      kappa_matrix: [{ method_a: 'a', method_b: 'b', co_answered_count: 2, kappa: 0 }],
+    })
+
+    expect(omitted.ensemble).toBeNull()
+    expect(omitted.kappa_matrix[0]?.kappa).toBeNull()
+    expect(zero.ensemble).toBeNull()
+    expect(zero.kappa_matrix[0]?.kappa).toBe(0)
+  })
+
   it('reads an ensemble when there is one', () => {
     const parsed = parseEvaluationReport({
       ...valid(),
@@ -74,6 +92,48 @@ describe('parseEvaluationReport', () => {
     ],
     ['a number that is text', { ...valid(), benchmark: { ...valid().benchmark, size: '2' } }],
     ['a non-finite number', { ...valid(), coverage: [{ ...valid().coverage[0], total: null }] }],
+    ['an infinite number', { ...valid(), benchmark: { ...valid().benchmark, size: Infinity } }],
+    ['an unknown definition', { ...valid(), definition: 'future_v2' }],
+    [
+      'an unknown benchmark label',
+      { ...valid(), benchmark: { ...valid().benchmark, labels: ['other'] } },
+    ],
+    [
+      'an unknown recall label',
+      {
+        ...valid(),
+        accuracy: [
+          {
+            ...valid().accuracy[0],
+            recall: [{ ...valid().accuracy[0]?.recall[0], label: 'other' }],
+          },
+        ],
+      },
+    ],
+    [
+      'an unknown distribution label',
+      { ...valid(), coverage: [{ ...valid().coverage[0], label_distribution: { other: 2 } }] },
+    ],
+    [
+      'an unknown confusion row label',
+      {
+        ...valid(),
+        accuracy: [{ ...valid().accuracy[0], confusion_matrix: { other: { male: 1 } } }],
+      },
+    ],
+    [
+      'an unknown agreement tier',
+      {
+        ...valid(),
+        ensemble: {
+          canonical_label_distribution: { male: 1 },
+          agreement_tier_distribution: { future: 1 },
+          certainty_tier_distribution: { high: 1 },
+          human_reviewed_count: 0,
+          human_correction_count: 0,
+        },
+      },
+    ],
     [
       'a misplaced kappa',
       {

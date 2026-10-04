@@ -1,72 +1,18 @@
-import type { CanonicalLabel } from '@/features/review/useVocabulary'
+import type { components } from '@/api'
+import {
+  AGREEMENT_TIERS,
+  CANONICAL_LABELS,
+  CERTAINTY_TIERS,
+  type CanonicalLabel,
+} from '@/features/review/useVocabulary'
 
-/**
- * The evaluation report as `GET /evaluations/{id}/report` returns it. The OpenAPI document leaves that
- * response untyped (the body is a stored, checksummed JSON artifact), so the shape is declared here
- * from `backend/src/gendertagger/models/evaluation.py` and checked at runtime by `parseEvaluationReport`:
- * a report that does not have this shape is an error to show, never a half-rendered table.
- */
-export interface BenchmarkSummary {
-  method_name: string
-  labels: CanonicalLabel[]
-  size: number
-  class_counts: Partial<Record<CanonicalLabel, number>>
-}
-
-export interface MethodCoverage {
-  method_name: string
-  total: number
-  coverage_count: number
-  coverage_share: number
-  label_distribution: Partial<Record<CanonicalLabel, number>>
-  abstain_count: number
-  error_count: number
-}
-
-export interface RecallWithCI {
-  label: CanonicalLabel
-  class_size: number
-  correct: number
-  recall: number
-  ci_low: number
-  ci_high: number
-}
-
-export interface MethodAccuracy {
-  method_name: string
-  answered_count: number
-  correct_count: number
-  accuracy: number
-  effective_accuracy: number
-  /** Rows: the benchmark's label. Columns: the label the method gave. Answered entries only. */
-  confusion_matrix: Partial<Record<CanonicalLabel, Partial<Record<CanonicalLabel, number>>>>
-  recall: RecallWithCI[]
-}
-
-export interface KappaCell {
-  method_a: string
-  method_b: string
-  co_answered_count: number
-  /** `null` when it is undefined: fewer than two co-answered entries, or both methods constant. */
-  kappa: number | null
-}
-
-export interface EnsembleMetrics {
-  canonical_label_distribution: Record<string, number>
-  agreement_tier_distribution: Record<string, number>
-  certainty_tier_distribution: Record<string, number>
-  human_reviewed_count: number
-  human_correction_count: number
-}
-
-export interface EvaluationReport {
-  definition: string
-  benchmark: BenchmarkSummary
-  coverage: MethodCoverage[]
-  accuracy: MethodAccuracy[]
-  kappa_matrix: KappaCell[]
-  ensemble: EnsembleMetrics | null
-}
+export type BenchmarkSummary = components['schemas']['BenchmarkSummary']
+export type MethodCoverage = components['schemas']['MethodCoverage']
+export type RecallWithCI = components['schemas']['RecallWithCI']
+export type MethodAccuracy = components['schemas']['MethodAccuracy']
+export type KappaCell = components['schemas']['KappaCell']
+export type EnsembleMetrics = components['schemas']['EnsembleMetrics']
+export type EvaluationReport = components['schemas']['EvaluationReport']
 
 export class ReportShapeError extends Error {
   constructor(where: string) {
@@ -94,15 +40,29 @@ function text(value: unknown, where: string): string {
   return value
 }
 
+function label(value: unknown, where: string): CanonicalLabel {
+  const parsed = CANONICAL_LABELS.find((entry) => entry === value)
+  if (parsed === undefined) throw new ReportShapeError(where)
+  return parsed
+}
+
+function definition(value: unknown): EvaluationReport['definition'] {
+  if (value !== 'gnd_benchmark_v1') throw new ReportShapeError('definition')
+  return value
+}
+
 function num(value: unknown, where: string): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) throw new ReportShapeError(where)
   return value
 }
 
-function counts(value: unknown, where: string): Record<string, number> {
+function counts(value: unknown, where: string, keys: readonly string[]): Record<string, number> {
   const source = record(value, where)
   const result: Record<string, number> = {}
-  for (const [key, entry] of Object.entries(source)) result[key] = num(entry, `${where}.${key}`)
+  for (const [key, entry] of Object.entries(source)) {
+    if (!keys.includes(key)) throw new ReportShapeError(`${where}.${key}`)
+    result[key] = num(entry, `${where}.${key}`)
+  }
   return result
 }
 
@@ -118,7 +78,11 @@ export function parseEvaluationReport(body: unknown): EvaluationReport {
       total: num(c['total'], `coverage[${i}].total`),
       coverage_count: num(c['coverage_count'], `coverage[${i}].coverage_count`),
       coverage_share: num(c['coverage_share'], `coverage[${i}].coverage_share`),
-      label_distribution: counts(c['label_distribution'], `coverage[${i}].label_distribution`),
+      label_distribution: counts(
+        c['label_distribution'],
+        `coverage[${i}].label_distribution`,
+        CANONICAL_LABELS,
+      ),
       abstain_count: num(c['abstain_count'], `coverage[${i}].abstain_count`),
       error_count: num(c['error_count'], `coverage[${i}].error_count`),
     }
@@ -135,14 +99,14 @@ export function parseEvaluationReport(body: unknown): EvaluationReport {
       effective_accuracy: num(a['effective_accuracy'], `accuracy[${i}].effective_accuracy`),
       confusion_matrix: Object.fromEntries(
         Object.entries(matrix).map(([truth, row]) => [
-          truth,
-          counts(row, `accuracy[${i}].confusion_matrix.${truth}`),
+          label(truth, `accuracy[${i}].confusion_matrix.${truth}`),
+          counts(row, `accuracy[${i}].confusion_matrix.${truth}`, CANONICAL_LABELS),
         ]),
       ),
       recall: list(a['recall'], `accuracy[${i}].recall`).map((rawRecall, j): RecallWithCI => {
         const r = record(rawRecall, `accuracy[${i}].recall[${j}]`)
         return {
-          label: text(r['label'], `accuracy[${i}].recall[${j}].label`) as CanonicalLabel,
+          label: label(r['label'], `accuracy[${i}].recall[${j}].label`),
           class_size: num(r['class_size'], `accuracy[${i}].recall[${j}].class_size`),
           correct: num(r['correct'], `accuracy[${i}].recall[${j}].correct`),
           recall: num(r['recall'], `accuracy[${i}].recall[${j}].recall`),
@@ -168,23 +132,35 @@ export function parseEvaluationReport(body: unknown): EvaluationReport {
   if (root['ensemble'] !== null && root['ensemble'] !== undefined) {
     const e = record(root['ensemble'], 'ensemble')
     ensemble = {
-      canonical_label_distribution: counts(e['canonical_label_distribution'], 'ensemble.labels'),
-      agreement_tier_distribution: counts(e['agreement_tier_distribution'], 'ensemble.agreement'),
-      certainty_tier_distribution: counts(e['certainty_tier_distribution'], 'ensemble.certainty'),
+      canonical_label_distribution: counts(
+        e['canonical_label_distribution'],
+        'ensemble.labels',
+        CANONICAL_LABELS,
+      ),
+      agreement_tier_distribution: counts(
+        e['agreement_tier_distribution'],
+        'ensemble.agreement',
+        AGREEMENT_TIERS,
+      ),
+      certainty_tier_distribution: counts(
+        e['certainty_tier_distribution'],
+        'ensemble.certainty',
+        CERTAINTY_TIERS,
+      ),
       human_reviewed_count: num(e['human_reviewed_count'], 'ensemble.human_reviewed_count'),
       human_correction_count: num(e['human_correction_count'], 'ensemble.human_correction_count'),
     }
   }
 
   return {
-    definition: text(root['definition'], 'definition'),
+    definition: definition(root['definition']),
     benchmark: {
       method_name: text(benchmark['method_name'], 'benchmark.method_name'),
       labels: list(benchmark['labels'], 'benchmark.labels').map(
-        (label, i) => text(label, `benchmark.labels[${i}]`) as CanonicalLabel,
+        (entry, i) => label(entry, `benchmark.labels[${i}]`),
       ),
       size: num(benchmark['size'], 'benchmark.size'),
-      class_counts: counts(benchmark['class_counts'], 'benchmark.class_counts'),
+      class_counts: counts(benchmark['class_counts'], 'benchmark.class_counts', CANONICAL_LABELS),
     },
     coverage,
     accuracy,

@@ -14,7 +14,7 @@ import {
 import './metric.css'
 import type { EnsembleMetrics } from './reportSchema'
 
-defineProps<{ ensemble: EnsembleMetrics | null }>()
+defineProps<{ ensemble: EnsembleMetrics | null | undefined }>()
 
 const { t, n } = useI18n()
 const gloss = useVocabularyGloss()

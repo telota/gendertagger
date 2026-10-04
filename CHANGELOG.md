@@ -286,6 +286,9 @@ the phased plan that resumes application code.
 
 ### Fixed
 
+- Evaluation-report downloads advertise the canonical Pydantic schema without reserializing immutable
+  artifact bytes. Frontend report and export-manifest parsers use generated transport types and retain
+  runtime shape/vocabulary checks, including optional/null fields and zero-valued evidence.
 - Batch failures now share the URL-credential redaction and bounded detailed-diagnostic policy used by
   aggregation, evaluation, export, and dispatch. Redaction occurs before the 500-character limit;
   authenticated method summaries cannot retain credential-bearing URL user information from batch

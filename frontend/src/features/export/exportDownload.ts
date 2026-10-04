@@ -1,32 +1,9 @@
-import { unwrap, type ApiClient } from '@/api'
+import { unwrap, type ApiClient, type components } from '@/api'
 
 import type { ExportFormat } from './useExports'
 
-/**
- * The manifest of an export (`backend/src/gendertagger/models/export.py`, `ExportManifest` version 1).
- * Multi-output downloads return this shape in place of an output; it is checked here to distinguish
- * manifests from JSON result bundles. Every export also exposes a typed `/manifest` resource.
- */
-export interface ExportManifestOutput {
-  logical_name: string
-  sha256: string
-  byte_size: number
-  media_type: string
-}
-
-export interface ExportManifest {
-  version: 1
-  export_execution_id: string
-  dataset_snapshot_id: string
-  source_snapshot_sha256: string
-  run_id: string
-  aggregation_execution_id: string
-  format: string
-  label_source_policy: string
-  tei_profile: string | null
-  outputs: ExportManifestOutput[]
-  generated_at: string
-}
+export type ExportManifestOutput = components['schemas']['ExportManifestOutput']
+export type ExportManifest = components['schemas']['ExportManifest']
 
 const SHA256 = /^[0-9a-f]{64}$/
 
@@ -50,17 +27,27 @@ export function parseExportManifest(text: string, exportId: string): ExportManif
 
   const parsedOutputs: ExportManifestOutput[] = []
   for (const raw of outputs) {
-    if (typeof raw !== 'object' || raw === null) return null
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null
     const o = raw as Record<string, unknown>
     const sha = str(o['sha256'])
     const name = str(o['logical_name'])
     const media = str(o['media_type'])
-    if (!sha || !SHA256.test(sha) || !name || !media || typeof o['byte_size'] !== 'number')
+    const size = o['byte_size']
+    if (
+      !sha ||
+      !SHA256.test(sha) ||
+      !name ||
+      !media ||
+      typeof size !== 'number' ||
+      !Number.isInteger(size) ||
+      size < 0
+    ) {
       return null
+    }
     parsedOutputs.push({
       logical_name: name,
       sha256: sha,
-      byte_size: o['byte_size'],
+      byte_size: size,
       media_type: media,
     })
   }
@@ -69,8 +56,9 @@ export function parseExportManifest(text: string, exportId: string): ExportManif
   const snapshot = str(m['dataset_snapshot_id'])
   const run = str(m['run_id'])
   const aggregation = str(m['aggregation_execution_id'])
-  const format = str(m['format'])
-  const policy = str(m['label_source_policy'])
+  const format = m['format']
+  const policy = m['label_source_policy']
+  const profile = m['tei_profile']
   const generated = str(m['generated_at'])
   if (
     !source ||
@@ -78,8 +66,9 @@ export function parseExportManifest(text: string, exportId: string): ExportManif
     !snapshot ||
     !run ||
     !aggregation ||
-    !format ||
-    !policy ||
+    (format !== 'tei' && format !== 'json' && format !== 'csv') ||
+    (policy !== 'machine_aggregation' && policy !== 'human_overrides') ||
+    (profile !== undefined && profile !== null && profile !== 'tei_p5_gender_v1') ||
     !generated
   ) {
     return null
@@ -93,7 +82,7 @@ export function parseExportManifest(text: string, exportId: string): ExportManif
     aggregation_execution_id: aggregation,
     format,
     label_source_policy: policy,
-    tei_profile: str(m['tei_profile']),
+    tei_profile: profile ?? null,
     outputs: parsedOutputs,
     generated_at: generated,
   }
@@ -135,29 +124,22 @@ export async function downloadExport(
   format: ExportFormat,
   signal?: AbortSignal,
 ): Promise<DownloadedExport> {
-  let response: Response | null = null
-  const data = await unwrap<unknown>(
-    client
-      .GET('/api/v1/exports/{export_execution_id}/download', {
-        params: { path: { export_execution_id: exportId } },
-        parseAs: 'blob',
-        ...(signal ? { signal } : {}),
-      })
-      .then((settled) => {
-        response = settled.response
-        return settled
-      }),
-  )
-  const blob = data as Blob
+  const pending = client.GET('/api/v1/exports/{export_execution_id}/download', {
+    params: { path: { export_execution_id: exportId } },
+    parseAs: 'blob',
+    ...(signal ? { signal } : {}),
+  })
+  const blob = await unwrap(pending)
+  const { response } = await pending
   const buffer = await blob.arrayBuffer()
-  const mediaType = (response as Response | null)?.headers.get('content-type') ?? blob.type
+  const mediaType = response.headers.get('content-type') ?? blob.type
   const manifest = mediaType.includes('json')
     ? parseExportManifest(new TextDecoder().decode(buffer), exportId)
     : null
   const fallback = manifest ? 'manifest.json' : `export-${exportId}.${EXTENSION[format]}`
   return {
     blob,
-    filename: response ? filenameFrom(response, fallback) : fallback,
+    filename: filenameFrom(response, fallback),
     mediaType,
     byteSize: buffer.byteLength,
     sha256: await sha256Hex(buffer),
