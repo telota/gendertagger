@@ -953,10 +953,10 @@ Current remediation status is recorded below; the original review evidence remai
 | FQ-01 | P2 | Frontend | Query keys, cursors, polling, and invalidation need shared ownership | Fixed; shared keys/cursor/polling and retained-context regressions passed |
 | FQ-02 | P2 | Frontend | Shared domain UI and helpers remain coupled to feature folders | Fixed; defining shared modules and migrated consumers, without compatibility re-exports |
 | FQ-03 | P2 | Frontend | Artifact interfaces duplicate canonical Pydantic contracts | Fixed; generated schemas, parser boundaries, and stored-byte HTTP identity exercised |
-| FQ-04 | P2 | Frontend | Dialog structure and overlay styling are implemented repeatedly | Open |
+| FQ-04 | P2 | Frontend | Dialog structure and overlay styling are implemented repeatedly | Fixed; shared HeadlessUI shell, caller-owned safeguards, and native Escape/focus proof |
 | FQ-05 | P2 | Frontend | Creation disclosure and cursor-list feedback are copied between views | Open |
 | FQ-06 | P2 | Frontend | Lifecycle, provenance, prediction, and annotation-history presentation repeat | Fixed; data-only presenters preserve uncertainty, confidence, and history semantics |
-| FQ-07 | P2 | Frontend | Repeated native fields bypass incomplete shared field primitives | Open |
+| FQ-07 | P2 | Frontend | Repeated native fields bypass incomplete shared field primitives | Fixed; shared native field composition and typed/null/boolean/accessibility checks passed |
 | FQ-08 | P3 | Frontend | An orphan component, unused exported types, and dead CSS survive checks | Open |
 | DQ-01 | P2 | Documentation | Overlapping guidance and undated reports now disagree | Open |
 | DQ-02 | P2 | Documentation | The documentation gate omits maintained files and section targets | Open |
@@ -1265,6 +1265,13 @@ recovery, and draft ownership at the feature call site. Keep the mobile drawer's
 **Closure.** Shared overlay geometry and semantics replace copied markup/CSS while retaining focus
 trapping/restoration, accessible naming, Escape/backdrop policy, and pending-operation safeguards.
 
+**Remediation (2026-10-04).** Existing confirmations, recovery, project switching, and administration
+dialogs adopt the shared HeadlessUI `AppDialog` shell and delete copied overlay geometry. Callers retain
+pending-write dismissal, credentials, draft/recovery state, and other feature policy. The dialog suites
+passed; native Chromium Escape cancelled a dirty-draft leave dialog and returned focus to the initiating
+Projects link. Obsolete source-markup/CSS recipe assertions were retired rather than re-pinned;
+behavioral dialog/field suites and actual desktop/mobile surfaces remain the verification boundary.
+
 #### FQ-05: Share creation disclosure and cursor-list feedback
 
 **Evidence.** [RunListView](frontend/src/features/runs/RunListView.vue), lines 40–59;
@@ -1333,6 +1340,14 @@ the repeated composition. Keep ordinary selects native and field-specific valida
 
 **Closure.** Common fields share label/help/error relationships, disabled/invalid states, and sizing;
 browser constraints, descriptions, focus, and feature-specific validation are preserved.
+
+**Remediation (2026-10-04).** `AppField`, native `AppSelectField`, and extended `AppTextField` compose
+label/help/error IDs and forward native attributes/listeners to their controls, not layout wrappers.
+Compatible forms/settings/filters migrated; specialized textarea/file/radio/checkbox controls remain
+native. Vue's normalized camel-case ARIA props now preserve external description IDs alongside local
+help/error IDs. Native null/boolean choices survive failed save and explicit retry; the actual settings
+surface had no missing description targets and persisted German/dark/expanded preferences through the
+ordinary API. Validation and uncertainty semantics remain feature/server-owned.
 
 #### FQ-08: Remove confirmed orphan frontend code and cover unused exports
 

@@ -171,12 +171,13 @@ watch(
         {{ t('admin.creation.successTitle') }}
       </h3>
       <p>{{ t('admin.creation.successDescription') }}</p>
-      <label for="admin-user-temporary-password">{{ t('admin.creation.temporaryPassword') }}</label>
-      <input
+      <AppTextField
         id="admin-user-temporary-password"
+        class="admin-user-password-field"
+        :label="t('admin.creation.temporaryPassword')"
         readonly
-        :value="temporaryPassword"
-        :aria-describedby="'admin-user-temporary-password-help'"
+        :model-value="temporaryPassword"
+        aria-describedby="admin-user-temporary-password-help"
       />
       <p id="admin-user-temporary-password-help">
         {{ t('admin.creation.temporaryPasswordHelp') }}
@@ -271,14 +272,12 @@ watch(
   border-top: 1px solid var(--grid);
 }
 
-.admin-user-temporary-password input {
-  width: 100%;
-  max-inline-size: 28rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-input);
-  background: var(--surface-1);
-  color: var(--text-primary);
-  font: inherit;
-  padding: var(--space-2) var(--space-3);
+.admin-user-password-field {
+  --field-gap: var(--space-3);
+  --field-label-size: inherit;
+  --field-label-color: var(--text-primary);
+  --field-control-width: 100%;
+  --field-control-max-width: 28rem;
+  --field-control-background: var(--surface-1);
 }
 </style>

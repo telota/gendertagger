@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
 import { PhMinus, PhPlus } from '@phosphor-icons/vue'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -7,6 +6,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
+import AppDialog from '@/components/base/AppDialog.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
 import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
 import AppTextField from '@/components/base/AppTextField.vue'
@@ -799,78 +799,82 @@ function successMessage(operation: TeamMutationOperation): string {
       </div>
     </template>
 
-    <Dialog
+    <AppDialog
       :open="confirmation === 'deleteTeam'"
       class="admin-teams-dialog"
+      size="2xl"
+      layout="stacked"
+      backdrop="ink"
+      bordered
+      title-size="title"
+      title-class="admin-teams-dialog-title"
+      actions-align="spread"
       @close="closeConfirmation"
     >
-      <div class="admin-teams-dialog-backdrop" aria-hidden="true" />
-      <div class="admin-teams-dialog-position">
-        <DialogPanel class="admin-teams-dialog-panel">
-          <DialogTitle>{{
-            t('adminTeams.deletion.confirm.title', {
-              name: activeTeam?.display_name,
-              slug: activeTeam?.slug,
-            })
-          }}</DialogTitle>
-          <p>{{ t('adminTeams.deletion.confirm.description') }}</p>
-          <p>{{ t('adminTeams.deletion.confirm.emptyRequirement') }}</p>
-          <div class="admin-teams-dialog-actions">
-            <AppButton
-              type="button"
-              variant="ghost"
-              :disabled="mutations.isMutating.value"
-              @click="closeConfirmation"
-            >
-              {{ t('adminTeams.cancel') }}
-            </AppButton>
-            <AppButton type="button" :disabled="isDeletingTeam" @click="deleteTeam">
-              {{ t('adminTeams.deletion.confirm.submit') }}
-            </AppButton>
-          </div>
-        </DialogPanel>
-      </div>
-    </Dialog>
+      <template #title>{{
+        t('adminTeams.deletion.confirm.title', {
+          name: activeTeam?.display_name,
+          slug: activeTeam?.slug,
+        })
+      }}</template>
+      <p class="admin-teams-dialog-copy">{{ t('adminTeams.deletion.confirm.description') }}</p>
+      <p class="admin-teams-dialog-copy">{{ t('adminTeams.deletion.confirm.emptyRequirement') }}</p>
+      <template #actions>
+        <AppButton
+          type="button"
+          variant="ghost"
+          :disabled="mutations.isMutating.value"
+          @click="closeConfirmation"
+        >
+          {{ t('adminTeams.cancel') }}
+        </AppButton>
+        <AppButton type="button" :disabled="isDeletingTeam" @click="deleteTeam">
+          {{ t('adminTeams.deletion.confirm.submit') }}
+        </AppButton>
+      </template>
+    </AppDialog>
 
-    <Dialog
+    <AppDialog
       :open="confirmation === 'removeMember'"
       class="admin-teams-dialog"
+      size="2xl"
+      layout="stacked"
+      backdrop="ink"
+      bordered
+      title-size="title"
+      title-class="admin-teams-dialog-title"
+      actions-align="spread"
       @close="closeConfirmation"
     >
-      <div class="admin-teams-dialog-backdrop" aria-hidden="true" />
-      <div class="admin-teams-dialog-position">
-        <DialogPanel class="admin-teams-dialog-panel">
-          <DialogTitle>{{
-            t('adminTeams.roster.confirm.title', {
-              name: memberToRemove?.display_name,
-              team: activeTeam?.display_name,
-            })
-          }}</DialogTitle>
-          <p>{{ t('adminTeams.roster.confirm.description') }}</p>
-          <p>{{ t('adminTeams.roster.confirm.managerRequirement') }}</p>
-          <AppFeedback
-            v-if="isNoticeFor('removeMember') && errorMessage(mutations.error.value)"
-            announcement="assertive"
-            tone="critical"
-          >
-            {{ errorMessage(mutations.error.value) }}
-          </AppFeedback>
-          <div class="admin-teams-dialog-actions">
-            <AppButton
-              type="button"
-              variant="ghost"
-              :disabled="mutations.isMutating.value"
-              @click="closeConfirmation"
-            >
-              {{ t('adminTeams.cancel') }}
-            </AppButton>
-            <AppButton type="button" :disabled="mutations.isMutating.value" @click="removeMember">
-              {{ t('adminTeams.roster.confirm.submit') }}
-            </AppButton>
-          </div>
-        </DialogPanel>
-      </div>
-    </Dialog>
+      <template #title>{{
+        t('adminTeams.roster.confirm.title', {
+          name: memberToRemove?.display_name,
+          team: activeTeam?.display_name,
+        })
+      }}</template>
+      <p class="admin-teams-dialog-copy">{{ t('adminTeams.roster.confirm.description') }}</p>
+      <p class="admin-teams-dialog-copy">{{ t('adminTeams.roster.confirm.managerRequirement') }}</p>
+      <AppFeedback
+        v-if="isNoticeFor('removeMember') && errorMessage(mutations.error.value)"
+        announcement="assertive"
+        tone="critical"
+      >
+        {{ errorMessage(mutations.error.value) }}
+      </AppFeedback>
+      <template #actions>
+        <AppButton
+          type="button"
+          variant="ghost"
+          :disabled="mutations.isMutating.value"
+          @click="closeConfirmation"
+        >
+          {{ t('adminTeams.cancel') }}
+        </AppButton>
+        <AppButton type="button" :disabled="mutations.isMutating.value" @click="removeMember">
+          {{ t('adminTeams.roster.confirm.submit') }}
+        </AppButton>
+      </template>
+    </AppDialog>
   </main>
 </template>
 
@@ -883,8 +887,7 @@ function successMessage(operation: TeamMutationOperation): string {
 
 .admin-teams-section-heading,
 .admin-teams-roster-list li,
-.admin-teams-account-list li,
-.admin-teams-dialog-actions {
+.admin-teams-account-list li {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -898,8 +901,7 @@ function successMessage(operation: TeamMutationOperation): string {
 
 .admin-teams-section-heading h2,
 .admin-teams-create h2,
-.admin-teams-detail--empty h2,
-.admin-teams-dialog-panel h2 {
+.admin-teams-detail--empty h2 {
   margin: 0;
   font-size: var(--font-size-title);
   font-weight: var(--weight-semibold);
@@ -915,7 +917,7 @@ function successMessage(operation: TeamMutationOperation): string {
 
 .admin-teams-create p,
 .admin-teams-detail p,
-.admin-teams-dialog-panel p {
+.admin-teams-dialog-copy {
   color: var(--text-secondary);
 }
 
@@ -1006,7 +1008,6 @@ function successMessage(operation: TeamMutationOperation): string {
   padding: var(--space-4);
 }
 
-.admin-teams-list-items,
 .admin-teams-roster-list,
 .admin-teams-account-list {
   display: flex;
@@ -1072,36 +1073,13 @@ function successMessage(operation: TeamMutationOperation): string {
   padding-top: var(--space-4);
 }
 
-.admin-teams-dialog {
+:global(.app-dialog.admin-teams-dialog) {
   position: relative;
   z-index: 10;
 }
 
-.admin-teams-dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  background: color-mix(in srgb, var(--text-primary) 45%, transparent);
-}
-
-.admin-teams-dialog-position {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-4);
-}
-
-.admin-teams-dialog-panel {
-  display: flex;
-  width: min(100%, 34rem);
-  flex-direction: column;
-  gap: var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-modal);
-  background: var(--panel);
-  box-shadow: var(--shadow-menu);
-  padding: var(--space-6);
+:global(.admin-teams-dialog .app-dialog-title.admin-teams-dialog-title) {
+  line-height: var(--line-height-title);
 }
 
 @media (max-width: 48rem) {

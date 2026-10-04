@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
 import { PhMinus, PhPlus } from '@phosphor-icons/vue'
 import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import AppButton from '@/components/base/AppButton.vue'
+import AppDialog from '@/components/base/AppDialog.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
 import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
+import AppSelectField from '@/components/base/AppSelectField.vue'
 import { useSessionStore } from '@/stores/session'
 import { useProjectMembership } from '@/composables/useProjectMembership'
 const { t } = useI18n()
@@ -112,33 +113,27 @@ async function removeMember(): Promise<void> {
       >
         <h2 id="project-members-add-title">{{ t('projectMembers.add') }}</h2>
         <div class="project-members-add-fields">
-          <div>
-            <label for="project-member-candidate">{{ t('projectMembers.person') }}</label>
-            <select
-              id="project-member-candidate"
-              v-model="selectedCandidate"
-              :aria-label="t('projectMembers.person')"
-              :disabled="management.pending.value"
-            >
-              <option :value="null">{{ t('projectMembers.choose') }}</option>
-              <option v-for="candidate in candidates" :key="candidate.id" :value="candidate.id">
-                {{ candidate.display_name }}
-              </option>
-            </select>
-          </div>
-          <div>
-            <label for="project-member-role">{{ t('projectMembers.role') }}</label>
-            <select
-              id="project-member-role"
-              v-model="selectedRole"
-              :aria-label="t('projectMembers.role')"
-              :disabled="management.pending.value"
-            >
-              <option value="viewer">{{ t('projectMembers.roles.viewer') }}</option>
-              <option value="reviewer">{{ t('projectMembers.roles.reviewer') }}</option>
-              <option value="operator">{{ t('projectMembers.roles.operator') }}</option>
-            </select>
-          </div>
+          <AppSelectField
+            id="project-member-candidate"
+            v-model="selectedCandidate"
+            :label="t('projectMembers.person')"
+            :disabled="management.pending.value"
+          >
+            <option :value="null">{{ t('projectMembers.choose') }}</option>
+            <option v-for="candidate in candidates" :key="candidate.id" :value="candidate.id">
+              {{ candidate.display_name }}
+            </option>
+          </AppSelectField>
+          <AppSelectField
+            id="project-member-role"
+            v-model="selectedRole"
+            :label="t('projectMembers.role')"
+            :disabled="management.pending.value"
+          >
+            <option value="viewer">{{ t('projectMembers.roles.viewer') }}</option>
+            <option value="reviewer">{{ t('projectMembers.roles.reviewer') }}</option>
+            <option value="operator">{{ t('projectMembers.roles.operator') }}</option>
+          </AppSelectField>
         </div>
         <div class="project-members-add-actions app-form-actions">
           <AppButton
@@ -188,12 +183,18 @@ async function removeMember(): Promise<void> {
         <div class="project-members-transfer">
           <label for="transfer">{{ t('projectMembers.transfer') }}</label>
           <div class="project-members-transfer-controls">
-            <select id="transfer" v-model="transferTarget" :disabled="management.pending.value">
+            <AppSelectField
+              id="transfer"
+              v-model="transferTarget"
+              :label="t('projectMembers.transfer')"
+              hide-label
+              :disabled="management.pending.value"
+            >
               <option :value="null">{{ t('projectMembers.choose') }}</option>
               <option v-for="candidate in candidates" :key="candidate.id" :value="candidate.id">
                 {{ candidate.display_name }}
               </option>
-            </select>
+            </AppSelectField>
             <AppButton
               type="button"
               variant="ghost"
@@ -225,22 +226,24 @@ async function removeMember(): Promise<void> {
               <tr v-for="member in management.state.data.value.members" :key="member.user_id">
                 <th scope="row">{{ member.display_name }}</th>
                 <td>
-                  <select
+                  <AppSelectField
+                    :id="`project-member-role-${member.user_id}`"
+                    :label="t('projectMembers.role')"
                     :aria-label="t('projectMembers.role')"
-                    :value="member.role"
+                    hide-label
+                    :model-value="member.role"
                     :disabled="management.pending.value"
-                    @change="
+                    @update:model-value="
                       management.setRole(
                         member.user_id,
-                        ($event.target as HTMLSelectElement).value as
-                          'viewer' | 'reviewer' | 'operator',
+                        $event as 'viewer' | 'reviewer' | 'operator',
                       )
                     "
                   >
                     <option value="viewer">{{ t('projectMembers.roles.viewer') }}</option>
                     <option value="reviewer">{{ t('projectMembers.roles.reviewer') }}</option>
                     <option value="operator">{{ t('projectMembers.roles.operator') }}</option>
-                  </select>
+                  </AppSelectField>
                 </td>
                 <td class="project-members-actions">
                   <AppButton
@@ -269,51 +272,51 @@ async function removeMember(): Promise<void> {
     </template>
   </main>
 
-  <Dialog
+  <AppDialog
     :open="memberToRemove !== null"
     class="project-members-dialog"
+    size="2xl"
+    layout="stacked"
+    backdrop="ink"
+    bordered
+    title-size="title"
+    title-class="project-members-dialog-title"
+    actions-class="project-members-dialog-actions"
     @close="closeMemberRemoval"
   >
-    <div class="project-members-dialog-backdrop" aria-hidden="true" />
-    <div class="project-members-dialog-position">
-      <DialogPanel class="project-members-dialog-panel">
-        <DialogTitle class="project-members-dialog-title">
-          {{ t('projectMembers.removeConfirm.title', { name: memberToRemove?.display_name }) }}
-        </DialogTitle>
-        <p>
-          {{
-            t('projectMembers.removeConfirm.description', { name: memberToRemove?.display_name })
-          }}
-        </p>
-        <AppFeedback
-          v-if="management.error.value"
-          class="project-members-error"
-          announcement="assertive"
-          tone="critical"
-        >
-          {{ t('projectMembers.error') }}
-        </AppFeedback>
-        <div class="project-members-dialog-actions">
-          <AppButton
-            type="button"
-            variant="ghost"
-            :disabled="management.pending.value"
-            @click="closeMemberRemoval"
-          >
-            {{ t('projectMembers.removeConfirm.cancel') }}
-          </AppButton>
-          <AppButton
-            type="button"
-            tone="destructive"
-            :disabled="management.pending.value"
-            @click="removeMember"
-          >
-            {{ t('projectMembers.removeConfirm.submit') }}
-          </AppButton>
-        </div>
-      </DialogPanel>
-    </div>
-  </Dialog>
+    <template #title>
+      {{ t('projectMembers.removeConfirm.title', { name: memberToRemove?.display_name }) }}
+    </template>
+    <p>
+      {{ t('projectMembers.removeConfirm.description', { name: memberToRemove?.display_name }) }}
+    </p>
+    <AppFeedback
+      v-if="management.error.value"
+      class="project-members-error"
+      announcement="assertive"
+      tone="critical"
+    >
+      {{ t('projectMembers.error') }}
+    </AppFeedback>
+    <template #actions>
+      <AppButton
+        type="button"
+        variant="ghost"
+        :disabled="management.pending.value"
+        @click="closeMemberRemoval"
+      >
+        {{ t('projectMembers.removeConfirm.cancel') }}
+      </AppButton>
+      <AppButton
+        type="button"
+        tone="destructive"
+        :disabled="management.pending.value"
+        @click="removeMember"
+      >
+        {{ t('projectMembers.removeConfirm.submit') }}
+      </AppButton>
+    </template>
+  </AppDialog>
 </template>
 
 <style scoped>
@@ -361,8 +364,7 @@ async function removeMember(): Promise<void> {
   font-weight: var(--weight-semibold);
 }
 
-.project-members-transfer,
-.project-members-add-fields > div {
+.project-members-transfer {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -375,8 +377,18 @@ async function removeMember(): Promise<void> {
   gap: var(--space-2);
 }
 
-.project-members-transfer-controls select {
+.project-members-transfer-controls .app-select-field {
   flex: 1 1 12rem;
+}
+
+.project-members-add-fields {
+  --field-gap: var(--space-2);
+  --field-label-size: inherit;
+  --field-label-color: var(--text-primary);
+}
+
+.project-members {
+  --field-disabled-opacity: 0.65;
 }
 
 .project-members-roster {
@@ -429,66 +441,20 @@ async function removeMember(): Promise<void> {
   gap: var(--space-4);
 }
 
-.project-members select {
-  min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-input);
-  padding: var(--space-2) var(--space-3);
-  background: var(--panel);
-  color: var(--text-primary);
-  font: inherit;
-}
-
-.project-members select:disabled {
-  cursor: not-allowed;
-  opacity: 0.65;
-}
-
 .project-members-error {
   margin-top: var(--space-4);
 }
 
-.project-members-dialog {
+:global(.app-dialog.project-members-dialog) {
   position: relative;
   z-index: 10;
 }
 
-.project-members-dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  background: color-mix(in srgb, var(--text-primary) 45%, transparent);
+:global(.project-members-dialog .app-dialog-title.project-members-dialog-title) {
+  font-weight: bold;
 }
 
-.project-members-dialog-position {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-4);
-}
-
-.project-members-dialog-panel {
-  display: flex;
-  width: min(100%, 34rem);
-  flex-direction: column;
-  gap: var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-modal);
-  background: var(--panel);
-  box-shadow: var(--shadow-menu);
-  padding: var(--space-6);
-}
-
-.project-members-dialog-title {
-  margin: 0;
-  font-size: var(--font-size-title);
-}
-
-.project-members-dialog-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+:global(.project-members-dialog .app-dialog-actions.project-members-dialog-actions) {
   gap: var(--space-2);
 }
 

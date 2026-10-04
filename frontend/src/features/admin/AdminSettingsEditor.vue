@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { components } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
+import AppDialog from '@/components/base/AppDialog.vue'
+import AppTextField from '@/components/base/AppTextField.vue'
 import { useDraftRegistration } from '@/composables/useDraftNavigation'
 
 import type { AdminSettings } from './useAdminSettings'
@@ -435,7 +436,7 @@ function errorMessage(error: AdminSettingsMutationError | null): string | null {
             </div>
 
             <div v-if="modes[field] === 'set'" class="admin-settings-editor-value-field">
-              <label :for="`admin-settings-${field}`">
+              <label v-if="field === 'editors'" :for="`admin-settings-${field}`">
                 {{ t('adminSettings.editing.valueFor', { field: fieldLabel(field) }) }}
               </label>
               <textarea
@@ -449,22 +450,28 @@ function errorMessage(error: AdminSettingsMutationError | null): string | null {
                 rows="5"
                 @input="updateMode(field)"
               />
-              <input
+              <AppTextField
                 v-else
                 :id="`admin-settings-${field}`"
                 v-model="values[field]"
+                class="admin-settings-editor-text-field"
+                :label="t('adminSettings.editing.valueFor', { field: fieldLabel(field) })"
+                :error-message="fieldError(field)"
                 :name="field"
                 :type="field === 'contact_email' ? 'email' : 'text'"
                 :inputmode="field === 'published_since_year' ? 'numeric' : undefined"
                 :maxlength="field === 'contact_email' ? 254 : field.includes('url') ? 2048 : 200"
                 :aria-invalid="fieldError(field) ? true : undefined"
-                :aria-describedby="fieldError(field) ? `admin-settings-${field}-error` : undefined"
                 @input="updateMode(field)"
               />
               <p v-if="field === 'editors'" class="admin-settings-editor-hint">
                 {{ t('adminSettings.editing.editorsHint') }}
               </p>
-              <p v-if="fieldError(field)" :id="`admin-settings-${field}-error`" role="alert">
+              <p
+                v-if="field === 'editors' && fieldError(field)"
+                :id="`admin-settings-${field}-error`"
+                role="alert"
+              >
                 {{ fieldError(field) }}
               </p>
             </div>
@@ -539,40 +546,38 @@ function errorMessage(error: AdminSettingsMutationError | null): string | null {
       </template>
     </section>
 
-    <Dialog
+    <AppDialog
       :open="isResetConfirmationOpen"
       class="admin-settings-reset-dialog"
+      size="xl"
+      layout="stacked"
+      title-class="admin-settings-reset-title"
+      actions-class="admin-settings-reset-actions"
+      actions-align="start"
       @close="isResetConfirmationOpen = false"
     >
-      <div class="admin-settings-reset-backdrop" aria-hidden="true" />
-      <div class="admin-settings-reset-frame">
-        <DialogPanel class="admin-settings-reset-panel">
-          <DialogTitle class="admin-settings-reset-title">{{
-            t('adminSettings.reset.confirm.title')
-          }}</DialogTitle>
-          <p>{{ t('adminSettings.reset.confirm.description') }}</p>
-          <ul>
-            <li v-for="item in selectedResetFallbacks" :key="item.field">
-              {{
-                t('adminSettings.reset.confirm.entry', {
-                  field: fieldLabel(item.field),
-                  value: item.value,
-                })
-              }}
-            </li>
-          </ul>
-          <p>{{ t('adminSettings.reset.confirm.nonAtomic') }}</p>
-          <div class="admin-settings-editor-action-buttons">
-            <AppButton type="button" variant="ghost" @click="isResetConfirmationOpen = false">
-              {{ t('adminSettings.reset.confirm.cancel') }}
-            </AppButton>
-            <AppButton type="button" tone="destructive" @click="confirmReset">
-              {{ t('adminSettings.reset.confirm.submit') }}
-            </AppButton>
-          </div>
-        </DialogPanel>
-      </div>
-    </Dialog>
+      <template #title>{{ t('adminSettings.reset.confirm.title') }}</template>
+      <p class="admin-settings-reset-copy">{{ t('adminSettings.reset.confirm.description') }}</p>
+      <ul class="admin-settings-reset-copy">
+        <li v-for="item in selectedResetFallbacks" :key="item.field">
+          {{
+            t('adminSettings.reset.confirm.entry', {
+              field: fieldLabel(item.field),
+              value: item.value,
+            })
+          }}
+        </li>
+      </ul>
+      <p class="admin-settings-reset-copy">{{ t('adminSettings.reset.confirm.nonAtomic') }}</p>
+      <template #actions>
+        <AppButton type="button" variant="ghost" @click="isResetConfirmationOpen = false">
+          {{ t('adminSettings.reset.confirm.cancel') }}
+        </AppButton>
+        <AppButton type="button" tone="destructive" @click="confirmReset">
+          {{ t('adminSettings.reset.confirm.submit') }}
+        </AppButton>
+      </template>
+    </AppDialog>
   </section>
 </template>
 
@@ -769,13 +774,10 @@ function errorMessage(error: AdminSettingsMutationError | null): string | null {
   font-size: var(--font-size-small);
 }
 
-.admin-settings-editor-value-field input {
-  box-sizing: border-box;
-  inline-size: 100%;
-}
-
-.admin-settings-editor-value-field input[aria-invalid='true'] {
-  border-color: var(--critical);
+.admin-settings-editor-text-field {
+  --field-gap: var(--space-2);
+  --field-control-width: 100%;
+  --field-error-size: inherit;
 }
 
 .admin-settings-editor-value-field > p[role='alert'],
@@ -821,42 +823,26 @@ function errorMessage(error: AdminSettingsMutationError | null): string | null {
   font-size: var(--font-size-small);
 }
 
-.admin-settings-reset-backdrop {
-  position: fixed;
-  inset: 0;
-  background: var(--backdrop);
-}
-
-.admin-settings-reset-frame {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-4);
-}
-
-.admin-settings-reset-panel {
-  display: grid;
-  gap: var(--space-4);
-  width: 100%;
-  max-width: 32rem;
-  padding: var(--space-6);
-  border-radius: var(--radius-modal);
-  background: var(--panel);
-  box-shadow: var(--shadow-menu);
-}
-
-.admin-settings-reset-panel p,
-.admin-settings-reset-panel ul {
+.admin-settings-reset-copy {
   margin: 0;
   color: var(--text-secondary);
 }
 
-.admin-settings-reset-title {
+:global(.admin-settings-reset-dialog .app-dialog-title.admin-settings-reset-title) {
+  /* Preserve the existing native h2 margins in this spaced grid. */
+  margin: 0.83em 0;
   color: var(--text-primary);
-  font-size: var(--font-size-page);
-  font-weight: var(--weight-semibold);
+}
+
+:global(.admin-settings-reset-dialog .app-dialog-actions.admin-settings-reset-actions) {
+  align-items: center;
+  gap: var(--space-2);
+}
+
+@media (max-width: 40rem) {
+  :global(.admin-settings-reset-actions > *) {
+    flex: 1;
+  }
 }
 
 @container branding-editor (min-width: 38rem) {

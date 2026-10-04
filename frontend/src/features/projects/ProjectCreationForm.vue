@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
-import AppFieldHelp from '@/components/base/AppFieldHelp.vue'
+import AppSelectField from '@/components/base/AppSelectField.vue'
 import AppTextField from '@/components/base/AppTextField.vue'
 import { useDraftRegistration } from '@/composables/useDraftNavigation'
 
@@ -111,28 +111,21 @@ async function submit(): Promise<void> {
             :maxlength="200"
             required
           />
-          <div class="project-creation-field">
-            <div class="project-creation-label">
-              <label for="project-create-slug">{{ t('projects.creation.slug') }}</label>
-              <AppFieldHelp
-                description-id="project-create-slug-help"
-                :label="t('projects.creation.slugHelpLabel')"
-                :text="t('projects.creation.slugConstraints')"
-              />
-            </div>
-            <input
-              id="project-create-slug"
-              v-model="slug"
-              name="slug"
-              maxlength="100"
-              autocomplete="off"
-              :spellcheck="false"
-              :placeholder="t('projects.creation.slugExample')"
-              pattern="[a-z][a-z0-9]*(?:-[a-z0-9]+)*"
-              aria-describedby="project-create-slug-help"
-              required
-            />
-          </div>
+          <AppTextField
+            id="project-create-slug"
+            v-model="slug"
+            name="slug"
+            :label="t('projects.creation.slug')"
+            help-id="project-create-slug-help"
+            :help-label="t('projects.creation.slugHelpLabel')"
+            :help-text="t('projects.creation.slugConstraints')"
+            :maxlength="100"
+            autocomplete="off"
+            :spellcheck="false"
+            :placeholder="t('projects.creation.slugExample')"
+            pattern="[a-z][a-z0-9]*(?:-[a-z0-9]+)*"
+            required
+          />
           <div class="project-creation-field project-creation-description">
             <label for="project-create-description">{{
               t('projects.creation.descriptionField')
@@ -151,15 +144,17 @@ async function submit(): Promise<void> {
 
       <fieldset class="project-creation-group">
         <legend>{{ t('projects.creation.teamTitle') }}</legend>
-        <div class="project-creation-field">
-          <label for="project-create-team">{{ t('projects.creation.team') }}</label>
-          <select id="project-create-team" v-model="selectedTeamId" required>
-            <option :value="null" disabled>{{ t('projects.creation.chooseTeam') }}</option>
-            <option v-for="team in teams" :key="team.id" :value="team.id">
-              {{ team.display_name }}
-            </option>
-          </select>
-        </div>
+        <AppSelectField
+          id="project-create-team"
+          v-model="selectedTeamId"
+          :label="t('projects.creation.team')"
+          required
+        >
+          <option :value="null" disabled>{{ t('projects.creation.chooseTeam') }}</option>
+          <option v-for="team in teams" :key="team.id" :value="team.id">
+            {{ team.display_name }}
+          </option>
+        </AppSelectField>
         <AppFeedback v-if="creation.teamsQuery.isPending.value" announcement="polite">
           {{ t('projects.creation.teamsLoading') }}
         </AppFeedback>
@@ -225,27 +220,23 @@ async function submit(): Promise<void> {
         >
 
         <div v-if="isAdministrator" class="project-creation-manager">
-          <div class="project-creation-field">
-            <label for="project-create-manager">{{ t('projects.creation.initialManager') }}</label>
-            <select
-              id="project-create-manager"
-              v-model="selectedManagerId"
-              :disabled="selectedTeamId === null"
-              aria-describedby="project-create-manager-help"
-            >
-              <option :value="null">{{ t('projects.creation.defaultManager') }}</option>
-              <option
-                v-for="member in activeManagers"
-                :key="member.user_id"
-                :value="member.user_id"
-              >
-                {{ member.display_name }}
-              </option>
-            </select>
-            <p id="project-create-manager-help" class="project-creation-help">
-              {{ t('projects.creation.managerHelp') }}
-            </p>
-          </div>
+          <AppSelectField
+            id="project-create-manager"
+            v-model="selectedManagerId"
+            :label="t('projects.creation.initialManager')"
+            :disabled="selectedTeamId === null"
+            aria-describedby="project-create-manager-help"
+          >
+            <option :value="null">{{ t('projects.creation.defaultManager') }}</option>
+            <option v-for="member in activeManagers" :key="member.user_id" :value="member.user_id">
+              {{ member.display_name }}
+            </option>
+            <template #description>
+              <p id="project-create-manager-help" class="project-creation-help">
+                {{ t('projects.creation.managerHelp') }}
+              </p>
+            </template>
+          </AppSelectField>
           <template v-if="selectedTeamId !== null">
             <AppFeedback v-if="creation.managerQuery.isPending.value" announcement="polite">
               {{ t('projects.creation.managersLoading') }}
@@ -418,30 +409,9 @@ async function submit(): Promise<void> {
   gap: var(--space-1);
 }
 
-.project-creation-label {
-  display: flex;
-  min-inline-size: 0;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.project-creation-field > label,
-.project-creation-label > label {
+.project-creation-field > label {
   color: var(--text-secondary);
   font-size: var(--font-size-small);
-}
-
-.project-creation input,
-.project-creation select {
-  min-width: 0;
-  min-height: var(--control-min-size);
-  max-width: 100%;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-input);
-  background: var(--panel);
-  color: var(--text-primary);
-  font: inherit;
-  padding: var(--space-2) var(--space-3);
 }
 
 .project-creation-manager {
@@ -462,10 +432,8 @@ async function submit(): Promise<void> {
     grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
   }
 
-  .project-creation-details :deep(.app-text-field > label) {
-    display: flex;
-    min-block-size: var(--control-min-size);
-    align-items: center;
+  .project-creation-details {
+    --field-label-min-size: var(--control-min-size);
   }
 
   .project-creation-description {

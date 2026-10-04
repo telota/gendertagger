@@ -307,6 +307,9 @@ the phased plan that resumes application code.
   folders; consumers import those modules directly, without compatibility re-exports.
 - Lifecycle, provenance, selected-execution, prediction/confidence/missing-output, and append-only history
   presentation are shared while preserving canonical uncertainty distinctions and method-specific confidence.
+- Dialog consumers share the HeadlessUI shell while retaining feature-owned dismissal and write policy.
+  Native field composition now targets real inputs/selects, preserves description relationships, and
+  keeps null/boolean models typed. Obsolete source-markup/style assertions were removed, not re-pinned.
 - Batch failures now share the URL-credential redaction and bounded detailed-diagnostic policy used by
   aggregation, evaluation, export, and dispatch. Redaction occurs before the 500-character limit;
   authenticated method summaries cannot retain credential-bearing URL user information from batch

@@ -6,6 +6,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
+import AppSelectField from '@/components/base/AppSelectField.vue'
 import { useDraftRegistration } from '@/composables/useDraftNavigation'
 import { useUserPreferences, type UserPreferences } from '@/composables/useUserPreferences'
 
@@ -243,46 +244,49 @@ async function loadSaved(replaceDraft: boolean): Promise<void> {
         @submit.prevent="save"
       >
         <fieldset :disabled="isBusy" :aria-label="t('userSettings.title')">
-          <div class="user-settings-field">
-            <label for="user-settings-locale">{{ t('userSettings.language.label') }}</label>
-            <p id="user-settings-locale-help">{{ t('userSettings.language.description') }}</p>
-            <select
-              id="user-settings-locale"
-              v-model="draft.locale"
-              aria-describedby="user-settings-locale-help"
-            >
-              <option :value="null">{{ t('userSettings.language.browserDefault') }}</option>
-              <option value="de" lang="de">{{ t('userSettings.language.de') }}</option>
-              <option value="en" lang="en">{{ t('userSettings.language.en') }}</option>
-            </select>
-          </div>
+          <AppSelectField
+            id="user-settings-locale"
+            v-model="draft.locale"
+            class="user-settings-field"
+            :label="t('userSettings.language.label')"
+            aria-describedby="user-settings-locale-help"
+          >
+            <option :value="null">{{ t('userSettings.language.browserDefault') }}</option>
+            <option value="de" lang="de">{{ t('userSettings.language.de') }}</option>
+            <option value="en" lang="en">{{ t('userSettings.language.en') }}</option>
+            <template #before-control>
+              <p id="user-settings-locale-help">{{ t('userSettings.language.description') }}</p>
+            </template>
+          </AppSelectField>
 
-          <div class="user-settings-field">
-            <label for="user-settings-theme">{{ t('userSettings.theme.label') }}</label>
-            <p id="user-settings-theme-help">{{ t('userSettings.theme.description') }}</p>
-            <select
-              id="user-settings-theme"
-              v-model="draft.theme"
-              aria-describedby="user-settings-theme-help"
-            >
-              <option value="system">{{ t('userSettings.theme.system') }}</option>
-              <option value="light">{{ t('userSettings.theme.light') }}</option>
-              <option value="dark">{{ t('userSettings.theme.dark') }}</option>
-            </select>
-          </div>
+          <AppSelectField
+            id="user-settings-theme"
+            v-model="draft.theme"
+            class="user-settings-field"
+            :label="t('userSettings.theme.label')"
+            aria-describedby="user-settings-theme-help"
+          >
+            <option value="system">{{ t('userSettings.theme.system') }}</option>
+            <option value="light">{{ t('userSettings.theme.light') }}</option>
+            <option value="dark">{{ t('userSettings.theme.dark') }}</option>
+            <template #before-control>
+              <p id="user-settings-theme-help">{{ t('userSettings.theme.description') }}</p>
+            </template>
+          </AppSelectField>
 
-          <div class="user-settings-field">
-            <label for="user-settings-sidebar">{{ t('userSettings.sidebar.label') }}</label>
-            <p id="user-settings-sidebar-help">{{ t('userSettings.sidebar.description') }}</p>
-            <select
-              id="user-settings-sidebar"
-              v-model="draft.desktop_sidebar_collapsed"
-              aria-describedby="user-settings-sidebar-help"
-            >
-              <option :value="false">{{ t('userSettings.sidebar.expanded') }}</option>
-              <option :value="true">{{ t('userSettings.sidebar.collapsed') }}</option>
-            </select>
-          </div>
+          <AppSelectField
+            id="user-settings-sidebar"
+            v-model="draft.desktop_sidebar_collapsed"
+            class="user-settings-field"
+            :label="t('userSettings.sidebar.label')"
+            aria-describedby="user-settings-sidebar-help"
+          >
+            <option :value="false">{{ t('userSettings.sidebar.expanded') }}</option>
+            <option :value="true">{{ t('userSettings.sidebar.collapsed') }}</option>
+            <template #before-control>
+              <p id="user-settings-sidebar-help">{{ t('userSettings.sidebar.description') }}</p>
+            </template>
+          </AppSelectField>
         </fieldset>
 
         <AppFeedback v-if="saveState === 'conflict'" class="user-settings-conflict">
@@ -329,38 +333,23 @@ async function loadSaved(replaceDraft: boolean): Promise<void> {
 .user-settings-field {
   padding: var(--space-4);
   border-top: 1px solid var(--grid);
+  --field-gap: 0px;
+  --field-label-size: var(--font-size-body-strong);
+  --field-label-weight: var(--weight-semibold);
+  --field-label-color: var(--text-primary);
+  --field-control-width: 100%;
+  --field-control-max-width: 22rem;
+  --field-disabled-cursor: wait;
 }
 
 .user-settings-field:first-child {
   border-top: 0;
 }
 
-.user-settings-field label {
-  display: block;
-  font-size: var(--font-size-body-strong);
-  font-weight: var(--weight-semibold);
-}
-
 .user-settings-field p,
 .user-settings-actions > p {
   margin: var(--space-1) 0 var(--space-3);
   color: var(--text-secondary);
-}
-
-.user-settings-field select {
-  width: 100%;
-  max-width: 22rem;
-  min-height: var(--control-min-size);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-input);
-  background: var(--panel);
-  color: var(--text-primary);
-  font: inherit;
-}
-
-.user-settings-field select:disabled {
-  cursor: wait;
 }
 
 .user-settings-actions {

@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { components } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
+import AppDialog from '@/components/base/AppDialog.vue'
+import AppTextField from '@/components/base/AppTextField.vue'
 
 import type { AdminUserSecurityError, PasswordResetDisclosure } from './useAdminUserMutations'
 
@@ -120,13 +121,12 @@ function confirm(): void {
         {{ t('admin.security.reset.successTitle', { username: disclosure.targetUsername }) }}
       </h2>
       <p>{{ t('admin.security.reset.successDescription') }}</p>
-      <label :for="`admin-user-reset-password-${account.id}`">
-        {{ t('admin.security.reset.temporaryPassword') }}
-      </label>
-      <input
+      <AppTextField
         :id="`admin-user-reset-password-${account.id}`"
+        class="admin-user-password-field"
+        :label="t('admin.security.reset.temporaryPassword')"
         readonly
-        :value="disclosure.temporaryPassword"
+        :model-value="disclosure.temporaryPassword"
         :aria-describedby="`admin-user-reset-password-help-${account.id}`"
       />
       <p :id="`admin-user-reset-password-help-${account.id}`">
@@ -137,43 +137,43 @@ function confirm(): void {
       </AppButton>
     </section>
 
-    <Dialog
+    <AppDialog
       :open="confirmation !== null"
       class="admin-user-security-dialog"
+      size="lg"
+      actions-class="admin-user-security-confirmation-actions"
       @close="confirmation = null"
     >
-      <div class="admin-user-security-backdrop" aria-hidden="true" />
-      <div class="admin-user-security-frame">
-        <DialogPanel class="admin-user-security-panel">
-          <template v-if="confirmation === 'resetPassword'">
-            <DialogTitle class="admin-user-security-title">
-              {{ t('admin.security.reset.confirm.title', { username: account.username }) }}
-            </DialogTitle>
-            <p>{{ t('admin.security.reset.confirm.description') }}</p>
-            <p>{{ t('admin.security.reset.confirm.inactive') }}</p>
-          </template>
-          <template v-else>
-            <DialogTitle class="admin-user-security-title">
-              {{ t('admin.security.revoke.confirm.title', { username: account.username }) }}
-            </DialogTitle>
-            <p>{{ t('admin.security.revoke.confirm.description') }}</p>
-            <p v-if="isCurrentAccount">{{ t('admin.security.revoke.confirm.selfWarning') }}</p>
-          </template>
-          <div class="admin-user-security-confirmation-actions">
-            <AppButton type="button" variant="ghost" @click="confirmation = null">
-              {{ t('admin.security.cancel') }}
-            </AppButton>
-            <AppButton type="button" tone="destructive" @click="confirm">
-              {{
-                confirmation === 'resetPassword'
-                  ? t('admin.security.reset.confirm.submit')
-                  : t('admin.security.revoke.confirm.submit')
-              }}
-            </AppButton>
-          </div>
-        </DialogPanel>
-      </div>
-    </Dialog>
+      <template #title>
+        {{
+          confirmation === 'resetPassword'
+            ? t('admin.security.reset.confirm.title', { username: account.username })
+            : t('admin.security.revoke.confirm.title', { username: account.username })
+        }}
+      </template>
+      <template v-if="confirmation === 'resetPassword'">
+        <p class="admin-user-security-copy">{{ t('admin.security.reset.confirm.description') }}</p>
+        <p class="admin-user-security-copy">{{ t('admin.security.reset.confirm.inactive') }}</p>
+      </template>
+      <template v-else>
+        <p class="admin-user-security-copy">{{ t('admin.security.revoke.confirm.description') }}</p>
+        <p v-if="isCurrentAccount" class="admin-user-security-copy">
+          {{ t('admin.security.revoke.confirm.selfWarning') }}
+        </p>
+      </template>
+      <template #actions>
+        <AppButton type="button" variant="ghost" @click="confirmation = null">
+          {{ t('admin.security.cancel') }}
+        </AppButton>
+        <AppButton type="button" tone="destructive" @click="confirm">
+          {{
+            confirmation === 'resetPassword'
+              ? t('admin.security.reset.confirm.submit')
+              : t('admin.security.revoke.confirm.submit')
+          }}
+        </AppButton>
+      </template>
+    </AppDialog>
   </div>
 </template>
 
@@ -214,55 +214,19 @@ function confirm(): void {
   font-size: var(--font-size-small);
 }
 
-.admin-user-reset-disclosure input {
-  width: 100%;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-input);
-  background: var(--panel);
-  color: var(--text-primary);
-  font: inherit;
+.admin-user-password-field {
+  --field-gap: var(--space-2);
+  --field-label-size: inherit;
+  --field-label-color: var(--text-primary);
+  --field-control-width: 100%;
 }
 
-.admin-user-security-backdrop {
-  position: fixed;
-  inset: 0;
-  background: var(--backdrop);
-}
-
-.admin-user-security-frame {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-4);
-}
-
-.admin-user-security-panel {
-  width: 100%;
-  max-width: 30rem;
-  padding: var(--space-6);
-  border-radius: var(--radius-modal);
-  background: var(--panel);
-  box-shadow: var(--shadow-menu);
-}
-
-.admin-user-security-title {
-  margin: 0 0 var(--space-2);
-  font-size: var(--font-size-page);
-  font-weight: var(--weight-semibold);
-}
-
-.admin-user-security-panel p {
+.admin-user-security-copy {
   margin: 0 0 var(--space-3);
   color: var(--text-secondary);
 }
 
-.admin-user-security-confirmation-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-3);
+:global(.admin-user-security-dialog .app-dialog-actions.admin-user-security-confirmation-actions) {
   margin-top: var(--space-5);
 }
 </style>

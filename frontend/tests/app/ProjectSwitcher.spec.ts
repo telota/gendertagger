@@ -4,7 +4,6 @@ import { createMemoryHistory } from 'vue-router'
 
 import { createApiClient } from '@/api'
 import type { AppLocale } from '@/app/i18n'
-import type { AccessibleProject } from '@/features/projects/useProjects'
 import { createAppRouter } from '@/app/router'
 import { useSessionRecovery } from '@/composables/useSessionRecovery'
 import de from '@/locales/de.json'
@@ -12,8 +11,11 @@ import en from '@/locales/en.json'
 
 import { apiClientWithRoutes, type RouteResponse } from '../helpers/api'
 import { expectNoAxeViolations } from '../helpers/axe'
-import { mountApplicationAt } from '../helpers/render'
+import { mountApplicationAt, queryDialogByName } from '../helpers/render'
 import { waitFor } from '../helpers/wait'
+import type { components } from '@/api/schema'
+
+type AccessibleProject = components['schemas']['AccessibleProject']
 
 const catalogues = { de, en } as const
 const mounted: VueWrapper[] = []
@@ -402,7 +404,9 @@ describe.each(['de', 'en'] as const)('ProjectSwitcher in %s', (locale: AppLocale
     recovery.isOpen.value = true
     await waitFor(() => expect(document.querySelector('.project-switcher-items')).toBeNull())
     expect(wrapper.find('aside .project-switcher-button').exists()).toBe(false)
-    await waitFor(() => expect(document.querySelector('.session-recovery-panel')).not.toBeNull())
+    await waitFor(() =>
+      expect(queryDialogByName(catalogues[locale].sessionRecovery.title)).not.toBeNull(),
+    )
     recovery.resolve()
     await waitFor(() => expect(wrapper.find('aside .project-switcher-button').exists()).toBe(true))
     expect(wrapper.get('aside .project-switcher-button').attributes('aria-expanded')).toBe('false')

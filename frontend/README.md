@@ -87,11 +87,11 @@ Run from the repository root with `npm --prefix frontend run <script>`, or from 
 | `i18n:check` | Fail on message-catalogue drift between locales |
 | `check` | `typecheck`, `i18n:check`, `api:check`, and `test:coverage`; used by affected push checks |
 
-Vitest assigns pure parser and source-policy tests to its Node project and browser-dependent tests to
-isolated jsdom. Application mounts own their teardown, including Vue unmount and query-client cleanup;
-mutable routers, stores, clients, and mock servers stay fresh per test. CI publishes JUnit timings alongside
-the combined coverage report. Source-policy tests read files directly, so run the Node project on frontend
-source changes even when a related-test import graph would not select them:
+Vitest assigns pure parsers and tool/configuration policy checks to its Node project and
+browser-dependent tests to isolated jsdom. Application mounts own their teardown, including Vue unmount
+and query-client cleanup; mutable routers, stores, clients, and mock servers stay fresh per test. CI
+publishes JUnit timings alongside the combined coverage report. Tooling fixtures can lie outside the
+application import graph, so run the Node project on frontend tooling/source changes:
 
 ```bash
 npm --prefix frontend test -- --project node
@@ -145,7 +145,7 @@ provider from [ADR-0031](../docs/decisions/ADR-0031-local-database-authenticatio
 src/
   api/          generated types, typed client, error and CSRF handling
   app/          composition root, router, i18n, sidebar, header, footer, query client
-  components/   base native fields and data-only domain presenters
+  components/   base native fields/dialogs and data-only domain presenters
   composables/  shared resource keys, cursor/polling, annotation, query/session, project, theme/locale logic
   features/     public/auth, project/data, task/run, review/game, evaluation/export, settings/admin views
   locales/      message catalogues, one JSON file per locale

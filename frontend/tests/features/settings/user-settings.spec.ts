@@ -9,7 +9,7 @@ import { createAppI18n, type AppLocale } from '@/app/i18n'
 import { createQueryClient } from '@/app/queryClient'
 import { createAppRouter } from '@/app/router'
 import { API_CLIENT_KEY } from '@/composables/useApiClient'
-import { userPreferencesQueryKey, type UserPreferences } from '@/composables/useUserPreferences'
+import type { UserPreferences } from '@/composables/useUserPreferences'
 import UserSettingsView from '@/features/settings/UserSettingsView.vue'
 import de from '@/locales/de.json'
 import en from '@/locales/en.json'
@@ -141,7 +141,7 @@ describe.each(['de', 'en'] as const)('personal settings in %s', (locale) => {
     await selectByLabel(wrapper, messages.theme.label).setValue('dark')
     await selectByLabel(wrapper, messages.sidebar.label).setValue('true')
     expect(bodies).toHaveLength(0)
-    expect(queryClient.getQueryData(userPreferencesQueryKey(USER_A.id))).toEqual(SAVED)
+    expect(queryClient.getQueriesData({ type: 'active' }).map(([, data]) => data)).toEqual([SAVED])
     expect(wrapper.get('[role="status"]').text()).toBe(messages.states.unsaved)
 
     await wrapper.get('form').trigger('submit')
@@ -164,7 +164,9 @@ describe.each(['de', 'en'] as const)('personal settings in %s', (locale) => {
     response.resolve(jsonResponse(canonical))
     await waitFor(() => expect(wrapper.get('[role="status"]').text()).toBe(messages.states.saved))
     expect(wrapper.get('[role="status"]').element).toBe(liveRegion)
-    expect(queryClient.getQueryData(userPreferencesQueryKey(USER_A.id))).toEqual(canonical)
+    expect(queryClient.getQueriesData({ type: 'active' }).map(([, data]) => data)).toEqual([
+      canonical,
+    ])
     await selectByLabel(wrapper, messages.theme.label).setValue('light')
     await wrapper.get('form').trigger('submit')
     await waitFor(() => expect(bodies).toHaveLength(2))
@@ -181,9 +183,9 @@ describe.each(['de', 'en'] as const)('personal settings in %s', (locale) => {
     })
     await buttonWithText(wrapper, messages.restoreDefaults).trigger('click')
     expect(bodies).toHaveLength(0)
-    expect(queryClient.getQueryData(userPreferencesQueryKey(USER_A.id))).toMatchObject({
-      locale: 'de',
-    })
+    expect(queryClient.getQueriesData({ type: 'active' }).map(([, data]) => data)).toMatchObject([
+      { locale: 'de' },
+    ])
     expect(wrapper.get('[role="status"]').text()).toBe(messages.states.unsaved)
     await wrapper.get('form').trigger('submit')
     await waitFor(() =>
@@ -191,6 +193,47 @@ describe.each(['de', 'en'] as const)('personal settings in %s', (locale) => {
         { locale: null, theme: 'system', desktop_sidebar_collapsed: false, expected_revision: 7 },
       ]),
     )
+  })
+
+  it('keeps native null and false choices through failed save and explicit retry', async () => {
+    let fails = true
+    const bodies: unknown[] = []
+    const canonical = { ...SAVED, locale: null, desktop_sidebar_collapsed: false, revision: 8 }
+    const { wrapper, queryClient } = await mountSettings(locale, async (request) => {
+      if (request.method === 'GET') {
+        return jsonResponse({ ...SAVED, desktop_sidebar_collapsed: true })
+      }
+      bodies.push(await request.json())
+      return fails ? failure() : jsonResponse(canonical)
+    })
+    const language = selectByLabel(wrapper, messages.language.label)
+    const browserDefault = language
+      .findAll('option')
+      .find((option) => option.text() === messages.language.browserDefault)
+    const sidebar = selectByLabel(wrapper, messages.sidebar.label)
+    const expanded = sidebar
+      .findAll('option')
+      .find((option) => option.text() === messages.sidebar.expanded)
+    if (!browserDefault || !expanded) throw new Error('Native settings choices are missing.')
+    await language.setValue(browserDefault.element.value)
+    await sidebar.setValue(expanded.element.value)
+    await wrapper.get('form').trigger('submit')
+    await waitFor(() => expect(wrapper.find('[role="alert"]').exists()).toBe(true))
+    expect(language.element.value).toBe(browserDefault.element.value)
+    expect(sidebar.element.value).toBe(expanded.element.value)
+    expect(bodies[0]).toEqual({
+      locale: null,
+      theme: SAVED.theme,
+      desktop_sidebar_collapsed: false,
+      expected_revision: SAVED.revision,
+    })
+    fails = false
+    await wrapper.get('form').trigger('submit')
+    await waitFor(() => expect(wrapper.find('[role="status"]').exists()).toBe(true))
+    expect(bodies).toEqual([bodies[0], bodies[0]])
+    expect(queryClient.getQueriesData({ type: 'active' }).map(([, data]) => data)).toEqual([
+      canonical,
+    ])
   })
 
   it('shows a read error and retries without pretending default values were loaded', async () => {
@@ -280,7 +323,7 @@ describe.each(['de', 'en'] as const)('personal settings in %s', (locale) => {
     })
     await selectByLabel(wrapper, messages.theme.label).setValue('dark')
     saved = { ...SAVED, theme: 'system', revision: 8 }
-    await queryClient.invalidateQueries({ queryKey: userPreferencesQueryKey(USER_A.id) })
+    await queryClient.invalidateQueries({ type: 'active' })
     expect(selectByLabel(wrapper, messages.theme.label).element.value).toBe('dark')
     await wrapper.get('form').trigger('submit')
     await waitFor(() => expect(bodies).toHaveLength(1))
@@ -299,7 +342,7 @@ describe.each(['de', 'en'] as const)('personal settings in %s', (locale) => {
     })
     await selectByLabel(wrapper, messages.theme.label).setValue('dark')
     readFails = true
-    await queryClient.invalidateQueries({ queryKey: userPreferencesQueryKey(USER_A.id) })
+    await queryClient.invalidateQueries({ type: 'active' })
     await waitFor(() => expect(wrapper.get('[role="alert"]').text()).toBe(messages.loadError))
     expect(selectByLabel(wrapper, messages.theme.label).element.value).toBe('dark')
     readFails = false
@@ -320,7 +363,7 @@ describe.each(['de', 'en'] as const)('personal settings in %s', (locale) => {
       return reads === 1 ? jsonResponse(SAVED) : failure()
     })
     await selectByLabel(wrapper, messages.theme.label).setValue('dark')
-    await queryClient.invalidateQueries({ queryKey: userPreferencesQueryKey(USER_A.id) })
+    await queryClient.invalidateQueries({ type: 'active' })
     await waitFor(() => expect(wrapper.get('[role="alert"]').text()).toBe(messages.loadError))
     await buttonWithText(wrapper, messages.retry).trigger('click')
     await waitFor(() => expect(wrapper.get('[role="alert"]').text()).toBe(messages.reloadError))
@@ -339,6 +382,7 @@ describe.each(['de', 'en'] as const)('personal settings in %s', (locale) => {
       reads += 1
       return jsonResponse(reads === 1 ? SAVED : DEFAULTS)
     })
+    const oldAccountQueries = queryClient.getQueryCache().findAll({ type: 'active' })
     await selectByLabel(wrapper, messages.theme.label).setValue('dark')
     await wrapper.get('form').trigger('submit')
     await waitFor(() => expect(wrapper.get('[role="status"]').text()).toBe(messages.states.saving))
@@ -350,8 +394,12 @@ describe.each(['de', 'en'] as const)('personal settings in %s', (locale) => {
     await flushPromises()
     expect(selectByLabel(wrapper, messages.theme.label).element.value).toBe('system')
     expect(wrapper.get('[role="status"]').text()).toBe(messages.states.unchanged)
-    expect(queryClient.getQueryData(userPreferencesQueryKey(USER_A.id))).toBeUndefined()
-    expect(queryClient.getQueryData(userPreferencesQueryKey(USER_B.id))).toEqual(DEFAULTS)
+    for (const query of oldAccountQueries) {
+      expect(queryClient.getQueryCache().getAll()).not.toContain(query)
+    }
+    expect(queryClient.getQueriesData({ type: 'active' }).map(([, data]) => data)).toEqual([
+      DEFAULTS,
+    ])
   })
 
   it('ignores a late initial read after switching accounts', async () => {

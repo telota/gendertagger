@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { components } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
+import AppDialog from '@/components/base/AppDialog.vue'
 import AppTextField from '@/components/base/AppTextField.vue'
 import { useDraftRegistration } from '@/composables/useDraftNavigation'
 
@@ -197,34 +197,27 @@ watch(() => props.account, resetDraft)
       </div>
     </form>
 
-    <Dialog
+    <AppDialog
       :open="isDeactivationConfirmationOpen"
       class="admin-user-deactivation"
+      size="md"
+      frame-inset="inline-gutter"
+      panel-inset="inline-gutter"
+      actions-class="admin-user-deactivation-actions"
       @close="isDeactivationConfirmationOpen = false"
     >
-      <div class="admin-user-deactivation-backdrop" aria-hidden="true" />
-      <div class="admin-user-deactivation-frame">
-        <DialogPanel class="admin-user-deactivation-panel">
-          <DialogTitle class="admin-user-deactivation-title">
-            {{ t('admin.deactivation.title') }}
-          </DialogTitle>
-          <p>{{ t('admin.deactivation.description') }}</p>
-          <p>{{ t('admin.deactivation.sessions') }}</p>
-          <div class="admin-user-deactivation-actions">
-            <AppButton
-              type="button"
-              variant="ghost"
-              @click="isDeactivationConfirmationOpen = false"
-            >
-              {{ t('admin.deactivation.cancel') }}
-            </AppButton>
-            <AppButton type="button" tone="destructive" @click="confirmDeactivation">
-              {{ t('admin.deactivation.confirm') }}
-            </AppButton>
-          </div>
-        </DialogPanel>
-      </div>
-    </Dialog>
+      <template #title>{{ t('admin.deactivation.title') }}</template>
+      <p class="admin-user-deactivation-copy">{{ t('admin.deactivation.description') }}</p>
+      <p class="admin-user-deactivation-copy">{{ t('admin.deactivation.sessions') }}</p>
+      <template #actions>
+        <AppButton type="button" variant="ghost" @click="isDeactivationConfirmationOpen = false">
+          {{ t('admin.deactivation.cancel') }}
+        </AppButton>
+        <AppButton type="button" tone="destructive" @click="confirmDeactivation">
+          {{ t('admin.deactivation.confirm') }}
+        </AppButton>
+      </template>
+    </AppDialog>
   </section>
 </template>
 
@@ -306,45 +299,12 @@ watch(() => props.account, resetDraft)
   gap: var(--space-3);
 }
 
-.admin-user-deactivation-backdrop {
-  position: fixed;
-  inset: 0;
-  background: var(--backdrop);
-}
-
-.admin-user-deactivation-frame {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-4) var(--page-gutter);
-}
-
-.admin-user-deactivation-panel {
-  width: 100%;
-  max-width: 28rem;
-  padding: var(--space-6) var(--page-gutter);
-  border-radius: var(--radius-modal);
-  background: var(--panel);
-  box-shadow: var(--shadow-menu);
-}
-
-.admin-user-deactivation-title {
-  margin: 0 0 var(--space-2);
-  font-size: var(--font-size-page);
-  font-weight: var(--weight-semibold);
-}
-
-.admin-user-deactivation-panel p {
+.admin-user-deactivation-copy {
   margin: 0 0 var(--space-3);
   color: var(--text-secondary);
 }
 
-.admin-user-deactivation-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-3);
+:global(.admin-user-deactivation .app-dialog-actions.admin-user-deactivation-actions) {
   margin-top: var(--space-5);
 }
 

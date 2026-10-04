@@ -166,6 +166,17 @@ and CSRF attachment.
 - `features/review/AnnotationHistory.vue` shares review-local append-only history rendering. Ordering,
   supersession, revisions, and attribution remain server-authoritative.
 
+### Presentational and interaction primitives
+
+- `AppDialog` supplies HeadlessUI naming/focus behavior, overlay geometry, bounded panel size, and
+  title/body/action slots. Features own state, dismissibility during pending writes, recovery,
+  confirmations, and credential display; the mobile navigation drawer remains distinct.
+- `AppField`, `AppTextField`, and `AppSelectField` compose visible labels, help/error descriptions, and
+  disabled/invalid state. Layout classes/styles target the field root; other native attributes and
+  listeners target the input/select. Select models preserve native boolean and null values. Features
+  retain validation, and textareas, file inputs, radios, and checkboxes keep their specialized controls.
+
+
 ## State ownership
 
 - **Server state** lives in the query/cache layer, keyed by resource and query. It is never copied into a

@@ -8,9 +8,12 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
 import { useSessionRecovery } from '@/composables/useSessionRecovery'
-import { useProjectList, type AccessibleProject } from '@/features/projects/useProjects'
+import { useProjectList } from '@/composables/useProjects'
 
 import SidebarTooltip from './SidebarTooltip.vue'
+import type { components } from '@/api/schema'
+
+type AccessibleProject = components['schemas']['AccessibleProject']
 
 const props = defineProps<{
   project: AccessibleProject
