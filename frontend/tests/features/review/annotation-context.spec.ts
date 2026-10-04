@@ -1,9 +1,11 @@
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia } from 'pinia'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { createAppI18n } from '@/app/i18n'
 import { API_CLIENT_KEY } from '@/composables/useApiClient'
+import { privateQueryKey } from '@/composables/usePrivateQueryScope'
 import ReviewDecision from '@/features/review/ReviewDecision.vue'
 import { invalidateAfterDecision, postAnnotation } from '@/features/review/useAnnotate'
 import type { AnnotationHistory, ReviewItem } from '@/features/review/useReviewData'
@@ -25,7 +27,7 @@ describe('snapshot-scoped annotation context', () => {
         contextReady: true,
       },
       global: {
-        plugins: [createAppI18n('en'), [VueQueryPlugin, { queryClient: client }]],
+        plugins: [createPinia(), createAppI18n('en'), [VueQueryPlugin, { queryClient: client }]],
         provide: { [API_CLIENT_KEY as symbol]: reviewClient(newServer()) },
       },
     })
@@ -87,13 +89,17 @@ describe('snapshot-scoped annotation context', () => {
       ['aggregations', 'direct', 'review-item', 'demo-1'],
       ['aggregations', 'direct', 'review-summary'],
       ['snapshots', SNAPSHOT_ID, 'annotations', 'demo-1'],
-    ] as const
+    ].map((key) => privateQueryKey(key, 'reviewer'))
     for (const key of relatedKeys) client.setQueryData(key, {})
-    client.setQueryData(relatedKeys[0], { pages: [{ items: [item('demo-1')] }] })
-    client.setQueryData(relatedKeys[2], { pages: [{ items: [] }] })
-    client.setQueryData(['aggregations', 'empty'], { run_id: 'other-run' })
-    client.setQueryData(['runs', 'other-run'], { dataset_snapshot_id: SNAPSHOT_ID })
-    client.setQueryData(relatedKeys[4], item('demo-1'))
+    client.setQueryData(relatedKeys[0]!, { pages: [{ items: [item('demo-1')] }] })
+    client.setQueryData(relatedKeys[2]!, { pages: [{ items: [] }] })
+    client.setQueryData(privateQueryKey(['aggregations', 'empty'], 'reviewer'), {
+      run_id: 'other-run',
+    })
+    client.setQueryData(privateQueryKey(['runs', 'other-run'], 'reviewer'), {
+      dataset_snapshot_id: SNAPSHOT_ID,
+    })
+    client.setQueryData(relatedKeys[4]!, item('demo-1'))
 
     const unrelatedKeys = [
       ['aggregations', 'unrelated', 'review-items', 'low'],
@@ -102,27 +108,57 @@ describe('snapshot-scoped annotation context', () => {
       ['snapshots', SNAPSHOT_ID, 'annotations', 'demo-2'],
       ['snapshots', SNAPSHOT_ID, 'people', 'demo-1'],
       ['aggregations', 'current', 'results', 'result-id', 'predictions'],
-    ] as const
+    ].map((key) => privateQueryKey(key, 'reviewer'))
     for (const key of unrelatedKeys) client.setQueryData(key, {})
-    client.setQueryData(unrelatedKeys[0], {
+    client.setQueryData(unrelatedKeys[0]!, {
       pages: [{ items: [item('demo-1', { snapshot_id: 'another-snapshot' })] }],
     })
 
-    invalidateAfterDecision(client, { snapshotId: SNAPSHOT_ID, teiId: 'demo-1' })
+    invalidateAfterDecision(client, { snapshotId: SNAPSHOT_ID, teiId: 'demo-1' }, 'reviewer')
 
     for (const key of relatedKeys) expect(client.getQueryState(key)?.isInvalidated).toBe(true)
     for (const key of unrelatedKeys) expect(client.getQueryState(key)?.isInvalidated).toBe(false)
     client.clear()
   })
 
+  it('resolves cached snapshot ownership only from the current principal', () => {
+    const client = new QueryClient()
+    const summaryKey = privateQueryKey(['aggregations', 'shared', 'review-summary'], 'reviewer')
+    const otherSummaryKey = privateQueryKey(['aggregations', 'shared', 'review-summary'], 'other')
+    const directSummaryKey = privateQueryKey(
+      ['aggregations', 'direct', 'review-summary'],
+      'reviewer',
+    )
+    for (const key of [summaryKey, otherSummaryKey, directSummaryKey]) client.setQueryData(key, {})
+    client.setQueryData(privateQueryKey(['aggregations', 'shared'], 'reviewer'), { run_id: 'run' })
+    client.setQueryData(privateQueryKey(['runs', 'run'], 'reviewer'), {
+      dataset_snapshot_id: SNAPSHOT_ID,
+    })
+    client.setQueryData(privateQueryKey(['aggregations', 'shared'], 'other'), { run_id: 'run' })
+    client.setQueryData(privateQueryKey(['runs', 'run'], 'other'), {
+      dataset_snapshot_id: 'another-snapshot',
+    })
+    client.setQueryData(
+      privateQueryKey(['aggregations', 'direct', 'review-item', 'demo-1'], 'other'),
+      item('demo-1', { snapshot_id: 'another-snapshot' }),
+    )
+
+    invalidateAfterDecision(client, { snapshotId: SNAPSHOT_ID }, 'reviewer')
+
+    expect(client.getQueryState(summaryKey)?.isInvalidated).toBe(true)
+    expect(client.getQueryState(directSummaryKey)?.isInvalidated).toBe(true)
+    expect(client.getQueryState(otherSummaryKey)?.isInvalidated).toBe(false)
+    client.clear()
+  })
+
   it('refreshes cached empty queues and summaries when their ownership metadata is unavailable', () => {
     const client = new QueryClient()
-    const listKey = ['aggregations', 'unknown', 'review-items', 'low'] as const
-    const summaryKey = ['aggregations', 'unknown', 'review-summary'] as const
+    const listKey = privateQueryKey(['aggregations', 'unknown', 'review-items', 'low'], 'reviewer')
+    const summaryKey = privateQueryKey(['aggregations', 'unknown', 'review-summary'], 'reviewer')
     client.setQueryData(listKey, { pages: [{ items: [] }] })
     client.setQueryData(summaryKey, { result_count: 0 })
 
-    invalidateAfterDecision(client, { snapshotId: SNAPSHOT_ID })
+    invalidateAfterDecision(client, { snapshotId: SNAPSHOT_ID }, 'reviewer')
 
     expect(client.getQueryState(listKey)?.isInvalidated).toBe(true)
     expect(client.getQueryState(summaryKey)?.isInvalidated).toBe(true)
@@ -141,7 +177,7 @@ describe('snapshot-scoped annotation context', () => {
           canReview: true,
         },
         global: {
-          plugins: [createAppI18n('en'), [VueQueryPlugin, { queryClient: client }]],
+          plugins: [createPinia(), createAppI18n('en'), [VueQueryPlugin, { queryClient: client }]],
           provide: { [API_CLIENT_KEY as symbol]: reviewClient(newServer()) },
         },
       })
@@ -190,7 +226,7 @@ describe('snapshot-scoped annotation context', () => {
           canReview: true,
         },
         global: {
-          plugins: [createAppI18n('en'), [VueQueryPlugin, { queryClient: client }]],
+          plugins: [createPinia(), createAppI18n('en'), [VueQueryPlugin, { queryClient: client }]],
           provide: { [API_CLIENT_KEY as symbol]: reviewClient(server) },
         },
       })

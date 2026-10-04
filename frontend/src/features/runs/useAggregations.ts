@@ -1,9 +1,10 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
-import { computed, ref, type Ref } from 'vue'
+import { ref, type Ref } from 'vue'
 
 import { unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
 import { usePolledQuery } from '@/composables/usePolledQuery'
+import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
 
 import type { MethodExecutionSummary } from './useRunDetail'
 
@@ -35,13 +36,16 @@ export function aggregationListKey(runId: string) {
  */
 export function useAggregationList(runId: Ref<string>, enabled: Ref<boolean> = ref(true)) {
   const client = useApiClient()
+  const scope = usePrivateQueryScope(enabled)
+  const key = scope.key(() => aggregationListKey(runId.value))
 
-  return useInfiniteQuery({
-    queryKey: computed(() => aggregationListKey(runId.value)),
-    queryFn: ({ pageParam }) =>
+  const query = useInfiniteQuery({
+    queryKey: key,
+    queryFn: ({ queryKey, pageParam, signal }) =>
       unwrap(
         client.GET('/api/v1/runs/{run_id}/aggregations', {
-          params: { path: { run_id: runId.value }, query: { cursor: pageParam } },
+          params: { path: { run_id: queryKey[1] }, query: { cursor: pageParam } },
+          signal,
         }),
       ),
     initialPageParam: null as string | null,
@@ -52,25 +56,30 @@ export function useAggregationList(runId: Ref<string>, enabled: Ref<boolean> = r
       const anyLive = pages.some((page) => page.items.some((item) => !isTerminalAggregation(item)))
       return anyLive ? LIST_POLL_MS : false
     },
-    enabled,
+    enabled: scope.canRead,
   })
+  return { ...query, data: scope.data(query, key) }
 }
 
 /** `GET /aggregations/{aggregation_id}`, polled until the aggregation reaches an end state. */
 export function useAggregation(aggregationId: Ref<string>, enabled: Ref<boolean> = ref(true)) {
   const client = useApiClient()
+  const scope = usePrivateQueryScope(enabled)
+  const key = scope.key(() => ['aggregations', aggregationId.value] as const)
 
-  return usePolledQuery({
-    queryKey: computed(() => ['aggregations', aggregationId.value] as const),
-    queryFn: () =>
+  const query = usePolledQuery({
+    queryKey: key,
+    queryFn: ({ signal }) =>
       unwrap(
         client.GET('/api/v1/aggregations/{aggregation_id}', {
           params: { path: { aggregation_id: aggregationId.value } },
+          signal,
         }),
       ),
     isTerminal: isTerminalAggregation,
-    enabled,
+    enabled: scope.canRead,
   })
+  return { ...query, data: scope.data(query, key) }
 }
 
 export interface AggregationCreateInput {

@@ -8,8 +8,31 @@ import { API_CLIENT_KEY } from '@/composables/useApiClient'
 import { useSessionStore } from '@/stores/session'
 
 import { apiClientWithNetworkError, apiClientWithRoutes } from '../helpers/api'
+import { waitFor } from '../helpers/wait'
 
 const USER = { id: 'a0000000-0000-0000-0000-000000000001', display_name: 'Reviewer One', roles: [] }
+const REPLACEMENT_USER = { ...USER, id: 'a0000000-0000-0000-0000-000000000002' }
+
+function deferredResponse() {
+  let resolve!: (response: Response) => void
+  const promise = new Promise<Response>((settle) => {
+    resolve = settle
+  })
+  return { promise, resolve }
+}
+
+function sessionFlags(mustChangePassword: boolean): Response {
+  return Response.json({ must_change_password: mustChangePassword, keep_signed_in: false })
+}
+
+function lateResponse(status: number, successfulBody: unknown): Response {
+  return Response.json(
+    status === 200
+      ? successfulBody
+      : { error: { code: 'obsolete_session', message: 'The old request failed.' } },
+    { status },
+  )
+}
 
 /** Pinia's inject()-in-setup-stores support needs a real mounted component and an installed app. */
 function mountSession(client: ApiClient) {
@@ -107,6 +130,201 @@ describe('useSessionStore.initialize', () => {
     expect(store.status).toBe('error')
     expect(store.user).toEqual(USER)
   })
+
+  it.each([200, 401, 500])(
+    'ignores a late HTTP %s principal read after another account signs in',
+    async (status) => {
+      const pendingUser = deferredResponse()
+      let flagReads = 0
+      const store = mountSession(
+        createApiClient({
+          fetch: async (request) => {
+            const path = new URL(request.url).pathname
+            if (path === '/api/v1/me') return pendingUser.promise
+            if (path === '/api/v1/auth/login') return Response.json(REPLACEMENT_USER)
+            flagReads += 1
+            return sessionFlags(true)
+          },
+        }),
+      )
+      store.user = USER
+      store.status = 'ready'
+      const initializing = store.initialize()
+      await store.login({ username: 'replacement', password: 'correct', keepSignedIn: false })
+      const revision = store.principalRevision
+
+      pendingUser.resolve(lateResponse(status, USER))
+      await initializing
+
+      expect(store.user).toEqual(REPLACEMENT_USER)
+      expect(store.mustChangePassword).toBe(true)
+      expect(store.status).toBe('ready')
+      expect(store.isAuthenticating).toBe(false)
+      expect(store.principalRevision).toBe(revision)
+      expect(flagReads).toBe(1)
+    },
+  )
+
+  it.each([200, 401, 500])(
+    'ignores late HTTP %s initialization flags after another account signs in',
+    async (status) => {
+      const pendingFlags = deferredResponse()
+      let flagReads = 0
+      const store = mountSession(
+        createApiClient({
+          fetch: async (request) => {
+            const path = new URL(request.url).pathname
+            if (path === '/api/v1/me') return Response.json(USER)
+            if (path === '/api/v1/auth/login') return Response.json(REPLACEMENT_USER)
+            flagReads += 1
+            return flagReads === 1 ? pendingFlags.promise : sessionFlags(true)
+          },
+        }),
+      )
+      store.user = USER
+      store.status = 'ready'
+      const initializing = store.initialize()
+      await waitFor(() => expect(flagReads).toBe(1))
+      await store.login({ username: 'replacement', password: 'correct', keepSignedIn: false })
+
+      pendingFlags.resolve(
+        lateResponse(status, { must_change_password: false, keep_signed_in: false }),
+      )
+      await initializing
+
+      expect(store.user).toEqual(REPLACEMENT_USER)
+      expect(store.mustChangePassword).toBe(true)
+      expect(store.status).toBe('ready')
+      expect(store.canUsePrivateNavigation).toBe(false)
+    },
+  )
+
+  it.each(['forget', 'logout'] as const)(
+    'does not restore a forgotten principal when initialization settles after %s',
+    async (action) => {
+      const pendingUser = deferredResponse()
+      let flagReads = 0
+      const store = mountSession(
+        createApiClient({
+          fetch: async (request) => {
+            const path = new URL(request.url).pathname
+            if (path === '/api/v1/me') return pendingUser.promise
+            if (path === '/api/v1/auth/logout') return new Response(null, { status: 204 })
+            flagReads += 1
+            return sessionFlags(true)
+          },
+        }),
+      )
+      store.user = USER
+      store.status = 'ready'
+      const initializing = store.initialize()
+      if (action === 'forget') store.forgetSession()
+      else await store.logout()
+      expect(store.status).toBe('ready')
+      const revision = store.principalRevision
+
+      pendingUser.resolve(Response.json(USER))
+      await initializing
+
+      expect(store.user).toBeNull()
+      expect(store.mustChangePassword).toBe(false)
+      expect(store.status).toBe('ready')
+      expect(store.canUsePrivateNavigation).toBe(false)
+      expect(store.principalRevision).toBe(revision)
+      expect(flagReads).toBe(0)
+    },
+  )
+
+  it('does not initialize over an active login', async () => {
+    const pendingFlags = deferredResponse()
+    let principalReads = 0
+    let flagReads = 0
+    const store = mountSession(
+      createApiClient({
+        fetch: async (request) => {
+          const path = new URL(request.url).pathname
+          if (path === '/api/v1/auth/login') return Response.json(REPLACEMENT_USER)
+          if (path === '/api/v1/me') {
+            principalReads += 1
+            return Response.json(USER)
+          }
+          flagReads += 1
+          return pendingFlags.promise
+        },
+      }),
+    )
+    const signingIn = store.login({
+      username: 'replacement',
+      password: 'correct',
+      keepSignedIn: false,
+    })
+    await waitFor(() => expect(flagReads).toBe(1))
+
+    await store.initialize()
+    expect(principalReads).toBe(0)
+    expect(store.isAuthenticating).toBe(true)
+    expect(store.user).toEqual(REPLACEMENT_USER)
+    pendingFlags.resolve(sessionFlags(true))
+    await signingIn
+    expect(store.mustChangePassword).toBe(true)
+  })
+
+  it('does not restore an earlier principal read over same-account reauthentication', async () => {
+    const pendingUser = deferredResponse()
+    const renewedUser = { ...USER, display_name: 'Renewed reviewer' }
+    let flagReads = 0
+    const store = mountSession(
+      createApiClient({
+        fetch: async (request) => {
+          const path = new URL(request.url).pathname
+          if (path === '/api/v1/me') return pendingUser.promise
+          if (path === '/api/v1/auth/login') return Response.json(renewedUser)
+          flagReads += 1
+          return sessionFlags(true)
+        },
+      }),
+    )
+    store.user = USER
+    store.status = 'ready'
+    const revision = store.principalRevision
+    const initializing = store.initialize()
+    await store.login({ username: 'reviewer', password: 'correct', keepSignedIn: false })
+    pendingUser.resolve(Response.json(USER))
+    await initializing
+
+    expect(store.user).toEqual(renewedUser)
+    expect(store.principalRevision).toBe(revision)
+    expect(store.mustChangePassword).toBe(true)
+    expect(flagReads).toBe(1)
+  })
+
+  it('preserves same-account reauthentication when older initialization flags return 401', async () => {
+    const pendingFlags = deferredResponse()
+    let flagReads = 0
+    const store = mountSession(
+      createApiClient({
+        fetch: async (request) => {
+          const path = new URL(request.url).pathname
+          if (path !== '/api/v1/auth/session') return Response.json(USER)
+          flagReads += 1
+          return flagReads === 1 ? pendingFlags.promise : sessionFlags(true)
+        },
+      }),
+    )
+    store.user = USER
+    store.status = 'ready'
+    const revision = store.principalRevision
+    const initializing = store.initialize()
+    await waitFor(() => expect(flagReads).toBe(1))
+    await store.login({ username: 'reviewer', password: 'correct', keepSignedIn: false })
+    pendingFlags.resolve(lateResponse(401, null))
+    await initializing
+
+    expect(store.user).toEqual(USER)
+    expect(store.principalRevision).toBe(revision)
+    expect(store.mustChangePassword).toBe(true)
+    expect(store.status).toBe('ready')
+  })
 })
 
 describe('useSessionStore.login', () => {
@@ -134,7 +352,7 @@ describe('useSessionStore.login', () => {
 
       expect(store.isAuthenticating).toBe(true)
       expect(store.canUsePrivateNavigation).toBe(false)
-      expect(store.user).toBeNull()
+      expect(store.user).toEqual(USER)
       // Recovery callers keep their form mounted while authentication resolves.
       expect(store.status).toBe('ready')
 
@@ -170,7 +388,7 @@ describe('useSessionStore.login', () => {
     expect(store.status).toBe('error')
     expect(store.canUsePrivateNavigation).toBe(false)
     expect(store.isAuthenticating).toBe(false)
-    expect(store.user).toEqual(previousUser)
+    expect(store.user).toEqual(USER)
   })
 
   it('sets the signed-in user and its session flags on success', async () => {
@@ -206,6 +424,81 @@ describe('useSessionStore.login', () => {
       store.login({ username: 'reviewer.one', password: 'wrong', keepSignedIn: false }),
     ).rejects.toMatchObject({ code: 'invalid_credentials' })
     expect(store.isSignedIn).toBe(false)
+  })
+
+  it.each(['login', 'forget'] as const)(
+    'rejects old login flags after a newer %s owns the session',
+    async (action) => {
+      const pendingFlags = deferredResponse()
+      let loginCalls = 0
+      let flagReads = 0
+      const store = mountSession(
+        createApiClient({
+          fetch: async (request) => {
+            if (new URL(request.url).pathname === '/api/v1/auth/login') {
+              loginCalls += 1
+              return Response.json(loginCalls === 1 ? USER : REPLACEMENT_USER)
+            }
+            flagReads += 1
+            return flagReads === 1 ? pendingFlags.promise : sessionFlags(true)
+          },
+        }),
+      )
+      store.status = 'ready'
+      const signingIn = store.login({ username: 'first', password: 'correct', keepSignedIn: false })
+      const staleLogin = expect(signingIn).rejects.toMatchObject({ name: 'AbortError' })
+      await waitFor(() => expect(flagReads).toBe(1))
+      if (action === 'login')
+        await store.login({ username: 'replacement', password: 'correct', keepSignedIn: false })
+      else store.forgetSession()
+
+      pendingFlags.resolve(sessionFlags(false))
+      await staleLogin
+
+      expect(store.user).toEqual(action === 'login' ? REPLACEMENT_USER : null)
+      expect(store.mustChangePassword).toBe(action === 'login')
+      expect(store.isAuthenticating).toBe(false)
+      expect(store.status).toBe('ready')
+    },
+  )
+
+  it('does not clear a newer login’s pending authentication when old flags arrive', async () => {
+    const firstFlags = deferredResponse()
+    const secondFlags = deferredResponse()
+    let loginCalls = 0
+    let flagReads = 0
+    const store = mountSession(
+      createApiClient({
+        fetch: async (request) => {
+          if (new URL(request.url).pathname === '/api/v1/auth/login') {
+            loginCalls += 1
+            return Response.json(loginCalls === 1 ? USER : REPLACEMENT_USER)
+          }
+          flagReads += 1
+          return flagReads === 1 ? firstFlags.promise : secondFlags.promise
+        },
+      }),
+    )
+    const firstLogin = store.login({ username: 'first', password: 'correct', keepSignedIn: false })
+    const staleLogin = expect(firstLogin).rejects.toMatchObject({ name: 'AbortError' })
+    await waitFor(() => expect(flagReads).toBe(1))
+    const secondLogin = store.login({
+      username: 'replacement',
+      password: 'correct',
+      keepSignedIn: false,
+    })
+    await waitFor(() => expect(flagReads).toBe(2))
+
+    firstFlags.resolve(sessionFlags(false))
+    await staleLogin
+    expect(store.user).toEqual(REPLACEMENT_USER)
+    expect(store.isAuthenticating).toBe(true)
+    expect(store.canUsePrivateNavigation).toBe(false)
+
+    secondFlags.resolve(sessionFlags(true))
+    await secondLogin
+    expect(store.mustChangePassword).toBe(true)
+    expect(store.isAuthenticating).toBe(false)
   })
 })
 
@@ -270,6 +563,39 @@ describe('useSessionStore.logout', () => {
     expect(store.user).toEqual(USER)
     expect(store.isSignedIn).toBe(true)
   })
+
+  it.each([204, 401, 500])(
+    'ignores a late HTTP %s logout across A -> B -> A principal refreshes',
+    async (status) => {
+      const pendingLogout = deferredResponse()
+      let authenticatedUser = USER
+      const store = mountSession(
+        createApiClient({
+          fetch: async (request) => {
+            const path = new URL(request.url).pathname
+            if (path === '/api/v1/auth/logout') return pendingLogout.promise
+            return path === '/api/v1/me' ? Response.json(authenticatedUser) : sessionFlags(false)
+          },
+        }),
+      )
+      store.user = USER
+      store.status = 'ready'
+      const loggingOut = store.logout()
+      authenticatedUser = REPLACEMENT_USER
+      await store.initialize()
+      authenticatedUser = USER
+      await store.initialize()
+
+      pendingLogout.resolve(
+        status === 204 ? new Response(null, { status }) : lateResponse(status, null),
+      )
+      await expect(loggingOut).resolves.toBe(false)
+
+      expect(store.user).toEqual(USER)
+      expect(store.isSignedIn).toBe(true)
+      expect(store.status).toBe('ready')
+    },
+  )
 
   it('still applies logout after an ordinary refresh of the same account', async () => {
     let resolveLogout!: (response: Response) => void
@@ -379,6 +705,43 @@ describe('useSessionStore.forgetSession', () => {
   })
 })
 
+describe('useSessionStore.principalRevision', () => {
+  it('preserves same-account recovery ownership and advances across replacement and logout', async () => {
+    let authenticatedUser = USER
+    const store = mountSession(
+      createApiClient({
+        fetch: async (request) => {
+          const path = new URL(request.url).pathname
+          if (path === '/api/v1/auth/logout') return new Response(null, { status: 204 })
+          return path === '/api/v1/auth/session'
+            ? sessionFlags(false)
+            : Response.json(authenticatedUser)
+        },
+      }),
+    )
+    store.user = USER
+    store.status = 'ready'
+    const revision = store.principalRevision
+    const credentials = { username: 'reviewer', password: 'correct', keepSignedIn: false }
+
+    await store.initialize()
+    await store.login(credentials)
+    expect(store.principalRevision).toBe(revision)
+
+    await store.logout()
+    expect(store.principalRevision).toBe(revision + 1)
+    await store.login(credentials)
+    expect(store.principalRevision).toBe(revision + 2)
+
+    authenticatedUser = REPLACEMENT_USER
+    await store.login(credentials)
+    expect(store.principalRevision).toBe(revision + 3)
+    authenticatedUser = USER
+    await store.login(credentials)
+    expect(store.principalRevision).toBe(revision + 4)
+  })
+})
+
 describe('useSessionStore.changePassword', () => {
   it('clears the forced-change flag on success', async () => {
     const store = mountSession(
@@ -410,4 +773,44 @@ describe('useSessionStore.changePassword', () => {
     ).rejects.toMatchObject({ code: 'invalid_current_password' })
     expect(store.mustChangePassword).toBe(true)
   })
+
+  it.each([false, true])(
+    'never clears a replacement session’s forced-change flag (return to A: %s)',
+    async (returnToOriginal) => {
+      const pendingPassword = deferredResponse()
+      let authenticatedUser = REPLACEMENT_USER
+      const store = mountSession(
+        createApiClient({
+          fetch: async (request) => {
+            const path = new URL(request.url).pathname
+            if (path === '/api/v1/me/password') return pendingPassword.promise
+            return path === '/api/v1/auth/login'
+              ? Response.json(authenticatedUser)
+              : sessionFlags(true)
+          },
+        }),
+      )
+      store.user = USER
+      store.mustChangePassword = true
+      store.status = 'ready'
+      const changing = store.changePassword({
+        currentPassword: 'old-passphrase-1',
+        newPassword: 'new-passphrase-1',
+      })
+      const staleChange = expect(changing).rejects.toMatchObject({ name: 'AbortError' })
+      const credentials = { username: 'replacement', password: 'correct', keepSignedIn: false }
+      await store.login(credentials)
+      if (returnToOriginal) {
+        authenticatedUser = USER
+        await store.login(credentials)
+      }
+
+      pendingPassword.resolve(new Response(null, { status: 204 }))
+      await staleChange
+
+      expect(store.user).toEqual(authenticatedUser)
+      expect(store.mustChangePassword).toBe(true)
+      expect(store.canUsePrivateNavigation).toBe(false)
+    },
+  )
 })

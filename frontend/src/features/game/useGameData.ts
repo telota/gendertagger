@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { computed, type Ref } from 'vue'
+import type { Ref } from 'vue'
 
 import { unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
+import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
 
 export type GameRound = components['schemas']['GameRound']
 export type GameRoundCreate = components['schemas']['GameRoundCreate']
@@ -36,19 +37,23 @@ export function useGameLeaderboard(
   enabled: Ref<boolean>,
 ) {
   const client = useApiClient()
-  return useQuery({
-    queryKey: computed(() => gameLeaderboardKey(projectId.value, roundSize.value)),
-    queryFn: () =>
+  const scope = usePrivateQueryScope(enabled)
+  const key = scope.key(() => gameLeaderboardKey(projectId.value, roundSize.value))
+  const query = useQuery({
+    queryKey: key,
+    queryFn: ({ signal }) =>
       unwrap(
         client.GET('/api/v1/projects/{project_id}/game-leaderboard', {
           params: {
             path: { project_id: projectId.value },
             query: { round_size: roundSize.value, limit: 10 },
           },
+          signal,
         }),
       ),
-    enabled,
+    enabled: scope.canRead,
   })
+  return { ...query, data: scope.data(query, key) }
 }
 
 export function useSaveGameRound(projectId: Ref<string>) {

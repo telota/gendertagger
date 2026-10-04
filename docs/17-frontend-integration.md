@@ -110,7 +110,26 @@ credentials.
 ## State ownership
 
 Generated OpenAPI types and the typed client own transport shapes. A server-state query/cache layer owns
-resource fetching, invalidation, polling, and query-scoped cursors. Pinia is reserved for genuinely shared
+private resources under the current principal's identity, including collections, detail reads, method
+rosters, upload limits, immutable manifests, and evaluation reports. Account replacement and logout
+synchronously cancel outstanding private reads and remove private query and mutation results. Public
+branding and anonymous classification remain outside this lifecycle. Authentication-in-progress and
+forced-change checks disable private reads; a successful login publishes its principal before resolving
+session flags because the browser cookie already belongs to that account.
+
+Private request recovery retains the dispatching account and its local ownership revision. Recovery as
+the same account may retry eligible requests; replacement, logout, or returning to an earlier account
+cannot replay an old request. Queries pass cancellation signals to transport, and displayed data must
+resolve the current principal's exact cache key. Authorization denials (`401`, `403`, `404`) hide retained
+private data. Export download buffers, checksum inputs, and pending download ownership are cleared on
+replacement, logout, resource changes, or lost access; obsolete responses and hashing completions cannot
+display or save bytes. Run event streams close on ownership changes and ignore obsolete callbacks.
+Credential inputs clear on account replacement; recovery passwords also clear when the dialog closes
+and after successful sign-in. Late session, password, and multi-command callbacks cannot restore state
+or continue work under a replacement account.
+
+The query/cache layer also owns resource fetching, invalidation, polling, and query-scoped cursors.
+Pinia is reserved for genuinely shared
 client state such as session presentation, current route context, and effective presentation—not copies
 of backend resources. Under [ADR-0043](decisions/ADR-0043-account-level-user-preferences.md), saved account
 preferences are server state: fetch and cache them by principal, clear private state on logout/account

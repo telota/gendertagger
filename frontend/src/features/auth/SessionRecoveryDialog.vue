@@ -2,6 +2,7 @@
 // Behaviour (focus trap, Escape-to-close, focus restore) comes from the D9 library; appearance is
 // ours, matching AppListbox's split. This is the shell's first use of Dialog rather than Listbox.
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
+import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/base/AppButton.vue'
@@ -22,6 +23,16 @@ const {
   submitLabel,
   submit: attemptLogin,
 } = useLoginForm()
+
+// The dialog's parent stays mounted while Headless UI removes its hidden fields.
+watch(
+  recovery.isOpen,
+  () => {
+    password.value = ''
+    errorMessage.value = null
+  },
+  { flush: 'sync' },
+)
 
 async function submit(): Promise<void> {
   const succeeded = await attemptLogin()

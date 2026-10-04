@@ -133,6 +133,7 @@ export async function downloadExport(
   client: ApiClient,
   exportId: string,
   format: ExportFormat,
+  signal?: AbortSignal,
 ): Promise<DownloadedExport> {
   let response: Response | null = null
   const data = await unwrap<unknown>(
@@ -140,6 +141,7 @@ export async function downloadExport(
       .GET('/api/v1/exports/{export_execution_id}/download', {
         params: { path: { export_execution_id: exportId } },
         parseAs: 'blob',
+        ...(signal ? { signal } : {}),
       })
       .then((settled) => {
         response = settled.response
@@ -169,8 +171,11 @@ export function saveDownload(download: DownloadedExport): void {
   const anchor = document.createElement('a')
   anchor.href = url
   anchor.download = download.filename
-  document.body.appendChild(anchor)
-  anchor.click()
-  anchor.remove()
-  URL.revokeObjectURL(url)
+  try {
+    document.body.appendChild(anchor)
+    anchor.click()
+  } finally {
+    anchor.remove()
+    URL.revokeObjectURL(url)
+  }
 }

@@ -5,6 +5,7 @@ import { createApiClient } from '@/api'
 import type { AppLocale } from '@/app/i18n'
 import de from '@/locales/de.json'
 import en from '@/locales/en.json'
+import { useSessionStore } from '@/stores/session'
 
 import { mountApplicationAt } from '../../helpers/render'
 import { expectNoAxeViolations } from '../../helpers/axe'
@@ -322,6 +323,81 @@ describe.each(['de', 'en'] as const)('run detail with live progress in %s', (loc
     expect(bars[1]?.attributes('value')).toBe('100')
     expect(wrapper.get('.execution-counts').text()).toMatch(/3.*4.*1/)
     expect(state.runGets).toBe(runGetsBefore)
+  })
+
+  it('replaces the stream with its account and ignores old callbacks even after returning to A', async () => {
+    const state = server()
+    const wrapper = await mountDetail(state)
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1))
+    const previous = stream()
+    previous.open()
+    const session = useSessionStore()
+
+    session.user = { ...USER, id: 'a0000000-0000-0000-0000-000000000003' }
+    expect(previous.closed).toBe(true)
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(2))
+    expect(wrapper.get('.run-detail-connection').text()).toBe(messages.detail.connection.connecting)
+
+    const readsBefore = { run: state.runGets, executions: state.executionGets }
+    previous.open()
+    previous.fail(FakeEventSource.CLOSED)
+    previous.emit('run.completed', {
+      run_id: RUN_ID,
+      status: 'completed',
+      progress: progress(8, 0, 8),
+    })
+    previous.emit('method_execution.state_changed', {
+      method_execution_id: EXECUTION_ID,
+      method_name: 'gender_guesser',
+      status: 'completed',
+      progress: progress(4, 0, 4),
+    })
+    await flushPromises()
+    expect(state.runGets).toBe(readsBefore.run)
+    expect(state.executionGets).toBe(readsBefore.executions)
+    expect(wrapper.get('.run-detail-status').text()).toBe(messages.status.running)
+    expect(wrapper.get('.run-detail-connection').text()).toBe(messages.detail.connection.connecting)
+
+    session.user = USER
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(3))
+    previous.emit('run.progress', {
+      run_id: RUN_ID,
+      status: 'running',
+      progress: progress(7, 0, 8),
+    })
+    previous.emit('method_execution.progress', {
+      method_execution_id: EXECUTION_ID,
+      method_name: 'gender_guesser',
+      status: 'running',
+      progress: progress(3, 0, 4),
+    })
+    await flushPromises()
+    expect(wrapper.findAll('progress').map((bar) => bar.attributes('value'))).toEqual(['0', '0'])
+
+    const current = FakeEventSource.instances.at(-1)
+    current?.open()
+    current?.emit('run.progress', {
+      run_id: RUN_ID,
+      status: 'running',
+      progress: progress(4, 0, 8),
+    })
+    await flushPromises()
+    expect(wrapper.findAll('progress')[0]?.attributes('value')).toBe('50')
+    expect(wrapper.get('.run-detail-connection').text()).toBe(messages.detail.connection.live)
+  })
+
+  it('cancels an old account’s queued stream reconnect when another account replaces it', async () => {
+    const wrapper = await mountDetail(server())
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1))
+    stream().open()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    stream().fail(FakeEventSource.CLOSED)
+    useSessionStore().user = { ...USER, id: 'a0000000-0000-0000-0000-000000000003' }
+    vi.advanceTimersByTime(30_000)
+    expect(FakeEventSource.instances).toHaveLength(1)
+    vi.useRealTimers()
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(2))
+    expect(wrapper.get('.run-detail-connection').text()).toBe(messages.detail.connection.connecting)
   })
 
   it('refetches and closes the stream when the run ends', async () => {

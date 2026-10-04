@@ -1,7 +1,9 @@
 import { useQueryClient } from '@tanstack/vue-query'
-import { onScopeDispose, ref, watch, type Ref } from 'vue'
+import { computed, onScopeDispose, ref, watch, type Ref } from 'vue'
 
 import { type components } from '@/api'
+import { privateQueryKey, usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
+import { useSessionStore } from '@/stores/session'
 
 import { runExecutionsKey, runKey, type MethodExecutionSummary } from './useRunDetail'
 import type { Run } from './useRuns'
@@ -55,30 +57,59 @@ function parse<T>(event: Event): T | null {
  */
 export function useRunProgress(runId: Ref<string>, enabled: Ref<boolean>) {
   const queryClient = useQueryClient()
+  const session = useSessionStore()
+  const scope = usePrivateQueryScope(enabled)
+  const principal = computed(() => session.user?.id ?? null)
   const state = ref<RunStreamState>('idle')
 
   let source: EventSource | null = null
   let retryTimer: ReturnType<typeof setTimeout> | null = null
   let attempt = 0
   let hasOpened = false
+  let revision = 0
 
-  function refetch(id: string): void {
-    void queryClient.invalidateQueries({ queryKey: runKey(id) })
+  interface Owner {
+    runId: string
+    principal: string
+    revision: number
   }
 
-  function patchRun(id: string, event: RunStateEvent): void {
-    queryClient.setQueryData<Run>(runKey(id), (run) =>
+  function isCurrent(owner: Owner): boolean {
+    return (
+      scope.canRead.value &&
+      principal.value === owner.principal &&
+      runId.value === owner.runId &&
+      revision === owner.revision
+    )
+  }
+
+  function refetch(owner: Owner): void {
+    void queryClient.invalidateQueries({
+      queryKey: privateQueryKey(runKey(owner.runId), owner.principal),
+    })
+  }
+
+  function refetchExecutions(owner: Owner): void {
+    void queryClient.invalidateQueries({
+      queryKey: privateQueryKey(runExecutionsKey(owner.runId), owner.principal),
+    })
+  }
+
+  function patchRun(owner: Owner, event: RunStateEvent): void {
+    queryClient.setQueryData<Run>(privateQueryKey(runKey(owner.runId), owner.principal), (run) =>
       run ? { ...run, status: event.status, progress: event.progress } : run,
     )
   }
 
-  function patchExecution(id: string, event: MethodExecutionStateEvent): void {
-    queryClient.setQueryData<MethodExecutionSummary[]>(runExecutionsKey(id), (executions) =>
-      executions?.map((execution) =>
-        execution.id === event.method_execution_id
-          ? { ...execution, status: event.status, progress: event.progress }
-          : execution,
-      ),
+  function patchExecution(owner: Owner, event: MethodExecutionStateEvent): void {
+    queryClient.setQueryData<MethodExecutionSummary[]>(
+      privateQueryKey(runExecutionsKey(owner.runId), owner.principal),
+      (executions) =>
+        executions?.map((execution) =>
+          execution.id === event.method_execution_id
+            ? { ...execution, status: event.status, progress: event.progress }
+            : execution,
+        ),
     )
   }
 
@@ -90,74 +121,85 @@ export function useRunProgress(runId: Ref<string>, enabled: Ref<boolean>) {
   }
 
   function stop(next: RunStreamState = 'idle'): void {
+    revision += 1
     close()
     hasOpened = false
     attempt = 0
     state.value = next
   }
 
-  function scheduleRetry(id: string): void {
+  function scheduleRetry(owner: Owner): void {
     if (retryTimer !== null) return
     const delay = Math.min(RECONNECT_BASE_MS * 2 ** attempt, RECONNECT_MAX_MS)
     attempt += 1
-    retryTimer = setTimeout(() => {
+    const timer = setTimeout(() => {
+      if (retryTimer !== timer || !isCurrent(owner)) return
       retryTimer = null
       // Through the API client first: an expired session is recovered there, not in EventSource.
-      refetch(id)
-      connect(id)
+      refetch(owner)
+      connect(owner)
     }, delay)
+    retryTimer = timer
   }
 
-  function connect(id: string): void {
+  function connect(owner: Owner): void {
+    if (!isCurrent(owner)) return
     close()
     state.value = hasOpened ? 'reconnecting' : 'connecting'
-    const stream = new EventSource(`/api/v1/runs/${id}/events`, { withCredentials: true })
+    const stream = new EventSource(`/api/v1/runs/${owner.runId}/events`, { withCredentials: true })
     source = stream
+    const isCurrentStream = () => source === stream && isCurrent(owner)
 
     stream.onopen = () => {
+      if (!isCurrentStream()) return
       state.value = 'live'
       attempt = 0
       if (hasOpened) {
-        refetch(id)
-        void queryClient.invalidateQueries({ queryKey: runExecutionsKey(id) })
+        refetch(owner)
+        refetchExecutions(owner)
       }
       hasOpened = true
     }
 
     stream.onerror = () => {
-      if (source !== stream) return
+      if (!isCurrentStream()) return
       state.value = 'reconnecting'
       if (stream.readyState === EventSource.CLOSED) {
         stream.close()
         source = null
-        scheduleRetry(id)
+        scheduleRetry(owner)
       }
       // Otherwise the browser is already retrying on its own.
     }
 
     const onRunState = (event: Event): void => {
+      if (!isCurrentStream()) return
       const payload = parse<RunStateEvent>(event)
-      if (payload) patchRun(id, payload)
+      if (payload) patchRun(owner, payload)
     }
     const onExecutionState = (event: Event): void => {
+      if (!isCurrentStream()) return
       const payload = parse<MethodExecutionStateEvent>(event)
-      if (payload) patchExecution(id, payload)
+      if (payload) patchExecution(owner, payload)
     }
     // Progress is patched in place; a state change also refetches for timestamps and failures.
     stream.addEventListener('run.progress', onRunState)
     stream.addEventListener('method_execution.progress', onExecutionState)
     stream.addEventListener('run.state_changed', (event) => {
+      if (!isCurrentStream()) return
       onRunState(event)
-      refetch(id)
+      refetch(owner)
     })
     stream.addEventListener('method_execution.state_changed', (event) => {
+      if (!isCurrentStream()) return
       onExecutionState(event)
-      void queryClient.invalidateQueries({ queryKey: runExecutionsKey(id) })
+      refetchExecutions(owner)
     })
     const onTerminal = (event: Event): void => {
+      if (!isCurrentStream()) return
       onRunState(event)
-      refetch(id)
-      void queryClient.invalidateQueries({ queryKey: runExecutionsKey(id) })
+      refetch(owner)
+      refetchExecutions(owner)
       stop('ended')
     }
     stream.addEventListener('run.completed', onTerminal)
@@ -165,15 +207,17 @@ export function useRunProgress(runId: Ref<string>, enabled: Ref<boolean>) {
   }
 
   watch(
-    [runId, enabled],
-    ([id, isEnabled], [previousId]) => {
+    [runId, scope.canRead, principal],
+    ([id, isEnabled, principalId], [previousId, , previousPrincipal]) => {
       // A run that just ended disables the stream; its `ended` state must survive that, but not
       // a switch to another run.
-      const keepEnded = state.value === 'ended' && id === previousId
+      const keepEnded =
+        state.value === 'ended' && id === previousId && principalId === previousPrincipal
       stop(keepEnded ? 'ended' : 'idle')
-      if (isEnabled && id !== '' && !keepEnded) connect(id)
+      if (isEnabled && id !== '' && principalId !== null && !keepEnded)
+        connect({ runId: id, principal: principalId, revision })
     },
-    { immediate: true },
+    { immediate: true, flush: 'sync' },
   )
 
   onScopeDispose(() => stop())

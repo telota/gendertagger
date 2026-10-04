@@ -8,11 +8,12 @@ import { useSessionStore } from '@/stores/session'
 // sign-in form, or on top of an action that already meant to end the session.
 const PATHS_EXEMPT_FROM_RECOVERY = ['/api/v1/auth/login', '/api/v1/auth/logout']
 
-/** An annotation draft may recover only under the account that originally submitted it. */
-export function annotationRetryScope(request: Request): string | null {
-  return request.method === 'POST' && new URL(request.url).pathname.endsWith('/api/v1/annotations')
-    ? (useSessionStore().user?.id ?? null)
-    : null
+/** Every private request may recover only under its original account and local ownership revision. */
+export function privateRetryScope(request: Request): string | null {
+  const { pathname } = new URL(request.url)
+  if (pathname.endsWith('/api/v1/branding') || pathname.includes('/api/v1/public/')) return null
+  const session = useSessionStore()
+  return `${session.user?.id ?? 'anonymous'}:${session.principalRevision}`
 }
 
 /**
@@ -83,10 +84,12 @@ export function createUnauthorizedHandler(router: Router): (request: Request) =>
     // Not yet known to be signed in (still resolving at boot, or already signed out): an ordinary
     // signed-out response, not a session that expired mid-use, so the calling view's own guard handles it.
     if (!session.isSignedIn) throw new Error('No signed-in session to recover.')
+    const revision = session.principalRevision
 
     try {
       await requestReauthentication()
     } catch (declined) {
+      if (revision !== session.principalRevision) throw declined
       session.forgetSession()
       const current = router.currentRoute.value
       if (current.name !== 'login') {

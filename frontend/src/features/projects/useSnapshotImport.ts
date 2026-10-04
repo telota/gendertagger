@@ -4,6 +4,7 @@ import { computed, ref, type Ref } from 'vue'
 import { unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
 import { usePolledQuery } from '@/composables/usePolledQuery'
+import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
 import { useSessionStore } from '@/stores/session'
 
 import { snapshotListKey } from './useSnapshots'
@@ -73,11 +74,14 @@ export function useSnapshotStatus(
           snapshotId.value,
         ] as const,
     ),
-    queryFn: () => {
+    queryFn: ({ signal }) => {
       const id = snapshotId.value
       if (id === null) throw new Error('useSnapshotStatus: no snapshot to poll yet.')
       return unwrap(
-        client.GET('/api/v1/snapshots/{snapshot_id}', { params: { path: { snapshot_id: id } } }),
+        client.GET('/api/v1/snapshots/{snapshot_id}', {
+          params: { path: { snapshot_id: id } },
+          signal,
+        }),
       )
     },
     isTerminal: (snapshot) => TERMINAL_STATUSES.has(snapshot.status),
@@ -91,11 +95,14 @@ export function useSnapshotStatus(
  */
 export function useSnapshotUploadLimits(enabled: Ref<boolean> = ref(true)) {
   const client = useApiClient()
+  const scope = usePrivateQueryScope(enabled)
+  const key = scope.key(() => ['snapshot-upload-limits'] as const)
 
-  return useQuery({
-    queryKey: ['snapshot-upload-limits'] as const,
-    queryFn: () => unwrap(client.GET('/api/v1/snapshot-upload-limits')),
+  const query = useQuery({
+    queryKey: key,
+    queryFn: ({ signal }) => unwrap(client.GET('/api/v1/snapshot-upload-limits', { signal })),
     staleTime: Infinity,
-    enabled,
+    enabled: scope.canRead,
   })
+  return { ...query, data: scope.data(query, key) }
 }

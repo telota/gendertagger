@@ -1,9 +1,11 @@
 import { flushPromises } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { createApiClient } from '@/api'
 import type { AppLocale } from '@/app/i18n'
 import de from '@/locales/de.json'
 import en from '@/locales/en.json'
+import { useSessionStore } from '@/stores/session'
 
 import { apiClientWithRoutes, type RouteResponse } from '../helpers/api'
 import { mountApplicationAt } from '../helpers/render'
@@ -125,6 +127,97 @@ describe.each(['de', 'en'] as const)('change-password page in %s', (locale: AppL
     await flushPromises()
 
     expect(wrapper.get('[role="alert"]').text()).toBe(messages.errors.mismatch)
+  })
+
+  it.each([false, true])(
+    'clears private password inputs only when authentication replaces the account (replacement: %s)',
+    async (replacement) => {
+      const authenticatedUser = replacement
+        ? { ...USER, id: 'a0000000-0000-0000-0000-000000000002' }
+        : USER
+      const wrapper = await mountApplicationAt(
+        '/change-password',
+        locale,
+        apiClientWithRoutes({
+          ...SIGNED_IN_ROUTES,
+          '/api/v1/auth/login': { body: authenticatedUser },
+        }),
+      )
+      await wrapper.get('input[name="current-password"]').setValue('account-a-current-password')
+      await wrapper.get('input[name="new-password"]').setValue('account-a-new-password')
+      await wrapper
+        .get('input[name="new-password-repeat"]')
+        .setValue('account-a-mismatched-password')
+      await wrapper.get('form').trigger('submit')
+      expect(wrapper.get('[role="alert"]').text()).toBe(messages.errors.mismatch)
+
+      await useSessionStore().login({
+        username: 'reviewer',
+        password: 'correct',
+        keepSignedIn: false,
+      })
+      await flushPromises()
+
+      expect(
+        wrapper.findAll<HTMLInputElement>('main input').map((input) => input.element.value),
+      ).toEqual(
+        replacement
+          ? ['', '', '']
+          : [
+              'account-a-current-password',
+              'account-a-new-password',
+              'account-a-mismatched-password',
+            ],
+      )
+      expect(wrapper.find('[role="alert"]').exists()).toBe(!replacement)
+      expect(wrapper.vm.$router.currentRoute.value.path).toBe('/change-password')
+    },
+  )
+
+  it('ignores an old password response’s feedback after account replacement', async () => {
+    let finishPassword!: (response: Response) => void
+    const pendingPassword = new Promise<Response>((resolve) => {
+      finishPassword = resolve
+    })
+    const wrapper = await mountApplicationAt(
+      '/change-password',
+      locale,
+      createApiClient({
+        fetch: async (request) => {
+          const path = new URL(request.url).pathname
+          if (path === '/api/v1/me/password') return pendingPassword
+          if (path === '/api/v1/auth/login')
+            return Response.json({ ...USER, id: 'a0000000-0000-0000-0000-000000000002' })
+          const route = SIGNED_IN_ROUTES[path]
+          return Response.json(route?.body ?? {}, { status: route ? 200 : 404 })
+        },
+      }),
+    )
+    await wrapper.get('input[name="current-password"]').setValue('account-a-current-password')
+    await wrapper.get('input[name="new-password"]').setValue('account-a-new-password')
+    await wrapper.get('input[name="new-password-repeat"]').setValue('account-a-new-password')
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.get('main button[type="submit"]').attributes('disabled')).toBeDefined()
+
+    await useSessionStore().login({
+      username: 'replacement',
+      password: 'correct',
+      keepSignedIn: false,
+    })
+    finishPassword(
+      Response.json(
+        { error: { code: 'invalid_current_password', message: 'Old failure.' } },
+        { status: 400 },
+      ),
+    )
+    await flushPromises()
+
+    expect(
+      wrapper.findAll<HTMLInputElement>('main input').map((input) => input.element.value),
+    ).toEqual(['', '', ''])
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.get('main button[type="submit"]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.vm.$router.currentRoute.value.path).toBe('/change-password')
   })
 
   it('shows an inline error for a wrong current password', async () => {

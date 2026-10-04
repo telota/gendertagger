@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { createApiClient, type ApiClient } from '@/api'
 import { routes } from '@/app/router'
 import {
-  annotationRetryScope,
+  privateRetryScope,
   createUnauthorizedHandler,
   shouldRetryAfterUnauthorized,
 } from '@/app/sessionGuard'
@@ -262,7 +262,7 @@ describe('annotation retry ownership', () => {
         csrfToken: () => 'csrf',
         onUnauthorized: createUnauthorizedHandler(activeRouter),
         shouldRetryAfterUnauthorized,
-        retryScope: annotationRetryScope,
+        retryScope: privateRetryScope,
         fetch: (request) => {
           attempts.push(request)
           return attempts.length === 1
@@ -294,9 +294,11 @@ describe('annotation retry ownership', () => {
           { status: 401, headers: { 'content-type': 'application/json' } },
         ),
       )
-      await waitFor(() => expect(useSessionRecovery().isOpen.value).toBe(true))
-      if (!changesBefore401) session.user = recovered
-      useSessionRecovery().resolve()
+      if (!changesBefore401) {
+        await waitFor(() => expect(useSessionRecovery().isOpen.value).toBe(true))
+        session.user = recovered
+        useSessionRecovery().resolve()
+      }
 
       const result = await pending
 
@@ -304,12 +306,177 @@ describe('annotation retry ownership', () => {
       expect(result.response.status).toBe(replays ? 201 : 401)
       expect(session.user?.id).toBe(recovered.id)
       expect(activeRouter.currentRoute.value.path).toBe('/')
-      expect(annotationRetryScope(request('/api/v1/annotations'))).toBeNull()
+      expect(privateRetryScope(request('/api/v1/annotations'))).toBe(
+        `${recovered.id}:${session.principalRevision}`,
+      )
       expect(
-        annotationRetryScope(
+        privateRetryScope(
           new Request('https://example.test/api/v1/me/password', { method: 'POST' }),
         ),
-      ).toBeNull()
+      ).toBe(`${recovered.id}:${session.principalRevision}`)
     },
   )
+})
+
+describe('private request retry ownership', () => {
+  it.each([
+    '/api/v1/branding',
+    '/api/v1/public/classify',
+    '/api/v1/public/methods',
+    '/api/v1/public/classification-jobs/20000000-0000-0000-0000-000000000001',
+  ])('keeps the public request %s outside private account ownership', (path) => {
+    expect(privateRetryScope(request(path))).toBeNull()
+  })
+
+  const operations = [
+    {
+      name: 'private export read',
+      replays: true,
+      dispatch: (client: ApiClient) =>
+        client.GET('/api/v1/exports/{export_execution_id}', {
+          params: { path: { export_execution_id: '20000000-0000-0000-0000-000000000001' } },
+        }),
+    },
+    {
+      name: 'run creation command',
+      replays: true,
+      dispatch: (client: ApiClient) =>
+        client.POST('/api/v1/runs', {
+          body: {
+            dataset_snapshot_id: '20000000-0000-0000-0000-000000000001',
+            config: { methods: [{ name: 'gender_guesser', enabled: true, config: {} }] },
+          },
+        }),
+    },
+    {
+      name: 'non-replaying private preference read',
+      replays: false,
+      dispatch: (client: ApiClient) => client.GET('/api/v1/me/preferences'),
+    },
+  ]
+  const recoveries = [
+    { name: 'same-account recovery', principals: [USER], before401: false, sameOwner: true },
+    { name: 'account replacement', principals: [OTHER_USER], before401: false, sameOwner: false },
+    {
+      name: 'A to B to A replacement',
+      principals: [OTHER_USER, USER],
+      before401: false,
+      sameOwner: false,
+    },
+    {
+      name: 'logout then same-account sign-in',
+      principals: [null, USER],
+      before401: false,
+      sameOwner: false,
+    },
+    {
+      name: 'late 401 after account replacement',
+      principals: [OTHER_USER],
+      before401: true,
+      sameOwner: false,
+    },
+    {
+      name: 'late 401 after A to B to A replacement',
+      principals: [OTHER_USER, USER],
+      before401: true,
+      sameOwner: false,
+    },
+    {
+      name: 'late 401 after logout then same-account sign-in',
+      principals: [null, USER],
+      before401: true,
+      sameOwner: false,
+    },
+  ]
+
+  describe.each(operations)('$name', ({ dispatch, replays }) => {
+    it.each(recoveries)('handles $name without recovering an obsolete owner', async (recovery) => {
+      const session = mountSession(
+        apiClientWithRoutes({
+          '/api/v1/me': { body: USER },
+          '/api/v1/auth/session': { body: { must_change_password: false, keep_signed_in: false } },
+        }),
+      )
+      await session.initialize()
+      const activeRouter = await router()
+      let finishFirst!: (response: Response) => void
+      const firstResponse = new Promise<Response>((resolve) => {
+        finishFirst = resolve
+      })
+      const attempts: Request[] = []
+      const client = createApiClient({
+        csrfToken: () => 'csrf',
+        onUnauthorized: createUnauthorizedHandler(activeRouter),
+        shouldRetryAfterUnauthorized,
+        retryScope: privateRetryScope,
+        fetch: (request) => {
+          attempts.push(request)
+          return attempts.length === 1
+            ? firstResponse
+            : Promise.resolve(
+                new Response('{}', { headers: { 'content-type': 'application/json' } }),
+              )
+        },
+      })
+      const pending = dispatch(client)
+      await waitFor(() => expect(attempts).toHaveLength(1))
+      function replacePrincipal(): void {
+        for (const principal of recovery.principals) session.user = principal
+      }
+      if (recovery.before401) replacePrincipal()
+      finishFirst(
+        new Response(
+          JSON.stringify({
+            error: { code: 'authentication_required', message: 'Session expired.' },
+          }),
+          { status: 401, headers: { 'content-type': 'application/json' } },
+        ),
+      )
+      if (!recovery.before401) {
+        await waitFor(() => expect(useSessionRecovery().isOpen.value).toBe(true))
+        replacePrincipal()
+        useSessionRecovery().resolve()
+      }
+
+      const result = await pending
+      const shouldReplay = replays && recovery.sameOwner
+      expect(attempts).toHaveLength(shouldReplay ? 2 : 1)
+      expect(result.response.status).toBe(shouldReplay ? 200 : 401)
+      expect(useSessionRecovery().isOpen.value).toBe(false)
+      expect(session.user?.id).toBe(recovery.principals.at(-1)?.id)
+      expect(activeRouter.currentRoute.value.path).toBe('/')
+      if (shouldReplay) {
+        expect(attempts[1]?.url).toBe(attempts[0]?.url)
+        expect(attempts[1]?.method).toBe(attempts[0]?.method)
+        if (attempts[0]?.method === 'POST') {
+          expect(await attempts[1]!.clone().json()).toEqual(await attempts[0].clone().json())
+        }
+      }
+    })
+  })
+
+  it.each([
+    { name: 'another account', principals: [OTHER_USER] },
+    { name: 'A to B to A replacement', principals: [OTHER_USER, USER] },
+  ])('keeps $name when an obsolete recovery prompt is declined', async ({ principals }) => {
+    const session = mountSession(
+      apiClientWithRoutes({
+        '/api/v1/me': { body: USER },
+        '/api/v1/auth/session': { body: { must_change_password: false, keep_signed_in: false } },
+      }),
+    )
+    await session.initialize()
+    const activeRouter = await router()
+    await activeRouter.push('/change-password')
+    const pending = createUnauthorizedHandler(activeRouter)(request('/api/v1/exports/old-export'))
+    expect(useSessionRecovery().isOpen.value).toBe(true)
+    for (const principal of principals) session.user = principal
+
+    useSessionRecovery().reject(new Error('declined obsolete recovery'))
+
+    await expect(pending).rejects.toThrow('declined obsolete recovery')
+    expect(session.user?.id).toBe(principals.at(-1)?.id)
+    expect(session.isSignedIn).toBe(true)
+    expect(activeRouter.currentRoute.value.path).toBe('/change-password')
+  })
 })

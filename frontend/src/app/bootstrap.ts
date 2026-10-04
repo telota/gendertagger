@@ -16,7 +16,7 @@ import {
 import { createQueryClient } from './queryClient'
 import { createAppRouter } from './router'
 import {
-  annotationRetryScope,
+  privateRetryScope,
   createUnauthorizedHandler,
   shouldRetryAfterUnauthorized,
 } from './sessionGuard'
@@ -54,7 +54,7 @@ export function createApplication(environment: {
     createApiClient({
       onUnauthorized: createUnauthorizedHandler(router),
       shouldRetryAfterUnauthorized,
-      retryScope: annotationRetryScope,
+      retryScope: privateRetryScope,
     }),
   )
   return application

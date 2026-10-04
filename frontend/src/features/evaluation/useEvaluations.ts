@@ -1,9 +1,10 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { computed, ref, type Ref } from 'vue'
+import { ref, type Ref } from 'vue'
 
 import { unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
 import { usePolledQuery } from '@/composables/usePolledQuery'
+import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
 
 import { parseEvaluationReport } from './reportSchema'
 
@@ -30,13 +31,16 @@ export function evaluationListKey(runId: string) {
  */
 export function useEvaluationList(runId: Ref<string>, enabled: Ref<boolean> = ref(true)) {
   const client = useApiClient()
+  const scope = usePrivateQueryScope(enabled)
+  const key = scope.key(() => evaluationListKey(runId.value))
 
-  return useInfiniteQuery({
-    queryKey: computed(() => evaluationListKey(runId.value)),
-    queryFn: ({ pageParam }) =>
+  const query = useInfiniteQuery({
+    queryKey: key,
+    queryFn: ({ queryKey, pageParam, signal }) =>
       unwrap(
         client.GET('/api/v1/runs/{run_id}/evaluations', {
-          params: { path: { run_id: runId.value }, query: { cursor: pageParam } },
+          params: { path: { run_id: queryKey[1] }, query: { cursor: pageParam } },
+          signal,
         }),
       ),
     initialPageParam: null as string | null,
@@ -47,25 +51,30 @@ export function useEvaluationList(runId: Ref<string>, enabled: Ref<boolean> = re
       const anyLive = pages.some((page) => page.items.some((item) => !isTerminalEvaluation(item)))
       return anyLive ? LIST_POLL_MS : false
     },
-    enabled,
+    enabled: scope.canRead,
   })
+  return { ...query, data: scope.data(query, key) }
 }
 
 /** `GET /evaluations/{evaluation_id}`, polled until the evaluation reaches an end state. */
 export function useEvaluation(evaluationId: Ref<string>, enabled: Ref<boolean> = ref(true)) {
   const client = useApiClient()
+  const scope = usePrivateQueryScope(enabled)
+  const key = scope.key(() => ['evaluations', evaluationId.value] as const)
 
-  return usePolledQuery({
-    queryKey: computed(() => ['evaluations', evaluationId.value] as const),
-    queryFn: () =>
+  const query = usePolledQuery({
+    queryKey: key,
+    queryFn: ({ signal }) =>
       unwrap(
         client.GET('/api/v1/evaluations/{evaluation_id}', {
           params: { path: { evaluation_id: evaluationId.value } },
+          signal,
         }),
       ),
     isTerminal: isTerminalEvaluation,
-    enabled,
+    enabled: scope.canRead,
   })
+  return { ...query, data: scope.data(query, key) }
 }
 
 /**
@@ -91,19 +100,23 @@ export function useCreateEvaluation() {
  */
 export function useEvaluationReport(evaluationId: Ref<string>, enabled: Ref<boolean>) {
   const client = useApiClient()
+  const scope = usePrivateQueryScope(enabled)
+  const key = scope.key(() => ['evaluations', evaluationId.value, 'report'] as const)
 
-  return useQuery({
-    queryKey: computed(() => ['evaluations', evaluationId.value, 'report'] as const),
-    queryFn: async () => {
+  const query = useQuery({
+    queryKey: key,
+    queryFn: async ({ queryKey, signal }) => {
       const body: unknown = await unwrap(
         client.GET('/api/v1/evaluations/{evaluation_id}/report', {
-          params: { path: { evaluation_id: evaluationId.value } },
+          params: { path: { evaluation_id: queryKey[1] } },
+          signal,
         }),
       )
       return parseEvaluationReport(body)
     },
     // A report is immutable once stored.
     staleTime: Infinity,
-    enabled,
+    enabled: scope.canRead,
   })
+  return { ...query, data: scope.data(query, key) }
 }

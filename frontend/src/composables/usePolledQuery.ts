@@ -1,4 +1,4 @@
-import { useQuery, type UseQueryReturnType } from '@tanstack/vue-query'
+import { useQuery, type QueryFunctionContext, type UseQueryReturnType } from '@tanstack/vue-query'
 import type { MaybeRefOrGetter } from 'vue'
 
 // A short, human-scale refresh; nothing scientific rides on this exact number.
@@ -15,7 +15,7 @@ const POLL_INTERVAL_MS = 2000
  */
 export function usePolledQuery<T>(options: {
   queryKey: MaybeRefOrGetter<readonly unknown[]>
-  queryFn: () => Promise<T>
+  queryFn: (context: QueryFunctionContext) => Promise<T>
   isTerminal: (data: T) => boolean
   enabled?: MaybeRefOrGetter<boolean>
 }): UseQueryReturnType<T, Error> {

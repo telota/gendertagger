@@ -13,7 +13,8 @@ export function useAdminAccess() {
   const session = useSessionStore()
 
   const state = computed<AdminAccessState>(() => {
-    if (session.status === 'idle' || session.status === 'loading') return 'loading'
+    if (session.status === 'idle' || session.status === 'loading' || session.isAuthenticating)
+      return 'loading'
     if (session.status === 'error') return 'sessionError'
     if (!session.isSignedIn) return 'signedOut'
     if (session.mustChangePassword) return 'passwordChangeRequired'

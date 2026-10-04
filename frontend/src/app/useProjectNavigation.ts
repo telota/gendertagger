@@ -2,10 +2,12 @@ import { useQueryClient } from '@tanstack/vue-query'
 import { computed, type ComputedRef } from 'vue'
 import { useRoute } from 'vue-router'
 
+import { privateQueryKey } from '@/composables/usePrivateQueryScope'
 import { useAggregation } from '@/features/runs/useAggregations'
-import { useRun } from '@/features/runs/useRunDetail'
+import { runKey, useRun } from '@/features/runs/useRunDetail'
 import type { ProjectRole } from '@/features/projects/projectRoles'
 import { useImportedSnapshot } from '@/features/projects/useSnapshotData'
+import { useSessionStore } from '@/stores/session'
 import { useProjectIdentity } from './useProjectIdentity'
 
 export interface ProjectNavigationContext {
@@ -33,6 +35,7 @@ function stringParam(raw: string | string[] | undefined): string | null {
 export function useProjectNavigation(): ComputedRef<ProjectNavigationContext | null> {
   const route = useRoute()
   const cache = useQueryClient()
+  const session = useSessionStore()
   const { projectId, project: currentProject, canManageMembers } = useProjectIdentity()
   const routeRunId = computed(() => stringParam(route.params.runId))
   const routeAggregationId = computed(() => stringParam(route.params.aggregationId))
@@ -44,7 +47,7 @@ export function useProjectNavigation(): ComputedRef<ProjectNavigationContext | n
   )
   const aggregation = computed(() => {
     if (!aggregationQuery.isSuccess.value || !aggregationQuery.data.value) return null
-    const key = ['aggregations', aggregationId.value] as const
+    const key = privateQueryKey(['aggregations', aggregationId.value], session.user?.id)
     if (cache.getQueryState(key)?.status !== 'success') return null
     const value = cache.getQueryData<typeof aggregationQuery.data.value>(key)
     return value?.id === aggregationId.value ? value : null
@@ -61,7 +64,7 @@ export function useProjectNavigation(): ComputedRef<ProjectNavigationContext | n
   )
   const run = computed(() => {
     if (!runQuery.isSuccess.value || !runQuery.data.value) return null
-    const key = ['runs', runId.value] as const
+    const key = privateQueryKey(runKey(runId.value ?? ''), session.user?.id)
     if (cache.getQueryState(key)?.status !== 'success') return null
     const value = cache.getQueryData<typeof runQuery.data.value>(key)
     return value?.id === runId.value ? value : null

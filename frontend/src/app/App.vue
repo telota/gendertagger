@@ -5,6 +5,7 @@ import { RouterView } from 'vue-router'
 
 import { provideDraftNavigation } from '@/composables/useDraftNavigation'
 import { usePreferencePresentation } from '@/composables/usePreferencePresentation'
+import { usePrivateCacheLifecycle } from '@/composables/usePrivateCacheLifecycle'
 import SessionRecoveryDialog from '@/features/auth/SessionRecoveryDialog.vue'
 import { useSessionStore } from '@/stores/session'
 
@@ -20,6 +21,7 @@ provideDraftNavigation()
 const mainContent = ref<HTMLElement | null>(null)
 useRouteFocus(mainContent)
 const session = useSessionStore()
+usePrivateCacheLifecycle()
 const { desktopSidebarCollapsed } = usePreferencePresentation()
 const mobileNavigationOpen = ref(false)
 watch(

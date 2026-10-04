@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
@@ -31,23 +31,77 @@ const downloading = ref(false)
 const downloadError = ref('')
 const result = ref<DownloadedExport | null>(null)
 const expected = ref('')
+let downloadController: AbortController | null = null
+
+function abortDownload(): void {
+  downloadController?.abort()
+  downloadController = null
+  downloading.value = false
+}
+
+function clearDownload(): void {
+  abortDownload()
+  downloadError.value = ''
+  result.value = null
+  expected.value = ''
+}
+
+watch(
+  () =>
+    [
+      session.principalRevision,
+      exportId.value,
+      session.canUsePrivateNavigation,
+      item.error.value,
+      manifest.error.value,
+    ] as const,
+  ([revision, resourceId, canRead, itemError, manifestError], previous) => {
+    const denied = [itemError, manifestError].some(
+      (error) => error instanceof ApiError && [401, 403, 404].includes(error.status ?? 0),
+    )
+    if (denied || (previous && (previous[0] !== revision || previous[1] !== resourceId)))
+      clearDownload()
+    else if (!canRead) abortDownload()
+  },
+  { flush: 'sync' },
+)
+onScopeDispose(clearDownload)
 
 async function download(): Promise<void> {
   const current = item.data.value
-  if (!current || downloading.value) return
+  if (!current || downloading.value || !session.canUsePrivateNavigation) return
+  const principalRevision = session.principalRevision
+  const controller = new AbortController()
+  downloadController = controller
+  const ownsDownload = () =>
+    downloadController === controller &&
+    !controller.signal.aborted &&
+    session.principalRevision === principalRevision &&
+    session.canUsePrivateNavigation &&
+    exportId.value === current.id &&
+    item.data.value?.id === current.id
   downloading.value = true
   downloadError.value = ''
   try {
-    const downloaded = await downloadExport(client, current.id, current.format)
+    const downloaded = await downloadExport(client, current.id, current.format, controller.signal)
+    if (!ownsDownload()) return
     result.value = downloaded
     saveDownload(downloaded)
   } catch (error) {
+    if (!ownsDownload()) return
+    if (error instanceof ApiError && [401, 403, 404].includes(error.status ?? 0)) {
+      result.value = null
+      expected.value = ''
+    }
     downloadError.value =
       error instanceof ApiError && error.code === 'resource_not_found'
         ? t('export.detail.errors.notFound')
         : t('export.detail.errors.generic')
   } finally {
-    downloading.value = false
+    if (downloadController === controller) {
+      downloading.value = false
+      downloadController = null
+    }
   }
 }
 

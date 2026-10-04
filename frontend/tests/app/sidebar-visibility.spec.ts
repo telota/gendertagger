@@ -11,6 +11,7 @@ import { createAppI18n, type AppLocale } from '@/app/i18n'
 import { createQueryClient } from '@/app/queryClient'
 import { createAppRouter } from '@/app/router'
 import { API_CLIENT_KEY } from '@/composables/useApiClient'
+import { privateQueryKey } from '@/composables/usePrivateQueryScope'
 import type { AccessibleProject } from '@/features/projects/useProjects'
 import {
   projectMembershipQueryKey,
@@ -369,7 +370,11 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
       },
     })
     const { wrapper, queryClient } = await mountSidebar(AGGREGATION_PATH, locale, client)
-    await waitFor(() => expect(queryClient.getQueryData(['runs', RUN])).toMatchObject({ id: RUN }))
+    await waitFor(() =>
+      expect(queryClient.getQueryData(privateQueryKey(['runs', RUN], USER.id))).toMatchObject({
+        id: RUN,
+      }),
+    )
     expect(wrapper.find('nav a[href$="/exports"]').exists()).toBe(false)
     snapshotResponse.respond({ id: SNAPSHOT, project_id: PROJECT_A, status: 'ready' })
     await waitFor(() => expect(wrapper.find('nav a[href$="/exports"]').exists()).toBe(true))
@@ -465,7 +470,7 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
       await queryClient.invalidateQueries({
         queryKey:
           resource === 'aggregation'
-            ? ['aggregations', AGGREGATION]
+            ? privateQueryKey(['aggregations', AGGREGATION], USER.id)
             : ['imported-snapshot', USER.id, PROJECT_A, SNAPSHOT],
         exact: true,
       })

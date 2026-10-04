@@ -5,6 +5,7 @@ import { createApiClient } from '@/api'
 import type { AppLocale } from '@/app/i18n'
 import de from '@/locales/de.json'
 import en from '@/locales/en.json'
+import { useSessionStore } from '@/stores/session'
 
 import { mountApplicationAt } from '../../helpers/render'
 import { waitFor } from '../../helpers/wait'
@@ -237,6 +238,44 @@ describe.each(['de', 'en'] as const)('run list and new run in %s', (locale: AppL
     } finally {
       wrapper.unmount()
     }
+  })
+
+  it.each([false, true])(
+    'never schedules an old account’s delayed run after replacement (return to A: %s)',
+    async (returnToOriginal) => {
+      let finish!: (response: Response) => void
+      const createResponse = new Promise<Response>((resolve) => {
+        finish = resolve
+      })
+      const { wrapper, sent } = await mountRuns({ createResponse })
+      await pick(wrapper, 'local_llm')
+      await wrapper.get('.new-run').trigger('submit')
+      await waitFor(() => expect(sent.runBodies).toHaveLength(1))
+
+      const session = useSessionStore()
+      session.user = { ...USER, id: 'a0000000-0000-0000-0000-000000000003' }
+      if (returnToOriginal) session.user = USER
+      finish(jsonResponse(run(RUN_ID, 'created'), { status: 202 }))
+      await tick()
+
+      expect(sent.scheduled).toEqual([])
+      expect(wrapper.vm.$router.currentRoute.value.path).toBe(path)
+    },
+  )
+
+  it('schedules a delayed run when authentication refreshes the same account', async () => {
+    let finish!: (response: Response) => void
+    const createResponse = new Promise<Response>((resolve) => {
+      finish = resolve
+    })
+    const { wrapper, sent } = await mountRuns({ createResponse })
+    await pick(wrapper, 'local_llm')
+    await wrapper.get('.new-run').trigger('submit')
+    await waitFor(() => expect(sent.runBodies).toHaveLength(1))
+
+    useSessionStore().user = { ...USER, display_name: 'Refreshed operator' }
+    finish(jsonResponse(run(RUN_ID, 'created'), { status: 202 }))
+    await waitFor(() => expect(sent.scheduled).toEqual([RUN_ID]))
   })
 
   it('lists the snapshot runs with status, progress and an explicit open action', async () => {

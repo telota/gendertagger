@@ -19,7 +19,7 @@ reviewed records; **release task** means work needed to establish publication re
 | ID | Priority | Finding | Status |
 |---|---|---|---|
 | RG-01 | P1 | Password changes can overwrite administrative resets | Fixed; PostgreSQL regression coverage added |
-| RG-02 | P1 | Private frontend caches survive account replacement | Open; reproduced in mounted app |
+| RG-02 | P1 | Private frontend caches survive account replacement | Fixed; account-isolation regression coverage added |
 | RG-03 | P1 | Research data and personal metadata need publication clearance | Decision needed |
 | RG-04 | P1 | Wiki-Gendersort publication rights and replacement provenance | Replacement verified; history/data decisions remain |
 | RG-05 | P1 | HIVOTO-trained model lacks an explicit redistribution/licensing decision | Decision needed |
@@ -100,6 +100,45 @@ queries for the same pattern. Preserve the public branding and anonymous-classif
 **Closure.** Test A-to-B replacement while the detail view remains mounted, logout, loss of project
 access, delayed artifact responses, and recovery as the same account. B must never see A's cached
 content; fetching B's content must require B's authorization. Verify export and evaluation screens.
+
+**Remediation (2026-10-04).** Private export, evaluation, run, aggregation, review, game, method-roster,
+and upload-limit reads now include principal identity in their cache keys. The application synchronously
+cancels private queries and removes private query/mutation results on account replacement or logout.
+Public branding and anonymous classification retain their separate state. Private reads wait for
+authentication and forced-change checks; rendering resolves the current owner's exact cache key and
+hides retained data on authorization denials. Downloads carry cancellation and ownership through blob
+hashing; obsolete completions cannot display or save bytes. Downloaded content and checksum inputs
+clear on ownership/resource changes and access loss, and object URLs are always revoked after saving.
+
+Request recovery captures the account and local ownership revision for every private request, including
+requests that cannot replay. Account replacement, logout, and A-to-B-to-A transitions prevent old
+requests from opening recovery or replaying. A declined obsolete recovery cannot forget the new
+session. Session initialization, login flags, logout, and password responses reject stale ownership;
+run streams ignore obsolete callbacks, and multi-command run creation and bulk review cannot continue
+under a replacement account. Credential fields clear on account replacement, and recovery passwords
+clear on dialog close and successful sign-in. Same-account recovery preserves eligible requests,
+drafts, and completed downloads. [The frontend specification](docs/17-frontend-integration.md#state-ownership) records the
+ownership policy.
+
+[Mounted artifact regressions](frontend/tests/features/private-artifact-state.spec.ts) exercise both
+detail screens through allowed/denied account replacement, logout/relogin, access loss, delayed
+artifacts/downloads/hashing, and same-account recovery. Focused cache, transport, session, review/game,
+run-stream, and command-continuation tests cover the shared ownership boundaries with synthetic data.
+
+**Verification (2026-10-04).** The remediation working tree based on
+`59bee5ddb32391d13a15ba76b302f79a552fbd94` passed all 1,811 frontend tests across 93 files with
+84.53% branch coverage. Frontend lint, formatting, source/test/tooling type checks, translation-key
+consistency, generated OpenAPI transport drift, dependency audit, and production build passed under
+Node 26.10.0. The unchanged frontend lockfile SHA-256 is
+`d94f8d1d274c7c25404b66c409fd845f0e1655af90cea3b360caec127de40f5c`.
+
+The locked backend Core (1,685), PostgreSQL (290), and Redis (7) suites also passed. Combined coverage
+is 87.60%; normalization, reference aggregation, certainty assessment, and TEI projection each retain
+100% coverage. Lock consistency, documentation, contract naming, package initializers, dead-code
+policy, Ruff formatting/lint, mypy, Pyright, Import Linter, Python/Node dependency audits, Alembic
+upgrade/schema-drift checks, and isolated package build/distribution validation passed. Backend
+dependencies and scientific regression expectations are unchanged. The final publication-commit
+verification record remains RG-17.
 
 ### RG-03: Establish publication clearance for repository data and history
 

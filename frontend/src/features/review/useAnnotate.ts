@@ -2,8 +2,10 @@ import { useMutation, useQueryClient, type QueryClient } from '@tanstack/vue-que
 
 import { ApiError, unwrap, type ApiClient, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
+import { privateQueryKey } from '@/composables/usePrivateQueryScope'
 import type { AggregationExecution } from '@/features/runs/useAggregations'
 import type { Run } from '@/features/runs/useRuns'
+import { useSessionStore } from '@/stores/session'
 
 import { annotationHistoryKey, type ReviewItem } from './useReviewData'
 import type { CanonicalLabel, ReviewAction } from './useVocabulary'
@@ -50,23 +52,40 @@ export function postAnnotation(client: ApiClient, input: DecisionInput): Promise
   )
 }
 
+function belongsToPrincipal(queryKey: readonly unknown[], principalId: string | null): boolean {
+  const owner = queryKey.at(-1)
+  return (
+    typeof owner === 'object' &&
+    owner !== null &&
+    'principal_id' in owner &&
+    owner.principal_id === principalId
+  )
+}
+
 /** Read known ownership without additional requests or assumptions about partially loaded pages. */
-function cachedAggregationSnapshot(queryClient: QueryClient, aggregationId: string): string | null {
-  const aggregation = queryClient.getQueryData<AggregationExecution>([
-    'aggregations',
-    aggregationId,
-  ])
+function cachedAggregationSnapshot(
+  queryClient: QueryClient,
+  aggregationId: string,
+  principalId: string | null,
+): string | null {
+  const aggregation = queryClient.getQueryData<AggregationExecution>(
+    privateQueryKey(['aggregations', aggregationId], principalId),
+  )
   if (aggregation) {
-    const run = queryClient.getQueryData<Run>(['runs', aggregation.run_id])
+    const run = queryClient.getQueryData<Run>(
+      privateQueryKey(['runs', aggregation.run_id], principalId),
+    )
     if (run) return run.dataset_snapshot_id
   }
   for (const [, item] of queryClient.getQueriesData<ReviewItem | null>({
     queryKey: ['aggregations', aggregationId, 'review-item'],
+    predicate: (query) => belongsToPrincipal(query.queryKey, principalId),
   })) {
     if (item) return item.snapshot_id
   }
   for (const [, list] of queryClient.getQueriesData<{ pages: { items: ReviewItem[] }[] }>({
     queryKey: ['aggregations', aggregationId, 'review-items'],
+    predicate: (query) => belongsToPrincipal(query.queryKey, principalId),
   })) {
     const item = list?.pages.find((page) => page.items.length > 0)?.items[0]
     if (item) return item.snapshot_id
@@ -78,6 +97,7 @@ function cachedAggregationSnapshot(queryClient: QueryClient, aggregationId: stri
 export function invalidateAfterDecision(
   queryClient: QueryClient,
   scope: { snapshotId: string; teiId?: string },
+  principalId: string | null,
 ): void {
   for (const resource of ['snapshot-annotation-items', 'snapshot-annotation-item']) {
     void queryClient.invalidateQueries({ queryKey: [resource, scope.snapshotId] })
@@ -94,11 +114,15 @@ export function invalidateAfterDecision(
       if (
         resource !== 'aggregations' ||
         typeof aggregationId !== 'string' ||
-        !['review-items', 'review-summary', 'review-item'].includes(String(part))
+        !['review-items', 'review-summary', 'review-item'].includes(String(part)) ||
+        !belongsToPrincipal(query.queryKey, principalId)
       )
         return false
       if (!snapshots.has(aggregationId))
-        snapshots.set(aggregationId, cachedAggregationSnapshot(queryClient, aggregationId))
+        snapshots.set(
+          aggregationId,
+          cachedAggregationSnapshot(queryClient, aggregationId, principalId),
+        )
       const snapshotId = snapshots.get(aggregationId)
       // A summary or empty queue may outlive its ownership metadata. Refresh it conservatively:
       // an unknown scope is not proof that the decision cannot affect this projection.
@@ -115,6 +139,7 @@ export function invalidateAfterDecision(
 export function useCreateAnnotation() {
   const client = useApiClient()
   const queryClient = useQueryClient()
+  const session = useSessionStore()
 
   return useMutation({
     mutationFn: (input: DecisionInput): Promise<Annotation> => postAnnotation(client, input),
@@ -130,7 +155,7 @@ export function useCreateAnnotation() {
         return
       }
       // A conflict also proves another decision changed the snapshot's projections.
-      invalidateAfterDecision(queryClient, scope)
+      invalidateAfterDecision(queryClient, scope, session.user?.id ?? null)
     },
   })
 }

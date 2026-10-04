@@ -3,6 +3,7 @@ import { ref, type Ref } from 'vue'
 
 import { unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
+import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
 
 export type MethodDescriptor = components['schemas']['MethodDescriptor']
 
@@ -15,11 +16,14 @@ const ROSTER_STALE_MS = 5 * 60 * 1000
  */
 export function useMethodList(enabled: Ref<boolean> = ref(true)) {
   const client = useApiClient()
+  const scope = usePrivateQueryScope(enabled)
+  const key = scope.key(() => ['methods'] as const)
 
-  return useQuery({
-    queryKey: ['methods'] as const,
-    queryFn: () => unwrap(client.GET('/api/v1/methods')),
+  const query = useQuery({
+    queryKey: key,
+    queryFn: ({ signal }) => unwrap(client.GET('/api/v1/methods', { signal })),
     staleTime: ROSTER_STALE_MS,
-    enabled,
+    enabled: scope.canRead,
   })
+  return { ...query, data: scope.data(query, key) }
 }

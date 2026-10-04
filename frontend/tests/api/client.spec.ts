@@ -129,6 +129,74 @@ describe('createApiClient onUnauthorized', () => {
     expect(onUnauthorized).not.toHaveBeenCalled()
   })
 
+  it('does not recover a canceled request whose transport later returns 401', async () => {
+    const controller = new AbortController()
+    let finishResponse!: (response: Response) => void
+    let markDispatched!: () => void
+    const dispatched = new Promise<void>((resolve) => {
+      markDispatched = resolve
+    })
+    const response = new Promise<Response>((resolve) => {
+      finishResponse = resolve
+    })
+    const onUnauthorized = vi.fn(() => Promise.resolve())
+    const { client, requests } = setupWithRecovery(() => {
+      markDispatched()
+      return response
+    }, onUnauthorized)
+    const pending = client.GET('/api/v1/me', { signal: controller.signal })
+    await dispatched
+
+    controller.abort()
+    finishResponse(
+      jsonResponse(
+        { error: { code: 'authentication_required', message: 'Session gone.' } },
+        { status: 401 },
+      ),
+    )
+    const result = await pending
+
+    expect(result.response.status).toBe(401)
+    expect(onUnauthorized).not.toHaveBeenCalled()
+    expect(requests).toHaveLength(1)
+    expect(requests[0]?.signal.aborted).toBe(true)
+  })
+
+  it('does not replay a request canceled while session recovery is pending', async () => {
+    const controller = new AbortController()
+    let finishRecovery!: () => void
+    let markRecovering!: () => void
+    const recovering = new Promise<void>((resolve) => {
+      markRecovering = resolve
+    })
+    const recovery = new Promise<void>((resolve) => {
+      finishRecovery = resolve
+    })
+    const onUnauthorized = vi.fn(() => {
+      markRecovering()
+      return recovery
+    })
+    const { client, requests } = setupWithRecovery(
+      () =>
+        jsonResponse(
+          { error: { code: 'authentication_required', message: 'Session gone.' } },
+          { status: 401 },
+        ),
+      onUnauthorized,
+    )
+    const pending = client.GET('/api/v1/me', { signal: controller.signal })
+    await recovering
+
+    controller.abort()
+    finishRecovery()
+    const result = await pending
+
+    expect(result.response.status).toBe(401)
+    expect(onUnauthorized).toHaveBeenCalledOnce()
+    expect(requests).toHaveLength(1)
+    expect(requests[0]?.signal.aborted).toBe(true)
+  })
+
   it('retries the request once the caller recovers the session, with a fresh CSRF token', async () => {
     const onUnauthorized = vi.fn(() => Promise.resolve())
     const { client, requests, rotateCsrfToken } = setupWithRecovery((_request, callNumber) => {

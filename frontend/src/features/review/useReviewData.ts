@@ -1,8 +1,9 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/vue-query'
-import { computed, ref, type Ref } from 'vue'
+import { ref, type Ref } from 'vue'
 
 import { unwrap, type components, type paths } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
+import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
 
 import { QUEUE_TIERS, type ReviewFilters } from './useReviewFilters'
 
@@ -65,9 +66,11 @@ export function useReviewItems(
 ) {
   const client = useApiClient()
 
-  return useInfiniteQuery({
-    queryKey: computed(() => reviewItemsKey(aggregationId.value, filters.value)),
-    queryFn: ({ pageParam }) =>
+  const scope = usePrivateQueryScope(enabled)
+  const key = scope.key(() => reviewItemsKey(aggregationId.value, filters.value))
+  const query = useInfiniteQuery({
+    queryKey: key,
+    queryFn: ({ pageParam, signal }) =>
       unwrap(
         client.GET('/api/v1/review-items', {
           params: {
@@ -76,29 +79,35 @@ export function useReviewItems(
               ...(pageParam === null ? {} : { cursor: pageParam }),
             },
           },
+          signal,
         }),
       ),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) =>
       lastPage.has_more ? (lastPage.next_cursor ?? null) : undefined,
-    enabled,
+    enabled: scope.canRead,
   })
+  return { ...query, data: scope.data(query, key) }
 }
 
 /** `GET /aggregations/{id}/review-summary`: the counts behind the queue badges (never page counts). */
 export function useReviewSummary(aggregationId: Ref<string>, enabled: Ref<boolean> = ref(true)) {
   const client = useApiClient()
 
-  return useQuery({
-    queryKey: computed(() => ['aggregations', aggregationId.value, 'review-summary'] as const),
-    queryFn: () =>
+  const scope = usePrivateQueryScope(enabled)
+  const key = scope.key(() => ['aggregations', aggregationId.value, 'review-summary'] as const)
+  const query = useQuery({
+    queryKey: key,
+    queryFn: ({ signal }) =>
       unwrap(
         client.GET('/api/v1/aggregations/{aggregation_id}/review-summary', {
           params: { path: { aggregation_id: aggregationId.value } },
+          signal,
         }),
       ),
-    enabled,
+    enabled: scope.canRead,
   })
+  return { ...query, data: scope.data(query, key) }
 }
 
 /**
@@ -112,10 +121,12 @@ export function useReviewItemByPerson(
 ) {
   const client = useApiClient()
 
-  return useQuery({
-    queryKey: computed(
-      () => ['aggregations', aggregationId.value, 'review-item', teiId.value] as const,
-    ),
+  const scope = usePrivateQueryScope(() => enabled.value && teiId.value !== null)
+  const key = scope.key(
+    () => ['aggregations', aggregationId.value, 'review-item', teiId.value] as const,
+  )
+  const query = useQuery({
+    queryKey: key,
     queryFn: async ({ queryKey, signal }) => {
       const id = queryKey[3]
       if (id === null) throw new Error('useReviewItemByPerson: no person.')
@@ -129,30 +140,34 @@ export function useReviewItemByPerson(
       )
       return page.items.find((item) => item.tei_id === id) ?? null
     },
-    enabled: computed(() => enabled.value && teiId.value !== null),
+    enabled: scope.canRead,
   })
+  return { ...query, data: scope.data(query, key) }
 }
 
 /** `GET /aggregations/{id}/results/{result_id}/predictions`, in the aggregation's selection order. */
 export function useResultPredictions(aggregationId: Ref<string>, resultId: Ref<string | null>) {
   const client = useApiClient()
 
-  return useQuery({
-    queryKey: computed(
-      () =>
-        ['aggregations', aggregationId.value, 'results', resultId.value, 'predictions'] as const,
-    ),
-    queryFn: () => {
+  const scope = usePrivateQueryScope(() => resultId.value !== null)
+  const key = scope.key(
+    () => ['aggregations', aggregationId.value, 'results', resultId.value, 'predictions'] as const,
+  )
+  const query = useQuery({
+    queryKey: key,
+    queryFn: ({ signal }) => {
       const id = resultId.value
       if (id === null) throw new Error('useResultPredictions: no result selected.')
       return unwrap(
         client.GET('/api/v1/aggregations/{aggregation_id}/results/{result_id}/predictions', {
           params: { path: { aggregation_id: aggregationId.value, result_id: id } },
+          signal,
         }),
       )
     },
-    enabled: computed(() => resultId.value !== null),
+    enabled: scope.canRead,
   })
+  return { ...query, data: scope.data(query, key) }
 }
 
 export function annotationHistoryKey(snapshotId: string, teiId: string) {
@@ -166,38 +181,46 @@ export function annotationHistoryKey(snapshotId: string, teiId: string) {
 export function useAnnotationHistory(snapshotId: Ref<string | null>, teiId: Ref<string | null>) {
   const client = useApiClient()
 
-  return useQuery({
-    queryKey: computed(() => annotationHistoryKey(snapshotId.value ?? '', teiId.value ?? '')),
-    queryFn: () => {
+  const scope = usePrivateQueryScope(() => snapshotId.value !== null && teiId.value !== null)
+  const key = scope.key(() => annotationHistoryKey(snapshotId.value ?? '', teiId.value ?? ''))
+  const query = useQuery({
+    queryKey: key,
+    queryFn: ({ signal }) => {
       const snapshot = snapshotId.value
       const tei = teiId.value
       if (snapshot === null || tei === null) throw new Error('useAnnotationHistory: no person.')
       return unwrap(
         client.GET('/api/v1/annotations', {
           params: { query: { snapshot_id: snapshot, tei_id: tei } },
+          signal,
         }),
       )
     },
-    enabled: computed(() => snapshotId.value !== null && teiId.value !== null),
+    enabled: scope.canRead,
   })
+  return { ...query, data: scope.data(query, key) }
 }
 
 /** `GET /snapshots/{id}/people/{tei_id}`: the source-preserving record behind a person. */
 export function usePersonRecord(snapshotId: Ref<string | null>, teiId: Ref<string | null>) {
   const client = useApiClient()
 
-  return useQuery({
-    queryKey: computed(() => ['snapshots', snapshotId.value, 'people', teiId.value] as const),
-    queryFn: () => {
+  const scope = usePrivateQueryScope(() => snapshotId.value !== null && teiId.value !== null)
+  const key = scope.key(() => ['snapshots', snapshotId.value, 'people', teiId.value] as const)
+  const query = useQuery({
+    queryKey: key,
+    queryFn: ({ signal }) => {
       const snapshot = snapshotId.value
       const tei = teiId.value
       if (snapshot === null || tei === null) throw new Error('usePersonRecord: no person.')
       return unwrap(
         client.GET('/api/v1/snapshots/{snapshot_id}/people/{tei_id}', {
           params: { path: { snapshot_id: snapshot, tei_id: tei } },
+          signal,
         }),
       )
     },
-    enabled: computed(() => snapshotId.value !== null && teiId.value !== null),
+    enabled: scope.canRead,
   })
+  return { ...query, data: scope.data(query, key) }
 }

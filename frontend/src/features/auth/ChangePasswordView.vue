@@ -25,6 +25,18 @@ const submitLabel = computed(() =>
   isSubmitting.value ? t('changePassword.submitting') : t('changePassword.submit'),
 )
 
+watch(
+  () => session.principalRevision,
+  () => {
+    currentPassword.value = ''
+    newPassword.value = ''
+    repeatNewPassword.value = ''
+    errorMessage.value = null
+    isSubmitting.value = false
+  },
+  { flush: 'sync' },
+)
+
 // App.vue's session.initialize() is still resolving on a fresh page load; deciding from
 // session.isSignedIn before it settles would bounce an actually-signed-in visitor to /login.
 // Wait for the one 'loading' -> 'ready' transition instead of reading the flag immediately.
@@ -59,6 +71,7 @@ function messageFor(error: unknown): string {
 }
 
 async function submit(): Promise<void> {
+  const revision = session.principalRevision
   errorMessage.value = null
   if (newPassword.value !== repeatNewPassword.value) {
     errorMessage.value = t('changePassword.errors.mismatch')
@@ -70,11 +83,12 @@ async function submit(): Promise<void> {
       currentPassword: currentPassword.value,
       newPassword: newPassword.value,
     })
+    if (revision !== session.principalRevision) return
     await router.push(redirectTarget())
   } catch (error) {
-    errorMessage.value = messageFor(error)
+    if (revision === session.principalRevision) errorMessage.value = messageFor(error)
   } finally {
-    isSubmitting.value = false
+    if (revision === session.principalRevision) isSubmitting.value = false
   }
 }
 </script>

@@ -8,6 +8,7 @@ import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
 import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
+import { privateQueryKey } from '@/composables/usePrivateQueryScope'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
 import { useImportedSnapshot } from '@/features/projects/useSnapshotData'
 import { useProject } from '@/features/projects/useProjects'
@@ -75,7 +76,7 @@ const run = useRun(runId, isSignedIn)
 const runData = computed(() =>
   retainedReviewData(
     cache,
-    ['runs', runId.value],
+    privateQueryKey(['runs', runId.value], session.user?.id),
     session.canUsePrivateNavigation && projectData.value?.id === projectId.value,
     run.status.value,
     run.data.value,
@@ -85,7 +86,7 @@ const runData = computed(() =>
 const aggregationData = computed(() =>
   retainedReviewData(
     cache,
-    ['aggregations', aggregationId.value],
+    privateQueryKey(['aggregations', aggregationId.value], session.user?.id),
     session.canUsePrivateNavigation && projectData.value?.id === projectId.value,
     aggregation.status.value,
     aggregation.data.value,

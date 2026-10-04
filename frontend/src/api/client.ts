@@ -24,7 +24,7 @@ export interface ApiClientOptions {
    * `false`: their actor must deliberately resubmit after recovery, never run under a new principal.
    */
   shouldRetryAfterUnauthorized?: (request: Request) => boolean
-  /** Capture a retry's owner at dispatch; recovery cannot replay it if that scope changes. */
+  /** Capture every request's owner at dispatch; obsolete requests cannot recover or replay. */
   retryScope?: (request: Request) => string | null
 }
 
@@ -73,30 +73,45 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
     // (by the network call itself); a clone taken up front, before that happens, is what a retry needs.
     // `Request.clone()` is cheap even for a large upload, since a `File`/`Blob`-backed body isn't
     // duplicated in memory, only re-referenced.
-    const clones = new Map<string, { request: Request; scope: string | null }>()
+    const requests = new Map<string, { request: Request | null; scope: string | null }>()
     const recoverFromExpiredSession: Middleware = {
       onRequest({ request, id }) {
-        if (shouldRetryAfterUnauthorized(request))
-          clones.set(id, { request: request.clone(), scope: retryScope(request) })
+        requests.set(id, {
+          request: shouldRetryAfterUnauthorized(request) ? request.clone() : null,
+          scope: retryScope(request),
+        })
         return request
       },
       async onResponse({ request, response, id }) {
-        const retry = clones.get(id)
-        clones.delete(id)
+        const retry = requests.get(id)
+        requests.delete(id)
         // A cancelled query/write can still resolve in a custom transport. It must not recover
         // authentication for a principal that no longer owns that request.
-        if (request.signal.aborted || response.status !== 401) return undefined
+        if (
+          request.signal.aborted ||
+          response.status !== 401 ||
+          (retry && retry.scope !== retryScope(request))
+        )
+          return undefined
         try {
           await onUnauthorized(request)
         } catch {
           return undefined
         }
-        if (!shouldRetryAfterUnauthorized(request) || !retry || retry.scope !== retryScope(request))
+        if (
+          request.signal.aborted ||
+          !shouldRetryAfterUnauthorized(request) ||
+          !retry?.request ||
+          retry.scope !== retryScope(request)
+        )
           return undefined
         // The session that produced the original CSRF token is gone; the recovered one issues a new
         // one, so the retry needs its own header, not the stale value the clone still carries.
         applyCsrfHeader(retry.request, csrfToken)
         return doFetch(retry.request)
+      },
+      onError({ id }) {
+        requests.delete(id)
       },
     }
     client.use(recoverFromExpiredSession)

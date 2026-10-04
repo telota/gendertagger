@@ -1,8 +1,9 @@
 import { useQueryClient } from '@tanstack/vue-query'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { ApiError } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
+import { useSessionStore } from '@/stores/session'
 
 import { invalidateAfterDecision, postAnnotation } from './useAnnotate'
 import type { ReviewItem } from './useReviewData'
@@ -48,6 +49,7 @@ export type BulkPhase = 'idle' | 'running' | 'done'
 export function useBulkDecision() {
   const client = useApiClient()
   const queryClient = useQueryClient()
+  const session = useSessionStore()
 
   const phase = ref<BulkPhase>('idle')
   const results = ref<BulkResult[]>([])
@@ -55,14 +57,20 @@ export function useBulkDecision() {
   const stopRequested = ref(false)
 
   const done = computed(() => results.value.length)
+  watch(() => session.principalRevision, reset, { flush: 'sync' })
 
   async function run(items: readonly ReviewItem[], spec: BulkSpec): Promise<BulkResult[]> {
+    const principalId = session.user?.id ?? null
+    const revision = session.principalRevision
+    const ownsRun = () =>
+      (session.user?.id ?? null) === principalId && session.principalRevision === revision
     phase.value = 'running'
     results.value = []
     total.value = items.length
     stopRequested.value = false
 
     for (const item of items) {
+      if (!ownsRun()) return []
       if (stopRequested.value) {
         results.value = [
           ...results.value,
@@ -83,6 +91,7 @@ export function useBulkDecision() {
           comment: spec.comment,
           expectedRevision: item.review_revision,
         })
+        if (!ownsRun()) return []
         results.value = [
           ...results.value,
           {
@@ -91,16 +100,16 @@ export function useBulkDecision() {
           },
         ]
       } catch (error) {
+        if (!ownsRun()) return []
         results.value = [...results.value, { teiId: item.tei_id, outcome: failure(error) }]
       }
     }
 
     // One refresh at the end, not one per person: the queues and counts are re-read once.
+    if (!ownsRun()) return []
     const [first] = items
     if (first) {
-      invalidateAfterDecision(queryClient, {
-        snapshotId: first.snapshot_id,
-      })
+      invalidateAfterDecision(queryClient, { snapshotId: first.snapshot_id }, principalId)
       for (const item of items) {
         void queryClient.invalidateQueries({
           queryKey: ['snapshots', item.snapshot_id, 'annotations', item.tei_id],

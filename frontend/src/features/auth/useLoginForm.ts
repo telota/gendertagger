@@ -1,4 +1,4 @@
-import { computed, ref, type ComputedRef, type Ref } from 'vue'
+import { computed, ref, watch, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { ApiError } from '@/api'
@@ -49,6 +49,15 @@ export function useLoginForm(): UseLoginForm {
     isSubmitting.value ? t('login.submitting') : t('login.submit'),
   )
 
+  watch(
+    () => session.principalRevision,
+    () => {
+      password.value = ''
+      errorMessage.value = null
+    },
+    { flush: 'sync' },
+  )
+
   async function submit(): Promise<boolean> {
     errorMessage.value = null
     isSubmitting.value = true
@@ -58,6 +67,7 @@ export function useLoginForm(): UseLoginForm {
         password: password.value,
         keepSignedIn: keepSignedIn.value,
       })
+      password.value = ''
       return true
     } catch (error) {
       errorMessage.value = messageFor(t, error)
