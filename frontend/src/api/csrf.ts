@@ -2,7 +2,7 @@
 // against the `X-CSRF-Token` header on every unsafe request. Both names must match
 // `gendertagger.api.authentication`; they live here so a provider change stays a one-file edit.
 export const CSRF_HEADER_NAME = 'X-CSRF-Token'
-export const CSRF_COOKIE_NAME = 'csrf_token'
+const CSRF_COOKIE_NAME = 'csrf_token'
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS', 'TRACE'])
 

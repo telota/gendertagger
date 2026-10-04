@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { ApiError, CLIENT_ERROR_CODES, CSRF_HEADER_NAME, createApiClient, unwrap } from '@/api'
+import { createApiClient, unwrap } from '@/api/client'
+import { ApiError } from '@/api/errors'
 
 const USER_ID = '6f9619ff-8b86-4011-b42d-00c04fc964ff'
 const TEAM_ID = 'e248da36-6ff9-4ea3-a486-cc2ce8ddf32a'
@@ -39,7 +40,7 @@ describe('createApiClient', () => {
 
     await client.GET('/api/v1/methods')
 
-    expect(requests[0]?.headers.has(CSRF_HEADER_NAME)).toBe(false)
+    expect(requests[0]?.headers.has('X-CSRF-Token')).toBe(false)
   })
 
   it('attaches the CSRF token to every unsafe method', async () => {
@@ -49,7 +50,7 @@ describe('createApiClient', () => {
       body: { display_name: 'Register', slug: 'register', team_id: TEAM_ID },
     })
 
-    expect(requests[0]?.headers.get(CSRF_HEADER_NAME)).toBe('token-1')
+    expect(requests[0]?.headers.get('X-CSRF-Token')).toBe('token-1')
   })
 
   it('sends an unsafe request without a header when no token is available', async () => {
@@ -66,7 +67,7 @@ describe('createApiClient', () => {
       body: { display_name: 'Register', slug: 'register', team_id: TEAM_ID },
     })
 
-    expect(requests[0]?.headers.has(CSRF_HEADER_NAME)).toBe(false)
+    expect(requests[0]?.headers.has('X-CSRF-Token')).toBe(false)
   })
 
   it('reads the CSRF token from the cookie by default', async () => {
@@ -84,7 +85,7 @@ describe('createApiClient', () => {
       body: { display_name: 'Register', slug: 'register', team_id: TEAM_ID },
     })
 
-    expect(requests[0]?.headers.get(CSRF_HEADER_NAME)).toBe('from-cookie')
+    expect(requests[0]?.headers.get('X-CSRF-Token')).toBe('from-cookie')
   })
 
   it('uses the global fetch when none is injected', async () => {
@@ -216,8 +217,8 @@ describe('createApiClient onUnauthorized', () => {
 
     expect(onUnauthorized).toHaveBeenCalledTimes(1)
     expect(requests).toHaveLength(2)
-    expect(requests[0]?.headers.get(CSRF_HEADER_NAME)).toBe('token-before')
-    expect(requests[1]?.headers.get(CSRF_HEADER_NAME)).toBe('token-after')
+    expect(requests[0]?.headers.get('X-CSRF-Token')).toBe('token-before')
+    expect(requests[1]?.headers.get('X-CSRF-Token')).toBe('token-after')
     expect(result.data).toEqual({ ok: true })
   })
 
@@ -352,7 +353,7 @@ describe('unwrap', () => {
 
     expect(failure).toMatchObject({
       status: 502,
-      code: CLIENT_ERROR_CODES.unparseableResponse,
+      code: 'unparseable_response',
     })
   })
 
@@ -363,7 +364,7 @@ describe('unwrap', () => {
 
     expect(failure).toMatchObject({
       status: null,
-      code: CLIENT_ERROR_CODES.networkError,
+      code: 'network_error',
       cause: expect.any(TypeError),
     })
   })

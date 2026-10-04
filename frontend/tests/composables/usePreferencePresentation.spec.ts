@@ -11,11 +11,7 @@ import { API_CLIENT_KEY } from '@/composables/useApiClient'
 import { useLocale, type UseLocale } from '@/composables/useLocale'
 import { usePreferencePresentation } from '@/composables/usePreferencePresentation'
 import { useTheme, type UseTheme } from '@/composables/useTheme'
-import {
-  useUserPreferences,
-  userPreferencesQueryKey,
-  type UserPreferences,
-} from '@/composables/useUserPreferences'
+import { useUserPreferences, type UserPreferences } from '@/composables/useUserPreferences'
 import { useSessionStore, type CurrentUser } from '@/stores/session'
 
 const USER_A: CurrentUser = {
@@ -161,7 +157,7 @@ describe('usePreferencePresentation', () => {
     localStorage.setItem(LOCALE_STORAGE_KEY, 'en')
     localStorage.setItem(THEME_STORAGE_KEY, 'dark')
     const fetch = vi.fn(() => Promise.resolve(json(DEFAULTS)))
-    const { locale, theme, queryClient } = mountPresentation(createApiClient({ fetch }), {
+    const { locale, theme, preferences } = mountPresentation(createApiClient({ fetch }), {
       user: USER_A,
     })
     await flushPromises()
@@ -177,7 +173,7 @@ describe('usePreferencePresentation', () => {
     expect(document.documentElement.lang).toBe('en')
     expect(theme.preference.value).toBe('system')
     expect(effectiveTheme()).toBe('dark')
-    expect(queryClient.getQueryData(userPreferencesQueryKey(USER_A.id))).toEqual(DEFAULTS)
+    expect(preferences.preferences.value).toEqual(DEFAULTS)
     expect(fetch).toHaveBeenCalledTimes(1)
   })
 
@@ -243,6 +239,8 @@ describe('usePreferencePresentation', () => {
       { user: USER_A },
     )
     await flushPromises()
+    const accountAQuery = queryClient.getQueryCache().getAll()[0]
+    expect(accountAQuery).toBeDefined()
     expect(locale.current.value).toBe('en')
     expect(effectiveTheme()).toBe('dark')
     expect(presentation.desktopSidebarCollapsed.value).toBe(true)
@@ -252,6 +250,8 @@ describe('usePreferencePresentation', () => {
     expect(theme.preference.value).toBe('system')
     expect(presentation.desktopSidebarCollapsed.value).toBe(false)
     await flushPromises()
+    const accountBQuery = queryClient.getQueryCache().getAll()[0]
+    expect(accountBQuery).toBeDefined()
     session.forgetSession()
     pending.resolve(json(ACCOUNT_A))
     await flushPromises()
@@ -259,8 +259,8 @@ describe('usePreferencePresentation', () => {
     expect(locale.current.value).toBe('de')
     expect(theme.preference.value).toBe('system')
     expect(presentation.desktopSidebarCollapsed.value).toBe(false)
-    expect(queryClient.getQueryData(userPreferencesQueryKey(USER_A.id))).toBeUndefined()
-    expect(queryClient.getQueryData(userPreferencesQueryKey(USER_B.id))).toBeUndefined()
+    expect(queryClient.getQueryCache().getAll()).not.toContain(accountAQuery)
+    expect(queryClient.getQueryCache().getAll()).not.toContain(accountBQuery)
   })
 
   it('ignores account A reads that finish after account B values have already applied', async () => {

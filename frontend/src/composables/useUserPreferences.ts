@@ -14,7 +14,7 @@ export type UserPreferencesSaveResult =
   | { status: 'failure'; error: unknown }
   | { status: 'discarded' }
 
-export function userPreferencesQueryKey(principalId: string | null) {
+function userPreferencesQueryKey(principalId: string | null) {
   return ['userPreferences', principalId] as const
 }
 

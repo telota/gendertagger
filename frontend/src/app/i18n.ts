@@ -9,10 +9,10 @@ export const SUPPORTED_LOCALES = ['de', 'en'] as const
 export type AppLocale = (typeof SUPPORTED_LOCALES)[number]
 
 export const DEFAULT_LOCALE: AppLocale = 'de'
-export const FALLBACK_LOCALE: AppLocale = 'en'
+const FALLBACK_LOCALE: AppLocale = 'en'
 export const LOCALE_STORAGE_KEY = 'gendertagger.locale'
 
-export type MessageSchema = typeof en
+type MessageSchema = typeof en
 
 const numberFormats = {
   integer: { maximumFractionDigits: 0 },
@@ -59,8 +59,6 @@ export function createAppI18n(locale: AppLocale) {
     datetimeFormats: { de: datetimeFormats, en: datetimeFormats },
   })
 }
-
-export type AppI18n = ReturnType<typeof createAppI18n>
 
 /** Keep the document language in step with the interface so assistive technology pronounces it. */
 export function applyDocumentLanguage(locale: AppLocale, root: HTMLElement): void {

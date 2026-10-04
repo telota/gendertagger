@@ -139,6 +139,7 @@ frontend_quality:
     # backend contract test fails when that snapshot differs from the live API, so a contract change
     # is caught here even when nobody touched the frontend.
     - npm run api:check
+    - npm run unused:check
 
 frontend_dependency_audit:
   extends: .frontend_node_job

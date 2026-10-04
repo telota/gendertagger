@@ -81,11 +81,17 @@ repos:
         name: Frontend format check
         entry: npm --prefix frontend run format:check
         language: system
-        files: ^frontend/.*\.(?:ts|vue|js|mjs|json|css|html)$
+        files: ^frontend/.*\.(?:ts|vue|js|mjs|json|jsonc|css|html)$
         pass_filenames: false
       - id: frontend-lint
         name: Frontend lint
         entry: npm --prefix frontend run lint
         language: system
         files: ^frontend/(?:src|tests|scripts|public)/.*\.(?:ts|vue|js|mjs|json)$|^frontend/eslint\.config\.js$
+        pass_filenames: false
+      - id: frontend-unused
+        name: Frontend application reachability
+        entry: npm --prefix frontend run unused:check
+        language: system
+        files: ^frontend/.*\.(?:ts|tsx|vue|js|mjs|json|jsonc)$
         pass_filenames: false

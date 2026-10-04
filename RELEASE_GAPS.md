@@ -957,7 +957,7 @@ Current remediation status is recorded below; the original review evidence remai
 | FQ-05 | P2 | Frontend | Creation disclosure and cursor-list feedback are copied between views | Fixed; shared disclosure/list feedback, retained-draft and distinct failure recovery checks passed |
 | FQ-06 | P2 | Frontend | Lifecycle, provenance, prediction, and annotation-history presentation repeat | Fixed; data-only presenters preserve uncertainty, confidence, and history semantics |
 | FQ-07 | P2 | Frontend | Repeated native fields bypass incomplete shared field primitives | Fixed; shared native field composition and typed/null/boolean/accessibility checks passed |
-| FQ-08 | P3 | Frontend | An orphan component, unused exported types, and dead CSS survive checks | Open |
+| FQ-08 | P3 | Frontend | An orphan component, unused exported types, and dead CSS survive checks | Fixed; obsolete code removed and a bounded production-root graph gate covers files/exports/types/imports |
 | DQ-01 | P2 | Documentation | Overlapping guidance and undated reports now disagree | Open |
 | DQ-02 | P2 | Documentation | The documentation gate omits maintained files and section targets | Open |
 | DQ-03 | P3 | Repository | Generated paper output and disposable development metadata are tracked | Open; publication-artifact retention decisions deferred |
@@ -1377,6 +1377,15 @@ generated contracts. `noUnusedLocals` and `noUnusedParameters` do not detect the
 **Closure.** Production components have application consumers or an explicit catalog purpose; dead
 aliases/selector and stale claims disappear; the new check catches equivalent orphans. No other orphan
 Vue component or definitively unused runtime dependency was confirmed in this review.
+
+**Remediation — 2026-10-04.** Removed the orphan AppListbox and its dedicated tests, unused aliases,
+and dead admin-team CSS; internally used declarations are private and live consumers import defining
+modules directly. Pinned development-only Knip 6.39.0 checks the browser graph rooted exclusively at
+`src/main.ts`, including Vue templates and lazy imports. Tests/configuration cannot rescue dead
+application code. Generated OpenAPI declarations exempt only unused export/type diagnostics, not
+file reachability or unresolved imports. Behavioral analyzer fixtures exercise orphan, template,
+lazy-route, test-only, generated-schema, and unresolved-import boundaries. Local checks, pre-commit,
+and GitLab run the same gate; the final production graph passed.
 
 ### Repository and documentation findings
 

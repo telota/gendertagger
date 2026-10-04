@@ -1,0 +1,18 @@
+{
+  "$schema": "https://unpkg.com/knip@6.39.0/schema.json",
+  // Only the shipped browser bootstrap is a root. Tests and tooling must not rescue dead app code.
+  "entry": ["src/main.ts!"],
+  "project": ["src/**/*.{ts,tsx,js,jsx,mjs,cjs,vue}!"],
+  "includeEntryExports": true,
+  "include": ["files", "exports", "types", "nsExports", "nsTypes", "unresolved"],
+  // Vue handles SFC scripts/macros; explicit template component imports and lazy import() edges
+  // remain in the application graph. Disable config/test discovery rather than adding app roots.
+  "vue": true,
+  "vite": false,
+  "vitest": false,
+  "ignoreIssues": {
+    // The generated OpenAPI declaration describes the entire server, not just this client's subset.
+    // Keep it in the graph for type references and file reachability; exempt only unused exports.
+    "src/api/schema.d.ts": ["exports", "types", "nsExports", "nsTypes"],
+  },
+}

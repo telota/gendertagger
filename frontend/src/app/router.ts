@@ -7,7 +7,7 @@ import HomeView from '@/features/home/HomeView.vue'
 //
 // The legal notice is public. It has to stay reachable without a session, so when route guards arrive
 // with the session handling of milestone M2 it must be exempt from the authentication requirement.
-export const routes: readonly RouteRecordRaw[] = [
+const routes: readonly RouteRecordRaw[] = [
   { path: '/', name: 'home', component: HomeView },
   {
     path: '/impressum',

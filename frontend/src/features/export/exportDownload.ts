@@ -2,8 +2,8 @@ import { unwrap, type ApiClient, type components } from '@/api'
 
 import type { ExportFormat } from './useExports'
 
-export type ExportManifestOutput = components['schemas']['ExportManifestOutput']
-export type ExportManifest = components['schemas']['ExportManifest']
+type ExportManifestOutput = components['schemas']['ExportManifestOutput']
+type ExportManifest = components['schemas']['ExportManifest']
 
 const SHA256 = /^[0-9a-f]{64}$/
 
@@ -12,7 +12,7 @@ function str(value: unknown): string | null {
 }
 
 /** A manifest, or `null` for anything else (an ordinary output such as a JSON result bundle). */
-export function parseExportManifest(text: string, exportId: string): ExportManifest | null {
+function parseExportManifest(text: string, exportId: string): ExportManifest | null {
   let body: unknown
   try {
     body = JSON.parse(text)
@@ -89,7 +89,7 @@ export function parseExportManifest(text: string, exportId: string): ExportManif
 }
 
 /** Lower-case hex SHA-256 of some bytes, computed in the browser (Web Crypto). */
-export async function sha256Hex(bytes: ArrayBuffer): Promise<string> {
+async function sha256Hex(bytes: ArrayBuffer): Promise<string> {
   const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes)
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }

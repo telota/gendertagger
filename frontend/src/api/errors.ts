@@ -1,7 +1,7 @@
 import type { components } from './schema'
 
-export type ApiErrorDetail = components['schemas']['ApiErrorDetail']
-export type ApiErrorEnvelope = components['schemas']['ApiErrorEnvelope']
+type ApiErrorDetail = components['schemas']['ApiErrorDetail']
+type ApiErrorEnvelope = components['schemas']['ApiErrorEnvelope']
 type ErrorDetails = NonNullable<ApiErrorDetail['details']>
 
 /**
@@ -10,14 +10,12 @@ type ErrorDetails = NonNullable<ApiErrorDetail['details']>
  * Server codes are an open vocabulary owned by the backend (`annotation_conflict`,
  * `payload_too_large`, ...); these two never collide with them because the server never sends them.
  */
-export const CLIENT_ERROR_CODES = {
+const CLIENT_ERROR_CODES = {
   networkError: 'network_error',
   unparseableResponse: 'unparseable_response',
 } as const
 
-export type ClientErrorCode = (typeof CLIENT_ERROR_CODES)[keyof typeof CLIENT_ERROR_CODES]
-
-export const REQUEST_ID_HEADER = 'x-request-id'
+const REQUEST_ID_HEADER = 'x-request-id'
 
 /** One failed API interaction, selected by its stable `code` and never by its message text. */
 export class ApiError extends Error {
@@ -48,7 +46,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /** Narrow an untrusted response body to the shared error envelope. */
-export function isApiErrorEnvelope(body: unknown): body is ApiErrorEnvelope {
+function isApiErrorEnvelope(body: unknown): body is ApiErrorEnvelope {
   if (!isRecord(body) || !isRecord(body.error)) return false
   return typeof body.error.code === 'string' && typeof body.error.message === 'string'
 }

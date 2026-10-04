@@ -313,6 +313,9 @@ the phased plan that resumes application code.
 - Run, evaluation, and export creation share disclosure and cursor-list feedback. Ordinary collapse
   retains drafts; context/access changes reset them. Initial, refetch, and continuation errors retain
   separate recovery paths, without discarding loaded rows or allowing duplicate busy actions.
+- Removed the unused AppListbox, stale exported declarations, and dead admin-team CSS. A pinned,
+  development-only Knip gate checks production file/export/type reachability and unresolved imports,
+  including Vue templates and lazy routes, without treating tests/tooling as application roots.
 - Batch failures now share the URL-credential redaction and bounded detailed-diagnostic policy used by
   aggregation, evaluation, export, and dispatch. Redaction occurs before the 500-character limit;
   authenticated method summaries cannot retain credential-bearing URL user information from batch

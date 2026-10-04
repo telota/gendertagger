@@ -1,10 +1,23 @@
 import { describe, expect, it } from 'vitest'
 
-import { ApiError, isApiErrorEnvelope, parseApiError } from '@/api/errors'
+import { ApiError, parseApiError } from '@/api/errors'
 
-describe('isApiErrorEnvelope', () => {
+describe('parseApiError envelope boundary', () => {
   it('accepts the shared envelope', () => {
-    expect(isApiErrorEnvelope({ error: { code: 'forbidden', message: 'No.' } })).toBe(true)
+    const error = parseApiError(
+      403,
+      { error: { code: 'forbidden', message: 'No.' } },
+      new Headers({ 'x-request-id': 'header' }),
+    )
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error).toMatchObject({
+      status: 403,
+      code: 'forbidden',
+      message: 'No.',
+      details: {},
+      requestId: 'header',
+    })
   })
 
   it.each([
@@ -16,7 +29,16 @@ describe('isApiErrorEnvelope', () => {
     ['a missing code', { error: { message: 'No.' } }],
     ['a non-string message', { error: { code: 'forbidden', message: 7 } }],
   ])('rejects %s', (_description, body) => {
-    expect(isApiErrorEnvelope(body)).toBe(false)
+    const error = parseApiError(502, body, new Headers({ 'x-request-id': 'header' }))
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error).toMatchObject({
+      status: 502,
+      code: 'unparseable_response',
+      message: 'The server answered 502 without a recognisable error envelope.',
+      details: {},
+      requestId: 'header',
+    })
   })
 })
 

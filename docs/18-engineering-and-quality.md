@@ -208,5 +208,11 @@ tool caches are never traversed. It validates local links offline; external-link
 not a merge-request gate. `backend/scripts/check_contract_naming.py` is restricted to annotated canonical/config model
 fields, leaving ordinary local naming to Ruff and review.
 `backend/scripts/check_package_initializers.py` keeps imports and behavior in defining modules rather than hiding them
-behind package import side effects. `backend/scripts/check_dead_code.py` prevents orphan symbols and dead code from
-accumulating in `backend/src/gendertagger`.
+behind package import side effects. `backend/scripts/check_dead_code.py` checks declaration,
+reference, and protocol heuristics in `backend/src/gendertagger`; it is not proof of production reachability.
+
+The frontend's `npm run unused:check` uses pinned Knip with one production root, `src/main.ts`, and
+Vue-template/lazy-import edges. Tests and tooling are not application roots. Only unused exports/types
+in generated `src/api/schema.d.ts` are exempt; file reachability and unresolved imports still apply.
+The check runs through local `npm run check`, GitLab validation, and pre-commit. Its precise scope and
+fixtures are documented in [the frontend coding guidelines](26-frontend-coding-guidelines.md#production-unused-code-gate).

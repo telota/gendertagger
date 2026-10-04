@@ -23,7 +23,8 @@
     "api:generate": "node scripts/generate-api.mjs",
     "api:check": "node scripts/generate-api.mjs --check",
     "i18n:check": "node scripts/check-i18n.mjs",
-    "check": "npm run typecheck && npm run i18n:check && npm run api:check && npm run test:coverage"
+    "unused:check": "knip --config knip.jsonc --production",
+    "check": "npm run typecheck && npm run unused:check && npm run i18n:check && npm run api:check && npm run test:coverage"
   },
   "dependencies": {
     "@headlessui/vue": "1.7.23",
@@ -50,6 +51,7 @@
     "globals": "17.12.0",
     "jsdom": "30.1.0",
     "jsonc-eslint-parser": "3.3.0",
+    "knip": "6.39.0",
     "openapi-typescript": "7.13.0",
     "prettier": "3.9.8",
     "typescript": "5.9.3",

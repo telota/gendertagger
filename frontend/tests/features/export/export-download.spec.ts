@@ -1,9 +1,9 @@
-import { webcrypto } from 'node:crypto'
+import { createHash, webcrypto } from 'node:crypto'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createApiClient } from '@/api'
-import { downloadExport, parseExportManifest, sha256Hex } from '@/features/export/exportDownload'
+import { downloadExport } from '@/features/export/exportDownload'
 
 import realManifest from './fixtures/seed-manifest.json'
 
@@ -29,29 +29,36 @@ const manifest = () => ({
   generated_at: '2026-01-01T00:00:00Z',
 })
 
+function downloadJson(text: string, exportId = ID) {
+  const client = createApiClient({
+    fetch: async () => new Response(text, { headers: { 'content-type': 'application/json' } }),
+  })
+  return downloadExport(client, exportId, 'json')
+}
+
 beforeEach(() => {
   vi.stubGlobal('crypto', webcrypto)
 })
 
-describe('sha256Hex', () => {
+describe('downloadExport checksums', () => {
   it('matches the well-known digest of "abc"', async () => {
-    const bytes = new TextEncoder().encode('abc')
+    const downloaded = await downloadJson('abc')
 
-    expect(await sha256Hex(bytes.buffer as ArrayBuffer)).toBe(
+    expect(downloaded.sha256).toBe(
       'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
     )
   })
 })
 
-describe('parseExportManifest', () => {
-  it('reads a manifest of this export', () => {
-    const parsed = parseExportManifest(JSON.stringify(manifest()), ID)
+describe('downloadExport manifest validation', () => {
+  it('reads a manifest of this export', async () => {
+    const { manifest: parsed } = await downloadJson(JSON.stringify(manifest()))
 
     expect(parsed?.source_snapshot_sha256).toBe('a'.repeat(64))
     expect(parsed?.outputs[0]?.logical_name).toBe('a.xml')
   })
 
-  it('keeps nullable profile defaults and zero-byte outputs', () => {
+  it('keeps nullable profile defaults and zero-byte outputs', async () => {
     const body: Record<string, unknown> = {
       ...manifest(),
       format: 'json',
@@ -59,11 +66,11 @@ describe('parseExportManifest', () => {
     }
     delete body['tei_profile']
 
-    expect(parseExportManifest(JSON.stringify(body), ID)?.tei_profile).toBeNull()
-    expect(parseExportManifest(JSON.stringify(body), ID)?.outputs[0]?.byte_size).toBe(0)
-    expect(
-      parseExportManifest(JSON.stringify({ ...body, tei_profile: null }), ID)?.tei_profile,
-    ).toBeNull()
+    const downloaded = await downloadJson(JSON.stringify(body))
+    expect(downloaded.manifest?.tei_profile).toBeNull()
+    expect(downloaded.manifest?.outputs[0]?.byte_size).toBe(0)
+    const explicitNull = await downloadJson(JSON.stringify({ ...body, tei_profile: null }))
+    expect(explicitNull.manifest?.tei_profile).toBeNull()
   })
 
   it.each([
@@ -99,8 +106,8 @@ describe('parseExportManifest', () => {
       JSON.stringify({ ...manifest(), outputs: [{ ...manifest().outputs[0], byte_size: 0.5 }] }),
     ],
     ['an array instead of an output', JSON.stringify({ ...manifest(), outputs: [[]] })],
-  ])('does not take %s for a manifest', (_name, text) => {
-    expect(parseExportManifest(text, ID)).toBeNull()
+  ])('does not take %s for a manifest', async (_name, text) => {
+    expect((await downloadJson(text)).manifest).toBeNull()
   })
 })
 
@@ -125,7 +132,7 @@ describe('downloadExport', () => {
     expect(Array.from(new Uint8Array(await downloaded.blob.arrayBuffer()))).toEqual(
       Array.from(bytes),
     )
-    expect(downloaded.sha256).toBe(await sha256Hex(bytes.buffer))
+    expect(downloaded.sha256).toBe(createHash('sha256').update(bytes).digest('hex'))
     expect(downloaded.byteSize).toBe(bytes.byteLength)
     expect(downloaded.mediaType).toBe('application/json')
     expect(downloaded.filename).toBe('stored.json')
@@ -136,8 +143,8 @@ describe('downloadExport', () => {
 // The manifest the real backend wrote for the seeded export: the checksum in it is the SHA-256 of the
 // bytes the download returns (checked when it was captured), so it is the contract for verification.
 describe('a manifest as the real backend stored it', () => {
-  it('parses, and records the checksum and size of the output', () => {
-    const parsed = parseExportManifest(
+  it('parses, and records the checksum and size of the output', async () => {
+    const { manifest: parsed } = await downloadJson(
       JSON.stringify(realManifest),
       realManifest.export_execution_id,
     )

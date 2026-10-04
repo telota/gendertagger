@@ -85,7 +85,8 @@ Run from the repository root with `npm --prefix frontend run <script>`, or from 
 | `api:generate` | Regenerate `src/api/schema.d.ts` from the OpenAPI contract |
 | `api:check` | Fail when `src/api/schema.d.ts` is stale |
 | `i18n:check` | Fail on message-catalogue drift between locales |
-| `check` | `typecheck`, `i18n:check`, `api:check`, and `test:coverage`; used by affected push checks |
+| `unused:check` | Knip production graph rooted only in `src/main.ts`; unreachable files and unused exports/types fail |
+| `check` | `typecheck`, `i18n:check`, `api:check`, `unused:check`, and `test:coverage`; used by affected push checks |
 
 Vitest assigns pure parsers and tool/configuration policy checks to its Node project and
 browser-dependent tests to isolated jsdom. Application mounts own their teardown, including Vue unmount
@@ -187,6 +188,7 @@ an SBOM. Versions were chosen for mutual compatibility, not recency: TypeScript 
 | `axe-core` | MPL-2.0 | Automated accessibility checks in component tests; test-only, never bundled |
 | `eslint` and its Vue, accessibility, and i18n plugins | MIT | Enforce the coding guidelines |
 | `openapi-typescript` | MIT | Generates the transport types |
+| `knip` | ISC | Development-only production-root file/export/type/import analysis; TypeScript's local unused checks do not establish application reachability |
 | `prettier` | MIT | Formatting |
 
 `axe-core` is the only dependency under a weak copyleft licence. It runs only in tests and is not part of the

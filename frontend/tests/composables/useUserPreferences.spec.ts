@@ -8,11 +8,7 @@ import { createApiClient } from '@/api'
 import { createQueryClient } from '@/app/queryClient'
 import { shouldRetryAfterUnauthorized } from '@/app/sessionGuard'
 import { API_CLIENT_KEY } from '@/composables/useApiClient'
-import {
-  useUserPreferences,
-  userPreferencesQueryKey,
-  type UserPreferences,
-} from '@/composables/useUserPreferences'
+import { useUserPreferences, type UserPreferences } from '@/composables/useUserPreferences'
 import { useSessionStore } from '@/stores/session'
 
 const SAVED: UserPreferences = {
@@ -95,22 +91,26 @@ describe('account preferences query ownership', () => {
       ++calls === 1 ? first.promise : Promise.resolve(json(other)),
     )
     await flushPromises()
+    const previousAccountQuery = queryClient.getQueryCache().getAll()[0]
+    expect(previousAccountQuery).toBeDefined()
     hook.session.user = { id: 'b', display_name: 'b', roles: [] }
     expect(hook.preferences.value).toBeNull()
     await flushPromises()
     first.resolve(json(SAVED))
     await flushPromises()
     expect(hook.preferences.value).toEqual(other)
-    expect(queryClient.getQueryData(userPreferencesQueryKey('a'))).toBeUndefined()
+    expect(queryClient.getQueryCache().getAll()).not.toContain(previousAccountQuery)
+    const currentAccountQuery = queryClient.getQueryCache().getAll()[0]
+    expect(currentAccountQuery).toBeDefined()
     hook.session.forgetSession()
     expect(hook.preferences.value).toBeNull()
     await flushPromises()
-    expect(queryClient.getQueryData(userPreferencesQueryKey('b'))).toBeUndefined()
+    expect(queryClient.getQueryCache().getAll()).not.toContain(currentAccountQuery)
   })
 
   it('discards a pending save after A to B to A even if transport ignores abort', async () => {
     const pending = deferred()
-    const { hook, queryClient } = mountPreferences((request) =>
+    const { hook } = mountPreferences((request) =>
       request.method === 'PATCH' ? pending.promise : Promise.resolve(json(SAVED)),
     )
     await flushPromises()
@@ -121,7 +121,7 @@ describe('account preferences query ownership', () => {
     pending.resolve(json({ ...SAVED, ...COMMAND, revision: 4 }))
     expect(await saving).toEqual({ status: 'discarded' })
     await flushPromises()
-    expect(queryClient.getQueryData(userPreferencesQueryKey('a'))).not.toMatchObject({
+    expect(hook.preferences.value).not.toMatchObject({
       revision: 4,
     })
     expect(hook.isSaving.value).toBe(false)
@@ -131,7 +131,7 @@ describe('account preferences query ownership', () => {
     const lateRead = deferred()
     let reads = 0
     const canonical = { ...SAVED, locale: 'en', theme: 'light', revision: 4 }
-    const { hook, queryClient } = mountPreferences((request) => {
+    const { hook } = mountPreferences((request) => {
       if (request.method === 'PATCH') return Promise.resolve(json(canonical))
       return ++reads === 1 ? Promise.resolve(json(SAVED)) : lateRead.promise
     })
@@ -143,14 +143,14 @@ describe('account preferences query ownership', () => {
     await reloading
     await flushPromises()
     expect(result).toEqual({ status: 'success', preferences: canonical })
-    expect(queryClient.getQueryData(userPreferencesQueryKey('a'))).toEqual(canonical)
+    expect(hook.preferences.value).toEqual(canonical)
   })
 
   it.each([409, 500])(
     'keeps the saved cache after a %s response without replaying',
     async (status) => {
       let writes = 0
-      const { hook, queryClient } = mountPreferences((request) => {
+      const { hook } = mountPreferences((request) => {
         if (request.method === 'GET') return Promise.resolve(json(SAVED))
         writes += 1
         return Promise.resolve(
@@ -167,7 +167,7 @@ describe('account preferences query ownership', () => {
       })
       await flushPromises()
       expect((await hook.save(COMMAND)).status).toBe(status === 409 ? 'conflict' : 'failure')
-      expect(queryClient.getQueryData(userPreferencesQueryKey('a'))).toEqual(SAVED)
+      expect(hook.preferences.value).toEqual(SAVED)
       expect(writes).toBe(1)
     },
   )
@@ -187,7 +187,7 @@ describe('account preferences query ownership', () => {
     pending.resolve(json({ ...SAVED, revision: 2 }))
     await flushPromises()
     expect(shell.hook.preferences.value?.revision).toBe(2)
-    await shell.queryClient.invalidateQueries({ queryKey: userPreferencesQueryKey('a') })
+    expect(await shell.hook.reload()).toEqual({ ...SAVED, revision: 3 })
     await flushPromises()
     expect(shell.hook.preferences.value?.revision).toBe(3)
     shell.wrapper.unmount()
@@ -199,12 +199,15 @@ describe('account preferences query ownership', () => {
       request.method === 'PATCH' ? pending.promise : Promise.resolve(json(SAVED)),
     )
     await flushPromises()
+    const savedQuery = queryClient.getQueryCache().getAll()[0]
+    expect(savedQuery?.state.data).toEqual(SAVED)
     const saving = hook.save(COMMAND)
     await flushPromises()
     wrapper.unmount()
     pending.resolve(json({ ...SAVED, revision: 4 }))
     expect(await saving).toEqual({ status: 'discarded' })
-    expect(queryClient.getQueryData(userPreferencesQueryKey('a'))).toEqual(SAVED)
+    expect(queryClient.getQueryCache().getAll()).toContain(savedQuery)
+    expect(savedQuery?.state.data).toEqual(SAVED)
   })
 
   it('does not open authentication recovery for a cancelled old-account response', async () => {

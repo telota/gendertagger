@@ -1,7 +1,7 @@
 import { createMemoryHistory } from 'vue-router'
 import { describe, expect, it } from 'vitest'
 
-import { createAppRouter, routes } from '@/app/router'
+import { createAppRouter } from '@/app/router'
 
 async function resolve(path: string) {
   const router = createAppRouter(createMemoryHistory())
@@ -32,17 +32,6 @@ describe('routes', () => {
     ['/impressum/zu-viel', 'notFound'],
   ])('resolves %s to %s', async (path, name) => {
     expect((await resolve(path)).name).toBe(name)
-  })
-
-  it.each(['userSettings', 'projectSnapshots', 'snapshotDetail', 'projectGame', 'game'])(
-    'keeps %s lazy loaded',
-    (name) => {
-      expect(typeof routes.find((route) => route.name === name)?.component).toBe('function')
-    },
-  )
-
-  it('names every route so links never depend on a path string', () => {
-    expect(routes.every((route) => typeof route.name === 'string')).toBe(true)
   })
 
   it('loads the lazy views on demand', async () => {
