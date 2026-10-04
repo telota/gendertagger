@@ -948,7 +948,7 @@ Current remediation status is recorded below; the original review evidence remai
 | BQ-03 | P2 | Backend | Worker retry policy and infrastructure construction are copied | Fixed; shared process owner, retry windows, real-worker and fork/reset checks passed |
 | BQ-04 | P3 | Backend | Three executors repeat transaction, retry, and terminal-failure policy | Fixed; shared attempt policy with explicit resource transactions and passing lifecycle checks |
 | BQ-05 | P2 | Backend | Dispatch persistence repeats common intent handling and field projection | Fixed; six-target PostgreSQL insertion, replay, race, lease, and recovery checks passed |
-| BQ-06 | P3 | Backend | Historical runtime snapshot/configuration compatibility can be retired | Deferred; fingerprint representation and development-data reset need approval |
+| BQ-06 | P3 | Backend | Historical runtime snapshot/configuration compatibility can be retired | Fixed; approved full-input fingerprints, strict persisted metadata, and immutable development-data recovery verified |
 | BQ-07 | P2 | Backend | The dead-code gate counts words rather than application reachability | Deferred; framework/protocol roots and exemption scope need a design decision |
 | FQ-01 | P2 | Frontend | Query keys, cursors, polling, and invalidation need shared ownership | Fixed; shared keys/cursor/polling and retained-context regressions passed |
 | FQ-02 | P2 | Frontend | Shared domain UI and helpers remain coupled to feature folders | Fixed; defining shared modules and migrated consumers, without compatibility re-exports |
@@ -1035,7 +1035,7 @@ The reject-all provider was initially retained pending a supported-extension dec
 `AuthenticationBackend`, custom-provider injection, database authentication, and request guards remain
 unchanged; accepted ADR history is preserved. A real application smoke with an unavailable database
 rejected protected GET/POST requests and forged identity headers with `401`/`Session`, while OpenAPI
-remained available. The quality register now has 15 fixed findings and four deferred findings.
+remained available. At that checkpoint, the quality register had 15 fixed findings and four deferred findings.
 
 #### BQ-03: Reuse worker retry policy and infrastructure ownership
 
@@ -1136,10 +1136,38 @@ and historical characterization fixtures; do not mutate successfully imported sn
 fails explicitly; fingerprints use the approved representation; relevant migration, provenance, and
 scientific checks pass without runtime support for obsolete development state.
 
-**Disposition (2026-10-04).** Deferred under the requested open-question boundary. No fingerprint,
-legacy snapshot reconstruction, packaging default, or development-data reset changed. Closure requires
-an approved current fingerprint/provenance representation and an explicitly authorized reset/reimport,
-with the governing design/ADR recorded before cutover.
+**Disposition (2026-10-04).** Fixed after explicit approval.
+[ADR-0049](docs/decisions/ADR-0049-current-person-input-fingerprints-and-snapshot-metadata.md) and the
+governing persistence, ingestion, and provenance documents were committed before implementation.
+Fingerprints now cover every canonical `PersonInput` field, including null names and empty events.
+Persisted format and packaging choices are required independently of public request defaults; ready
+statistics come only from validated stored inventory. Legacy omission, derivation, and defaulting paths
+are removed. Historical fingerprints and scientific contracts remain unchanged.
+
+**Runtime recovery and verification.** The development database was at `20260926_0012`; after a custom-format
+backup, its existing `0013` and `0014` migrations were applied and schema drift checked successfully.
+BQ-06 adds no migration. The old synthetic snapshot `7d61d048-1c96-4f54-8097-8627129931e0` has no real
+source bytes. Its seven persisted synthetic inputs were regenerated as an explicitly named JSON source,
+not represented as recovered historical TEI. New ready snapshot `67af28e2-2bf0-416d-81e0-3bcf58a01c2c`
+preserves every canonical input and stores the complete inventory. A real parenthetical-qualifier Run
+persisted seven current fingerprints with seven abstentions under implementation revision `97d72ee`.
+Original-column digests preserved all four existing snapshots, 14 people, 77 Predictions, 38 annotations,
+and their existing source/run/batch/aggregation rows; the migrations add unknown nullable provenance rather
+than fabricating historical evidence. The old missing-inventory endpoint returns `409 resource_conflict`;
+the new inventory and completed Run return `200`. Actual Chromium displayed seven people, GND coverage
+7/7, explicitly unavailable source-gender capture, and the generated filename/checksum. The temporary
+read-only smoke account/session was removed, and the API/CPU worker were restarted with matching source
+revision. The pre-migration backup is retained at `~/.cache/gendertagger-bq06-before-20261004.dump`
+(SHA-256 `f6fa00b88fbd4aa881745e00e29466bc5dc3bda9df72f52798ecb03fff83d9aa`).
+
+**Locked gates.** Core 1,849, PostgreSQL 351, and Redis 7 passed; combined coverage is 88.28%.
+Normalization, reference aggregation, certainty assessment, and TEI projection each retain 100% branch
+coverage. Lock consistency, documentation/naming/initializer/dead-code policies, Ruff, mypy, Pyright,
+Import Linter, dependency audits, Alembic upgrade/drift checks, package build/distribution validation, and
+unchanged OpenAPI/frontend transport checks passed. Scientific fixtures and frontend source were not
+changed; frontend verification was transport drift plus the actual inventory surface, not a new full
+frontend-suite claim. The quality register now has 16 fixed findings and three deferred findings:
+BQ-07, DQ-03, and DQ-04.
 
 #### BQ-07: Make dead-code checks distinguish references from reachability
 
