@@ -147,8 +147,8 @@ unchanged revision and an empty changed-field list. No administrative history ta
 Authentication is provider-neutral. `AuthenticationBackend` in
 [`api/authentication.py`](../backend/src/gendertagger/api/authentication.py) is a protocol with two
 operations, `authenticate` and `validate_csrf`. The application resolves one backend from process
-state: `create_app` installs `DatabaseAuthenticationBackend` unless the caller supplies another, and
-`RejectAllAuthenticationBackend` remains available as a backend that fails closed. Every backend
+state: `create_app` installs `DatabaseAuthenticationBackend` unless the caller supplies another.
+Missing or invalid authentication is rejected by the request guards. Every backend
 terminates into the same `CurrentUser` principal, which `GET /api/v1/me` returns without
 persistence-only fields.
 

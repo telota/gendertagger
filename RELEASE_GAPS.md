@@ -944,7 +944,7 @@ Current remediation status is recorded below; the original review evidence remai
 | ID | Priority | Area | Finding | Status |
 |---|---|---|---|---|
 | BQ-01 | P2 | Backend | Copied diagnostic formatters have inconsistent credential redaction | Fixed; shared formatter and persisted/API smoke verified |
-| BQ-02 | P3 | Backend | Redundant helpers and dormant recovery/authentication surfaces remain | Helpers fixed; authentication extension decision deferred |
+| BQ-02 | P3 | Backend | Redundant helpers and dormant recovery/authentication surfaces remain | Fixed; redundant helpers and approved unused provider removed, with authentication boundaries retained |
 | BQ-03 | P2 | Backend | Worker retry policy and infrastructure construction are copied | Fixed; shared process owner, retry windows, real-worker and fork/reset checks passed |
 | BQ-04 | P3 | Backend | Three executors repeat transaction, retry, and terminal-failure policy | Fixed; shared attempt policy with explicit resource transactions and passing lifecycle checks |
 | BQ-05 | P2 | Backend | Dispatch persistence repeats common intent handling and field projection | Fixed; six-target PostgreSQL insertion, replay, race, lease, and recovery checks passed |
@@ -1028,7 +1028,14 @@ callbacks, or development seeding operations solely because they lack ordinary a
 enumerator are removed. Tests use the canonical import registry and actual dispatch recovery/lease
 transitions. Real JSON, CSV, and XLSX imports completed through Celery with the canonical parser version;
 public-job missing-intent and expired-lease recovery completed without reopening immutable results.
-`RejectAllAuthenticationBackend` remains unchanged pending a supported-extension decision.
+The reject-all provider was initially retained pending a supported-extension decision.
+
+**Final remediation (2026-10-04).** Following explicit approval, removed the unused
+`RejectAllAuthenticationBackend` and its current security-documentation promise.
+`AuthenticationBackend`, custom-provider injection, database authentication, and request guards remain
+unchanged; accepted ADR history is preserved. A real application smoke with an unavailable database
+rejected protected GET/POST requests and forged identity headers with `401`/`Session`, while OpenAPI
+remained available. The quality register now has 15 fixed findings and four deferred findings.
 
 #### BQ-03: Reuse worker retry policy and infrastructure ownership
 
@@ -1542,9 +1549,9 @@ documented purposes; this review found no basis to remove them as redundant.
 Work ran in the isolated `/tmp/gendertagger-quality-20261004` worktree on
 `quality/release-gap-consolidation`, based on `14420ce`; the concurrent original worktree was not
 modified. Implementation and policy dispositions through `80e6da6` were committed in focused steps.
-The quality register now contains 14 fixed findings, one partially fixed finding (BQ-02), and four
-deferred findings (BQ-06/BQ-07/DQ-03/DQ-04). Authentication-extension, fingerprint/reset,
-Python-root/exemption, and archival-retention choices remain explicit decisions, not hidden cleanup.
+At that checkpoint the register contained 14 fixed findings, one partially fixed finding (BQ-02),
+and four deferred findings (BQ-06/BQ-07/DQ-03/DQ-04). Authentication-extension, fingerprint/reset,
+Python-root/exemption, and archival-retention choices were left explicit rather than hidden cleanup.
 
 | Area | Exercised check | Observed result |
 |---|---|---|

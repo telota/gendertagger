@@ -285,9 +285,9 @@ This section records development from the initial architecture-only reset throug
 
 ### Fixed
 
-- Removed the redundant tabular import-version mapper and unused public-job recovery enumerator.
-  Canonical import registry and dispatch recovery remain the sole application paths; the documented
-  authentication-extension decision stays deferred.
+- Removed the redundant tabular import-version mapper, unused public-job recovery enumerator, and
+  unused reject-all authentication provider. Canonical import registry and dispatch recovery remain
+  the sole application paths; database authentication, provider injection, and request guards are unchanged.
 - Worker task families share one lazy process-owned pool/resource context and the existing bounded
   jitter policy. Fork/reset/shutdown preserve parent connections, reject stale owners, and keep each
   operation and heartbeat in a separate transaction scope.

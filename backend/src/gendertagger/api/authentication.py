@@ -38,18 +38,6 @@ class AuthenticationBackend(Protocol):
         ...
 
 
-class RejectAllAuthenticationBackend:
-    """Fail closed until deployment supplies an authentication provider."""
-
-    def authenticate(self, request: Request) -> UUID | None:  # noqa: ARG002 - protocol signature
-        """Reject every request without inspecting untrusted credentials."""
-        return None
-
-    def validate_csrf(self, request: Request, *, user_id: UUID) -> bool:  # noqa: ARG002 - protocol signature
-        """Reject every state-changing request without a configured session."""
-        return False
-
-
 class DatabaseAuthenticationBackend:
     """Local-account ``AuthenticationBackend`` backed by ``AuthenticationService`` (ADR-0031).
 
