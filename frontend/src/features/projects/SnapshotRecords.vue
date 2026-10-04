@@ -6,11 +6,11 @@ import { useRoute, useRouter } from 'vue-router'
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
 import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
-import { reviewItemName } from '@/features/review/reviewItemName'
+import { reviewItemName } from '@/components/domain/reviewItemName'
 import { useSessionStore } from '@/stores/session'
 
 import SnapshotRecordPanel from './SnapshotRecordPanel.vue'
-import { useImportedPeople, useImportedPerson } from './useSnapshotData'
+import { useImportedPeople, useImportedPerson } from '@/composables/useSnapshotData'
 
 const props = defineProps<{ projectId: string; snapshotId: string; recordCount: number | null }>()
 const { t, n } = useI18n()

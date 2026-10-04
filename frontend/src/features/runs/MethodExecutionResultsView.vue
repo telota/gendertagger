@@ -6,17 +6,26 @@ import { RouterLink } from 'vue-router'
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
 import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
+import AppTextField from '@/components/base/AppTextField.vue'
 import { useDebouncedValue } from '@/composables/useDebouncedValue'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
-import { hasProjectRole } from '@/features/projects/projectRoles'
-import { useProject } from '@/features/projects/useProjects'
-import { useImportedSnapshot } from '@/features/projects/useSnapshotData'
-import VocabBadge from '@/features/review/VocabBadge.vue'
+import { hasProjectRole } from '@/composables/projectRoles'
+import { useProject } from '@/composables/useProjects'
+import { useImportedSnapshot } from '@/composables/useSnapshotData'
+import PredictionDecision from '@/components/domain/PredictionDecision.vue'
+import PredictionStatus from '@/components/domain/PredictionStatus.vue'
+import { useVocabularyGloss } from '@/composables/useVocabulary'
+import type { components } from '@/api/schema'
 
-import { TERMINAL_METHOD_EXECUTION_STATUSES, useRun, useRunExecutions } from './useRunDetail'
+import {
+  TERMINAL_METHOD_EXECUTION_STATUSES,
+  useRun,
+  useRunExecutions,
+} from '@/composables/useRunDetail'
 import { useMethodExecutionResults, type MethodExecutionResult } from './useMethodExecutionResults'
 
 const { t, d, n } = useI18n()
+const gloss = useVocabularyGloss()
 const { session, isSignedIn, retrySession } = useRequireSession()
 
 const projectId = useRouteParam('projectId')
@@ -80,21 +89,12 @@ function displayName(item: MethodExecutionResult): string {
   return forenames || item.tei_id
 }
 
-function labelGloss(label: string | null | undefined): string {
-  return label === 'unknown' ? t('review.gloss.label.unknown') : ''
+function labelGloss(label: components['schemas']['CanonicalLabel'] | null | undefined): string {
+  return label ? gloss.label(label) : ''
 }
 
-function stateGloss(state: string): string {
-  switch (state) {
-    case 'success':
-      return t('review.gloss.prediction.success')
-    case 'abstain':
-      return t('review.gloss.prediction.abstain')
-    case 'error':
-      return t('review.gloss.prediction.error')
-    default:
-      return t('runs.results.missing')
-  }
+function stateGloss(state: components['schemas']['MethodExecutionResultState']): string {
+  return state === 'missing' ? t('runs.results.missing') : gloss.prediction(state)
 }
 
 function retryContext(): void {
@@ -251,11 +251,11 @@ function retryContext(): void {
             <p class="method-results-note">{{ t('runs.results.distinction') }}</p>
 
             <form class="method-results-search" @submit.prevent>
-              <label for="method-results-search">{{ t('runs.results.search') }}</label>
-              <input
+              <AppTextField
                 id="method-results-search"
                 v-model="searchInput"
                 type="search"
+                :label="t('runs.results.search')"
                 :placeholder="t('runs.results.searchHint')"
               />
             </form>
@@ -295,40 +295,18 @@ function retryContext(): void {
                         <code>{{ item.tei_id }}</code>
                       </td>
                       <td>
-                        <VocabBadge
-                          :value="item.prediction?.label"
+                        <PredictionDecision
+                          :prediction="item.prediction"
                           :gloss="labelGloss(item.prediction?.label)"
-                          kind="label"
+                          :missing="item.result_state === 'missing'"
+                          method
                         />
-                        <div
-                          v-if="
-                            item.prediction?.raw_label || item.prediction?.method_confidence != null
-                          "
-                          class="method-results-decision-detail"
-                        >
-                          <span v-if="item.prediction?.raw_label">
-                            {{ t('runs.results.rawLabel', { label: item.prediction.raw_label }) }}
-                          </span>
-                          <span v-if="item.prediction?.method_confidence != null">
-                            {{
-                              t('runs.results.confidence', {
-                                value: n(item.prediction.method_confidence, 'confidence'),
-                              })
-                            }}
-                          </span>
-                        </div>
-                        <p
-                          v-else-if="item.result_state === 'missing'"
-                          class="method-results-missing"
-                        >
-                          {{ t('runs.results.noPrediction') }}
-                        </p>
                       </td>
                       <td>
-                        <VocabBadge
-                          :value="item.result_state"
+                        <PredictionStatus
+                          :status="item.result_state"
                           :gloss="stateGloss(item.result_state)"
-                          kind="state"
+                          display="badge"
                         />
                       </td>
                     </tr>
@@ -396,16 +374,14 @@ function retryContext(): void {
 .method-results-heading p,
 .method-results-note,
 .method-results-empty,
-.method-results-confidence-note,
-.method-results-missing {
+.method-results-confidence-note {
   margin: 0;
 }
 
 .method-results-heading p,
 .method-results-note,
 .method-results-empty,
-.method-results-confidence-note,
-.method-results-missing {
+.method-results-confidence-note {
   color: var(--text-secondary);
 }
 
@@ -418,19 +394,17 @@ function retryContext(): void {
 }
 
 .method-results-search {
+  --field-gap: var(--space-2);
+  --field-label-size: inherit;
+  --field-label-color: var(--text-primary);
+  --field-control-width: 100%;
   display: grid;
   gap: var(--space-2);
   inline-size: min(100%, 34rem);
 }
 
-.method-results-search input {
-  min-inline-size: 0;
+.method-results-search :deep(input) {
   padding: var(--space-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-input);
-  background: var(--panel);
-  color: var(--text-primary);
-  font: inherit;
 }
 
 .method-results-table {
@@ -455,20 +429,6 @@ function retryContext(): void {
 .method-results-table code {
   font-size: var(--font-size-small);
   overflow-wrap: anywhere;
-}
-
-.method-results-decision-detail {
-  display: grid;
-  gap: var(--space-1);
-  margin-block-start: var(--space-2);
-  color: var(--text-secondary);
-  font-size: var(--font-size-small);
-  overflow-wrap: anywhere;
-}
-
-.method-results-missing {
-  margin-block-start: var(--space-2);
-  font-size: var(--font-size-small);
 }
 
 .method-results-confidence-note {

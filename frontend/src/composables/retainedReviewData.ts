@@ -1,7 +1,7 @@
 import type { QueryClient } from '@tanstack/vue-query'
 
 import { ApiError } from '@/api'
-import { currentData } from '@/features/projects/useSnapshotData'
+import { currentData } from '@/composables/queryData'
 
 /** Only transient transport/server failures may retain an already authorized review context. */
 export function isRecoverableReviewError(error: unknown): boolean {

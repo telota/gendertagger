@@ -6,7 +6,7 @@ import type { AppLocale } from '@/app/i18n'
 import de from '@/locales/de.json'
 import en from '@/locales/en.json'
 
-import { mountApplicationAt } from '../../helpers/render'
+import { getDialogButtonByName, mountApplicationAt, queryDialogByName } from '../../helpers/render'
 import { expectNoAxeViolations } from '../../helpers/axe'
 import { waitFor } from '../../helpers/wait'
 
@@ -294,17 +294,15 @@ describe.each(['de', 'en'] as const)('aggregation in %s', (locale: AppLocale) =>
       aggregationClient(server),
     )
     await waitFor(() => expect(wrapper.find('.aggregation-detail-title').exists()).toBe(true))
-    await waitFor(() => expect(wrapper.find('.aggregation-detail-method').exists()).toBe(true))
+    await waitFor(() =>
+      expect(wrapper.find('.aggregation-detail-selection li').exists()).toBe(true),
+    )
 
-    expect(wrapper.get('.aggregation-detail-hash').text()).toBe('9'.repeat(64))
-    expect(wrapper.get('.aggregation-detail-config').text()).toBe('{}')
-    expect(wrapper.get('.aggregation-detail-config').classes()).not.toContain('app-resource-card')
-    expect(wrapper.get('.aggregation-detail-facts').classes()).toContain('app-card')
-    expect(wrapper.findAll('.app-card .app-card, .app-card .app-resource-card')).toHaveLength(0)
-    expect(wrapper.findAll('.aggregation-detail-method').map((m) => m.text())).toEqual([
-      'gender_guesser',
-      'gnd',
-    ])
+    expect(wrapper.get('.aggregation-detail-facts dd code').text()).toBe('9'.repeat(64))
+    expect(wrapper.get('[aria-labelledby="aggregation-config-heading"] pre').text()).toBe('{}')
+    expect(
+      wrapper.findAll('.aggregation-detail-selection li').map((entry) => entry.get('span').text()),
+    ).toEqual(['gender_guesser', 'gnd'])
     expect(wrapper.get('.aggregation-detail-back').attributes('href')).toBe(runPath)
     // A finished aggregation opens the queues and the whole register.
     expect(wrapper.get('.aggregation-detail-people').attributes('href')).toBe(
@@ -329,8 +327,13 @@ describe.each(['de', 'en'] as const)('aggregation in %s', (locale: AppLocale) =>
       expect(wrapper.get('.aggregations-error').text()).toBe(messages.errors.notAggregatable),
     )
     const attempt = wrapper.vm.$router.push('/')
-    await waitFor(() => expect(document.querySelector('.draft-leave-panel')).not.toBeNull())
-    document.querySelector<HTMLButtonElement>('.draft-leave-actions button')!.click()
+    await waitFor(() =>
+      expect(queryDialogByName(catalogues[locale].draftNavigation.title)).not.toBeNull(),
+    )
+    getDialogButtonByName(
+      catalogues[locale].draftNavigation.title,
+      catalogues[locale].draftNavigation.stay,
+    ).click()
     await attempt
     expect(wrapper.vm.$route.path).toBe(runPath)
     expect((wrapper.get(`#aggregate-${EXEC_C}`).element as HTMLInputElement).checked).toBe(true)
@@ -347,7 +350,7 @@ describe.each(['de', 'en'] as const)('aggregation in %s', (locale: AppLocale) =>
     expect((wrapper.get(`#aggregate-${EXEC_C}`).element as HTMLInputElement).checked).toBe(true)
     const attempt = wrapper.vm.$router.push('/')
     await flushPromises()
-    expect(document.querySelector('.draft-leave-panel')).toBeNull()
+    expect(queryDialogByName(catalogues[locale].draftNavigation.title)).toBeNull()
     await attempt
     expect(server.posts).toHaveLength(1)
     wrapper.unmount()
@@ -370,8 +373,13 @@ describe.each(['de', 'en'] as const)('aggregation in %s', (locale: AppLocale) =>
     release()
     await waitFor(() => expect(wrapper.find('.aggregations-reused').exists()).toBe(true))
     const attempt = wrapper.vm.$router.push('/')
-    await waitFor(() => expect(document.querySelector('.draft-leave-panel')).not.toBeNull())
-    document.querySelector<HTMLButtonElement>('.draft-leave-actions button')!.click()
+    await waitFor(() =>
+      expect(queryDialogByName(catalogues[locale].draftNavigation.title)).not.toBeNull(),
+    )
+    getDialogButtonByName(
+      catalogues[locale].draftNavigation.title,
+      catalogues[locale].draftNavigation.stay,
+    ).click()
     await attempt
     expect(wrapper.vm.$route.path).toBe(runPath)
     expect((wrapper.get(`#aggregate-${EXEC_B}`).element as HTMLInputElement).checked).toBe(false)

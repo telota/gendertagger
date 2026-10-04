@@ -1,12 +1,14 @@
 import { useQueryClient } from '@tanstack/vue-query'
 import { computed, onScopeDispose, ref, watch, type Ref } from 'vue'
 
-import { type components } from '@/api'
-import { privateQueryKey, usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
+import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
+import { privateQueryKey, runKey, runExecutionsKey } from '@/composables/resourceQueries'
 import { useSessionStore } from '@/stores/session'
 
-import { runExecutionsKey, runKey, type MethodExecutionSummary } from './useRunDetail'
-import type { Run } from './useRuns'
+import type { components } from '@/api/schema'
+
+type MethodExecutionSummary = components['schemas']['MethodExecutionSummary']
+type Run = components['schemas']['Run']
 
 type Progress = components['schemas']['Progress']
 

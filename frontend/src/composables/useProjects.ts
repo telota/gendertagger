@@ -1,11 +1,11 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref, type Ref } from 'vue'
 
-import { unwrap, type components } from '@/api'
+import { unwrap } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
 import { useSessionStore } from '@/stores/session'
-
-export type AccessibleProject = components['schemas']['AccessibleProject']
+import { cursorQueryOptions } from '@/composables/cursorQuery'
+import { PROJECTS_QUERY_KEY, projectKey, projectListKey } from '@/composables/resourceQueries'
 
 /**
  * `GET /projects`, cursor-paginated (docs/23-wireframe-ui-inventory.md: server state through
@@ -20,11 +20,7 @@ export function useProjectList(enabled: Ref<boolean>, pageSize?: number) {
   const session = useSessionStore()
 
   return useInfiniteQuery({
-    queryKey: computed(() =>
-      pageSize === undefined
-        ? (['projects', 'list', session.user?.id ?? 'anonymous'] as const)
-        : (['projects', 'list', 'preview', pageSize, session.user?.id ?? 'anonymous'] as const),
-    ),
+    queryKey: computed(() => projectListKey(session.user?.id, pageSize)),
     queryFn: ({ pageParam, signal }) =>
       unwrap(
         client.GET('/api/v1/projects', {
@@ -37,9 +33,7 @@ export function useProjectList(enabled: Ref<boolean>, pageSize?: number) {
           signal,
         }),
       ),
-    initialPageParam: null as string | null,
-    getNextPageParam: (lastPage) =>
-      lastPage.has_more ? (lastPage.next_cursor ?? null) : undefined,
+    ...cursorQueryOptions,
     enabled: computed(() => enabled.value && session.canUsePrivateNavigation),
   })
 }
@@ -55,9 +49,7 @@ export function useProject(projectId: Ref<string>, enabled: Ref<boolean> = ref(t
 
   return useQuery({
     // AccessibleProject includes caller-specific roles and must never be shared across accounts.
-    queryKey: computed(
-      () => ['projects', projectId.value, session.user?.id ?? 'anonymous'] as const,
-    ),
+    queryKey: computed(() => projectKey(projectId.value, session.user?.id)),
     queryFn: ({ queryKey, signal }) =>
       unwrap(
         client.GET('/api/v1/projects/{project_id}', {
@@ -82,6 +74,6 @@ export function useSetProjectGameMode(projectId: Ref<string>) {
           body: { enabled },
         }),
       ),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['projects'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY }),
   })
 }

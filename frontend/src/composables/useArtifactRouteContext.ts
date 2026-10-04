@@ -1,11 +1,11 @@
 import { computed, type Ref } from 'vue'
 
-import { useProjectIdentity } from '@/app/useProjectIdentity'
+import { useProjectIdentity } from '@/composables/useProjectIdentity'
 import { useRouteParam } from '@/composables/useRequireSession'
-import { useImportedSnapshot } from '@/features/projects/useSnapshotData'
+import { useImportedSnapshot } from '@/composables/useSnapshotData'
 import { useSessionStore } from '@/stores/session'
 
-import { useRun } from './useRunDetail'
+import { useRun } from '@/composables/useRunDetail'
 
 interface ArtifactQuery<T> {
   data: Ref<T | undefined>

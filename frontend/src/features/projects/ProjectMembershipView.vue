@@ -8,7 +8,7 @@ import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
 import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
 import { useSessionStore } from '@/stores/session'
-import { useProjectMembership } from './useProjectMembership'
+import { useProjectMembership } from '@/composables/useProjectMembership'
 const { t } = useI18n()
 const route = useRoute()
 const session = useSessionStore()

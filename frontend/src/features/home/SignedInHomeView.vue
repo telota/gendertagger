@@ -6,7 +6,7 @@ import { RouterLink, type RouteLocationRaw } from 'vue-router'
 
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
-import { useProjectList } from '@/features/projects/useProjects'
+import { useProjectList } from '@/composables/useProjects'
 import { useRoleLabel } from '@/features/projects/useRoleLabel'
 import { useSessionStore } from '@/stores/session'
 

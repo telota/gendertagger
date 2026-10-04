@@ -4,7 +4,7 @@ import { getCurrentInstance, onMounted, onUnmounted, ref, type App, type Ref } f
 // are never written here, and the prepaint script uses it only until authentication resolves.
 const THEME_STORAGE_KEY = 'gendertagger.theme'
 
-export type ThemePreference = 'system' | 'light' | 'dark'
+type ThemePreference = 'system' | 'light' | 'dark'
 
 export interface UseTheme {
   preference: Ref<ThemePreference>

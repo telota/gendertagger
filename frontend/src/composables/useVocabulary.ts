@@ -1,15 +1,15 @@
 import { useI18n } from 'vue-i18n'
 
-import type { components } from '@/api'
+import type { components } from '@/api/schema'
 
-export type CanonicalLabel = components['schemas']['CanonicalLabel']
-export type CertaintyTier = components['schemas']['CertaintyTier']
-export type AgreementTier = components['schemas']['AgreementTier']
-export type ReviewWorkflowState = components['schemas']['ReviewWorkflowState']
-export type ReviewAction = components['schemas']['ReviewAction']
-export type OverrideSource = components['schemas']['OverrideSource']
-export type PredictionStatus = components['schemas']['PredictionStatus']
-export type AggregationOutcome = components['schemas']['AggregationOutcome']
+type CanonicalLabel = components['schemas']['CanonicalLabel']
+type CertaintyTier = components['schemas']['CertaintyTier']
+type AgreementTier = components['schemas']['AgreementTier']
+type ReviewWorkflowState = components['schemas']['ReviewWorkflowState']
+type ReviewAction = components['schemas']['ReviewAction']
+type OverrideSource = components['schemas']['OverrideSource']
+type PredictionStatus = components['schemas']['PredictionStatus']
+type AggregationOutcome = components['schemas']['AggregationOutcome']
 
 export const CANONICAL_LABELS: readonly CanonicalLabel[] = [
   'male',

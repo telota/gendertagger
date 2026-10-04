@@ -1,18 +1,15 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { ref, type Ref } from 'vue'
 
-import { unwrap, type components } from '@/api'
+import { unwrap } from '@/api'
+import type { components } from '@/api/schema'
 import { useApiClient } from '@/composables/useApiClient'
 import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
 import { useSessionStore } from '@/stores/session'
+import { cursorQueryOptions } from '@/composables/cursorQuery'
+import { runListKey } from '@/composables/resourceQueries'
 
-export type Run = components['schemas']['Run']
-export type RunConfig = components['schemas']['RunConfig']
-export type MethodRunConfig = components['schemas']['MethodRunConfig']
-
-export function runListKey(snapshotId: string) {
-  return ['snapshots', snapshotId, 'runs'] as const
-}
+type RunConfig = components['schemas']['RunConfig']
 
 /** `GET /snapshots/{snapshot_id}/runs`, newest first in every lifecycle state, cursor-paginated. */
 export function useRunList(snapshotId: Ref<string>, enabled: Ref<boolean> = ref(true)) {
@@ -29,9 +26,7 @@ export function useRunList(snapshotId: Ref<string>, enabled: Ref<boolean> = ref(
           signal,
         }),
       ),
-    initialPageParam: null as string | null,
-    getNextPageParam: (lastPage) =>
-      lastPage.has_more ? (lastPage.next_cursor ?? null) : undefined,
+    ...cursorQueryOptions,
     enabled: scope.canRead,
   })
   return { ...query, data: scope.data(query, key) }

@@ -1,15 +1,18 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { ref, type Ref } from 'vue'
 
-import { unwrap, type components } from '@/api'
+import { unwrap } from '@/api'
+import type { components } from '@/api/schema'
 import { useApiClient } from '@/composables/useApiClient'
 import { usePolledQuery } from '@/composables/usePolledQuery'
 import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
+import { cursorQueryOptions, liveListPolling } from '@/composables/cursorQuery'
+import { aggregationListKey, aggregationKey } from '@/composables/resourceQueries'
 
-import type { MethodExecutionSummary } from './useRunDetail'
+type MethodExecutionSummary = components['schemas']['MethodExecutionSummary']
 
-export type AggregationExecution = components['schemas']['AggregationExecution']
-export type AggregationStrategy = components['schemas']['AggregationStrategy']
+type AggregationExecution = components['schemas']['AggregationExecution']
+type AggregationStrategy = components['schemas']['AggregationStrategy']
 
 const TERMINAL_STATUSES = new Set<AggregationExecution['status']>([
   'completed',
@@ -24,10 +27,6 @@ export const AGGREGATABLE_EXECUTION_STATUSES: ReadonlySet<MethodExecutionSummary
   new Set(['completed', 'completed_with_errors'])
 
 const LIST_POLL_MS = 2000
-
-export function aggregationListKey(runId: string) {
-  return ['runs', runId, 'aggregations'] as const
-}
 
 /**
  * `GET /runs/{run_id}/aggregations`, newest first in every lifecycle state, cursor-paginated. While
@@ -48,14 +47,12 @@ export function useAggregationList(runId: Ref<string>, enabled: Ref<boolean> = r
           signal,
         }),
       ),
-    initialPageParam: null as string | null,
-    getNextPageParam: (lastPage) =>
-      lastPage.has_more ? (lastPage.next_cursor ?? null) : undefined,
-    refetchInterval: (query) => {
-      const pages = query.state.data?.pages ?? []
-      const anyLive = pages.some((page) => page.items.some((item) => !isTerminalAggregation(item)))
-      return anyLive ? LIST_POLL_MS : false
-    },
+    ...cursorQueryOptions,
+    refetchInterval: liveListPolling<components['schemas']['CursorPage_AggregationExecution_']>({
+      isLive: (item) => !isTerminalAggregation(item),
+      intervalMs: LIST_POLL_MS,
+      stopOnError: false,
+    }),
     enabled: scope.canRead,
   })
   return { ...query, data: scope.data(query, key) }
@@ -65,7 +62,7 @@ export function useAggregationList(runId: Ref<string>, enabled: Ref<boolean> = r
 export function useAggregation(aggregationId: Ref<string>, enabled: Ref<boolean> = ref(true)) {
   const client = useApiClient()
   const scope = usePrivateQueryScope(enabled)
-  const key = scope.key(() => ['aggregations', aggregationId.value] as const)
+  const key = scope.key(() => aggregationKey(aggregationId.value))
 
   const query = usePolledQuery({
     queryKey: key,

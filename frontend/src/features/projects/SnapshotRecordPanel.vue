@@ -3,9 +3,11 @@ import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
-import PersonRecordDetails from '@/features/review/PersonRecordDetails.vue'
+import PersonRecordDetails from '@/components/domain/PersonRecordDetails.vue'
 
-import type { ImportedPerson } from './useSnapshotData'
+import type { components } from '@/api/schema'
+
+type ImportedPerson = components['schemas']['PersonRecord']
 
 withDefaults(
   defineProps<{

@@ -14,7 +14,7 @@ import SidebarCollapseButton from './SidebarCollapseButton.vue'
 import SidebarPreferences from './SidebarPreferences.vue'
 import SidebarTooltip from './SidebarTooltip.vue'
 import { useSidebarNavigation } from './useSidebarNavigation'
-import { useProjectIdentity } from './useProjectIdentity'
+import { useProjectIdentity } from '@/composables/useProjectIdentity'
 
 defineProps<{ desktopSidebarCollapsed?: boolean; mobile?: boolean }>()
 

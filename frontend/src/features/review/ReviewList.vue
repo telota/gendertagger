@@ -4,10 +4,12 @@ import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/base/AppButton.vue'
 
-import { reviewItemName } from './reviewItemName'
-import type { ReviewItem } from './useReviewData'
-import type { CertaintyTier } from './useVocabulary'
-import VocabBadge from './VocabBadge.vue'
+import { reviewItemName } from '@/components/domain/reviewItemName'
+import VocabBadge from '@/components/domain/VocabBadge.vue'
+import type { components } from '@/api/schema'
+
+type ReviewItem = components['schemas']['ReviewItem']
+type CertaintyTier = components['schemas']['CertaintyTier']
 
 defineProps<{
   items: readonly ReviewItem[]

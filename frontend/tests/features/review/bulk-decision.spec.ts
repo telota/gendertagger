@@ -5,13 +5,15 @@ import { defineComponent } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { API_CLIENT_KEY } from '@/composables/useApiClient'
-import { privateQueryKey } from '@/composables/usePrivateQueryScope'
+import { privateQueryKey } from '@/composables/resourceQueries'
 import { useBulkDecision } from '@/features/review/useBulkDecision'
-import type { ReviewItem } from '@/features/review/useReviewData'
 import { useSessionStore } from '@/stores/session'
 
 import { waitFor } from '../../helpers/wait'
 import { item, newServer, reviewClient, SNAPSHOT_ID, type Server } from './fixtures'
+import type { components } from '@/api/schema'
+
+type ReviewItem = components['schemas']['ReviewItem']
 
 const USER = { id: 'account-a', display_name: 'Reviewer A', roles: [] }
 const OTHER_USER = { id: 'account-b', display_name: 'Reviewer B', roles: [] }

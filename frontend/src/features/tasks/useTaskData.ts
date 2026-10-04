@@ -3,23 +3,30 @@ import { computed, type Ref } from 'vue'
 
 import { unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
-import { currentData } from '@/features/projects/useSnapshotData'
+import { cursorQueryOptions } from '@/composables/cursorQuery'
+import { currentData } from '@/composables/queryData'
+import {
+  projectDataAvailabilityKey,
+  taskSnapshotsKey,
+  taskRunsKey,
+  taskResultsKey,
+  projectReviewResultsKey,
+  taskRunKey,
+  workingSelectionKey,
+} from '@/composables/resourceQueries'
+import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
 import { useSessionStore } from '@/stores/session'
 
 export type TaskMode = 'classification' | 'review' | 'annotation' | 'game'
 export type Snapshot = components['schemas']['DatasetSnapshot']
-export type TaskRun = components['schemas']['Run']
-export type ProjectReviewResult = components['schemas']['ProjectReviewResult']
 
 /** Data facts are independent of selected resources and isolated by principal/project. */
 export function useProjectDataAvailability(projectId: Ref<string>, enabled: Ref<boolean>) {
   const client = useApiClient()
   const session = useSessionStore()
   const cache = useQueryClient()
-  const canRead = computed(() => enabled.value && session.canUsePrivateNavigation)
-  const key = computed(
-    () => ['project-data-availability', session.user?.id, projectId.value] as const,
-  )
+  const { canRead } = usePrivateQueryScope(enabled)
+  const key = computed(() => projectDataAvailabilityKey(session.user?.id, projectId.value))
   const query = useQuery({
     queryKey: key,
     queryFn: async ({ queryKey, signal }) => {
@@ -54,10 +61,8 @@ export function useTaskSnapshots(
   const client = useApiClient()
   const session = useSessionStore()
   const cache = useQueryClient()
-  const canRead = computed(() => enabled.value && session.canUsePrivateNavigation)
-  const key = computed(
-    () => ['task-snapshots', session.user?.id, projectId.value, resultsOnly.value] as const,
-  )
+  const { canRead } = usePrivateQueryScope(enabled)
+  const key = computed(() => taskSnapshotsKey(session.user?.id, projectId.value, resultsOnly.value))
   const query = useInfiniteQuery({
     queryKey: key,
     queryFn: ({ queryKey, pageParam, signal }) =>
@@ -75,8 +80,7 @@ export function useTaskSnapshots(
           signal,
         }),
       ),
-    initialPageParam: null as string | null,
-    getNextPageParam: (page) => (page.has_more ? page.next_cursor : undefined),
+    ...cursorQueryOptions,
     enabled: canRead,
   })
   const data = computed(() =>
@@ -89,8 +93,8 @@ export function useTaskRuns(snapshotId: Ref<string>, enabled: Ref<boolean>) {
   const client = useApiClient()
   const session = useSessionStore()
   const cache = useQueryClient()
-  const canRead = computed(() => enabled.value && session.canUsePrivateNavigation)
-  const key = computed(() => ['task-runs', session.user?.id, snapshotId.value] as const)
+  const { canRead } = usePrivateQueryScope(enabled)
+  const key = computed(() => taskRunsKey(session.user?.id, snapshotId.value))
   const query = useInfiniteQuery({
     queryKey: key,
     queryFn: ({ queryKey, pageParam, signal }) =>
@@ -103,8 +107,7 @@ export function useTaskRuns(snapshotId: Ref<string>, enabled: Ref<boolean>) {
           signal,
         }),
       ),
-    initialPageParam: null as string | null,
-    getNextPageParam: (page) => (page.has_more ? page.next_cursor : undefined),
+    ...cursorQueryOptions,
     enabled: canRead,
   })
   const data = computed(() =>
@@ -117,8 +120,8 @@ export function useTaskResults(runId: Ref<string>, enabled: Ref<boolean>) {
   const client = useApiClient()
   const session = useSessionStore()
   const cache = useQueryClient()
-  const canRead = computed(() => enabled.value && session.canUsePrivateNavigation)
-  const key = computed(() => ['task-results', session.user?.id, runId.value] as const)
+  const { canRead } = usePrivateQueryScope(enabled)
+  const key = computed(() => taskResultsKey(session.user?.id, runId.value))
   const query = useInfiniteQuery({
     queryKey: key,
     queryFn: ({ queryKey, pageParam, signal }) =>
@@ -131,8 +134,7 @@ export function useTaskResults(runId: Ref<string>, enabled: Ref<boolean>) {
           signal,
         }),
       ),
-    initialPageParam: null as string | null,
-    getNextPageParam: (page) => (page.has_more ? page.next_cursor : undefined),
+    ...cursorQueryOptions,
     enabled: canRead,
   })
   const data = computed(() =>
@@ -145,8 +147,8 @@ export function useProjectReviewResults(projectId: Ref<string>, enabled: Ref<boo
   const client = useApiClient()
   const session = useSessionStore()
   const cache = useQueryClient()
-  const canRead = computed(() => enabled.value && session.canUsePrivateNavigation)
-  const key = computed(() => ['project-review-results', session.user?.id, projectId.value] as const)
+  const { canRead } = usePrivateQueryScope(enabled)
+  const key = computed(() => projectReviewResultsKey(session.user?.id, projectId.value))
   const query = useInfiniteQuery({
     queryKey: key,
     queryFn: ({ queryKey, pageParam, signal }) =>
@@ -159,8 +161,7 @@ export function useProjectReviewResults(projectId: Ref<string>, enabled: Ref<boo
           signal,
         }),
       ),
-    initialPageParam: null as string | null,
-    getNextPageParam: (page) => (page.has_more ? page.next_cursor : undefined),
+    ...cursorQueryOptions,
     enabled: canRead,
   })
   const data = computed(() =>
@@ -178,9 +179,9 @@ export function useTaskRun(
   const client = useApiClient()
   const session = useSessionStore()
   const cache = useQueryClient()
-  const canRead = computed(() => enabled.value && session.canUsePrivateNavigation)
-  const key = computed(
-    () => ['task-run', session.user?.id, projectId.value, snapshotId.value, runId.value] as const,
+  const { canRead } = usePrivateQueryScope(enabled)
+  const key = computed(() =>
+    taskRunKey(session.user?.id, projectId.value, snapshotId.value, runId.value),
   )
   const query = useQuery({
     queryKey: key,
@@ -207,11 +208,9 @@ export function useWorkingSelection(
   const client = useApiClient()
   const session = useSessionStore()
   const cache = useQueryClient()
-  const canRead = computed(
-    () => enabled.value && session.canUsePrivateNavigation && aggregationId.value !== null,
-  )
-  const key = computed(
-    () => ['working-selection', session.user?.id, projectId.value, aggregationId.value] as const,
+  const { canRead } = usePrivateQueryScope(() => enabled.value && aggregationId.value !== null)
+  const key = computed(() =>
+    workingSelectionKey(session.user?.id, projectId.value, aggregationId.value),
   )
   const query = useQuery({
     queryKey: key,

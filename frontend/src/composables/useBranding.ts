@@ -27,11 +27,11 @@ export interface BrandingInfo extends Omit<
   legal_entity: BrandingLegalEntity | null
 }
 
-export interface BrandingLegalEntity extends Omit<RawBrandingLegalEntity, 'address_lines'> {
+interface BrandingLegalEntity extends Omit<RawBrandingLegalEntity, 'address_lines'> {
   address_lines: string[]
 }
 
-export type BrandingState =
+type BrandingState =
   { status: 'loading' } | { status: 'ready'; data: BrandingInfo } | { status: 'error' }
 
 export interface UseBranding {

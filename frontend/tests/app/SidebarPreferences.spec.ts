@@ -12,7 +12,7 @@ import { createQueryClient } from '@/app/queryClient'
 import { createAppRouter } from '@/app/router'
 import { API_CLIENT_KEY } from '@/composables/useApiClient'
 import { usePreferencePresentation } from '@/composables/usePreferencePresentation'
-import { userPreferencesQueryKey, type UserPreferences } from '@/composables/useUserPreferences'
+import type { UserPreferences } from '@/composables/useUserPreferences'
 import UserSettingsView from '@/features/settings/UserSettingsView.vue'
 import de from '@/locales/de.json'
 import en from '@/locales/en.json'
@@ -445,7 +445,12 @@ describe.each(['de', 'en'] as const)('sidebar preferences in %s', (locale) => {
 
     expect(document.documentElement.dataset.theme).toBe('light')
     expect(control(wrapper, 'theme').text()).toContain(messages.theme.system)
-    expect(queryClient.getQueryData(userPreferencesQueryKey(USER.id))).toBeUndefined()
+    const cachedData = queryClient
+      .getQueryCache()
+      .getAll()
+      .map((query) => query.state.data)
+    expect(cachedData).not.toContainEqual({ ...SAVED, locale })
+    expect(cachedData).not.toContainEqual({ ...SAVED, locale, theme: 'dark', revision: 8 })
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
     expect(reads).toBe(2)
   })

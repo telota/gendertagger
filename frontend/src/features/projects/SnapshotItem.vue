@@ -6,7 +6,9 @@ import { RouterLink } from 'vue-router'
 
 import AppButton from '@/components/base/AppButton.vue'
 
-import type { DatasetSnapshot } from './useSnapshotImport'
+import type { components } from '@/api/schema'
+
+type DatasetSnapshot = components['schemas']['DatasetSnapshot']
 
 const props = defineProps<{ snapshot: DatasetSnapshot }>()
 const { t, d, n } = useI18n()

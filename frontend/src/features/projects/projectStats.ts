@@ -1,7 +1,8 @@
-import type { components } from '@/api'
+import { CANONICAL_LABELS } from '@/composables/useVocabulary'
+import type { components } from '@/api/schema'
 
-import { CANONICAL_LABELS, type CanonicalLabel } from '../review/useVocabulary'
-import type { DatasetSnapshot } from './useSnapshotImport'
+type CanonicalLabel = components['schemas']['CanonicalLabel']
+type DatasetSnapshot = components['schemas']['DatasetSnapshot']
 
 type ReviewSummaryGroup = components['schemas']['ReviewSummaryGroup']
 

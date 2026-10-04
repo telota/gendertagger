@@ -11,7 +11,7 @@ import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
-import { useRunList } from '@/features/runs/useRuns'
+import { useRunList } from '@/composables/useRuns'
 
 import ProjectOverviewSection from './ProjectOverviewSection.vue'
 import ProjectStat from './ProjectStat.vue'

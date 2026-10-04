@@ -11,7 +11,7 @@ import {
   type AppLocale,
 } from '@/app/i18n'
 
-export interface LocaleOption {
+interface LocaleOption {
   value: AppLocale
   label: string
 }

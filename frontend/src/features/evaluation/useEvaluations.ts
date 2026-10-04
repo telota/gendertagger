@@ -6,6 +6,11 @@ import { useApiClient } from '@/composables/useApiClient'
 import { usePolledQuery } from '@/composables/usePolledQuery'
 import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
 import { cursorQueryOptions, liveListPolling } from '@/composables/cursorQuery'
+import {
+  evaluationListKey,
+  evaluationKey,
+  evaluationReportKey,
+} from '@/composables/resourceQueries'
 
 import { parseEvaluationReport } from './reportSchema'
 
@@ -17,14 +22,10 @@ const TERMINAL_STATUSES = new Set<EvaluationExecution['status']>([
   'failed',
   'cancelled',
 ])
-export const isTerminalEvaluation = (evaluation: EvaluationExecution): boolean =>
+const isTerminalEvaluation = (evaluation: EvaluationExecution): boolean =>
   TERMINAL_STATUSES.has(evaluation.status)
 
 const LIST_POLL_MS = 2000
-
-export function evaluationListKey(runId: string) {
-  return ['runs', runId, 'evaluations'] as const
-}
 
 /**
  * `GET /runs/{run_id}/evaluations`, newest first in every lifecycle state, cursor-paginated. While
@@ -35,19 +36,23 @@ export function useEvaluationList(runId: Ref<string>, enabled: Ref<boolean> = re
   const scope = usePrivateQueryScope(enabled)
   const key = scope.key(() => evaluationListKey(runId.value))
 
-  const query = useInfiniteQuery({ queryKey: key,
-  queryFn: ({ queryKey, pageParam, signal }) =>
-    unwrap(
-      client.GET('/api/v1/runs/{run_id}/evaluations', {
-        params: { path: { run_id: queryKey[1] }, query: { cursor: pageParam } },
-        signal,
-      }),
-    ), ...cursorQueryOptions, refetchInterval: (query) => {
-    const pages = query.state.data?.pages ?? []
-    const anyLive = pages.some((page) => page.items.some((item) => !isTerminalEvaluation(item)))
-    return anyLive ? LIST_POLL_MS : false
-  },
-  enabled: scope.canRead, })
+  const query = useInfiniteQuery({
+    queryKey: key,
+    queryFn: ({ queryKey, pageParam, signal }) =>
+      unwrap(
+        client.GET('/api/v1/runs/{run_id}/evaluations', {
+          params: { path: { run_id: queryKey[1] }, query: { cursor: pageParam } },
+          signal,
+        }),
+      ),
+    ...cursorQueryOptions,
+    refetchInterval: liveListPolling<components['schemas']['CursorPage_EvaluationExecution_']>({
+      isLive: (item) => !isTerminalEvaluation(item),
+      intervalMs: LIST_POLL_MS,
+      stopOnError: false,
+    }),
+    enabled: scope.canRead,
+  })
   return { ...query, data: scope.data(query, key) }
 }
 
@@ -55,7 +60,7 @@ export function useEvaluationList(runId: Ref<string>, enabled: Ref<boolean> = re
 export function useEvaluation(evaluationId: Ref<string>, enabled: Ref<boolean> = ref(true)) {
   const client = useApiClient()
   const scope = usePrivateQueryScope(enabled)
-  const key = scope.key(() => ['evaluations', evaluationId.value] as const)
+  const key = scope.key(() => evaluationKey(evaluationId.value))
 
   const query = usePolledQuery({
     queryKey: key,
@@ -96,7 +101,7 @@ export function useCreateEvaluation() {
 export function useEvaluationReport(evaluationId: Ref<string>, enabled: Ref<boolean>) {
   const client = useApiClient()
   const scope = usePrivateQueryScope(enabled)
-  const key = scope.key(() => ['evaluations', evaluationId.value, 'report'] as const)
+  const key = scope.key(() => evaluationReportKey(evaluationId.value))
 
   const query = useQuery({
     queryKey: key,

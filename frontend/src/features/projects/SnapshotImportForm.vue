@@ -17,9 +17,11 @@ import {
   useImportSnapshot,
   useSnapshotStatus,
   useSnapshotUploadLimits,
-  type SourceFormat,
-  type SourcePackaging,
-} from './useSnapshotImport'
+} from '@/composables/useSnapshotImport'
+import type { components } from '@/api/schema'
+
+type SourceFormat = components['schemas']['SourceFormat']
+type SourcePackaging = components['schemas']['SourcePackaging']
 
 interface ImportMode {
   sourceFormat: SourceFormat

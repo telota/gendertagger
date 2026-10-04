@@ -6,27 +6,27 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
 import AppButton from '@/components/base/AppButton.vue'
-import { privateQueryKey } from '@/composables/usePrivateQueryScope'
+import { privateQueryKey, projectKey, runKey, aggregationKey } from '@/composables/resourceQueries'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
-import { useAggregation } from '@/features/runs/useAggregations'
-import { useProject } from '@/features/projects/useProjects'
-import { useMethodList } from '@/features/runs/useMethods'
-import { useRun } from '@/features/runs/useRunDetail'
-import { useImportedSnapshot } from '@/features/projects/useSnapshotData'
+import { useAggregation } from '@/composables/useAggregations'
+import { useProject } from '@/composables/useProjects'
+import { useMethodList } from '@/composables/useMethods'
+import { useRun } from '@/composables/useRunDetail'
+import { useImportedSnapshot } from '@/composables/useSnapshotData'
 
 import ReviewDetail from './ReviewDetail.vue'
 import ReviewBulkBar from './ReviewBulkBar.vue'
 import ReviewFilterPanel from './ReviewFilterPanel.vue'
 import ReviewList from './ReviewList.vue'
 import ReviewQueueTabs from './ReviewQueueTabs.vue'
-import {
-  useReviewItemByPerson,
-  useReviewItems,
-  useReviewSummary,
-  type ReviewItem,
-} from './useReviewData'
-import { queueCounts, useReviewFilters, type QueueCount, type QueueId } from './useReviewFilters'
-import { isRecoverableReviewError, retainedReviewData } from './retainedReviewData'
+import { useReviewItemByPerson, useReviewSummary } from '@/composables/useReviewData'
+import { useReviewItems } from './useReviewItems'
+import { useReviewFilters } from './useReviewFilters'
+import { queueCounts, type QueueCount, type QueueId } from '@/components/domain/reviewQueues'
+import { isRecoverableReviewError, retainedReviewData } from '@/composables/retainedReviewData'
+import type { components } from '@/api/schema'
+
+type ReviewItem = components['schemas']['ReviewItem']
 
 const props = defineProps<{
   /** `review`: the D2 evidence queues. `people`: the whole register, in TEI order, for finding anybody. */
@@ -52,7 +52,7 @@ const cache = useQueryClient()
 const projectData = computed(() =>
   retainedReviewData(
     cache,
-    ['projects', projectId.value, session.user?.id ?? 'anonymous'],
+    projectKey(projectId.value, session.user?.id),
     session.canUsePrivateNavigation,
     project.status.value,
     project.data.value,
@@ -69,7 +69,7 @@ const run = useRun(runId, isSignedIn)
 const runData = computed(() =>
   retainedReviewData(
     cache,
-    privateQueryKey(['runs', runId.value], session.user?.id),
+    privateQueryKey(runKey(runId.value), session.user?.id),
     session.canUsePrivateNavigation && projectData.value?.id === projectId.value,
     run.status.value,
     run.data.value,
@@ -79,7 +79,7 @@ const runData = computed(() =>
 const aggregationData = computed(() =>
   retainedReviewData(
     cache,
-    privateQueryKey(['aggregations', aggregationId.value], session.user?.id),
+    privateQueryKey(aggregationKey(aggregationId.value), session.user?.id),
     session.canUsePrivateNavigation && projectData.value?.id === projectId.value,
     aggregation.status.value,
     aggregation.data.value,

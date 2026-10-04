@@ -168,7 +168,7 @@ describe.each(['de', 'en'] as const)('review workbench in %s', (locale: AppLocal
     await waitFor(() => expect(last(server).get('final_label')).toBe('female'))
     await wrapper.get('#review-agreement-no_consensus').setValue(true)
     await waitFor(() => expect(last(server).getAll('agreement_tiers')).toEqual(['no_consensus']))
-    await wrapper.get('#review-conflict').setValue('yes')
+    await wrapper.get('#review-conflict').setValue('true')
     await waitFor(() => expect(last(server).get('has_authority_conflict')).toBe('true'))
     await wrapper.get('#review-method').setValue('gnd')
     await waitFor(() => expect(last(server).get('method_name')).toBe('gnd'))
@@ -315,7 +315,7 @@ describe.each(['de', 'en'] as const)('review workbench in %s', (locale: AppLocal
 
   it('reads out the annotation chain with names, newest first', async () => {
     const wrapper = await mountReview(newServer())
-    await waitFor(() => expect(wrapper.find('.detail-history').exists()).toBe(true))
+    await waitFor(() => expect(wrapper.find('.detail-history-disclosure ol').exists()).toBe(true))
 
     const historyDisclosure = wrapper.get('.detail-history-disclosure')
     expect(historyDisclosure.attributes('open')).toBeUndefined()
@@ -325,7 +325,9 @@ describe.each(['de', 'en'] as const)('review workbench in %s', (locale: AppLocal
     expect(historyDisclosure.attributes('open')).toBeUndefined()
     await historyDisclosure.get('summary').trigger('click')
 
-    const entries = wrapper.findAll('.detail-history-entry').map((entry) => entry.text())
+    const entries = wrapper
+      .findAll('.detail-history-disclosure ol > li')
+      .map((entry) => entry.text())
     expect(entries[0]).toContain('correct')
     expect(entries[0]).toContain('Jo Reviewer')
     expect(entries[0]).toContain('Attested as a woman.')

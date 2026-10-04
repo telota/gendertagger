@@ -302,6 +302,11 @@ the phased plan that resumes application code.
 - Evaluation-report downloads advertise the canonical Pydantic schema without reserializing immutable
   artifact bytes. Frontend report and export-manifest parsers use generated transport types and retain
   runtime shape/vocabulary checks, including optional/null fields and zero-valued evidence.
+- Shared resource/principal keys, cursor continuation, and canonical-page list polling now have defining
+  owners. Reused query/annotation/project logic and data-only domain presenters moved out of feature
+  folders; consumers import those modules directly, without compatibility re-exports.
+- Lifecycle, provenance, selected-execution, prediction/confidence/missing-output, and append-only history
+  presentation are shared while preserving canonical uncertainty distinctions and method-specific confidence.
 - Batch failures now share the URL-credential redaction and bounded detailed-diagnostic policy used by
   aggregation, evaluation, export, and dispatch. Redaction occurs before the 500-character limit;
   authenticated method summaries cannot retain credential-bearing URL user information from batch

@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
 
-import { useSnapshotStatistics } from './useSnapshotData'
+import { useSnapshotStatistics } from '@/composables/useSnapshotData'
 
 const props = defineProps<{ projectId: string; snapshotId: string }>()
 const { t, n } = useI18n()

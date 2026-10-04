@@ -10,7 +10,9 @@ import { createAppI18n } from '@/app/i18n'
 import { API_CLIENT_KEY } from '@/composables/useApiClient'
 import { provideDraftNavigation, useDraftRegistration } from '@/composables/useDraftNavigation'
 import { useSessionStore } from '@/stores/session'
+import en from '@/locales/en.json'
 
+import { getDialogButtonByName } from '../helpers/render'
 import { waitFor } from '../helpers/wait'
 
 const wrappers: VueWrapper[] = []
@@ -78,9 +80,8 @@ describe('view-owned draft navigation', () => {
     const attempt = router.push('/settings')
     await waitFor(() => expect(navigation.isOpen.value).toBe(true))
     await waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull())
-    const stay = document.querySelector<HTMLButtonElement>('.draft-leave-actions button')
-    expect(stay).not.toBeNull()
-    stay?.click()
+    const stay = getDialogButtonByName(en.draftNavigation.title, en.draftNavigation.stay)
+    stay.click()
     await attempt
     expect(router.currentRoute.value.path).toBe('/projects/a')
     expect(text.value).toBe('Unsubmitted evidence')

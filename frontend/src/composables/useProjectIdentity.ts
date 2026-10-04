@@ -3,14 +3,15 @@ import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { ApiError } from '@/api'
-import { hasProjectRole } from '@/features/projects/projectRoles'
-import {
-  projectMembershipQueryKey,
-  useProjectMembershipState,
-  type ProjectMembershipState,
-} from '@/features/projects/useProjectMembership'
-import { useProject, type AccessibleProject } from '@/features/projects/useProjects'
+import { projectMembershipQueryKey, projectKey } from '@/composables/resourceQueries'
+import { hasProjectRole } from '@/composables/projectRoles'
+import { useProjectMembershipState } from '@/composables/useProjectMembership'
+import { useProject } from '@/composables/useProjects'
 import { useSessionStore } from '@/stores/session'
+import type { components } from '@/api/schema'
+
+type ProjectMembershipState = components['schemas']['ProjectMembershipState']
+type AccessibleProject = components['schemas']['AccessibleProject']
 
 /** Authorized project identity for shell presentation; resource context stays with the view. */
 export function useProjectIdentity() {
@@ -97,7 +98,7 @@ export function useProjectIdentity() {
   watch(
     [principalId, projectId, query.isSuccess, query.data, query.dataUpdatedAt],
     () => {
-      const key = ['projects', projectId.value, principalId.value ?? 'anonymous'] as const
+      const key = projectKey(projectId.value, principalId.value)
       const value = queryClient.getQueryData<AccessibleProject>(key)
       const state = queryClient.getQueryState(key)
       resolvedProjectReadAt.value =
@@ -111,7 +112,7 @@ export function useProjectIdentity() {
   )
   const project = computed(() => {
     if (!canReadProject.value || !query.isSuccess.value || !query.data.value) return null
-    const key = ['projects', projectId.value, principalId.value ?? 'anonymous'] as const
+    const key = projectKey(projectId.value, principalId.value)
     if (queryClient.getQueryState(key)?.status !== 'success') return null
     const value = queryClient.getQueryData<AccessibleProject>(key)
     return value?.id === projectId.value && hasProjectRole(value.current_user_role, 'viewer')

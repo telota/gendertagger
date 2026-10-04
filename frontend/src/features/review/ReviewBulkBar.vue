@@ -4,12 +4,16 @@ import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
+import AppSelectField from '@/components/base/AppSelectField.vue'
 import { useDraftNavigation, useDraftRegistration } from '@/composables/useDraftNavigation'
 
-import { reviewItemName } from './reviewItemName'
-import type { ReviewItem } from './useReviewData'
+import { reviewItemName } from '@/components/domain/reviewItemName'
 import { useBulkDecision, type BulkResult, type BulkSpec } from './useBulkDecision'
-import { CANONICAL_LABELS, useVocabularyGloss, type CanonicalLabel } from './useVocabulary'
+import { CANONICAL_LABELS, useVocabularyGloss } from '@/composables/useVocabulary'
+import type { components } from '@/api/schema'
+
+type ReviewItem = components['schemas']['ReviewItem']
+type CanonicalLabel = components['schemas']['CanonicalLabel']
 
 const props = withDefaults(
   defineProps<{
@@ -204,18 +208,20 @@ const preview = computed(() => props.items.slice(0, PREVIEW_LIMIT).map(reviewIte
       novalidate
       @submit.prevent="toConfirm"
     >
-      <div class="bulk-field">
-        <label for="bulk-action">{{ t('review.bulk.action') }}</label>
-        <select id="bulk-action" v-model="choice">
-          <option value="">{{ t('review.bulk.choose') }}</option>
-          <option value="verify">{{ t('review.bulk.actions.verify') }}</option>
-          <option v-for="label in CANONICAL_LABELS" :key="label" :value="`correct:${label}`">
-            {{ t('review.bulk.actions.correct', { label }) }}
-            {{ gloss.label(label) ? `(${gloss.label(label)})` : '' }}
-          </option>
-          <option value="defer">{{ t('review.bulk.actions.defer') }}</option>
-        </select>
-      </div>
+      <AppSelectField
+        id="bulk-action"
+        v-model="choice"
+        class="bulk-field"
+        :label="t('review.bulk.action')"
+      >
+        <option value="">{{ t('review.bulk.choose') }}</option>
+        <option value="verify">{{ t('review.bulk.actions.verify') }}</option>
+        <option v-for="label in CANONICAL_LABELS" :key="label" :value="`correct:${label}`">
+          {{ t('review.bulk.actions.correct', { label }) }}
+          {{ gloss.label(label) ? `(${gloss.label(label)})` : '' }}
+        </option>
+        <option value="defer">{{ t('review.bulk.actions.defer') }}</option>
+      </AppSelectField>
       <div class="bulk-field">
         <label for="bulk-comment">{{ t('review.bulk.comment') }}</label>
         <textarea
@@ -353,11 +359,8 @@ const preview = computed(() => props.items.slice(0, PREVIEW_LIMIT).map(reviewIte
   flex-direction: column;
   gap: var(--space-1);
   font-size: var(--font-size-small);
-}
-
-.bulk-field select {
-  width: 100%;
-  font: inherit;
+  --field-label-color: var(--text-primary);
+  --field-control-width: 100%;
 }
 
 .bulk-confirm,

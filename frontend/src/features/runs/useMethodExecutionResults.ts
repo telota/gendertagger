@@ -3,6 +3,9 @@ import { computed, type Ref } from 'vue'
 
 import { unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
+import { cursorQueryOptions } from '@/composables/cursorQuery'
+import { methodExecutionResultsKey } from '@/composables/resourceQueries'
+import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
 import { useSessionStore } from '@/stores/session'
 
 export type MethodExecutionResult = components['schemas']['MethodExecutionResult']
@@ -19,17 +22,15 @@ export function useMethodExecutionResults(
 ) {
   const client = useApiClient()
   const session = useSessionStore()
-  const canRead = computed(() => enabled.value && session.canUsePrivateNavigation)
+  const { canRead } = usePrivateQueryScope(enabled)
   const queryText = computed(() => search.value.trim())
-  const key = computed(
-    () =>
-      [
-        'method-execution-results',
-        session.user?.id ?? 'anonymous',
-        runId.value,
-        methodExecutionId.value,
-        queryText.value,
-      ] as const,
+  const key = computed(() =>
+    methodExecutionResultsKey(
+      session.user?.id,
+      runId.value,
+      methodExecutionId.value,
+      queryText.value,
+    ),
   )
 
   return useInfiniteQuery({
@@ -48,8 +49,7 @@ export function useMethodExecutionResults(
           signal,
         }),
       ),
-    initialPageParam: null as string | null,
-    getNextPageParam: (page) => (page.has_more ? (page.next_cursor ?? null) : undefined),
+    ...cursorQueryOptions,
     enabled: canRead,
   })
 }

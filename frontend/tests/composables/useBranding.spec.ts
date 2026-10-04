@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import { createApiClient, type ApiClient } from '@/api'
 import { createQueryClient } from '@/app/queryClient'
-import { useBranding, type BrandingState, type UseBranding } from '@/composables/useBranding'
+import { useBranding, type UseBranding } from '@/composables/useBranding'
 
 import { apiClientWithJsonResponse, apiClientWithNetworkError } from '../helpers/api'
 
@@ -70,7 +70,7 @@ describe('useBranding', () => {
     expect(hook().state.value).toEqual({ status: 'loading' })
     await flushPromises()
 
-    const state: BrandingState = hook().state.value
+    const state = hook().state.value
     expect(state.status).toBe('ready')
     if (state.status !== 'ready') throw new Error('unreachable')
     expect(state.data.institution_name).toBe(FULL_RESPONSE.institution_name)

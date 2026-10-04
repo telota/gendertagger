@@ -2,13 +2,15 @@ import { useQueryClient } from '@tanstack/vue-query'
 import { computed, type ComputedRef } from 'vue'
 import { useRoute } from 'vue-router'
 
-import { privateQueryKey } from '@/composables/usePrivateQueryScope'
-import { useAggregation } from '@/features/runs/useAggregations'
-import { runKey, useRun } from '@/features/runs/useRunDetail'
-import type { ProjectRole } from '@/features/projects/projectRoles'
-import { useImportedSnapshot } from '@/features/projects/useSnapshotData'
+import { privateQueryKey, runKey, aggregationKey } from '@/composables/resourceQueries'
+import { useAggregation } from '@/composables/useAggregations'
+import { useRun } from '@/composables/useRunDetail'
+import { useImportedSnapshot } from '@/composables/useSnapshotData'
 import { useSessionStore } from '@/stores/session'
-import { useProjectIdentity } from './useProjectIdentity'
+import { useProjectIdentity } from '@/composables/useProjectIdentity'
+import type { components } from '@/api/schema'
+
+type ProjectRole = components['schemas']['ProjectRole']
 
 export interface ProjectNavigationContext {
   projectId: string
@@ -47,7 +49,7 @@ export function useProjectNavigation(): ComputedRef<ProjectNavigationContext | n
   )
   const aggregation = computed(() => {
     if (!aggregationQuery.isSuccess.value || !aggregationQuery.data.value) return null
-    const key = privateQueryKey(['aggregations', aggregationId.value], session.user?.id)
+    const key = privateQueryKey(aggregationKey(aggregationId.value), session.user?.id)
     if (cache.getQueryState(key)?.status !== 'success') return null
     const value = cache.getQueryData<typeof aggregationQuery.data.value>(key)
     return value?.id === aggregationId.value ? value : null

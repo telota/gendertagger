@@ -1,30 +1,20 @@
-import { useInfiniteQuery, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, type Ref } from 'vue'
 
-import { ApiError, unwrap, type components } from '@/api'
+import { unwrap } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
 import { useSessionStore } from '@/stores/session'
-
-export type ImportedPerson = components['schemas']['PersonRecord']
-export type SnapshotStatistics = components['schemas']['DatasetSnapshotStatistics']
+import { cursorQueryOptions } from '@/composables/cursorQuery'
+import { currentData } from '@/composables/queryData'
+import {
+  importedSnapshotKey,
+  importedPeopleKey,
+  importedPersonKey,
+  snapshotStatisticsKey,
+} from '@/composables/resourceQueries'
+import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
 
 const SNAPSHOT_POLL_INTERVAL_MS = 2000
-
-/** Resolve the exact current cache key before rendering; an observer can lag a route/account change. */
-export function currentData<T>(
-  client: QueryClient,
-  key: readonly unknown[],
-  enabled: boolean,
-  status: string,
-  observed: T | undefined,
-): T | undefined {
-  if (!enabled || status === 'pending' || observed === undefined) return undefined
-  const state = client.getQueryState<T>(key)
-  const error = state?.error
-  if (error instanceof ApiError && error.status !== null && [401, 403, 404].includes(error.status))
-    return undefined
-  return state?.data
-}
 
 /** Snapshot inspection is scoped to its project route and authenticated principal. */
 export function useImportedSnapshot(
@@ -35,9 +25,9 @@ export function useImportedSnapshot(
   const client = useApiClient()
   const cache = useQueryClient()
   const session = useSessionStore()
-  const canRead = computed(() => enabled.value && session.canUsePrivateNavigation)
-  const key = computed(
-    () => ['imported-snapshot', session.user?.id, projectId.value, snapshotId.value] as const,
+  const { canRead } = usePrivateQueryScope(enabled)
+  const key = computed(() =>
+    importedSnapshotKey(session.user?.id, projectId.value, snapshotId.value),
   )
   const query = useQuery({
     queryKey: key,
@@ -86,9 +76,9 @@ export function useSnapshotStatistics(
   const client = useApiClient()
   const cache = useQueryClient()
   const session = useSessionStore()
-  const canRead = computed(() => enabled.value && session.canUsePrivateNavigation)
-  const key = computed(
-    () => ['snapshot-statistics', session.user?.id, projectId.value, snapshotId.value] as const,
+  const { canRead } = usePrivateQueryScope(enabled)
+  const key = computed(() =>
+    snapshotStatisticsKey(session.user?.id, projectId.value, snapshotId.value),
   )
   const query = useQuery({
     queryKey: key,
@@ -116,10 +106,8 @@ export function useImportedPeople(
   const client = useApiClient()
   const cache = useQueryClient()
   const session = useSessionStore()
-  const canRead = computed(() => enabled.value && session.canUsePrivateNavigation)
-  const key = computed(
-    () => ['imported-people', session.user?.id, projectId.value, snapshotId.value] as const,
-  )
+  const { canRead } = usePrivateQueryScope(enabled)
+  const key = computed(() => importedPeopleKey(session.user?.id, projectId.value, snapshotId.value))
   const query = useInfiniteQuery({
     queryKey: key,
     queryFn: ({ queryKey, pageParam, signal }) =>
@@ -129,8 +117,7 @@ export function useImportedPeople(
           signal,
         }),
       ),
-    initialPageParam: null as string | null,
-    getNextPageParam: (page) => (page.has_more ? (page.next_cursor ?? null) : undefined),
+    ...cursorQueryOptions,
     enabled: canRead,
   })
   const data = computed(() =>
@@ -149,18 +136,9 @@ export function useImportedPerson(
   const client = useApiClient()
   const cache = useQueryClient()
   const session = useSessionStore()
-  const canRead = computed(
-    () => enabled.value && session.canUsePrivateNavigation && teiId.value !== null,
-  )
-  const key = computed(
-    () =>
-      [
-        'imported-person',
-        session.user?.id,
-        projectId.value,
-        snapshotId.value,
-        teiId.value,
-      ] as const,
+  const { canRead } = usePrivateQueryScope(() => enabled.value && teiId.value !== null)
+  const key = computed(() =>
+    importedPersonKey(session.user?.id, projectId.value, snapshotId.value, teiId.value),
   )
   const query = useQuery({
     queryKey: key,

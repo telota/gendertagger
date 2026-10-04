@@ -5,9 +5,12 @@ import { RouterLink } from 'vue-router'
 
 import AppButton from '@/components/base/AppButton.vue'
 
-import type { MethodExecutionSummary } from './useRunDetail'
-import type { AggregationExecution } from './useAggregations'
-import { useStatusLabel } from './useStatusLabel'
+import { useStatusLabel } from '@/composables/useStatusLabel'
+import LifecycleStatus from '@/components/domain/LifecycleStatus.vue'
+import type { components } from '@/api/schema'
+
+type MethodExecutionSummary = components['schemas']['MethodExecutionSummary']
+type AggregationExecution = components['schemas']['AggregationExecution']
 
 const props = withDefaults(
   defineProps<{
@@ -23,7 +26,6 @@ const props = withDefaults(
 const { t, d, n } = useI18n()
 const label = useStatusLabel()
 
-const statusLabel = computed(() => label(props.aggregation.status))
 const strategyLabel = computed(() =>
   props.aggregation.strategy === 'reference_v1'
     ? t('aggregations.item.referenceStrategy')
@@ -50,9 +52,7 @@ const excludedMethods = computed(() => {
   <li class="aggregation app-resource-card" :class="{ 'aggregation--featured': featured }">
     <div class="aggregation-head">
       <h3 class="aggregation-title">{{ title }}</h3>
-      <span class="aggregation-status" :class="`aggregation-status--${aggregation.status}`">
-        {{ statusLabel }}
-      </span>
+      <LifecycleStatus class="aggregation-status" :status="aggregation.status" />
     </div>
 
     <p v-if="featured && aggregation.status === 'completed'" class="aggregation-summary">
@@ -179,14 +179,6 @@ const excludedMethods = computed(() => {
 
 .aggregation-status {
   font-weight: var(--weight-semibold);
-}
-
-.aggregation-status--completed {
-  color: var(--good);
-}
-
-.aggregation-status--failed {
-  color: var(--critical-text);
 }
 
 .aggregation-summary,

@@ -1,11 +1,9 @@
 import { useQuery } from '@tanstack/vue-query'
 import { ref, type Ref } from 'vue'
 
-import { unwrap, type components } from '@/api'
+import { unwrap } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
 import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
-
-export type MethodDescriptor = components['schemas']['MethodDescriptor']
 
 // The roster changes only with a server deployment, so a short-lived cache is plenty.
 const ROSTER_STALE_MS = 5 * 60 * 1000

@@ -29,7 +29,7 @@ describe.each(['de', 'en'] as const)('review decisions in %s', (locale: AppLocal
 
   async function mountDecision(server: Server) {
     const wrapper = await mountApplicationAt(base, locale, reviewClient(server))
-    await waitFor(() => expect(wrapper.find('.detail-history').exists()).toBe(true))
+    await waitFor(() => expect(wrapper.find('.detail-history-disclosure ol').exists()).toBe(true))
     await waitFor(() => expect(wrapper.find('.decision').exists()).toBe(true))
     await flushPromises()
     return wrapper
@@ -65,7 +65,9 @@ describe.each(['de', 'en'] as const)('review decisions in %s', (locale: AppLocal
     })
     await waitFor(() => expect(wrapper.get('.decision-saved').text()).toContain('female'))
     // The chain grew by one and the queue's final label followed the decision ...
-    await waitFor(() => expect(wrapper.findAll('.detail-history-entry')).toHaveLength(3))
+    await waitFor(() =>
+      expect(wrapper.findAll('.detail-history-disclosure ol > li')).toHaveLength(3),
+    )
     await waitFor(() => expect(wrapper.get('.row').text()).toContain('female'))
     // ... while the machine label the decision was made against is still what the machine said.
     const facts = wrapper.get('.detail-facts').text()
@@ -292,7 +294,9 @@ describe.each(['de', 'en'] as const)('review decisions in %s', (locale: AppLocal
       expect(wrapper.get('.decision-conflict-latest').text()).toContain('Alex Other'),
     )
     // The chain was re-read, so the reviewer can see what happened.
-    await waitFor(() => expect(wrapper.findAll('.detail-history-entry')).toHaveLength(3))
+    await waitFor(() =>
+      expect(wrapper.findAll('.detail-history-disclosure ol > li')).toHaveLength(3),
+    )
     expect(wrapper.get('.decision-save').attributes('disabled')).toBeDefined()
 
     // Deciding again keeps the comment, drops the stale choice, and writes against the new revision.

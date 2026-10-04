@@ -6,6 +6,7 @@ import { useApiClient } from '@/composables/useApiClient'
 import { usePolledQuery } from '@/composables/usePolledQuery'
 import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
 import { cursorQueryOptions, liveListPolling } from '@/composables/cursorQuery'
+import { exportListKey, exportKey, exportManifestKey } from '@/composables/resourceQueries'
 
 export type ExportExecution = components['schemas']['ExportExecution']
 export type ExportCreateRequest = components['schemas']['ExportCreateRequest']
@@ -13,14 +14,9 @@ export type ExportFormat = components['schemas']['ExportFormat']
 export type LabelSourcePolicy = components['schemas']['LabelSourcePolicy']
 
 const TERMINAL_STATUSES = new Set<ExportExecution['status']>(['completed', 'failed', 'cancelled'])
-export const isTerminalExport = (item: ExportExecution): boolean =>
-  TERMINAL_STATUSES.has(item.status)
+const isTerminalExport = (item: ExportExecution): boolean => TERMINAL_STATUSES.has(item.status)
 
 const LIST_POLL_MS = 2000
-
-export function exportListKey(runId: string) {
-  return ['runs', runId, 'exports'] as const
-}
 
 /** `GET /runs/{run_id}/exports`, newest first in every lifecycle state, polled while one is live. */
 export function useExportList(runId: Ref<string>, enabled: Ref<boolean> = ref(true)) {
@@ -28,19 +24,23 @@ export function useExportList(runId: Ref<string>, enabled: Ref<boolean> = ref(tr
   const scope = usePrivateQueryScope(enabled)
   const key = scope.key(() => exportListKey(runId.value))
 
-  const query = useInfiniteQuery({ queryKey: key,
-  queryFn: ({ queryKey, pageParam, signal }) =>
-    unwrap(
-      client.GET('/api/v1/runs/{run_id}/exports', {
-        params: { path: { run_id: queryKey[1] }, query: { cursor: pageParam } },
-        signal,
-      }),
-    ), ...cursorQueryOptions, refetchInterval: (query) => {
-    const pages = query.state.data?.pages ?? []
-    const anyLive = pages.some((page) => page.items.some((item) => !isTerminalExport(item)))
-    return anyLive ? LIST_POLL_MS : false
-  },
-  enabled: scope.canRead, })
+  const query = useInfiniteQuery({
+    queryKey: key,
+    queryFn: ({ queryKey, pageParam, signal }) =>
+      unwrap(
+        client.GET('/api/v1/runs/{run_id}/exports', {
+          params: { path: { run_id: queryKey[1] }, query: { cursor: pageParam } },
+          signal,
+        }),
+      ),
+    ...cursorQueryOptions,
+    refetchInterval: liveListPolling<components['schemas']['CursorPage_ExportExecution_']>({
+      isLive: (item) => !isTerminalExport(item),
+      intervalMs: LIST_POLL_MS,
+      stopOnError: false,
+    }),
+    enabled: scope.canRead,
+  })
   return { ...query, data: scope.data(query, key) }
 }
 
@@ -48,7 +48,7 @@ export function useExportList(runId: Ref<string>, enabled: Ref<boolean> = ref(tr
 export function useExport(exportId: Ref<string>, enabled: Ref<boolean> = ref(true)) {
   const client = useApiClient()
   const scope = usePrivateQueryScope(enabled)
-  const key = scope.key(() => ['exports', exportId.value] as const)
+  const key = scope.key(() => exportKey(exportId.value))
 
   const query = usePolledQuery({
     queryKey: key,
@@ -87,7 +87,7 @@ export function useCreateExport() {
 export function useExportManifest(exportId: Ref<string>, enabled: Ref<boolean>) {
   const client = useApiClient()
   const scope = usePrivateQueryScope(enabled)
-  const key = scope.key(() => ['exports', exportId.value, 'manifest'] as const)
+  const key = scope.key(() => exportManifestKey(exportId.value))
 
   const query = useQuery({
     queryKey: key,

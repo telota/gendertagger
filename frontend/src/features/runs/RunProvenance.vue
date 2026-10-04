@@ -2,7 +2,11 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { Run } from './useRuns'
+import JsonData from '@/components/domain/JsonData.vue'
+import ProvenanceValue from '@/components/domain/ProvenanceValue.vue'
+import type { components } from '@/api/schema'
+
+type Run = components['schemas']['Run']
 
 const props = defineProps<{ run: Run }>()
 
@@ -40,8 +44,6 @@ const rows = computed(() => [
   },
   { key: 'configHash', label: t('runs.provenance.configHash'), value: props.run.config_sha256 },
 ])
-
-const resolvedConfig = computed(() => JSON.stringify(props.run.resolved_config, null, 2))
 </script>
 
 <template>
@@ -60,15 +62,11 @@ const resolvedConfig = computed(() => JSON.stringify(props.run.resolved_config, 
         >
           <dt>{{ row.label }}</dt>
           <dd>
-            <code v-if="row.value" class="provenance-value">{{ row.value }}</code>
-            <span v-else class="provenance-missing">{{ t('runs.provenance.notRecorded') }}</span>
+            <ProvenanceValue :value="row.value" />
           </dd>
         </div>
       </dl>
-      <details class="provenance-config">
-        <summary>{{ t('runs.provenance.resolvedConfig') }}</summary>
-        <pre class="provenance-config-json">{{ resolvedConfig }}</pre>
-      </details>
+      <JsonData :value="run.resolved_config" :summary="t('runs.provenance.resolvedConfig')" />
     </div>
   </details>
 </template>
@@ -102,27 +100,5 @@ const resolvedConfig = computed(() => JSON.stringify(props.run.resolved_config, 
 .provenance-facts {
   --app-fact-list-label-width: 12rem;
   margin-block-end: var(--space-3);
-}
-
-.provenance-value {
-  font-size: var(--font-size-small);
-}
-
-.provenance-missing {
-  color: var(--text-secondary);
-}
-
-.provenance-config summary {
-  cursor: pointer;
-  font-weight: var(--weight-semibold);
-}
-
-.provenance-config-json {
-  margin: var(--space-2) 0 0;
-  padding: var(--space-3);
-  overflow-x: auto;
-  border-radius: var(--radius-input);
-  background: var(--surface-1);
-  font-size: var(--font-size-small);
 }
 </style>

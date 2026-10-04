@@ -7,12 +7,14 @@ import {
   CANONICAL_LABELS,
   CERTAINTY_TIERS,
   useVocabularyGloss,
-  type AgreementTier,
-  type CertaintyTier,
-} from '@/features/review/useVocabulary'
+} from '@/composables/useVocabulary'
 
 import './metric.css'
 import type { EnsembleMetrics } from './reportSchema'
+import type { components } from '@/api/schema'
+
+type AgreementTier = components['schemas']['AgreementTier']
+type CertaintyTier = components['schemas']['CertaintyTier']
 
 defineProps<{ ensemble: EnsembleMetrics | null | undefined }>()
 

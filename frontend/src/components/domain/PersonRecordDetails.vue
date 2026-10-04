@@ -5,7 +5,9 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { PersonRecord } from './useReviewData'
+import type { components } from '@/api/schema'
+
+type PersonRecord = components['schemas']['PersonRecord']
 
 const props = defineProps<{ record: PersonRecord }>()
 

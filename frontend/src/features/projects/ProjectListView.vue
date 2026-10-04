@@ -10,7 +10,7 @@ import { useSessionStore } from '@/stores/session'
 
 import ProjectCreationForm from './ProjectCreationForm.vue'
 import { useManagedProjects } from './useManagedProjects'
-import { useProjectList } from './useProjects'
+import { useProjectList } from '@/composables/useProjects'
 import { useRoleLabel } from './useRoleLabel'
 
 const { t } = useI18n()

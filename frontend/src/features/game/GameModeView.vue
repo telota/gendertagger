@@ -8,30 +8,29 @@ import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
 import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
-import { privateQueryKey } from '@/composables/usePrivateQueryScope'
+import { privateQueryKey, projectKey, runKey, aggregationKey } from '@/composables/resourceQueries'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
-import { useImportedSnapshot } from '@/features/projects/useSnapshotData'
-import { useProject } from '@/features/projects/useProjects'
-import PersonRecordDetails from '@/features/review/PersonRecordDetails.vue'
-import VocabBadge from '@/features/review/VocabBadge.vue'
-import { retainedReviewData, isRecoverableReviewError } from '@/features/review/retainedReviewData'
-import { reviewItemName } from '@/features/review/reviewItemName'
-import { useCreateAnnotation } from '@/features/review/useAnnotate'
+import { useImportedSnapshot } from '@/composables/useSnapshotData'
+import { useProject } from '@/composables/useProjects'
+import PersonRecordDetails from '@/components/domain/PersonRecordDetails.vue'
+import VocabBadge from '@/components/domain/VocabBadge.vue'
+import PredictionDecision from '@/components/domain/PredictionDecision.vue'
+import PredictionStatus from '@/components/domain/PredictionStatus.vue'
+import MethodConfidence from '@/components/domain/MethodConfidence.vue'
+import MissingPrediction from '@/components/domain/MissingPrediction.vue'
+import { retainedReviewData, isRecoverableReviewError } from '@/composables/retainedReviewData'
+import { reviewItemName } from '@/components/domain/reviewItemName'
+import { useCreateAnnotation } from '@/composables/useAnnotate'
 import {
   useAnnotationHistory,
   usePersonRecord,
   useResultPredictions,
-  useReviewItems,
-  type ReviewItem,
-} from '@/features/review/useReviewData'
-import type { ReviewFilters } from '@/features/review/useReviewFilters'
-import {
-  CANONICAL_LABELS,
-  useVocabularyGloss,
-  type CanonicalLabel,
-} from '@/features/review/useVocabulary'
-import { useAggregation } from '@/features/runs/useAggregations'
-import { useRun } from '@/features/runs/useRunDetail'
+} from '@/composables/useReviewData'
+import { useReviewItemsQuery } from '@/composables/useReviewItemsQuery'
+import type { ReviewItemsQuery } from '@/composables/resourceQueries'
+import { CANONICAL_LABELS, useVocabularyGloss } from '@/composables/useVocabulary'
+import { useAggregation } from '@/composables/useAggregations'
+import { useRun } from '@/composables/useRunDetail'
 
 import ArchiveOtter from './ArchiveOtter.vue'
 import GameLeaderboard from './GameLeaderboard.vue'
@@ -44,6 +43,10 @@ import {
   type GameRoundEvent,
   type GameRoundSize,
 } from './useGameData'
+import type { components } from '@/api/schema'
+
+type ReviewItem = components['schemas']['ReviewItem']
+type CanonicalLabel = components['schemas']['CanonicalLabel']
 
 const { n, t } = useI18n()
 const { session, isSignedIn, retrySession } = useRequireSession()
@@ -58,7 +61,7 @@ const project = useProject(projectId, isSignedIn)
 const projectData = computed(() =>
   retainedReviewData(
     cache,
-    ['projects', projectId.value, session.user?.id ?? 'anonymous'],
+    projectKey(projectId.value, session.user?.id),
     session.canUsePrivateNavigation,
     project.status.value,
     project.data.value,
@@ -76,7 +79,7 @@ const run = useRun(runId, isSignedIn)
 const runData = computed(() =>
   retainedReviewData(
     cache,
-    privateQueryKey(['runs', runId.value], session.user?.id),
+    privateQueryKey(runKey(runId.value), session.user?.id),
     session.canUsePrivateNavigation && projectData.value?.id === projectId.value,
     run.status.value,
     run.data.value,
@@ -86,7 +89,7 @@ const runData = computed(() =>
 const aggregationData = computed(() =>
   retainedReviewData(
     cache,
-    privateQueryKey(['aggregations', aggregationId.value], session.user?.id),
+    privateQueryKey(aggregationKey(aggregationId.value), session.user?.id),
     session.canUsePrivateNavigation && projectData.value?.id === projectId.value,
     aggregation.status.value,
     aggregation.data.value,
@@ -146,21 +149,16 @@ const allPoolOffset = ref(0)
 const nextAllPoolOffset = ref<number | null>(null)
 const roundStarting = ref(false)
 const roundPreparationFailed = ref(false)
-const gameFilters = computed<ReviewFilters>(() => ({
-  queue: 'all',
-  q: '',
+const gameQuery = computed<ReviewItemsQuery>(() => ({
+  aggregation_id: aggregationId.value,
+  certainty_tiers: [],
+  workflow_states: questionPool.value === 'open' ? ['unreviewed'] : [],
+  agreement_tiers: [],
   sort: questionPool.value === 'open' ? 'uncertainty' : 'tei_id',
-  workflowStates: questionPool.value === 'open' ? ['unreviewed'] : [],
-  finalLabel: null,
-  agreementTiers: [],
-  hasAuthorityConflict: null,
-  hasPredictionError: null,
-  methodName: null,
-  methodLabel: null,
-  predictionStatus: null,
+  limit: 50,
 }))
 const queueEnabled = computed(() => isCompleted.value && canReview.value && gameEnabled.value)
-const queue = useReviewItems(aggregationId, gameFilters, queueEnabled)
+const queue = useReviewItemsQuery(gameQuery, queueEnabled)
 const availableItems = computed(() => queue.data.value?.pages.flatMap((page) => page.items) ?? [])
 const allEligibleCount = computed(() =>
   Math.max(snapshot.data.value?.record_count ?? 0, availableItems.value.length),
@@ -1056,23 +1054,19 @@ onBeforeUnmount(() => {
                           <th scope="row">{{ entry.method_name }}</th>
                           <template v-if="entry.prediction">
                             <td>
-                              <VocabBadge
-                                :value="entry.prediction.label"
+                              <PredictionDecision
+                                :prediction="entry.prediction"
                                 :gloss="
                                   entry.prediction.label ? gloss.label(entry.prediction.label) : ''
                                 "
-                                kind="label"
                               />
                             </td>
-                            <td>{{ entry.prediction.status }}</td>
+                            <td><PredictionStatus :status="entry.prediction.status" /></td>
                             <td>
-                              <template v-if="entry.prediction.method_confidence != null">
-                                {{ n(entry.prediction.method_confidence, 'confidence') }}
-                              </template>
-                              <span v-else>{{ t('review.none') }}</span>
+                              <MethodConfidence :value="entry.prediction.method_confidence" />
                             </td>
                           </template>
-                          <td v-else colspan="3">{{ t('review.detail.methods.noPrediction') }}</td>
+                          <td v-else colspan="3"><MissingPrediction /></td>
                         </tr>
                       </tbody>
                     </table>

@@ -145,8 +145,8 @@ provider from [ADR-0031](../docs/decisions/ADR-0031-local-database-authenticatio
 src/
   api/          generated types, typed client, error and CSRF handling
   app/          composition root, router, i18n, sidebar, header, footer, query client
-  components/   base primitives (button, text field, listbox) and domain components (still empty)
-  composables/  reusable query, session, route-context, branding, theme, and locale logic
+  components/   base native fields and data-only domain presenters
+  composables/  shared resource keys, cursor/polling, annotation, query/session, project, theme/locale logic
   features/     public/auth, project/data, task/run, review/game, evaluation/export, settings/admin views
   locales/      message catalogues, one JSON file per locale
   stores/       Pinia stores for shared client state: the session and its roles

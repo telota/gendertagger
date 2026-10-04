@@ -5,8 +5,13 @@ import { RouterLink, type RouteLocationRaw } from 'vue-router'
 
 import AppProgress from '@/components/base/AppProgress.vue'
 
-import { TERMINAL_METHOD_EXECUTION_STATUSES, type MethodExecutionSummary } from './useRunDetail'
-import { useStatusLabel } from './useStatusLabel'
+import { TERMINAL_METHOD_EXECUTION_STATUSES } from '@/composables/useRunDetail'
+import LifecycleStatus from '@/components/domain/LifecycleStatus.vue'
+import JsonData from '@/components/domain/JsonData.vue'
+import ProvenanceValue from '@/components/domain/ProvenanceValue.vue'
+import type { components } from '@/api/schema'
+
+type MethodExecutionSummary = components['schemas']['MethodExecutionSummary']
 
 const props = withDefaults(
   defineProps<{
@@ -18,9 +23,6 @@ const props = withDefaults(
 )
 
 const { t, n } = useI18n()
-const label = useStatusLabel()
-
-const statusLabel = computed(() => label(props.execution.status))
 const hasFinalResults = computed(() =>
   TERMINAL_METHOD_EXECUTION_STATUSES.has(props.execution.status),
 )
@@ -60,7 +62,6 @@ const provenanceRows = computed<ProvenanceRow[]>(() => {
   }
   return always
 })
-const resolvedConfig = computed(() => JSON.stringify(props.execution.resolved_config, null, 2))
 </script>
 
 <template>
@@ -72,9 +73,7 @@ const resolvedConfig = computed(() => JSON.stringify(props.execution.resolved_co
         </RouterLink>
         <template v-else>{{ execution.method_name }}</template>
       </h3>
-      <span class="execution-status" :class="`execution-status--${execution.status}`">{{
-        statusLabel
-      }}</span>
+      <LifecycleStatus class="execution-status" :status="execution.status" />
     </div>
     <AppProgress
       v-if="!compact"
@@ -102,14 +101,16 @@ const resolvedConfig = computed(() => JSON.stringify(props.execution.resolved_co
         >
           <dt>{{ row.label }}</dt>
           <dd>
-            <code class="execution-provenance-value">{{ row.value }}</code>
+            <ProvenanceValue :value="row.value" />
           </dd>
         </div>
       </dl>
-      <details class="execution-provenance-config-disclosure">
-        <summary>{{ t('runs.provenance.resolvedConfig') }}</summary>
-        <pre class="execution-provenance-config">{{ resolvedConfig }}</pre>
-      </details>
+      <JsonData
+        class="execution-provenance-config-disclosure"
+        :value="execution.resolved_config"
+        :summary="t('runs.provenance.resolvedConfig')"
+        compact
+      />
     </details>
     <div v-if="execution.failure_class || execution.failure_diagnostic" class="execution-failure">
       <p v-if="execution.failure_class" class="execution-failure-class">
@@ -156,15 +157,6 @@ const resolvedConfig = computed(() => JSON.stringify(props.execution.resolved_co
   font-weight: var(--weight-semibold);
 }
 
-.execution-status--completed {
-  color: var(--good);
-}
-
-.execution-status--failed,
-.execution-status--completed_with_errors {
-  color: var(--critical-text);
-}
-
 .execution-counts {
   margin: 0;
   color: var(--text-secondary);
@@ -187,21 +179,8 @@ const resolvedConfig = computed(() => JSON.stringify(props.execution.resolved_co
   margin: var(--space-2) 0;
 }
 
-.execution-provenance-value {
-  font-size: var(--font-size-small);
-}
-
 .execution-provenance-config-disclosure {
   margin-block-start: var(--space-2);
-}
-
-.execution-provenance-config {
-  margin: var(--space-2) 0 0;
-  padding: var(--space-3);
-  overflow-x: auto;
-  border-radius: var(--radius-input);
-  background: var(--surface-1);
-  font-size: var(--font-size-small);
 }
 
 .execution-failure {

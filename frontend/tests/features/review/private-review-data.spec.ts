@@ -12,10 +12,10 @@ import {
   usePersonRecord,
   useResultPredictions,
   useReviewItemByPerson,
-  useReviewItems,
   useReviewSummary,
-} from '@/features/review/useReviewData'
+} from '@/composables/useReviewData'
 import type { ReviewFilters } from '@/features/review/useReviewFilters'
+import { useReviewItems } from '@/features/review/useReviewItems'
 import { useSessionStore } from '@/stores/session'
 
 import { waitFor } from '../../helpers/wait'

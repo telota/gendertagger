@@ -10,7 +10,7 @@ import { useSessionStore } from '@/stores/session'
 
 import SnapshotRecords from './SnapshotRecords.vue'
 import SnapshotStatisticsPanel from './SnapshotStatisticsPanel.vue'
-import { useImportedSnapshot } from './useSnapshotData'
+import { useImportedSnapshot } from '@/composables/useSnapshotData'
 import { useSnapshotSourceMembers } from './useSnapshots'
 
 const { t, d, n } = useI18n()

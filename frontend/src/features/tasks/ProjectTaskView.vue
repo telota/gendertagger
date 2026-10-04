@@ -5,11 +5,11 @@ import { useRoute, useRouter } from 'vue-router'
 
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
-import { useProjectIdentity } from '@/app/useProjectIdentity'
+import { useProjectIdentity } from '@/composables/useProjectIdentity'
 import { useRequireSession } from '@/composables/useRequireSession'
-import { hasProjectRole } from '@/features/projects/projectRoles'
-import { useImportedSnapshot } from '@/features/projects/useSnapshotData'
-import { useStatusLabel } from '@/features/runs/useStatusLabel'
+import { hasProjectRole } from '@/composables/projectRoles'
+import { useImportedSnapshot } from '@/composables/useSnapshotData'
+import { useStatusLabel } from '@/composables/useStatusLabel'
 
 import {
   useTaskSnapshots,

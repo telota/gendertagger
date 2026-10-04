@@ -148,6 +148,24 @@ The following are built once and reused everywhere, per
 recovery, `413` upload limits, the `202`-poll lifecycle, SSE with reconnect, cursor pagination, role checks,
 and CSRF attachment.
 
+### Defining shared modules
+
+- `composables/resourceQueries.ts` owns resource/principal key tuples and invalidation prefixes;
+  `queryData.ts` owns retained-current-data checks. Reads, writes, cancellation, and invalidation import
+  these defining modules rather than reconstructing literal layouts or importing a feature's helpers.
+- `cursorQuery.ts` owns opaque cursor continuation and live-list polling. Polling callers supply the
+  generated canonical page type, explicit live predicate, interval, and error policy: snapshots retain
+  their five-second stop-on-error policy; artifact lists retain their two-second policy.
+- Shared snapshot/run/artifact/review reads, vocabulary, annotation mutation/retention, project roles,
+  and project identity live under `composables/`. Feature modules retain route/filter orchestration;
+  game mode owns its exact open/full queue tuple through the shared review-items query.
+- `components/domain/` owns vocabulary/person presentation, queue descriptors, lifecycle status,
+  JSON/provenance/selected-execution presentation, and prediction/status/confidence/missing-output
+  cells. These receive server data, do not fetch it, and never reinterpret `unknown`, `abstain`, `error`,
+  missing output, zero confidence, or uncalibrated method-specific confidence.
+- `features/review/AnnotationHistory.vue` shares review-local append-only history rendering. Ordering,
+  supersession, revisions, and attribution remain server-authoritative.
+
 ## State ownership
 
 - **Server state** lives in the query/cache layer, keyed by resource and query. It is never copied into a

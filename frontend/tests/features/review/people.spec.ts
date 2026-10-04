@@ -131,9 +131,9 @@ describe.each(['de', 'en'] as const)('person browser in %s', (locale: AppLocale)
 
   it('shows the whole chain of decisions with who, when, which revision and what it replaced', async () => {
     const wrapper = await mountPeople(newServer())
-    await waitFor(() => expect(wrapper.find('.detail-history').exists()).toBe(true))
+    await waitFor(() => expect(wrapper.find('.detail-history-disclosure ol').exists()).toBe(true))
 
-    const entries = wrapper.findAll('.detail-history-entry')
+    const entries = wrapper.findAll('.detail-history-disclosure ol > li')
     expect(entries).toHaveLength(2)
 
     // Newest first: the current decision replaces the one below it.

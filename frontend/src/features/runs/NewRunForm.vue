@@ -6,8 +6,12 @@ import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
 import { useDraftRegistration } from '@/composables/useDraftNavigation'
 
-import { useMethodList } from './useMethods'
-import { useCreateRun, type MethodRunConfig, type Run } from './useRuns'
+import { useMethodList } from '@/composables/useMethods'
+import { useCreateRun } from '@/composables/useRuns'
+import type { components } from '@/api/schema'
+
+type MethodRunConfig = components['schemas']['MethodRunConfig']
+type Run = components['schemas']['Run']
 
 const props = defineProps<{ snapshotId: string }>()
 const emit = defineEmits<{ created: [run: Run] }>()

@@ -4,11 +4,7 @@ import { nextTick } from 'vue'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { createApiClient } from '@/api'
-import {
-  userPreferencesQueryKey,
-  type UserPreferences,
-  type UserPreferencesUpdate,
-} from '@/composables/useUserPreferences'
+import type { UserPreferences, UserPreferencesUpdate } from '@/composables/useUserPreferences'
 import de from '@/locales/de.json'
 import en from '@/locales/en.json'
 import { useSessionStore } from '@/stores/session'
@@ -251,12 +247,18 @@ describe.each(['de', 'en'] as const)('desktop sidebar collapse in %s', (locale) 
       })
     wrapper = await mountApplicationAt('/projects', locale, client)
     const queryClient = wrapper.vm.$.appContext.app.runWithContext(() => useQueryClient())
+    const savedPreferences = { ...state.saved }
     await wrapper.get('.sidebar-collapse-button').trigger('click')
     await waitFor(() => expect(state.patches).toHaveLength(1))
     useSessionStore().user = null
     await flushPromises()
     expect(wrapper.find('aside').exists()).toBe(false)
-    expect(queryClient.getQueryData(userPreferencesQueryKey(USER.id))).toBeUndefined()
+    expect(
+      queryClient
+        .getQueryCache()
+        .getAll()
+        .map((query) => query.state.data),
+    ).not.toContainEqual(savedPreferences)
 
     finish()
     await flushPromises()
@@ -270,7 +272,12 @@ describe.each(['de', 'en'] as const)('desktop sidebar collapse in %s', (locale) 
       messages[locale].theme.dark,
     )
     expect(document.documentElement.dataset.theme).toBe('dark')
-    expect(queryClient.getQueryData(userPreferencesQueryKey(USER.id))).toBeUndefined()
+    const cachedData = queryClient
+      .getQueryCache()
+      .getAll()
+      .map((query) => query.state.data)
+    expect(cachedData).not.toContainEqual(savedPreferences)
+    expect(cachedData).not.toContainEqual(state.saved)
     expect(localStorage.getItem('gendertagger.theme')).toBe('dark')
     expect(localStorage.getItem('gendertagger.sidebar.collapsed')).toBeNull()
     expect(state.patches).toEqual([{ expected_revision: 3, desktop_sidebar_collapsed: true }])

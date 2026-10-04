@@ -5,12 +5,10 @@ import { useRouter } from 'vue-router'
 
 import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
+import AppSelectField from '@/components/base/AppSelectField.vue'
 import { useDraftRegistration } from '@/composables/useDraftNavigation'
-import {
-  AGGREGATABLE_EXECUTION_STATUSES,
-  useAggregationList,
-} from '@/features/runs/useAggregations'
-import { useRunExecutions } from '@/features/runs/useRunDetail'
+import { AGGREGATABLE_EXECUTION_STATUSES, useAggregationList } from '@/composables/useAggregations'
+import { useRunExecutions } from '@/composables/useRunDetail'
 
 import { useCreateEvaluation, type EvaluationExecution } from './useEvaluations'
 
@@ -174,25 +172,29 @@ async function submit(): Promise<void> {
             </div>
           </fieldset>
 
-          <div class="new-evaluation-field">
-            <label for="evaluate-aggregation">{{ t('evaluation.new.aggregation') }}</label>
-            <select id="evaluate-aggregation" v-model="aggregationChoice">
-              <option value="">{{ t('evaluation.new.noAggregation') }}</option>
-              <option
-                v-for="aggregation in completedAggregations"
-                :key="aggregation.id"
-                :value="aggregation.id"
-              >
-                {{
-                  t('evaluation.new.aggregationOption', {
-                    strategy: aggregation.strategy ?? '',
-                    hash: aggregation.config_sha256.slice(0, 8),
-                  })
-                }}
-              </option>
-            </select>
-            <p class="new-evaluation-hint">{{ t('evaluation.new.aggregationHint') }}</p>
-          </div>
+          <AppSelectField
+            id="evaluate-aggregation"
+            v-model="aggregationChoice"
+            class="new-evaluation-field"
+            :label="t('evaluation.new.aggregation')"
+          >
+            <option value="">{{ t('evaluation.new.noAggregation') }}</option>
+            <option
+              v-for="aggregation in completedAggregations"
+              :key="aggregation.id"
+              :value="aggregation.id"
+            >
+              {{
+                t('evaluation.new.aggregationOption', {
+                  strategy: aggregation.strategy ?? '',
+                  hash: aggregation.config_sha256.slice(0, 8),
+                })
+              }}
+            </option>
+            <template #description>
+              <p class="new-evaluation-hint">{{ t('evaluation.new.aggregationHint') }}</p>
+            </template>
+          </AppSelectField>
         </div>
       </details>
 
@@ -290,6 +292,7 @@ async function submit(): Promise<void> {
   flex-direction: column;
   gap: var(--space-1);
   font-size: var(--font-size-small);
+  --field-label-color: var(--text-primary);
 }
 
 .new-evaluation-load-error {

@@ -1,13 +1,15 @@
 import { useQuery } from '@tanstack/vue-query'
 import { ref, type Ref } from 'vue'
 
-import { unwrap, type components } from '@/api'
+import { unwrap } from '@/api'
+import type { components } from '@/api/schema'
 import { useApiClient } from '@/composables/useApiClient'
 import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
+import { runKey, runExecutionsKey } from '@/composables/resourceQueries'
 
-import type { Run } from './useRuns'
+type Run = components['schemas']['Run']
 
-export type MethodExecutionSummary = components['schemas']['MethodExecutionSummary']
+type MethodExecutionSummary = components['schemas']['MethodExecutionSummary']
 
 /** No further state change can follow: the stream is closed and nothing needs polling. */
 export const TERMINAL_RUN_STATUSES: ReadonlySet<Run['status']> = new Set([
@@ -19,14 +21,6 @@ export const TERMINAL_RUN_STATUSES: ReadonlySet<Run['status']> = new Set([
 
 export const TERMINAL_METHOD_EXECUTION_STATUSES: ReadonlySet<MethodExecutionSummary['status']> =
   new Set(['completed', 'completed_with_errors', 'failed', 'cancelled'])
-
-export function runKey(runId: string) {
-  return ['runs', runId] as const
-}
-
-export function runExecutionsKey(runId: string) {
-  return ['runs', runId, 'executions'] as const
-}
 
 /** `GET /runs/{run_id}`: the persisted run, which is authoritative over anything streamed. */
 export function useRun(runId: Ref<string>, enabled: Ref<boolean> = ref(true)) {

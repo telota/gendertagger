@@ -5,24 +5,28 @@ import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/base/AppButton.vue'
 import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
+import PredictionDecision from '@/components/domain/PredictionDecision.vue'
+import PredictionStatus from '@/components/domain/PredictionStatus.vue'
+import MethodConfidence from '@/components/domain/MethodConfidence.vue'
+import MissingPrediction from '@/components/domain/MissingPrediction.vue'
+import AnnotationHistory from './AnnotationHistory.vue'
 
 import {
   useAnnotationHistory,
   usePersonRecord,
   useResultPredictions,
-  type ResultMethodPrediction,
-  type ReviewItem,
-} from './useReviewData'
-import {
-  CANONICAL_LABELS,
-  useVocabularyGloss,
-  type CanonicalLabel,
-  type CertaintyTier,
-} from './useVocabulary'
-import PersonRecordDetails from './PersonRecordDetails.vue'
+} from '@/composables/useReviewData'
+import { CANONICAL_LABELS, useVocabularyGloss } from '@/composables/useVocabulary'
+import PersonRecordDetails from '@/components/domain/PersonRecordDetails.vue'
 import ReviewDecision from './ReviewDecision.vue'
-import { reviewItemName } from './reviewItemName'
-import VocabBadge from './VocabBadge.vue'
+import { reviewItemName } from '@/components/domain/reviewItemName'
+import VocabBadge from '@/components/domain/VocabBadge.vue'
+import type { components } from '@/api/schema'
+
+type ResultMethodPrediction = components['schemas']['ResultMethodPrediction']
+type ReviewItem = components['schemas']['ReviewItem']
+type CanonicalLabel = components['schemas']['CanonicalLabel']
+type CertaintyTier = components['schemas']['CertaintyTier']
 
 const props = withDefaults(
   defineProps<{
@@ -50,7 +54,7 @@ const props = withDefaults(
 const emit = defineEmits<{ previous: []; next: []; navigationFocusRestored: [] }>()
 
 const navigation = ref<HTMLElement | null>(null)
-const { t, d, n } = useI18n()
+const { t, n } = useI18n()
 const gloss = useVocabularyGloss()
 
 const aggregationId = computed(() => props.item.aggregation_execution_id)
@@ -327,30 +331,23 @@ function methodGroupLabel(group: MethodPredictionGroup): string {
                         <th scope="row">{{ entry.method_name }}</th>
                         <template v-if="entry.prediction">
                           <td>
-                            <VocabBadge :value="entry.prediction.label" kind="label" />
-                            <span v-if="entry.prediction.raw_label" class="detail-raw">{{
-                              t('review.detail.methods.raw', { raw: entry.prediction.raw_label })
-                            }}</span>
+                            <PredictionDecision :prediction="entry.prediction" raw />
                           </td>
                           <td>
-                            <span
-                              class="detail-status"
-                              :class="`detail-status--${entry.prediction.status}`"
-                              >{{ entry.prediction.status }}</span
-                            >
-                            <span class="detail-gloss">{{
-                              gloss.prediction(entry.prediction.status)
-                            }}</span>
+                            <PredictionStatus
+                              :status="entry.prediction.status"
+                              :gloss="gloss.prediction(entry.prediction.status)"
+                              display="token"
+                            />
                           </td>
                           <td>
-                            <template v-if="entry.prediction.method_confidence != null">
-                              {{ n(entry.prediction.method_confidence, 'confidence') }}
-                            </template>
-                            <span v-else class="detail-muted">{{ t('review.none') }}</span>
+                            <MethodConfidence :value="entry.prediction.method_confidence">
+                              <span class="detail-muted">{{ t('review.none') }}</span>
+                            </MethodConfidence>
                           </td>
                         </template>
                         <td v-else colspan="3" class="detail-muted">
-                          {{ t('review.detail.methods.noPrediction') }}
+                          <MissingPrediction />
                         </td>
                       </tr>
                     </tbody>
@@ -377,55 +374,7 @@ function methodGroupLabel(group: MethodPredictionGroup): string {
               t('review.retry')
             }}</AppButton>
           </div>
-          <template v-else-if="history.data.value">
-            <p v-if="history.data.value.annotations.length === 0" class="detail-muted">
-              {{ t('review.detail.history.empty') }}
-            </p>
-            <template v-else>
-              <p class="detail-note">
-                {{
-                  t('review.detail.history.revision', {
-                    revision: n(history.data.value.revision, 'integer'),
-                  })
-                }}
-              </p>
-              <ol class="detail-history">
-                <li
-                  v-for="(entry, index) in history.data.value.annotations"
-                  :key="entry.id"
-                  class="detail-history-entry"
-                  :class="{ 'detail-history-entry--current': index === 0 }"
-                >
-                  <p class="detail-history-head">
-                    <span class="detail-revision-no">{{
-                      t('review.detail.history.entry', {
-                        revision: n(entry.resulting_revision, 'integer'),
-                      })
-                    }}</span>
-                    <span class="detail-token">{{ entry.action }}</span>
-                    <VocabBadge v-if="entry.label" :value="entry.label" kind="label" />
-                    <span v-if="index === 0" class="detail-current">{{
-                      t('review.detail.history.current')
-                    }}</span>
-                  </p>
-                  <p class="detail-history-who">
-                    <span>{{
-                      t('review.detail.history.by', {
-                        name: entry.reviewer_display_name,
-                        when: d(new Date(entry.created_at), 'timestamp'),
-                      })
-                    }}</span>
-                    <span v-if="entry.supersedes_annotation_id" class="detail-gloss">{{
-                      t('review.detail.history.replaces', {
-                        revision: n(entry.resulting_revision - 1, 'integer'),
-                      })
-                    }}</span>
-                  </p>
-                  <p v-if="entry.comment" class="detail-comment">{{ entry.comment }}</p>
-                </li>
-              </ol>
-            </template>
-          </template>
+          <AnnotationHistory v-else-if="history.data.value" :history="history.data.value" review />
         </div>
       </details>
     </section>
@@ -617,22 +566,7 @@ function methodGroupLabel(group: MethodPredictionGroup): string {
   font-weight: var(--weight-semibold);
 }
 
-.detail-raw,
-.detail-gloss {
-  margin-left: var(--space-2);
-  color: var(--text-secondary);
-}
-
-.detail-status {
-  font-family: var(--font-mono, ui-monospace, monospace);
-}
-
-.detail-status--error {
-  color: var(--critical-text);
-}
-
-.detail-muted,
-.detail-note {
+.detail-muted {
   margin: 0;
   color: var(--text-secondary);
   font-size: var(--font-size-small);
@@ -678,55 +612,5 @@ function methodGroupLabel(group: MethodPredictionGroup): string {
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3) var(--space-3);
-}
-.detail-history {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0 0 0 var(--space-4);
-  border-left: 2px solid var(--grid);
-  list-style: none;
-}
-
-.detail-history-entry--current .detail-token {
-  color: var(--accent);
-}
-
-.detail-revision-no {
-  color: var(--text-secondary);
-  font-size: var(--font-size-small);
-}
-
-.detail-current {
-  color: var(--accent);
-  font-size: var(--font-size-small);
-}
-
-.detail-history-who {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: var(--font-size-small);
-}
-
-.detail-history-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2);
-  margin: 0;
-}
-
-.detail-token {
-  font-family: var(--font-mono, ui-monospace, monospace);
-  font-weight: var(--weight-semibold);
-}
-
-.detail-comment {
-  margin: var(--space-1) 0 0;
-  color: var(--text-secondary);
 }
 </style>

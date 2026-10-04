@@ -8,9 +8,9 @@ import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useSessionStore } from '@/stores/session'
 
-import { hasProjectRole } from './projectRoles'
+import { hasProjectRole } from '@/composables/projectRoles'
 import SnapshotImportForm from './SnapshotImportForm.vue'
-import { useProject } from './useProjects'
+import { useProject } from '@/composables/useProjects'
 
 const { t } = useI18n()
 const route = useRoute()

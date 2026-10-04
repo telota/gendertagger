@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
-import { QUEUES, type QueueCount, type QueueId } from './useReviewFilters'
+import { QUEUES, type QueueCount, type QueueId } from '@/components/domain/reviewQueues'
 
 defineProps<{
   queue: QueueId

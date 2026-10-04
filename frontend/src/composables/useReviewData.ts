@@ -1,101 +1,23 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/vue-query'
+import { useQuery } from '@tanstack/vue-query'
 import { ref, type Ref } from 'vue'
 
-import { unwrap, type components, type paths } from '@/api'
+import { unwrap } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
 import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
-
-import { QUEUE_TIERS, type ReviewFilters } from './useReviewFilters'
-
-export type ReviewItem = components['schemas']['ReviewItem']
-export type ReviewSummary = components['schemas']['ReviewSummary']
-export type ResultMethodPrediction = components['schemas']['ResultMethodPrediction']
-export type AnnotationHistory = components['schemas']['AnnotationHistory']
-export type AttributedAnnotation = components['schemas']['AttributedAnnotation']
-export type PersonRecord = components['schemas']['PersonRecord']
-
-const PAGE_SIZE = 50
-
-type ReviewItemsQuery = NonNullable<paths['/api/v1/review-items']['get']['parameters']['query']>
-
-/**
- * Everything the server needs except the cursor: the tuple a cursor is only valid for. Optional
- * parameters are left out rather than set to `undefined` (exactOptionalPropertyTypes), and
- * `method_label` / `prediction_status` are sent only with a `method_name`, as the server requires.
- */
-function serverQuery(aggregationId: string, filters: ReviewFilters): ReviewItemsQuery {
-  const query: ReviewItemsQuery = {
-    aggregation_id: aggregationId,
-    certainty_tiers: [...QUEUE_TIERS[filters.queue]],
-    workflow_states: [...filters.workflowStates],
-    agreement_tiers: [...filters.agreementTiers],
-    sort: filters.sort,
-    limit: PAGE_SIZE,
-  }
-  if (filters.finalLabel) query.final_label = filters.finalLabel
-  if (filters.hasAuthorityConflict !== null)
-    query.has_authority_conflict = filters.hasAuthorityConflict
-  if (filters.hasPredictionError !== null) query.has_prediction_error = filters.hasPredictionError
-  if (filters.methodName) {
-    query.method_name = filters.methodName
-    if (filters.methodLabel) query.method_label = filters.methodLabel
-    if (filters.predictionStatus) query.prediction_status = filters.predictionStatus
-  }
-  if (filters.q.trim() !== '') query.q = filters.q.trim()
-  return query
-}
-
-export function reviewItemsKey(aggregationId: string, filters: ReviewFilters) {
-  return [
-    'aggregations',
-    aggregationId,
-    'review-items',
-    serverQuery(aggregationId, filters),
-  ] as const
-}
-
-/**
- * `GET /review-items` with the complete server-side filter set and cursor pagination. The filter
- * tuple is part of the query key, so a new filter is a new list from its first page and a cursor
- * is never reused across tuples.
- */
-export function useReviewItems(
-  aggregationId: Ref<string>,
-  filters: Ref<ReviewFilters>,
-  enabled: Ref<boolean> = ref(true),
-) {
-  const client = useApiClient()
-
-  const scope = usePrivateQueryScope(enabled)
-  const key = scope.key(() => reviewItemsKey(aggregationId.value, filters.value))
-  const query = useInfiniteQuery({
-    queryKey: key,
-    queryFn: ({ pageParam, signal }) =>
-      unwrap(
-        client.GET('/api/v1/review-items', {
-          params: {
-            query: {
-              ...serverQuery(aggregationId.value, filters.value),
-              ...(pageParam === null ? {} : { cursor: pageParam }),
-            },
-          },
-          signal,
-        }),
-      ),
-    initialPageParam: null as string | null,
-    getNextPageParam: (lastPage) =>
-      lastPage.has_more ? (lastPage.next_cursor ?? null) : undefined,
-    enabled: scope.canRead,
-  })
-  return { ...query, data: scope.data(query, key) }
-}
+import {
+  annotationHistoryKey,
+  reviewItemKey,
+  reviewSummaryKey,
+  resultPredictionsKey,
+  personRecordKey,
+} from '@/composables/resourceQueries'
 
 /** `GET /aggregations/{id}/review-summary`: the counts behind the queue badges (never page counts). */
 export function useReviewSummary(aggregationId: Ref<string>, enabled: Ref<boolean> = ref(true)) {
   const client = useApiClient()
 
   const scope = usePrivateQueryScope(enabled)
-  const key = scope.key(() => ['aggregations', aggregationId.value, 'review-summary'] as const)
+  const key = scope.key(() => reviewSummaryKey(aggregationId.value))
   const query = useQuery({
     queryKey: key,
     queryFn: ({ signal }) =>
@@ -122,9 +44,7 @@ export function useReviewItemByPerson(
   const client = useApiClient()
 
   const scope = usePrivateQueryScope(() => enabled.value && teiId.value !== null)
-  const key = scope.key(
-    () => ['aggregations', aggregationId.value, 'review-item', teiId.value] as const,
-  )
+  const key = scope.key(() => reviewItemKey(aggregationId.value, teiId.value))
   const query = useQuery({
     queryKey: key,
     queryFn: async ({ queryKey, signal }) => {
@@ -150,9 +70,7 @@ export function useResultPredictions(aggregationId: Ref<string>, resultId: Ref<s
   const client = useApiClient()
 
   const scope = usePrivateQueryScope(() => resultId.value !== null)
-  const key = scope.key(
-    () => ['aggregations', aggregationId.value, 'results', resultId.value, 'predictions'] as const,
-  )
+  const key = scope.key(() => resultPredictionsKey(aggregationId.value, resultId.value))
   const query = useQuery({
     queryKey: key,
     queryFn: ({ signal }) => {
@@ -168,10 +86,6 @@ export function useResultPredictions(aggregationId: Ref<string>, resultId: Ref<s
     enabled: scope.canRead,
   })
   return { ...query, data: scope.data(query, key) }
-}
-
-export function annotationHistoryKey(snapshotId: string, teiId: string) {
-  return ['snapshots', snapshotId, 'annotations', teiId] as const
 }
 
 /**
@@ -206,7 +120,7 @@ export function usePersonRecord(snapshotId: Ref<string | null>, teiId: Ref<strin
   const client = useApiClient()
 
   const scope = usePrivateQueryScope(() => snapshotId.value !== null && teiId.value !== null)
-  const key = scope.key(() => ['snapshots', snapshotId.value, 'people', teiId.value] as const)
+  const key = scope.key(() => personRecordKey(snapshotId.value, teiId.value))
   const query = useQuery({
     queryKey: key,
     queryFn: ({ signal }) => {

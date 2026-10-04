@@ -4,9 +4,13 @@ import { computed, onScopeDispose, ref, watch, type Ref } from 'vue'
 import { ApiError, unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
 import { useDebouncedValue } from '@/composables/useDebouncedValue'
+import { cursorQueryOptions } from '@/composables/cursorQuery'
+import {
+  PROJECTS_QUERY_KEY,
+  projectCreationTeamsKey,
+  projectCreationRosterKey,
+} from '@/composables/resourceQueries'
 
-export type ProjectTeam = components['schemas']['TeamSummary']
-export type ProjectManagerCandidate = components['schemas']['TeamMember']
 export type ProjectCreationError =
   | 'forbidden'
   | 'resource_not_found'
@@ -17,7 +21,6 @@ export type ProjectCreationError =
   | 'unexpected'
 
 const SEARCH_DEBOUNCE_MS = 300
-const PROJECTS_QUERY_KEY = ['projects'] as const
 
 function errorCode(error: unknown): ProjectCreationError {
   if (!(error instanceof ApiError)) return 'unexpected'
@@ -55,15 +58,7 @@ export function useProjectCreation(
   let epoch = 0
 
   const teamsQuery = useInfiniteQuery({
-    queryKey: computed(
-      () =>
-        [
-          'project-creation',
-          'teams',
-          principalId.value ?? 'anonymous',
-          teamSearch.value.trim(),
-        ] as const,
-    ),
+    queryKey: computed(() => projectCreationTeamsKey(principalId.value, teamSearch.value.trim())),
     queryFn: ({ pageParam, signal, queryKey }) =>
       unwrap(
         client.GET('/api/v1/teams', {
@@ -71,21 +66,12 @@ export function useProjectCreation(
           signal,
         }),
       ),
-    initialPageParam: null as string | null,
-    getNextPageParam: (page) => (page.has_more ? (page.next_cursor ?? null) : undefined),
+    ...cursorQueryOptions,
     enabled,
   })
 
   const managerQuery = useInfiniteQuery({
-    queryKey: computed(
-      () =>
-        [
-          'project-creation',
-          'team-roster',
-          principalId.value ?? 'anonymous',
-          selectedTeamId.value ?? 'none',
-        ] as const,
-    ),
+    queryKey: computed(() => projectCreationRosterKey(principalId.value, selectedTeamId.value)),
     queryFn: ({ pageParam, signal, queryKey }) =>
       unwrap(
         client.GET('/api/v1/admin/teams/{team_id}/members', {
@@ -96,8 +82,7 @@ export function useProjectCreation(
           signal,
         }),
       ),
-    initialPageParam: null as string | null,
-    getNextPageParam: (page) => (page.has_more ? (page.next_cursor ?? null) : undefined),
+    ...cursorQueryOptions,
     enabled: managerEnabled,
   })
 
@@ -137,7 +122,7 @@ export function useProjectCreation(
     const principal = principalId.value
     if (principal !== null)
       void queryClient.cancelQueries({
-        queryKey: ['project-creation', 'teams', principal, previous.trim()],
+        queryKey: projectCreationTeamsKey(principal, previous.trim()),
       })
   })
   watch([principalId, canCreate, selectedTeamId], clear)

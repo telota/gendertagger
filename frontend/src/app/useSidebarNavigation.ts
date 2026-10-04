@@ -15,12 +15,12 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, type RouteLocationRaw } from 'vue-router'
 
 import { useAdminAccess } from '@/composables/useAdminAccess'
-import { hasProjectRole } from '@/features/projects/projectRoles'
+import { hasProjectRole } from '@/composables/projectRoles'
 import { useProjectDataAvailability } from '@/features/tasks/useTaskData'
 
 import { useProjectNavigation } from './useProjectNavigation'
 
-export interface SidebarNavigationItem {
+interface SidebarNavigationItem {
   id: string
   label: string
   icon: Component

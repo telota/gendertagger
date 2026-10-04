@@ -1,23 +1,20 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
-import { useStatusLabel } from '@/features/runs/useStatusLabel'
+import LifecycleStatus from '@/components/domain/LifecycleStatus.vue'
 
 import type { ExportExecution } from './useExports'
 
-const props = defineProps<{ item: ExportExecution; projectId: string }>()
+defineProps<{ item: ExportExecution; projectId: string }>()
 
 const { t, d } = useI18n()
-const label = useStatusLabel()
-const statusLabel = computed(() => label(props.item.status))
 </script>
 
 <template>
   <li class="export app-resource-card">
     <div class="export-head">
-      <span class="export-status" :class="`export-status--${item.status}`">{{ statusLabel }}</span>
+      <LifecycleStatus class="export-status" :status="item.status" />
       <time :datetime="item.created_at" class="export-created">{{
         d(new Date(item.created_at), 'timestamp')
       }}</time>
@@ -61,14 +58,6 @@ const statusLabel = computed(() => label(props.item.status))
 
 .export-status {
   font-weight: var(--weight-semibold);
-}
-
-.export-status--completed {
-  color: var(--good);
-}
-
-.export-status--failed {
-  color: var(--critical-text);
 }
 
 .export-created {

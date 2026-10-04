@@ -5,10 +5,12 @@ import { useRouter } from 'vue-router'
 
 import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
+import AppSelectField from '@/components/base/AppSelectField.vue'
+import AppTextField from '@/components/base/AppTextField.vue'
 import { useDraftRegistration } from '@/composables/useDraftNavigation'
-import { useSnapshotStatus } from '@/features/projects/useSnapshotImport'
-import { useAggregationList } from '@/features/runs/useAggregations'
-import { useRun } from '@/features/runs/useRunDetail'
+import { useSnapshotStatus } from '@/composables/useSnapshotImport'
+import { useAggregationList } from '@/composables/useAggregations'
+import { useRun } from '@/composables/useRunDetail'
 
 import { useCreateExport, type ExportFormat, type LabelSourcePolicy } from './useExports'
 
@@ -156,19 +158,21 @@ async function submit(): Promise<void> {
       {{ t('export.new.noAggregation') }}
     </p>
     <template v-else>
-      <div class="new-export-field">
-        <label for="export-aggregation">{{ t('export.new.aggregation') }}</label>
-        <select id="export-aggregation" v-model="aggregationId">
-          <option v-for="aggregation in completed" :key="aggregation.id" :value="aggregation.id">
-            {{
-              t('export.new.aggregationOption', {
-                strategy: aggregation.strategy ?? '',
-                hash: aggregation.config_sha256.slice(0, 8),
-              })
-            }}
-          </option>
-        </select>
-      </div>
+      <AppSelectField
+        id="export-aggregation"
+        v-model="aggregationId"
+        class="new-export-field"
+        :label="t('export.new.aggregation')"
+      >
+        <option v-for="aggregation in completed" :key="aggregation.id" :value="aggregation.id">
+          {{
+            t('export.new.aggregationOption', {
+              strategy: aggregation.strategy ?? '',
+              hash: aggregation.config_sha256.slice(0, 8),
+            })
+          }}
+        </option>
+      </AppSelectField>
 
       <fieldset class="new-export-field">
         <legend>{{ t('export.new.format') }}</legend>
@@ -237,25 +241,22 @@ async function submit(): Promise<void> {
               <span class="new-export-label">{{ t('export.new.profile') }}</span>
               <span class="new-export-token">{{ TEI_PROFILE }}</span>
             </div>
-            <div class="new-export-field">
-              <label for="export-resp">{{ t('export.new.resp') }}</label>
-              <input
-                id="export-resp"
-                v-model="respId"
-                type="text"
-                autocomplete="off"
-                :aria-invalid="!respValid"
-                :aria-describedby="
-                  respValid ? 'export-resp-hint' : 'export-resp-hint export-resp-error'
-                "
-              />
-              <p id="export-resp-hint" class="new-export-hint">
-                {{ t('export.new.respHint') }}
-              </p>
-              <p v-if="!respValid" id="export-resp-error" role="alert" class="new-export-error">
-                {{ t('export.new.respInvalid') }}
-              </p>
-            </div>
+            <AppTextField
+              id="export-resp"
+              v-model="respId"
+              class="new-export-field"
+              :label="t('export.new.resp')"
+              autocomplete="off"
+              :aria-invalid="!respValid"
+              aria-describedby="export-resp-hint"
+              :error-message="respValid ? undefined : t('export.new.respInvalid')"
+            >
+              <template #description>
+                <p id="export-resp-hint" class="new-export-hint">
+                  {{ t('export.new.respHint') }}
+                </p>
+              </template>
+            </AppTextField>
           </template>
         </div>
       </details>
@@ -296,6 +297,8 @@ async function submit(): Promise<void> {
   padding: 0;
   border: 0;
   font-size: var(--font-size-small);
+  --field-label-color: var(--text-primary);
+  --field-error-size: inherit;
 }
 
 .new-export-field legend {

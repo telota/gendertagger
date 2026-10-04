@@ -1,41 +1,15 @@
-import { useInfiniteQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
+import { useInfiniteQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, onScopeDispose, watch, type Ref } from 'vue'
 
 import { unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
 import { useDebouncedValue } from '@/composables/useDebouncedValue'
+import { cursorQueryOptions } from '@/composables/cursorQuery'
+import { clearAdminUserQueries, adminUsersQueryKey } from '@/composables/resourceQueries'
 
 export type AdminUser = components['schemas']['AdminUser']
 
-const ADMIN_USERS_QUERY_ROOT = ['admin', 'users'] as const
 const SEARCH_DEBOUNCE_MS = 300
-
-export function adminUsersQueryKey(principalId: string, search: string) {
-  return [...ADMIN_USERS_QUERY_ROOT, principalId, search] as const
-}
-
-function clearAdminUserQueries(queryClient: QueryClient, principalId: string): void {
-  const queryKey = [...ADMIN_USERS_QUERY_ROOT, principalId] as const
-  void queryClient.cancelQueries({ queryKey })
-  queryClient.removeQueries({ queryKey })
-}
-
-/**
- * Mark every search variant for one administrator stale and refetch active directory views.
- *
- * Security writes request a rejecting refetch so the UI can distinguish a committed write from a failed
- * follow-up read without storing the response in a mutation cache.
- */
-export function invalidateAdminUserQueries(
-  queryClient: QueryClient,
-  principalId: string,
-  throwOnError = false,
-): Promise<void> {
-  return queryClient.invalidateQueries(
-    { queryKey: [...ADMIN_USERS_QUERY_ROOT, principalId] },
-    { throwOnError },
-  )
-}
 
 /**
  * `GET /admin/users`, scoped to one administrator and one server-side search tuple. Cursors stay
@@ -69,9 +43,7 @@ export function useAdminUserDirectory(
         }),
       )
     },
-    initialPageParam: null as string | null,
-    getNextPageParam: (lastPage) =>
-      lastPage.has_more ? (lastPage.next_cursor ?? null) : undefined,
+    ...cursorQueryOptions,
     enabled,
   })
 

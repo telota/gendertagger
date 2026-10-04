@@ -1,18 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref, type Ref } from 'vue'
 
-import { unwrap, type components } from '@/api'
+import { unwrap } from '@/api'
+import type { components } from '@/api/schema'
 import { useApiClient } from '@/composables/useApiClient'
 import { usePolledQuery } from '@/composables/usePolledQuery'
 import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
 import { useSessionStore } from '@/stores/session'
 
-import { snapshotListKey } from './useSnapshots'
+import {
+  snapshotListKey,
+  snapshotImportStatusKey,
+  snapshotUploadLimitsKey,
+} from '@/composables/resourceQueries'
 
-export type DatasetSnapshot = components['schemas']['DatasetSnapshot']
-export type SourceFormat = components['schemas']['SourceFormat']
-export type SourcePackaging = components['schemas']['SourcePackaging']
-export type SnapshotUploadLimits = components['schemas']['SnapshotUploadLimits']
+type DatasetSnapshot = components['schemas']['DatasetSnapshot']
+type SourceFormat = components['schemas']['SourceFormat']
+type SourcePackaging = components['schemas']['SourcePackaging']
 
 const TERMINAL_STATUSES = new Set<DatasetSnapshot['status']>(['ready', 'failed'])
 
@@ -64,15 +68,8 @@ export function useSnapshotStatus(
   const session = useSessionStore()
 
   return usePolledQuery({
-    queryKey: computed(
-      () =>
-        [
-          'snapshots',
-          'import-status',
-          session.user?.id ?? 'anonymous',
-          projectId?.value ?? null,
-          snapshotId.value,
-        ] as const,
+    queryKey: computed(() =>
+      snapshotImportStatusKey(session.user?.id, projectId?.value ?? null, snapshotId.value),
     ),
     queryFn: ({ signal }) => {
       const id = snapshotId.value
@@ -96,7 +93,7 @@ export function useSnapshotStatus(
 export function useSnapshotUploadLimits(enabled: Ref<boolean> = ref(true)) {
   const client = useApiClient()
   const scope = usePrivateQueryScope(enabled)
-  const key = scope.key(() => ['snapshot-upload-limits'] as const)
+  const key = scope.key(snapshotUploadLimitsKey)
 
   const query = useQuery({
     queryKey: key,

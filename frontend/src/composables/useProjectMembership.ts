@@ -1,7 +1,14 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref, type Ref } from 'vue'
-import { ApiError, unwrap, type components } from '@/api'
+import { ApiError, unwrap } from '@/api'
+import type { components } from '@/api/schema'
 import { useApiClient } from '@/composables/useApiClient'
+import { cursorQueryOptions } from '@/composables/cursorQuery'
+import {
+  PROJECTS_QUERY_KEY,
+  projectEligibleUsersKey,
+  projectMembershipQueryKey,
+} from '@/composables/resourceQueries'
 
 export type ProjectMembershipError =
   | 'project_manager_conflict'
@@ -26,11 +33,6 @@ function code(error: unknown): ProjectMembershipError {
     default:
       return 'unexpected'
   }
-}
-export type ProjectMembershipState = components['schemas']['ProjectMembershipState']
-
-export function projectMembershipQueryKey(principalId: string | null, projectId: string) {
-  return ['project-members', principalId ?? 'anonymous', projectId] as const
 }
 
 /** Shared authorized membership state; it exposes no scientific project data. */
@@ -65,9 +67,7 @@ export function useProjectMembership(
   let epoch = 0
   const state = useProjectMembershipState(projectId, principalId, enabled)
   const candidates = useInfiniteQuery({
-    queryKey: computed(
-      () => ['project-eligible-users', principalId.value ?? 'anonymous', projectId.value] as const,
-    ),
+    queryKey: computed(() => projectEligibleUsersKey(principalId.value, projectId.value)),
     queryFn: ({ pageParam, signal, queryKey }) =>
       unwrap(
         client.GET('/api/v1/projects/{project_id}/eligible-users', {
@@ -78,8 +78,7 @@ export function useProjectMembership(
           signal,
         }),
       ),
-    initialPageParam: null as string | null,
-    getNextPageParam: (page) => (page.has_more ? (page.next_cursor ?? null) : undefined),
+    ...cursorQueryOptions,
     enabled,
   })
   async function mutate<T>(request: () => Promise<T>): Promise<T | null> {
@@ -93,12 +92,12 @@ export function useProjectMembership(
       if (epoch !== current || principalId.value !== principal) return null
       void Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ['project-members', principal, projectId.value],
+          queryKey: projectMembershipQueryKey(principal, projectId.value),
         }),
         queryClient.invalidateQueries({
-          queryKey: ['project-eligible-users', principal, projectId.value],
+          queryKey: projectEligibleUsersKey(principal, projectId.value),
         }),
-        queryClient.invalidateQueries({ queryKey: ['projects'] }),
+        queryClient.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY }),
       ])
       return value
     } catch (e) {

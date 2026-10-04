@@ -470,6 +470,9 @@ describe('game question pools', () => {
 
     const { wrapper } = await mountGame('en', server)
     expect(server.review.requests.at(-1)?.getAll('workflow_states')).toEqual(['unreviewed'])
+    expect(server.review.requests.at(-1)?.get('sort')).toBe('uncertainty')
+    expect(server.review.requests.at(-1)?.get('limit')).toBe('50')
+    expect(server.review.requests.at(-1)?.getAll('certainty_tiers')).toEqual([])
 
     await wrapper.get<HTMLInputElement>('#game-pool-all').setValue(true)
     await waitFor(() => {

@@ -2,7 +2,7 @@
 import { useI18n } from 'vue-i18n'
 
 import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
-import { CANONICAL_LABELS } from '@/features/review/useVocabulary'
+import { CANONICAL_LABELS } from '@/composables/useVocabulary'
 
 import './metric.css'
 import type { MethodCoverage } from './reportSchema'

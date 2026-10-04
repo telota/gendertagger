@@ -1,25 +1,20 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
-import { useStatusLabel } from '@/features/runs/useStatusLabel'
+import LifecycleStatus from '@/components/domain/LifecycleStatus.vue'
 
 import type { EvaluationExecution } from './useEvaluations'
 
-const props = defineProps<{ evaluation: EvaluationExecution; projectId: string }>()
+defineProps<{ evaluation: EvaluationExecution; projectId: string }>()
 
 const { t, d, n } = useI18n()
-const label = useStatusLabel()
-const statusLabel = computed(() => label(props.evaluation.status))
 </script>
 
 <template>
   <li class="evaluation app-resource-card">
     <div class="evaluation-head">
-      <span class="evaluation-status" :class="`evaluation-status--${evaluation.status}`">{{
-        statusLabel
-      }}</span>
+      <LifecycleStatus class="evaluation-status" :status="evaluation.status" />
       <time :datetime="evaluation.created_at" class="evaluation-created">{{
         d(new Date(evaluation.created_at), 'timestamp')
       }}</time>
@@ -72,14 +67,6 @@ const statusLabel = computed(() => label(props.evaluation.status))
 
 .evaluation-status {
   font-weight: var(--weight-semibold);
-}
-
-.evaluation-status--completed {
-  color: var(--good);
-}
-
-.evaluation-status--failed {
-  color: var(--critical-text);
 }
 
 .evaluation-created {

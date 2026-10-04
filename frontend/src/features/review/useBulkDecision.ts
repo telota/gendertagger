@@ -3,11 +3,15 @@ import { computed, ref, watch } from 'vue'
 
 import { ApiError } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
+import { annotationHistoryKey } from '@/composables/resourceQueries'
 import { useSessionStore } from '@/stores/session'
 
-import { invalidateAfterDecision, postAnnotation } from './useAnnotate'
-import type { ReviewItem } from './useReviewData'
-import type { CanonicalLabel, ReviewAction } from './useVocabulary'
+import { invalidateAfterDecision, postAnnotation } from '@/composables/useAnnotate'
+import type { components } from '@/api/schema'
+
+type ReviewItem = components['schemas']['ReviewItem']
+type CanonicalLabel = components['schemas']['CanonicalLabel']
+type ReviewAction = components['schemas']['ReviewAction']
 
 /** One decision applied to many people. `verify` uses each person's own machine label. */
 export interface BulkSpec {
@@ -112,7 +116,7 @@ export function useBulkDecision() {
       invalidateAfterDecision(queryClient, { snapshotId: first.snapshot_id }, principalId)
       for (const item of items) {
         void queryClient.invalidateQueries({
-          queryKey: ['snapshots', item.snapshot_id, 'annotations', item.tei_id],
+          queryKey: annotationHistoryKey(item.snapshot_id, item.tei_id),
         })
       }
     }

@@ -6,27 +6,28 @@ import { useRoute, useRouter } from 'vue-router'
 
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
-import { useProjectIdentity } from '@/app/useProjectIdentity'
+import AppSelectField from '@/components/base/AppSelectField.vue'
+import AppTextField from '@/components/base/AppTextField.vue'
+import { useProjectIdentity } from '@/composables/useProjectIdentity'
 import { useRequireSession } from '@/composables/useRequireSession'
-import { useImportedSnapshot } from '@/features/projects/useSnapshotData'
-import { hasProjectRole } from '@/features/projects/projectRoles'
+import { projectKey } from '@/composables/resourceQueries'
+import { useImportedSnapshot } from '@/composables/useSnapshotData'
+import { hasProjectRole } from '@/composables/projectRoles'
 
 import SnapshotAnnotationDetail from './SnapshotAnnotationDetail.vue'
-import VocabBadge from './VocabBadge.vue'
-import { reviewItemName } from './reviewItemName'
-import { isRecoverableReviewError, retainedReviewData } from './retainedReviewData'
-import {
-  CANONICAL_LABELS,
-  WORKFLOW_STATES,
-  useVocabularyGloss,
-  type CanonicalLabel,
-  type ReviewWorkflowState,
-} from './useVocabulary'
+import VocabBadge from '@/components/domain/VocabBadge.vue'
+import { reviewItemName } from '@/components/domain/reviewItemName'
+import { isRecoverableReviewError, retainedReviewData } from '@/composables/retainedReviewData'
+import { CANONICAL_LABELS, WORKFLOW_STATES, useVocabularyGloss } from '@/composables/useVocabulary'
 import {
   useSnapshotAnnotationItem,
   useSnapshotAnnotationItems,
   type SnapshotAnnotationFilters,
 } from './useSnapshotAnnotations'
+import type { components } from '@/api/schema'
+
+type CanonicalLabel = components['schemas']['CanonicalLabel']
+type ReviewWorkflowState = components['schemas']['ReviewWorkflowState']
 
 const { t, d } = useI18n()
 const route = useRoute()
@@ -37,7 +38,7 @@ const cache = useQueryClient()
 const project = computed(() => {
   const value = retainedReviewData(
     cache,
-    ['projects', projectId.value, session.user?.id ?? 'anonymous'],
+    projectKey(projectId.value, session.user?.id),
     session.canUsePrivateNavigation,
     projectQuery.status.value,
     projectQuery.data.value,
@@ -204,28 +205,24 @@ function retryContext(): void {
           >
         </div>
         <form class="annotation-filters" @submit.prevent="applyFilters">
-          <div>
-            <label for="annotation-search">{{ t('annotation.search') }}</label
-            ><input id="annotation-search" v-model="search" type="search" />
-          </div>
-          <div>
-            <label for="annotation-state">{{ t('review.detail.state') }}</label
-            ><select id="annotation-state" v-model="state">
-              <option value="">{{ t('annotation.allStates') }}</option>
-              <option v-for="value in WORKFLOW_STATES" :key="value" :value="value">
-                {{ gloss.workflow(value) }}
-              </option>
-            </select>
-          </div>
-          <div>
-            <label for="annotation-label">{{ t('annotation.humanLabel') }}</label
-            ><select id="annotation-label" v-model="label">
-              <option value="">{{ t('annotation.allLabels') }}</option>
-              <option v-for="value in CANONICAL_LABELS" :key="value" :value="value">
-                {{ value }}
-              </option>
-            </select>
-          </div>
+          <AppTextField
+            id="annotation-search"
+            v-model="search"
+            type="search"
+            :label="t('annotation.search')"
+          />
+          <AppSelectField id="annotation-state" v-model="state" :label="t('review.detail.state')">
+            <option value="">{{ t('annotation.allStates') }}</option>
+            <option v-for="value in WORKFLOW_STATES" :key="value" :value="value">
+              {{ gloss.workflow(value) }}
+            </option>
+          </AppSelectField>
+          <AppSelectField id="annotation-label" v-model="label" :label="t('annotation.humanLabel')">
+            <option value="">{{ t('annotation.allLabels') }}</option>
+            <option v-for="value in CANONICAL_LABELS" :key="value" :value="value">
+              {{ value }}
+            </option>
+          </AppSelectField>
           <AppButton variant="ghost" type="submit">{{ t('annotation.searchSubmit') }}</AppButton>
         </form>
         <p class="annotation-announce" role="status">{{ announce }}</p>
@@ -379,6 +376,9 @@ function retryContext(): void {
 }
 
 .annotation-filters {
+  --field-label-size: inherit;
+  --field-label-color: var(--text-primary);
+  --field-control-width: 100%;
   display: flex;
   flex-wrap: wrap;
   align-items: end;
@@ -392,16 +392,9 @@ function retryContext(): void {
   gap: var(--space-2);
 }
 
-.annotation-filters input,
-.annotation-filters select {
-  inline-size: 100%;
-  min-inline-size: 0;
+.annotation-filters :deep(input),
+.annotation-filters :deep(select) {
   padding: var(--space-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-input);
-  background: var(--panel);
-  color: var(--text-primary);
-  font: inherit;
 }
 
 .annotation-announce,

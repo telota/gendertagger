@@ -12,13 +12,13 @@ import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useSessionStore } from '@/stores/session'
 
-import { hasProjectRole } from './projectRoles'
+import { hasProjectRole } from '@/composables/projectRoles'
 import ProjectGameModeSetting from './ProjectGameModeSetting.vue'
 import ProjectCurrentSnapshot from './ProjectCurrentSnapshot.vue'
 import ProjectOverviewSection from './ProjectOverviewSection.vue'
 import ProjectReviewStats from './ProjectReviewStats.vue'
 import SnapshotImportForm from './SnapshotImportForm.vue'
-import { useProject } from './useProjects'
+import { useProject } from '@/composables/useProjects'
 import { useRoleLabel } from './useRoleLabel'
 
 const { t, d } = useI18n()

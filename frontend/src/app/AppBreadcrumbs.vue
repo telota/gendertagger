@@ -8,7 +8,7 @@ import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
 import { useSessionStore } from '@/stores/session'
 
-import { useProjectIdentity } from './useProjectIdentity'
+import { useProjectIdentity } from '@/composables/useProjectIdentity'
 
 interface Breadcrumb {
   id: string

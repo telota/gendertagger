@@ -9,7 +9,7 @@ import de from '@/locales/de.json'
 import en from '@/locales/en.json'
 import { useSessionStore } from '@/stores/session'
 
-import { mountApplicationAt } from '../helpers/render'
+import { getDialogButtonByName, mountApplicationAt, queryDialogByName } from '../helpers/render'
 import { AGG_ID, RUN_ID, newServer, reviewFetch } from '../features/review/fixtures'
 import { waitFor } from '../helpers/wait'
 
@@ -436,13 +436,20 @@ describe.each(['de', 'en'] as const)('mobile navigation in %s', (locale: AppLoca
     await drawer.get('.project-switcher-button').trigger('click')
     await drawer.get(`.project-switcher a[href="${target}"]`).trigger('click')
     await waitFor(() =>
-      expect(document.querySelector('.draft-leave-panel')?.contains(document.activeElement)).toBe(
-        true,
-      ),
+      expect(
+        queryDialogByName(catalogues[locale].draftNavigation.title)?.contains(
+          document.activeElement,
+        ),
+      ).toBe(true),
     )
     expect(dialog()).not.toBeNull()
-    document.querySelector<HTMLButtonElement>('.draft-leave-actions button')!.click()
-    await waitFor(() => expect(document.querySelector('.draft-leave-panel')).toBeNull())
+    getDialogButtonByName(
+      catalogues[locale].draftNavigation.title,
+      catalogues[locale].draftNavigation.stay,
+    ).click()
+    await waitFor(() =>
+      expect(queryDialogByName(catalogues[locale].draftNavigation.title)).toBeNull(),
+    )
     expect(router.currentRoute.value.path).toBe(reviewPath)
     expect((wrapper.get('#decision-comment').element as HTMLTextAreaElement).value).toBe(
       'Evidence remains in this project',
@@ -454,11 +461,16 @@ describe.each(['de', 'en'] as const)('mobile navigation in %s', (locale: AppLoca
 
     await drawer.get('.project-switcher-button').trigger('click')
     await drawer.get(`.project-switcher a[href="${target}"]`).trigger('click')
-    await waitFor(() => expect(document.querySelector('.draft-leave-panel')).not.toBeNull())
-    document.querySelectorAll<HTMLButtonElement>('.draft-leave-actions button')[1]!.click()
+    await waitFor(() =>
+      expect(queryDialogByName(catalogues[locale].draftNavigation.title)).not.toBeNull(),
+    )
+    getDialogButtonByName(
+      catalogues[locale].draftNavigation.title,
+      catalogues[locale].draftNavigation.discard,
+    ).click()
     await waitFor(() => expect(router.currentRoute.value.path).toBe(target))
     await waitFor(() => expect(dialog()).toBeNull())
-    expect(document.querySelector('.draft-leave-panel')).toBeNull()
+    expect(queryDialogByName(catalogues[locale].draftNavigation.title)).toBeNull()
     await waitFor(() => expect(document.activeElement).toBe(wrapper.get('#main-content').element))
     expect(server.posts).toHaveLength(0)
   })

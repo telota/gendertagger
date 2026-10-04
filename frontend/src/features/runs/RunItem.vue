@@ -5,15 +5,15 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import AppButton from '@/components/base/AppButton.vue'
 
-import type { Run } from './useRuns'
-import { useStatusLabel } from './useStatusLabel'
+import LifecycleStatus from '@/components/domain/LifecycleStatus.vue'
+import type { components } from '@/api/schema'
+
+type Run = components['schemas']['Run']
 
 const props = defineProps<{ run: Run; projectId: string }>()
 
 const { t, d, n } = useI18n()
-const label = useStatusLabel()
 
-const statusLabel = computed(() => label(props.run.status))
 const date = computed(() => d(new Date(props.run.created_at), 'timestamp'))
 const destination = computed(() => ({
   name: 'runDetail',
@@ -34,7 +34,7 @@ const methodNames = computed(() => props.run.resolved_config.methods.map((m) => 
         <h3 class="run-title">
           <RouterLink :to="destination">{{ t('runs.item.title', { date }) }}</RouterLink>
         </h3>
-        <span class="run-status" :class="`run-status--${run.status}`">{{ statusLabel }}</span>
+        <LifecycleStatus class="run-status" :status="run.status" />
       </div>
       <dl class="run-facts">
         <div class="run-fact">
@@ -105,15 +105,6 @@ const methodNames = computed(() => props.run.resolved_config.methods.map((m) => 
 
 .run-status {
   font-weight: var(--weight-semibold);
-}
-
-.run-status--completed {
-  color: var(--good);
-}
-
-.run-status--failed,
-.run-status--completed_with_errors {
-  color: var(--critical-text);
 }
 
 .run-facts {

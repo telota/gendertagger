@@ -24,7 +24,7 @@ const READY: Record<keyof typeof SCREENS, string> = {
   runs: '.run',
   run: '.execution',
   methodResults: '.method-results-table',
-  aggregation: '.aggregation-detail-hash',
+  aggregation: '.aggregation-detail-facts dd code',
   review: '.detail-table',
   people: '.record',
   evaluations: '.evaluation',

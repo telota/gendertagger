@@ -6,19 +6,18 @@ import { RouterLink } from 'vue-router'
 import AppButton from '@/components/base/AppButton.vue'
 import AppProgress from '@/components/base/AppProgress.vue'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
-import { hasProjectRole } from '@/features/projects/projectRoles'
-import { useProject } from '@/features/projects/useProjects'
-import { useImportedSnapshot } from '@/features/projects/useSnapshotData'
+import { hasProjectRole } from '@/composables/projectRoles'
+import { useProject } from '@/composables/useProjects'
+import { useImportedSnapshot } from '@/composables/useSnapshotData'
 
 import AggregationSection from './AggregationSection.vue'
 import ExecutionCard from './ExecutionCard.vue'
 import RunProvenance from './RunProvenance.vue'
-import { TERMINAL_RUN_STATUSES, useRun, useRunExecutions } from './useRunDetail'
+import { TERMINAL_RUN_STATUSES, useRun, useRunExecutions } from '@/composables/useRunDetail'
 import { useRunProgress } from './useRunProgress'
-import { useStatusLabel } from './useStatusLabel'
+import LifecycleStatus from '@/components/domain/LifecycleStatus.vue'
 
 const { t, d, n } = useI18n()
-const label = useStatusLabel()
 const { session, isSignedIn, retrySession } = useRequireSession()
 
 const projectId = useRouteParam('projectId')
@@ -72,8 +71,6 @@ const executionIssueCount = computed(() =>
     0,
   ),
 )
-
-const statusLabel = computed(() => label(run.data.value?.status ?? ''))
 
 const connectionLabel = computed(() => {
   switch (streamState.value) {
@@ -168,12 +165,9 @@ function retryContext(): void {
       <template v-else-if="selectedRun">
         <div class="run-detail-overview app-card">
           <dl class="run-detail-summary">
-            <div
-              class="run-detail-summary-fact run-detail-summary-status"
-              :class="`run-detail-summary-status--${selectedRun.status}`"
-            >
+            <div class="run-detail-summary-fact run-detail-summary-status">
               <dt>{{ t('runs.detail.status') }}</dt>
-              <dd class="run-detail-status">{{ statusLabel }}</dd>
+              <dd class="run-detail-status"><LifecycleStatus :status="selectedRun.status" /></dd>
             </div>
             <div class="run-detail-summary-fact">
               <dt>{{ t('runs.detail.created') }}</dt>
@@ -405,15 +399,6 @@ function retryContext(): void {
 
 .run-detail-status {
   font-weight: var(--weight-semibold);
-}
-
-.run-detail-summary-status--completed {
-  color: var(--good);
-}
-
-.run-detail-summary-status--failed,
-.run-detail-summary-status--completed_with_errors {
-  color: var(--critical-text);
 }
 
 .run-detail-created,

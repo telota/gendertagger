@@ -1,14 +1,11 @@
-import type { components } from '@/api'
-import {
-  AGREEMENT_TIERS,
-  CANONICAL_LABELS,
-  CERTAINTY_TIERS,
-  type CanonicalLabel,
-} from '@/features/review/useVocabulary'
+import { AGREEMENT_TIERS, CANONICAL_LABELS, CERTAINTY_TIERS } from '@/composables/useVocabulary'
+import type { components } from '@/api/schema'
+
+type CanonicalLabel = components['schemas']['CanonicalLabel']
 
 export type BenchmarkSummary = components['schemas']['BenchmarkSummary']
 export type MethodCoverage = components['schemas']['MethodCoverage']
-export type RecallWithCI = components['schemas']['RecallWithCI']
+type RecallWithCI = components['schemas']['RecallWithCI']
 export type MethodAccuracy = components['schemas']['MethodAccuracy']
 export type KappaCell = components['schemas']['KappaCell']
 export type EnsembleMetrics = components['schemas']['EnsembleMetrics']
@@ -156,8 +153,8 @@ export function parseEvaluationReport(body: unknown): EvaluationReport {
     definition: definition(root['definition']),
     benchmark: {
       method_name: text(benchmark['method_name'], 'benchmark.method_name'),
-      labels: list(benchmark['labels'], 'benchmark.labels').map(
-        (entry, i) => label(entry, `benchmark.labels[${i}]`),
+      labels: list(benchmark['labels'], 'benchmark.labels').map((entry, i) =>
+        label(entry, `benchmark.labels[${i}]`),
       ),
       size: num(benchmark['size'], 'benchmark.size'),
       class_counts: counts(benchmark['class_counts'], 'benchmark.class_counts', CANONICAL_LABELS),

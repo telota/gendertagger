@@ -6,9 +6,12 @@ import { RouterLink } from 'vue-router'
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
-import { useArtifactRouteContext } from '@/features/runs/useArtifactRouteContext'
-import { useRunExecutions } from '@/features/runs/useRunDetail'
-import { useStatusLabel } from '@/features/runs/useStatusLabel'
+import { useArtifactRouteContext } from '@/composables/useArtifactRouteContext'
+import { useRunExecutions } from '@/composables/useRunDetail'
+import LifecycleStatus from '@/components/domain/LifecycleStatus.vue'
+import JsonData from '@/components/domain/JsonData.vue'
+import SelectedExecution from '@/components/domain/SelectedExecution.vue'
+import ProvenanceValue from '@/components/domain/ProvenanceValue.vue'
 
 import AccuracyTable from './AccuracyTable.vue'
 import ConfusionMatrices from './ConfusionMatrices.vue'
@@ -19,7 +22,6 @@ import { ReportShapeError } from './reportSchema'
 import { useEvaluation, useEvaluationReport } from './useEvaluations'
 
 const { t, d, n } = useI18n()
-const label = useStatusLabel()
 const { session, isSignedIn, retrySession } = useRequireSession()
 
 const projectId = useRouteParam('projectId')
@@ -45,9 +47,6 @@ const selection = computed(() => {
   }))
 })
 
-const resolvedConfig = computed(() =>
-  JSON.stringify(evaluation.data.value?.resolved_config ?? {}, null, 2),
-)
 const confidenceLevel = computed<number | null>(() => {
   const value = evaluation.data.value?.resolved_config?.['confidence_level']
   return typeof value === 'number' ? value : null
@@ -80,9 +79,7 @@ const downloadUrl = computed(() => `/api/v1/evaluations/${evaluationId.value}/re
           class="evaluation-detail-status"
           role="status"
         >
-          <span :class="`evaluation-detail-status--${evaluation.data.value.status}`">{{
-            label(evaluation.data.value.status)
-          }}</span>
+          <LifecycleStatus :status="evaluation.data.value.status" />
         </p>
       </div>
       <div v-if="isCompleted" class="app-page-heading__actions">
@@ -163,9 +160,7 @@ const downloadUrl = computed(() => `/api/v1/evaluations/${evaluationId.value}/re
             <div class="evaluation-detail-fact app-fact-list__item">
               <dt>{{ t('evaluation.item.configHash') }}</dt>
               <dd>
-                <code class="evaluation-detail-hash">{{
-                  evaluation.data.value.config_sha256
-                }}</code>
+                <ProvenanceValue :value="evaluation.data.value.config_sha256" />
               </dd>
             </div>
             <div class="evaluation-detail-fact app-fact-list__item">
@@ -201,10 +196,11 @@ const downloadUrl = computed(() => `/api/v1/evaluations/${evaluationId.value}/re
               </dd>
             </div>
           </dl>
-          <details class="evaluation-detail-config">
-            <summary>{{ t('evaluation.detail.resolvedConfig') }}</summary>
-            <pre class="evaluation-detail-config-json">{{ resolvedConfig }}</pre>
-          </details>
+          <JsonData
+            :value="evaluation.data.value.resolved_config"
+            :summary="t('evaluation.detail.resolvedConfig')"
+            ruled
+          />
           <details class="evaluation-detail-selection">
             <summary>
               {{
@@ -215,11 +211,7 @@ const downloadUrl = computed(() => `/api/v1/evaluations/${evaluationId.value}/re
             </summary>
             <ul class="evaluation-detail-methods">
               <li v-for="entry in selection" :key="entry.id">
-                <template v-if="entry.execution">
-                  <span class="evaluation-detail-method">{{ entry.execution.method_name }}</span>
-                  {{ entry.execution.implementation_version }}
-                </template>
-                <code v-else>{{ entry.id }}</code>
+                <SelectedExecution :id="entry.id" :execution="entry.execution" />
               </li>
             </ul>
           </details>
@@ -329,14 +321,6 @@ const downloadUrl = computed(() => `/api/v1/evaluations/${evaluationId.value}/re
   font-weight: var(--weight-semibold);
 }
 
-.evaluation-detail-status--completed {
-  color: var(--good);
-}
-
-.evaluation-detail-status--failed {
-  color: var(--critical-text);
-}
-
 .evaluation-detail-failure {
   margin: 0;
   color: var(--critical-text);
@@ -362,10 +346,6 @@ const downloadUrl = computed(() => `/api/v1/evaluations/${evaluationId.value}/re
   font-weight: var(--weight-semibold);
 }
 
-.evaluation-detail-hash {
-  font-size: var(--font-size-small);
-}
-
 .evaluation-detail-aggregation,
 .evaluation-detail-download {
   display: inline-flex;
@@ -376,29 +356,15 @@ const downloadUrl = computed(() => `/api/v1/evaluations/${evaluationId.value}/re
   text-underline-offset: 0.2em;
 }
 
-.evaluation-detail-config summary,
 .evaluation-detail-selection summary {
   cursor: pointer;
   font-weight: var(--weight-semibold);
-}
-
-.evaluation-detail-config-json {
-  margin: var(--space-2) 0 0;
-  padding: var(--space-3);
-  overflow-x: auto;
-  border-inline-start: 2px solid var(--grid);
-  background: var(--surface-1);
-  font-size: var(--font-size-small);
 }
 
 .evaluation-detail-methods {
   margin: var(--space-2) 0 0;
   padding-left: var(--space-4);
   font-size: var(--font-size-small);
-}
-
-.evaluation-detail-method {
-  font-weight: var(--weight-semibold);
 }
 
 .evaluation-detail-waiting,

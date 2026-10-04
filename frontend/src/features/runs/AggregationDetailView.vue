@@ -6,15 +6,17 @@ import { RouterLink } from 'vue-router'
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
+import LifecycleStatus from '@/components/domain/LifecycleStatus.vue'
+import JsonData from '@/components/domain/JsonData.vue'
+import SelectedExecution from '@/components/domain/SelectedExecution.vue'
+import ProvenanceValue from '@/components/domain/ProvenanceValue.vue'
 
 import RunProvenance from './RunProvenance.vue'
-import { useAggregation } from './useAggregations'
-import { useArtifactRouteContext } from './useArtifactRouteContext'
-import { useRunExecutions } from './useRunDetail'
-import { useStatusLabel } from './useStatusLabel'
+import { useAggregation } from '@/composables/useAggregations'
+import { useArtifactRouteContext } from '@/composables/useArtifactRouteContext'
+import { useRunExecutions } from '@/composables/useRunDetail'
 
 const { t, d } = useI18n()
-const label = useStatusLabel()
 const { session, isSignedIn, retrySession } = useRequireSession()
 
 const projectId = useRouteParam('projectId')
@@ -35,10 +37,6 @@ const selection = computed(() => {
     execution: byId.get(id) ?? null,
   }))
 })
-
-const resolvedConfig = computed(() =>
-  JSON.stringify(aggregation.data.value?.resolved_config ?? {}, null, 2),
-)
 </script>
 
 <template>
@@ -64,9 +62,7 @@ const resolvedConfig = computed(() =>
           class="aggregation-detail-status"
           role="status"
         >
-          <span :class="`aggregation-detail-status--${aggregation.data.value.status}`">{{
-            label(aggregation.data.value.status)
-          }}</span>
+          <LifecycleStatus :status="aggregation.data.value.status" />
         </p>
       </div>
       <div
@@ -179,9 +175,7 @@ const resolvedConfig = computed(() =>
           <div class="aggregation-detail-fact app-fact-list__item">
             <dt>{{ t('aggregations.item.configHash') }}</dt>
             <dd>
-              <code class="aggregation-detail-hash">{{
-                aggregation.data.value.config_sha256
-              }}</code>
+              <ProvenanceValue :value="aggregation.data.value.config_sha256" />
             </dd>
           </div>
         </dl>
@@ -193,7 +187,7 @@ const resolvedConfig = computed(() =>
           <h2 id="aggregation-config-heading" class="aggregation-detail-heading">
             {{ t('aggregations.detail.resolvedConfig') }}
           </h2>
-          <pre class="aggregation-detail-config">{{ resolvedConfig }}</pre>
+          <JsonData :value="aggregation.data.value.resolved_config" />
         </section>
 
         <section
@@ -206,14 +200,7 @@ const resolvedConfig = computed(() =>
           <p class="aggregation-detail-hint">{{ t('aggregations.detail.selectionHint') }}</p>
           <ul class="aggregation-detail-selection">
             <li v-for="entry in selection" :key="entry.id" class="aggregation-detail-selected">
-              <template v-if="entry.execution">
-                <span class="aggregation-detail-method">{{ entry.execution.method_name }}</span>
-                <span class="aggregation-detail-version">{{
-                  entry.execution.implementation_version
-                }}</span>
-                <span>{{ label(entry.execution.status) }}</span>
-              </template>
-              <code v-else class="aggregation-detail-hash">{{ entry.id }}</code>
+              <SelectedExecution :id="entry.id" :execution="entry.execution" show-status />
             </li>
           </ul>
         </section>
@@ -270,20 +257,8 @@ const resolvedConfig = computed(() =>
   font-weight: var(--weight-semibold);
 }
 
-.aggregation-detail-status--completed {
-  color: var(--good);
-}
-
-.aggregation-detail-status--failed {
-  color: var(--critical-text);
-}
-
 .aggregation-detail-facts {
   inline-size: 100%;
-}
-
-.aggregation-detail-hash {
-  font-size: var(--font-size-small);
 }
 
 .aggregation-detail-block {
@@ -302,15 +277,6 @@ const resolvedConfig = computed(() =>
   font-size: var(--font-size-small);
 }
 
-.aggregation-detail-config {
-  margin: 0;
-  padding: var(--space-3);
-  overflow-x: auto;
-  border-radius: var(--radius-input);
-  background: var(--surface-1);
-  font-size: var(--font-size-small);
-}
-
 .aggregation-detail-selection {
   display: flex;
   flex-direction: column;
@@ -324,13 +290,5 @@ const resolvedConfig = computed(() =>
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
-}
-
-.aggregation-detail-method {
-  font-weight: var(--weight-semibold);
-}
-
-.aggregation-detail-version {
-  color: var(--text-secondary);
 }
 </style>

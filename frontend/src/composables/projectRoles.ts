@@ -1,6 +1,6 @@
-import type { components } from '@/api'
+import type { components } from '@/api/schema'
 
-export type ProjectRole = components['schemas']['ProjectRole']
+type ProjectRole = components['schemas']['ProjectRole']
 
 const ROLE_LEVEL: Record<ProjectRole, number> = { viewer: 0, reviewer: 1, operator: 2 }
 

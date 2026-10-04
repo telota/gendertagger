@@ -6,16 +6,16 @@ import { RouterLink } from 'vue-router'
 import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
+import AppTextField from '@/components/base/AppTextField.vue'
 import { useApiClient } from '@/composables/useApiClient'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
-import { useArtifactRouteContext } from '@/features/runs/useArtifactRouteContext'
-import { useStatusLabel } from '@/features/runs/useStatusLabel'
+import { useArtifactRouteContext } from '@/composables/useArtifactRouteContext'
+import LifecycleStatus from '@/components/domain/LifecycleStatus.vue'
 
 import { downloadExport, saveDownload, type DownloadedExport } from './exportDownload'
 import { useExport, useExportManifest } from './useExports'
 
 const { t, d, n } = useI18n()
-const label = useStatusLabel()
 const client = useApiClient()
 const { session, isSignedIn, retrySession } = useRequireSession()
 
@@ -181,9 +181,7 @@ const verdict = computed<Verdict>(() => {
           {{ t('export.detail.title') }}
         </h1>
         <p v-if="isSignedIn && item.data.value" class="export-detail-status" role="status">
-          <span :class="`export-detail-status--${item.data.value.status}`">{{
-            label(item.data.value.status)
-          }}</span>
+          <LifecycleStatus :status="item.data.value.status" />
         </p>
       </div>
     </header>
@@ -430,13 +428,12 @@ const verdict = computed<Verdict>(() => {
             </p>
 
             <div class="export-detail-verify">
-              <label for="export-expected">{{ t('export.detail.verifyLabel') }}</label>
-              <input
+              <AppTextField
                 id="export-expected"
                 v-model="expected"
-                type="text"
+                :label="t('export.detail.verifyLabel')"
                 autocomplete="off"
-                spellcheck="false"
+                :spellcheck="false"
                 aria-describedby="export-verify-result"
               />
               <p id="export-verify-result" class="export-detail-verdict" role="status">
@@ -490,14 +487,6 @@ const verdict = computed<Verdict>(() => {
 .export-detail-status {
   margin: 0;
   font-weight: var(--weight-semibold);
-}
-
-.export-detail-status--completed {
-  color: var(--good);
-}
-
-.export-detail-status--failed {
-  color: var(--critical-text);
 }
 
 .export-detail-failure,
@@ -597,9 +586,10 @@ const verdict = computed<Verdict>(() => {
   font-size: var(--font-size-small);
 }
 
-.export-detail-verify input {
-  width: 100%;
-  font: var(--font-size-small) var(--font-mono, ui-monospace, monospace);
+.export-detail-verify {
+  --field-label-color: var(--text-primary);
+  --field-control-width: 100%;
+  --field-control-font: var(--font-size-small) var(--font-mono, ui-monospace, monospace);
 }
 
 .export-detail-verdict {

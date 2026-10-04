@@ -2,19 +2,22 @@
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AppSelectField from '@/components/base/AppSelectField.vue'
+import AppTextField from '@/components/base/AppTextField.vue'
 import { useDebouncedValue } from '@/composables/useDebouncedValue'
 
-import type { ReviewFilters, ReviewSort } from './useReviewFilters'
+import type { ReviewFilters } from './useReviewFilters'
 import {
   AGREEMENT_TIERS,
   CANONICAL_LABELS,
   WORKFLOW_STATES,
   useVocabularyGloss,
-  type AgreementTier,
-  type CanonicalLabel,
-  type PredictionStatus,
-  type ReviewWorkflowState,
-} from './useVocabulary'
+} from '@/composables/useVocabulary'
+import type { components } from '@/api/schema'
+
+type AgreementTier = components['schemas']['AgreementTier']
+type PredictionStatus = components['schemas']['PredictionStatus']
+type ReviewWorkflowState = components['schemas']['ReviewWorkflowState']
 
 const props = defineProps<{
   filters: ReviewFilters
@@ -47,12 +50,6 @@ function toggle<T extends string>(current: readonly T[], value: T, on: boolean):
   return on ? [...current, value] : current.filter((item) => item !== value)
 }
 
-function toTriState(value: string): boolean | null {
-  return value === 'yes' ? true : value === 'no' ? false : null
-}
-const fromTriState = (value: boolean | null): string =>
-  value === null ? 'any' : value ? 'yes' : 'no'
-
 const PREDICTION_STATUSES: readonly PredictionStatus[] = ['success', 'abstain', 'error']
 </script>
 
@@ -66,22 +63,25 @@ const PREDICTION_STATUSES: readonly PredictionStatus[] = ['success', 'abstain', 
   >
     <h2 class="filters-title">{{ t('review.filters.title') }}</h2>
 
-    <div class="filter">
-      <label for="review-q">{{ t('review.filters.search') }}</label>
-      <input id="review-q" v-model="search" type="search" autocomplete="off" />
-    </div>
+    <AppTextField
+      id="review-q"
+      v-model="search"
+      class="filter"
+      :label="t('review.filters.search')"
+      type="search"
+      autocomplete="off"
+    />
 
-    <div class="filter">
-      <label for="review-sort">{{ t('review.filters.sort') }}</label>
-      <select
-        id="review-sort"
-        :value="filters.sort"
-        @change="emit('update', { sort: ($event.target as HTMLSelectElement).value as ReviewSort })"
-      >
-        <option value="uncertainty">{{ t('review.filters.sortUncertainty') }}</option>
-        <option value="tei_id">{{ t('review.filters.sortTei') }}</option>
-      </select>
-    </div>
+    <AppSelectField
+      id="review-sort"
+      class="filter"
+      :label="t('review.filters.sort')"
+      :model-value="filters.sort"
+      @update:model-value="emit('update', { sort: $event })"
+    >
+      <option value="uncertainty">{{ t('review.filters.sortUncertainty') }}</option>
+      <option value="tei_id">{{ t('review.filters.sortTei') }}</option>
+    </AppSelectField>
 
     <fieldset class="filter">
       <legend>{{ t('review.filters.states') }}</legend>
@@ -107,22 +107,16 @@ const PREDICTION_STATUSES: readonly PredictionStatus[] = ['success', 'abstain', 
       </div>
     </fieldset>
 
-    <div class="filter">
-      <label for="review-label">{{ t('review.filters.label') }}</label>
-      <select
-        id="review-label"
-        :value="filters.finalLabel ?? ''"
-        @change="
-          emit('update', {
-            finalLabel: (($event.target as HTMLSelectElement).value ||
-              null) as CanonicalLabel | null,
-          })
-        "
-      >
-        <option value="">{{ t('review.filters.any') }}</option>
-        <option v-for="label in CANONICAL_LABELS" :key="label" :value="label">{{ label }}</option>
-      </select>
-    </div>
+    <AppSelectField
+      id="review-label"
+      class="filter"
+      :label="t('review.filters.label')"
+      :model-value="filters.finalLabel"
+      @update:model-value="emit('update', { finalLabel: $event })"
+    >
+      <option :value="null">{{ t('review.filters.any') }}</option>
+      <option v-for="label in CANONICAL_LABELS" :key="label" :value="label">{{ label }}</option>
+    </AppSelectField>
 
     <fieldset v-if="!simple" class="filter">
       <legend>{{ t('review.filters.agreement') }}</legend>
@@ -148,91 +142,67 @@ const PREDICTION_STATUSES: readonly PredictionStatus[] = ['success', 'abstain', 
       </div>
     </fieldset>
 
-    <div v-if="!simple" class="filter">
-      <label for="review-conflict">{{ t('review.filters.authorityConflict') }}</label>
-      <select
-        id="review-conflict"
-        :value="fromTriState(filters.hasAuthorityConflict)"
-        @change="
-          emit('update', {
-            hasAuthorityConflict: toTriState(($event.target as HTMLSelectElement).value),
-          })
-        "
-      >
-        <option value="any">{{ t('review.filters.any') }}</option>
-        <option value="yes">{{ t('review.filters.yes') }}</option>
-        <option value="no">{{ t('review.filters.no') }}</option>
-      </select>
-    </div>
+    <AppSelectField
+      v-if="!simple"
+      id="review-conflict"
+      class="filter"
+      :label="t('review.filters.authorityConflict')"
+      :model-value="filters.hasAuthorityConflict"
+      @update:model-value="emit('update', { hasAuthorityConflict: $event })"
+    >
+      <option :value="null">{{ t('review.filters.any') }}</option>
+      <option :value="true">{{ t('review.filters.yes') }}</option>
+      <option :value="false">{{ t('review.filters.no') }}</option>
+    </AppSelectField>
 
-    <div v-if="!simple" class="filter">
-      <label for="review-error">{{ t('review.filters.predictionError') }}</label>
-      <select
-        id="review-error"
-        :value="fromTriState(filters.hasPredictionError)"
-        @change="
-          emit('update', {
-            hasPredictionError: toTriState(($event.target as HTMLSelectElement).value),
-          })
-        "
-      >
-        <option value="any">{{ t('review.filters.any') }}</option>
-        <option value="yes">{{ t('review.filters.yes') }}</option>
-        <option value="no">{{ t('review.filters.no') }}</option>
-      </select>
-    </div>
+    <AppSelectField
+      v-if="!simple"
+      id="review-error"
+      class="filter"
+      :label="t('review.filters.predictionError')"
+      :model-value="filters.hasPredictionError"
+      @update:model-value="emit('update', { hasPredictionError: $event })"
+    >
+      <option :value="null">{{ t('review.filters.any') }}</option>
+      <option :value="true">{{ t('review.filters.yes') }}</option>
+      <option :value="false">{{ t('review.filters.no') }}</option>
+    </AppSelectField>
 
-    <div v-if="!simple" class="filter">
-      <label for="review-method">{{ t('review.filters.method') }}</label>
-      <select
-        id="review-method"
-        :value="filters.methodName ?? ''"
-        @change="
-          emit('update', {
-            methodName: ($event.target as HTMLSelectElement).value || null,
-          })
-        "
-      >
-        <option value="">{{ t('review.filters.any') }}</option>
-        <option v-for="name in methodNames" :key="name" :value="name">{{ name }}</option>
-      </select>
-    </div>
+    <AppSelectField
+      v-if="!simple"
+      id="review-method"
+      class="filter"
+      :label="t('review.filters.method')"
+      :model-value="filters.methodName"
+      @update:model-value="emit('update', { methodName: $event })"
+    >
+      <option :value="null">{{ t('review.filters.any') }}</option>
+      <option v-for="name in methodNames" :key="name" :value="name">{{ name }}</option>
+    </AppSelectField>
 
     <template v-if="!simple && filters.methodName">
-      <div class="filter">
-        <label for="review-method-label">{{ t('review.filters.methodLabel') }}</label>
-        <select
-          id="review-method-label"
-          :value="filters.methodLabel ?? ''"
-          @change="
-            emit('update', {
-              methodLabel: (($event.target as HTMLSelectElement).value ||
-                null) as CanonicalLabel | null,
-            })
-          "
-        >
-          <option value="">{{ t('review.filters.any') }}</option>
-          <option v-for="label in CANONICAL_LABELS" :key="label" :value="label">{{ label }}</option>
-        </select>
-      </div>
-      <div class="filter">
-        <label for="review-method-status">{{ t('review.filters.predictionStatus') }}</label>
-        <select
-          id="review-method-status"
-          :value="filters.predictionStatus ?? ''"
-          @change="
-            emit('update', {
-              predictionStatus: (($event.target as HTMLSelectElement).value ||
-                null) as PredictionStatus | null,
-            })
-          "
-        >
-          <option value="">{{ t('review.filters.any') }}</option>
-          <option v-for="status in PREDICTION_STATUSES" :key="status" :value="status">
-            {{ status }}
-          </option>
-        </select>
-      </div>
+      <AppSelectField
+        id="review-method-label"
+        class="filter"
+        :label="t('review.filters.methodLabel')"
+        :model-value="filters.methodLabel"
+        @update:model-value="emit('update', { methodLabel: $event })"
+      >
+        <option :value="null">{{ t('review.filters.any') }}</option>
+        <option v-for="label in CANONICAL_LABELS" :key="label" :value="label">{{ label }}</option>
+      </AppSelectField>
+      <AppSelectField
+        id="review-method-status"
+        class="filter"
+        :label="t('review.filters.predictionStatus')"
+        :model-value="filters.predictionStatus"
+        @update:model-value="emit('update', { predictionStatus: $event })"
+      >
+        <option :value="null">{{ t('review.filters.any') }}</option>
+        <option v-for="status in PREDICTION_STATUSES" :key="status" :value="status">
+          {{ status }}
+        </option>
+      </AppSelectField>
     </template>
 
     <p class="filters-hint">{{ t('review.filters.hint') }}</p>
@@ -277,16 +247,14 @@ const PREDICTION_STATUSES: readonly PredictionStatus[] = ['success', 'abstain', 
   font-size: var(--font-size-small);
 }
 
+.filters {
+  --field-control-width: 100%;
+}
+
 .filter > label,
 .filter > legend {
   padding: 0;
   color: var(--text-secondary);
-}
-
-.filter select,
-.filter input[type='search'] {
-  width: 100%;
-  font: inherit;
 }
 
 .check {

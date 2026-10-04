@@ -6,7 +6,7 @@ import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
 
 import ProjectOverviewSection from './ProjectOverviewSection.vue'
-import { useSetProjectGameMode } from './useProjects'
+import { useSetProjectGameMode } from '@/composables/useProjects'
 
 const props = defineProps<{
   projectId: string

@@ -7,10 +7,13 @@ import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useDraftNavigation, useDraftRegistration } from '@/composables/useDraftNavigation'
 
-import { useCreateAnnotation, type AnnotationTarget } from './useAnnotate'
-import type { AnnotationHistory } from './useReviewData'
-import { CANONICAL_LABELS, useVocabularyGloss, type CanonicalLabel } from './useVocabulary'
-import VocabBadge from './VocabBadge.vue'
+import { useCreateAnnotation, type AnnotationTarget } from '@/composables/useAnnotate'
+import { CANONICAL_LABELS, useVocabularyGloss } from '@/composables/useVocabulary'
+import VocabBadge from '@/components/domain/VocabBadge.vue'
+import type { components } from '@/api/schema'
+
+type AnnotationHistory = components['schemas']['AnnotationHistory']
+type CanonicalLabel = components['schemas']['CanonicalLabel']
 
 const props = withDefaults(
   defineProps<{

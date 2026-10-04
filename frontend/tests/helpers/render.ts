@@ -61,3 +61,31 @@ export async function mountApplicationAt(
   await flushPromises()
   return wrapper
 }
+
+/** Find a portalled dialog by the accessible name supplied by its visible title. */
+export function queryDialogByName(name: string): HTMLElement | null {
+  return (
+    Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]')).find((dialog) => {
+      const label = dialog.getAttribute('aria-label')
+      const title = dialog
+        .getAttribute('aria-labelledby')
+        ?.split(/\s+/)
+        .map((id) => document.getElementById(id)?.textContent ?? '')
+        .join(' ')
+      return (label ?? title)?.replace(/\s+/g, ' ').trim() === name
+    }) ?? null
+  )
+}
+
+/** These application dialog actions are native buttons named by visible text. */
+export function getDialogButtonByName(dialogName: string, buttonName: string): HTMLButtonElement {
+  const dialog = queryDialogByName(dialogName)
+  const button = Array.from(dialog?.querySelectorAll('button') ?? []).find(
+    (candidate) =>
+      (candidate.getAttribute('aria-label') ?? candidate.textContent)
+        ?.replace(/\s+/g, ' ')
+        .trim() === buttonName,
+  )
+  if (button === undefined) throw new Error(`Missing dialog action: ${dialogName} / ${buttonName}`)
+  return button
+}

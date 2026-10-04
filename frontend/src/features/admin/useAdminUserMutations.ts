@@ -4,7 +4,7 @@ import { onScopeDispose, ref, watch, type Ref } from 'vue'
 import { ApiError, unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
 
-import { invalidateAdminUserQueries } from './useAdminUserDirectory'
+import { invalidateAdminUserQueries } from '@/composables/resourceQueries'
 
 export type AdminUserCreateCommand = components['schemas']['AdminUserCreate']
 export type AdminUserUpdateCommand = components['schemas']['AdminUserUpdate']

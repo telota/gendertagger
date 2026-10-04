@@ -1,11 +1,20 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, type Ref } from 'vue'
 
-import { unwrap, type components } from '@/api'
+import { unwrap } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
-import { currentData } from '@/features/projects/useSnapshotData'
+import { cursorQueryOptions } from '@/composables/cursorQuery'
+import { currentData } from '@/composables/queryData'
+import {
+  snapshotAnnotationItemsKey,
+  snapshotAnnotationItemKey,
+} from '@/composables/resourceQueries'
+import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
 import { useSessionStore } from '@/stores/session'
-import type { CanonicalLabel, ReviewWorkflowState } from './useVocabulary'
+import type { components } from '@/api/schema'
+
+type CanonicalLabel = components['schemas']['CanonicalLabel']
+type ReviewWorkflowState = components['schemas']['ReviewWorkflowState']
 
 export type SnapshotAnnotationItem = components['schemas']['SnapshotAnnotationItem']
 export interface SnapshotAnnotationFilters {
@@ -22,21 +31,15 @@ export function useSnapshotAnnotationItems(
   const client = useApiClient()
   const session = useSessionStore()
   const cache = useQueryClient()
-  const canRead = computed(() => enabled.value && session.canUsePrivateNavigation)
+  const { canRead } = usePrivateQueryScope(enabled)
   const filtersQuery = computed(() => ({
     ...(filters.value.q.trim() ? { q: filters.value.q.trim() } : {}),
     workflow_states: filters.value.workflowState ? [filters.value.workflowState] : [],
     ...(filters.value.humanLabel ? { human_label: filters.value.humanLabel } : {}),
     limit: 50,
   }))
-  const key = computed(
-    () =>
-      [
-        'snapshot-annotation-items',
-        snapshotId.value,
-        session.user?.id,
-        filtersQuery.value,
-      ] as const,
+  const key = computed(() =>
+    snapshotAnnotationItemsKey(snapshotId.value, session.user?.id, filtersQuery.value),
   )
   const query = useInfiniteQuery({
     queryKey: key,
@@ -50,8 +53,7 @@ export function useSnapshotAnnotationItems(
           signal,
         }),
       ),
-    initialPageParam: null as string | null,
-    getNextPageParam: (page) => (page.has_more ? page.next_cursor : undefined),
+    ...cursorQueryOptions,
     enabled: canRead,
   })
   const data = computed(() =>
@@ -68,11 +70,9 @@ export function useSnapshotAnnotationItem(
   const client = useApiClient()
   const session = useSessionStore()
   const cache = useQueryClient()
-  const canRead = computed(
-    () => enabled.value && session.canUsePrivateNavigation && teiId.value !== '',
-  )
-  const key = computed(
-    () => ['snapshot-annotation-item', snapshotId.value, session.user?.id, teiId.value] as const,
+  const { canRead } = usePrivateQueryScope(() => enabled.value && teiId.value !== '')
+  const key = computed(() =>
+    snapshotAnnotationItemKey(snapshotId.value, session.user?.id, teiId.value),
   )
   const query = useQuery({
     queryKey: key,

@@ -471,7 +471,7 @@ page-specific backend endpoints.
 deep links for all three screens. No artifact or evidence is presented under an unrelated context.
 
 **Remediation (2026-10-04).** All three screens share
-[`useArtifactRouteContext`](frontend/src/features/runs/useArtifactRouteContext.ts), reusing the existing
+[`useArtifactRouteContext`](frontend/src/composables/useArtifactRouteContext.ts), reusing the existing
 project/run/snapshot queries to validate canonical ownership before exposing detail data. Manifest/report
 reads and export download/hash continuations require that valid context. Principal and complete-route
 changes invalidate pending download ownership, including navigation away and back. Mounted regressions
@@ -950,12 +950,12 @@ Current remediation status is recorded below; the original review evidence remai
 | BQ-05 | P2 | Backend | Dispatch persistence repeats common intent handling and field projection | Fixed; six-target PostgreSQL insertion, replay, race, lease, and recovery checks passed |
 | BQ-06 | P3 | Backend | Historical runtime snapshot/configuration compatibility can be retired | Deferred; fingerprint representation and development-data reset need approval |
 | BQ-07 | P2 | Backend | The dead-code gate counts words rather than application reachability | Deferred; framework/protocol roots and exemption scope need a design decision |
-| FQ-01 | P2 | Frontend | Query keys, cursors, polling, and invalidation need shared ownership | Open |
-| FQ-02 | P2 | Frontend | Shared domain UI and helpers remain coupled to feature folders | Open |
+| FQ-01 | P2 | Frontend | Query keys, cursors, polling, and invalidation need shared ownership | Fixed; shared keys/cursor/polling and retained-context regressions passed |
+| FQ-02 | P2 | Frontend | Shared domain UI and helpers remain coupled to feature folders | Fixed; defining shared modules and migrated consumers, without compatibility re-exports |
 | FQ-03 | P2 | Frontend | Artifact interfaces duplicate canonical Pydantic contracts | Fixed; generated schemas, parser boundaries, and stored-byte HTTP identity exercised |
 | FQ-04 | P2 | Frontend | Dialog structure and overlay styling are implemented repeatedly | Open |
 | FQ-05 | P2 | Frontend | Creation disclosure and cursor-list feedback are copied between views | Open |
-| FQ-06 | P2 | Frontend | Lifecycle, provenance, prediction, and annotation-history presentation repeat | Open |
+| FQ-06 | P2 | Frontend | Lifecycle, provenance, prediction, and annotation-history presentation repeat | Fixed; data-only presenters preserve uncertainty, confidence, and history semantics |
 | FQ-07 | P2 | Frontend | Repeated native fields bypass incomplete shared field primitives | Open |
 | FQ-08 | P3 | Frontend | An orphan component, unused exported types, and dead CSS survive checks | Open |
 | DQ-01 | P2 | Documentation | Overlapping guidance and undated reports now disagree | Open |
@@ -1161,7 +1161,7 @@ reachability evidence. The frontend uses a separate bounded production-root grap
 
 #### FQ-01: Share query ownership, cursor mechanics, and list polling
 
-**Evidence.** [Aggregation queries](frontend/src/features/runs/useAggregations.ts), line 36;
+**Evidence.** [Aggregation queries](frontend/src/composables/useAggregations.ts), line 36;
 [evaluation queries](frontend/src/features/evaluation/useEvaluations.ts), line 31; and
 [export queries](frontend/src/features/export/useExports.ts), line 25, repeat infinite-query setup,
 cursor continuation, two-second live-item polling, and creation invalidation. Source contains 21
@@ -1170,7 +1170,7 @@ cursor continuation, two-second live-item polling, and creation invalidation. So
 Snapshot reads in `useSnapshotImport`/`useSnapshotData` and run reads in `useRunDetail`/`useTaskData`
 also use different keys for equivalent resources. Principal/request ownership differs between older
 run/artifact queries and newer snapshot/task/admin queries; annotation invalidation independently knows
-literal cache layouts in [useAnnotate](frontend/src/features/review/useAnnotate.ts), lines 54 and 78.
+literal cache layouts in [useAnnotate](frontend/src/composables/useAnnotate.ts), lines 54 and 78.
 
 **Plan.** Establish shared typed resource key/options builders, cursor helpers, and list polling.
 Keep endpoint request functions, filters, and lifecycle predicates explicit. Move `currentData` out of
@@ -1182,15 +1182,22 @@ for RG-02 and supports RG-12; it does not replace those correctness fixes.
 cannot update a replacement account; polling and cancellation retain correct lifecycle behavior; shared
 invalidation refreshes all affected projections. Preserve the account/route regression coverage.
 
+**Remediation (2026-10-04).** Shared typed resource/principal keys, current-data guards, opaque cursor
+options, and canonical-page live-list polling replace the duplicated ownership mechanics. All 21
+original continuation sites use the shared options; snapshot/artifact intervals and error policies,
+inspection/import-status differences, SSE, and annotation invalidation remain explicit. The covered
+frontend suite and account/route/cursor regressions passed; the actual browser switched review queues
+and received the exact seven-record server page under the replacement filter tuple.
+
 #### FQ-02: Move already-reused domain presentation into shared modules
 
 **Evidence.** [The coding guidelines](docs/26-frontend-coding-guidelines.md) forbid cross-feature
-imports, but [VocabBadge](frontend/src/features/review/VocabBadge.vue) serves review, game, method
+imports, but [VocabBadge](frontend/src/components/domain/VocabBadge.vue) serves review, game, method
 results, and project statistics from the review feature. [GameModeView](frontend/src/features/game/GameModeView.vue),
 lines 14–31, imports person presentation, badges, names, retention logic, annotations, reads, filters,
 and vocabulary from other features. Project snapshot panels import review person details; evaluation
 imports review vocabulary. Shared lifecycle translation remains owned by
-[runs](frontend/src/features/runs/useStatusLabel.ts).
+[runs](frontend/src/composables/useStatusLabel.ts).
 
 **Plan.** Promote vocabulary badges, person details, and lifecycle presentation into the documented
 `components/domain/` location. Move common token/gloss/name helpers into shared domain modules and
@@ -1200,6 +1207,13 @@ and make dependency direction explicit; a new barrel that preserves feature coup
 **Closure.** Shared presentation has no feature dependency; consumers import defining shared modules;
 canonical tokens, uncertainty distinctions, translation, colors, and original source text remain intact.
 Enforce the boundary or document narrow justified exceptions.
+
+**Remediation (2026-10-04).** Nineteen already-shared modules moved to their defining `components/domain/`
+or `composables/` owners, with semantic references and Vue module/template edges mapped before cutover.
+Common queue descriptors and the native review-items query are shared; review filters/routes stay local,
+and game mode owns its open/full tuple. All consumers migrated directly, without old-path barrels,
+aliases, or compatibility re-exports. Shared source/person/vocabulary presentation rendered through the
+actual private API in review, method results, and the synthetic game fixture.
 
 #### FQ-03: Generate artifact types from their canonical contracts
 
@@ -1293,6 +1307,13 @@ or make scientific decisions.
 **Closure.** Real consumers adopt the presenters and delete replaced rendering/CSS. Missing output,
 `unknown`, `abstain`, `error`, and method-specific confidence stay distinct. Annotation ordering and
 audit history remain server-authoritative.
+
+**Remediation (2026-10-04).** Data-only lifecycle, JSON/provenance, selected-execution,
+prediction/status/confidence/missing-output, and review-local annotation-history presenters replace
+copied rendering/CSS in their real consumers. Boundary regressions preserve zero/null confidence,
+missing versus abstain/error/unknown, original source text, and append-only ordering/attribution.
+Actual Chromium surfaces displayed lifecycle/provenance/report metadata, method output, review queues,
+and the synthetic game source record; scientific decisions remain server-owned.
 
 #### FQ-07: Extend and adopt shared field composition
 

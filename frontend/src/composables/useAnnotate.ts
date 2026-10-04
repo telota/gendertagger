@@ -1,16 +1,26 @@
 import { useMutation, useQueryClient, type QueryClient } from '@tanstack/vue-query'
 
-import { ApiError, unwrap, type ApiClient, type components } from '@/api'
+import { ApiError, unwrap, type ApiClient } from '@/api'
+import type { components } from '@/api/schema'
 import { useApiClient } from '@/composables/useApiClient'
-import { privateQueryKey } from '@/composables/usePrivateQueryScope'
-import type { AggregationExecution } from '@/features/runs/useAggregations'
-import type { Run } from '@/features/runs/useRuns'
+import {
+  privateQueryKey,
+  belongsToPrincipal,
+  aggregationKey,
+  runKey,
+  annotationHistoryKey,
+  reviewItemPrefix,
+  reviewItemsPrefix,
+  snapshotAnnotationItemsPrefix,
+  snapshotAnnotationItemPrefix,
+} from '@/composables/resourceQueries'
 import { useSessionStore } from '@/stores/session'
 
-import { annotationHistoryKey, type ReviewItem } from './useReviewData'
-import type { CanonicalLabel, ReviewAction } from './useVocabulary'
+type ReviewItem = components['schemas']['ReviewItem']
+type CanonicalLabel = components['schemas']['CanonicalLabel']
+type ReviewAction = components['schemas']['ReviewAction']
 
-export type Annotation = components['schemas']['Annotation']
+type Annotation = components['schemas']['Annotation']
 
 /** A snapshot/person is sufficient; a classification result is optional supporting evidence. */
 export type AnnotationTarget = Pick<
@@ -52,39 +62,29 @@ export function postAnnotation(client: ApiClient, input: DecisionInput): Promise
   )
 }
 
-function belongsToPrincipal(queryKey: readonly unknown[], principalId: string | null): boolean {
-  const owner = queryKey.at(-1)
-  return (
-    typeof owner === 'object' &&
-    owner !== null &&
-    'principal_id' in owner &&
-    owner.principal_id === principalId
-  )
-}
-
 /** Read known ownership without additional requests or assumptions about partially loaded pages. */
 function cachedAggregationSnapshot(
   queryClient: QueryClient,
   aggregationId: string,
   principalId: string | null,
 ): string | null {
-  const aggregation = queryClient.getQueryData<AggregationExecution>(
-    privateQueryKey(['aggregations', aggregationId], principalId),
+  const aggregation = queryClient.getQueryData<components['schemas']['AggregationExecution']>(
+    privateQueryKey(aggregationKey(aggregationId), principalId),
   )
   if (aggregation) {
-    const run = queryClient.getQueryData<Run>(
-      privateQueryKey(['runs', aggregation.run_id], principalId),
+    const run = queryClient.getQueryData<components['schemas']['Run']>(
+      privateQueryKey(runKey(aggregation.run_id), principalId),
     )
     if (run) return run.dataset_snapshot_id
   }
   for (const [, item] of queryClient.getQueriesData<ReviewItem | null>({
-    queryKey: ['aggregations', aggregationId, 'review-item'],
+    queryKey: reviewItemPrefix(aggregationId),
     predicate: (query) => belongsToPrincipal(query.queryKey, principalId),
   })) {
     if (item) return item.snapshot_id
   }
   for (const [, list] of queryClient.getQueriesData<{ pages: { items: ReviewItem[] }[] }>({
-    queryKey: ['aggregations', aggregationId, 'review-items'],
+    queryKey: reviewItemsPrefix(aggregationId),
     predicate: (query) => belongsToPrincipal(query.queryKey, principalId),
   })) {
     const item = list?.pages.find((page) => page.items.length > 0)?.items[0]
@@ -99,9 +99,8 @@ export function invalidateAfterDecision(
   scope: { snapshotId: string; teiId?: string },
   principalId: string | null,
 ): void {
-  for (const resource of ['snapshot-annotation-items', 'snapshot-annotation-item']) {
-    void queryClient.invalidateQueries({ queryKey: [resource, scope.snapshotId] })
-  }
+  void queryClient.invalidateQueries({ queryKey: snapshotAnnotationItemsPrefix(scope.snapshotId) })
+  void queryClient.invalidateQueries({ queryKey: snapshotAnnotationItemPrefix(scope.snapshotId) })
   if (scope.teiId !== undefined) {
     void queryClient.invalidateQueries({
       queryKey: annotationHistoryKey(scope.snapshotId, scope.teiId),

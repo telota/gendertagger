@@ -11,18 +11,17 @@ import { createAppI18n, type AppLocale } from '@/app/i18n'
 import { createQueryClient } from '@/app/queryClient'
 import { createAppRouter } from '@/app/router'
 import { API_CLIENT_KEY } from '@/composables/useApiClient'
-import { privateQueryKey } from '@/composables/usePrivateQueryScope'
-import type { AccessibleProject } from '@/features/projects/useProjects'
-import {
-  projectMembershipQueryKey,
-  type ProjectMembershipState,
-} from '@/features/projects/useProjectMembership'
+import { privateQueryKey, projectMembershipQueryKey } from '@/composables/resourceQueries'
 import de from '@/locales/de.json'
 import en from '@/locales/en.json'
 import { useSessionStore, type CurrentUser } from '@/stores/session'
 
 import { apiClientWithRoutes } from '../helpers/api'
 import { waitFor } from '../helpers/wait'
+import type { components } from '@/api/schema'
+
+type AccessibleProject = components['schemas']['AccessibleProject']
+type ProjectMembershipState = components['schemas']['ProjectMembershipState']
 
 const catalogues = { de, en } as const
 const PROJECT_A = 'b0000000-0000-0000-0000-000000000001'

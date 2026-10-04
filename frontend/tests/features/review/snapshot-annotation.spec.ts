@@ -76,7 +76,9 @@ describe.each(['de', 'en'] as const)(
       expect(server.posts[0]).not.toHaveProperty('aggregated_result_id')
       await waitFor(() => expect(wrapper.get('.decision-saved').text()).toContain('female'))
       await waitFor(() => expect(wrapper.get('.annotation-current').text()).toContain('female'))
-      expect(wrapper.get('.annotation-history').text()).toContain('Attested in the source.')
+      expect(wrapper.get('.annotation-history-disclosure ol').text()).toContain(
+        'Attested in the source.',
+      )
       expect(
         server.requests.some((r) => /\/runs(?:\/|$)|\/aggregations(?:\/|$)/.test(r.path)),
       ).toBe(false)

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import type { components } from '@/api'
 import { reviewProgress, snapshotStats } from '@/features/projects/projectStats'
-import type { DatasetSnapshot } from '@/features/projects/useSnapshotImport'
-import { queueCounts } from '@/features/review/useReviewFilters'
+import { queueCounts } from '@/components/domain/reviewQueues'
+import type { components } from '@/api/schema'
+
+type DatasetSnapshot = components['schemas']['DatasetSnapshot']
 
 type Group = components['schemas']['ReviewSummaryGroup']
 

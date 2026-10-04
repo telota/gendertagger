@@ -1,10 +1,10 @@
 import { mount } from '@vue/test-utils'
 import { defineComponent, reactive, ref } from 'vue'
-import { createMemoryHistory, createRouter } from 'vue-router'
+import { createMemoryHistory } from 'vue-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createAppI18n } from '@/app/i18n'
-import { routes } from '@/app/router'
+import { createAppRouter } from '@/app/router'
 import { useSidebarNavigation } from '@/app/useSidebarNavigation'
 import type { ProjectNavigationContext } from '@/app/useProjectNavigation'
 
@@ -48,15 +48,8 @@ async function navigationAt(
     refetch: vi.fn(),
   }
   state.availability = availability
-  const router = createRouter({
-    history: createMemoryHistory(),
-    routes: routes.map((route) => ({
-      path: route.path,
-      name: route.name,
-      component: { render: () => null },
-    })),
-  })
-  const path = routes.find((route) => route.name === name)?.path ?? ''
+  const router = createAppRouter(createMemoryHistory())
+  const path = router.getRoutes().find((route) => route.name === name)?.path ?? ''
   const params = Object.fromEntries(
     [...path.matchAll(/:(\w+)/g)].map((match) => [match[1], `${match[1]}-a`]),
   )

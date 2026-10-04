@@ -3,11 +3,12 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
-import PersonRecordDetails from './PersonRecordDetails.vue'
+import AnnotationHistory from './AnnotationHistory.vue'
+import PersonRecordDetails from '@/components/domain/PersonRecordDetails.vue'
 import ReviewDecision from './ReviewDecision.vue'
-import VocabBadge from './VocabBadge.vue'
-import { reviewItemName } from './reviewItemName'
-import { useAnnotationHistory, usePersonRecord } from './useReviewData'
+import VocabBadge from '@/components/domain/VocabBadge.vue'
+import { reviewItemName } from '@/components/domain/reviewItemName'
+import { useAnnotationHistory, usePersonRecord } from '@/composables/useReviewData'
 import type { SnapshotAnnotationItem } from './useSnapshotAnnotations'
 
 const props = withDefaults(
@@ -18,7 +19,7 @@ const props = withDefaults(
   }>(),
   { contextReady: true },
 )
-const { t, d, n } = useI18n()
+const { t, n } = useI18n()
 const snapshotId = computed(() => props.item.snapshot_id)
 const teiId = computed(() => props.item.tei_id)
 const person = usePersonRecord(snapshotId, teiId)
@@ -120,54 +121,7 @@ const currentHistory = computed(() =>
               </AppButton>
             </template>
           </AppFeedback>
-          <template v-else-if="currentHistory">
-            <p v-if="!currentHistory.annotations.length" class="annotation-muted">
-              {{ t('review.detail.history.empty') }}
-            </p>
-            <template v-else>
-              <p class="annotation-muted">
-                {{
-                  t('review.detail.history.revision', {
-                    revision: n(currentHistory.revision, 'integer'),
-                  })
-                }}
-              </p>
-              <ol class="annotation-history">
-                <li
-                  v-for="(entry, index) in currentHistory.annotations"
-                  :key="entry.id"
-                  :class="{ 'annotation-history-entry--current': index === 0 }"
-                >
-                  <p class="annotation-history-head">
-                    <span class="annotation-revision-number">{{
-                      t('review.detail.history.entry', {
-                        revision: n(entry.resulting_revision, 'integer'),
-                      })
-                    }}</span>
-                    <span class="annotation-token">{{ entry.action }}</span>
-                    <VocabBadge v-if="entry.label" :value="entry.label" kind="label" />
-                    <span v-if="index === 0" class="annotation-current-marker">{{
-                      t('review.detail.history.current')
-                    }}</span>
-                  </p>
-                  <p class="annotation-history-who">
-                    <span>{{
-                      t('review.detail.history.by', {
-                        name: entry.reviewer_display_name,
-                        when: d(new Date(entry.created_at), 'timestamp'),
-                      })
-                    }}</span>
-                    <span v-if="entry.supersedes_annotation_id">{{
-                      t('review.detail.history.replaces', {
-                        revision: n(entry.resulting_revision - 1, 'integer'),
-                      })
-                    }}</span>
-                  </p>
-                  <p v-if="entry.comment" class="annotation-comment">{{ entry.comment }}</p>
-                </li>
-              </ol>
-            </template>
-          </template>
+          <AnnotationHistory v-else-if="currentHistory" :history="currentHistory" />
         </div>
       </details>
     </section>
@@ -271,62 +225,5 @@ const currentHistory = computed(() =>
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3) var(--space-3);
-}
-
-.annotation-muted {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: var(--font-size-small);
-}
-
-.annotation-history {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0 0 0 var(--space-4);
-  border-inline-start: 2px solid var(--grid);
-  list-style: none;
-}
-
-.annotation-history-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2);
-  margin: 0;
-}
-
-.annotation-history-entry--current .annotation-token,
-.annotation-current-marker {
-  color: var(--accent);
-}
-
-.annotation-revision-number,
-.annotation-current-marker {
-  font-size: var(--font-size-small);
-}
-
-.annotation-revision-number,
-.annotation-history-who {
-  color: var(--text-secondary);
-}
-
-.annotation-token {
-  font-family: var(--font-mono, ui-monospace, monospace);
-  font-weight: var(--weight-semibold);
-}
-
-.annotation-history-who {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin: 0;
-  font-size: var(--font-size-small);
-}
-
-.annotation-comment {
-  margin: var(--space-1) 0 0;
-  color: var(--text-secondary);
 }
 </style>

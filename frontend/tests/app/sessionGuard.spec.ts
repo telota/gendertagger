@@ -1,11 +1,11 @@
 import { mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import { defineComponent } from 'vue'
-import { createMemoryHistory, createRouter, type Router } from 'vue-router'
+import { createMemoryHistory, type Router } from 'vue-router'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { createApiClient, type ApiClient } from '@/api'
-import { routes } from '@/app/router'
+import { createAppRouter } from '@/app/router'
 import {
   privateRetryScope,
   createUnauthorizedHandler,
@@ -45,7 +45,7 @@ function mountSession(client: ApiClient) {
 }
 
 async function router(): Promise<Router> {
-  const instance = createRouter({ history: createMemoryHistory(), routes: [...routes] })
+  const instance = createAppRouter(createMemoryHistory())
   await instance.push('/')
   await instance.isReady()
   return instance

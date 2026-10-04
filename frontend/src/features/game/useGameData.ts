@@ -27,7 +27,7 @@ export function formatGameDuration(milliseconds: number): string {
   return `${minutes}:${seconds}`
 }
 
-export function gameLeaderboardKey(projectId: string, roundSize: GameRoundSize) {
+function gameLeaderboardKey(projectId: string, roundSize: GameRoundSize) {
   return ['projects', projectId, 'game-leaderboard', roundSize] as const
 }
 

@@ -1,16 +1,14 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref, type Ref } from 'vue'
 
-import { unwrap } from '@/api'
+import { unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
 import { useSessionStore } from '@/stores/session'
+import { cursorQueryOptions, liveListPolling } from '@/composables/cursorQuery'
 
-import { currentData } from './useSnapshotData'
-
-/** Prefix shared with import invalidation; individual reads are isolated by principal. */
-export function snapshotListKey(projectId: string) {
-  return ['projects', projectId, 'snapshots'] as const
-}
+import { currentData } from '@/composables/queryData'
+import { snapshotListQueryKey, snapshotSourceMembersKey } from '@/composables/resourceQueries'
+import { usePrivateQueryScope } from '@/composables/usePrivateQueryScope'
 
 /** Newest first in every lifecycle state, with the server's opaque cursor and order. */
 export function useSnapshotList(projectId: Ref<string>, enabled: Ref<boolean> = ref(true)) {
@@ -18,9 +16,7 @@ export function useSnapshotList(projectId: Ref<string>, enabled: Ref<boolean> = 
   const session = useSessionStore()
 
   return useInfiniteQuery({
-    queryKey: computed(
-      () => [...snapshotListKey(projectId.value), session.user?.id ?? 'anonymous'] as const,
-    ),
+    queryKey: computed(() => snapshotListQueryKey(projectId.value, session.user?.id)),
     queryFn: ({ queryKey, pageParam, signal }) =>
       unwrap(
         client.GET('/api/v1/projects/{project_id}/snapshots', {
@@ -28,17 +24,13 @@ export function useSnapshotList(projectId: Ref<string>, enabled: Ref<boolean> = 
           signal,
         }),
       ),
-    initialPageParam: null as string | null,
-    getNextPageParam: (lastPage) =>
-      lastPage.has_more ? (lastPage.next_cursor ?? null) : undefined,
+    ...cursorQueryOptions,
     enabled: computed(() => enabled.value && session.canUsePrivateNavigation),
-    refetchInterval: (query) =>
-      query.state.status !== 'error' &&
-      query.state.data?.pages.some((page) =>
-        page.items.some((snapshot) => ['pending', 'importing'].includes(snapshot.status)),
-      )
-        ? 5000
-        : false,
+    refetchInterval: liveListPolling<components['schemas']['CursorPage_DatasetSnapshot_']>({
+      isLive: (snapshot) => ['pending', 'importing'].includes(snapshot.status),
+      intervalMs: 5000,
+      stopOnError: true,
+    }),
   })
 }
 
@@ -47,11 +39,8 @@ export function useSnapshotSourceMembers(snapshotId: Ref<string>, enabled: Ref<b
   const client = useApiClient()
   const session = useSessionStore()
   const cache = useQueryClient()
-  const canRead = computed(() => enabled.value && session.canUsePrivateNavigation)
-  const key = computed(
-    () =>
-      ['snapshots', snapshotId.value, 'source-members', session.user?.id ?? 'anonymous'] as const,
-  )
+  const { canRead } = usePrivateQueryScope(enabled)
+  const key = computed(() => snapshotSourceMembersKey(snapshotId.value, session.user?.id))
   const query = useQuery({
     queryKey: key,
     queryFn: ({ queryKey, signal }) =>

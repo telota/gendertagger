@@ -6,7 +6,7 @@ import { RouterLink } from 'vue-router'
 import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
 import { useDraftRegistration } from '@/composables/useDraftNavigation'
-import { useProject } from '@/features/projects/useProjects'
+import { useProject } from '@/composables/useProjects'
 
 import AggregationItem from './AggregationItem.vue'
 import {
@@ -15,10 +15,12 @@ import {
   useAggregationList,
   useCreateAggregation,
   type AggregationCreated,
-} from './useAggregations'
-import type { MethodExecutionSummary } from './useRunDetail'
-import type { Run } from './useRuns'
-import { useStatusLabel } from './useStatusLabel'
+} from '@/composables/useAggregations'
+import { useStatusLabel } from '@/composables/useStatusLabel'
+import type { components } from '@/api/schema'
+
+type MethodExecutionSummary = components['schemas']['MethodExecutionSummary']
+type Run = components['schemas']['Run']
 
 const props = defineProps<{
   projectId: string

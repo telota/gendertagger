@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import type { AppLocale } from '@/app/i18n'
 
-import { mountApplicationAt } from '../../helpers/render'
+import { getDialogButtonByName, mountApplicationAt, queryDialogByName } from '../../helpers/render'
 import { waitFor } from '../../helpers/wait'
 import {
   AGG_ID,
@@ -231,8 +231,13 @@ describe.each(['de', 'en'] as const)('bulk decisions in %s', (locale: AppLocale)
     await wrapper.get('#bulk-action').setValue('defer')
     await wrapper.get('#bulk-comment').setValue('Check these sources first')
     const attempt = wrapper.vm.$router.push('/')
-    await waitFor(() => expect(document.querySelector('.draft-leave-panel')).not.toBeNull())
-    document.querySelector<HTMLButtonElement>('.draft-leave-actions button')!.click()
+    await waitFor(() =>
+      expect(queryDialogByName(catalogues[locale].draftNavigation.title)).not.toBeNull(),
+    )
+    getDialogButtonByName(
+      catalogues[locale].draftNavigation.title,
+      catalogues[locale].draftNavigation.stay,
+    ).click()
     await attempt
     expect(wrapper.vm.$route.path).toBe(base)
     expect((wrapper.get('#bulk-comment').element as HTMLTextAreaElement).value).toBe(
@@ -258,15 +263,20 @@ describe.each(['de', 'en'] as const)('bulk decisions in %s', (locale: AppLocale)
     await wrapper.get('.bulk-apply').trigger('click')
     await waitFor(() => expect(server.posts).toHaveLength(1))
     const attempt = wrapper.vm.$router.push('/')
-    await waitFor(() => expect(document.querySelector('.draft-leave-panel')).not.toBeNull())
-    document.querySelector<HTMLButtonElement>('.draft-leave-actions button')!.click()
+    await waitFor(() =>
+      expect(queryDialogByName(catalogues[locale].draftNavigation.title)).not.toBeNull(),
+    )
+    getDialogButtonByName(
+      catalogues[locale].draftNavigation.title,
+      catalogues[locale].draftNavigation.stay,
+    ).click()
     await attempt
     expect(wrapper.vm.$route.path).toBe(base)
     release()
     await waitFor(() => expect(wrapper.findAll('.bulk-report-item--saved')).toHaveLength(2))
     expect(server.posts).toHaveLength(2)
     await wrapper.vm.$router.push('/')
-    expect(document.querySelector('.draft-leave-panel')).toBeNull()
+    expect(queryDialogByName(catalogues[locale].draftNavigation.title)).toBeNull()
     wrapper.unmount()
   })
 
@@ -284,8 +294,13 @@ describe.each(['de', 'en'] as const)('bulk decisions in %s', (locale: AppLocale)
     await wrapper.get('.bulk-apply').trigger('click')
     await waitFor(() => expect(server.posts).toHaveLength(1))
     const attempt = wrapper.vm.$router.push('/')
-    await waitFor(() => expect(document.querySelector('.draft-leave-panel')).not.toBeNull())
-    document.querySelectorAll<HTMLButtonElement>('.draft-leave-actions button')[1]!.click()
+    await waitFor(() =>
+      expect(queryDialogByName(catalogues[locale].draftNavigation.title)).not.toBeNull(),
+    )
+    getDialogButtonByName(
+      catalogues[locale].draftNavigation.title,
+      catalogues[locale].draftNavigation.discard,
+    ).click()
     await attempt
     await waitFor(() => expect(document.activeElement).toBe(wrapper.get('#main-content').element))
     release()
@@ -313,16 +328,21 @@ describe.each(['de', 'en'] as const)('bulk decisions in %s', (locale: AppLocale)
     await waitFor(() => expect(server.posts).toHaveLength(1))
     const attempt = wrapper.vm.$router.push('/')
     await waitFor(() =>
-      expect(document.querySelector('.draft-leave-panel')?.contains(document.activeElement)).toBe(
-        true,
-      ),
+      expect(
+        queryDialogByName(catalogues[locale].draftNavigation.title)?.contains(
+          document.activeElement,
+        ),
+      ).toBe(true),
     )
     release()
     await waitFor(() => expect(wrapper.findAll('.bulk-report-item--saved')).toHaveLength(2))
-    expect(document.querySelector('.draft-leave-panel')?.contains(document.activeElement)).toBe(
-      true,
-    )
-    document.querySelector<HTMLButtonElement>('.draft-leave-actions button')!.click()
+    expect(
+      queryDialogByName(catalogues[locale].draftNavigation.title)?.contains(document.activeElement),
+    ).toBe(true)
+    getDialogButtonByName(
+      catalogues[locale].draftNavigation.title,
+      catalogues[locale].draftNavigation.stay,
+    ).click()
     await attempt
     expect(wrapper.vm.$route.path).toBe(base)
     expect(wrapper.findAll('.bulk-report-item--saved')).toHaveLength(2)

@@ -4,7 +4,7 @@ import { onScopeDispose, ref, watch, type Ref } from 'vue'
 import { ApiError, unwrap, type components } from '@/api'
 import { useApiClient } from '@/composables/useApiClient'
 
-import { invalidateAdminTeamQueries } from './useAdminTeams'
+import { invalidateAdminTeamQueries } from '@/composables/resourceQueries'
 
 export type TeamCreateCommand = components['schemas']['TeamCreate']
 export type TeamUpdateCommand = components['schemas']['TeamUpdate']

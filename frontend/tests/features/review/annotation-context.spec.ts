@@ -5,13 +5,16 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { createAppI18n } from '@/app/i18n'
 import { API_CLIENT_KEY } from '@/composables/useApiClient'
-import { privateQueryKey } from '@/composables/usePrivateQueryScope'
+import { privateQueryKey } from '@/composables/resourceQueries'
 import ReviewDecision from '@/features/review/ReviewDecision.vue'
-import { invalidateAfterDecision, postAnnotation } from '@/features/review/useAnnotate'
-import type { AnnotationHistory, ReviewItem } from '@/features/review/useReviewData'
+import { invalidateAfterDecision, postAnnotation } from '@/composables/useAnnotate'
 
 import { waitFor } from '../../helpers/wait'
 import { HISTORY, item, newServer, reviewClient, SNAPSHOT_ID } from './fixtures'
+import type { components } from '@/api/schema'
+
+type AnnotationHistory = components['schemas']['AnnotationHistory']
+type ReviewItem = components['schemas']['ReviewItem']
 
 afterEach(() => document.body.replaceChildren())
 
