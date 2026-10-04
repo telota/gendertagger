@@ -286,6 +286,11 @@ the phased plan that resumes application code.
 
 ### Fixed
 
+- Batch failures now share the URL-credential redaction and bounded detailed-diagnostic policy used by
+  aggregation, evaluation, export, and dispatch. Redaction occurs before the 500-character limit;
+  authenticated method summaries cannot retain credential-bearing URL user information from batch
+  failures. Snapshot-import safe messages and anonymous classification's limited failure codes remain
+  separate.
 - Aggregation, evaluation, and export detail screens validate canonical resource/run/snapshot/project
   ownership before showing status, evidence, actions, or links. Rapid context changes fail closed;
   invalidated export downloads and hashing continuations cannot save or display stale bytes.

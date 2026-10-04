@@ -1,6 +1,5 @@
 """Application orchestration for executable benchmark evaluations."""
 
-import re
 from collections.abc import Callable
 from datetime import datetime
 from io import BytesIO
@@ -16,6 +15,7 @@ from gendertagger.models.evaluation import (
     EvaluationTaskMessage,
 )
 from gendertagger.models.lifecycle import EvaluationExecutionStatus
+from gendertagger.services.diagnostics import sanitized_diagnostic
 from gendertagger.services.ports.artifact_storage import ArtifactStorage
 from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
@@ -28,23 +28,10 @@ Clock = Callable[[], datetime]
 DEFAULT_MAX_EVALUATION_ATTEMPTS = 3
 _EVALUATION_REPORT_LOGICAL_TYPE = "evaluation_report"
 _EVALUATION_REPORT_MEDIA_TYPE = "application/json"
-_MAX_DIAGNOSTIC_LENGTH = 500
-_URL_CREDENTIALS = re.compile(
-    r"([a-z][a-z0-9+.-]*://)([^/@\s]+@)",
-    flags=re.IGNORECASE,
-)
 
 
 class TransientEvaluationError(RuntimeError):
     """Raised when evaluation execution should be retried after rollback."""
-
-
-def _sanitized_diagnostic(error: BaseException) -> str:
-    text = f"{type(error).__name__}: {error}".strip()
-    text = _URL_CREDENTIALS.sub(r"\1<redacted>@", text)
-    if len(text) > _MAX_DIAGNOSTIC_LENGTH:
-        return text[: _MAX_DIAGNOSTIC_LENGTH - 1] + "…"
-    return text
 
 
 class EvaluationExecutor:
@@ -212,7 +199,7 @@ class EvaluationExecutor:
             status=EvaluationExecutionStatus.failed,
             finished_at=self._clock(),
             failure_class=type(error).__name__,
-            failure_diagnostic=_sanitized_diagnostic(error),
+            failure_diagnostic=sanitized_diagnostic(error),
         )
 
     @staticmethod

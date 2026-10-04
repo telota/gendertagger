@@ -937,31 +937,31 @@ Existing CI and local verification already distinguish the two applications. Pas
 does not establish whole-program reachability or the absence of repetition. The new identifiers keep
 these quality workstreams distinct from the functional and publication gaps above. P2 denotes substantial
 shared-policy, boundary, or documentation work; P3 denotes smaller cleanup or discretionary extraction.
-All recommendations remain open, and scope decisions are identified explicitly below.
+Current remediation status is recorded below; the original review evidence remains historical.
 
 ### Quality findings register
 
-| ID | Priority | Area | Finding |
-|---|---|---|---|
-| BQ-01 | P2 | Backend | Copied diagnostic formatters have inconsistent credential redaction |
-| BQ-02 | P3 | Backend | Redundant helpers and dormant recovery/authentication surfaces remain |
-| BQ-03 | P2 | Backend | Worker retry policy and infrastructure construction are copied |
-| BQ-04 | P3 | Backend | Three executors repeat transaction, retry, and terminal-failure policy |
-| BQ-05 | P2 | Backend | Dispatch persistence repeats common intent handling and field projection |
-| BQ-06 | P3 | Backend | Historical runtime snapshot/configuration compatibility can be retired |
-| BQ-07 | P2 | Backend | The dead-code gate counts words rather than application reachability |
-| FQ-01 | P2 | Frontend | Query keys, cursors, polling, and invalidation need shared ownership |
-| FQ-02 | P2 | Frontend | Shared domain UI and helpers remain coupled to feature folders |
-| FQ-03 | P2 | Frontend | Artifact interfaces duplicate canonical Pydantic contracts |
-| FQ-04 | P2 | Frontend | Dialog structure and overlay styling are implemented repeatedly |
-| FQ-05 | P2 | Frontend | Creation disclosure and cursor-list feedback are copied between views |
-| FQ-06 | P2 | Frontend | Lifecycle, provenance, prediction, and annotation-history presentation repeat |
-| FQ-07 | P2 | Frontend | Repeated native fields bypass incomplete shared field primitives |
-| FQ-08 | P3 | Frontend | An orphan component, unused exported types, and dead CSS survive checks |
-| DQ-01 | P2 | Documentation | Overlapping guidance and undated reports now disagree |
-| DQ-02 | P2 | Documentation | The documentation gate omits maintained files and section targets |
-| DQ-03 | P3 | Repository | Generated paper output and disposable development metadata are tracked |
-| DQ-04 | P3 | Repository | Exact research/manuscript copies lack a deliberate archival policy |
+| ID | Priority | Area | Finding | Status |
+|---|---|---|---|---|
+| BQ-01 | P2 | Backend | Copied diagnostic formatters have inconsistent credential redaction | Fixed; shared formatter and persisted/API smoke verified |
+| BQ-02 | P3 | Backend | Redundant helpers and dormant recovery/authentication surfaces remain | Open; authentication extension decision deferred |
+| BQ-03 | P2 | Backend | Worker retry policy and infrastructure construction are copied | Open |
+| BQ-04 | P3 | Backend | Three executors repeat transaction, retry, and terminal-failure policy | Open |
+| BQ-05 | P2 | Backend | Dispatch persistence repeats common intent handling and field projection | Open |
+| BQ-06 | P3 | Backend | Historical runtime snapshot/configuration compatibility can be retired | Deferred; fingerprint representation and development-data reset need approval |
+| BQ-07 | P2 | Backend | The dead-code gate counts words rather than application reachability | Deferred; framework/protocol roots and exemption scope need a design decision |
+| FQ-01 | P2 | Frontend | Query keys, cursors, polling, and invalidation need shared ownership | Open |
+| FQ-02 | P2 | Frontend | Shared domain UI and helpers remain coupled to feature folders | Open |
+| FQ-03 | P2 | Frontend | Artifact interfaces duplicate canonical Pydantic contracts | Open |
+| FQ-04 | P2 | Frontend | Dialog structure and overlay styling are implemented repeatedly | Open |
+| FQ-05 | P2 | Frontend | Creation disclosure and cursor-list feedback are copied between views | Open |
+| FQ-06 | P2 | Frontend | Lifecycle, provenance, prediction, and annotation-history presentation repeat | Open |
+| FQ-07 | P2 | Frontend | Repeated native fields bypass incomplete shared field primitives | Open |
+| FQ-08 | P3 | Frontend | An orphan component, unused exported types, and dead CSS survive checks | Open |
+| DQ-01 | P2 | Documentation | Overlapping guidance and undated reports now disagree | Open |
+| DQ-02 | P2 | Documentation | The documentation gate omits maintained files and section targets | Open |
+| DQ-03 | P3 | Repository | Generated paper output and disposable development metadata are tracked | Open; publication-artifact retention decisions deferred |
+| DQ-04 | P3 | Repository | Exact research/manuscript copies lack a deliberate archival policy | Deferred; archival retention and clearance need approval |
 
 ### Backend findings
 
@@ -985,6 +985,18 @@ limited failure codes rather than replacing them with detailed exceptions.
 
 **Closure.** Duplicate formatters are removed; synthetic credential markers do not reach persisted/API
 diagnostics; retry, truncation, and terminal-failure behavior remain covered by relevant regressions.
+
+**Remediation (2026-10-04).** All five operational paths now use
+[one application formatter](backend/src/gendertagger/services/diagnostics.py). URL user information is
+redacted before the existing 500-character truncation, while retry and terminal-failure policy remains
+resource-specific. Public snapshot-import messages and anonymous-classification failure codes are
+intentionally unchanged.
+
+Focused verification passed 35 unit/service cases and the PostgreSQL batch-to-execution regression.
+An owned PostgreSQL smoke executed a failing batch, authenticated through the production Argon2/session
+path, and read `/api/v1/runs/{id}/executions`: both persisted and HTTP diagnostics contained the redacted
+URL and no synthetic credential marker. This does not claim general exception-text sanitization or
+publication-commit verification.
 
 #### BQ-02: Retire redundant helpers and decide the scope of dormant surfaces
 

@@ -1,6 +1,5 @@
 """Application orchestration for executable result exports."""
 
-import re
 from collections import defaultdict
 from collections.abc import Callable
 from datetime import datetime
@@ -23,6 +22,7 @@ from gendertagger.models.export import (
     ExportTaskMessage,
 )
 from gendertagger.models.lifecycle import ExportExecutionStatus
+from gendertagger.services.diagnostics import sanitized_diagnostic
 from gendertagger.services.ports.artifact_storage import ArtifactStorage
 from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
@@ -41,23 +41,10 @@ _EXPORT_OUTPUT_JSON_LOGICAL_TYPE = "export_output_json"
 _EXPORT_OUTPUT_CSV_LOGICAL_TYPE = "export_output_csv"
 _JSON_BUNDLE_LOGICAL_NAME = "export.json"
 _CSV_ANALYSIS_LOGICAL_NAME = "export.csv"
-_MAX_DIAGNOSTIC_LENGTH = 500
-_URL_CREDENTIALS = re.compile(
-    r"([a-z][a-z0-9+.-]*://)([^/@\s]+@)",
-    flags=re.IGNORECASE,
-)
 
 
 class TransientExportError(RuntimeError):
     """Raised when export execution should be retried after rollback."""
-
-
-def _sanitized_diagnostic(error: BaseException) -> str:
-    text = f"{type(error).__name__}: {error}".strip()
-    text = _URL_CREDENTIALS.sub(r"\1<redacted>@", text)
-    if len(text) > _MAX_DIAGNOSTIC_LENGTH:
-        return text[: _MAX_DIAGNOSTIC_LENGTH - 1] + "…"
-    return text
 
 
 class ExportExecutor:
@@ -305,7 +292,7 @@ class ExportExecutor:
             status=ExportExecutionStatus.failed,
             finished_at=self._clock(),
             failure_class=type(error).__name__,
-            failure_diagnostic=_sanitized_diagnostic(error),
+            failure_diagnostic=sanitized_diagnostic(error),
         )
 
     @staticmethod

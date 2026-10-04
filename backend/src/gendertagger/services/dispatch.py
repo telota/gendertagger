@@ -1,7 +1,6 @@
 """Reliable publication and reconciliation of persisted task dispatches."""
 
 import random
-import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import timedelta
@@ -10,14 +9,12 @@ from uuid import UUID
 
 from gendertagger.models.common import UtcDatetime
 from gendertagger.models.dispatch import DispatchMessage
+from gendertagger.services.diagnostics import sanitized_diagnostic
 from gendertagger.services.ports.persistence_errors import InvalidResourceStateError
 from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 
 Clock = Callable[[], UtcDatetime]
 RetryDelay = Callable[[int], timedelta]
-
-_MAX_DIAGNOSTIC_LENGTH = 500
-_URL_CREDENTIALS = re.compile(r"([a-z][a-z0-9+.-]*://)([^/@\s]+@)", flags=re.IGNORECASE)
 
 
 class MessagePublisher(Protocol):
@@ -93,14 +90,6 @@ def jittered_exponential_retry_delay(
     return timedelta(seconds=seconds)
 
 
-def _sanitized_diagnostic(error: Exception) -> str:
-    diagnostic = f"{type(error).__name__}: {error}".strip()
-    diagnostic = _URL_CREDENTIALS.sub(r"\1<redacted>@", diagnostic)
-    if len(diagnostic) > _MAX_DIAGNOSTIC_LENGTH:
-        return diagnostic[: _MAX_DIAGNOSTIC_LENGTH - 1] + "…"
-    return diagnostic
-
-
 class OutboxRelay:
     """Lease pending outbox rows, publish them, and persist each outcome.
 
@@ -170,7 +159,7 @@ class OutboxRelay:
                             dispatch.id,
                             lease_owner=self._relay_id,
                             available_at=failed_at + self._retry_delay(dispatch.attempt_count),
-                            last_error=_sanitized_diagnostic(error),
+                            last_error=sanitized_diagnostic(error),
                         )
                         unit_of_work.commit()
                 except InvalidResourceStateError:

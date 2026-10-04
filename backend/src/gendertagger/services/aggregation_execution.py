@@ -1,6 +1,5 @@
 """Application orchestration for executable reference aggregations."""
 
-import re
 from collections.abc import Callable, Sequence
 from datetime import datetime
 from uuid import UUID
@@ -23,6 +22,7 @@ from gendertagger.models.aggregation import (
 )
 from gendertagger.models.classification import PredictionStatus
 from gendertagger.models.lifecycle import AggregationExecutionStatus
+from gendertagger.services.diagnostics import sanitized_diagnostic
 from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
     ResourceNotFoundError,
@@ -32,11 +32,6 @@ from gendertagger.services.ports.unit_of_work import UnitOfWork, UnitOfWorkFacto
 Clock = Callable[[], datetime]
 
 DEFAULT_MAX_AGGREGATION_ATTEMPTS = 3
-_MAX_DIAGNOSTIC_LENGTH = 500
-_URL_CREDENTIALS = re.compile(
-    r"([a-z][a-z0-9+.-]*://)([^/@\s]+@)",
-    flags=re.IGNORECASE,
-)
 
 
 class PermanentAggregationError(RuntimeError):
@@ -45,14 +40,6 @@ class PermanentAggregationError(RuntimeError):
 
 class TransientAggregationError(RuntimeError):
     """Raised when aggregation execution should be retried after rollback."""
-
-
-def _sanitized_diagnostic(error: BaseException) -> str:
-    text = f"{type(error).__name__}: {error}".strip()
-    text = _URL_CREDENTIALS.sub(r"\1<redacted>@", text)
-    if len(text) > _MAX_DIAGNOSTIC_LENGTH:
-        return text[: _MAX_DIAGNOSTIC_LENGTH - 1] + "…"
-    return text
 
 
 class AggregationExecutor:
@@ -208,7 +195,7 @@ class AggregationExecutor:
             status=AggregationExecutionStatus.failed,
             finished_at=self._clock(),
             failure_class=type(error).__name__,
-            failure_diagnostic=_sanitized_diagnostic(error),
+            failure_diagnostic=sanitized_diagnostic(error),
         )
 
     @staticmethod

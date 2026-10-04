@@ -33,6 +33,7 @@ from gendertagger.models.run import (
     TaskBatchMessage,
     WorkerProvenance,
 )
+from gendertagger.services.diagnostics import sanitized_diagnostic
 from gendertagger.services.method_registry import MethodRegistration, MethodRegistry
 from gendertagger.services.ports.artifact_repository import AmbiguousArtifactError
 from gendertagger.services.ports.persistence_errors import (
@@ -45,7 +46,6 @@ from gendertagger.services.task_batches import plan_task_batches
 Clock = Callable[[], datetime]
 
 DEFAULT_MAX_BATCH_ATTEMPTS = 3
-_MAX_DIAGNOSTIC_LENGTH = 500
 
 
 class TransientBatchError(RuntimeError):
@@ -72,13 +72,6 @@ def _assert_file_identity(path: Path, *, sha256: str, byte_size: int) -> None:
     if actual_sha256 != sha256 or actual_byte_size != byte_size:
         msg = "method artifact bytes differ from the accepted checksum or size"
         raise IncompatibleWorkerError(msg)
-
-
-def _sanitized_diagnostic(error: BaseException) -> str:
-    text = f"{type(error).__name__}: {error}".strip()
-    if len(text) > _MAX_DIAGNOSTIC_LENGTH:
-        return text[: _MAX_DIAGNOSTIC_LENGTH - 1] + "…"
-    return text
 
 
 @dataclass(frozen=True, slots=True)
@@ -467,7 +460,7 @@ class BatchExecutor:
             finished_at=finished_at,
             error_count=batch.record_count,
             failure_class=type(error).__name__,
-            failure_diagnostic=_sanitized_diagnostic(error),
+            failure_diagnostic=sanitized_diagnostic(error),
         )
         unit_of_work.runs.finalize_execution_if_complete(
             method_execution_id, finished_at=finished_at

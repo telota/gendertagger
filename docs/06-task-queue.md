@@ -183,6 +183,18 @@ transaction rolls back before a fresh transaction records the failed lifecycle a
 Transient storage, database, and unclassified failures roll back to pending and use bounded task retries;
 retry exhaustion records a terminal failure from a clean claim.
 
+## Persisted failure diagnostics
+
+Batch, aggregation, evaluation, export, and dispatch failures share
+`services/diagnostics.py::sanitized_diagnostic`. Detailed diagnostics redact URL user information
+before truncating to at most 500 characters, including the trailing ellipsis when truncated.
+This policy protects credential-bearing URLs; it does not promise general secret or editorial-content
+sanitization. Detailed operational diagnostics remain available only through authorized resources.
+
+Snapshot imports retain their fixed public-safe messages, and anonymous classification retains its
+limited failure codes and private-evidence boundary. Neither surface exposes detailed exceptions through
+this formatter. Failure classes, retry decisions, and immutable method evidence are unchanged.
+
 ## Run completion
 
 A Run may complete with method-level errors. Do not make one failed optional classifier destroy all successfully persisted evidence.

@@ -68,11 +68,14 @@ class _TransientAdapter:
     )
     config_model = _EmptyConfig
 
+    def __init__(self, message: str = "transient broker outage") -> None:
+        self._message = message
+
     def predict_batch(
         self, people: Sequence[PersonInput], config: _EmptyConfig
     ) -> list[PredictionResult]:
         del people, config
-        raise RuntimeError("transient broker outage")
+        raise RuntimeError(self._message)
 
 
 class _PermanentAdapter:
@@ -205,6 +208,33 @@ def test_transient_failure_at_max_attempts_fails_the_batch(
     assert run.progress.completed == 0
     assert run.progress.failed == 1
     assert run.progress.percentage == 100
+
+
+def test_terminal_batch_and_execution_diagnostics_redact_url_credentials(
+    postgres_unit_of_work: tuple[UnitOfWorkFactory, Connection],
+) -> None:
+    factory, _ = postgres_unit_of_work
+    adapter = _TransientAdapter("redis://worker:credential-marker@broker:6379/0 unavailable")
+    registry = MethodRegistry([_registration(adapter)])
+    run_id = _seed_run(factory, methods=[MethodRunConfig(name="flaky_method")])
+    scheduled = _scheduled(factory, registry, run_id)
+
+    failed = _executor(factory, registry).execute(
+        scheduled[0].message(), worker_task_id="w", attempt_count=3, max_attempts=3
+    )
+
+    assert failed.failure_diagnostic == (
+        "RuntimeError: redis://<redacted>@broker:6379/0 unavailable"
+    )
+    with factory() as unit_of_work:
+        execution = unit_of_work.runs.get_method_execution(scheduled[0].method_execution_id)
+        stored_batch = unit_of_work.runs.get_task_batch(scheduled[0].task_batch_id)
+    assert execution is not None
+    assert stored_batch is not None
+    assert stored_batch.failure_diagnostic == failed.failure_diagnostic
+    assert execution.failure_diagnostic is not None
+    assert "credential-marker" not in execution.failure_diagnostic
+    assert "redis://<redacted>@broker:6379/0 unavailable" in execution.failure_diagnostic
 
 
 def test_permanent_failure_fails_the_batch_without_retry(
