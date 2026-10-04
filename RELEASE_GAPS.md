@@ -1536,3 +1536,65 @@ and reusable review decisions. Build on those rather than adding competing abstr
 implementation material under ignored `__scrap/` and ordinary dependency/build caches are already excluded
 from Git. Complementary mypy/Pyright checks and the separate backend/frontend dependency manifests have
 documented purposes; this review found no basis to remove them as redundant.
+
+### Implementation verification — 2026-10-04
+
+Work ran in the isolated `/tmp/gendertagger-quality-20261004` worktree on
+`quality/release-gap-consolidation`, based on `14420ce`; the concurrent original worktree was not
+modified. Implementation and policy dispositions through `80e6da6` were committed in focused steps.
+The quality register now contains 14 fixed findings, one partially fixed finding (BQ-02), and four
+deferred findings (BQ-06/BQ-07/DQ-03/DQ-04). Authentication-extension, fingerprint/reset,
+Python-root/exemption, and archival-retention choices remain explicit decisions, not hidden cleanup.
+
+| Area | Exercised check | Observed result |
+|---|---|---|
+| Backend contracts/policy | Locked environment, naming, initializer, existing dead-code heuristic, Ruff format/lint | Passed; the heuristic still does not prove Python production reachability |
+| Backend types/boundaries | mypy, Pyright, Import Linter | Passed; 400 mypy files, zero Pyright errors/warnings, six kept architecture contracts |
+| Backend core | Locked core pytest profile | 1,822 passed |
+| Backend PostgreSQL | Locked service-backed pytest profile | 347 passed, including dispatch replay/races/leases and immutable scientific/history boundaries |
+| Backend Redis | Locked real-worker pytest profile | Seven passed; snapshot, batch, aggregation, evaluation, export, and public-classification task families exercised |
+| Backend coverage | Combined three-profile evidence | 88.25%; normalization, aggregation, aggregation assessment, and TEI profile each 100% |
+| Database/distribution | Alembic upgrade/check, locked wheel/sdist build and distribution policy | Passed; no new schema operations, both archives checked |
+| Dependencies | Backend audit and frontend npm audit | No known vulnerabilities reported |
+| Frontend source/contracts | Lint, Prettier, three TypeScript configurations, OpenAPI generation check, locale parity | Passed; two locales and 1,364 keys agree |
+| Frontend behavior | Full coverage suite after source-markup/style tests were retired | 1,770 passed in 93 files; statements 91.15%, branches 85.50%, functions 87.92%, lines 92.60% |
+| Frontend application graph | Pinned Knip production gate and behavioral graph fixtures | Passed; tests/tooling cannot rescue dead shipped code |
+| Frontend distribution | Production Vite build | Passed; 2,073 modules transformed |
+| Documentation | Real offline policy command and focused policy regressions | Passed; 44 regressions cover inventory, headings, links, and diagnostic boundaries |
+| Browser | Owned authenticated synthetic project, desktop and 390-pixel mobile surfaces | Settings, evaluation, review, method results, game, source annotation history, run disclosure, and export validation observed |
+| Visual detector | One Impeccable detection pass | One incumbent `AppSidebar.vue` width-transition finding remains; its style was not changed in this work |
+
+Additional direct runtime proof used private fixtures, not production data:
+
+- One process-owned pool supplied three fresh sessions/PostgreSQL backends. Ordinary artifact
+  executors did not initialize classification metadata. A real fork rejected the inherited owner,
+  reset/reinitialized child resources, and preserved the parent's live connection.
+- Fresh JSON/CSV/XLSX imports completed with two canonical records each. A real `gender_guesser`
+  batch and public CPU classification produced Anna/female and John/male while preserving raw output
+  and normalization provenance. Missing/expired dispatch recovery completed; stale ownership was
+  rejected and duplicate broker delivery did not change terminal evidence.
+- A genuinely unavailable Redis endpoint left a claimed dispatch pending with its persisted retry
+  deadline and cleared lease. Subsequent publication used the real Redis adapter.
+- An authenticated evaluation-report download retained all 7,777 stored bytes and SHA-256
+  `fa1705020f39e343d48c38922a7ecdaad8d3049779589ab1e7fbb29d37e80611`; OpenAPI advertised the canonical
+  `EvaluationReport` without reserialization.
+- Browser hide/show retained a configured run draft. Native Escape cancelled the leave dialog and
+  returned focus to its invoking link. The contested/all review queues showed two/seven synthetic
+  people; source history retained attribution, supersession, and revisions. A game decision used the
+  real append-only annotation path.
+- Native settings submitted JSON `locale: null` and `desktop_sidebar_collapsed: false`, not strings;
+  the stored response retained those types. Invalid visible TEI responsibility input set
+  `aria-invalid`, referenced existing hint/error elements, and disabled submission. Mobile width and
+  scroll width were both 390 pixels. Final browser error/console-error collections were empty.
+
+Limits: the standalone aggregation/evaluation/export pool smoke replayed completed resources; fresh
+computations and failure branches were exercised by the service-backed suites. Local LLM acceptance
+and queue routing were observed, not model inference. Smoke configuration identified its synthetic
+baseline as `14420ce`; it is not a production release-provenance record. No NVDA/manual screen-reader,
+manuscript-build, production-deployment, or installation-specific upgrade verification is claimed.
+Scientific definitions, accepted ADRs, historical artifacts, and reset/retention policy were unchanged.
+Owned preference/game settings were restored; the isolated workflow database/Redis prefix and worker
+were cleaned. Temporary smoke scripts/state and the owned browser, API, frontend, PostgreSQL, and Redis
+services were removed/stopped; the user's development stack was not touched. Dated synthetic evidence
+remains in the local verification cache. This record does not close the separate RG-17
+publication-verification requirement.
