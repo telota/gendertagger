@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import { PhMinus, PhPlus } from '@phosphor-icons/vue'
-import { computed, nextTick, ref, watch } from 'vue'
+import { useQueryClient } from '@tanstack/vue-query'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
+import AppCursorList from '@/components/base/AppCursorList.vue'
+import { useDisclosure } from '@/composables/useDisclosure'
+import { currentData } from '@/composables/queryData'
+import { projectKey } from '@/composables/resourceQueries'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
 import { useProject } from '@/composables/useProjects'
 import { useRun } from '@/composables/useRunDetail'
@@ -15,43 +20,42 @@ import NewExportForm from './NewExportForm.vue'
 import { useExportList } from './useExports'
 
 const { t } = useI18n()
+const cache = useQueryClient()
 const { session, isSignedIn, retrySession } = useRequireSession()
 
 const projectId = useRouteParam('projectId')
 const runId = useRouteParam('runId')
 
 const project = useProject(projectId, isSignedIn)
+// Durable capability excludes account/access loss, but not same-account reauthentication.
+const draftProject = computed(() =>
+  currentData(
+    cache,
+    projectKey(projectId.value, session.user?.id),
+    isSignedIn.value && !session.mustChangePassword,
+    project.status.value,
+    project.data.value,
+  ),
+)
 // Starting an export is a project-scoped operator action, like a run, an aggregation or an evaluation.
 const canRun = computed(
   () =>
-    isSignedIn.value &&
-    project.data.value?.id === projectId.value &&
-    project.data.value.current_user_role === 'operator',
+    draftProject.value?.id === projectId.value &&
+    draftProject.value.current_user_role === 'operator',
 )
 
 const run = useRun(runId, isSignedIn)
 const list = useExportList(runId, isSignedIn)
 const items = computed(() => list.data.value?.pages.flatMap((page) => page.items) ?? [])
-const formOpen = ref(false)
-const formMounted = ref(false)
 const form = ref<InstanceType<typeof NewExportForm>>()
-
-async function toggleForm(): Promise<void> {
-  formOpen.value = !formOpen.value
-  if (!formOpen.value) return
-  formMounted.value = true
-  await nextTick()
-  form.value?.focusHeading()
-}
-
-function resetForm(): void {
-  formOpen.value = false
-  formMounted.value = false
-}
-
-watch([() => session.user?.id, projectId, runId], resetForm)
-watch(canRun, (allowed) => {
-  if (!allowed) resetForm()
+const {
+  isOpen: formOpen,
+  hasMounted: formMounted,
+  toggle: toggleForm,
+} = useDisclosure({
+  resetKey: () => [session.principalRevision, projectId.value, runId.value],
+  canRetain: () => isSignedIn.value && !session.mustChangePassword && canRun.value,
+  focusHeading: () => form.value?.focusHeading(),
 })
 
 function retryList(): void {
@@ -130,76 +134,33 @@ function loadMore(): void {
 
       <section class="export-list" aria-labelledby="export-list-heading">
         <h2 id="export-list-heading" class="export-list-heading">{{ t('export.history') }}</h2>
-        <AppFeedback
-          v-if="list.isPending.value"
-          class="export-list-state app-card"
-          announcement="polite"
+        <AppCursorList
+          :is-pending="list.isPending.value"
+          :has-data="list.data.value !== undefined"
+          :is-error="list.isError.value"
+          :is-fetching="list.isFetching.value"
+          :is-fetching-next-page="list.isFetchingNextPage.value"
+          :is-next-page-error="list.isFetchNextPageError.value"
+          :has-next-page="list.hasNextPage.value"
+          :loading-label="t('runs.loading')"
+          :error-label="t('export.loadError')"
+          :retry-label="t('runs.retry')"
+          :more-label="t('runs.loadMore')"
+          state-class="export-list-state"
+          error-class="export-list-load-error"
+          feedback-class="export-list-feedback"
+          retry-class="export-list-retry"
+          more-class="export-list-more"
+          @retry="retryList"
+          @next="loadMore"
         >
-          {{ t('runs.loading') }}
-        </AppFeedback>
-        <AppFeedback
-          v-else-if="list.isError.value && !list.data.value"
-          class="export-list-load-error app-card"
-          announcement="assertive"
-          tone="critical"
-        >
-          {{ t('export.loadError') }}
-          <template #actions>
-            <AppButton
-              class="export-list-retry"
-              type="button"
-              variant="ghost"
-              :disabled="list.isFetching.value"
-              @click="retryList"
-            >
-              {{ t('runs.retry') }}
-            </AppButton>
-          </template>
-        </AppFeedback>
-        <template v-else>
           <p v-if="items.length === 0" class="export-list-empty app-card">
             {{ t('export.empty') }}
           </p>
           <ul v-else class="export-list-items" :aria-busy="list.isFetching.value || undefined">
             <ExportItem v-for="item in items" :key="item.id" :item="item" :project-id="projectId" />
           </ul>
-          <AppFeedback
-            v-if="list.isError.value"
-            class="export-list-feedback app-card"
-            announcement="assertive"
-            tone="critical"
-          >
-            {{ t('export.loadError') }}
-            <template v-if="!list.isFetchNextPageError.value" #actions>
-              <AppButton
-                class="export-list-retry"
-                type="button"
-                variant="ghost"
-                :disabled="list.isFetching.value"
-                @click="retryList"
-              >
-                {{ t('runs.retry') }}
-              </AppButton>
-            </template>
-          </AppFeedback>
-          <AppFeedback
-            v-if="list.isFetchingNextPage.value"
-            class="export-list-feedback app-card"
-            announcement="polite"
-          >
-            {{ t('runs.loading') }}
-          </AppFeedback>
-          <AppButton
-            v-if="list.hasNextPage.value"
-            class="export-list-more"
-            type="button"
-            variant="ghost"
-            :disabled="list.isFetching.value"
-            @click="loadMore"
-          >
-            {{ list.isFetchNextPageError.value ? t('runs.retry') : t('runs.loadMore') }}
-          </AppButton>
-        </template>
+        </AppCursorList>
       </section>
     </template>
   </main>
@@ -253,9 +214,5 @@ function loadMore(): void {
   margin: 0 0 var(--space-4);
   padding: 0;
   list-style: none;
-}
-
-.export-list-feedback {
-  margin-block-end: var(--space-4);
 }
 </style>

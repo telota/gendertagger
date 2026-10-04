@@ -543,7 +543,7 @@ describe.each(['de', 'en'] as const)('evaluation in %s', (locale: AppLocale) => 
     const wrapper = await mountDetail(newServer())
     await waitFor(() => expect(wrapper.find('.metric').exists()).toBe(true))
 
-    expect(wrapper.get('.evaluation-detail-hash').text()).toBe('8'.repeat(64))
+    expect(wrapper.get('.evaluation-detail-facts dd code').text()).toBe('8'.repeat(64))
     expect(wrapper.get('.evaluation-detail-download').attributes('href')).toBe(
       `/api/v1/evaluations/${EVAL_ID}/report`,
     )

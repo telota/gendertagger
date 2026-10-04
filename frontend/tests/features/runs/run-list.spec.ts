@@ -64,19 +64,21 @@ interface Setup {
   snapshotStatus?: string
   runListFailures?: number
   nextRunListResponse?: Promise<Response>
+  runListPages?: (Response | Promise<Response>)[]
 }
 
 interface Sent {
   runBodies: unknown[]
   scheduled: string[]
   runListRequests: number
+  runListCursors?: (string | null)[]
 }
 
 function runsClient(setup: Setup, sent: Sent) {
   const { role = 'operator', runs = [], createStatus = 202 } = setup
   return createApiClient({
     fetch: async (request) => {
-      const { pathname } = new URL(request.url)
+      const { pathname, searchParams } = new URL(request.url)
       if (pathname === '/api/v1/branding') return jsonResponse({})
       if (pathname === '/api/v1/me') return jsonResponse(USER)
       if (pathname === '/api/v1/auth/session') {
@@ -106,6 +108,9 @@ function runsClient(setup: Setup, sent: Sent) {
       }
       if (pathname === `/api/v1/snapshots/${SNAPSHOT_ID}/runs`) {
         sent.runListRequests += 1
+        sent.runListCursors?.push(searchParams.get('cursor'))
+        const response = setup.runListPages?.shift()
+        if (response) return response
         if (sent.runListRequests <= (setup.runListFailures ?? 0)) {
           return jsonResponse({}, { status: 500 })
         }
@@ -336,6 +341,62 @@ describe.each(['de', 'en'] as const)('run list and new run in %s', (locale: AppL
     }
   })
 
+  it('retains rows and retries a failed next page with the same cursor without duplicate requests', async () => {
+    let finish!: (response: Response) => void
+    const retryPage = new Promise<Response>((resolve) => {
+      finish = resolve
+    })
+    const sent: Sent = {
+      runBodies: [],
+      scheduled: [],
+      runListRequests: 0,
+      runListCursors: [],
+    }
+    const wrapper = await mountApplicationAt(
+      path,
+      locale,
+      runsClient(
+        {
+          runListPages: [
+            jsonResponse({
+              items: [run('r1', 'completed')],
+              next_cursor: 'page-two',
+              has_more: true,
+            }),
+            jsonResponse({}, { status: 500 }),
+            retryPage,
+          ],
+        },
+        sent,
+      ),
+    )
+    const runLinks = () => wrapper.findAll('main h3 a').map((link) => link.attributes('href'))
+    const expectedLinks = ['r1', 'r2'].map((id) => `${path}/${id}`)
+    const action = (name: string) => {
+      const button = wrapper.findAll('main button').find((candidate) => candidate.text() === name)
+      if (!button) throw new Error(`Missing action: ${name}`)
+      return button
+    }
+    try {
+      await waitFor(() => expect(runLinks()).toEqual([expectedLinks[0]]))
+      await action(messages.loadMore).trigger('click')
+      await waitFor(() => expect(wrapper.get('main [role="alert"]').isVisible()).toBe(true))
+      expect(runLinks()).toEqual([expectedLinks[0]])
+      const retry = action(messages.retry)
+      await Promise.all([retry.trigger('click'), retry.trigger('click')])
+      await waitFor(() => expect(sent.runListRequests).toBe(3))
+      expect(retry.attributes('disabled')).toBeDefined()
+      expect(sent.runListCursors).toEqual([null, 'page-two', 'page-two'])
+      finish(jsonResponse({ items: [run('r2', 'completed')], next_cursor: null, has_more: false }))
+      await waitFor(() => expect(runLinks()).toEqual(expectedLinks))
+      const actionNames = wrapper.findAll('main button').map((button) => button.text())
+      expect(actionNames).not.toContain(messages.loadMore)
+      expect(actionNames).not.toContain(messages.retry)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('takes the method roster from the server and states each own confidence range', async () => {
     const { wrapper } = await mountRuns()
 
@@ -441,8 +502,6 @@ describe.each(['de', 'en'] as const)('run list and new run in %s', (locale: AppL
       await wrapper.get('.run-list-create').trigger('click')
       await tick()
       expect(document.activeElement?.id).toBe('new-run-heading')
-      expect(wrapper.get('.run-list-new').classes()).toContain('app-card')
-      expect(wrapper.get('.run-list-new').classes()).not.toContain('app-card--roomy')
       await pick(wrapper, 'local_llm')
       await wrapper.get('#config-local_llm').setValue('{"model":"draft"}')
       await wrapper.get('.run-list-create').trigger('click')
@@ -450,6 +509,28 @@ describe.each(['de', 'en'] as const)('run list and new run in %s', (locale: AppL
       await wrapper.get('.run-list-create').trigger('click')
       expect(wrapper.get<HTMLTextAreaElement>('#config-local_llm').element.value).toContain('draft')
       await wrapper.get('.run-list-create').trigger('click')
+      void wrapper.vm.$router.push('/projects')
+      await waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull())
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('retains the guarded configuration while same-account authentication pauses private reads', async () => {
+    const { wrapper } = await mountRuns()
+    try {
+      await pick(wrapper, 'local_llm')
+      await wrapper.get('#config-local_llm').setValue('{"model":"recovery-draft"}')
+      const session = useSessionStore()
+      session.isAuthenticating = true
+      await flushPromises()
+      expect(wrapper.get('.new-run').isVisible()).toBe(false)
+      session.user = { ...USER, display_name: 'Recovered operator' }
+      session.isAuthenticating = false
+      await waitFor(() => expect(wrapper.get('.new-run').isVisible()).toBe(true))
+      expect(wrapper.get<HTMLTextAreaElement>('#config-local_llm').element.value).toBe(
+        '{"model":"recovery-draft"}',
+      )
       void wrapper.vm.$router.push('/projects')
       await waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull())
     } finally {

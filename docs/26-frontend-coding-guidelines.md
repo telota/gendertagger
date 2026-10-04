@@ -171,6 +171,12 @@ and CSRF attachment.
 - `AppDialog` supplies HeadlessUI naming/focus behavior, overlay geometry, bounded panel size, and
   title/body/action slots. Features own state, dismissibility during pending writes, recovery,
   confirmations, and credential display; the mobile navigation drawer remains distinct.
+- `useDisclosure` owns deferred first mounting and deliberate-opening focus. Features supply the
+  actor/resource/access context and reset policy. Ordinary collapse keeps the mounted draft and its
+  navigation guard; loss of the owning context does not.
+- `AppCursorList` separates initial failure, retained-row refetch failure, and continuation failure.
+  Features provide domain rows, translated labels, and retry/load-more actions; busy continuation
+  disables duplicate actions without discarding already loaded rows.
 - `AppField`, `AppTextField`, and `AppSelectField` compose visible labels, help/error descriptions, and
   disabled/invalid state. Layout classes/styles target the field root; other native attributes and
   listeners target the input/select. Select models preserve native boolean and null values. Features

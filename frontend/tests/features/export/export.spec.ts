@@ -468,6 +468,9 @@ describe.each(['de', 'en'] as const)('exports in %s', (locale: AppLocale) => {
     await wrapper.get('#export-resp').setValue('editor with spaces')
 
     expect(wrapper.get('#export-resp').attributes('aria-invalid')).toBe('true')
+    expect(wrapper.get('#export-resp').attributes('aria-describedby')).toBe(
+      'export-resp-hint export-resp-error',
+    )
     expect(wrapper.get('.new-export-submit').attributes('disabled')).toBeDefined()
     await wrapper.get('.new-export').trigger('submit')
     await flushPromises()

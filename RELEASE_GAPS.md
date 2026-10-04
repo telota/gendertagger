@@ -954,7 +954,7 @@ Current remediation status is recorded below; the original review evidence remai
 | FQ-02 | P2 | Frontend | Shared domain UI and helpers remain coupled to feature folders | Fixed; defining shared modules and migrated consumers, without compatibility re-exports |
 | FQ-03 | P2 | Frontend | Artifact interfaces duplicate canonical Pydantic contracts | Fixed; generated schemas, parser boundaries, and stored-byte HTTP identity exercised |
 | FQ-04 | P2 | Frontend | Dialog structure and overlay styling are implemented repeatedly | Fixed; shared HeadlessUI shell, caller-owned safeguards, and native Escape/focus proof |
-| FQ-05 | P2 | Frontend | Creation disclosure and cursor-list feedback are copied between views | Open |
+| FQ-05 | P2 | Frontend | Creation disclosure and cursor-list feedback are copied between views | Fixed; shared disclosure/list feedback, retained-draft and distinct failure recovery checks passed |
 | FQ-06 | P2 | Frontend | Lifecycle, provenance, prediction, and annotation-history presentation repeat | Fixed; data-only presenters preserve uncertainty, confidence, and history semantics |
 | FQ-07 | P2 | Frontend | Repeated native fields bypass incomplete shared field primitives | Fixed; shared native field composition and typed/null/boolean/accessibility checks passed |
 | FQ-08 | P3 | Frontend | An orphan component, unused exported types, and dead CSS survive checks | Open |
@@ -1288,6 +1288,13 @@ forms, and business rules explicit rather than creating a configuration-driven u
 **Closure.** These workflows share disclosure and pagination presentation; ordinary hide/show preserves
 drafts; account/resource/access changes reset correctly; deliberate opening moves focus; initial,
 refetch, and next-page failures retain distinct recovery behavior.
+
+**Remediation — 2026-10-04.** Run, evaluation, and export lists use `useDisclosure` and `AppCursorList`.
+Ordinary collapse retains the mounted draft and navigation guard; principal, password, resource, and
+access changes reset ownership. Deliberate opening focuses the form heading. Cursor recovery retains
+loaded rows and distinguishes initial, refetch, and continuation failures; busy actions cannot submit
+duplicate requests. Native browser hide/show retained a configured run draft, and Escape from its
+leave confirmation returned focus to the invoking link.
 
 #### FQ-06: Reuse lifecycle, provenance, prediction, and history presenters
 

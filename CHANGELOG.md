@@ -310,6 +310,9 @@ the phased plan that resumes application code.
 - Dialog consumers share the HeadlessUI shell while retaining feature-owned dismissal and write policy.
   Native field composition now targets real inputs/selects, preserves description relationships, and
   keeps null/boolean models typed. Obsolete source-markup/style assertions were removed, not re-pinned.
+- Run, evaluation, and export creation share disclosure and cursor-list feedback. Ordinary collapse
+  retains drafts; context/access changes reset them. Initial, refetch, and continuation errors retain
+  separate recovery paths, without discarding loaded rows or allowing duplicate busy actions.
 - Batch failures now share the URL-credential redaction and bounded detailed-diagnostic policy used by
   aggregation, evaluation, export, and dispatch. Redaction occurs before the 500-character limit;
   authenticated method summaries cannot retain credential-bearing URL user information from batch
