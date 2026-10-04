@@ -58,6 +58,12 @@ The source hash alone is not a substitute for the member manifest or import conf
 metadata is not a substitute for retaining the exact single file, archive, workbook, table, or loose member
 bytes. A change to deployment defaults does not reinterpret an already accepted pending snapshot.
 
+Persisted `SnapshotImportConfig` requires explicit source format, packaging, profile, and resolved limits.
+Public request defaults remain supported, but acceptance resolves and stores them before dispatch.
+Execution never supplies `single` for missing stored packaging or reconstructs missing ready statistics.
+Incomplete historical snapshots require a new import from retained source bytes; their metadata and
+outputs remain unchanged.
+
 ## MethodExecution provenance
 
 Persist:
@@ -101,6 +107,21 @@ Persist:
 A Prediction may be created only for the exact person slice of its running TaskBatch while the owning
 MethodExecution and Run are also running. Its creation and TaskBatch completion share one transaction. The
 row is immutable afterward, so its method and batch provenance cannot be detached from the output.
+
+The current person-input fingerprint is SHA-256 of canonical JSON for every `PersonInput` field, using
+its JSON representation with defaults, nulls, and empty collections included. In particular,
+`name_forms: null` and `events: []` are present rather than omitted for older encodings. Ordered names,
+forenames, alternative names, and events retain their order; object key order does not affect the hash.
+Persistence identity, snapshot ID, source-member/record locators, and creation time are not method input
+and do not participate.
+
+The accepted Run source revision and matching worker provenance identify this fingerprint contract;
+there is no new persisted version field or historical-hash compatibility path. Existing Predictions
+retain their original fingerprint and are interpreted under their recorded environment, not recalculated
+using current code. New Runs use the current contract; reimport only snapshots with incomplete import
+provenance or statistics. Scientific labels, normalization, aggregation, certainty, TEI output semantics,
+and evaluation definitions are unchanged. See
+[ADR-0049](decisions/ADR-0049-current-person-input-fingerprints-and-snapshot-metadata.md).
 
 ## TaskBatch execution provenance
 

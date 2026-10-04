@@ -96,6 +96,14 @@ committed prefix. See
 [ADR-0020](decisions/ADR-0020-asynchronous-snapshot-import-outbox.md) and
 [ADR-0021](decisions/ADR-0021-versioned-multi-format-snapshot-ingestion.md).
 
+Ready completion also persists the complete `DatasetSnapshotStatistics` inventory atomically with the
+person projection and record count. Reading a ready snapshot without that inventory is an invalid resource
+state; repositories do not reconstruct historical GND counts. Persisted import configuration requires
+explicit source format and packaging, the derived profile, and resolved limits even when public request
+defaults were used. A legacy snapshot missing required metadata is recovered by a new import, never an
+update to sealed metadata or Predictions. See
+[ADR-0049](decisions/ADR-0049-current-person-input-fingerprints-and-snapshot-metadata.md).
+
 ## Predictions and task batches
 
 One MethodExecution can persist at most one Prediction per person. Prediction label and status must agree;

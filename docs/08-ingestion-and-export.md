@@ -92,8 +92,11 @@ these values never enter `PersonInput` or any classification method. A person wi
 `male`, `female`, `unknown`, or `institution` value contributes to that value's bucket. Missing values,
 unsupported values, and multiple direct `<gender>` elements contribute to `other_or_multiple`; a person with
 no direct `<gender>` contributes to the missing-element count. The same import pass records GND coverage and
-the GND-plus-source-gender intersection. Non-TEI and legacy snapshots expose source-gender statistics as not
-captured rather than inferring zero, while legacy GND coverage can be derived exactly from stored identifiers.
+the GND-plus-source-gender intersection. Non-TEI imports persist source-gender statistics as not captured
+rather than inferring zero. Every ready snapshot must have materialized statistics; missing historical
+statistics are an invalid resource state, not an invitation to reconstruct partial coverage from person rows.
+Reimport the retained source as a new snapshot rather than changing an immutable old snapshot. See
+[ADR-0049](decisions/ADR-0049-current-person-input-fingerprints-and-snapshot-metadata.md).
 
 ## Person-name profile
 
