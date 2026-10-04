@@ -143,7 +143,7 @@ of backend resources. Under [ADR-0043](decisions/ADR-0043-account-level-user-pre
 preferences are server state: fetch and cache them by principal, clear private state on logout/account
 changes, and use canonical PATCH responses with their revision. The lazy `/settings` route, named
 `userSettings`, is available to every resolved, password-current account regardless of project or global
-role. Its translated link belongs to the sidebar footer, including the mobile navigation drawer. The
+role. Its translated link belongs to the header account menu on desktop and mobile, alongside Sign out. The
 form keeps its editable draft in component state; changing a control or restoring defaults does not save
 or change the shell. Explicit Save sends `expected_revision`, and only the canonical successful response
 replaces saved query state.

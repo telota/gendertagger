@@ -8,6 +8,12 @@ components, screens, and interaction behavior — and binds each item to the del
 It is the working specification for porting the wireframe into the Vue 3 + TypeScript + Vite application
 described in [`17-frontend-integration.md`](17-frontend-integration.md).
 
+Capability status reconciled on **2026-10-04** against the delivered application baseline `14420ce`.
+The wireframe remains historical source material, not proof that a capability is implemented.
+Current frontend contracts and design rules belong to docs/17, docs/25, and docs/26; implementation
+sequencing belongs to docs/15, deferred capabilities to docs/22, and release findings to
+[`RELEASE_GAPS.md`](../RELEASE_GAPS.md).
+
 Three kinds of statement appear throughout:
 
 - **Backed** — the wireframe element maps onto a delivered endpoint and contract.
@@ -437,9 +443,9 @@ toggle, interval); gamification (visibility toggle, collapsed-by-default toggle)
 
 - The wireframe's eight settings remain unsupported. ADR-0040 permits six deployment-wide branding fields
   through its separate administrative surface. Account locale, theme, and explicit desktop-sidebar collapse
-  are independently specified by [ADR-0043](decisions/ADR-0043-account-level-user-preferences.md), with backend
-  persistence and generated transport in this increment and personal settings UI deferred. Neither decision
-  makes project, scientific, session-policy, or arbitrary deployment settings editable.
+  are independently specified by [ADR-0043](decisions/ADR-0043-account-level-user-preferences.md).
+  Backend persistence, generated transport, and the `/settings` personal-settings UI are delivered.
+  Neither decision makes project, scientific, session-policy, or arbitrary deployment settings editable.
 - The `/admin/users` directory delivered under
   [ADR-0039](decisions/ADR-0039-administer-local-accounts-over-http.md) is a separate administration route,
   not an implementation of this wireframe settings screen.
@@ -551,7 +557,7 @@ Grouped by whether they need a backend decision before or after v1.
 | Activity feed                                                  | Übersicht                          | Defer.                                                                                                                                                                 |
 | Notifications                                                  | shell                              | Defer.                                                                                                                                                                 |
 | Autosave and "last saved"                                      | shell                              | Drop — contradicts append-only annotations.                                                                                                                            |
-| User/project settings persistence                              | Einstellungen                      | ADR-0043 adds account locale/theme/desktop-sidebar persistence; its UI and project settings remain deferred.                                                           |
+| User/project settings persistence                              | Einstellungen                      | ADR-0043 account locale/theme/desktop-sidebar persistence and personal settings UI are delivered; project settings remain deferred.                                    |
 | Game scoring, combos, timer, hints, leaderboard                | Spielmodus, Statistik              | Scoring, streaks, switchable timing, and a project leaderboard are **delivered** in Spielmodus; hint costs and the separate Statistik leaderboard are not implemented. |
 | Ø review time per case                                         | Statistik                          | Defer; needs client timing telemetry.                                                                                                                                  |
 
@@ -714,7 +720,7 @@ Ordered by whether the Vue port is blocked without them.
 Batch annotation, activity feed, notifications, project settings, further personal settings, and VCS
 integration remain deferred. Each needs an ADR before it enters the API surface, per
 [`22-future-development.md`](22-future-development.md). ADR-0043 admits only account locale, theme, and
-explicit desktop-sidebar collapse; the personal settings page and client integration remain later work.
+explicit desktop-sidebar collapse; those preferences and the `/settings` client are delivered.
 
 ## Implementation sequence
 

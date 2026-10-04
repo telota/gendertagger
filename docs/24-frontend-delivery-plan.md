@@ -11,6 +11,11 @@ It does not reopen scope. Capabilities deliberately deferred stay recorded in
 [`22-future-development.md`](22-future-development.md); the component-level source material is
 [`23-wireframe-ui-inventory.md`](23-wireframe-ui-inventory.md).
 
+Status entries record individual delivered increments, not publication readiness or a complete release
+pipeline. Current actionable findings and dated verification limits belong to
+[`RELEASE_GAPS.md`](../RELEASE_GAPS.md); earlier milestone observations are historical when superseded
+by a later delivered increment.
+
 Sizes below are relative (S/M/L), not calendar estimates. Absolute scheduling depends on team capacity and
 is deliberately not asserted here.
 
@@ -240,17 +245,16 @@ contract change fails CI.
   than being built speculatively.
 - Design tokens, typography scale, and the primitive components — with real `<button>`/`<a>` elements,
   focus management, and a focus trap for modals. The wireframe's `role="button"` keyboard shim is not
-  carried over. **Partly delivered**: `AppButton`, `AppTextField`, `AppListbox`, and now a Dialog
-  (`SessionRecoveryDialog`) with a real focus trap exist; no other modal has needed one yet.
+  carried over. **Delivered:** `AppButton`, labeled native fields, and shared `AppDialog` presentation
+  serve the current consumers; HeadlessUI owns dialog focus trapping.
 - Locale switch and theme switch (system, light, dark), and the shared vocabulary components that render
   `CanonicalLabel`, `CertaintyTier`, and `AgreementTier` as canonical token plus translated gloss (D2, D3).
-  **Partly delivered in M2.** Anonymous locale and theme switches are live in `AppHeader`
-  (`useLocale`, `useTheme`, both built on `AppListbox`); signed-in choices now live in the separate personal
-  settings increment below. The vocabulary components remained open until a screen rendered canonical
-  labels or tiers.
+  **Delivered.** Locale and theme choices use `SidebarPreferences`' HeadlessUI listboxes and the
+  `useLocale`/`useTheme` mechanisms. Signed-in saved choices also have the personal-settings surface below;
+  domain vocabulary presenters render canonical labels and tiers without changing their meaning.
 - Overlay primitives on the chosen headless accessibility library (D9); everything else in-house.
-  **Partly delivered.** `AppListbox` (the header's switchers) and `Dialog` (`SessionRecoveryDialog`, see
-  the `401` recovery item below) are built; a Menu remains open until something needs one.
+  **Delivered.** `SidebarPreferences` owns its live listbox interactions; `AppDialog` shares dialog
+  presentation without owning dismissal policy, requests, or caller-specific business state.
 - The publication footer on every page, the start-page publication details, and the public legal notice
   required by the operating institution's guideline for digital publications, as specified in
   [`25-frontend-design-guidelines.md`](25-frontend-design-guidelines.md#publication-details-footer-and-legal-notice).

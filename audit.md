@@ -1,5 +1,12 @@
+# Historical frontend audit
 
- Frontend audit
+**Status:** Historical, superseded as an actionable checklist by [`RELEASE_GAPS.md`](RELEASE_GAPS.md).
+The original audit did not record its date or source revision. Scores, measurements, and findings below
+are preserved observations, not fresh verification or current implementation requirements. Recheck a
+finding against current code before using it; current UI contracts and design rules live in
+[`docs/17-frontend-integration.md`](docs/17-frontend-integration.md),
+[`docs/25-frontend-design-guidelines.md`](docs/25-frontend-design-guidelines.md), and
+[`docs/26-frontend-coding-guidelines.md`](docs/26-frontend-coding-guidelines.md).
 
  Result: 12/20 — Acceptable
 
@@ -40,6 +47,8 @@
    - No console errors on home, review, or admin settings
    - Review navigation: FCP 616 ms, CLS 0, no long tasks
  - No code changed.
+
+## Original findings
 
  P0 — Critical
 

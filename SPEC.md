@@ -1,7 +1,7 @@
 # gendertagger specification
 
 This file is the short normative entry point. Detailed rationale lives in `docs/`. For a local Docker
-Compose quickstart, including provisioning method data, see [`README.md`](README.md#quickstart).
+Compose quickstart, including provisioning method data, see [`QUICKSTART.md`](QUICKSTART.md).
 
 ## Product
 

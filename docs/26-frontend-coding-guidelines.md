@@ -182,7 +182,6 @@ and CSRF attachment.
   listeners target the input/select. Select models preserve native boolean and null values. Features
   retain validation, and textareas, file inputs, radios, and checkboxes keep their specialized controls.
 
-
 ## State ownership
 
 - **Server state** lives in the query/cache layer, keyed by resource and query. It is never copied into a
@@ -403,3 +402,20 @@ npm --prefix frontend run i18n:check    # fail on missing or orphaned message ke
 These join the existing `validate` and `test` stages in `.gitlab-ci.yml` alongside the Python gates, and run
 in pre-commit where fast enough. As with the backend, CI is the final arbiter and local hooks are a
 feedback mechanism.
+
+## Production unused-code gate
+
+`npm run unused:check` runs pinned Knip with `frontend/knip.jsonc` in production mode. The only root is
+`src/main.ts`; Vue template component use and lazy route imports belong to that graph. Tests, scripts,
+and Vite/Vitest configuration are not additional roots and cannot rescue dead application declarations.
+The gate checks unreachable files, exports/types/namespace members, and unresolved imports.
+
+Generated `src/api/schema.d.ts` remains in the graph but is exempt only from unused export/type findings:
+the canonical server contract intentionally exceeds this client's consumed subset. No feature-wide or
+test-only export exemption is provided. Regression fixtures exercise the real analyzer, including
+test-only references, lazy imports, and Vue template consumers.
+
+`npm run check`, GitLab frontend validation, and the frontend unused-code pre-commit hook all include the
+gate. Keep `knip.jsonc`, its exact development dependency/lockfile, and this documented root contract
+aligned; the bounded frontend graph does not claim Python or arbitrary dynamic-runtime reachability.
+

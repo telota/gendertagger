@@ -4,19 +4,18 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project intends to
 follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html). No tagged release exists yet; the
-packaged version remains `0.0.0` while the vNext scaffold described in [`SPEC.md`](SPEC.md) is implemented.
+packaged version remains `0.0.0` until the first tagged release. [`SPEC.md`](SPEC.md) defines the current architecture.
 
 ## [Unreleased]
 
-The repository was reset from the legacy research pipeline to a code-empty implementation scaffold, and the
-accompanying paper was revised. See [`docs/15-implementation-plan.md`](docs/15-implementation-plan.md) for
-the phased plan that resumes application code.
+This section records development from the initial architecture-only reset through the current application.
+[`docs/15-implementation-plan.md`](docs/15-implementation-plan.md) owns implementation sequencing;
+[`RELEASE_GAPS.md`](RELEASE_GAPS.md) owns outstanding release findings and verification limits.
 
 ### Added
 
-- vNext specification and contributor entry points: [`SPEC.md`](SPEC.md), [`PLAN.md`](PLAN.md),
-  [`AGENTS.md`](AGENTS.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), and the
-  former `SCAFFOLD.json` design manifest.
+- Initial vNext specification and contributor entry points: [`SPEC.md`](SPEC.md), [`AGENTS.md`](AGENTS.md),
+  [`CONTRIBUTING.md`](CONTRIBUTING.md), and the former `PLAN.md` and `SCAFFOLD.json` files.
 - Twenty numbered design documents under [`docs/`](docs/), indexed by
   [`docs/00-design-index.md`](docs/00-design-index.md), covering architecture, domain model, Pydantic
   contracts, persistence, API, task queue, methods and aggregation, ingestion/export, annotation and review,
@@ -285,6 +284,7 @@ the phased plan that resumes application code.
   its snapshot-only filters and decisions.
 
 ### Fixed
+
 - Removed the redundant tabular import-version mapper and unused public-job recovery enumerator.
   Canonical import registry and dispatch recovery remain the sole application paths; the documented
   authentication-extension decision stays deferred.
@@ -316,6 +316,9 @@ the phased plan that resumes application code.
 - Removed the unused AppListbox, stale exported declarations, and dead admin-team CSS. A pinned,
   development-only Knip gate checks production file/export/type reachability and unresolved imports,
   including Vue templates and lazy routes, without treating tests/tooling as application roots.
+- Current frontend guidance now agrees on settings, branding, and shared module ownership. Historical
+  audit/delivery records state their baseline or missing metadata, and overlapping release checklists
+  point to the authoritative release-gap register; accepted ADR history remains unchanged.
 - Batch failures now share the URL-credential redaction and bounded detailed-diagnostic policy used by
   aggregation, evaluation, export, and dispatch. Redaction occurs before the 500-character limit;
   authenticated method summaries cannot retain credential-bearing URL user information from batch

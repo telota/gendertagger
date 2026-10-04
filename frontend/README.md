@@ -194,8 +194,8 @@ an SBOM. Versions were chosen for mutual compatibility, not recency: TypeScript 
 `axe-core` is the only dependency under a weak copyleft licence. It runs only in tests and is not part of the
 shipped bundle, but review it if the licence policy is strict.
 
-`useBranding()` still fetches independently per component rather than through the shared cache above — it
-predates it, is small and unauthenticated, and moving it over is not yet worth the churn.
+`useBranding()` reads one shared public TanStack query. Administrative branding saves invalidate that
+query so mounted footer and legal-notice consumers refresh without navigation; private settings stay separate.
 
 ## Session and login
 

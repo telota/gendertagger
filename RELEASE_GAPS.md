@@ -920,10 +920,10 @@ implementation.
 
 ## Separate code-quality and consolidation review — 2026-10-03
 
-This supplemental review examines backend and frontend maintainability separately, followed by repository
-artifacts and documentation. It used HEAD `c9e3953ca97b8208de386ea3f7ac1042cb3779c1` plus the existing local
-changes. This review changed only this report; implementation, dependencies, generated contracts, tests, and
-existing local work were left intact. Findings below are recommendations, not completed fixes.
+The original review examined backend/frontend maintainability and repository/documentation quality
+at HEAD `c9e3953ca97b8208de386ea3f7ac1042cb3779c1` plus the then-existing local changes. It changed only
+this report. Evidence and line numbers below describe that historical tree; current defining-module
+links and dated remediation/status entries identify the subsequent implementation.
 
 **Scope assumption.** There are no production deployments and runtime backwards compatibility is not a
 requirement for this cleanup. Prefer one supported current implementation over obsolete branches or
@@ -958,7 +958,7 @@ Current remediation status is recorded below; the original review evidence remai
 | FQ-06 | P2 | Frontend | Lifecycle, provenance, prediction, and annotation-history presentation repeat | Fixed; data-only presenters preserve uncertainty, confidence, and history semantics |
 | FQ-07 | P2 | Frontend | Repeated native fields bypass incomplete shared field primitives | Fixed; shared native field composition and typed/null/boolean/accessibility checks passed |
 | FQ-08 | P3 | Frontend | An orphan component, unused exported types, and dead CSS survive checks | Fixed; obsolete code removed and a bounded production-root graph gate covers files/exports/types/imports |
-| DQ-01 | P2 | Documentation | Overlapping guidance and undated reports now disagree | Open |
+| DQ-01 | P2 | Documentation | Overlapping guidance and undated reports now disagree | Fixed; current owners/routes reconcile and historical records identify their evidence limits |
 | DQ-02 | P2 | Documentation | The documentation gate omits maintained files and section targets | Open |
 | DQ-03 | P3 | Repository | Generated paper output and disposable development metadata are tracked | Open; publication-artifact retention decisions deferred |
 | DQ-04 | P3 | Repository | Exact research/manuscript copies lack a deliberate archival policy | Deferred; archival retention and clearance need approval |
@@ -1410,6 +1410,13 @@ ADRs and deliberate historical records. Cross-reference RG-13 for existing inacc
 historical reports cannot be mistaken for current requirements; duplicate open checklists link to the
 authoritative register.
 
+**Remediation — 2026-10-04.** Current guidance agrees on the delivered account-menu settings route,
+shared branding query, and defining presentation modules. The UI inventory and delivery plan identify
+their historical baseline and current-versus-proposed scope. The audit explicitly records that its
+original date/revision were not captured; its superseded checklist points here. IDEAS links release
+work to this register instead of maintaining a competing checklist. SPEC's quickstart target and the
+historical changelog's missing-PLAN reference are corrected without rewriting accepted ADRs.
+
 #### DQ-02: Align documentation discovery, hooks, and local-link validation
 
 **Evidence.** [The documentation checker](backend/scripts/check_documentation.py), lines 13–22 and
@@ -1481,7 +1488,7 @@ historical aliases remain traceable; consolidation does not discard distinct stu
    contracts and transaction ownership explicit. Run all applicable locked quality gates with each
    implementation change; RG-17 still requires one complete final release verification.
 
-### Verification and limits of this supplemental review
+### Historical verification and limits of the original review — 2026-10-03
 
 | Area | Check | Observed result |
 |---|---|---|
@@ -1497,7 +1504,7 @@ historical aliases remain traceable; consolidation does not discard distinct stu
 | Documentation | Direct validation of excluded documents | Confirmed missing PLAN link and absent audit H1; report checked separately |
 | Repository | Tracked-file inventory and artifact byte/hash comparison | Confirmed DQ-03/DQ-04; no removals |
 
-Installed backend check tools were Python 3.11.15 and Ruff 0.16.2. Frontend checks used Node 26.10.0,
+The original report-only review used Python 3.11.15 and Ruff 0.16.2. Frontend checks used Node 26.10.0,
 npm 12.2.0, ESLint 10.11.0, vue-tsc 3.3.11, and TypeScript 5.9.3. Existing dependencies were used without
 installation or lockfile changes. No application test suites, service-backed checks, dependency audits,
 package/production builds, manuscript builds, or browser visual assessment were rerun for this
