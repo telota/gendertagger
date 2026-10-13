@@ -229,8 +229,9 @@ public request and response shapes remain generated OpenAPI concerns; see
 
 [ADR-0043](decisions/ADR-0043-account-level-user-preferences.md) defines closed, frozen `UserPreferences`
 and `UserPreferencesUpdate` contracts. The read resource has `locale` (`de`, `en`, or null), `theme`
-(`system`, `light`, or `dark`), strict boolean `desktop_sidebar_collapsed`, and a strict nonnegative
-`revision`. Defaults are null, `system`, false, and zero respectively.
+(`system`, `light`, or `dark`), strict boolean `desktop_sidebar_collapsed`, `interface_mode` (`guided` or
+`advanced`, added by [ADR-0050](decisions/ADR-0050-guided-and-advanced-interface-mode-preference.md)), and
+a strict nonnegative `revision`. Defaults are null, `system`, false, `guided`, and zero respectively.
 
 The update requires strict nonnegative `expected_revision` and at least one supplied preference. Omitted
 fields remain unchanged, explicit `locale: null` restores browser-default selection, and null is invalid

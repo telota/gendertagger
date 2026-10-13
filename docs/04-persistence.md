@@ -200,13 +200,15 @@ conflict rather than an overwrite.
 
 [ADR-0043](decisions/ADR-0043-account-level-user-preferences.md) adds an optional one-to-one preferences
 row owned by the existing local account, keyed by `user_id` referencing `users.id`. Locale, theme,
-`desktop_sidebar_collapsed`, and revision are explicit typed columns. Database constraints enforce the
-allowed locale/theme values, non-null theme and collapse flag, and nonnegative revision. The row has no
-project relationship and stores no scientific or administrative settings.
+`desktop_sidebar_collapsed`, `interface_mode`, and revision are explicit typed columns.
+[ADR-0050](decisions/ADR-0050-guided-and-advanced-interface-mode-preference.md) adds `interface_mode` as a
+forward migration after the original table creation. Database constraints enforce the allowed
+locale/theme/interface-mode values, non-null theme/collapse-flag/interface-mode, and nonnegative revision.
+The row has no project relationship and stores no scientific or administrative settings.
 
-Absence means the canonical defaults at revision zero: locale null, theme `system`, and desktop sidebar
-expanded. Reads validate the active local owner but never insert defaults. They distinguish an absent
-preferences row from an unavailable store or an unresolved/non-local account.
+Absence means the canonical defaults at revision zero: locale null, theme `system`, desktop sidebar
+expanded, and interface mode `guided`. Reads validate the active local owner but never insert defaults.
+They distinguish an absent preferences row from an unavailable store or an unresolved/non-local account.
 
 Mutation transactions first lock the existing user row, freshly validate the local credential and current
 password requirement, then read the preferences or virtual defaults and compare `expected_revision`.

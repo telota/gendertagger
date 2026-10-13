@@ -1360,6 +1360,63 @@ dataset, choosing its own correct path exactly as the fast path does for the cur
 heading itself now reads Redigieren (`nav.review`) instead of Personen, since the screen no longer only leads
 to the plain register.
 
+**D26 — A guided and an advanced presentation, chosen per account, not per project.** Decided 2026-10-13,
+following direct review feedback that the full navigation overwhelms a first-time user. Account preferences
+(ADR-0043) gain `interface_mode` (ADR-0050: `"guided"` or `"advanced"`, defaulting both existing and new
+accounts to `"guided"`). The choice is a personal, project-independent presentation setting with a single
+control on the personal settings page — an immediate-save radio pair in the same interaction style as
+`ProjectGameModeSetting.vue` (pending/saved/error status, no separate confirm step) — not a sidebar-footer
+duplicate, since switching presentation is rare compared to switching projects.
+
+Both presentations drop the persistent "Projekte" sidebar tab in favor of a signed-in home page
+(`SignedInHomeView`-equivalent) that hosts the project list, "Projekt anlegen", and per-project "Mitglieder
+verwalten" (mirroring `ProjectListView.vue`'s existing card action, gated the same way by
+`current_user_can_manage_members`) directly on each project's card. Per-project sidebar tabs appear only once
+a project is open; a "Projekte" tab pointing at the home page is shown in its place otherwise, so the sidebar
+never shows both at once. The account-scoped "Mitglieder" project-sidebar entry is removed entirely in both
+presentations — relocated to the home page's project cards — since its visibility already depends on a
+narrower, per-project condition (project manager or admin) unrelated to project role, and sat ungrouped among
+role-gated tabs it does not share a visibility axis with. In the advanced presentation, "Export" moves to
+directly after "Redigieren", ahead of "Statistik & Methoden" (today's `nav.evaluations`); every other advanced
+tab and its destination route is unchanged from D23–D25.
+
+`AppBreadcrumbs.vue`'s project-context chain gains a leading crumb back to the home page before the project
+name, on every project-scoped route including `projectOverview` itself (today's single, unlinked
+project-name crumb there is the one place the chain has no way back). Browser-language and theme behavior,
+and every underlying scientific route and capability, are unaffected; this is presentation only.
+
+**D27 — The guided presentation's project page is three steps that become four.** Decided 2026-10-13. The
+guided presentation's per-project landing tab ("Gender taggen") replaces `projectOverview`, `projectImport`,
+`projectClassification`, and the per-dataset entry into Redigieren with one sequential page: "Daten
+importieren", "Automatische Vorschläge generieren", "Prüfen", and — once generation completes — "Export".
+"Generieren" preselects every available method (`useMethodList`/`useCreateRun`, the same mechanism
+`NewRunForm.vue` already uses, with empty per-method configuration) rather than exposing per-method selection.
+Immediately after the resulting aggregation completes, the guided flow calls the existing
+`PUT /projects/{project_id}/working-aggregation` endpoint to set it as the project's working aggregation —
+ADR-0035 does not do this automatically, and without it neither "Prüfen" nor "Export" would have anything to
+point to. "Export" opens inline on the same page (no separate route): it exports the project's working
+aggregation directly, offering only the format choice (TEI, JSON, or CSV, matching
+`NewExportForm.vue`'s real options — not XLSX, which is an import, not an export, format). The aggregation
+picker and the advanced label-source/TEI-profile/responsible-person fields remain advanced-presentation-only,
+reached through the unchanged `exports`/`NewExportForm.vue` route. Export creation is asynchronous like a run;
+the guided page reuses the same create-then-poll presentation as "Generieren" rather than implying an instant
+download. The guided presentation has no entry point for manual annotation without a classification — a
+deliberate removal, not an oversight — while D25's fallback to plain annotation remains exactly as it is in
+the advanced presentation.
+
+**D28 — The advanced presentation's Übersicht adopts Automatische-Vorschläge's shape, and "Stand der Prüfung"
+only ever describes the current dataset.** Decided 2026-10-13. The advanced "Übersicht" tab becomes a landing
+page of three cards — Projektübersicht (today's `projectOverview` facts), Aktueller Datenstand, and Anderen
+Datenstand wählen — replacing today's merged Übersicht/Daten screen (D-2026-09-30, see above) with a shape
+consistent with the per-project task entries. Opening a dataset, current or historical, leads to one detail
+page that now also carries "Stand der Prüfung" (`ProjectReviewStats`'s content), folded in from Übersicht.
+Because ADR-0035's working-aggregation pointer is one per project, not one per dataset snapshot, that section
+only renders when the opened dataset is the one currently backing the pointer; any other dataset's detail page
+shows a plain note that it is not the active working dataset, with a link to the one that is, rather than a
+wrong, stale, or guessed review summary. Browsing to an unrelated dataset's own historical runs and
+aggregations remains possible exactly as today, through the existing run/aggregation detail routes — this
+decision only changes what the new merged detail page itself shows inline.
+
 ### Accessibility decisions
 
 **D15 — Conformance target is WCAG 2.2 AA.** The client is built to WCAG 2.2 AA, which satisfies every

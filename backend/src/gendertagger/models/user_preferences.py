@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, StrictBool, Strict
 
 InterfaceLocale = Literal["de", "en"]
 InterfaceTheme = Literal["system", "light", "dark"]
+InterfaceMode = Literal["guided", "advanced"]
 
 
 def _omit_patch_default(schema: dict[str, JsonValue]) -> None:
@@ -28,6 +29,13 @@ class UserPreferences(BaseModel):
     desktop_sidebar_collapsed: StrictBool = Field(
         default=False, description="Explicit desktop choice, independent of responsive layout."
     )
+    interface_mode: InterfaceMode = Field(
+        default="guided",
+        description=(
+            "Guided shows one reduced path per project (import, generate suggestions, review); "
+            "advanced shows the full navigation. A presentation choice, not a role or permission."
+        ),
+    )
     revision: StrictInt = Field(default=0, ge=0)
 
 
@@ -46,6 +54,7 @@ class UserPreferencesUpdate(BaseModel):
     desktop_sidebar_collapsed: StrictBool = Field(
         default=False, json_schema_extra=_omit_patch_default
     )
+    interface_mode: InterfaceMode = Field(default="guided", json_schema_extra=_omit_patch_default)
 
     @model_validator(mode="after")
     def _require_preference_field(self) -> "UserPreferencesUpdate":

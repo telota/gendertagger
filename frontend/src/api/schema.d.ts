@@ -4078,6 +4078,13 @@ export interface components {
              */
             desktop_sidebar_collapsed: boolean;
             /**
+             * Interface Mode
+             * @description Guided shows one reduced path per project (import, generate suggestions, review); advanced shows the full navigation. A presentation choice, not a role or permission.
+             * @default guided
+             * @enum {string}
+             */
+            interface_mode: "guided" | "advanced";
+            /**
              * Locale
              * @description Explicit interface language; null leaves resolution to the browser.
              */
@@ -4104,6 +4111,11 @@ export interface components {
             desktop_sidebar_collapsed?: boolean;
             /** Expected Revision */
             expected_revision: number;
+            /**
+             * Interface Mode
+             * @enum {string}
+             */
+            interface_mode?: "guided" | "advanced";
             /**
              * Locale
              * @description Omit to preserve; null clears the explicit language choice.

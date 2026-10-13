@@ -6244,6 +6244,16 @@
             "title": "Desktop Sidebar Collapsed",
             "type": "boolean"
           },
+          "interface_mode": {
+            "default": "guided",
+            "description": "Guided shows one reduced path per project (import, generate suggestions, review); advanced shows the full navigation. A presentation choice, not a role or permission.",
+            "enum": [
+              "guided",
+              "advanced"
+            ],
+            "title": "Interface Mode",
+            "type": "string"
+          },
           "locale": {
             "anyOf": [
               {
@@ -6293,6 +6303,14 @@
             "minimum": 0.0,
             "title": "Expected Revision",
             "type": "integer"
+          },
+          "interface_mode": {
+            "enum": [
+              "guided",
+              "advanced"
+            ],
+            "title": "Interface Mode",
+            "type": "string"
           },
           "locale": {
             "anyOf": [

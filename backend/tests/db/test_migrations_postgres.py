@@ -192,7 +192,8 @@ def test_preferences_forward_migration_preserves_accounts_without_backfilling_de
             defaults = (
                 connection.execute(
                     text(
-                        "SELECT locale, theme, desktop_sidebar_collapsed, revision FROM user_preferences"
+                        "SELECT locale, theme, desktop_sidebar_collapsed, interface_mode, revision "
+                        "FROM user_preferences"
                     )
                 )
                 .mappings()
@@ -202,6 +203,7 @@ def test_preferences_forward_migration_preserves_accounts_without_backfilling_de
                 "locale": None,
                 "theme": "system",
                 "desktop_sidebar_collapsed": False,
+                "interface_mode": "guided",
                 "revision": 0,
             }
         command.downgrade(config, "20260925_0007")

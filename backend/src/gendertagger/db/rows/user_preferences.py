@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import UUID as POSTGRESQL_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from gendertagger.db.base import Base
-from gendertagger.models.user_preferences import InterfaceLocale, InterfaceTheme
+from gendertagger.models.user_preferences import InterfaceLocale, InterfaceMode, InterfaceTheme
 
 
 class UserPreferencesRow(Base):
@@ -17,6 +17,7 @@ class UserPreferencesRow(Base):
     __table_args__ = (
         CheckConstraint("locale IN ('de', 'en')", name="locale_allowed"),
         CheckConstraint("theme IN ('system', 'light', 'dark')", name="theme_allowed"),
+        CheckConstraint("interface_mode IN ('guided', 'advanced')", name="interface_mode_allowed"),
         CheckConstraint("revision >= 0", name="revision_nonnegative"),
     )
 
@@ -31,5 +32,8 @@ class UserPreferencesRow(Base):
     )
     desktop_sidebar_collapsed: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
+    )
+    interface_mode: Mapped[InterfaceMode] = mapped_column(
+        String(8), nullable=False, default="guided", server_default="guided"
     )
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")

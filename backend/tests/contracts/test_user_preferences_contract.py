@@ -13,17 +13,25 @@ def test_preferences_defaults_preserve_unresolved_browser_choices() -> None:
         "locale": None,
         "theme": "system",
         "desktop_sidebar_collapsed": False,
+        "interface_mode": "guided",
         "revision": 0,
     }
 
 
 @pytest.mark.parametrize("locale", ["de", "en", None])
 @pytest.mark.parametrize("theme", ["system", "light", "dark"])
-def test_preferences_accept_only_documented_language_and_theme_choices(
+@pytest.mark.parametrize("interface_mode", ["guided", "advanced"])
+def test_preferences_accept_only_documented_language_theme_and_mode_choices(
     locale: str | None,
     theme: str,
+    interface_mode: str,
 ) -> None:
-    payload = {"locale": locale, "theme": theme, "desktop_sidebar_collapsed": True}
+    payload = {
+        "locale": locale,
+        "theme": theme,
+        "desktop_sidebar_collapsed": True,
+        "interface_mode": interface_mode,
+    }
 
     resource = UserPreferences.model_validate(payload)
     command = UserPreferencesUpdate.model_validate({"expected_revision": 0, **payload})
@@ -34,7 +42,12 @@ def test_preferences_accept_only_documented_language_and_theme_choices(
 
 @pytest.mark.parametrize(
     "preference",
-    [{"theme": "dark"}, {"desktop_sidebar_collapsed": True}, {"locale": None}],
+    [
+        {"theme": "dark"},
+        {"desktop_sidebar_collapsed": True},
+        {"locale": None},
+        {"interface_mode": "advanced"},
+    ],
 )
 def test_preferences_update_distinguishes_omission_from_explicit_values(
     preference: dict[str, object],
@@ -51,7 +64,7 @@ def test_preferences_update_schema_requires_revision_without_preference_defaults
     schema = UserPreferencesUpdate.model_json_schema()
 
     assert schema["required"] == ["expected_revision"]
-    for field_name in ("locale", "theme", "desktop_sidebar_collapsed"):
+    for field_name in ("locale", "theme", "desktop_sidebar_collapsed", "interface_mode"):
         assert "default" not in schema["properties"][field_name]
 
 
@@ -70,6 +83,10 @@ def test_preferences_update_schema_requires_revision_without_preference_defaults
         {"desktop_sidebar_collapsed": "false"},
         {"desktop_sidebar_collapsed": 0},
         {"desktop_sidebar_collapsed": 1},
+        {"interface_mode": "expert"},
+        {"interface_mode": "Guided"},
+        {"interface_mode": None},
+        {"interface_mode": ""},
         {"user_id": "another-account"},
         {"project_id": "another-project"},
         {"settings": {"locale": "en"}},

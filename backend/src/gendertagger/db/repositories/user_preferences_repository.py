@@ -23,6 +23,7 @@ class SqlAlchemyUserPreferencesRepository:
             locale=row.locale,
             theme=row.theme,
             desktop_sidebar_collapsed=row.desktop_sidebar_collapsed,
+            interface_mode=row.interface_mode,
             revision=row.revision,
         )
 
@@ -39,5 +40,6 @@ class SqlAlchemyUserPreferencesRepository:
         row.locale = preferences.locale
         row.theme = preferences.theme
         row.desktop_sidebar_collapsed = preferences.desktop_sidebar_collapsed
+        row.interface_mode = preferences.interface_mode
         row.revision = preferences.revision
         self._session.flush()

@@ -366,8 +366,9 @@ response completes but the next authenticated request must sign in again.
 
 ## Personal presentation preferences
 
-[ADR-0043](decisions/ADR-0043-account-level-user-preferences.md) adds self-service account preferences.
-Paths below are relative to `/api/v1`.
+[ADR-0043](decisions/ADR-0043-account-level-user-preferences.md) adds self-service account preferences,
+and [ADR-0050](decisions/ADR-0050-guided-and-advanced-interface-mode-preference.md) adds the
+`interface_mode` field. Paths below are relative to `/api/v1`.
 
 | Endpoint | Request | Response |
 |---|---|---|
@@ -381,7 +382,8 @@ an owner ID or requires a global/project role. Both require a resolved password-
 uses the existing `403 forbidden` envelope.
 
 The default resource for an account without a preferences row is
-`{"locale": null, "theme": "system", "desktop_sidebar_collapsed": false, "revision": 0}`.
+`{"locale": null, "theme": "system", "desktop_sidebar_collapsed": false, "interface_mode": "guided",
+"revision": 0}`.
 GET does not initialize storage. PATCH preserves omitted fields, and explicit `locale: null` clears an
 explicit locale without resolving the browser's effective language. Null theme/collapse, unknown fields,
 invalid values, and empty updates receive `422 validation_error`.

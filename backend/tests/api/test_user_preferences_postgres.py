@@ -28,6 +28,7 @@ DEFAULT_PREFERENCES: dict[str, object] = {
     "locale": None,
     "theme": "system",
     "desktop_sidebar_collapsed": False,
+    "interface_mode": "guided",
     "revision": 0,
 }
 
@@ -144,6 +145,7 @@ def test_preferences_survive_logout_and_new_session_in_a_new_application(
         "locale": "en",
         "theme": "dark",
         "desktop_sidebar_collapsed": True,
+        "interface_mode": "guided",
         "revision": 1,
     }
     assert logged_out.status_code == 204
@@ -187,12 +189,14 @@ def test_preferences_partial_updates_preserve_omissions_and_explicit_locale_null
         "locale": "de",
         "theme": "light",
         "desktop_sidebar_collapsed": True,
+        "interface_mode": "guided",
         "revision": 2,
     }
     assert cleared_locale.json() == {
         "locale": None,
         "theme": "light",
         "desktop_sidebar_collapsed": True,
+        "interface_mode": "guided",
         "revision": 3,
     }
     assert client.get(PREFERENCES_PATH).json() == cleared_locale.json()

@@ -68,6 +68,8 @@ def test_preferences_repository_round_trip_keeps_account_values_separate(
         {"theme": "auto"},
         {"theme": None},
         {"desktop_sidebar_collapsed": None},
+        {"interface_mode": "expert"},
+        {"interface_mode": None},
         {"revision": -1},
         {"revision": None},
     ],
