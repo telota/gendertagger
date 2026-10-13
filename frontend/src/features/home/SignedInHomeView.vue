@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { PhArrowRight } from '@phosphor-icons/vue'
-import { computed } from 'vue'
+import { PhArrowRight, PhMinus, PhPlus } from '@phosphor-icons/vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, type RouteLocationRaw } from 'vue-router'
+import { RouterLink, useRouter, type RouteLocationRaw } from 'vue-router'
 
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useProjectList } from '@/composables/useProjects'
+import ProjectCreationForm from '@/features/projects/ProjectCreationForm.vue'
+import { useManagedProjects } from '@/features/projects/useManagedProjects'
 import { useRoleLabel } from '@/features/projects/useRoleLabel'
 import { useSessionStore } from '@/stores/session'
 
@@ -17,16 +19,44 @@ interface WorkspaceLink {
 }
 
 const { t } = useI18n()
+const router = useRouter()
 const session = useSessionStore()
 const roleLabel = useRoleLabel()
 const displayName = computed(() => session.user?.display_name ?? '')
 const canUseProjects = computed(() => session.canUsePrivateNavigation)
-const projectQuery = useProjectList(canUseProjects, 4)
-const projects = computed(() => projectQuery.data.value?.pages.flatMap((page) => page.items) ?? [])
+const isSignedIn = computed(() => session.status === 'ready' && session.isSignedIn)
+const creationOpen = ref(false)
+const creationMounted = ref(false)
+
+const query = useProjectList(canUseProjects)
+const projects = computed(() => query.data.value?.pages.flatMap((page) => page.items) ?? [])
+const managedQuery = useManagedProjects(
+  canUseProjects,
+  computed(() => session.user?.id ?? null),
+)
+const additionalManagedProjects = computed(() => {
+  const readableIds = new Set(projects.value.map((project) => project.id))
+  return (
+    managedQuery.data.value?.pages
+      .flatMap((page) => page.items)
+      .filter((project) => !readableIds.has(project.id)) ?? []
+  )
+})
+// These are additional discovered identities, not proof that an unloaded project has no role.
+const showManagedProjects = computed(
+  () =>
+    managedQuery.isPending.value ||
+    managedQuery.isError.value ||
+    additionalManagedProjects.value.length > 0 ||
+    managedQuery.hasNextPage.value,
+)
+
 const canCreateProjects = computed(
   () =>
-    session.user?.roles.includes('operator') === true ||
-    session.user?.roles.includes('admin') === true,
+    isSignedIn.value &&
+    !session.mustChangePassword &&
+    (session.user?.roles.includes('operator') === true ||
+      session.user?.roles.includes('admin') === true),
 )
 const isAdministrator = computed(() => session.user?.roles.includes('admin') === true)
 const accountAccess = computed(() => {
@@ -55,13 +85,6 @@ const workspaceLinks = computed<WorkspaceLink[]>(() => {
       to: { name: 'userSettings' },
     },
   ]
-  if (canCreateProjects.value) {
-    links.push({
-      key: 'project-management',
-      label: t('home.signedIn.workspace.projectManagement'),
-      to: { name: 'projects' },
-    })
-  }
   if (isAdministrator.value) {
     links.push(
       {
@@ -84,128 +107,270 @@ const workspaceLinks = computed<WorkspaceLink[]>(() => {
   return links
 })
 
-function retryProjects(): void {
-  if (!projectQuery.isFetching.value) void projectQuery.refetch()
+watch([() => session.user?.id, canCreateProjects], () => {
+  creationOpen.value = false
+  creationMounted.value = false
+})
+
+function toggleCreation(): void {
+  creationOpen.value = !creationOpen.value
+  if (creationOpen.value) creationMounted.value = true
+}
+
+function openCreatedProject(projectId: string): void {
+  void router.push({ name: 'projectOverview', params: { projectId } })
+}
+
+function loadMore(): void {
+  if (!query.isFetching.value) void query.fetchNextPage()
+}
+
+function loadMoreManaged(): void {
+  if (!managedQuery.isFetching.value) void managedQuery.fetchNextPage()
 }
 </script>
 
 <template>
   <div class="home-dashboard">
     <header class="home-dashboard-header app-page-heading">
-      <div class="app-page-heading__copy">
-        <h1 class="home-dashboard-title app-page-heading__title">
-          {{ t('home.signedIn.welcomeBack', { name: displayName }) }}
-        </h1>
-        <p class="home-dashboard-introduction app-page-heading__description">
-          {{ t('home.signedIn.introduction') }}
-        </p>
-      </div>
+      <h1 class="home-dashboard-title app-page-heading__title">
+        {{ t('home.signedIn.welcomeBack', { name: displayName }) }}
+      </h1>
+      <p class="home-dashboard-introduction app-page-heading__description">
+        {{ t('home.signedIn.introduction') }}
+      </p>
     </header>
 
     <div class="home-dashboard-layout">
       <section aria-labelledby="home-projects-title">
         <div class="home-dashboard-section-heading">
           <div>
-            <h2 id="home-projects-title">{{ t('home.signedIn.projects.title') }}</h2>
-            <p>{{ t('home.signedIn.projects.description') }}</p>
+            <h2 id="home-projects-title">{{ t('projects.title') }}</h2>
           </div>
-          <AppButton :to="{ name: 'projects' }" variant="ghost">
-            {{ t('home.signedIn.projects.viewAll') }}
-            <PhArrowRight :size="18" aria-hidden="true" />
+          <AppButton
+            v-if="canCreateProjects"
+            class="home-new-project"
+            :variant="creationOpen ? 'ghost' : 'solid'"
+            :aria-expanded="creationOpen"
+            aria-controls="home-project-creation-panel"
+            @click="toggleCreation"
+          >
+            <PhMinus v-if="creationOpen" :size="18" aria-hidden="true" />
+            <PhPlus v-else :size="18" aria-hidden="true" />
+            {{ creationOpen ? t('projects.hideCreation') : t('projects.newProject') }}
           </AppButton>
+        </div>
+
+        <div
+          v-if="canCreateProjects"
+          v-show="creationOpen"
+          id="home-project-creation-panel"
+          class="home-project-creation"
+        >
+          <ProjectCreationForm
+            v-if="creationMounted && session.user"
+            :key="session.user.id"
+            :principal-id="session.user.id"
+            :is-administrator="isAdministrator"
+            @created="openCreatedProject"
+          />
         </div>
 
         <div class="home-project-panel app-card app-card--sectioned">
           <AppFeedback
-            v-if="projectQuery.isPending.value"
+            v-if="query.isPending.value"
             class="home-project-feedback"
             announcement="polite"
           >
-            {{ t('home.signedIn.projects.loading') }}
+            {{ t('projects.loading') }}
           </AppFeedback>
           <AppFeedback
-            v-else-if="projectQuery.isError.value && !projectQuery.data.value"
+            v-else-if="query.isError.value && !query.data.value"
             class="home-project-feedback"
             announcement="assertive"
             tone="critical"
           >
-            {{ t('home.signedIn.projects.loadError') }}
+            {{ t('projects.loadError') }}
             <template #actions>
               <AppButton
                 variant="ghost"
-                :disabled="projectQuery.isFetching.value"
-                @click="retryProjects"
+                :disabled="query.isFetching.value"
+                @click="() => query.refetch()"
               >
-                {{ t('home.signedIn.projects.retry') }}
+                {{ t('projects.retry') }}
               </AppButton>
             </template>
           </AppFeedback>
-          <div v-else-if="projects.length === 0" class="home-project-empty">
-            <p>{{ t('home.signedIn.projects.empty') }}</p>
-            <p>
-              {{
-                canCreateProjects
-                  ? t('home.signedIn.projects.emptyCanCreate')
-                  : t('home.signedIn.projects.emptyAsk')
-              }}
-            </p>
-          </div>
-          <ul v-else class="home-project-list">
-            <li v-for="project in projects" :key="project.id" class="home-project-row">
-              <div class="home-project-content">
-                <h3>
-                  <RouterLink
+          <template v-else>
+            <div v-if="projects.length === 0" class="home-project-empty">
+              <p>{{ t('projects.empty') }}</p>
+              <p v-if="canCreateProjects">{{ t('projects.emptyCreateHint') }}</p>
+              <p v-else>{{ t('projects.emptyHint') }}</p>
+            </div>
+            <ul v-else class="home-project-list">
+              <li v-for="project in projects" :key="project.id" class="home-project-row">
+                <div class="home-project-content">
+                  <h3>
+                    <RouterLink
+                      :to="{ name: 'projectOverview', params: { projectId: project.id } }"
+                      class="home-project-title-link"
+                    >
+                      {{ project.display_name }}
+                    </RouterLink>
+                  </h3>
+                  <p v-if="project.description" class="home-project-description">
+                    {{ project.description }}
+                  </p>
+                  <dl class="home-project-facts">
+                    <div>
+                      <dt>{{ t('projects.team') }}</dt>
+                      <dd>{{ project.team.display_name }}</dd>
+                    </div>
+                    <div>
+                      <dt>{{ t('projects.yourRole') }}</dt>
+                      <dd>{{ roleLabel(project.current_user_role) }}</dd>
+                    </div>
+                  </dl>
+                </div>
+                <div class="home-project-actions">
+                  <AppButton
                     :to="{ name: 'projectOverview', params: { projectId: project.id } }"
-                    class="home-project-title-link"
+                    variant="ghost"
+                    class="home-project-open"
+                    :aria-label="t('projects.openProjectNamed', { project: project.display_name })"
                   >
-                    {{ project.display_name }}
-                  </RouterLink>
-                </h3>
-                <p v-if="project.description" class="home-project-description">
-                  {{ project.description }}
-                </p>
+                    {{ t('projects.openProject') }}
+                    <PhArrowRight :size="18" aria-hidden="true" />
+                  </AppButton>
+                  <AppButton
+                    v-if="project.current_user_can_manage_members"
+                    :to="{ name: 'projectMembers', params: { projectId: project.id } }"
+                    variant="ghost"
+                    class="home-project-manage-members"
+                    :aria-label="t('projects.manageMembersNamed', { project: project.display_name })"
+                  >
+                    {{ t('projects.manageMembers') }}
+                  </AppButton>
+                </div>
+              </li>
+            </ul>
+            <AppFeedback
+              v-if="query.isError.value"
+              class="home-project-feedback"
+              announcement="assertive"
+              tone="critical"
+            >
+              {{
+                query.isFetchNextPageError.value
+                  ? t('projects.loadMoreError')
+                  : t('projects.loadError')
+              }}
+              <template v-if="!query.isFetchNextPageError.value" #actions>
+                <AppButton
+                  variant="ghost"
+                  :disabled="query.isFetching.value"
+                  @click="() => query.refetch()"
+                >
+                  {{ t('projects.retry') }}
+                </AppButton>
+              </template>
+            </AppFeedback>
+            <AppFeedback
+              v-if="query.isFetchingNextPage.value"
+              class="home-project-feedback"
+              announcement="polite"
+            >
+              {{ t('projects.loadingMore') }}
+            </AppFeedback>
+            <AppButton
+              v-if="query.hasNextPage.value"
+              class="home-project-load-more"
+              variant="ghost"
+              :disabled="query.isFetching.value"
+              @click="loadMore"
+            >
+              {{ query.isFetchNextPageError.value ? t('projects.retry') : t('projects.loadMore') }}
+            </AppButton>
+          </template>
+        </div>
+
+        <section
+          v-if="showManagedProjects"
+          class="home-project-managed"
+          aria-labelledby="home-project-managed-title"
+        >
+          <h2 id="home-project-managed-title">{{ t('projects.managedTitle') }}</h2>
+          <p class="home-project-managed-description">{{ t('projects.managedDescription') }}</p>
+          <AppFeedback v-if="managedQuery.isPending.value" announcement="polite">
+            {{ t('projects.managedLoading') }}
+          </AppFeedback>
+          <ul v-if="additionalManagedProjects.length" class="home-project-list">
+            <li
+              v-for="project in additionalManagedProjects"
+              :key="project.id"
+              class="home-project-row"
+            >
+              <div class="home-project-content">
+                <h3>{{ project.display_name }}</h3>
                 <dl class="home-project-facts">
                   <div>
-                    <dt>{{ t('home.signedIn.projects.team') }}</dt>
+                    <dt>{{ t('projects.team') }}</dt>
                     <dd>{{ project.team.display_name }}</dd>
-                  </div>
-                  <div>
-                    <dt>{{ t('home.signedIn.projects.role') }}</dt>
-                    <dd>{{ roleLabel(project.current_user_role) }}</dd>
                   </div>
                 </dl>
               </div>
-              <AppButton
-                :to="{ name: 'projectOverview', params: { projectId: project.id } }"
-                variant="ghost"
-                class="home-project-open"
-                :aria-label="
-                  t('home.signedIn.projects.openNamed', { project: project.display_name })
-                "
-              >
-                {{ t('home.signedIn.projects.open') }}
-                <PhArrowRight :size="18" aria-hidden="true" />
-              </AppButton>
+              <div class="home-project-actions">
+                <AppButton
+                  :to="{ name: 'projectMembers', params: { projectId: project.id } }"
+                  variant="ghost"
+                  class="home-project-manage-members"
+                  :aria-label="t('projects.manageMembersNamed', { project: project.display_name })"
+                  >{{ t('projects.manageMembers') }}</AppButton
+                >
+              </div>
             </li>
           </ul>
           <AppFeedback
-            v-if="projectQuery.isError.value && projectQuery.data.value"
-            class="home-project-feedback"
+            v-if="managedQuery.isError.value"
             announcement="assertive"
             tone="critical"
+            class="home-project-feedback"
           >
-            {{ t('home.signedIn.projects.refreshError') }}
-            <template #actions>
+            {{
+              managedQuery.isFetchNextPageError.value
+                ? t('projects.managedLoadMoreError')
+                : t('projects.managedLoadError')
+            }}
+            <template v-if="!managedQuery.isFetchNextPageError.value" #actions>
               <AppButton
                 variant="ghost"
-                :disabled="projectQuery.isFetching.value"
-                @click="retryProjects"
+                :disabled="managedQuery.isFetching.value"
+                @click="() => managedQuery.refetch()"
+                >{{ t('projects.retry') }}</AppButton
               >
-                {{ t('home.signedIn.projects.retry') }}
-              </AppButton>
             </template>
           </AppFeedback>
-        </div>
+          <AppFeedback
+            v-if="managedQuery.isFetchingNextPage.value"
+            announcement="polite"
+            class="home-project-feedback"
+          >
+            {{ t('projects.managedLoading') }}
+          </AppFeedback>
+          <AppButton
+            v-if="managedQuery.hasNextPage.value"
+            class="home-project-managed-load-more"
+            variant="ghost"
+            :disabled="managedQuery.isFetching.value"
+            @click="loadMoreManaged"
+          >
+            {{
+              managedQuery.isFetchNextPageError.value
+                ? t('projects.retry')
+                : t('projects.loadMoreManaged')
+            }}
+          </AppButton>
+        </section>
       </section>
 
       <aside class="home-workspace app-card" aria-labelledby="home-workspace-title">
@@ -287,16 +452,23 @@ function retryProjects(): void {
   line-height: var(--line-height-title);
 }
 
+.home-new-project svg {
+  flex-shrink: 0;
+}
+
+.home-project-creation {
+  margin-block-end: var(--space-8);
+}
+
 .home-project-panel {
   min-inline-size: 0;
 }
 
 .home-project-feedback {
-  margin: var(--space-4);
+  margin: var(--space-4) 0 0;
 }
 
 .home-project-empty {
-  padding: var(--space-4);
   color: var(--text-secondary);
 }
 
@@ -308,22 +480,22 @@ function retryProjects(): void {
   margin-block-start: var(--space-2);
 }
 
-.home-project-list,
-.home-workspace-links {
+.home-project-list {
   margin: 0;
   padding: 0;
   list-style: none;
+  display: grid;
+  gap: var(--space-4);
 }
 
 .home-project-row {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-4) var(--space-6);
   min-inline-size: 0;
   padding: var(--space-4);
-}
-
-.home-project-row + .home-project-row {
-  border-block-start: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card, var(--radius-input));
+  background: var(--panel);
 }
 
 .home-project-content {
@@ -380,14 +552,36 @@ function retryProjects(): void {
   overflow-wrap: anywhere;
 }
 
-.home-project-open {
-  justify-self: start;
+.home-project-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
 }
 
-.home-project-open svg,
-.home-dashboard-section-heading svg,
-.home-workspace-links svg {
+.home-project-actions svg {
   flex-shrink: 0;
+}
+
+.home-project-load-more,
+.home-project-managed-load-more,
+.home-project-feedback {
+  margin-block-start: var(--space-4);
+}
+
+.home-project-managed {
+  margin-block-start: var(--space-10);
+  padding-block-start: var(--space-6);
+  border-block-start: 1px solid var(--border);
+}
+
+.home-project-managed h2 {
+  margin: 0 0 var(--space-2);
+}
+
+.home-project-managed-description {
+  margin-block-end: var(--space-4);
+  color: var(--text-secondary);
 }
 
 .home-workspace {
@@ -411,6 +605,9 @@ function retryProjects(): void {
 }
 
 .home-workspace-links {
+  margin: 0;
+  padding: 0;
+  list-style: none;
   border-block: 1px solid var(--border);
 }
 
@@ -435,7 +632,11 @@ function retryProjects(): void {
   text-underline-offset: 0.2em;
 }
 
-@container user-dashboard (min-width: 34rem) {
+.home-workspace-links svg {
+  flex-shrink: 0;
+}
+
+@container user-dashboard (min-width: 40rem) {
   .home-project-row {
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;

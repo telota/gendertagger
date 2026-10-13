@@ -99,22 +99,6 @@
     "signedIn": {
       "welcomeBack": "Willkommen zurück, {name}",
       "introduction": "Öffnen Sie ein Projekt, um Ihre Arbeit fortzusetzen, oder nutzen Sie die verfügbaren Kontofunktionen.",
-      "projects": {
-        "title": "Verfügbare Projekte",
-        "description": "Projekte, auf die Sie derzeit zugreifen können.",
-        "viewAll": "Alle Projekte ansehen",
-        "loading": "Ihre Projekte werden geladen …",
-        "loadError": "Ihre Projekte konnten nicht geladen werden.",
-        "refreshError": "Ihre Projekte konnten nicht aktualisiert werden. Die bereits angezeigten Projekte bleiben verfügbar.",
-        "retry": "Erneut versuchen",
-        "empty": "Für Sie sind noch keine Projekte verfügbar.",
-        "emptyCanCreate": "Auf der Projektseite können Sie ein Projekt anlegen.",
-        "emptyAsk": "Bitten Sie eine Projektverwaltung, Ihnen Zugriff zu geben.",
-        "open": "Projekt öffnen",
-        "openNamed": "Projekt „{project}“ öffnen",
-        "team": "Team",
-        "role": "Ihre Rolle"
-      },
       "workspace": {
         "title": "Ihr Arbeitsbereich",
         "description": "Zugriffsrechte und direkte Einstiege für Ihr Konto.",
@@ -128,7 +112,6 @@
         },
         "linksLabel": "Direkte Einstiege in Ihren Arbeitsbereich",
         "personalSettings": "Persönliche Einstellungen",
-        "projectManagement": "Projekte ansehen und anlegen",
         "users": "Benutzerkonten",
         "teams": "Teams",
         "publicationDetails": "Publikationsangaben"
@@ -1647,6 +1630,12 @@
       "description": "Gilt ab einer Bildschirmbreite von 1080 Pixeln. Kleinere Bildschirme passen sich automatisch an.",
       "expanded": "Ausgeklappt",
       "collapsed": "Eingeklappt"
+    },
+    "interfaceMode": {
+      "label": "Darstellung",
+      "description": "Geführt zeigt einen reduzierten Weg pro Projekt (Importieren, Vorschläge generieren, Prüfen). Erweitert zeigt die vollständige Navigation. Gilt für alle Ihre Projekte.",
+      "guided": "Geführter Modus",
+      "advanced": "Erweiterter Modus"
     }
   },
   "breadcrumbs": {

@@ -32,6 +32,7 @@ const SAVED: UserPreferences = {
   locale: 'en',
   theme: 'light',
   desktop_sidebar_collapsed: false,
+  interface_mode: 'guided',
   revision: 7,
 }
 const THEME_STORAGE_KEY = 'gendertagger.theme'

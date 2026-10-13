@@ -41,21 +41,21 @@ describe.each(['de', 'en'] as const)('AppSidebar in %s', (locale: AppLocale) => 
     expect(brand.text()).toBe(catalogues[locale].app.title)
   })
 
-  it('offers the project list to a signed-in user even without accessible projects', async () => {
+  it('offers the Projekte tab to a signed-in user even without accessible projects', async () => {
     const wrapper = await mountApplicationAt('/', locale, apiClientWithRoutes(SIGNED_IN))
 
     await waitFor(() => {
-      expect(wrapper.get('aside a[href="/projects"]').text()).toBe(catalogues[locale].nav.projects)
+      expect(wrapper.get('aside nav a[href="/"]').text()).toBe(catalogues[locale].nav.projects)
     })
   })
 
   it('marks the current location on the matching navigation item', async () => {
-    const wrapper = await mountApplicationAt('/projects', locale, apiClientWithRoutes(SIGNED_IN))
+    const wrapper = await mountApplicationAt('/', locale, apiClientWithRoutes(SIGNED_IN))
 
-    // /projects is lazy; its first import in this test file's process needs more than one
-    // macrotask tick to resolve. See tests/helpers/wait.ts.
+    // / is lazy; its first import in this test file's process needs more than one macrotask tick
+    // to resolve. See tests/helpers/wait.ts.
     await waitFor(() => {
-      expect(wrapper.get('aside a[href="/projects"]').attributes('aria-current')).toBe('page')
+      expect(wrapper.get('aside nav a[href="/"]').attributes('aria-current')).toBe('page')
     })
   })
 })
@@ -99,8 +99,8 @@ describe.each(['de', 'en'] as const)('AppSidebar project group in %s', (locale: 
   const runBase = `/projects/${PROJECT_ID}/runs/${RUN_ID}`
 
   it('shows no project group outside a project', async () => {
-    const wrapper = await mountApplicationAt('/projects', locale, apiClientWithRoutes(SIGNED_IN))
-    await waitFor(() => expect(wrapper.find('aside a[href="/projects"]').exists()).toBe(true))
+    const wrapper = await mountApplicationAt('/', locale, apiClientWithRoutes(SIGNED_IN))
+    await waitFor(() => expect(wrapper.find('aside nav a[href="/"]').exists()).toBe(true))
 
     expect(wrapper.find('aside .project-switcher').exists()).toBe(false)
   })
@@ -150,7 +150,6 @@ describe.each(['de', 'en'] as const)('AppSidebar project group in %s', (locale: 
       expect(wrapper.find(`aside a[href="/projects/${PROJECT_ID}/overview"]`).exists()).toBe(true),
     )
     expect(wrapper.findAll('aside nav .nav-item').map((item) => item.text())).toEqual([
-      nav.projects,
       nav.overview,
     ])
     expect(wrapper.findAll('aside [aria-disabled="true"]')).toHaveLength(0)

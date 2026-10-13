@@ -11,7 +11,7 @@ import { createAppI18n, type AppLocale } from '@/app/i18n'
 import { createQueryClient } from '@/app/queryClient'
 import { createAppRouter } from '@/app/router'
 import { API_CLIENT_KEY } from '@/composables/useApiClient'
-import { privateQueryKey, projectMembershipQueryKey } from '@/composables/resourceQueries'
+import { privateQueryKey } from '@/composables/resourceQueries'
 import de from '@/locales/de.json'
 import en from '@/locales/en.json'
 import { useSessionStore, type CurrentUser } from '@/stores/session'
@@ -21,7 +21,6 @@ import { waitFor } from '../helpers/wait'
 import type { components } from '@/api/schema'
 
 type AccessibleProject = components['schemas']['AccessibleProject']
-type ProjectMembershipState = components['schemas']['ProjectMembershipState']
 
 const catalogues = { de, en } as const
 const PROJECT_A = 'b0000000-0000-0000-0000-000000000001'
@@ -50,12 +49,22 @@ type ProjectRole = AccessibleProject['current_user_role']
 type SessionStore = ReturnType<typeof useSessionStore>
 type SessionState = Pick<SessionStore, 'status' | 'user' | 'mustChangePassword'>
 type NavKey = keyof typeof en.nav
-const VIEWER_ITEMS: NavKey[] = ['projects', 'overview', 'classification', 'evaluations', 'exports']
+// The "Projekte" tab is no longer part of this list at all (D26): it only ever shows while no
+// project is open, which none of these role-based scenarios are. "Export" sits directly after
+// "Review", ahead of "Game mode" and "Statistik & Methoden" — a reordering, not a visibility change.
+const VIEWER_ITEMS: NavKey[] = ['overview', 'classification', 'exports', 'evaluations']
 const PROJECT_VIEWER_ITEMS = VIEWER_ITEMS.slice(0, -2)
 const ROLE_ITEMS: Record<ProjectRole, NavKey[]> = {
   viewer: VIEWER_ITEMS,
-  reviewer: ['projects', 'overview', 'classification', 'review', 'game', 'evaluations', 'exports'],
-  operator: ['projects', 'overview', 'classification', 'review', 'game', 'evaluations', 'exports'],
+  reviewer: ['overview', 'classification', 'review', 'exports', 'game', 'evaluations'],
+  operator: ['overview', 'classification', 'review', 'exports', 'game', 'evaluations'],
+}
+// Without a resolved run, "exports" and "evaluations" do not show at all; unlike the full lists
+// above, they are not simply the last two entries once "exports" moves ahead of "game".
+const ROLE_ITEMS_NO_RUN: Record<ProjectRole, NavKey[]> = {
+  viewer: ['overview', 'classification'],
+  reviewer: ['overview', 'classification', 'review', 'game'],
+  operator: ['overview', 'classification', 'review', 'game'],
 }
 
 function project(id: string, role: ProjectRole): AccessibleProject {
@@ -114,13 +123,6 @@ function deferredResponse() {
         }),
       )
     },
-  }
-}
-
-function membership(managerId = USER.id, role: ProjectRole | null = null): ProjectMembershipState {
-  return {
-    manager: { user_id: managerId, display_name: 'Assigned manager', project_role: role },
-    members: [],
   }
 }
 
@@ -198,11 +200,11 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
     },
   )
 
-  it('keeps Projects available to a ready signed-in account with no projects', async () => {
+  it('keeps Projects available to a ready signed-in account with no projects, opening the home page', async () => {
     const { wrapper } = await mountSidebar('/projects', locale)
 
     expectItems(wrapper, locale, ['projects'])
-    expect(wrapper.get('nav a').attributes('href')).toBe('/projects')
+    expect(wrapper.get('nav a').attributes('href')).toBe('/')
     expect(wrapper.findAll('nav h2')).toHaveLength(0)
   })
 
@@ -223,14 +225,14 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
         catalogues[locale].taskEntry.availabilityLoading,
       ),
     )
-    expectItems(wrapper, locale, ['projects', 'overview'])
+    expectItems(wrapper, locale, ['overview'])
     availability.respond({
       project_id: PROJECT_A,
       has_ready_snapshots: false,
       has_completed_aggregations: false,
     })
     await waitFor(() => expect(wrapper.find('.app-sidebar-availability').exists()).toBe(false))
-    expectItems(wrapper, locale, ['projects', 'overview'])
+    expectItems(wrapper, locale, ['overview'])
     expect(wrapper.findAll('nav [aria-disabled="true"]')).toHaveLength(0)
     expect(wrapper.findAll('nav h2')).toHaveLength(0)
   })
@@ -265,11 +267,11 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
           catalogues[locale].taskEntry.availabilityError,
         ),
       )
-      expectItems(wrapper, locale, ['projects', 'overview'])
+      expectItems(wrapper, locale, ['overview'])
       const retry = wrapper.get('.app-sidebar-availability-retry')
       expect(retry.attributes('aria-label')).toBe(catalogues[locale].taskEntry.retryAvailability)
       await retry.trigger('click')
-      await waitFor(() => expectItems(wrapper, locale, ROLE_ITEMS.reviewer.slice(0, -2)))
+      await waitFor(() => expectItems(wrapper, locale, ROLE_ITEMS_NO_RUN.reviewer))
       expect(reads).toBe(2)
       expect(wrapper.find('.app-sidebar-availability').exists()).toBe(false)
     },
@@ -301,32 +303,30 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
       locale,
       client,
     )
-    await waitFor(() => expectItems(wrapper, locale, ROLE_ITEMS.reviewer.slice(0, -2)))
+    await waitFor(() => expectItems(wrapper, locale, ROLE_ITEMS_NO_RUN.reviewer))
     session.user = { ...USER, id: 'another-account' }
     await waitFor(() =>
       expect(wrapper.find('.app-sidebar-availability [role="status"]').text()).toBe(
         catalogues[locale].taskEntry.availabilityLoading,
       ),
     )
-    expectItems(wrapper, locale, ['projects', 'overview'])
+    expectItems(wrapper, locale, ['overview'])
     secondAccount.respond({ ...AVAILABLE, has_completed_aggregations: false })
-    await waitFor(() =>
-      expectItems(wrapper, locale, ['projects', 'overview', 'classification', 'review']),
-    )
+    await waitFor(() => expectItems(wrapper, locale, ['overview', 'classification', 'review']))
     await router.push(`/projects/${PROJECT_B}/overview`)
     await waitFor(() =>
       expect(wrapper.find('.app-sidebar-availability [role="status"]').text()).toBe(
         catalogues[locale].taskEntry.availabilityLoading,
       ),
     )
-    expectItems(wrapper, locale, ['projects', 'overview'])
+    expectItems(wrapper, locale, ['overview'])
     secondProject.respond({
       project_id: PROJECT_B,
       has_ready_snapshots: false,
       has_completed_aggregations: false,
     })
     await waitFor(() => expect(wrapper.find('.app-sidebar-availability').exists()).toBe(false))
-    expectItems(wrapper, locale, ['projects', 'overview'])
+    expectItems(wrapper, locale, ['overview'])
     expect(wrapper.find(`nav a[href*="${PROJECT_A}"]`).exists()).toBe(false)
   })
 
@@ -513,243 +513,6 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
     expect(wrapper.find(`nav a[href="${AGGREGATION_PATH}/review"]`).exists()).toBe(false)
   })
 
-  it.each([
-    { role: 'viewer', canManage: true },
-    { role: 'reviewer', canManage: true },
-    { role: 'operator', canManage: false },
-    { role: 'operator', canManage: true },
-  ] as const)(
-    'uses the management capability independently of the $role role ($canManage)',
-    async ({ role, canManage }) => {
-      const { wrapper } = await mountSidebar(
-        AGGREGATION_PATH,
-        locale,
-        clientForRole(role, canManage),
-      )
-      await waitFor(() =>
-        expect(wrapper.find(`nav a[href="/projects/${PROJECT_A}/overview"]`).exists()).toBe(true),
-      )
-      const entry = wrapper.find(`nav a[href="/projects/${PROJECT_A}/members"]`)
-      expect(entry.exists()).toBe(canManage)
-      if (canManage) expect(entry.text()).toBe(messages.projectMembers)
-    },
-  )
-
-  it.each([
-    { kind: 'management-only manager', role: null, admin: false },
-    { kind: 'readable manager', role: 'viewer', admin: false },
-    { kind: 'administrator', role: 'operator', admin: true },
-  ] as const)(
-    'marks Members for a $kind after membership authorization',
-    async ({ role, admin }) => {
-      const response = deferredResponse()
-      let membershipReads = 0
-      let projectReads = 0
-      const client = createApiClient({
-        fetch: (request) => {
-          const path = new URL(request.url).pathname
-          if (path.endsWith('/data-availability'))
-            return Promise.resolve(Response.json({ ...AVAILABLE, project_id: path.split('/')[4] }))
-          if (path === `/api/v1/projects/${PROJECT_A}/members`) {
-            membershipReads += 1
-            return response.promise
-          }
-          if (path === `/api/v1/projects/${PROJECT_A}`) {
-            projectReads += 1
-            return Promise.resolve(
-              Response.json({
-                ...project(PROJECT_A, role ?? 'viewer'),
-                current_user_can_manage_members: true,
-              }),
-            )
-          }
-          if (path === '/api/v1/me/preferences')
-            return Promise.resolve(Response.json(DEFAULT_PREFERENCES))
-          return Promise.resolve(Response.json({}, { status: 404 }))
-        },
-      })
-      const { wrapper } = await mountSidebar(`/projects/${PROJECT_A}/members`, locale, client, {
-        user: { ...USER, roles: admin ? ['admin'] : [] },
-      })
-      expect(projectReads).toBe(0)
-      expect(wrapper.find(`nav a[href="/projects/${PROJECT_A}/members"]`).exists()).toBe(false)
-      expect(membershipReads).toBe(1)
-      response.respond(membership(admin ? 'another-manager' : USER.id, admin ? null : role))
-      await waitFor(() =>
-        expect(wrapper.find(`nav a[href="/projects/${PROJECT_A}/members"]`).exists()).toBe(true),
-      )
-      if (role !== null) await waitFor(() => expect(projectReads).toBe(1))
-      const current = wrapper.findAll('nav [aria-current="page"]')
-      expect(current.map((item) => item.text())).toEqual([messages.projectMembers])
-      const overview = wrapper.find(`nav a[href="/projects/${PROJECT_A}/overview"]`)
-      expect(overview.exists()).toBe(role !== null)
-      if (overview.exists()) expect(overview.attributes('aria-current')).toBeUndefined()
-      if (role === null) {
-        expectItems(wrapper, locale, ['projects', 'projectMembers'])
-        expect(wrapper.find('.project-switcher').exists()).toBe(false)
-        expect(projectReads).toBe(0)
-      }
-    },
-  )
-
-  it.each([false, true])(
-    'removes transferred management without borrowing the new manager’s role (own membership: %s)',
-    async (hasOwnRole) => {
-      let projectReads = 0
-      const client = createApiClient({
-        fetch: (request) => {
-          const path = new URL(request.url).pathname
-          if (path.endsWith('/data-availability'))
-            return Promise.resolve(Response.json({ ...AVAILABLE, project_id: path.split('/')[4] }))
-          if (path.endsWith('/members'))
-            return Promise.resolve(Response.json(membership(USER.id, 'viewer')))
-          if (path === `/api/v1/projects/${PROJECT_A}`) {
-            projectReads += 1
-            return Promise.resolve(
-              Response.json({
-                ...project(PROJECT_A, 'viewer'),
-                current_user_can_manage_members: true,
-              }),
-            )
-          }
-          return Promise.resolve(Response.json(DEFAULT_PREFERENCES))
-        },
-      })
-      const { wrapper, queryClient } = await mountSidebar(
-        `/projects/${PROJECT_A}/members`,
-        locale,
-        client,
-      )
-      await waitFor(() =>
-        expect(wrapper.find(`nav a[href="/projects/${PROJECT_A}/overview"]`).exists()).toBe(true),
-      )
-      expect(wrapper.find(`nav a[href="/projects/${PROJECT_A}/members"]`).exists()).toBe(true)
-      const transferred = membership('next-manager', 'operator')
-      transferred.members = [
-        {
-          project_id: PROJECT_A,
-          user_id: hasOwnRole ? USER.id : 'another-member',
-          display_name: 'Project viewer',
-          role: 'viewer',
-          is_manager: false,
-          created_at: '2026-01-01T00:00:00Z',
-          updated_at: '2026-01-01T00:00:00Z',
-        },
-      ]
-      queryClient.setQueryData(projectMembershipQueryKey(USER.id, PROJECT_A), transferred)
-      await waitFor(() =>
-        expect(wrapper.find(`nav a[href="/projects/${PROJECT_A}/members"]`).exists()).toBe(false),
-      )
-      expectItems(wrapper, locale, hasOwnRole ? PROJECT_VIEWER_ITEMS : ['projects'])
-      expect(wrapper.find('nav [aria-current="page"]').exists()).toBe(false)
-      expect(projectReads).toBe(1)
-    },
-  )
-
-  it('does not revive revoked ordinary access after a later membership denial', async () => {
-    let ownRole: ProjectRole | null = 'viewer'
-    let denyMembership = false
-    let projectReads = 0
-    const client = createApiClient({
-      fetch: (request) => {
-        const path = new URL(request.url).pathname
-        if (path.endsWith('/data-availability'))
-          return Promise.resolve(Response.json({ ...AVAILABLE, project_id: path.split('/')[4] }))
-        if (path === `/api/v1/projects/${PROJECT_A}/members`) {
-          return Promise.resolve(
-            denyMembership
-              ? Response.json(
-                  { error: { code: 'resource_not_found', message: 'Management transferred.' } },
-                  { status: 404 },
-                )
-              : Response.json(membership(USER.id, ownRole)),
-          )
-        }
-        if (path === `/api/v1/projects/${PROJECT_A}`) {
-          projectReads += 1
-          return Promise.resolve(
-            Response.json({
-              ...project(PROJECT_A, 'viewer'),
-              current_user_can_manage_members: true,
-            }),
-          )
-        }
-        return Promise.resolve(Response.json(DEFAULT_PREFERENCES))
-      },
-    })
-    const { wrapper, queryClient } = await mountSidebar(
-      `/projects/${PROJECT_A}/members`,
-      locale,
-      client,
-    )
-    await waitFor(() =>
-      expect(wrapper.find(`nav a[href="/projects/${PROJECT_A}/overview"]`).exists()).toBe(true),
-    )
-    ownRole = null
-    await queryClient.invalidateQueries({ queryKey: projectMembershipQueryKey(USER.id, PROJECT_A) })
-    await waitFor(() => expectItems(wrapper, locale, ['projects', 'projectMembers']))
-    denyMembership = true
-    await queryClient.invalidateQueries({ queryKey: projectMembershipQueryKey(USER.id, PROJECT_A) })
-    await waitFor(() => expectItems(wrapper, locale, ['projects']))
-    expect(wrapper.find('.project-switcher').exists()).toBe(false)
-    expect(projectReads).toBe(1)
-  })
-
-  it('isolates membership navigation by account and project and removes stale authority on error', async () => {
-    const accountResponse = deferredResponse()
-    const projectResponse = deferredResponse()
-    const nextUser = { ...USER, id: 'next-account' }
-    let membershipReads = 0
-    let failCurrent = false
-    const scientificReads: string[] = []
-    const client = createApiClient({
-      fetch: (request) => {
-        const path = new URL(request.url).pathname
-        if (path.endsWith('/data-availability'))
-          return Promise.resolve(Response.json({ ...AVAILABLE, project_id: path.split('/')[4] }))
-        if (path === `/api/v1/projects/${PROJECT_B}/members`) {
-          return failCurrent
-            ? Promise.resolve(Response.json({}, { status: 403 }))
-            : projectResponse.promise
-        }
-        if (path === `/api/v1/projects/${PROJECT_A}/members`) {
-          membershipReads += 1
-          return membershipReads === 1
-            ? Promise.resolve(Response.json(membership()))
-            : accountResponse.promise
-        }
-        if (path.startsWith('/api/v1/projects/')) scientificReads.push(path)
-        return Promise.resolve(Response.json(DEFAULT_PREFERENCES))
-      },
-    })
-    const { wrapper, session, router, queryClient } = await mountSidebar(
-      `/projects/${PROJECT_A}/members`,
-      locale,
-      client,
-    )
-    await waitFor(() => expectItems(wrapper, locale, ['projects', 'projectMembers']))
-    session.user = nextUser
-    await flushPromises()
-    expectItems(wrapper, locale, ['projects'])
-    accountResponse.respond(membership(nextUser.id))
-    await waitFor(() => expectItems(wrapper, locale, ['projects', 'projectMembers']))
-    await router.push(`/projects/${PROJECT_B}/members`)
-    await flushPromises()
-    expectItems(wrapper, locale, ['projects'])
-    projectResponse.respond(membership(nextUser.id))
-    await waitFor(() =>
-      expect(
-        wrapper.get(`nav a[href="/projects/${PROJECT_B}/members"]`).attributes('aria-current'),
-      ).toBe('page'),
-    )
-    failCurrent = true
-    await queryClient.invalidateQueries({
-      queryKey: projectMembershipQueryKey(nextUser.id, PROJECT_B),
-    })
-    await waitFor(() => expectItems(wrapper, locale, ['projects']))
-    expect(scientificReads).toEqual([])
-  })
-
   it('does not upgrade a project viewer because their global role is operator', async () => {
     const { wrapper } = await mountSidebar(AGGREGATION_PATH, locale, clientForRole('viewer'), {
       user: { ...USER, roles: ['operator'] },
@@ -769,16 +532,7 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
     )
 
     await waitFor(() =>
-      expectItems(wrapper, locale, [
-        ...ROLE_ITEMS.operator.slice(0, -3),
-        'projectMembers',
-        'game',
-        'evaluations',
-        'exports',
-        'administration',
-        'teams',
-        'settings',
-      ]),
+      expectItems(wrapper, locale, [...ROLE_ITEMS.operator, 'administration', 'teams', 'settings']),
     )
     expect(
       wrapper
@@ -796,7 +550,7 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
         locale,
         clientForRole(role),
       )
-      await waitFor(() => expectItems(wrapper, locale, ROLE_ITEMS[role].slice(0, -2)))
+      await waitFor(() => expectItems(wrapper, locale, ROLE_ITEMS_NO_RUN[role]))
       expect(wrapper.findAll('nav [aria-disabled="true"]')).toHaveLength(0)
       expect(wrapper.find('nav a[href$="/exports"]').exists()).toBe(false)
       expect(wrapper.find('nav a[href$="/evaluations"]').exists()).toBe(false)
@@ -875,6 +629,8 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
             .some((query) => query.state.status === 'success'),
         ).toBe(true),
       )
+      // An invalid role means useProjectIdentity treats the project as not open, the same as a
+      // failed request — so "Projekte" still shows (D26: it is reserved for exactly that case).
       expectItems(wrapper, locale, ['projects'])
       expect(wrapper.findAll('nav h2')).toHaveLength(0)
     },
@@ -909,7 +665,7 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
       locale,
       client,
     )
-    await waitFor(() => expectItems(wrapper, locale, ROLE_ITEMS.operator.slice(0, -2)))
+    await waitFor(() => expectItems(wrapper, locale, ROLE_ITEMS_NO_RUN.operator))
 
     session.user = { ...USER, id: 'a0000000-0000-0000-0000-000000000002' }
     await flushPromises()
@@ -1013,7 +769,7 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
       locale,
       client,
     )
-    await waitFor(() => expectItems(wrapper, locale, ROLE_ITEMS.operator.slice(0, -2)))
+    await waitFor(() => expectItems(wrapper, locale, ROLE_ITEMS_NO_RUN.operator))
 
     await router.push(`/projects/${PROJECT_B}/overview`)
     await flushPromises()
@@ -1022,7 +778,6 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
     response.respond(project(PROJECT_B, 'viewer'))
     await waitFor(() => expectItems(wrapper, locale, PROJECT_VIEWER_ITEMS))
     expect(wrapper.findAll('nav a').map((item) => item.attributes('href'))).toEqual([
-      '/projects',
       `/projects/${PROJECT_B}/overview`,
       `/projects/${PROJECT_B}/classification`,
     ])
@@ -1039,7 +794,7 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
       )
       await waitFor(() =>
         expectItems(wrapper, locale, [
-          ...ROLE_ITEMS.operator.slice(0, -2),
+          ...ROLE_ITEMS_NO_RUN.operator,
           'administration',
           'teams',
           'settings',

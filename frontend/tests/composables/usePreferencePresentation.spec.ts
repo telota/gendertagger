@@ -24,12 +24,14 @@ const DEFAULTS: UserPreferences = {
   locale: null,
   theme: 'system',
   desktop_sidebar_collapsed: false,
+  interface_mode: 'guided',
   revision: 0,
 }
 const ACCOUNT_A: UserPreferences = {
   locale: 'en',
   theme: 'dark',
   desktop_sidebar_collapsed: true,
+  interface_mode: 'guided',
   revision: 4,
 }
 const THEME_STORAGE_KEY = 'gendertagger.theme'

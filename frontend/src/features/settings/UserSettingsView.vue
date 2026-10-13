@@ -30,7 +30,8 @@ const hasChanges = computed(
     draft.value !== null &&
     (baseline.value.locale !== draft.value.locale ||
       baseline.value.theme !== draft.value.theme ||
-      baseline.value.desktop_sidebar_collapsed !== draft.value.desktop_sidebar_collapsed),
+      baseline.value.desktop_sidebar_collapsed !== draft.value.desktop_sidebar_collapsed ||
+      baseline.value.interface_mode !== draft.value.interface_mode),
 )
 const isBusy = computed(() => isSaving.value || isReloading.value)
 const canSave = computed(
@@ -64,6 +65,7 @@ function adoptSaved(values: UserPreferences): void {
     locale: values.locale,
     theme: values.theme,
     desktop_sidebar_collapsed: values.desktop_sidebar_collapsed,
+    interface_mode: values.interface_mode,
   }
 }
 
@@ -125,7 +127,12 @@ function enforcePasswordChange(error: unknown): void {
 
 function restoreDefaults(): void {
   if (draft.value === null || isBusy.value) return
-  draft.value = { locale: null, theme: 'system', desktop_sidebar_collapsed: false }
+  draft.value = {
+    locale: null,
+    theme: 'system',
+    desktop_sidebar_collapsed: false,
+    interface_mode: 'guided',
+  }
 }
 
 async function save(): Promise<void> {
@@ -285,6 +292,22 @@ async function loadSaved(replaceDraft: boolean): Promise<void> {
             <option :value="true">{{ t('userSettings.sidebar.collapsed') }}</option>
             <template #before-control>
               <p id="user-settings-sidebar-help">{{ t('userSettings.sidebar.description') }}</p>
+            </template>
+          </AppSelectField>
+
+          <AppSelectField
+            id="user-settings-interface-mode"
+            v-model="draft.interface_mode"
+            class="user-settings-field"
+            :label="t('userSettings.interfaceMode.label')"
+            aria-describedby="user-settings-interface-mode-help"
+          >
+            <option value="guided">{{ t('userSettings.interfaceMode.guided') }}</option>
+            <option value="advanced">{{ t('userSettings.interfaceMode.advanced') }}</option>
+            <template #before-control>
+              <p id="user-settings-interface-mode-help">
+                {{ t('userSettings.interfaceMode.description') }}
+              </p>
             </template>
           </AppSelectField>
         </fieldset>

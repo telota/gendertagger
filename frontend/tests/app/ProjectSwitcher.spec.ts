@@ -119,7 +119,7 @@ describe.each(['de', 'en'] as const)('ProjectSwitcher in %s', (locale: AppLocale
     async (path) => {
       const wrapper = await mountApplicationAt(path, locale, apiClientWithRoutes(ROUTES))
       mounted.push(wrapper)
-      await waitFor(() => expect(wrapper.find('aside a[href="/projects"]').exists()).toBe(true))
+      await waitFor(() => expect(wrapper.find('aside nav a[href="/"]').exists()).toBe(true))
       expect(wrapper.find('.project-switcher').exists()).toBe(false)
       expect(wrapper.find('aside a[href="/settings"]').exists()).toBe(false)
     },
@@ -165,14 +165,16 @@ describe.each(['de', 'en'] as const)('ProjectSwitcher in %s', (locale: AppLocale
     expect(items[1]?.attributes('href')).toBe(`/projects/${PROJECT_B}/overview`)
     expect(projectMenu().find('a[href="/projects"]').exists()).toBe(false)
     expect(projectMenu().find('hr').exists()).toBe(false)
-    expect(wrapper.findAll('aside a[href="/projects"]')).toHaveLength(1)
+    // The "Projekte" tab is not part of the sidebar at all while a project is open (D26) — the
+    // switcher is what stands in its place here, not a competing link to the same destination.
+    expect(wrapper.findAll('aside nav a[href="/"]')).toHaveLength(0)
     expect(projectMenu().element.closest('aside')).toBeNull()
     expect(projectMenu().element.parentElement).toBe(document.body)
     await expectNoAxeViolations(wrapper.get('aside').element)
     await expectNoAxeViolations(projectMenu().element)
   })
 
-  it('recovers from a failed project list while keeping Projects available in the sidebar', async () => {
+  it('recovers from a failed project list without disturbing the rest of the sidebar', async () => {
     const routes: Record<string, RouteResponse> = {
       ...ROUTES,
       '/api/v1/projects': { body: { error: { code: 'x', message: 'x' } }, init: { status: 500 } },
@@ -193,7 +195,6 @@ describe.each(['de', 'en'] as const)('ProjectSwitcher in %s', (locale: AppLocale
       catalogues[locale].header.retry,
     )
     expect(projectMenu().find('a[href="/projects"]').exists()).toBe(false)
-    expect(wrapper.get('aside a[href="/projects"]').text()).toBe(catalogues[locale].nav.projects)
     routes['/api/v1/projects'] = ROUTES['/api/v1/projects']!
     await projectMenu().get('button[role="menuitem"]').trigger('click')
     await flushPromises()
@@ -267,8 +268,9 @@ describe.each(['de', 'en'] as const)('ProjectSwitcher in %s', (locale: AppLocale
     )
     expect(router.currentRoute.value.params.projectId).toBe(PROJECT_B)
     await wrapper.get('aside .project-switcher-button').trigger('click')
-    await wrapper.get('aside a[href="/projects"]').trigger('click')
-    await waitFor(() => expect(router.currentRoute.value.name).toBe('projects'))
+    // No "Projekte" tab exists while a project is open (D26); the brand link is the way out.
+    await wrapper.get('aside a.app-sidebar-brand').trigger('click')
+    await waitFor(() => expect(router.currentRoute.value.name).toBe('home'))
     expect(wrapper.find('.project-switcher').exists()).toBe(false)
   })
 
@@ -296,7 +298,7 @@ describe.each(['de', 'en'] as const)('ProjectSwitcher in %s', (locale: AppLocale
     expect(wrapper.get('aside').text()).not.toContain('Project A')
   })
 
-  it('announces a pending and empty list while keeping Projects available in the sidebar', async () => {
+  it('announces a pending and empty list in the switcher menu', async () => {
     let resolveList!: (response: Response) => void
     const list = new Promise<Response>((resolve) => {
       resolveList = resolve
@@ -323,7 +325,6 @@ describe.each(['de', 'en'] as const)('ProjectSwitcher in %s', (locale: AppLocale
     )
     expect(projectMenu().findAll('[role="menuitem"]')).toHaveLength(0)
     expect(projectMenu().find('a[href="/projects"]').exists()).toBe(false)
-    expect(wrapper.get('aside a[href="/projects"]').text()).toBe(catalogues[locale].nav.projects)
   })
 
   it('keeps a portaled popup inside the viewport near its bottom edge and removes it on unmount', async () => {
@@ -427,7 +428,7 @@ describe.each(['de', 'en'] as const)('ProjectSwitcher in %s', (locale: AppLocale
     mounted.push(wrapper)
     await waitFor(() => expect(wrapper.find('aside .project-switcher-button').exists()).toBe(true))
     for (const selector of [
-      'aside a[href="/projects"]',
+      `aside a[href="/projects/${PROJECT_A}/overview"]`,
       'aside [data-preference="locale"] button',
       'aside [data-preference="theme"] button',
       'aside .project-switcher-button',
@@ -445,7 +446,7 @@ describe.each(['de', 'en'] as const)('ProjectSwitcher in %s', (locale: AppLocale
   })
 
   it.each([
-    { surface: 'navigation', selector: 'aside a[href="/projects"]' },
+    { surface: 'navigation', selector: `aside a[href="/projects/${PROJECT_A}/overview"]` },
     { surface: 'language', selector: 'aside [data-preference="locale"] button' },
     { surface: 'theme', selector: 'aside [data-preference="theme"] button' },
     { surface: 'project switching', selector: 'aside .project-switcher-button' },
@@ -475,7 +476,7 @@ describe.each(['de', 'en'] as const)('ProjectSwitcher in %s', (locale: AppLocale
       expect(wrapper.get('aside').classes()).not.toContain('app-sidebar--desktop-collapsed')
       const control = wrapper.get<HTMLElement>(selector)
       const labels = {
-        navigation: catalogues[locale].nav.projects,
+        navigation: catalogues[locale].nav.overview,
         language: catalogues[locale].locale.label,
         theme: catalogues[locale].theme.label,
         'project switching': messages.currentLabel.replace('{project}', 'Project A'),

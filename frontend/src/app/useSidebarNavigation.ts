@@ -38,11 +38,14 @@ export interface SidebarNavigationGroup {
 
 /** Each implemented route belongs to one leaf, including detail views with no separate menu item. */
 const OWNED_ROUTES: Record<string, readonly string[]> = {
-  projects: ['projects'],
+  // The "Projekte" tab now opens the signed-in home page (D26): the project list, "Projekt
+  // anlegen", and per-project "Mitglieder verwalten" moved there, out of the project-scoped group
+  // below. The `projects` route itself is unchanged and still reachable — only the sidebar stopped
+  // linking to it.
+  projects: ['home'],
   // Daten is folded into Übersicht (decision, 2026-09-30): the history page and the legacy direct-
   // import route have no nav item of their own, but still highlight Übersicht as the current leaf.
   overview: ['projectOverview', 'projectSnapshots', 'snapshotDetail', 'projectImport'],
-  projectMembers: ['projectMembers'],
   classification: [
     'projectClassification',
     'snapshotRuns',
@@ -96,16 +99,21 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
 
   return computed(() => {
     if (!session.canUsePrivateNavigation) return []
-    const groups: SidebarNavigationGroup[] = [
-      {
-        id: 'global',
-        items: [item('projects', t('nav.projects'), PhFolders, { name: 'projects' })],
-      },
-    ]
     const current = project.value
+    // The "Projekte" tab and a project's own tabs never show at once (D26): it opens the signed-in
+    // home page, which now owns the project list, and is shown only while no project is open —
+    // the per-project group below replaces it for the duration of that project.
+    const groups: SidebarNavigationGroup[] =
+      current === null
+        ? [
+            {
+              id: 'global',
+              items: [item('projects', t('nav.projects'), PhFolders, { name: 'home' })],
+            },
+          ]
+        : []
     if (current !== null) {
-      const { projectId, runId, currentUserRole, currentUserCanManageMembers, gameModeEnabled } =
-        current
+      const { projectId, runId, currentUserRole, gameModeEnabled } = current
       const items: SidebarNavigationItem[] = []
       const additionalItems: SidebarNavigationItem[] = []
       if (currentUserRole !== null) {
@@ -150,16 +158,13 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
             )
           }
         }
-      }
-      if (currentUserCanManageMembers) {
-        items.push(
-          item(
-            'projectMembers',
-            t('nav.projectMembers'),
-            PhUsers,
-            link('projectMembers', { projectId }),
-          ),
-        )
+        // Directly after Redigieren, ahead of Statistik & Methoden (D26) — a reordering only; the
+        // same `runId` gate as before, now applied to this one item instead of a shared group.
+        if (runId !== null) {
+          items.push(
+            item('exports', t('nav.exports'), PhExport, link('exports', { projectId, runId })),
+          )
+        }
       }
       if (items.length) {
         groups.push({
@@ -195,7 +200,6 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
               PhChartBar,
               link('evaluations', { projectId, runId }),
             ),
-            item('exports', t('nav.exports'), PhExport, link('exports', { projectId, runId })),
           ],
         })
       }

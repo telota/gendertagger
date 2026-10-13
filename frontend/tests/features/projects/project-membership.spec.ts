@@ -234,7 +234,6 @@ describe('ProjectMembershipView', () => {
           true,
         ),
       )
-      expect(wrapper.get('aside [aria-current="page"]').text()).toBe('Members')
       await wrapper.get('#transfer').setValue(CANDIDATE.id)
       const transfer = wrapper
         .findAll('main button')

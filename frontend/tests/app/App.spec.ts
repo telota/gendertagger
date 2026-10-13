@@ -161,7 +161,7 @@ describe.each(['de', 'en'] as const)('application shell in %s', (locale) => {
     expect(wrapper.find('.app-header-navigation').exists()).toBe(true)
     expect(wrapper.findAll('[data-preference="locale"]')).toHaveLength(1)
     expect(wrapper.findAll('[data-preference="theme"]')).toHaveLength(1)
-    expect(wrapper.get('aside a[href="/projects"]').text()).toBe(catalogues[locale].nav.projects)
+    expect(wrapper.get('aside nav a[href="/"]').text()).toBe(catalogues[locale].nav.projects)
     expect(wrapper.get('header .account-menu-button').text()).toBe('Reviewer')
     wrapper.unmount()
   })

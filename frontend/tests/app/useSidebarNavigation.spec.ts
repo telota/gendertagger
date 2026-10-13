@@ -71,9 +71,7 @@ async function navigationAt(
 
 describe('sidebar route ownership', () => {
   it.each([
-    ['projects', 'projects'],
     ['projectOverview', 'overview'],
-    ['projectMembers', 'projectMembers'],
     ['projectSnapshots', 'overview'],
     ['snapshotDetail', 'overview'],
     ['projectImport', 'overview'],
@@ -116,22 +114,16 @@ describe('sidebar route ownership', () => {
     },
   )
 
-  it('offers only Members in a management-only project context', async () => {
-    const { groups, project } = await navigationAt('projectMembers', null)
-    project.value = { ...project.value!, runId: null, snapshotId: null, aggregationId: null }
-    const projectItems = groups.value.find((group) => group.id === 'project')?.items
-    expect(projectItems?.map((item) => [item.id, item.current, item.to])).toEqual([
-      ['projectMembers', true, { name: 'projectMembers', params: { projectId: 'project-a' } }],
-    ])
-    expect(groups.value.some((group) => group.id === 'evaluation')).toBe(false)
-  })
-
-  it('does not derive membership management from an operator project role', async () => {
-    const { groups, project } = await navigationAt('projectOverview', 'operator')
-    project.value = { ...project.value!, currentUserCanManageMembers: false }
+  it('shows the Projekte tab only while no project is open, pointing at the home page (D26)', async () => {
+    const { groups, project } = await navigationAt('home')
     expect(
-      groups.value.flatMap((group) => group.items).some((item) => item.id === 'projectMembers'),
+      groups.value.flatMap((group) => group.items).some((item) => item.id === 'projects'),
     ).toBe(false)
+    project.value = null
+    const globalGroup = groups.value.find((group) => group.id === 'global')
+    expect(globalGroup?.items.map((item) => [item.id, item.current, item.to])).toEqual([
+      ['projects', true, { name: 'home' }],
+    ])
   })
 
   it('uses stable task entry without requiring a selected snapshot or run', async () => {
@@ -192,9 +184,7 @@ describe('sidebar route ownership', () => {
       has_completed_aggregations: false,
     }
     expect(groups.value.flatMap((group) => group.items).map((item) => item.id)).toEqual([
-      'projects',
       'overview',
-      'projectMembers',
       'administration',
       'teams',
       'settings',

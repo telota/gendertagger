@@ -199,9 +199,9 @@ describe.each(['de', 'en'] as const)('home page in %s', (locale: AppLocale) => {
       }),
     )
     const page = wrapper.get('main')
-    await waitFor(() => expect(page.text()).toContain(messages.signedIn.projects.empty))
+    await waitFor(() => expect(page.text()).toContain(catalogues[locale].projects.empty))
 
-    expect(page.text()).toContain(messages.signedIn.projects.emptyAsk)
+    expect(page.text()).toContain(catalogues[locale].projects.emptyHint)
     expect(page.text()).toContain(messages.signedIn.workspace.access.projectAccess)
     expect(page.text()).toContain(messages.signedIn.workspace.access.projectAccessDescription)
   })
@@ -223,14 +223,13 @@ describe.each(['de', 'en'] as const)('home page in %s', (locale: AppLocale) => {
       }),
     )
     const page = wrapper.get('main')
-    await waitFor(() => expect(page.text()).toContain(messages.signedIn.projects.empty))
+    await waitFor(() => expect(page.text()).toContain(catalogues[locale].projects.empty))
 
-    expect(page.text()).toContain(messages.signedIn.projects.emptyCanCreate)
+    expect(page.text()).toContain(catalogues[locale].projects.emptyCreateHint)
     expect(page.text()).toContain(messages.signedIn.workspace.access.adminDescription)
     expect(page.find('a[href="/admin/users"]').exists()).toBe(true)
     expect(page.find('a[href="/admin/teams"]').exists()).toBe(true)
     expect(page.find('a[href="/admin/settings"]').exists()).toBe(true)
-    expect(page.findAll('a[href="/projects"]').length).toBeGreaterThanOrEqual(2)
     await expectNoAxeViolations(wrapper.element)
   })
 
@@ -250,11 +249,11 @@ describe.each(['de', 'en'] as const)('home page in %s', (locale: AppLocale) => {
     )
     const page = wrapper.get('main')
     await waitFor(() =>
-      expect(page.get('[role="alert"]').text()).toContain(messages.signedIn.projects.loadError),
+      expect(page.get('[role="alert"]').text()).toContain(catalogues[locale].projects.loadError),
     )
 
     expect(
-      page.findAll('button').some((button) => button.text() === messages.signedIn.projects.retry),
+      page.findAll('button').some((button) => button.text() === catalogues[locale].projects.retry),
     ).toBe(true)
   })
 })

@@ -15,6 +15,7 @@ const SAVED: UserPreferences = {
   locale: 'de',
   theme: 'dark',
   desktop_sidebar_collapsed: true,
+  interface_mode: 'guided',
   revision: 3,
 }
 const COMMAND = {

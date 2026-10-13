@@ -99,22 +99,6 @@
     "signedIn": {
       "welcomeBack": "Welcome back, {name}",
       "introduction": "Open a project to continue your work, or use the account tools available to you.",
-      "projects": {
-        "title": "Available projects",
-        "description": "Projects you can currently access.",
-        "viewAll": "View all projects",
-        "loading": "Loading your projects …",
-        "loadError": "Your projects could not be loaded.",
-        "refreshError": "Your projects could not be refreshed. The projects already shown remain available.",
-        "retry": "Try again",
-        "empty": "No projects are available to you yet.",
-        "emptyCanCreate": "You can create a project from the projects page.",
-        "emptyAsk": "Ask a project manager to give you access.",
-        "open": "Open project",
-        "openNamed": "Open {project}",
-        "team": "Team",
-        "role": "Your role"
-      },
       "workspace": {
         "title": "Your workspace",
         "description": "Account-level access and shortcuts.",
@@ -128,7 +112,6 @@
         },
         "linksLabel": "Workspace shortcuts",
         "personalSettings": "Personal settings",
-        "projectManagement": "View and create projects",
         "users": "User accounts",
         "teams": "Teams",
         "publicationDetails": "Publication details"
@@ -1647,6 +1630,12 @@
       "description": "Used on screens at least 1080 pixels wide. Smaller screens adapt automatically.",
       "expanded": "Expanded",
       "collapsed": "Collapsed"
+    },
+    "interfaceMode": {
+      "label": "Presentation",
+      "description": "Guided shows one reduced path per project (import, generate suggestions, review). Advanced shows the full navigation. Applies to every project you use.",
+      "guided": "Guided",
+      "advanced": "Advanced"
     }
   },
   "breadcrumbs": {

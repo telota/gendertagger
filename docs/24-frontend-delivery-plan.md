@@ -1484,8 +1484,8 @@ expectations. Each is analysed in [`23-wireframe-ui-inventory.md`](23-wireframe-
 - GitLab repository binding, synchronisation, and commit export
 - Notifications and the activity feed
 - Autosave and "last saved" state, which contradict append-only annotations
-- Project settings and personal settings beyond the three presentation fields accepted in ADR-0043;
-  the personal settings UI exposes only those fields
+- Project settings and personal settings beyond the presentation fields accepted in ADR-0043 and
+  ADR-0050; the personal settings UI exposes only those fields
 - A bulk annotation endpoint
 - Per-case review-time telemetry
 
@@ -1519,3 +1519,52 @@ expectations. Each is analysed in [`23-wireframe-ui-inventory.md`](23-wireframe-
    project-switcher move are now implemented; improve individual views next and refine the remaining
    sidebar last. Recheck dated findings against current
    code and keep the verification still pending in each delivered increment explicit.
+
+### D26–D28 implementation checklist
+
+Tracks the guided/advanced dual presentation (D26), the guided project page (D27), and the advanced
+Übersicht/Datenstand merge (D28) from decision to delivered code. Update the checkbox in the same change
+that completes a step; do not mark one done without its tests passing against the real stack.
+
+- [x] Backend: `interface_mode` preference field, migration, ADR-0050, OpenAPI snapshot and frontend
+      transport types regenerated. Committed (`d3b6754`).
+- [x] Frontend: `interface_mode` wired into `useUserPreferences` (no change needed, generic over the
+      generated type) and into `UserSettingsView.vue` as a fourth field in the existing single-form,
+      explicit-save pattern (not a separate immediate-save control — the account preferences page already
+      has one save model, confirmed against the real file rather than the earlier mockup's assumption).
+      Locale strings added in `de.json`/`en.json`. Existing and new tests pass; `vue-tsc --noEmit` and
+      `eslint` are clean.
+- [x] Frontend: fold `ProjectListView.vue`'s full capability (paginated list, "Projekt anlegen", per-card
+      "Mitglieder verwalten", the managed-projects section) into `SignedInHomeView.vue`, so the signed-in
+      home page is a complete project entry point rather than a four-item preview. `ProjectListView.vue`
+      and the `projects` route are not deleted — `AppBreadcrumbs.vue`'s membership crumb still targets it —
+      only the sidebar stops linking to it. The now-redundant "view and create projects" workspace link is
+      removed along with its dead `home.signedIn.projects.*` locale keys. New coverage in
+      `tests/features/home/signed-in-home.spec.ts`; `tests/features/projects/project-list.spec.ts` still
+      passes unchanged. Typecheck, lint, `i18n:check`, and `unused:check` are clean.
+- [x] Frontend: `useSidebarNavigation.ts` — the `projects` item points at `home` instead of `projects` and
+      is shown only while `project.value === null`; the per-project `projectMembers` item is removed
+      (relocated to the home page's project cards); `exports` moves to directly after `review` in the
+      project group. This structural change applies to both presentations and is independent of
+      `interface_mode`. Updated or removed the now-inapplicable coverage across
+      `useSidebarNavigation.spec.ts`, `sidebar-visibility.spec.ts`, `MobileNavigationDrawer.spec.ts`,
+      `AppSidebar.spec.ts`, `AppSidebarPreferences.spec.ts`, and `ProjectSwitcher.spec.ts` (several tests
+      asserted the "Projekte" tab stays visible alongside an open project's own tabs, or exercised the
+      now-removed `projectMembers` sidebar item — both intentionally gone under D26), plus one incidental
+      assertion in `tests/features/projects/project-membership.spec.ts`. All affected test files,
+      `vue-tsc --noEmit`, and `eslint` are clean; a full `vitest run` found only this and a pre-existing,
+      unrelated Windows symlink-permission failure in `tests/tooling/unused-code.spec.ts`.
+- [ ] Frontend: branch the project group on `interface_mode` between today's full set and the guided set
+      (Gender taggen, Statistik & Methoden, Export inline) — depends on the guided page below existing
+      first, so its route has something to point at.
+- [ ] Frontend: `AppBreadcrumbs.vue` gains a leading crumb back to `home` on every project-scoped route,
+      including `projectOverview` itself.
+- [ ] Frontend: the guided "Gender taggen" page (D27) — import, generate (preselect all methods, then set
+      the resulting aggregation as the project's working aggregation), prüfen, and an inline export panel
+      scoped to the working aggregation with a format choice only.
+- [ ] Frontend: the advanced Übersicht three-card layout and the merged Datenstand-detail page with
+      current-dataset-gated "Stand der Prüfung" (D28).
+- [ ] Tests for every step above, verified against the real stack (Postgres, Redis where applicable) before
+      it is checked off; new D-numbered decisions in this file as behavior is finalized; ADR only if
+      scientific/export semantics change beyond presentation.
+- [ ] Final `git fetch`/compare, commit, and push once the whole increment is verified end to end.

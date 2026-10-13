@@ -25,12 +25,14 @@ const DEFAULTS: UserPreferences = {
   locale: null,
   theme: 'system',
   desktop_sidebar_collapsed: false,
+  interface_mode: 'guided',
   revision: 0,
 }
 const SAVED: UserPreferences = {
   locale: 'de',
   theme: 'light',
   desktop_sidebar_collapsed: false,
+  interface_mode: 'guided',
   revision: 7,
 }
 const wrappers: VueWrapper[] = []
@@ -125,6 +127,9 @@ describe.each(['de', 'en'] as const)('personal settings in %s', (locale) => {
     expect(selectByLabel(wrapper, messages.sidebar.label).element.selectedOptions[0]?.text).toBe(
       messages.sidebar.expanded,
     )
+    expect(
+      selectByLabel(wrapper, messages.interfaceMode.label).element.selectedOptions[0]?.text,
+    ).toBe(messages.interfaceMode.guided)
     expect(buttonWithText(wrapper, messages.save).element.disabled).toBe(true)
     expect(wrapper.get('[role="status"]').text()).toBe(messages.states.unchanged)
   })
@@ -140,6 +145,7 @@ describe.each(['de', 'en'] as const)('personal settings in %s', (locale) => {
     const liveRegion = wrapper.get('[role="status"]').element
     await selectByLabel(wrapper, messages.theme.label).setValue('dark')
     await selectByLabel(wrapper, messages.sidebar.label).setValue('true')
+    await selectByLabel(wrapper, messages.interfaceMode.label).setValue('advanced')
     expect(bodies).toHaveLength(0)
     expect(queryClient.getQueriesData({ type: 'active' }).map(([, data]) => data)).toEqual([SAVED])
     expect(wrapper.get('[role="status"]').text()).toBe(messages.states.unsaved)
@@ -150,6 +156,7 @@ describe.each(['de', 'en'] as const)('personal settings in %s', (locale) => {
       locale: 'de',
       theme: 'dark',
       desktop_sidebar_collapsed: true,
+      interface_mode: 'advanced',
       expected_revision: 7,
     })
     expect(wrapper.get('[role="status"]').text()).toBe(messages.states.saving)
@@ -159,6 +166,7 @@ describe.each(['de', 'en'] as const)('personal settings in %s', (locale) => {
       ...SAVED,
       theme: 'dark',
       desktop_sidebar_collapsed: true,
+      interface_mode: 'advanced',
       revision: 8,
     } as const
     response.resolve(jsonResponse(canonical))
@@ -190,7 +198,13 @@ describe.each(['de', 'en'] as const)('personal settings in %s', (locale) => {
     await wrapper.get('form').trigger('submit')
     await waitFor(() =>
       expect(bodies).toEqual([
-        { locale: null, theme: 'system', desktop_sidebar_collapsed: false, expected_revision: 7 },
+        {
+          locale: null,
+          theme: 'system',
+          desktop_sidebar_collapsed: false,
+          interface_mode: 'guided',
+          expected_revision: 7,
+        },
       ]),
     )
   })
@@ -225,6 +239,7 @@ describe.each(['de', 'en'] as const)('personal settings in %s', (locale) => {
       locale: null,
       theme: SAVED.theme,
       desktop_sidebar_collapsed: false,
+      interface_mode: SAVED.interface_mode,
       expected_revision: SAVED.revision,
     })
     fails = false
@@ -518,7 +533,12 @@ describe.each(['de', 'en'] as const)('personal settings in %s', (locale) => {
     async (theme) => {
       document.documentElement.dataset.theme = theme
       const { wrapper } = await mountSettings(locale, () => jsonResponse(SAVED))
-      for (const label of [messages.language.label, messages.theme.label, messages.sidebar.label]) {
+      for (const label of [
+        messages.language.label,
+        messages.theme.label,
+        messages.sidebar.label,
+        messages.interfaceMode.label,
+      ]) {
         const select = selectByLabel(wrapper, label)
         select.element.focus()
         expect(document.activeElement).toBe(select.element)

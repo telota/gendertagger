@@ -59,15 +59,16 @@ describe.each(['de', 'en'] as const)('saved sidebar presentation in %s', (locale
         locale,
         theme,
         desktop_sidebar_collapsed: true,
+        interface_mode: 'guided',
         revision: 3,
       })
-      const wrapper = await mountApplicationAt('/projects', locale, client)
+      const wrapper = await mountApplicationAt('/', locale, client)
       await waitFor(() => {
         expect(wrapper.get('aside').classes()).toContain('app-sidebar--desktop-collapsed')
         expect(document.documentElement.dataset.theme).toBe(theme)
       })
 
-      const projects = wrapper.get<HTMLAnchorElement>('aside a[href="/projects"]')
+      const projects = wrapper.get<HTMLAnchorElement>('aside nav a[href="/"]')
       expect(projects.text()).toBe(catalogues[locale].nav.projects)
       expect(projects.attributes('title')).toBeUndefined()
       expect(projects.attributes('aria-current')).toBe('page')
@@ -96,13 +97,14 @@ describe('responsive sidebar state separation', () => {
         locale: 'en',
         theme: 'system',
         desktop_sidebar_collapsed: collapsed,
+        interface_mode: 'guided',
         revision: 4,
       })
       vi.stubGlobal('innerWidth', 1440)
-      const wrapper = await mountApplicationAt('/projects', 'en', client)
+      const wrapper = await mountApplicationAt('/', 'en', client)
       await waitFor(() => {
         expect(preferenceRequests).toEqual(['GET'])
-        expect(wrapper.find('aside a[href="/projects"]').exists()).toBe(true)
+        expect(wrapper.find('aside nav a[href="/"]').exists()).toBe(true)
       })
       await flushPromises()
 
@@ -115,7 +117,7 @@ describe('responsive sidebar state separation', () => {
         expect(wrapper.get('aside').classes().includes('app-sidebar--desktop-collapsed')).toBe(
           collapsed,
         )
-        expect(wrapper.get('aside a[href="/projects"]').text()).toBe(en.nav.projects)
+        expect(wrapper.get('aside nav a[href="/"]').text()).toBe(en.nav.projects)
       }
       expect(preferenceRequests).toEqual(['GET'])
       wrapper.unmount()

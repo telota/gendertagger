@@ -121,10 +121,10 @@ async function application(
     },
   })
   const router = createAppRouter(createMemoryHistory())
-  const wrapper = await mountApplicationAt(options.path ?? '/projects', locale, client, router)
+  const wrapper = await mountApplicationAt(options.path ?? '/', locale, client, router)
   mounted.push(wrapper)
   await waitFor(() => {
-    if (options.state === 'signedOut' && (options.path ?? '/projects') === '/') {
+    if (options.state === 'signedOut' && (options.path ?? '/') === '/') {
       expect(wrapper.find('.app-header-session').exists()).toBe(false)
       expect(wrapper.get('main form button[type="submit"]').text()).toBe(
         catalogues[locale].login.submit,
@@ -165,8 +165,8 @@ describe.each(['de', 'en'] as const)('mobile navigation in %s', (locale: AppLoca
     const title = document.getElementById(drawer.attributes('aria-labelledby') ?? '')
     expect(title?.textContent).toBe(messages.nav.label)
     expect(drawer.get('aside').classes()).toContain('app-sidebar--mobile')
-    expect(drawer.get('a[href="/projects"]').text()).toBe(messages.nav.projects)
-    expect(drawer.get('a[href="/projects"]').classes()).toContain('nav-item--mobile')
+    expect(drawer.get('nav a[href="/"]').text()).toBe(messages.nav.projects)
+    expect(drawer.get('nav a[href="/"]').classes()).toContain('nav-item--mobile')
     expect(drawer.find('.sidebar-collapse-button').exists()).toBe(false)
     await waitFor(() => expect(drawer.element.contains(document.activeElement)).toBe(true))
   })
@@ -196,14 +196,16 @@ describe.each(['de', 'en'] as const)('mobile navigation in %s', (locale: AppLoca
     },
   )
 
-  it('keeps personal settings out of the drawer and closes after project-list navigation', async () => {
+  it('keeps personal settings out of the drawer and closes after navigating home', async () => {
     const { wrapper, router, trigger, open } = await application(locale, {
       path: `/projects/${PROJECT}/overview`,
     })
     const drawer = await open()
     expect(drawer.find('a[href="/settings"]').exists()).toBe(false)
-    await drawer.get('a[href="/projects"]').trigger('click')
-    await waitFor(() => expect(router.currentRoute.value.name).toBe('projects'))
+    // The "Projekte" tab is not part of this drawer while a project is open (D26); the brand
+    // link is the one destination back to the home page that is always present.
+    await drawer.get('a.app-sidebar-brand').trigger('click')
+    await waitFor(() => expect(router.currentRoute.value.name).toBe('home'))
     await waitFor(() => expect(dialog()).toBeNull())
     expect(trigger.attributes('aria-expanded')).toBe('false')
     await waitFor(() => expect(document.activeElement).toBe(wrapper.get('#main-content').element))
@@ -232,14 +234,18 @@ describe.each(['de', 'en'] as const)('mobile navigation in %s', (locale: AppLoca
   })
 
   it('keeps the drawer open when a route guard cancels navigation', async () => {
-    const { router, trigger, open } = await application(locale)
+    // Starts on an open project so the brand link (always present, unlike "Projekte" — D26) is
+    // an actual navigation away from the current route, not a no-op click back to it.
+    const { router, trigger, open } = await application(locale, {
+      path: `/projects/${PROJECT}/overview`,
+    })
     const guard = vi.fn(() => false)
     const removeGuard = router.beforeEach(guard)
     const drawer = await open()
     await drawer.get('a.app-sidebar-brand').trigger('click')
     await waitFor(() => expect(guard).toHaveBeenCalled())
     await flushPromises()
-    expect(router.currentRoute.value.name).toBe('projects')
+    expect(router.currentRoute.value.name).toBe('projectOverview')
     expect(dialog()).not.toBeNull()
     expect(trigger.attributes('aria-expanded')).toBe('true')
     removeGuard()
@@ -271,74 +277,6 @@ describe.each(['de', 'en'] as const)('mobile navigation in %s', (locale: AppLoca
     await waitFor(() => expect(dialog()).toBeNull())
     await waitFor(() => expect(document.activeElement).toBe(brand.element))
     expect(preferenceRequests.every((method) => method === 'GET')).toBe(true)
-  })
-
-  it('keeps Members current in the rail and drawer for a management-only manager', async () => {
-    const requests: string[] = []
-    const responses: Record<string, unknown> = {
-      '/api/v1/branding': {},
-      '/api/v1/me': USER,
-      '/api/v1/auth/session': { must_change_password: false, keep_signed_in: false },
-      '/api/v1/me/preferences': {
-        locale,
-        theme: 'system',
-        desktop_sidebar_collapsed: true,
-        revision: 2,
-      },
-      [`/api/v1/projects/${PROJECT}/members`]: {
-        manager: { user_id: USER.id, display_name: USER.display_name, project_role: null },
-        members: [],
-      },
-      [`/api/v1/projects/${PROJECT}/eligible-users`]: {
-        items: [],
-        has_more: false,
-        next_cursor: null,
-      },
-    }
-    const { wrapper, open } = await application(locale, {
-      path: `/projects/${PROJECT}/members`,
-      fetch: (request) => {
-        const path = new URL(request.url).pathname
-        requests.push(path)
-        return Promise.resolve(
-          Response.json(responses[path] ?? {}, { status: path in responses ? 200 : 404 }),
-        )
-      },
-    })
-    await waitFor(() =>
-      expect(wrapper.get('aside [aria-current="page"]').text()).toBe(messages.nav.projectMembers),
-    )
-    expect(wrapper.get('aside').classes()).toContain('app-sidebar--desktop-collapsed')
-    expect(wrapper.findAll('aside nav .nav-item').map((item) => item.text())).toEqual([
-      messages.nav.projects,
-      messages.nav.projectMembers,
-    ])
-    expect(wrapper.get('.app-breadcrumbs a').attributes('href')).toBe('/projects')
-    expect(wrapper.get('.app-breadcrumbs [aria-current="page"]').text()).toBe(
-      messages.projectMembers.title,
-    )
-    expect(requests.filter((path) => path === `/api/v1/projects/${PROJECT}/members`)).toHaveLength(
-      1,
-    )
-
-    const drawer = await open()
-    await waitFor(() =>
-      expect(drawer.get('nav [aria-current="page"]').text()).toBe(messages.nav.projectMembers),
-    )
-    expect(drawer.get(`a[href="/projects/${PROJECT}/members"]`).classes()).toContain(
-      'nav-item--mobile',
-    )
-    expect(drawer.findAll('nav .nav-item').map((item) => item.text())).toEqual([
-      messages.nav.projects,
-      messages.nav.projectMembers,
-    ])
-    expect(drawer.find('.project-switcher').exists()).toBe(false)
-    expect(requests).not.toContain(`/api/v1/projects/${PROJECT}`)
-    expect(
-      requests.some(
-        (path) => path.startsWith('/api/v1/runs/') || path.startsWith('/api/v1/aggregations/'),
-      ),
-    ).toBe(false)
   })
 
   it('shows the same viewer destinations as the persistent navigation', async () => {
