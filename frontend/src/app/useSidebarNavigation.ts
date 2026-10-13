@@ -15,7 +15,10 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, type RouteLocationRaw } from 'vue-router'
 
 import { useAdminAccess } from '@/composables/useAdminAccess'
+import { useAggregation } from '@/composables/useAggregations'
 import { hasProjectRole } from '@/composables/projectRoles'
+import { useProject } from '@/composables/useProjects'
+import { useUserPreferences } from '@/composables/useUserPreferences'
 import { useProjectDataAvailability } from '@/features/tasks/useTaskData'
 
 import { useProjectNavigation } from './useProjectNavigation'
@@ -46,6 +49,18 @@ const OWNED_ROUTES: Record<string, readonly string[]> = {
   // Daten is folded into Übersicht (decision, 2026-09-30): the history page and the legacy direct-
   // import route have no nav item of their own, but still highlight Übersicht as the current leaf.
   overview: ['projectOverview', 'projectSnapshots', 'snapshotDetail', 'projectImport'],
+  // Guided mode's one project page (D27) also owns the full review workbench and the export detail
+  // page it hands off to: both are reached only from here in that presentation, and nothing else in
+  // the guided tab set represents them.
+  genderTagging: [
+    'projectGenderTagging',
+    'review',
+    'projectAnnotation',
+    'snapshotAnnotations',
+    'people',
+    'exports',
+    'exportDetail',
+  ],
   classification: [
     'projectClassification',
     'snapshotRuns',
@@ -77,9 +92,41 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
   const route = useRoute()
   const { canAccessAdmin, session } = useAdminAccess()
   const project = useProjectNavigation()
+  const preferences = useUserPreferences()
+  // Advanced, not the account default of guided (ADR-0050), while the preference is still loading
+  // or failed to load: never hide capability over a transient gap — once it resolves, this follows
+  // whatever the account actually has stored.
+  const interfaceMode = computed(() => preferences.preferences.value?.interface_mode ?? 'advanced')
   const availability = useProjectDataAvailability(
     computed(() => project.value?.projectId ?? ''),
-    computed(() => project.value !== null && project.value.currentUserRole !== null),
+    computed(
+      () =>
+        project.value !== null &&
+        project.value.currentUserRole !== null &&
+        interfaceMode.value !== 'guided',
+    ),
+  )
+  // Guided mode's one project page (D27) carries no runId of its own: the URL never names a run or
+  // aggregation. "Statistik & Methoden" still needs one to link to, so — guided only — fall back to
+  // the project's working aggregation (ADR-0035) and read the run it was built from. Advanced mode's
+  // runId stays exactly what useProjectNavigation resolves from the URL, unchanged.
+  const needsWorkingAggregationFallback = computed(
+    () => interfaceMode.value === 'guided' && project.value !== null && project.value.runId === null,
+  )
+  const projectRecord = useProject(
+    computed(() => project.value?.projectId ?? ''),
+    needsWorkingAggregationFallback,
+  )
+  const workingAggregationId = computed(
+    () => projectRecord.data.value?.working_aggregation_execution_id ?? null,
+  )
+  const workingAggregation = useAggregation(
+    computed(() => workingAggregationId.value ?? ''),
+    // Gated on the fallback itself, not just a non-null id: `projectRecord` shares its query key
+    // with the project fetch `useProjectIdentity` already runs, so its data can arrive from that
+    // cache even while disabled here — advanced mode must not let that leak into an aggregation
+    // fetch it never needed.
+    computed(() => needsWorkingAggregationFallback.value && workingAggregationId.value !== null),
   )
 
   function item(
@@ -114,63 +161,78 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
         : []
     if (current !== null) {
       const { projectId, runId, currentUserRole, gameModeEnabled } = current
+      const guided = interfaceMode.value === 'guided'
       const items: SidebarNavigationItem[] = []
       const additionalItems: SidebarNavigationItem[] = []
       if (currentUserRole !== null) {
-        items.push(
-          item(
-            'overview',
-            t('nav.overview'),
-            PhSquaresFour,
-            link('projectOverview', { projectId }),
-          ),
-        )
-        if (availability.data.value?.has_ready_snapshots) {
+        if (guided) {
+          // Guided mode (D26/D27): one tab for the whole import→generate→review→export flow. Its
+          // own page covers what overview/classification/export used to show; review and game stay
+          // full separate pages, reached only from there (OWNED_ROUTES.genderTagging above).
           items.push(
             item(
-              'classification',
-              t('nav.classification'),
-              PhTreeStructure,
-              link('projectClassification', { projectId }),
-            ),
-          )
-        }
-        if (
-          hasProjectRole(currentUserRole, 'reviewer') &&
-          availability.data.value?.has_ready_snapshots
-        ) {
-          // One tab, one destination, always (decision D25): the entry decides per dataset — its own
-          // working classification if there is one, plain manual annotation otherwise — and can still
-          // load an older dataset from its own list. That per-dataset decision cannot be made correctly
-          // at the project level: a project can hold both a classified and an unclassified dataset at
-          // once, and a single project-wide branch (D24) picked the wrong one for whichever wasn't newest.
-          items.push(
-            item(
-              'review',
-              t('nav.review'),
+              'genderTagging',
+              t('nav.genderTagging'),
               PhPencilSimpleLine,
-              link('projectAnnotation', { projectId }),
+              link('projectGenderTagging', { projectId }),
             ),
           )
-          if (availability.data.value?.has_completed_aggregations === true && gameModeEnabled) {
-            additionalItems.push(
-              item('game', t('nav.game'), PhGameController, link('projectGame', { projectId })),
+        } else {
+          items.push(
+            item(
+              'overview',
+              t('nav.overview'),
+              PhSquaresFour,
+              link('projectOverview', { projectId }),
+            ),
+          )
+          if (availability.data.value?.has_ready_snapshots) {
+            items.push(
+              item(
+                'classification',
+                t('nav.classification'),
+                PhTreeStructure,
+                link('projectClassification', { projectId }),
+              ),
             )
           }
-        }
-        // Directly after Redigieren, ahead of Statistik & Methoden (D26) — a reordering only; the
-        // same `runId` gate as before, now applied to this one item instead of a shared group.
-        if (runId !== null) {
-          items.push(
-            item('exports', t('nav.exports'), PhExport, link('exports', { projectId, runId })),
-          )
+          if (
+            hasProjectRole(currentUserRole, 'reviewer') &&
+            availability.data.value?.has_ready_snapshots
+          ) {
+            // One tab, one destination, always (decision D25): the entry decides per dataset — its own
+            // working classification if there is one, plain manual annotation otherwise — and can still
+            // load an older dataset from its own list. That per-dataset decision cannot be made correctly
+            // at the project level: a project can hold both a classified and an unclassified dataset at
+            // once, and a single project-wide branch (D24) picked the wrong one for whichever wasn't newest.
+            items.push(
+              item(
+                'review',
+                t('nav.review'),
+                PhPencilSimpleLine,
+                link('projectAnnotation', { projectId }),
+              ),
+            )
+            if (availability.data.value?.has_completed_aggregations === true && gameModeEnabled) {
+              additionalItems.push(
+                item('game', t('nav.game'), PhGameController, link('projectGame', { projectId })),
+              )
+            }
+          }
+          // Directly after Redigieren, ahead of Statistik & Methoden (D26) — a reordering only; the
+          // same `runId` gate as before, now applied to this one item instead of a shared group.
+          if (runId !== null) {
+            items.push(
+              item('exports', t('nav.exports'), PhExport, link('exports', { projectId, runId })),
+            )
+          }
         }
       }
       if (items.length) {
         groups.push({
           id: 'project',
           items,
-          ...(currentUserRole !== null && availability.data.value === undefined
+          ...(!guided && currentUserRole !== null && availability.data.value === undefined
             ? {
                 availability: {
                   status: availability.isError.value ? ('error' as const) : ('loading' as const),
@@ -189,7 +251,8 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
           items: additionalItems,
         })
       }
-      if (currentUserRole !== null && runId !== null) {
+      const evaluationsRunId = guided ? (runId ?? workingAggregation.data.value?.run_id ?? null) : runId
+      if (currentUserRole !== null && evaluationsRunId !== null) {
         groups.push({
           id: 'evaluation',
           label: t('nav.evaluationGroup'),
@@ -198,7 +261,7 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
               'evaluations',
               t('nav.evaluations'),
               PhChartBar,
-              link('evaluations', { projectId, runId }),
+              link('evaluations', { projectId, runId: evaluationsRunId }),
             ),
           ],
         })

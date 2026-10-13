@@ -38,10 +38,14 @@ const AVAILABLE = {
   has_ready_snapshots: true,
   has_completed_aggregations: true,
 }
+// This file predates interface_mode (D26) and exercises today's full, advanced-mode tab set
+// throughout — every mocked preferences response below is explicitly advanced for that reason;
+// guided mode's own tab set has its own coverage in useSidebarNavigation.spec.ts.
 const DEFAULT_PREFERENCES = {
   locale: null,
   theme: 'system',
   desktop_sidebar_collapsed: false,
+  interface_mode: 'advanced',
   revision: 0,
 }
 const AGGREGATION_PATH = `/projects/${PROJECT_A}/runs/${RUN}/aggregations/${AGGREGATION}`
@@ -92,6 +96,7 @@ function project(id: string, role: ProjectRole): AccessibleProject {
 function clientForRole(role: ProjectRole, canManageMembers = false): ApiClient {
   return apiClientWithRoutes({
     '/api/v1/projects': { body: { items: [], has_more: false, next_cursor: null } },
+    '/api/v1/me/preferences': { body: DEFAULT_PREFERENCES },
     [`/api/v1/projects/${PROJECT_A}/data-availability`]: { body: AVAILABLE },
     [`/api/v1/projects/${PROJECT_A}`]: {
       body: { ...project(PROJECT_A, role), current_user_can_manage_members: canManageMembers },
@@ -213,6 +218,8 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
     const client = createApiClient({
       fetch: (request) => {
         const path = new URL(request.url).pathname
+        if (path === '/api/v1/me/preferences')
+          return Promise.resolve(Response.json(DEFAULT_PREFERENCES))
         if (path.endsWith('/data-availability')) return availability.promise
         if (path === `/api/v1/projects/${PROJECT_A}`)
           return Promise.resolve(Response.json(project(PROJECT_A, 'reviewer')))
@@ -244,6 +251,8 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
       const client = createApiClient({
         fetch: (request) => {
           const path = new URL(request.url).pathname
+          if (path === '/api/v1/me/preferences')
+            return Promise.resolve(Response.json(DEFAULT_PREFERENCES))
           if (path.endsWith('/data-availability')) {
             reads += 1
             return Promise.resolve(
@@ -284,6 +293,8 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
     const client = createApiClient({
       fetch: (request) => {
         const path = new URL(request.url).pathname
+        if (path === '/api/v1/me/preferences')
+          return Promise.resolve(Response.json(DEFAULT_PREFERENCES))
         if (path === `/api/v1/projects/${PROJECT_A}/data-availability`) {
           availabilityReads += 1
           return availabilityReads === 1
@@ -354,6 +365,8 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
     const client = createApiClient({
       fetch: (request) => {
         const path = new URL(request.url).pathname
+        if (path === '/api/v1/me/preferences')
+          return Promise.resolve(Response.json(DEFAULT_PREFERENCES))
         if (path.endsWith('/data-availability'))
           return Promise.resolve(Response.json({ ...AVAILABLE, project_id: path.split('/')[4] }))
         if (path === `/api/v1/projects/${PROJECT_A}`)
@@ -388,6 +401,7 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
     { mismatch: 'snapshot project', snapshot: { project_id: PROJECT_B }, runAvailable: false },
   ])('does not mix resource identities after a mismatched $mismatch', async (entry) => {
     const client = apiClientWithRoutes({
+      '/api/v1/me/preferences': { body: DEFAULT_PREFERENCES },
       [`/api/v1/projects/${PROJECT_A}/data-availability`]: { body: AVAILABLE },
       [`/api/v1/projects/${PROJECT_A}`]: { body: project(PROJECT_A, 'reviewer') },
       [`/api/v1/aggregations/${AGGREGATION}`]: {
@@ -415,6 +429,7 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
       `${snapshotBase}/runs/${RUN}`,
       locale,
       apiClientWithRoutes({
+        '/api/v1/me/preferences': { body: DEFAULT_PREFERENCES },
         [`/api/v1/projects/${PROJECT_A}/data-availability`]: { body: AVAILABLE },
         [`/api/v1/projects/${PROJECT_A}`]: { body: project(PROJECT_A, 'reviewer') },
         [`/api/v1/runs/${RUN}`]: { body: { id: RUN, dataset_snapshot_id: 'another-snapshot' } },
@@ -454,6 +469,8 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
       const client = createApiClient({
         fetch: (request) => {
           const path = new URL(request.url).pathname
+          if (path === '/api/v1/me/preferences')
+            return Promise.resolve(Response.json(DEFAULT_PREFERENCES))
           if (path.endsWith('/data-availability'))
             return Promise.resolve(Response.json({ ...AVAILABLE, project_id: path.split('/')[4] }))
           if (denied && path === resourcePath)
@@ -485,6 +502,8 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
     const client = createApiClient({
       fetch: (request) => {
         const path = new URL(request.url).pathname
+        if (path === '/api/v1/me/preferences')
+          return Promise.resolve(Response.json(DEFAULT_PREFERENCES))
         if (path.endsWith('/data-availability'))
           return Promise.resolve(Response.json({ ...AVAILABLE, project_id: path.split('/')[4] }))
         reads.push(path)
@@ -565,6 +584,8 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
     const client = createApiClient({
       fetch: (request) => {
         const path = new URL(request.url).pathname
+        if (path === '/api/v1/me/preferences')
+          return Promise.resolve(Response.json(DEFAULT_PREFERENCES))
         if (path.endsWith('/data-availability')) return Promise.resolve(Response.json(AVAILABLE))
         return path === `/api/v1/projects/${PROJECT_A}`
           ? response.promise
@@ -582,6 +603,7 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
 
   it.each([403, 404])('hides the project group when its request returns %s', async (status) => {
     const client = apiClientWithRoutes({
+      '/api/v1/me/preferences': { body: DEFAULT_PREFERENCES },
       [`/api/v1/projects/${PROJECT_A}/data-availability`]: { body: AVAILABLE },
       [`/api/v1/projects/${PROJECT_A}`]: {
         body: { error: { code: 'resource_not_found', message: 'Project unavailable.' } },
@@ -610,6 +632,7 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
     'hides project navigation with an invalid role %s',
     async (role) => {
       const client = apiClientWithRoutes({
+        '/api/v1/me/preferences': { body: DEFAULT_PREFERENCES },
         [`/api/v1/projects/${PROJECT_A}/data-availability`]: { body: AVAILABLE },
         [`/api/v1/projects/${PROJECT_A}`]: {
           body: { ...project(PROJECT_A, 'viewer'), current_user_role: role },
@@ -753,6 +776,8 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
     const client = createApiClient({
       fetch: (request) => {
         const path = new URL(request.url).pathname
+        if (path === '/api/v1/me/preferences')
+          return Promise.resolve(Response.json(DEFAULT_PREFERENCES))
         if (path.endsWith('/data-availability'))
           return Promise.resolve(Response.json({ ...AVAILABLE, project_id: path.split('/')[4] }))
         return path === `/api/v1/projects/${PROJECT_B}`

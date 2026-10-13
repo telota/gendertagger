@@ -1554,9 +1554,41 @@ that completes a step; do not mark one done without its tests passing against th
       assertion in `tests/features/projects/project-membership.spec.ts`. All affected test files,
       `vue-tsc --noEmit`, and `eslint` are clean; a full `vitest run` found only this and a pre-existing,
       unrelated Windows symlink-permission failure in `tests/tooling/unused-code.spec.ts`.
-- [ ] Frontend: branch the project group on `interface_mode` between today's full set and the guided set
-      (Gender taggen, Statistik & Methoden, Export inline) — depends on the guided page below existing
-      first, so its route has something to point at.
+- [x] Frontend: branch the project group on `interface_mode` between today's full set and the guided set
+      (Gender taggen, Statistik & Methoden, Export inline). `useSidebarNavigation.ts`: a guided-only
+      `needsWorkingAggregationFallback` reads `useProject` + `useAggregation` to derive an "effective
+      runId" for Statistik & Methoden from the project's `working_aggregation_execution_id` (ADR-0035)
+      when the URL carries none (guided's one route never does); `useProjectDataAvailability` is only
+      enabled in advanced mode; the project-group `items` construction branches on
+      `interfaceMode.value === 'guided'` — guided pushes one `'genderTagging'` item, advanced keeps
+      every existing line (overview, classification, review, game, exports) byte-for-byte;
+      `OWNED_ROUTES.genderTagging` additionally claims `review`/`projectAnnotation`/
+      `snapshotAnnotations`/`people`/`exports`/`exportDetail` so the one guided tab still highlights on
+      the review workbench or the export hand-off page it navigated to. The loading/error fallback for
+      the preference itself is `'advanced'`, not the account default of `'guided'` (ADR-0050) — advanced
+      never hides capability over a transient gap, and this is what the whole existing test suite already
+      assumes wherever it doesn't mock `/api/v1/me/preferences` explicitly. Found and fixed two real bugs
+      along the way: (1) that loading-state default was originally `'guided'`, which broke most of
+      `sidebar-visibility.spec.ts` and caused a genuine transient-state leak, not just a test-fixture gap;
+      (2) `workingAggregation`'s `enabled` only checked "id is non-null", not the guided-mode gate itself
+      — since `projectRecord` shares its query key with the project fetch `useProjectIdentity` already
+      runs, its `working_aggregation_execution_id` could arrive from that shared cache even while
+      `needsWorkingAggregationFallback` was false, firing an unwanted aggregation fetch in advanced mode.
+      Added `nav.genderTagging` locale keys to `de.json`/`en.json`. Test fallout: added mocks for
+      `useUserPreferences`/`useProject`/`useAggregation` plus 4 new guided-mode cases to
+      `useSidebarNavigation.spec.ts`; added `/api/v1/me/preferences` (returning `DEFAULT_PREFERENCES`,
+      now including `interface_mode: 'advanced'`) to all 5 `apiClientWithRoutes` route maps and 8 of the
+      9 raw `createApiClient` dispatchers in `sidebar-visibility.spec.ts` (the 9th deliberately asserts
+      zero requests during a required password change, where the preferences query is disabled anyway).
+      The other 5 sidebar-adjacent files (`AppSidebar.spec.ts`, `MobileNavigationDrawer.spec.ts`,
+      `AppSidebarPreferences.spec.ts`, `ProjectSwitcher.spec.ts`,
+      `tests/features/projects/project-membership.spec.ts`) needed no changes once the loading-state
+      default was fixed to `'advanced'`. Full suite (1763 passed, 2 pre-existing unrelated Windows
+      symlink failures in `tests/tooling/unused-code.spec.ts`), `typecheck`, `lint`, `i18n:check`, and
+      `unused:check` all verified clean. Not yet committed as of writing this line — do that next
+      (`git fetch origin` / compare before committing and before pushing).
+- [ ] Frontend: `AppBreadcrumbs.vue` gains a leading crumb back to `home` on every project-scoped route,
+      including `projectOverview` itself.
 - [ ] Frontend: `AppBreadcrumbs.vue` gains a leading crumb back to `home` on every project-scoped route,
       including `projectOverview` itself.
 - [x] Frontend: the guided "Gender taggen" page (D27) — `GenderTaggingView.vue` at the new
