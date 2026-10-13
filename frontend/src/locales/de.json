@@ -214,8 +214,7 @@
     "evaluations": "Statistik & Methoden",
     "exports": "Export",
     "administrationGroup": "Admin",
-    "unavailable": "Noch nicht verfügbar: Das Projekt hat noch keinen Lauf mit Aggregation.",
-    "projectMembers": "Mitglieder"
+    "unavailable": "Noch nicht verfügbar: Das Projekt hat noch keinen Lauf mit Aggregation."
   },
   "locale": {
     "label": "Sprache"
@@ -1702,6 +1701,35 @@
     "currentClassifiedHint": "Für diesen Datenstand liegen automatische Vorschläge vor.",
     "selectOtherSnapshot": "Anderen Datenstand wählen",
     "openAnnotation": "Manuell annotieren"
+  },
+  "genderTagging": {
+    "import": {
+      "hint": "Personenregister als TEI, CSV, XLSX oder JSON hochladen.",
+      "doneHint": "{count} Datensätze importiert."
+    },
+    "generate": {
+      "title": "Automatische Vorschläge generieren",
+      "again": "Erneut generieren",
+      "hint": "Alle verfügbaren Methoden werden angewendet und zu einem Ergebnis zusammengeführt.",
+      "starting": "Lauf wird gestartet …",
+      "runProgress": "Wird generiert … {done} von {total} Methoden abgeschlossen",
+      "runFailed": "Der Lauf ist fehlgeschlagen. Versuchen Sie es erneut.",
+      "aggregating": "Ergebnisse werden zusammengeführt …",
+      "doneHint": "Abgeschlossen · {count} Methoden, kombiniertes Ergebnis erstellt",
+      "errors": {
+        "generic": "Die Generierung ist fehlgeschlagen. Versuchen Sie es erneut.",
+        "network": "Der Server ist nicht erreichbar."
+      }
+    },
+    "review": {
+      "title": "Prüfen",
+      "hint": "Strittige und unsichere Vorschläge bestätigen oder korrigieren.",
+      "open": "Prüfen öffnen"
+    },
+    "export": {
+      "title": "Export",
+      "hint": "Das geprüfte Ergebnis herunterladen."
+    }
   },
   "annotation": {
     "chooseLabel": "Label auswählen",

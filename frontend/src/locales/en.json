@@ -214,8 +214,7 @@
     "evaluations": "Statistics & methods",
     "exports": "Export",
     "administrationGroup": "Admin",
-    "unavailable": "Not available yet: the project has no run with an aggregation.",
-    "projectMembers": "Members"
+    "unavailable": "Not available yet: the project has no run with an aggregation."
   },
   "locale": {
     "label": "Language"
@@ -1702,6 +1701,35 @@
     "currentClassifiedHint": "This dataset has automatic suggestions.",
     "selectOtherSnapshot": "Choose a different dataset",
     "openAnnotation": "Annotate manually"
+  },
+  "genderTagging": {
+    "import": {
+      "hint": "Upload a person register as TEI, CSV, XLSX, or JSON.",
+      "doneHint": "{count} records imported."
+    },
+    "generate": {
+      "title": "Generate automatic suggestions",
+      "again": "Generate again",
+      "hint": "Every available method runs independently and is combined into one result.",
+      "starting": "Starting the run …",
+      "runProgress": "Generating … {done} of {total} methods completed",
+      "runFailed": "The run failed. Try again.",
+      "aggregating": "Combining results …",
+      "doneHint": "Completed · {count} methods, combined result created",
+      "errors": {
+        "generic": "Generation failed. Try again.",
+        "network": "The server is unreachable."
+      }
+    },
+    "review": {
+      "title": "Review",
+      "hint": "Confirm or correct contested and uncertain suggestions.",
+      "open": "Open review"
+    },
+    "export": {
+      "title": "Export",
+      "hint": "Download the reviewed result."
+    }
   },
   "annotation": {
     "chooseLabel": "Choose a label",

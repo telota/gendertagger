@@ -1559,9 +1559,20 @@ that completes a step; do not mark one done without its tests passing against th
       first, so its route has something to point at.
 - [ ] Frontend: `AppBreadcrumbs.vue` gains a leading crumb back to `home` on every project-scoped route,
       including `projectOverview` itself.
-- [ ] Frontend: the guided "Gender taggen" page (D27) — import, generate (preselect all methods, then set
-      the resulting aggregation as the project's working aggregation), prüfen, and an inline export panel
-      scoped to the working aggregation with a format choice only.
+- [x] Frontend: the guided "Gender taggen" page (D27) — `GenderTaggingView.vue` at the new
+      `projectGenderTagging` route (`/projects/:projectId/gender-tagging`). Import reuses
+      `SnapshotImportForm.vue`; generate preselects every method from `useMethodList` through
+      `useCreateRun`, then replicates D4's auto-create-aggregation watch (not `AggregationSection.vue`
+      itself, which also renders its own advanced manual-selection UI the guided page does not want) and
+      calls the new `useSetWorkingAggregation` once the created aggregation completes. "Fertig" is read
+      from the project's own `working_aggregation_execution_id` (ADR-0035), not local session state, so
+      it survives a reload; an in-flight generation does not. Export is a format-only inline form
+      (TEI/JSON/CSV, matching `NewExportForm.vue`'s real options) that creates the export via the
+      existing `useCreateExport` and hands off to the existing, already-polling `exportDetail` route for
+      status and download, rather than reimplementing that polling. New coverage in
+      `tests/features/projects/gender-tagging.spec.ts` (facts, the full generate-to-review-and-export
+      unlock cycle, and the export submission). Full `vitest run` (1753 tests), `vue-tsc --noEmit`,
+      `eslint`, `i18n:check`, and `unused:check` are clean.
 - [ ] Frontend: the advanced Übersicht three-card layout and the merged Datenstand-detail page with
       current-dataset-gated "Stand der Prüfung" (D28).
 - [ ] Tests for every step above, verified against the real stack (Postgres, Redis where applicable) before

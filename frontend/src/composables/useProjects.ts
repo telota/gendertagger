@@ -77,3 +77,24 @@ export function useSetProjectGameMode(projectId: Ref<string>) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY }),
   })
 }
+
+/**
+ * Point the project at one of its own completed aggregations, or clear the pointer
+ * (ADR-0035). `null` clears it. The guided presentation (D27) calls this right after an
+ * auto-created aggregation completes, since D4's auto-create does not do so itself.
+ */
+export function useSetWorkingAggregation(projectId: Ref<string>) {
+  const client = useApiClient()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (aggregationExecutionId: string | null) =>
+      unwrap(
+        client.PUT('/api/v1/projects/{project_id}/working-aggregation', {
+          params: { path: { project_id: projectId.value } },
+          body: { aggregation_execution_id: aggregationExecutionId },
+        }),
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY }),
+  })
+}
