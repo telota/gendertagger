@@ -30,7 +30,6 @@ const PROJECT = {
   working_aggregation_execution_id: null,
 }
 const SNAPSHOT_ID = 'd0000000-0000-0000-0000-000000000001'
-const AGGREGATION_ID = 'e0000000-0000-0000-0000-000000000001'
 const RUN_ID = 'f0000000-0000-0000-0000-000000000001'
 const NOT_FOUND = {
   body: { error: { code: 'resource_not_found', message: 'Gone.' } },
@@ -71,50 +70,6 @@ function snapshot(status: string, extra: Record<string, unknown> = {}) {
     ...extra,
   }
 }
-
-function group(
-  certainty: string,
-  label: string | null,
-  count: number,
-  workflow: string,
-  action: string | null,
-) {
-  return {
-    certainty_tier: certainty,
-    agreement_tier: 'unanimous',
-    final_label: label,
-    result_count: count,
-    review_action: action,
-    workflow_state: workflow,
-  }
-}
-
-/** 80 people: 10 reviewed (6 confirmed, 4 corrected), 2 deferred, 68 not yet reviewed. */
-const REVIEW_SUMMARY = {
-  aggregation_execution_id: AGGREGATION_ID,
-  result_count: 80,
-  last_annotated_at: '2026-02-03T09:00:00Z',
-  groups: [
-    group('high', 'male', 50, 'unreviewed', null),
-    group('contested', 'female', 10, 'unreviewed', null),
-    group('contested', 'female', 6, 'reviewed', 'verify'),
-    group('low', 'unknown', 4, 'reviewed', 'correct'),
-    group('single', 'institution', 8, 'unreviewed', null),
-    group('uncertain', null, 2, 'deferred', 'defer'),
-  ],
-}
-
-const AGGREGATION = {
-  id: AGGREGATION_ID,
-  run_id: RUN_ID,
-  status: 'completed',
-  strategy: 'reference_v1',
-  method_execution_ids: [],
-  config_sha256: 'abc',
-  created_at: '2026-02-02T10:00:00Z',
-}
-
-const WORKING_PROJECT = { ...PROJECT, working_aggregation_execution_id: AGGREGATION_ID }
 
 const fill = (message: string, values: Record<string, string | number>): string =>
   message.replace(/\{(\w+)\}/g, (_, key: string) => String(values[key]))
@@ -212,7 +167,7 @@ describe.each(['de', 'en'] as const)('ProjectOverviewView in %s', (locale: AppLo
     await flushPromises()
 
     expect(wrapper.get(`main a[href="/projects/${PROJECT_ID}/snapshots"]`).text()).toBe(
-      catalogues[locale].data.viewHistory,
+      messages.overview.other.browse,
     )
     expect(wrapper.find('.snapshot-list').exists()).toBe(false)
     expect(wrapper.find(`main a[href="/projects/${PROJECT_ID}/import"]`).exists()).toBe(false)
@@ -335,16 +290,18 @@ describe.each(['de', 'en'] as const)(
       expect(wrapper.text()).toContain(messages.created)
     })
 
-    it('puts the project on one card whose sections carry their own headings', async () => {
+    it('puts the project on three cards, each carrying its own heading (D28)', async () => {
       const wrapper = await mountOverview(PROJECT, {})
       await waitFor(() => {
-        expect(wrapper.findAll('main .project-overview-card')).toHaveLength(1)
-        expect(wrapper.get('main .project-overview-card').classes()).toEqual(
-          expect.arrayContaining(['app-card', 'app-card--sectioned']),
-        )
+        const cards = wrapper.findAll('main .project-overview-card')
+        expect(cards).toHaveLength(3)
+        for (const card of cards) {
+          expect(card.classes()).toEqual(expect.arrayContaining(['app-card', 'app-card--sectioned']))
+        }
         expect(wrapper.findAll('main .project-overview-card h2').map((h) => h.text())).toEqual([
+          messages.title,
           messages.data.title,
-          messages.review.title,
+          messages.other.title,
         ])
       })
     })
@@ -420,96 +377,6 @@ describe.each(['de', 'en'] as const)(
         expect(wrapper.text()).toContain(messages.data.loadError)
       })
       expect(wrapper.get('main h1').text()).toBe('Project A')
-      expect(wrapper.text()).toContain(messages.review.noWorkingAggregation)
-    })
-
-    it('says there are no review figures while the project has no working aggregation', async () => {
-      const wrapper = await mountOverview(PROJECT, {
-        [`/api/v1/projects/${PROJECT_ID}/snapshots`]: page([]),
-      })
-
-      await waitFor(() => {
-        expect(wrapper.text()).toContain(messages.review.noWorkingAggregation)
-      })
-      expect(wrapper.find('main progress').exists()).toBe(false)
-    })
-
-    it('shows review progress, open queues, and final labels from the review summary', async () => {
-      const wrapper = await mountOverview(WORKING_PROJECT, {
-        [`/api/v1/projects/${PROJECT_ID}/snapshots`]: page([]),
-        [`/api/v1/aggregations/${AGGREGATION_ID}`]: { body: AGGREGATION },
-        [`/api/v1/aggregations/${AGGREGATION_ID}/review-summary`]: { body: REVIEW_SUMMARY },
-      })
-
-      await waitFor(() => {
-        expect(wrapper.text()).toContain(
-          fill(messages.review.progress, { reviewed: 10, total: 80 }),
-        )
-      })
-      expect(wrapper.get('main progress').attributes('value')).toBe('12.5')
-
-      expect(stat(wrapper, 'unreviewed')).toContain('68')
-      expect(stat(wrapper, 'reviewed')).toContain('10')
-      expect(stat(wrapper, 'reviewed')).toContain(
-        fill(messages.review.decisionSplit, { verified: 6, corrected: 4 }),
-      )
-      expect(stat(wrapper, 'deferred')).toContain('2')
-
-      // The same "open of total" the review queue cards quote: contested = low + contested.
-      const queue = catalogues[locale].review.queue
-      expect(stat(wrapper, queue.contested.title)).toContain(
-        fill(queue.count, { open: 10, total: 20 }),
-      )
-      expect(stat(wrapper, queue.thin.title)).toContain(fill(queue.count, { open: 8, total: 10 }))
-
-      expect(stat(wrapper, 'male')).toBe('50')
-      expect(stat(wrapper, 'female')).toBe('16')
-      expect(stat(wrapper, 'unknown')).toBe('4')
-      expect(stat(wrapper, 'institution')).toBe('8')
-      // The deferred person has no label at all: counted apart, never folded into "unknown".
-      expect(stat(wrapper, messages.review.noLabel)).toBe('2')
-    })
-
-    it('links to the review queues and the people browser of the working aggregation', async () => {
-      const wrapper = await mountOverview(WORKING_PROJECT, {
-        [`/api/v1/projects/${PROJECT_ID}/snapshots`]: page([]),
-        [`/api/v1/aggregations/${AGGREGATION_ID}`]: { body: AGGREGATION },
-        [`/api/v1/aggregations/${AGGREGATION_ID}/review-summary`]: { body: REVIEW_SUMMARY },
-      })
-
-      const base = `/projects/${PROJECT_ID}/runs/${RUN_ID}/aggregations/${AGGREGATION_ID}`
-      await waitFor(() => {
-        expect(wrapper.get(`main a[href="${base}/review"]`).text()).toBe(messages.review.openReview)
-        expect(wrapper.get(`main a[href="${base}/people"]`).text()).toBe(
-          messages.review.browsePeople,
-        )
-      })
-    })
-
-    it('names the status instead of showing figures for an unfinished working aggregation', async () => {
-      const wrapper = await mountOverview(WORKING_PROJECT, {
-        [`/api/v1/projects/${PROJECT_ID}/snapshots`]: page([]),
-        [`/api/v1/aggregations/${AGGREGATION_ID}`]: { body: { ...AGGREGATION, status: 'failed' } },
-      })
-
-      await waitFor(() => {
-        expect(wrapper.text()).toContain(fill(messages.review.notCompleted, { status: 'failed' }))
-      })
-      expect(wrapper.find('main progress').exists()).toBe(false)
-    })
-
-    it('reports a review-summary failure without hiding the rest of the page', async () => {
-      const wrapper = await mountOverview(WORKING_PROJECT, {
-        [`/api/v1/projects/${PROJECT_ID}/snapshots`]: page([snapshot('ready')]),
-        [`/api/v1/snapshots/${SNAPSHOT_ID}/runs`]: page([]),
-        [`/api/v1/aggregations/${AGGREGATION_ID}`]: { body: AGGREGATION },
-        [`/api/v1/aggregations/${AGGREGATION_ID}/review-summary`]: NOT_FOUND,
-      })
-
-      await waitFor(() => {
-        expect(wrapper.text()).toContain(messages.review.summaryLoadError)
-        expect(stat(wrapper, messages.data.snapshots)).toBe('1')
-      })
     })
   },
 )

@@ -3,7 +3,6 @@
     "title": "Datenverlauf",
     "importAction": "Daten importieren",
     "hideImport": "Formular ausblenden",
-    "viewHistory": "Datenverlauf ansehen",
     "viewImportedData": "Importierte Daten ansehen",
     "empty": "Es wurden noch keine Daten importiert.",
     "emptyHint": "Eine Person mit der Projektrolle Operator kann ein Personenregister importieren und damit den ersten Datenstand anlegen.",
@@ -660,6 +659,7 @@
       "operator": "Verantwortliche*r"
     },
     "overview": {
+      "title": "Projektübersicht",
       "loadError": "Das Projekt konnte nicht geladen werden.",
       "slug": "Kurzname (Slug)",
       "role": "Ihre Rolle",
@@ -678,6 +678,12 @@
         "inProgress": "Laufende Importe",
         "failed": "Fehlgeschlagene Importe"
       },
+      "other": {
+        "title": "Anderen Datenstand wählen",
+        "description": "{count} weitere Datenstände in diesem Projekt, einschließlich fehlgeschlagener Importe.",
+        "empty": "Keine weiteren Datenstände in diesem Projekt.",
+        "browse": "Datenstände durchsuchen"
+      },
       "review": {
         "title": "Stand der Prüfung",
         "noWorkingAggregation": "Für dieses Projekt ist noch keine Arbeitsaggregation festgelegt, daher gibt es keine Prüfzahlen.",
@@ -694,7 +700,9 @@
         "noLabel": "Kein endgültiges Label",
         "lastActivity": "Letzte Prüfaktivität: {when}",
         "openReview": "Prüf-Warteschlangen öffnen",
-        "browsePeople": "Alle Personen durchsuchen"
+        "browsePeople": "Alle Personen durchsuchen",
+        "notCurrentDataset": "Dies ist nicht der Datenstand, der die aktuelle Arbeitsaggregation des Projekts trägt. Prüfzahlen werden daher hier nicht angezeigt.",
+        "goToCurrentDataset": "Zum aktuellen Datenstand"
       },
       "gameMode": {
         "title": "Spielmodus",

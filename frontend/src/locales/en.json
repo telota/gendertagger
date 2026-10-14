@@ -3,7 +3,6 @@
     "title": "Data history",
     "importAction": "Import data",
     "hideImport": "Hide form",
-    "viewHistory": "View data history",
     "viewImportedData": "View imported data",
     "empty": "No data has been imported yet.",
     "emptyHint": "A project operator can import a person register to create the first dataset.",
@@ -660,6 +659,7 @@
       "operator": "Operator"
     },
     "overview": {
+      "title": "Project overview",
       "loadError": "The project could not be loaded.",
       "slug": "Slug",
       "role": "Your role",
@@ -678,6 +678,12 @@
         "inProgress": "Imports in progress",
         "failed": "Failed imports"
       },
+      "other": {
+        "title": "Choose a different dataset",
+        "description": "{count} more datasets in this project, including failed imports.",
+        "empty": "No other datasets in this project.",
+        "browse": "Browse datasets"
+      },
       "review": {
         "title": "Review progress",
         "noWorkingAggregation": "This project has no working aggregation yet, so there are no review figures to show.",
@@ -694,7 +700,9 @@
         "noLabel": "No final label",
         "lastActivity": "Last review activity: {when}",
         "openReview": "Open the review queues",
-        "browsePeople": "Browse all people"
+        "browsePeople": "Browse all people",
+        "notCurrentDataset": "This is not the dataset behind the project's current working aggregation, so review figures are not shown here.",
+        "goToCurrentDataset": "Go to the current dataset"
       },
       "gameMode": {
         "title": "Game mode",

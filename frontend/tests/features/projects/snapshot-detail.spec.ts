@@ -338,6 +338,142 @@ describe.each(['de', 'en'] as const)('snapshot detail in %s', (locale) => {
   })
 })
 
+const AGGREGATION_ID = 'e0000000-0000-0000-0000-000000000001'
+const RUN_ID = 'f0000000-0000-0000-0000-000000000001'
+
+function reviewGroup(
+  certainty: string,
+  label: string | null,
+  count: number,
+  workflow: string,
+  action: string | null,
+) {
+  return {
+    certainty_tier: certainty,
+    agreement_tier: 'unanimous',
+    final_label: label,
+    result_count: count,
+    review_action: action,
+    workflow_state: workflow,
+  }
+}
+
+/** 80 people: 10 reviewed (6 confirmed, 4 corrected), 2 deferred, 68 not yet reviewed. */
+const REVIEW_SUMMARY = {
+  aggregation_execution_id: AGGREGATION_ID,
+  result_count: 80,
+  last_annotated_at: '2026-02-03T09:00:00Z',
+  groups: [
+    reviewGroup('high', 'male', 50, 'unreviewed', null),
+    reviewGroup('contested', 'female', 10, 'unreviewed', null),
+    reviewGroup('contested', 'female', 6, 'reviewed', 'verify'),
+    reviewGroup('low', 'unknown', 4, 'reviewed', 'correct'),
+    reviewGroup('single', 'institution', 8, 'unreviewed', null),
+    reviewGroup('uncertain', null, 2, 'deferred', 'defer'),
+  ],
+}
+
+const AGGREGATION = {
+  id: AGGREGATION_ID,
+  run_id: RUN_ID,
+  status: 'completed',
+  strategy: 'reference_v1',
+  method_execution_ids: [],
+  config_sha256: 'abc',
+  created_at: '2026-02-02T10:00:00Z',
+}
+
+/** `server()` plus the project/aggregation/run routes D28's "Stand der Prüfung" gating needs. */
+function serverWithWorkingAggregation(
+  workingAggregationId: string | null,
+  runDatasetSnapshotId: string,
+  extra: Handler = () => undefined,
+) {
+  return server((request) => {
+    const overridden = extra(request)
+    if (overridden) return overridden
+    const path = new URL(request.url).pathname
+    if (path === `/api/v1/projects/${PROJECT_ID}`) {
+      return json({
+        id: PROJECT_ID,
+        slug: 'edition',
+        display_name: 'Source edition',
+        current_user_role: 'viewer',
+        current_user_can_manage_members: false,
+        working_aggregation_execution_id: workingAggregationId,
+        manager_user_id: 'manager',
+        created_by_user_id: 'manager',
+        created_at: '2026-01-01T00:00:00Z',
+      })
+    }
+    if (path === `/api/v1/aggregations/${AGGREGATION_ID}`) return json(AGGREGATION)
+    if (path === `/api/v1/runs/${RUN_ID}`)
+      return json({ id: RUN_ID, dataset_snapshot_id: runDatasetSnapshotId })
+    if (path === `/api/v1/aggregations/${AGGREGATION_ID}/review-summary`) return json(REVIEW_SUMMARY)
+    return undefined
+  })
+}
+
+describe.each(['de', 'en'] as const)('snapshot detail review stats (D28) in %s', (locale) => {
+  it('shows review progress when this dataset backs the working aggregation', async () => {
+    const state = serverWithWorkingAggregation(AGGREGATION_ID, SNAPSHOT_ID)
+    const wrapper = await mountApplicationAt(PATH, locale, state.client)
+    await waitFor(() => {
+      expect(wrapper.text()).toContain(
+        locale === 'de' ? 'Stand der Prüfung' : 'Review progress',
+      )
+      expect(wrapper.text()).toContain(
+        locale === 'de' ? '10 von 80 Personen geprüft' : '10 of 80 people reviewed',
+      )
+    })
+    expect(wrapper.get('.snapshot-review-stats progress').attributes('value')).toBe('12.5')
+  })
+
+  it('shows a not-current note with a link to the current dataset otherwise', async () => {
+    const state = serverWithWorkingAggregation(AGGREGATION_ID, OTHER_SNAPSHOT_ID)
+    const wrapper = await mountApplicationAt(PATH, locale, state.client)
+    await waitFor(() => {
+      expect(wrapper.text()).toContain(
+        locale === 'de'
+          ? 'Dies ist nicht der Datenstand, der die aktuelle Arbeitsaggregation des Projekts trägt'
+          : "This is not the dataset behind the project's current working aggregation",
+      )
+    })
+    expect(
+      wrapper.find(`main a[href="/projects/${PROJECT_ID}/snapshots/${OTHER_SNAPSHOT_ID}"]`).text(),
+    ).toBe(locale === 'de' ? 'Zum aktuellen Datenstand' : 'Go to the current dataset')
+    expect(wrapper.text()).not.toContain(
+      locale === 'de' ? '10 von 80 Personen geprüft' : '10 of 80 people reviewed',
+    )
+  })
+
+  it('shows nothing when the project has no working aggregation at all', async () => {
+    const state = serverWithWorkingAggregation(null, SNAPSHOT_ID)
+    const wrapper = await mountApplicationAt(PATH, locale, state.client)
+    await waitFor(() => expect(wrapper.findAll('.snapshot-record-view')).toHaveLength(1))
+    expect(wrapper.find('.snapshot-review-stats').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain(locale === 'de' ? 'Stand der Prüfung' : 'Review progress')
+  })
+
+  it('offers a retry when the working aggregation fails to load', async () => {
+    let failing = true
+    const state = serverWithWorkingAggregation(AGGREGATION_ID, SNAPSHOT_ID, (request) =>
+      new URL(request.url).pathname === `/api/v1/aggregations/${AGGREGATION_ID}` && failing
+        ? failure()
+        : undefined,
+    )
+    const wrapper = await mountApplicationAt(PATH, locale, state.client)
+    await waitFor(() => expect(wrapper.find('.snapshot-review-stats button').exists()).toBe(true))
+    failing = false
+    await wrapper.get('.snapshot-review-stats button').trigger('click')
+    await waitFor(() =>
+      expect(wrapper.text()).toContain(
+        locale === 'de' ? '10 von 80 Personen geprüft' : '10 of 80 people reviewed',
+      ),
+    )
+  })
+})
+
 it('cards the records loading and empty replacement states', async () => {
   const response = deferredResponse()
   const state = server((request) =>

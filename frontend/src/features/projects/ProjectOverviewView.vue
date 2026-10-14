@@ -1,8 +1,10 @@
 <script setup lang="ts">
-// Übersicht and Daten are one screen (decision, 2026-09-30): the project's facts, its present data
-// state and the action to add to it live together; only the full history of earlier snapshots moves
-// to its own, unlisted page (ProjectSnapshotsView), reachable solely through the link in
-// ProjectCurrentSnapshot.
+// Übersicht is a landing page of three cards (D28, superseding the single merged Übersicht/Daten
+// card of 2026-09-30): project facts, the current dataset, and the way to an older one. "Stand der
+// Prüfung" (ProjectReviewStats) moved off this page entirely, onto the dataset detail page it is
+// actually about (SnapshotDetailView) — ADR-0035's working-aggregation pointer names one dataset,
+// not the project in general, so showing it here regardless of which dataset a viewer had in mind
+// was already a small lie for every project with more than one dataset.
 import { PhMinus, PhUploadSimple } from '@phosphor-icons/vue'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -15,8 +17,8 @@ import { useSessionStore } from '@/stores/session'
 import { hasProjectRole } from '@/composables/projectRoles'
 import ProjectGameModeSetting from './ProjectGameModeSetting.vue'
 import ProjectCurrentSnapshot from './ProjectCurrentSnapshot.vue'
+import ProjectOtherSnapshots from './ProjectOtherSnapshots.vue'
 import ProjectOverviewSection from './ProjectOverviewSection.vue'
-import ProjectReviewStats from './ProjectReviewStats.vue'
 import SnapshotImportForm from './SnapshotImportForm.vue'
 import { useProject } from '@/composables/useProjects'
 import { useRoleLabel } from './useRoleLabel'
@@ -144,7 +146,7 @@ watch([canImport, () => query.isSuccess.value], ([allowed, success]) => {
       </AppFeedback>
       <template v-else-if="query.data.value">
         <div class="project-overview-card app-card app-card--sectioned">
-          <ProjectOverviewSection>
+          <ProjectOverviewSection :title="t('projects.overview.title')">
             <dl class="project-overview-facts">
               <div class="project-overview-fact">
                 <dt>{{ t('projects.overview.slug') }}</dt>
@@ -170,16 +172,17 @@ watch([canImport, () => query.isSuccess.value], ([allowed, success]) => {
               {{ t('projects.overview.noDescription') }}
             </p>
           </ProjectOverviewSection>
-          <ProjectCurrentSnapshot :project-id="projectId" />
-          <ProjectReviewStats
-            :project-id="projectId"
-            :aggregation-id="query.data.value.working_aggregation_execution_id ?? null"
-          />
           <ProjectGameModeSetting
             v-if="query.data.value.current_user_role === 'operator'"
             :project-id="projectId"
             :enabled="query.data.value.game_mode_enabled === true"
           />
+        </div>
+        <div class="project-overview-card app-card app-card--sectioned">
+          <ProjectCurrentSnapshot :project-id="projectId" />
+        </div>
+        <div class="project-overview-card app-card app-card--sectioned">
+          <ProjectOtherSnapshots :project-id="projectId" />
         </div>
       </template>
     </template>
@@ -197,6 +200,11 @@ watch([canImport, () => query.isSuccess.value], ([allowed, success]) => {
 
 .project-overview-import-panel {
   margin-block-end: var(--space-8);
+}
+
+/* Three cards (D28), not one: facts, the current dataset, and the way to an older one. */
+.project-overview-card + .project-overview-card {
+  margin-block-start: var(--space-6);
 }
 
 /* Four facts: one column, two, or all four in a row — never three and an orphan. Side by side, a

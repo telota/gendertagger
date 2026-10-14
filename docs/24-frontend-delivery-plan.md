@@ -1619,9 +1619,38 @@ that completes a step; do not mark one done without its tests passing against th
       `tests/features/projects/gender-tagging.spec.ts` (facts, the full generate-to-review-and-export
       unlock cycle, and the export submission). Full `vitest run` (1753 tests), `vue-tsc --noEmit`,
       `eslint`, `i18n:check`, and `unused:check` are clean.
-- [ ] Frontend: the advanced Übersicht three-card layout and the merged Datenstand-detail page with
-      current-dataset-gated "Stand der Prüfung" (D28).
-- [ ] Tests for every step above, verified against the real stack (Postgres, Redis where applicable) before
+- [x] Frontend: the advanced Übersicht three-card layout and the merged Datenstand-detail page with
+      current-dataset-gated "Stand der Prüfung" (D28). `ProjectOverviewView.vue`'s one sectioned card
+      split into three separate `app-card app-card--sectioned` cards: "Projektübersicht" (the facts
+      section, now titled, plus `ProjectGameModeSetting`), "Aktueller Datenstand"
+      (`ProjectCurrentSnapshot.vue`, stripped of its own "view history" link), and a new
+      "Anderen Datenstand wählen" card (`ProjectOtherSnapshots.vue`) that counts the project's other
+      snapshots and links to the existing, unlisted `projectSnapshots` history page — the one way into
+      it, promoted out of the card above into its own. `ProjectReviewStats` (Stand der Prüfung) moved
+      entirely off Übersicht and onto `SnapshotDetailView.vue`, which now resolves the project's working
+      aggregation (ADR-0035) through its run to that run's `dataset_snapshot_id` and compares it with the
+      open route's own snapshot id — three chained, gated reads (`useProject` → `useAggregation` →
+      `useRun`), enabled only once the snapshot itself is `ready`. Four states: nothing shown when the
+      project has no working aggregation at all; the full stats when this is that dataset; a loading
+      placeholder or a retryable error while resolving; and, for every other dataset, a plain note plus a
+      link to the one that is current — never guessed or stale figures. Removed the now-dead
+      `data.viewHistory` locale key (both languages) along with its only remaining use.
+      Test fallout: `project-overview.spec.ts` lost its five review-stats tests (moved, not deleted) and
+      its single-card structural test became a three-card one; those tests, plus four new ones covering
+      the four detail-page states above, moved to/landed in `snapshot-detail.spec.ts`, reusing the same
+      fixtures. `tests/accessibility/screens.spec.ts`'s `overview` readiness selector was pointed at the
+      new card's own link class, since the one it watched before no longer exists. Full suite (1761
+      passed, the same 2 pre-existing Windows symlink failures), `typecheck`, `lint`, `i18n:check`, and
+      `unused:check` all clean. Also visually verified against the real stack: the three cards render
+      with a visible gap between them (not three hairline-divided sections inside one card), and "Stand
+      der Prüfung" correctly renders on the snapshot detail page for the project's one (and therefore
+      current) dataset. That check caught that the Dockerized dev frontend container does not hot-reload
+      host-side file edits (a Windows bind-mount file-watching gap, not a code bug) — a
+      `docker compose restart frontend` was needed before the browser reflected any of this session's
+      changes; worth remembering for any future real-stack visual check in this environment.
+- [x] Tests for every step above, verified against the real stack (Postgres, Redis where applicable) before
       it is checked off; new D-numbered decisions in this file as behavior is finalized; ADR only if
-      scientific/export semantics change beyond presentation.
+      scientific/export semantics change beyond presentation. (No new ADR for D26–D28: all three are
+      frontend-presentation-only, unlike D26's backend `interface_mode` field, which ADR-0050 already
+      covers.)
 - [ ] Final `git fetch`/compare, commit, and push once the whole increment is verified end to end.

@@ -1,11 +1,10 @@
 <script setup lang="ts">
-// The project's data state, folded into Übersicht (decision, 2026-09-30: Übersicht and Daten are one
-// screen). The figures below summarize the latest snapshot that finished importing, as before; the
-// card beneath them is always the newest snapshot overall, whatever its status — a still-importing or
-// failed newest snapshot IS the project's present state and is never hidden behind an older, ready
-// one. Earlier snapshots stay reachable, but only through the less prominent history page linked
-// below, never as a second list on this screen.
-import { PhArrowRight } from '@phosphor-icons/vue'
+// The project's data state, its own card on Übersicht (D28; previously folded into one shared card
+// with Daten, decision 2026-09-30). The figures below summarize the latest snapshot that finished
+// importing, as before; the card beneath them is always the newest snapshot overall, whatever its
+// status — a still-importing or failed newest snapshot IS the project's present state and is never
+// hidden behind an older, ready one. Earlier snapshots stay reachable through ProjectOtherSnapshots'
+// own card, never as a second list here.
 import { computed, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -95,17 +94,6 @@ function count(value: number, hasMore: boolean): string {
         <SnapshotItem :snapshot="current" />
       </ul>
     </template>
-    <!-- Navigation never waits on the figures: the link stays reachable if they fail to load. -->
-    <div class="data-actions">
-      <AppButton
-        :to="{ name: 'projectSnapshots', params: { projectId } }"
-        variant="ghost"
-        class="project-overview-history-link"
-      >
-        {{ t('data.viewHistory') }}
-        <PhArrowRight :size="18" aria-hidden="true" />
-      </AppButton>
-    </div>
   </ProjectOverviewSection>
 </template>
 
@@ -118,17 +106,6 @@ function count(value: number, hasMore: boolean): string {
   margin: var(--space-4) 0 0;
   padding: 0;
   list-style: none;
-}
-.data-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  margin-block-start: var(--space-4);
-}
-.data-actions svg {
-  flex-shrink: 0;
 }
 p[role='status'] {
   margin: 0;

@@ -8,6 +8,11 @@ import AppFeedback from '@/components/base/AppFeedback.vue'
 import AppScrollRegion from '@/components/base/AppScrollRegion.vue'
 import { useSessionStore } from '@/stores/session'
 
+import { useAggregation } from '@/composables/useAggregations'
+import { useProject } from '@/composables/useProjects'
+import { useRun } from '@/composables/useRunDetail'
+import ProjectOverviewSection from './ProjectOverviewSection.vue'
+import ProjectReviewStats from './ProjectReviewStats.vue'
 import SnapshotRecords from './SnapshotRecords.vue'
 import SnapshotStatisticsPanel from './SnapshotStatisticsPanel.vue'
 import { useImportedSnapshot } from '@/composables/useSnapshotData'
@@ -27,6 +32,39 @@ const snapshot = computed(() => {
 })
 const ready = computed(() => snapshot.value?.status === 'ready')
 const terminal = computed(() => ready.value || snapshot.value?.status === 'failed')
+
+// "Stand der Prüfung" belongs to the dataset behind the project's working aggregation (ADR-0035,
+// one pointer per project, not per dataset) — D28 moved it here from Übersicht for exactly that
+// reason, so it never shows review figures for the wrong dataset. Resolving "is this that dataset"
+// needs the project (for the pointer), the aggregation it names (for its run), and that run (for the
+// dataset snapshot it ran against) — three chained reads, enabled only once ready and only as far as
+// each prior one resolves.
+const project = useProject(projectId, computed(() => enabled.value && ready.value))
+const workingAggregationId = computed(
+  () => project.data.value?.working_aggregation_execution_id ?? null,
+)
+const workingAggregation = useAggregation(
+  computed(() => workingAggregationId.value ?? ''),
+  computed(() => workingAggregationId.value !== null),
+)
+const workingRunId = computed(() => workingAggregation.data.value?.run_id ?? null)
+const workingRun = useRun(
+  computed(() => workingRunId.value ?? ''),
+  computed(() => workingRunId.value !== null),
+)
+const reviewStatsState = computed<'none' | 'loading' | 'error' | 'current' | 'other'>(() => {
+  if (workingAggregationId.value === null) return 'none'
+  if (workingAggregation.isPending.value) return 'loading'
+  if (workingAggregation.isError.value) return 'error'
+  if (workingRunId.value === null) return 'error'
+  if (workingRun.isPending.value) return 'loading'
+  if (workingRun.isError.value) return 'error'
+  return workingRun.data.value?.dataset_snapshot_id === snapshotId.value ? 'current' : 'other'
+})
+function retryReviewStats(): void {
+  if (workingAggregation.isError.value) void workingAggregation.refetch()
+  if (workingRun.isError.value) void workingRun.refetch()
+}
 const membersQuery = useSnapshotSourceMembers(snapshotId, terminal)
 const members = computed(
   () =>
@@ -172,6 +210,54 @@ watch(
           :project-id="projectId"
           :snapshot-id="snapshot.id"
         />
+        <ProjectReviewStats
+          v-if="ready && reviewStatsState === 'current'"
+          class="snapshot-review-stats app-card app-card--sectioned"
+          :project-id="projectId"
+          :aggregation-id="workingAggregationId"
+        />
+        <div
+          v-else-if="ready && reviewStatsState === 'loading'"
+          class="snapshot-review-stats app-card app-card--sectioned"
+        >
+          <ProjectOverviewSection :title="t('projects.overview.review.title')">
+            <p role="status">{{ t('projects.loading') }}</p>
+          </ProjectOverviewSection>
+        </div>
+        <div
+          v-else-if="ready && reviewStatsState === 'error'"
+          class="snapshot-review-stats app-card app-card--sectioned"
+        >
+          <ProjectOverviewSection :title="t('projects.overview.review.title')">
+            <AppFeedback tone="critical" announcement="polite">
+              {{ t('projects.overview.review.aggregationLoadError') }}
+              <template #actions>
+                <AppButton type="button" variant="ghost" @click="retryReviewStats">{{
+                  t('projects.retry')
+                }}</AppButton>
+              </template>
+            </AppFeedback>
+          </ProjectOverviewSection>
+        </div>
+        <div
+          v-else-if="ready && reviewStatsState === 'other'"
+          class="snapshot-review-stats app-card app-card--sectioned"
+        >
+          <ProjectOverviewSection :title="t('projects.overview.review.title')">
+            <p class="snapshot-review-stats-note">
+              {{ t('projects.overview.review.notCurrentDataset') }}
+            </p>
+            <AppButton
+              :to="{
+                name: 'snapshotDetail',
+                params: { projectId, snapshotId: workingRun.data.value?.dataset_snapshot_id ?? '' },
+              }"
+              variant="ghost"
+            >
+              {{ t('projects.overview.review.goToCurrentDataset') }}
+            </AppButton>
+          </ProjectOverviewSection>
+        </div>
         <div class="snapshot-secondary">
           <details
             v-if="terminal"
@@ -289,6 +375,13 @@ watch(
 }
 .snapshot-detail-records {
   margin-block-start: var(--space-8);
+}
+.snapshot-review-stats {
+  margin-block-start: var(--space-6);
+}
+.snapshot-review-stats-note {
+  margin: 0 0 var(--space-4);
+  color: var(--text-secondary);
 }
 .snapshot-secondary {
   display: grid;
