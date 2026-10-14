@@ -78,9 +78,12 @@ watch([canImport, () => query.isSuccess.value], ([allowed, success]) => {
 <template>
   <main class="project-overview app-page-frame">
     <header class="project-overview-heading app-page-heading">
-      <h1 class="project-overview-title app-page-heading__title">
-        {{ query.data.value?.display_name ?? t('nav.overview') }}
-      </h1>
+      <div class="app-page-heading__copy">
+        <h1 class="project-overview-title app-page-heading__title">
+          {{ query.data.value?.display_name ?? t('nav.overview') }}
+        </h1>
+        <p class="app-page-heading__description">{{ t('projects.overview.pageHint') }}</p>
+      </div>
       <div v-if="canImport" class="app-page-heading__actions">
         <AppButton
           class="project-overview-import"
@@ -178,12 +181,8 @@ watch([canImport, () => query.isSuccess.value], ([allowed, success]) => {
             :enabled="query.data.value.game_mode_enabled === true"
           />
         </div>
-        <div class="project-overview-card app-card app-card--sectioned">
-          <ProjectCurrentSnapshot :project-id="projectId" />
-        </div>
-        <div class="project-overview-card app-card app-card--sectioned">
-          <ProjectOtherSnapshots :project-id="projectId" />
-        </div>
+        <ProjectCurrentSnapshot :project-id="projectId" />
+        <ProjectOtherSnapshots :project-id="projectId" />
       </template>
     </template>
   </main>
@@ -202,8 +201,11 @@ watch([canImport, () => query.isSuccess.value], ([allowed, success]) => {
   margin-block-end: var(--space-8);
 }
 
-/* Three cards (D28), not one: facts, the current dataset, and the way to an older one. */
-.project-overview-card + .project-overview-card {
+/* Three sections (D28), not one: facts stay on their own card (an info panel, not a pick-one list);
+   the current dataset and the way to an older one are plain sections, matching how Redigieren and
+   Automatische Vorschläge present their own equivalent sections — not a separate, more boxed design. */
+.project-overview-card + section,
+section + section {
   margin-block-start: var(--space-6);
 }
 

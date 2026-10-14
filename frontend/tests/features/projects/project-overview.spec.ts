@@ -290,19 +290,20 @@ describe.each(['de', 'en'] as const)(
       expect(wrapper.text()).toContain(messages.created)
     })
 
-    it('puts the project on three cards, each carrying its own heading (D28)', async () => {
+    it('puts the facts on one card and the dataset sections on plain sections, each with its own heading (D28)', async () => {
       const wrapper = await mountOverview(PROJECT, {})
       await waitFor(() => {
         const cards = wrapper.findAll('main .project-overview-card')
-        expect(cards).toHaveLength(3)
-        for (const card of cards) {
-          expect(card.classes()).toEqual(expect.arrayContaining(['app-card', 'app-card--sectioned']))
-        }
-        expect(wrapper.findAll('main .project-overview-card h2').map((h) => h.text())).toEqual([
-          messages.title,
-          messages.data.title,
-          messages.other.title,
-        ])
+        expect(cards).toHaveLength(1)
+        expect(cards[0]?.classes()).toEqual(
+          expect.arrayContaining(['app-card', 'app-card--sectioned']),
+        )
+        // Matching Redigieren/Automatische Vorschläge (ProjectTaskView): the dataset sections are
+        // plain, unboxed sections, not a second and third card.
+        const sections = wrapper.findAll('main > section')
+        expect(sections).toHaveLength(2)
+        const headings = [cards[0], ...sections].map((el) => el?.find('h2').text())
+        expect(headings).toEqual([messages.title, messages.data.title, messages.other.title])
       })
     })
 

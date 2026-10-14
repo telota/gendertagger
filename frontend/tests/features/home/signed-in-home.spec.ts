@@ -120,6 +120,40 @@ describe.each(['de', 'en'] as const)('SignedInHomeView in %s', (locale: AppLocal
     expect(card.find('.home-project-manage-members').exists()).toBe(false)
   })
 
+  it('opens straight to Gender taggen, not Übersicht, when the account is in guided mode', async () => {
+    const wrapper = await mountApplicationAt(
+      '/',
+      locale,
+      apiClientWithRoutes({
+        ...signedInRoutes(OPERATOR, {
+          body: {
+            items: [{ ...PROJECT_A, current_user_role: 'operator' }],
+            has_more: false,
+            next_cursor: null,
+          },
+        }),
+        '/api/v1/me/preferences': {
+          body: {
+            locale: null,
+            theme: 'system',
+            desktop_sidebar_collapsed: false,
+            interface_mode: 'guided',
+            revision: 1,
+          },
+        },
+      }),
+    )
+    await flushPromises()
+
+    const card = wrapper.get('.home-project-row')
+    expect(card.get('.home-project-title-link').attributes('href')).toBe(
+      `/projects/${PROJECT_A.id}/gender-tagging`,
+    )
+    expect(card.get('.home-project-open').attributes('href')).toBe(
+      `/projects/${PROJECT_A.id}/gender-tagging`,
+    )
+  })
+
   it('shows "Mitglieder verwalten" only on a card where membership management is permitted', async () => {
     const managed = { ...PROJECT_A, current_user_can_manage_members: true }
     const wrapper = await mountApplicationAt(

@@ -660,6 +660,7 @@
     },
     "overview": {
       "title": "Project overview",
+      "pageHint": "Project facts, the current dataset, and access to earlier ones.",
       "loadError": "The project could not be loaded.",
       "slug": "Slug",
       "role": "Your role",
@@ -1712,6 +1713,7 @@
     "openAnnotation": "Annotate manually"
   },
   "genderTagging": {
+    "step": "Step {number}",
     "import": {
       "hint": "Upload a person register as TEI, CSV, XLSX, or JSON.",
       "doneHint": "{count} records imported."
@@ -1733,7 +1735,8 @@
     "review": {
       "title": "Review",
       "hint": "Confirm or correct contested and uncertain suggestions.",
-      "open": "Open review"
+      "open": "Open review",
+      "goToExport": "Go to export"
     },
     "export": {
       "title": "Export",

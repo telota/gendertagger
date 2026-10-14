@@ -335,7 +335,10 @@ async function submitExport(): Promise<void> {
             </dl>
           </ProjectOverviewSection>
 
-          <ProjectOverviewSection :title="t('data.importAction')">
+          <ProjectOverviewSection
+            :eyebrow="t('genderTagging.step', { number: 1 })"
+            :title="t('data.importAction')"
+          >
             <p class="gender-tagging-hint">
               {{
                 latestReady
@@ -362,7 +365,10 @@ async function submitExport(): Promise<void> {
             </AppButton>
           </ProjectOverviewSection>
 
-          <ProjectOverviewSection :title="t('genderTagging.generate.title')">
+          <ProjectOverviewSection
+            :eyebrow="t('genderTagging.step', { number: 2 })"
+            :title="t('genderTagging.generate.title')"
+          >
             <p class="gender-tagging-hint">{{ generateHint }}</p>
             <div class="gender-tagging-actions">
               <AppButton
@@ -382,7 +388,11 @@ async function submitExport(): Promise<void> {
             </div>
           </ProjectOverviewSection>
 
-          <ProjectOverviewSection v-if="isDone" :title="t('genderTagging.review.title')">
+          <ProjectOverviewSection
+            v-if="isDone"
+            :eyebrow="t('genderTagging.step', { number: 3 })"
+            :title="t('genderTagging.review.title')"
+          >
             <p class="gender-tagging-hint">{{ t('genderTagging.review.hint') }}</p>
             <AppButton
               variant="solid"
@@ -399,7 +409,11 @@ async function submitExport(): Promise<void> {
             </AppButton>
           </ProjectOverviewSection>
 
-          <ProjectOverviewSection v-if="isDone" :title="t('genderTagging.export.title')">
+          <ProjectOverviewSection
+            v-if="isDone"
+            :eyebrow="t('genderTagging.step', { number: 4 })"
+            :title="t('genderTagging.export.title')"
+          >
             <p class="gender-tagging-hint">{{ t('genderTagging.export.hint') }}</p>
             <form class="gender-tagging-export-form" novalidate @submit.prevent="submitExport">
               <AppSelectField

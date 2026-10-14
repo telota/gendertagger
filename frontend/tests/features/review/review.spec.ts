@@ -1,6 +1,7 @@
 import { flushPromises } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { createApiClient } from '@/api'
 import type { AppLocale } from '@/app/i18n'
 
 import { mountApplicationAt } from '../../helpers/render'
@@ -9,9 +10,11 @@ import {
   AGG_ID,
   catalogues,
   item,
+  jsonResponse,
   newServer,
   PROJECT_ID,
   reviewClient,
+  reviewFetch,
   RUN_ID,
   type Server,
 } from './fixtures'
@@ -28,6 +31,32 @@ describe.each(['de', 'en'] as const)('review workbench in %s', (locale: AppLocal
 
   async function mountReview(server: Server, query = '') {
     const wrapper = await mountApplicationAt(`${base}${query}`, locale, reviewClient(server))
+    await waitFor(() => expect(wrapper.find('.review-grid').exists()).toBe(true))
+    await waitFor(() => expect(wrapper.find('.row').exists()).toBe(true))
+    await flushPromises()
+    return wrapper
+  }
+
+  /** `reviewFetch` plus a guided `interface_mode`, for the D27 "Zum Export" link back to Gender taggen. */
+  async function mountReviewAsGuided(server: Server) {
+    const client = createApiClient({
+      fetch: (request) => {
+        const path = new URL(request.url).pathname
+        if (path === '/api/v1/me/preferences') {
+          return Promise.resolve(
+            jsonResponse({
+              locale: null,
+              theme: 'system',
+              desktop_sidebar_collapsed: false,
+              interface_mode: 'guided',
+              revision: 1,
+            }),
+          )
+        }
+        return reviewFetch(server)(request)
+      },
+    })
+    const wrapper = await mountApplicationAt(base, locale, client)
     await waitFor(() => expect(wrapper.find('.review-grid').exists()).toBe(true))
     await waitFor(() => expect(wrapper.find('.row').exists()).toBe(true))
     await flushPromises()
@@ -62,6 +91,19 @@ describe.each(['de', 'en'] as const)('review workbench in %s', (locale: AppLocal
     expect(follows(results, comment)).toBe(true)
     expect(commentDisclosure.attributes('open')).toBeUndefined()
     expect(follows(comment, history)).toBe(true)
+  })
+
+  it('hides the Export link in advanced mode (the default without an interface_mode preference)', async () => {
+    const wrapper = await mountReview(newServer())
+    expect(
+      wrapper.find(`main a[href="/projects/${PROJECT_ID}/gender-tagging"]`).exists(),
+    ).toBe(false)
+  })
+
+  it('offers a link back to Export in guided mode, since the workbench is its only way there', async () => {
+    const wrapper = await mountReviewAsGuided(newServer())
+    const link = wrapper.get(`main a[href="/projects/${PROJECT_ID}/gender-tagging"]`)
+    expect(link.text()).toBe(catalogues[locale].genderTagging.review.goToExport)
   })
 
   it('opens every review filter from the heading instead of reserving a filter column', async () => {

@@ -5,14 +5,13 @@
 // status — a still-importing or failed newest snapshot IS the project's present state and is never
 // hidden behind an older, ready one. Earlier snapshots stay reachable through ProjectOtherSnapshots'
 // own card, never as a second list here.
-import { computed, toRef } from 'vue'
+import { computed, toRef, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useRunList } from '@/composables/useRuns'
 
-import ProjectOverviewSection from './ProjectOverviewSection.vue'
 import ProjectStat from './ProjectStat.vue'
 import ProjectStatList from './ProjectStatList.vue'
 import SnapshotItem from './SnapshotItem.vue'
@@ -21,6 +20,7 @@ import { useSnapshotList } from './useSnapshots'
 
 const props = defineProps<{ projectId: string }>()
 const { t, d, n } = useI18n()
+const headingId = useId()
 
 const snapshots = useSnapshotList(toRef(props, 'projectId'))
 // Only the newest page: the figures are exact unless the server says there is more, and then they
@@ -50,7 +50,8 @@ function count(value: number, hasMore: boolean): string {
 </script>
 
 <template>
-  <ProjectOverviewSection :title="t('projects.overview.data.title')">
+  <section :aria-labelledby="headingId">
+    <h2 :id="headingId">{{ t('projects.overview.data.title') }}</h2>
     <p v-if="snapshots.isPending.value" role="status">{{ t('projects.loading') }}</p>
     <AppFeedback v-else-if="snapshots.isError.value" tone="critical" announcement="polite">
       <p>{{ t('projects.overview.data.loadError') }}</p>
@@ -94,10 +95,18 @@ function count(value: number, hasMore: boolean): string {
         <SnapshotItem :snapshot="current" />
       </ul>
     </template>
-  </ProjectOverviewSection>
+  </section>
 </template>
 
 <style scoped>
+/* Matches ProjectTaskView's plain, unboxed section heading (Redigieren, Automatische Vorschläge):
+   Übersicht's own sections read the same way, not as a separate, more heavily framed design. */
+h2 {
+  margin: 0 0 var(--space-4);
+  font-size: var(--font-size-title);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-height-title);
+}
 .data-empty {
   margin: 0;
   color: var(--text-secondary);

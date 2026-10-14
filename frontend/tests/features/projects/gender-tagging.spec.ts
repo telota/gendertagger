@@ -154,6 +154,11 @@ describe.each(['de', 'en'] as const)('GenderTaggingView in %s', (locale: AppLoca
     expect(wrapper.text()).toContain('gender-project')
     expect(wrapper.text()).toContain('Editorial team')
     expect(wrapper.find('button[aria-expanded]').exists()).toBe(true)
+    // Step 1/2 always show; 3/4 (Prüfen/Export) only once generation has completed, covered below.
+    expect(wrapper.findAll('.overview-section-eyebrow').map((eyebrow) => eyebrow.text())).toEqual([
+      messages.step.replace('{number}', '1'),
+      messages.step.replace('{number}', '2'),
+    ])
   })
 
   it('runs the full guided flow: generate sets the working aggregation and unlocks review and export', async () => {
@@ -220,6 +225,12 @@ describe.each(['de', 'en'] as const)('GenderTaggingView in %s', (locale: AppLoca
     expect(wrapper.text()).toContain(messages.export.title)
     const reviewLink = wrapper.find(`a[href="/projects/${PROJECT_ID}/runs/${RUN_ID}/aggregations/${AGGREGATION_ID}/review"]`)
     expect(reviewLink.exists()).toBe(true)
+    expect(wrapper.findAll('.overview-section-eyebrow').map((eyebrow) => eyebrow.text())).toEqual([
+      messages.step.replace('{number}', '1'),
+      messages.step.replace('{number}', '2'),
+      messages.step.replace('{number}', '3'),
+      messages.step.replace('{number}', '4'),
+    ])
   })
 
   it('submits a format-only export and navigates to the export detail page', async () => {

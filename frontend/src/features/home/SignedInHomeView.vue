@@ -7,6 +7,7 @@ import { RouterLink, useRouter, type RouteLocationRaw } from 'vue-router'
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useProjectList } from '@/composables/useProjects'
+import { useUserPreferences } from '@/composables/useUserPreferences'
 import ProjectCreationForm from '@/features/projects/ProjectCreationForm.vue'
 import { useManagedProjects } from '@/features/projects/useManagedProjects'
 import { useRoleLabel } from '@/features/projects/useRoleLabel'
@@ -22,6 +23,14 @@ const { t } = useI18n()
 const router = useRouter()
 const session = useSessionStore()
 const roleLabel = useRoleLabel()
+const preferences = useUserPreferences()
+// Guided mode has no Übersicht of its own to open (D26/D27): every "open project" entry point here
+// goes straight to Gender taggen instead, the same destination the sidebar's one project tab uses.
+const projectHomeRoute = computed(() =>
+  preferences.preferences.value?.interface_mode === 'guided'
+    ? 'projectGenderTagging'
+    : 'projectOverview',
+)
 const displayName = computed(() => session.user?.display_name ?? '')
 const canUseProjects = computed(() => session.canUsePrivateNavigation)
 const isSignedIn = computed(() => session.status === 'ready' && session.isSignedIn)
@@ -118,7 +127,7 @@ function toggleCreation(): void {
 }
 
 function openCreatedProject(projectId: string): void {
-  void router.push({ name: 'projectOverview', params: { projectId } })
+  void router.push({ name: projectHomeRoute.value, params: { projectId } })
 }
 
 function loadMore(): void {
@@ -212,7 +221,7 @@ function loadMoreManaged(): void {
                 <div class="home-project-content">
                   <h3>
                     <RouterLink
-                      :to="{ name: 'projectOverview', params: { projectId: project.id } }"
+                      :to="{ name: projectHomeRoute, params: { projectId: project.id } }"
                       class="home-project-title-link"
                     >
                       {{ project.display_name }}
@@ -234,7 +243,7 @@ function loadMoreManaged(): void {
                 </div>
                 <div class="home-project-actions">
                   <AppButton
-                    :to="{ name: 'projectOverview', params: { projectId: project.id } }"
+                    :to="{ name: projectHomeRoute, params: { projectId: project.id } }"
                     variant="ghost"
                     class="home-project-open"
                     :aria-label="t('projects.openProjectNamed', { project: project.display_name })"

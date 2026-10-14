@@ -13,6 +13,7 @@ import { useProject } from '@/composables/useProjects'
 import { useMethodList } from '@/composables/useMethods'
 import { useRun } from '@/composables/useRunDetail'
 import { useImportedSnapshot } from '@/composables/useSnapshotData'
+import { useUserPreferences } from '@/composables/useUserPreferences'
 
 import ReviewDetail from './ReviewDetail.vue'
 import ReviewBulkBar from './ReviewBulkBar.vue'
@@ -63,6 +64,11 @@ const canReview = computed(() => {
   const role = projectData.value?.current_user_role
   return role === 'reviewer' || role === 'operator'
 })
+
+// Guided mode's only way back to Export (D27: it lives inline on the project's one page, not its
+// own route) — without this, the workbench it reaches through "Prüfen" is a dead end back to Export.
+const preferences = useUserPreferences()
+const isGuided = computed(() => preferences.preferences.value?.interface_mode === 'guided')
 
 const aggregation = useAggregation(aggregationId, isSignedIn)
 const run = useRun(runId, isSignedIn)
@@ -303,18 +309,26 @@ function retryContext(): void {
           }"
           >{{ t('taskEntry.changeSelection') }}</AppButton
         >
-        <AppButton
-          v-else
-          id="review-filter-toggle"
-          variant="ghost"
-          :aria-expanded="filtersOpen"
-          aria-controls="review-filter-panel"
-          @click="filtersOpen = !filtersOpen"
-        >
-          {{ t('review.filters.title') }}
-          <PhCaretUp v-if="filtersOpen" :size="16" aria-hidden="true" />
-          <PhCaretDown v-else :size="16" aria-hidden="true" />
-        </AppButton>
+        <template v-else>
+          <AppButton
+            id="review-filter-toggle"
+            variant="ghost"
+            :aria-expanded="filtersOpen"
+            aria-controls="review-filter-panel"
+            @click="filtersOpen = !filtersOpen"
+          >
+            {{ t('review.filters.title') }}
+            <PhCaretUp v-if="filtersOpen" :size="16" aria-hidden="true" />
+            <PhCaretDown v-else :size="16" aria-hidden="true" />
+          </AppButton>
+          <AppButton
+            v-if="isGuided"
+            variant="ghost"
+            :to="{ name: 'projectGenderTagging', params: { projectId } }"
+          >
+            {{ t('genderTagging.review.goToExport') }}
+          </AppButton>
+        </template>
       </div>
     </header>
 

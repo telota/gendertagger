@@ -9,6 +9,7 @@ import AppButton from '@/components/base/AppButton.vue'
 import { useSessionStore } from '@/stores/session'
 
 import { useProjectIdentity } from '@/composables/useProjectIdentity'
+import { useUserPreferences } from '@/composables/useUserPreferences'
 
 interface Breadcrumb {
   id: string
@@ -20,6 +21,13 @@ const { t } = useI18n()
 const route = useRoute()
 const session = useSessionStore()
 const identity = useProjectIdentity()
+const preferences = useUserPreferences()
+// Guided mode's project "home base" is Gender taggen, not Übersicht (D26/D27): that page's own cards
+// expose the full dataset history and an Übersicht that guided accounts no longer have a path into,
+// so the project crumb must not lead there.
+const projectHomeRoute = computed(() =>
+  preferences.preferences.value?.interface_mode === 'guided' ? 'projectGenderTagging' : 'projectOverview',
+)
 const projectContext = computed(
   () => identity.isProjectRoute.value && session.canUsePrivateNavigation,
 )
@@ -80,14 +88,14 @@ const crumbs = computed<Breadcrumb[]>(() => {
   // including projectOverview itself — previously a dead-end crumb with no way back up.
   const entries: Breadcrumb[] = [{ id: 'home', label: t('app.title'), to: { name: 'home' } }]
   if (project !== null) {
-    if (name === 'projectOverview') {
+    if (name === projectHomeRoute.value) {
       entries.push({ id: 'project', label: project.display_name })
       return entries
     }
     entries.push({
       id: 'project',
       label: project.display_name,
-      to: { name: 'projectOverview', params: { projectId: project.id } },
+      to: { name: projectHomeRoute.value, params: { projectId: project.id } },
     })
   } else if (isMembership.value) {
     // Membership management does not imply access to research data or a readable project name.

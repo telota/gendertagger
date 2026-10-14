@@ -8,6 +8,7 @@ import {
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
+import { computed } from 'vue'
 import NavItem from './NavItem.vue'
 import ProjectSwitcher from './ProjectSwitcher.vue'
 import SidebarCollapseButton from './SidebarCollapseButton.vue'
@@ -15,12 +16,17 @@ import SidebarPreferences from './SidebarPreferences.vue'
 import SidebarTooltip from './SidebarTooltip.vue'
 import { useSidebarNavigation } from './useSidebarNavigation'
 import { useProjectIdentity } from '@/composables/useProjectIdentity'
+import { useUserPreferences } from '@/composables/useUserPreferences'
 
 defineProps<{ desktopSidebarCollapsed?: boolean; mobile?: boolean }>()
 
 const { t } = useI18n()
 const groups = useSidebarNavigation()
 const { project } = useProjectIdentity()
+// Guided mode has one way into a project (the home page's "Projekt öffnen", straight to Gender
+// taggen) and no project-overview page to switch into — the switcher has nowhere useful to send you.
+const preferences = useUserPreferences()
+const showProjectSwitcher = computed(() => preferences.preferences.value?.interface_mode !== 'guided')
 </script>
 
 <template>
@@ -38,7 +44,7 @@ const { project } = useProjectIdentity()
     <nav v-if="groups.length" class="app-sidebar-nav" :aria-label="t('nav.label')">
       <div v-for="group in groups" :key="group.id" class="app-sidebar-section">
         <ProjectSwitcher
-          v-if="group.id === 'project' && project"
+          v-if="group.id === 'project' && project && showProjectSwitcher"
           :project="project"
           :desktop-collapsed="desktopSidebarCollapsed"
           :mobile="mobile"

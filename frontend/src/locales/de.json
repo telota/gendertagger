@@ -660,6 +660,7 @@
     },
     "overview": {
       "title": "Projektübersicht",
+      "pageHint": "Projektfakten, der aktuelle Datenstand und der Zugriff auf frühere Datenstände.",
       "loadError": "Das Projekt konnte nicht geladen werden.",
       "slug": "Kurzname (Slug)",
       "role": "Ihre Rolle",
@@ -1712,6 +1713,7 @@
     "openAnnotation": "Manuell annotieren"
   },
   "genderTagging": {
+    "step": "Schritt {number}",
     "import": {
       "hint": "Personenregister als TEI, CSV, XLSX oder JSON hochladen.",
       "doneHint": "{count} Datensätze importiert."
@@ -1733,7 +1735,8 @@
     "review": {
       "title": "Prüfen",
       "hint": "Strittige und unsichere Vorschläge bestätigen oder korrigieren.",
-      "open": "Prüfen öffnen"
+      "open": "Prüfen öffnen",
+      "goToExport": "Zum Export"
     },
     "export": {
       "title": "Export",

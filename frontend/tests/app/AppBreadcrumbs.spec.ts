@@ -159,7 +159,7 @@ describe.each(['de', 'en'] as const)('header breadcrumbs in %s', (locale) => {
     await router.push(`/projects/${PROJECT}/import`)
     expect(wrapper.findAll('a')[2]?.text()).toBe(messages.nav.data)
     expect(wrapper.get('[aria-current="page"]').text()).toBe(messages.nav.import)
-    expect(requests).toEqual([`/api/v1/projects/${PROJECT}`])
+    expect(requests).toEqual([`/api/v1/projects/${PROJECT}`, '/api/v1/me/preferences'])
     await expectNoAxeViolations(wrapper.element)
   })
 
@@ -175,6 +175,34 @@ describe.each(['de', 'en'] as const)('header breadcrumbs in %s', (locale) => {
       expect(wrapper.findAll('li')).toHaveLength(1)
       expect(wrapper.find('a').exists()).toBe(false)
     }
+  })
+
+  it('leads back to Gender taggen, not Übersicht, in guided mode (D26/D27)', async () => {
+    const client = apiClientWithRoutes({
+      [`/api/v1/projects/${PROJECT}`]: { body: project() },
+      '/api/v1/me/preferences': {
+        body: {
+          locale: null,
+          theme: 'system',
+          desktop_sidebar_collapsed: false,
+          interface_mode: 'guided',
+          revision: 1,
+        },
+      },
+    })
+    const { wrapper, router } = await render(`/projects/${PROJECT}/gender-tagging`, locale, client)
+    await waitFor(() => expect(wrapper.text()).toContain(NAME))
+    expect(wrapper.findAll('li')).toHaveLength(2)
+    expect(wrapper.get('a').attributes('href')).toBe('/')
+    expect(wrapper.get('[aria-current="page"]').text()).toBe(NAME)
+
+    await router.push(`/projects/${PROJECT}/runs/run-id/aggregations/aggregation-id/review`)
+    await waitFor(() =>
+      expect(wrapper.get('[aria-current="page"]').text()).toBe(messages.review.title),
+    )
+    const links = wrapper.findAll('a')
+    expect(links[1]?.text()).toBe(NAME)
+    expect(links[1]?.attributes('href')).toBe(`/projects/${PROJECT}/gender-tagging`)
   })
 
   it('shows loading instead of the old identity during a project change', async () => {

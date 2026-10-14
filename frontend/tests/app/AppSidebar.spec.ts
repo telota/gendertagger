@@ -105,6 +105,31 @@ describe.each(['de', 'en'] as const)('AppSidebar project group in %s', (locale: 
     expect(wrapper.find('aside .project-switcher').exists()).toBe(false)
   })
 
+  it('hides the project switcher in guided mode: there is no Übersicht to switch into', async () => {
+    const wrapper = await mountApplicationAt(
+      `/projects/${PROJECT_ID}/gender-tagging`,
+      locale,
+      apiClientWithRoutes({
+        ...projectRoutes(null),
+        '/api/v1/me/preferences': {
+          body: {
+            locale: null,
+            theme: 'system',
+            desktop_sidebar_collapsed: false,
+            interface_mode: 'guided',
+            revision: 1,
+          },
+        },
+      }),
+    )
+    await waitFor(() =>
+      expect(wrapper.find(`aside a[href="/projects/${PROJECT_ID}/gender-tagging"]`).exists()).toBe(
+        true,
+      ),
+    )
+    expect(wrapper.find('aside .project-switcher').exists()).toBe(false)
+  })
+
   it.each([AGGREGATION_ID, null])(
     'opens the one Redigieren task picker regardless of working pointer %s',
     async (working) => {

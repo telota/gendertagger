@@ -1656,3 +1656,38 @@ that completes a step; do not mark one done without its tests passing against th
 - [x] Final `git fetch`/compare, commit, and push once the whole increment is verified end to end.
       D26, D27, and D28 are all implemented, tested, and on `origin/main` (commits `d3b6754`,
       `d06328a`, `beb6999`, `4a8e471`, `2c1be11`, `6fa2100`).
+
+### Post-review fixes (2026-10-14)
+
+Direct user feedback after using the real stack surfaced four gaps the checklist above didn't catch;
+all four are fixed, tested, and visually verified against the real stack.
+
+- **D28's Übersicht visually read as a different design language than Redigieren/Automatische
+  Vorschläge (ProjectTaskView).** "Aktueller Datenstand" and "Anderen Datenstand wählen" were each
+  their own `app-card app-card--sectioned` box; `ProjectTaskView`'s equivalent sections are plain,
+  unboxed `<section><h2>`s, with only the pickable *items* inside them (`app-resource-card`) bordered.
+  `ProjectCurrentSnapshot.vue` and `ProjectOtherSnapshots.vue` no longer use `ProjectOverviewSection`
+  (a hairline-divided card section) for their own heading; "Projektübersicht" (facts + Spielmodus)
+  keeps its card, since it reads as a static info panel, not a pick-one list, and was not what the
+  feedback called out. The page header also gained a description line under the title
+  (`projects.overview.pageHint`), matching `ProjectTaskView`'s own `app-page-heading__description` —
+  Übersicht had none before.
+- **Guided mode leaked advanced-only navigation.** The project switcher dropdown (`ProjectSwitcher.vue`,
+  in the sidebar) opened every project at `projectOverview`, a page guided accounts should never
+  reach — D28's full dataset history and "Anderen Datenstand wählen" are advanced-only concepts. Fixed
+  three places: `AppSidebar.vue` hides the switcher entirely when `interface_mode: 'guided'` (nothing
+  useful to switch into); `AppBreadcrumbs.vue`'s project crumb now points at `projectGenderTagging`
+  instead of `projectOverview` for guided accounts; `SignedInHomeView.vue`'s "Projekt öffnen" links and
+  its post-creation redirect do the same. All three read the preference directly via
+  `useUserPreferences()` rather than through `useSidebarNavigation()`'s own internal copy, matching the
+  existing pattern of independent per-component reads (e.g. `ReviewWorkbench.vue` below) over a shared,
+  wider interface.
+- **Guided mode's review workbench ("Prüfen") was a dead end back to Export.** D27 made Export live
+  inline on the Gender-taggen page with no route of its own, reachable only from there — but once a
+  guided user followed "Prüfen" into the real (unchanged) review workbench, nothing led back. Added a
+  "Zum Export" button next to the filter toggle in `ReviewWorkbench.vue`'s heading, shown only in
+  guided mode (`genderTagging.review.goToExport`), linking to `projectGenderTagging`.
+- **The guided project page's four boxes had no explicit step numbers.** `ProjectOverviewSection`
+  gained an optional `eyebrow` prop (a small label above the title) and `GenderTaggingView.vue` passes
+  "Schritt 1"–"Schritt 4" (`genderTagging.step`) to each of its four sections. Advanced-presentation
+  callers never pass it.
