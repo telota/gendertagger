@@ -96,6 +96,19 @@ describe.each(['de', 'en'] as const)('ProjectOverviewView in %s', (locale: AppLo
     expect(wrapper.find('.game-mode-setting').exists()).toBe(false)
   })
 
+  it('links back to the home page at the top of the page', async () => {
+    const wrapper = await mountApplicationAt(
+      `/projects/${PROJECT_ID}/overview`,
+      locale,
+      apiClientWithRoutes(signedInRoutes({ body: PROJECT })),
+    )
+    await flushPromises()
+
+    const link = wrapper.get('main a.project-overview-home-link')
+    expect(link.text()).toBe(messages.overview.backToHome)
+    expect(link.attributes('href')).toBe('/')
+  })
+
   it('lets a project operator enable game mode for this project', async () => {
     let project = {
       ...PROJECT,

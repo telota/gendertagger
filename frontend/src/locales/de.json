@@ -661,6 +661,7 @@
     "overview": {
       "title": "Projektübersicht",
       "pageHint": "Projektfakten, der aktuelle Datenstand und der Zugriff auf frühere Datenstände.",
+      "backToHome": "Zurück zur Startseite",
       "loadError": "Das Projekt konnte nicht geladen werden.",
       "slug": "Kurzname (Slug)",
       "role": "Ihre Rolle",
@@ -1042,7 +1043,7 @@
   },
   "review": {
     "refreshError": "Die aktuellen Daten konnten nicht aktualisiert werden. Ihr Entwurf bleibt erhalten; versuchen Sie es vor dem Speichern erneut.",
-    "title": "Prüfen",
+    "title": "Redigieren",
     "loading": "Wird geladen …",
     "retry": "Erneut versuchen",
     "loadMore": "Mehr laden",
@@ -1591,12 +1592,6 @@
       }
     }
   },
-  "projectSwitcher": {
-    "empty": "Noch keine Projekte.",
-    "loadError": "Die Projekte konnten nicht geladen werden.",
-    "currentLabel": "Projekt wechseln. Aktuelles Projekt: {project}",
-    "loading": "Projekte werden geladen…"
-  },
   "userSettings": {
     "title": "Einstellungen",
     "description": "Persönliche Einstellungen für Ihr Konto, über Sitzungen und Geräte hinweg.",
@@ -1736,7 +1731,8 @@
       "title": "Prüfen",
       "hint": "Strittige und unsichere Vorschläge bestätigen oder korrigieren.",
       "open": "Prüfen öffnen",
-      "goToExport": "Zum Export"
+      "goToExport": "Zum Export",
+      "goToOverview": "Zurück zur Übersicht"
     },
     "export": {
       "title": "Export",

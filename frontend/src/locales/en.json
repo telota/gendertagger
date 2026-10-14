@@ -661,6 +661,7 @@
     "overview": {
       "title": "Project overview",
       "pageHint": "Project facts, the current dataset, and access to earlier ones.",
+      "backToHome": "Back to the home page",
       "loadError": "The project could not be loaded.",
       "slug": "Slug",
       "role": "Your role",
@@ -1591,12 +1592,6 @@
       }
     }
   },
-  "projectSwitcher": {
-    "empty": "No projects yet.",
-    "loadError": "The projects could not be loaded.",
-    "currentLabel": "Change project. Current project: {project}",
-    "loading": "Loading projects…"
-  },
   "userSettings": {
     "title": "Settings",
     "description": "Personal preferences for your account, across sessions and devices.",
@@ -1736,7 +1731,8 @@
       "title": "Review",
       "hint": "Confirm or correct contested and uncertain suggestions.",
       "open": "Open review",
-      "goToExport": "Go to export"
+      "goToExport": "Go to export",
+      "goToOverview": "Back to overview"
     },
     "export": {
       "title": "Export",

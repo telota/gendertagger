@@ -120,7 +120,7 @@ interface Server {
   executionGets: number
 }
 
-function detailClient(server: Server) {
+function detailClient(server: Server, role: 'viewer' | 'reviewer' | 'operator' = 'viewer') {
   return createApiClient({
     fetch: async (request) => {
       const { pathname } = new URL(request.url)
@@ -134,7 +134,7 @@ function detailClient(server: Server) {
           id: PROJECT_ID,
           slug: 'p',
           display_name: 'Project A',
-          current_user_role: 'viewer',
+          current_user_role: role,
           working_aggregation_execution_id: null,
         })
       }
@@ -177,8 +177,11 @@ describe.each(['de', 'en'] as const)('run detail with live progress in %s', (loc
   const messages = catalogues[locale].runs
   const path = `/projects/${PROJECT_ID}/snapshots/${SNAPSHOT_ID}/runs/${RUN_ID}`
 
-  async function mountDetail(server: Server) {
-    const wrapper = await mountApplicationAt(path, locale, detailClient(server))
+  async function mountDetail(
+    server: Server,
+    role: 'viewer' | 'reviewer' | 'operator' = 'viewer',
+  ) {
+    const wrapper = await mountApplicationAt(path, locale, detailClient(server, role))
     await waitFor(() => expect(wrapper.find('.run-detail-title').exists()).toBe(true))
     await waitFor(() => expect(wrapper.find('.execution').exists()).toBe(true))
     return wrapper
@@ -211,6 +214,21 @@ describe.each(['de', 'en'] as const)('run detail with live progress in %s', (loc
     await flushPromises()
 
     expect(wrapper.get('.run-detail-connection').text()).toBe(messages.detail.connection.live)
+  })
+
+  it('offers a direct way into Redigieren for this exact dataset, reviewer role and up', async () => {
+    const wrapper = await mountDetail(server(), 'reviewer')
+    const link = wrapper.get(
+      `a[href="/projects/${PROJECT_ID}/annotation?snapshot=${SNAPSHOT_ID}"]`,
+    )
+    expect(link.text()).toBe(catalogues[locale].nav.review)
+  })
+
+  it('hides the Redigieren shortcut for a viewer', async () => {
+    const wrapper = await mountDetail(server(), 'viewer')
+    expect(
+      wrapper.find(`a[href="/projects/${PROJECT_ID}/annotation?snapshot=${SNAPSHOT_ID}"]`).exists(),
+    ).toBe(false)
   })
 
   it('does not open a stream for a run that has already finished', async () => {

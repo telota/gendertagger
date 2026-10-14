@@ -1691,3 +1691,46 @@ all four are fixed, tested, and visually verified against the real stack.
   gained an optional `eyebrow` prop (a small label above the title) and `GenderTaggingView.vue` passes
   "Schritt 1"–"Schritt 4" (`genderTagging.step`) to each of its four sections. Advanced-presentation
   callers never pass it.
+
+### Second round of post-review fixes (2026-10-14)
+
+Further direct feedback, same day, on top of the round above.
+
+- **The exportDetail breadcrumb still led back to the advanced-only exports list in guided mode.**
+  The parent-crumb branch for `exportDetail`/`evaluationDetail` was unconditional; split it so
+  `exportDetail`'s "exports" parent crumb only appears when `!guided` (evaluations is its own guided
+  sidebar tab, unlike the exports list, so `evaluationDetail` keeps its parent crumb in both modes).
+- **Guided mode's "Prüfen" had no way back to the overview, only to Export.** Added a second button,
+  "Zurück zur Übersicht" (`genderTagging.review.goToOverview`, ghost variant), next to "Zum Export" in
+  `ReviewWorkbench.vue`'s heading — both guided-only, both linking to `projectGenderTagging`.
+- **Advanced mode had three further gaps found by direct use of the real stack:**
+  - A run's detail page (Automatische Vorschläge → Lauf) had "Auswahl ändern" but no direct way into
+    Redigieren for that exact dataset. Added a "Redigieren" button (`nav.review`, reviewer role and
+    up) linking to `projectAnnotation` with `?snapshot={id}` — D25's per-dataset decision then applies
+    exactly as it would from the sidebar's own Redigieren entry.
+  - Redigieren's own heading said "Prüfen" while its sidebar tab and breadcrumb said "Redigieren"
+    (`nav.review`) — a German-only mismatch (English already had both as "Review"). Changed
+    `review.title`'s German value to "Redigieren"; `AppBreadcrumbs.vue`'s `review`/`projectReview`
+    labels share the same key, so they stayed in sync automatically.
+  - Redigieren had no direct, prominent way to Export either — only the sidebar's own Export tab, one
+    navigation away. Added an unconditional (`!isGuided`), solid/green "Export" button
+    (`nav.exports`) next to the filter toggle, linking to `{name: 'exports', params: {projectId,
+    runId}}`.
+- **The project switcher dropdown was removed entirely, from both presentations** — not just hidden in
+  guided mode as the first round did. Project switching is now exclusively a home-page action, in both
+  modes; `ProjectSwitcher.vue` and its dedicated test file are deleted, along with the now-orphaned
+  `projectSwitcher.*` locale keys. `AppSidebar.vue` no longer reads `interface_mode` or
+  `useProjectIdentity().project` for this purpose at all. Three tests in `MobileNavigationDrawer.spec.ts`
+  that exercised the switcher's own mobile/keyboard/draft-protection behavior were removed — the
+  underlying draft-navigation guard they also covered is still tested directly in
+  `useDraftNavigation.spec.ts` and the review feature tests, independent of how a navigation is
+  triggered. One test in `sidebar-visibility.spec.ts` covering the switcher's own account-switch
+  caching was removed outright for the same reason (the behavior it tested no longer exists).
+- **Added "Zurück zur Startseite" at the top of the advanced Übersicht page** (`projects.overview.backToHome`,
+  linking to `home`), so leaving a project no longer depends on the (now-removed) switcher or the small
+  breadcrumb link alone.
+
+Full suite (1741 passed, same 2 pre-existing Windows symlink failures; the count dropped from 1773
+because the three switcher-only tests were removed, not because something stopped being tested),
+`typecheck`, `lint`, `i18n:check` (1377 keys, down from 1381 after removing `projectSwitcher.*`), and
+`unused:check` all clean. Visually verified against the real stack in both presentations.

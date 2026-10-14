@@ -322,8 +322,22 @@ function retryContext(): void {
             <PhCaretDown v-else :size="16" aria-hidden="true" />
           </AppButton>
           <AppButton
+            v-if="!isGuided"
+            variant="solid"
+            :to="{ name: 'exports', params: { projectId, runId } }"
+          >
+            {{ t('nav.exports') }}
+          </AppButton>
+          <AppButton
             v-if="isGuided"
             variant="ghost"
+            :to="{ name: 'projectGenderTagging', params: { projectId } }"
+          >
+            {{ t('genderTagging.review.goToOverview') }}
+          </AppButton>
+          <AppButton
+            v-if="isGuided"
+            variant="solid"
             :to="{ name: 'projectGenderTagging', params: { projectId } }"
           >
             {{ t('genderTagging.review.goToExport') }}

@@ -88,6 +88,13 @@ function retryContext(): void {
   void project.refetch()
   void snapshot.refetch()
 }
+
+// A direct way into Redigieren for this exact dataset, not just "change selection" back to the
+// picker — pre-selecting the snapshot via query lets it decide the usual way (D25): the workbench if
+// this dataset already has a completed classification, plain annotation otherwise.
+const canReview = computed(() =>
+  hasProjectRole(project.data.value?.current_user_role, 'reviewer'),
+)
 </script>
 
 <template>
@@ -116,6 +123,13 @@ function retryContext(): void {
         </RouterLink>
       </div>
       <div v-if="selectedRun" class="app-page-heading__actions">
+        <AppButton
+          v-if="canReview"
+          variant="ghost"
+          :to="{ name: 'projectAnnotation', params: { projectId }, query: { snapshot: snapshotId } }"
+        >
+          {{ t('nav.review') }}
+        </AppButton>
         <AppButton variant="ghost" :to="{ name: 'projectClassification', params: { projectId } }">
           {{ t('runs.changeSelection') }}
         </AppButton>

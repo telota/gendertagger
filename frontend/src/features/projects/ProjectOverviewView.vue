@@ -8,7 +8,7 @@
 import { PhMinus, PhUploadSimple } from '@phosphor-icons/vue'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import AppButton from '@/components/base/AppButton.vue'
 import AppFeedback from '@/components/base/AppFeedback.vue'
@@ -77,6 +77,9 @@ watch([canImport, () => query.isSuccess.value], ([allowed, success]) => {
 
 <template>
   <main class="project-overview app-page-frame">
+    <RouterLink class="project-overview-home-link" :to="{ name: 'home' }">{{
+      t('projects.overview.backToHome')
+    }}</RouterLink>
     <header class="project-overview-heading app-page-heading">
       <div class="app-page-heading__copy">
         <h1 class="project-overview-title app-page-heading__title">
@@ -191,6 +194,20 @@ watch([canImport, () => query.isSuccess.value], ([allowed, success]) => {
 <style scoped>
 .project-overview {
   container: project-overview / inline-size;
+}
+
+.project-overview-home-link {
+  display: inline-block;
+  margin-block-end: var(--space-4);
+  color: var(--text-secondary);
+  font-size: var(--font-size-small);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+
+.project-overview-home-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 
 .project-overview-import svg {

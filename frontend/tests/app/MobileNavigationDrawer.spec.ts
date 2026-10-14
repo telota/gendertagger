@@ -9,8 +9,7 @@ import de from '@/locales/de.json'
 import en from '@/locales/en.json'
 import { useSessionStore } from '@/stores/session'
 
-import { getDialogButtonByName, mountApplicationAt, queryDialogByName } from '../helpers/render'
-import { AGG_ID, RUN_ID, newServer, reviewFetch } from '../features/review/fixtures'
+import { mountApplicationAt } from '../helpers/render'
 import { waitFor } from '../helpers/wait'
 
 const catalogues = { de, en } as const
@@ -211,28 +210,6 @@ describe.each(['de', 'en'] as const)('mobile navigation in %s', (locale: AppLoca
     await waitFor(() => expect(document.activeElement).toBe(wrapper.get('#main-content').element))
   })
 
-  it('opens project switching inside the drawer and returns focus without dismissing navigation', async () => {
-    const { open } = await application(locale, { path: `/projects/${PROJECT}/overview` })
-    const drawer = await open()
-    await waitFor(() => expect(drawer.find('.project-switcher').exists()).toBe(true))
-    expect(drawer.get('.project-switcher').classes()).toContain('project-switcher--mobile')
-    expect(drawer.get('.project-switcher-current').text()).toBe('Project A')
-    const switcher = drawer.get<HTMLButtonElement>('.project-switcher-button')
-    expect(switcher.text()).toBe('Project A')
-    expect(drawer.findAll('.project-switcher-current')).toHaveLength(1)
-    expect(switcher.element.closest('.app-sidebar-section')?.querySelector('h2')).toBeNull()
-    switcher.element.focus()
-    await switcher.trigger('keydown', { key: 'ArrowDown' })
-    await waitFor(() => expect(drawer.find('[role="menu"]').exists()).toBe(true))
-    const menu = drawer.get<HTMLElement>('[role="menu"]')
-    await waitFor(() => expect(document.activeElement).toBe(menu.element))
-    expect(drawer.element.contains(menu.element)).toBe(true)
-    await menu.trigger('keydown', { key: 'Escape' })
-    await waitFor(() => expect(drawer.find('[role="menu"]').exists()).toBe(false))
-    expect(dialog()).not.toBeNull()
-    await waitFor(() => expect(document.activeElement).toBe(switcher.element))
-  })
-
   it('keeps the drawer open when a route guard cancels navigation', async () => {
     // Starts on an open project so the brand link (always present, unlike "Projekte" — D26) is
     // an actual navigation away from the current route, not a no-op click back to it.
@@ -281,7 +258,7 @@ describe.each(['de', 'en'] as const)('mobile navigation in %s', (locale: AppLoca
 
   it('shows the same viewer destinations as the persistent navigation', async () => {
     const { wrapper, open } = await application(locale, { path: `/projects/${PROJECT}/overview` })
-    await waitFor(() => expect(wrapper.find('aside .project-switcher').exists()).toBe(true))
+    await waitFor(() => expect(wrapper.find('aside nav .nav-item').exists()).toBe(true))
     const persistentItems = wrapper.findAll('aside nav .nav-item').map((item) => item.text())
     const drawer = await open()
     expect(drawer.findAll('nav .nav-item').map((item) => item.text())).toEqual(persistentItems)
@@ -319,97 +296,5 @@ describe.each(['de', 'en'] as const)('mobile navigation in %s', (locale: AppLoca
     await waitFor(() => expect(wrapper.find('aside').exists()).toBe(true))
     expect(wrapper.get('.app-header-navigation').attributes('aria-expanded')).toBe('false')
     expect(dialog()).toBeNull()
-  })
-
-  it('protects a real review draft when switching projects from the drawer', async () => {
-    const nextProject = 'b0000000-0000-0000-0000-000000000002'
-    const target = `/projects/${nextProject}/overview`
-    const reviewPath = `/projects/${PROJECT}/runs/${RUN_ID}/aggregations/${AGG_ID}/review`
-    const server = newServer()
-    const fetchReview = reviewFetch(server)
-    const projectB = {
-      id: nextProject,
-      slug: 'project-b',
-      display_name: 'Project B',
-      current_user_role: 'viewer',
-      working_aggregation_execution_id: null,
-      created_at: '2026-01-01T00:00:00Z',
-      team: {
-        id: 'c0000000-0000-0000-0000-0000000000f1',
-        slug: 'editors',
-        display_name: 'Editorial Team',
-        created_at: '2026-01-01T00:00:00Z',
-      },
-    }
-    const { wrapper, router, open } = await application(locale, {
-      path: reviewPath,
-      fetch: (request) => {
-        const path = new URL(request.url).pathname
-        if (path === '/api/v1/me/preferences')
-          return Promise.resolve(
-            Response.json({
-              locale,
-              theme: 'system',
-              desktop_sidebar_collapsed: true,
-              revision: 1,
-            }),
-          )
-        if (path === '/api/v1/projects')
-          return Promise.resolve(
-            Response.json({
-              items: [projectB],
-              next_cursor: null,
-              has_more: false,
-            }),
-          )
-        if (path === `/api/v1/projects/${nextProject}`)
-          return Promise.resolve(Response.json(projectB))
-        return fetchReview(request)
-      },
-    })
-    await waitFor(() => expect(wrapper.find('#decision-comment').exists()).toBe(true))
-    await wrapper.get('#decision-correct-female').setValue(true)
-    await wrapper.get('#decision-comment').setValue('Evidence remains in this project')
-    const drawer = await open()
-    await drawer.get('.project-switcher-button').trigger('click')
-    await drawer.get(`.project-switcher a[href="${target}"]`).trigger('click')
-    await waitFor(() =>
-      expect(
-        queryDialogByName(catalogues[locale].draftNavigation.title)?.contains(
-          document.activeElement,
-        ),
-      ).toBe(true),
-    )
-    expect(dialog()).not.toBeNull()
-    getDialogButtonByName(
-      catalogues[locale].draftNavigation.title,
-      catalogues[locale].draftNavigation.stay,
-    ).click()
-    await waitFor(() =>
-      expect(queryDialogByName(catalogues[locale].draftNavigation.title)).toBeNull(),
-    )
-    expect(router.currentRoute.value.path).toBe(reviewPath)
-    expect((wrapper.get('#decision-comment').element as HTMLTextAreaElement).value).toBe(
-      'Evidence remains in this project',
-    )
-    await waitFor(() =>
-      expect(document.activeElement).toBe(drawer.get('.project-switcher-button').element),
-    )
-    expect(drawer.find('[role="menu"]').exists()).toBe(false)
-
-    await drawer.get('.project-switcher-button').trigger('click')
-    await drawer.get(`.project-switcher a[href="${target}"]`).trigger('click')
-    await waitFor(() =>
-      expect(queryDialogByName(catalogues[locale].draftNavigation.title)).not.toBeNull(),
-    )
-    getDialogButtonByName(
-      catalogues[locale].draftNavigation.title,
-      catalogues[locale].draftNavigation.discard,
-    ).click()
-    await waitFor(() => expect(router.currentRoute.value.path).toBe(target))
-    await waitFor(() => expect(dialog()).toBeNull())
-    expect(queryDialogByName(catalogues[locale].draftNavigation.title)).toBeNull()
-    await waitFor(() => expect(document.activeElement).toBe(wrapper.get('#main-content').element))
-    expect(server.posts).toHaveLength(0)
   })
 })

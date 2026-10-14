@@ -93,17 +93,35 @@ describe.each(['de', 'en'] as const)('review workbench in %s', (locale: AppLocal
     expect(follows(comment, history)).toBe(true)
   })
 
-  it('hides the Export link in advanced mode (the default without an interface_mode preference)', async () => {
+  it('hides the Übersicht/Export links in advanced mode (the default without an interface_mode preference)', async () => {
     const wrapper = await mountReview(newServer())
     expect(
-      wrapper.find(`main a[href="/projects/${PROJECT_ID}/gender-tagging"]`).exists(),
+      wrapper.findAll(`main a[href="/projects/${PROJECT_ID}/gender-tagging"]`),
+    ).toHaveLength(0)
+  })
+
+  it('offers a direct, prominent way to Export in advanced mode', async () => {
+    const wrapper = await mountReview(newServer())
+    const link = wrapper.get(`main a[href="/projects/${PROJECT_ID}/runs/${RUN_ID}/exports"]`)
+    expect(link.text()).toBe(catalogues[locale].nav.exports)
+    expect(link.classes()).toContain('app-button--solid')
+  })
+
+  it('hides the advanced Export link in guided mode: exports there live inline on Gender taggen', async () => {
+    const wrapper = await mountReviewAsGuided(newServer())
+    expect(
+      wrapper.find(`main a[href="/projects/${PROJECT_ID}/runs/${RUN_ID}/exports"]`).exists(),
     ).toBe(false)
   })
 
-  it('offers a link back to Export in guided mode, since the workbench is its only way there', async () => {
+  it('offers links back to the overview and to Export in guided mode, since the workbench is its only way there', async () => {
     const wrapper = await mountReviewAsGuided(newServer())
-    const link = wrapper.get(`main a[href="/projects/${PROJECT_ID}/gender-tagging"]`)
-    expect(link.text()).toBe(catalogues[locale].genderTagging.review.goToExport)
+    const links = wrapper.findAll(`main a[href="/projects/${PROJECT_ID}/gender-tagging"]`)
+    expect(links).toHaveLength(2)
+    expect(links[0]?.text()).toBe(catalogues[locale].genderTagging.review.goToOverview)
+    expect(links[0]?.classes()).toContain('app-button--ghost')
+    expect(links[1]?.text()).toBe(catalogues[locale].genderTagging.review.goToExport)
+    expect(links[1]?.classes()).toContain('app-button--solid')
   })
 
   it('opens every review filter from the heading instead of reserving a filter column', async () => {

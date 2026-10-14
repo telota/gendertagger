@@ -117,6 +117,39 @@ describe.each(['de', 'en'] as const)('header breadcrumbs in %s', (locale) => {
     expect(wrapper.findAll('a')).toHaveLength(2)
   })
 
+  it('does not link back to the exports list from an export in guided mode (D27)', async () => {
+    const client = apiClientWithRoutes({
+      [`/api/v1/projects/${PROJECT}`]: { body: project() },
+      '/api/v1/me/preferences': {
+        body: {
+          locale: null,
+          theme: 'system',
+          desktop_sidebar_collapsed: false,
+          interface_mode: 'guided',
+          revision: 1,
+        },
+      },
+    })
+    const { wrapper, router } = await render(
+      `/projects/${PROJECT}/runs/run-id/exports/export-id`,
+      locale,
+      client,
+    )
+    await waitFor(() => expect(wrapper.findAll('a')).toHaveLength(2))
+    expect(wrapper.findAll('a').map((link) => link.attributes('href'))).toEqual([
+      '/',
+      `/projects/${PROJECT}/gender-tagging`,
+    ])
+    expect(wrapper.get('[aria-current="page"]').text()).toBe(messages.export.detail.title)
+
+    // Evaluations is its own guided-mode sidebar tab (unlike the exports list), so its detail page
+    // keeps a parent crumb back to it, exactly as in advanced mode.
+    await router.push(`/projects/${PROJECT}/runs/run-id/evaluations/evaluation-id`)
+    expect(wrapper.findAll('a')[2]?.attributes('href')).toBe(
+      `/projects/${PROJECT}/runs/run-id/evaluations`,
+    )
+  })
+
   it('links the run hierarchy for a method-results page without resolving extra resources', async () => {
     const { wrapper } = await render(
       '/projects/' + PROJECT + '/snapshots/snapshot-id/runs/run-id/executions/execution-id/results',

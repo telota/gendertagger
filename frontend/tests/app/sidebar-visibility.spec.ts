@@ -699,60 +699,6 @@ describe.each(['de', 'en'] as const)('sidebar visibility in %s', (locale) => {
     expect(projectRequests).toBe(2)
   })
 
-  it('removes the previous account’s project list while the new account’s list loads', async () => {
-    const response = deferredResponse()
-    const messages = catalogues[locale].projectSwitcher
-    let projectRequests = 0
-    const client = createApiClient({
-      fetch: (request) => {
-        const path = new URL(request.url).pathname
-        if (path.endsWith('/data-availability'))
-          return Promise.resolve(Response.json({ ...AVAILABLE, project_id: path.split('/')[4] }))
-        if (path === '/api/v1/me/preferences')
-          return Promise.resolve(Response.json(DEFAULT_PREFERENCES))
-        if (path === `/api/v1/projects/${PROJECT_A}`)
-          return Promise.resolve(Response.json(project(PROJECT_A, 'viewer')))
-        if (path !== '/api/v1/projects') return Promise.resolve(Response.json({}, { status: 404 }))
-        projectRequests += 1
-        return projectRequests > 1
-          ? response.promise
-          : Promise.resolve(
-              Response.json({
-                items: [project(PROJECT_B, 'operator')],
-                has_more: false,
-                next_cursor: null,
-              }),
-            )
-      },
-    })
-    const { wrapper, session } = await mountSidebar(
-      `/projects/${PROJECT_A}/overview`,
-      locale,
-      client,
-    )
-    await waitFor(() => expect(wrapper.find('.project-switcher-button').exists()).toBe(true))
-    await wrapper.get('.project-switcher-button').trigger('click')
-    const menuNames = () =>
-      Array.from(document.querySelectorAll('.project-switcher-items [role="menuitem"]'), (item) =>
-        item.textContent?.trim(),
-      )
-    await waitFor(() => expect(menuNames()).toEqual(['Project B']))
-
-    session.user = { ...USER, id: 'a0000000-0000-0000-0000-000000000002' }
-    await flushPromises()
-    await waitFor(() => expect(wrapper.find('.project-switcher-button').exists()).toBe(true))
-    expect(document.querySelector('.project-switcher-items')).toBeNull()
-    await wrapper.get('.project-switcher-button').trigger('click')
-    expect(menuNames()).toEqual([])
-    expect(
-      document.querySelector('.project-switcher-items [role="status"]')?.textContent?.trim(),
-    ).toBe(messages.loading)
-    expect(document.body.textContent).not.toContain('Project B')
-
-    response.respond({ items: [project(PROJECT_A, 'viewer')], has_more: false, next_cursor: null })
-    await waitFor(() => expect(menuNames()).toEqual(['Project A']))
-    expect(projectRequests).toBe(2)
-  })
 
   it('hides the project switcher without fetching projects while a password change is required', async () => {
     const requests: string[] = []

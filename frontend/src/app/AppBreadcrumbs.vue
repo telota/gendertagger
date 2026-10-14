@@ -22,12 +22,11 @@ const route = useRoute()
 const session = useSessionStore()
 const identity = useProjectIdentity()
 const preferences = useUserPreferences()
+const guided = computed(() => preferences.preferences.value?.interface_mode === 'guided')
 // Guided mode's project "home base" is Gender taggen, not Übersicht (D26/D27): that page's own cards
 // expose the full dataset history and an Übersicht that guided accounts no longer have a path into,
 // so the project crumb must not lead there.
-const projectHomeRoute = computed(() =>
-  preferences.preferences.value?.interface_mode === 'guided' ? 'projectGenderTagging' : 'projectOverview',
-)
+const projectHomeRoute = computed(() => (guided.value ? 'projectGenderTagging' : 'projectOverview'))
 const projectContext = computed(
   () => identity.isProjectRoute.value && session.canUsePrivateNavigation,
 )
@@ -139,14 +138,19 @@ const crumbs = computed<Breadcrumb[]>(() => {
         },
       })
     }
-  } else if (project !== null && (name === 'exportDetail' || name === 'evaluationDetail')) {
+  } else if (project !== null && name === 'exportDetail' && !guided.value) {
+    // The exports list is an advanced-only concept (D27: guided mode creates and reaches an export
+    // only inline from Gender taggen, never a history of them) — no parent crumb to it there.
     entries.push({
-      id: name === 'exportDetail' ? 'exports' : 'evaluations',
-      label: name === 'exportDetail' ? t('export.title') : t('evaluation.title'),
-      to: {
-        name: name === 'exportDetail' ? 'exports' : 'evaluations',
-        params: { projectId: project.id, runId: route.params.runId },
-      },
+      id: 'exports',
+      label: t('export.title'),
+      to: { name: 'exports', params: { projectId: project.id, runId: route.params.runId } },
+    })
+  } else if (project !== null && name === 'evaluationDetail') {
+    entries.push({
+      id: 'evaluations',
+      label: t('evaluation.title'),
+      to: { name: 'evaluations', params: { projectId: project.id, runId: route.params.runId } },
     })
   }
   entries.push(current)
