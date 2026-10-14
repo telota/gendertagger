@@ -50,6 +50,7 @@ const crumbs = computed<Breadcrumb[]>(() => {
     projects: t('projects.title'),
     projectMembers: t('projectMembers.title'),
     projectOverview: t('nav.overview'),
+    projectGenderTagging: t('nav.genderTagging'),
     projectImport: t('nav.import'),
     projectSnapshots: t('nav.data'),
     snapshotDetail: t('data.detailTitle'),
@@ -75,9 +76,14 @@ const crumbs = computed<Breadcrumb[]>(() => {
   const current = { id: name, label: labels[name] ?? t('notFound.title') }
   if (!projectContext.value) return [current]
   const project = identity.project.value
-  const entries: Breadcrumb[] = []
+  // Every project-scoped trail leads back to the home page (D26: it is now the project hub),
+  // including projectOverview itself — previously a dead-end crumb with no way back up.
+  const entries: Breadcrumb[] = [{ id: 'home', label: t('app.title'), to: { name: 'home' } }]
   if (project !== null) {
-    if (name === 'projectOverview') return [{ id: 'project', label: project.display_name }]
+    if (name === 'projectOverview') {
+      entries.push({ id: 'project', label: project.display_name })
+      return entries
+    }
     entries.push({
       id: 'project',
       label: project.display_name,

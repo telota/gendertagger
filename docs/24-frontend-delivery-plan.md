@@ -1587,10 +1587,24 @@ that completes a step; do not mark one done without its tests passing against th
       symlink failures in `tests/tooling/unused-code.spec.ts`), `typecheck`, `lint`, `i18n:check`, and
       `unused:check` all verified clean. Not yet committed as of writing this line — do that next
       (`git fetch origin` / compare before committing and before pushing).
-- [ ] Frontend: `AppBreadcrumbs.vue` gains a leading crumb back to `home` on every project-scoped route,
-      including `projectOverview` itself.
-- [ ] Frontend: `AppBreadcrumbs.vue` gains a leading crumb back to `home` on every project-scoped route,
-      including `projectOverview` itself.
+- [x] Frontend: `AppBreadcrumbs.vue` gains a leading crumb back to `home` on every project-scoped route,
+      including `projectOverview` itself (previously a dead-end crumb with no way back up). The
+      `labels` map also gained `projectGenderTagging: t('nav.genderTagging')`, which had no breadcrumb
+      label at all before and silently fell back to "not found". Updated all 9 affected cases in
+      `AppBreadcrumbs.spec.ts` for the shifted link indices/counts; the membership and permission-loss
+      cases needed scoped selectors (`.app-breadcrumb-error a`, `findAll('a')[1]`) since a second,
+      unrelated link now exists alongside the leading home crumb. Full suite (1763 passed, same 2
+      pre-existing Windows symlink failures), `typecheck`, `lint`, `i18n:check`, `unused:check` all
+      clean. Also visually verified against the real stack (Docker dev profile, seeded
+      "Frontend demonstration" project): confirmed the home crumb links correctly on both
+      `projectOverview` and the guided `projectGenderTagging` page, and confirmed the guided sidebar
+      (previous checklist item) renders correctly end-to-end for an account with a stored
+      `interface_mode: 'guided'` preference. Found and fixed an unrelated environment issue along the
+      way: this long-running dev-stack database predated the `interface_mode` migration (commit
+      `d3b6754`), so `/api/v1/me/preferences` 500'd until `docker compose ... run --rm -v
+      ".../backend/migrations:/app/migrations" migrate` was re-run — exactly the documented fix, not a
+      new bug, but it did validate that the sidebar's advanced-mode fallback degrades gracefully under
+      a genuinely failing preferences endpoint, not just in mocked tests.
 - [x] Frontend: the guided "Gender taggen" page (D27) — `GenderTaggingView.vue` at the new
       `projectGenderTagging` route (`/projects/:projectId/gender-tagging`). Import reuses
       `SnapshotImportForm.vue`; generate preselects every method from `useMethodList` through

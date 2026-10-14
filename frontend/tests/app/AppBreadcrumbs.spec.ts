@@ -81,12 +81,14 @@ describe.each(['de', 'en'] as const)('header breadcrumbs in %s', (locale) => {
       `/projects/${PROJECT}/runs/run-id/aggregations/aggregation-id/review?person=tei-id`,
       locale,
     )
-    await waitFor(() => expect(wrapper.find('a').exists()).toBe(true))
+    await waitFor(() => expect(wrapper.findAll('a')).toHaveLength(2))
     expect(wrapper.get('nav').attributes('aria-label')).toBe(messages.breadcrumbs.label)
-    expect(wrapper.get('a').text()).toBe(NAME)
-    expect(wrapper.get('a').attributes('href')).toBe(`/projects/${PROJECT}/overview`)
+    const links = wrapper.findAll('a')
+    expect(links[0]?.attributes('href')).toBe('/')
+    expect(links[1]?.text()).toBe(NAME)
+    expect(links[1]?.attributes('href')).toBe(`/projects/${PROJECT}/overview`)
     expect(wrapper.get('[aria-current="page"]').text()).toBe(messages.review.title)
-    expect(wrapper.findAll('li')).toHaveLength(2)
+    expect(wrapper.findAll('li')).toHaveLength(3)
     for (const id of [PROJECT, 'run-id', 'aggregation-id', 'tei-id'])
       expect(wrapper.text()).not.toContain(id)
     expect(wrapper.find('h1').exists()).toBe(false)
@@ -98,21 +100,21 @@ describe.each(['de', 'en'] as const)('header breadcrumbs in %s', (locale) => {
       `/projects/${PROJECT}/runs/run-id/exports/export-id`,
       locale,
     )
-    await waitFor(() => expect(wrapper.findAll('a')).toHaveLength(2))
-    expect(wrapper.findAll('a')[1]?.attributes('href')).toBe(
+    await waitFor(() => expect(wrapper.findAll('a')).toHaveLength(3))
+    expect(wrapper.findAll('a')[2]?.attributes('href')).toBe(
       `/projects/${PROJECT}/runs/run-id/exports`,
     )
     expect(wrapper.get('[aria-current="page"]').text()).toBe(messages.export.detail.title)
     await router.push(`/projects/${PROJECT}/runs/run-id/evaluations/evaluation-id`)
-    expect(wrapper.findAll('a')[1]?.attributes('href')).toBe(
+    expect(wrapper.findAll('a')[2]?.attributes('href')).toBe(
       `/projects/${PROJECT}/runs/run-id/evaluations`,
     )
     await router.push(`/projects/${PROJECT}/snapshots/snapshot-id/runs/run-id`)
-    expect(wrapper.findAll('a')[1]?.attributes('href')).toBe(
+    expect(wrapper.findAll('a')[2]?.attributes('href')).toBe(
       `/projects/${PROJECT}/snapshots/snapshot-id/runs`,
     )
     await router.push(`/projects/${PROJECT}/runs/run-id/aggregations/aggregation-id`)
-    expect(wrapper.findAll('a')).toHaveLength(1)
+    expect(wrapper.findAll('a')).toHaveLength(2)
   })
 
   it('links the run hierarchy for a method-results page without resolving extra resources', async () => {
@@ -120,8 +122,9 @@ describe.each(['de', 'en'] as const)('header breadcrumbs in %s', (locale) => {
       '/projects/' + PROJECT + '/snapshots/snapshot-id/runs/run-id/executions/execution-id/results',
       locale,
     )
-    await waitFor(() => expect(wrapper.findAll('a')).toHaveLength(3))
+    await waitFor(() => expect(wrapper.findAll('a')).toHaveLength(4))
     expect(wrapper.findAll('a').map((link) => link.attributes('href'))).toEqual([
+      '/',
       '/projects/' + PROJECT + '/overview',
       '/projects/' + PROJECT + '/snapshots/snapshot-id/runs',
       '/projects/' + PROJECT + '/snapshots/snapshot-id/runs/run-id',
@@ -141,10 +144,12 @@ describe.each(['de', 'en'] as const)('header breadcrumbs in %s', (locale) => {
     const { wrapper, router } = await render(`/projects/${PROJECT}/snapshots`, locale, client)
     await waitFor(() => expect(wrapper.get('[aria-current="page"]').text()).toBe(messages.nav.data))
     expect(wrapper.findAll('a').map((link) => link.attributes('href'))).toEqual([
+      '/',
       `/projects/${PROJECT}/overview`,
     ])
     await router.push(`/projects/${PROJECT}/snapshots/snapshot-id?person=record-id`)
     expect(wrapper.findAll('a').map((link) => link.attributes('href'))).toEqual([
+      '/',
       `/projects/${PROJECT}/overview`,
       `/projects/${PROJECT}/snapshots`,
     ])
@@ -152,16 +157,17 @@ describe.each(['de', 'en'] as const)('header breadcrumbs in %s', (locale) => {
     expect(wrapper.text()).not.toContain('snapshot-id')
     expect(wrapper.text()).not.toContain('record-id')
     await router.push(`/projects/${PROJECT}/import`)
-    expect(wrapper.findAll('a')[1]?.text()).toBe(messages.nav.data)
+    expect(wrapper.findAll('a')[2]?.text()).toBe(messages.nav.data)
     expect(wrapper.get('[aria-current="page"]').text()).toBe(messages.nav.import)
     expect(requests).toEqual([`/api/v1/projects/${PROJECT}`])
     await expectNoAxeViolations(wrapper.element)
   })
 
-  it('uses the project as current overview and drops context on global routes', async () => {
+  it('uses the project as current overview, linked back to the home page (D26), and drops context on global routes', async () => {
     const { wrapper, router } = await render(`/projects/${PROJECT}/overview`, locale)
     await waitFor(() => expect(wrapper.text()).toContain(NAME))
-    expect(wrapper.find('a').exists()).toBe(false)
+    expect(wrapper.findAll('li')).toHaveLength(2)
+    expect(wrapper.get('a').attributes('href')).toBe('/')
     expect(wrapper.get('[aria-current="page"]').text()).toBe(NAME)
     for (const path of ['/settings', '/admin/users', '/projects', '/impressum']) {
       await router.push(path)
@@ -238,10 +244,10 @@ describe.each(['de', 'en'] as const)('header breadcrumbs in %s', (locale) => {
     await queryClient.invalidateQueries({ queryKey: ['projects', PROJECT] })
     await waitFor(() => expect(wrapper.text()).not.toContain(NAME))
     expect(wrapper.text()).toContain(messages.breadcrumbs.projectAccessUnavailable)
-    expect(wrapper.get('a').attributes('href')).toBe('/projects')
+    expect(wrapper.get('.app-breadcrumb-error a').attributes('href')).toBe('/projects')
     await router.push(`/projects/${PROJECT}/members`)
     expect(wrapper.get('[aria-current="page"]').text()).toBe(messages.projectMembers.title)
-    expect(wrapper.get('a').attributes('href')).toBe('/projects')
+    expect(wrapper.findAll('a')[1]?.attributes('href')).toBe('/projects')
     expect(wrapper.text()).not.toContain(messages.breadcrumbs.projectAccessUnavailable)
   })
 
