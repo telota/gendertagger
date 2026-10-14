@@ -1653,4 +1653,6 @@ that completes a step; do not mark one done without its tests passing against th
       scientific/export semantics change beyond presentation. (No new ADR for D26–D28: all three are
       frontend-presentation-only, unlike D26's backend `interface_mode` field, which ADR-0050 already
       covers.)
-- [ ] Final `git fetch`/compare, commit, and push once the whole increment is verified end to end.
+- [x] Final `git fetch`/compare, commit, and push once the whole increment is verified end to end.
+      D26, D27, and D28 are all implemented, tested, and on `origin/main` (commits `d3b6754`,
+      `d06328a`, `beb6999`, `4a8e471`, `2c1be11`, `6fa2100`).
