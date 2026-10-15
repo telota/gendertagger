@@ -91,7 +91,7 @@ describe.each(['de', 'en'] as const)('home page in %s', (locale: AppLocale) => {
     await expectNoAxeViolations(wrapper.element)
   })
 
-  it('signs in from the home page and continues to the projects', async () => {
+  it('signs in from the home page and continues to the signed-in dashboard there (D26)', async () => {
     const wrapper = await mountApplicationAt(
       '/',
       locale,
@@ -104,7 +104,7 @@ describe.each(['de', 'en'] as const)('home page in %s', (locale: AppLocale) => {
 
     await signInFromHome(wrapper, 'a-correct-passphrase')
 
-    await waitFor(() => expect(wrapper.vm.$route.fullPath).toBe('/projects'))
+    await waitFor(() => expect(wrapper.vm.$route.fullPath).toBe('/'))
     expect(wrapper.get('header').text()).toContain('Reviewer One')
   })
 
@@ -124,7 +124,7 @@ describe.each(['de', 'en'] as const)('home page in %s', (locale: AppLocale) => {
     await waitFor(() => {
       expect(wrapper.get('main h1').text()).toBe(catalogues[locale].changePassword.title)
     })
-    expect(wrapper.vm.$route.query.redirect).toBe('/projects')
+    expect(wrapper.vm.$route.query.redirect).toBe('/')
   })
 
   it('shows wrong credentials inline and stays on the home page', async () => {

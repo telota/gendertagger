@@ -41,10 +41,11 @@ const steps = computed(() => [
   },
 ])
 
-// Signing in here skips the welcome view and continues to the projects the visitor came for.
+// Signing in here skips the welcome view and continues straight to the signed-in home page (D26:
+// the project list/hub the visitor came for lives there now, not at the separate `/projects` page).
 async function submit(): Promise<void> {
   if (await attemptLogin()) {
-    await router.push(signInDestination(session.mustChangePassword, '/projects'))
+    await router.push(signInDestination(session.mustChangePassword, '/'))
   }
 }
 </script>

@@ -1784,6 +1784,31 @@ Further direct feedback, continuing the two rounds above.
   shows the done state. `GenderTaggingView.vue` remounts the form (an incrementing key) each time
   Schritt 1's own toggle is reopened, so guided mode still has a way to start a second import without
   that button.
+- **The inline sign-in on the signed-out home page landed on the now-orphaned `/projects` page,
+  duplicating the signed-in home dashboard at `/`.** `GuestHomeView.vue`'s own post-login redirect
+  predates D26, from when `/projects` was still the project list a visitor landed on; D26 moved that
+  list onto the signed-in home page itself. Changed the hardcoded target from `/projects` to `/`,
+  matching `LoginView.vue`'s own default (which already went to `/`, just not this inline form).
+- **A nested `.app-card` lost its padding inside a `--sectioned` one.** `.app-card--sectioned` sets
+  `--app-card-padding: 0` so it can delegate inset to its own full-width child sections — a CSS custom
+  property, which inherits to *any* descendant, including an unrelated plain `.app-card` nested inside
+  it (`SnapshotImportForm.vue`, embedded in `GenderTaggingView.vue`'s own sectioned card). Reinstated
+  `--app-card-padding: var(--space-4)` on `.snapshot-import-form` itself so it keeps its own inset
+  regardless of where it's mounted.
+- **Schritt 2 ("Automatische Vorschläge generieren") failed outright, every time, found via direct use
+  of the real stack.** Root cause: 7 of the 10 registered methods need real per-method configuration
+  (most are lookup methods needing a `lookup_sha256` for a compiled local authority/reference snapshot
+  that doesn't exist in this deployment yet; `local_llm` needs configuration too) — the server rejects
+  the whole run at creation (`422`) naming exactly one offending method, before any execution is even
+  dispatched. Guided mode has no configuration step of its own (D27: one sequential flow, no decisions)
+  and previously just sent every registered method with an empty config. `startGenerate()` now retries
+  without the one method the server just named, repeating until the run is accepted or no method is
+  left — converging on whatever subset this deployment can actually run, with no user-visible decision
+  and no backend contract change. (Confirmed by replaying the exact request against the real API with
+  curl: only `gender_guesser`, `nomquamgender`, and `parenthetical_qualifier` currently succeed with an
+  empty config; the other 7 fail individually.) Advanced mode's own `NewRunForm.vue` already lets a
+  user deselect methods and paste per-method JSON config by hand, so it was never broken the same way —
+  only guided mode's "select everything automatically" premise was.
 
 Full suite, `typecheck`, `lint`, `i18n:check`, and `unused:check` all clean (same 2 pre-existing Windows
 symlink failures as every prior round). Visually verified against the real stack.

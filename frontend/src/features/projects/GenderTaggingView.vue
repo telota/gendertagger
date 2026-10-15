@@ -188,25 +188,42 @@ watch(
   { immediate: true },
 )
 
-function startGenerate(): void {
+// The registry can hold methods this deployment has no usable configuration for yet (e.g. a lookup
+// method with no compiled snapshot) — the server rejects the whole run at creation, naming exactly
+// one offending method per attempt. Guided mode has no configuration step of its own (D27: one
+// sequential flow, no decisions), so it reruns without that one method and tries again, converging
+// on whatever subset this deployment can actually run rather than failing outright every time.
+const METHOD_NAME_IN_ERROR = /method '([^']+)'/
+function unusableMethodFrom(error: unknown): string | null {
+  if (!(error instanceof ApiError) || error.code !== 'validation_error') return null
+  const reason = error.details['reason']
+  return typeof reason === 'string' ? (METHOD_NAME_IN_ERROR.exec(reason)?.[1] ?? null) : null
+}
+
+async function startGenerate(): Promise<void> {
   const snapshotId = latestReady.value?.id
-  if (snapshotId === undefined || !canGenerate.value || methods.data.value === undefined) return
+  const allMethods = methods.data.value
+  if (snapshotId === undefined || !canGenerate.value || allMethods === undefined) return
   autoCreateAttempted = false
   createdAggregationId.value = null
   workingSetFor = null
-  const methodConfigs = methods.data.value.map((method) => ({
-    name: method.name,
-    enabled: true,
-    config: {},
-  }))
-  void createRun
-    .mutateAsync({ snapshotId, config: { methods: methodConfigs } })
-    .then((run) => {
+  const excluded = new Set<string>()
+  for (let attempt = 0; attempt <= allMethods.length; attempt += 1) {
+    const methodConfigs = allMethods
+      .filter((method) => !excluded.has(method.name))
+      .map((method) => ({ name: method.name, enabled: true, config: {} }))
+    if (methodConfigs.length === 0) return // createRun.isError/.error already reflect the last attempt.
+    try {
+      const run = await createRun.mutateAsync({ snapshotId, config: { methods: methodConfigs } })
       activeRunId.value = run.id
-    })
-    .catch(() => {
-      // createRun.isError/.error already reflect this; shown below.
-    })
+      return
+    } catch (error) {
+      const unusable = unusableMethodFrom(error)
+      if (unusable === null || excluded.has(unusable)) return // createRun.isError/.error already reflect this.
+      excluded.add(unusable)
+      createRun.reset()
+    }
+  }
 }
 
 function retryGenerate(): void {

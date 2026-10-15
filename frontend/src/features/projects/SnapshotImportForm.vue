@@ -736,6 +736,10 @@ async function resetImport(): Promise<void> {
 
 <style scoped>
 .snapshot-import-form {
+  /* `.app-card`'s padding is a CSS custom property, which inherits: nested inside
+     `.app-card--sectioned` (GenderTaggingView's guided panel) it would otherwise pick up that
+     ancestor's `--app-card-padding: 0` and lose its own inset. Reinstate the default explicitly. */
+  --app-card-padding: var(--space-4);
   container: snapshot-import / inline-size;
   display: flex;
   min-inline-size: 0;

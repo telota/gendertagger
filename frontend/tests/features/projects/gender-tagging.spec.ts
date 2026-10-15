@@ -391,6 +391,66 @@ describe.each(['de', 'en'] as const)('GenderTaggingView in %s', (locale: AppLoca
     ])
   })
 
+  it('retries without a method the deployment cannot run yet, instead of failing outright (bugfix)', async () => {
+    stubEventSource()
+    const table = routesFor(null)
+    const runRequestBodies: Array<{ name: string }[]> = []
+    const client = createApiClient({
+      fetch: async (request) => {
+        const path = new URL(request.url).pathname
+        if (path === `/api/v1/projects/${PROJECT_ID}`) return jsonResponse(project(table.working))
+        if (path === '/api/v1/methods') {
+          return jsonResponse([
+            { name: 'method-a', implementation_version: '1', method_confidence_range: [0, 1] },
+            { name: 'gnd', implementation_version: '1', method_confidence_range: null },
+          ])
+        }
+        if (path === '/api/v1/runs' && request.method === 'POST') {
+          const body = (await request.clone().json()) as { config: { methods: { name: string }[] } }
+          runRequestBodies.push(body.config.methods)
+          if (body.config.methods.some((method) => method.name === 'gnd')) {
+            return jsonResponse(
+              {
+                error: {
+                  code: 'validation_error',
+                  message: 'The run configuration is invalid.',
+                  details: { reason: "configuration for method 'gnd' is invalid" },
+                },
+              },
+              { status: 422 },
+            )
+          }
+          return jsonResponse({ id: RUN_ID, dataset_snapshot_id: SNAPSHOT_ID, status: 'created' })
+        }
+        if (path === `/api/v1/runs/${RUN_ID}/executions` && request.method === 'POST') {
+          return jsonResponse({ id: RUN_ID, dataset_snapshot_id: SNAPSHOT_ID, status: 'completed' })
+        }
+        const route = table.get(path)
+        return jsonResponse(route ?? {}, { status: route === undefined ? 404 : 200 })
+      },
+    })
+    const wrapper = await mountApplicationAt(
+      `/projects/${PROJECT_ID}/gender-tagging`,
+      locale,
+      client,
+    )
+    await waitFor(() => expect(wrapper.get('h1').text()).toBe('Gender Project'))
+    await waitFor(() => {
+      const button = wrapper.findAll('button').find((item) => item.text() === messages.generate.title)
+      expect(button).toBeDefined()
+      expect(button?.attributes('disabled')).toBeUndefined()
+    })
+    const generate = wrapper
+      .findAll('button')
+      .find((button) => button.text() === messages.generate.title)
+    await generate!.trigger('click')
+
+    await waitFor(() => expect(runRequestBodies.length).toBe(2))
+    expect(runRequestBodies[0]?.map((method) => method.name)).toEqual(['method-a', 'gnd'])
+    expect(runRequestBodies[1]?.map((method) => method.name)).toEqual(['method-a'])
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+  })
+
   it('submits a format-only export and navigates to the export detail page', async () => {
     stubEventSource()
     const table = routesFor(AGGREGATION_ID)
