@@ -79,6 +79,28 @@ const MANIFEST = {
   generated_at: '2026-01-01T12:00:05Z',
 }
 
+const MEMBER_ONE_BYTES = '<TEI xmlns="http://www.tei-c.org/ns/1.0"><text>one</text></TEI>'
+const MEMBER_ONE_SHA = createHash('sha256').update(MEMBER_ONE_BYTES).digest('hex')
+const MEMBER_TWO_BYTES = '<TEI xmlns="http://www.tei-c.org/ns/1.0"><text>two</text></TEI>'
+const MEMBER_TWO_SHA = createHash('sha256').update(MEMBER_TWO_BYTES).digest('hex')
+const DOWNLOADABLE_MANIFEST = {
+  ...MANIFEST,
+  outputs: [
+    {
+      logical_name: 'persons-a.xml',
+      sha256: MEMBER_ONE_SHA,
+      byte_size: new TextEncoder().encode(MEMBER_ONE_BYTES).length,
+      media_type: 'application/tei+xml',
+    },
+    {
+      logical_name: 'persons-b.xml',
+      sha256: MEMBER_TWO_SHA,
+      byte_size: new TextEncoder().encode(MEMBER_TWO_BYTES).length,
+      media_type: 'application/tei+xml',
+    },
+  ],
+}
+
 const SINGLE_MANIFEST = {
   ...MANIFEST,
   outputs: [
@@ -266,6 +288,22 @@ function exportClient(server: Server) {
         }
         return new Response(server.download.body, {
           headers: { 'content-type': server.download.type },
+        })
+      }
+      if (pathname === `/api/v1/exports/${EXPORT_ID}/download/${MEMBER_ONE_SHA}`) {
+        return new Response(MEMBER_ONE_BYTES, {
+          headers: {
+            'content-type': 'application/tei+xml',
+            'content-disposition': 'attachment; filename="persons-a.xml"',
+          },
+        })
+      }
+      if (pathname === `/api/v1/exports/${EXPORT_ID}/download/${MEMBER_TWO_SHA}`) {
+        return new Response(MEMBER_TWO_BYTES, {
+          headers: {
+            'content-type': 'application/tei+xml',
+            'content-disposition': 'attachment; filename="persons-b.xml"',
+          },
         })
       }
       return jsonResponse({}, { status: 404 })
@@ -666,6 +704,59 @@ describe.each(['de', 'en'] as const)('exports in %s', (locale: AppLocale) => {
       messages.detail.manifestVerdict.notApplicable,
     )
     expect(saved[0]?.name).toBe('manifest.json')
+  })
+
+  it('downloads each output of a multi-output export individually from the manifest table', async () => {
+    const server = newServer({
+      manifest: DOWNLOADABLE_MANIFEST,
+      download: { status: 200, body: JSON.stringify(DOWNLOADABLE_MANIFEST), type: 'application/json' },
+    })
+    const wrapper = await mountDetail(server)
+    await waitFor(() => expect(wrapper.find('.export-detail-manifest-outputs').exists()).toBe(true))
+    const rows = wrapper.get('.export-detail-manifest-outputs').findAll('tbody tr')
+    expect(rows).toHaveLength(2)
+
+    await rows[0]!.get('.export-detail-output-download').trigger('click')
+    await waitFor(() => expect(saved).toHaveLength(1))
+    expect(saved[0]?.name).toBe('persons-a.xml')
+    expect(rows[0]!.find('.export-detail-error').exists()).toBe(false)
+
+    await rows[1]!.get('.export-detail-output-download').trigger('click')
+    await waitFor(() => expect(saved).toHaveLength(2))
+    expect(saved[1]?.name).toBe('persons-b.xml')
+  })
+
+  it('flags a mismatched checksum on one output without blocking the others', async () => {
+    const server = newServer({
+      manifest: {
+        ...DOWNLOADABLE_MANIFEST,
+        outputs: [
+          { ...DOWNLOADABLE_MANIFEST.outputs[0]!, sha256: 'f'.repeat(64) },
+          DOWNLOADABLE_MANIFEST.outputs[1]!,
+        ],
+      },
+      download: { status: 200, body: JSON.stringify(DOWNLOADABLE_MANIFEST), type: 'application/json' },
+    })
+    const wrapper = await mountDetail(server)
+    await waitFor(() => expect(wrapper.find('.export-detail-manifest-outputs').exists()).toBe(true))
+
+    // The first row's manifest-listed checksum no longer matches what /download/{sha256} actually
+    // serves for it (the mock server only recognises the real content hash), so the request 404s.
+    await wrapper
+      .get('.export-detail-manifest-outputs')
+      .findAll('tbody tr')[0]!
+      .get('.export-detail-output-download')
+      .trigger('click')
+    await waitFor(() =>
+      expect(
+        wrapper
+          .get('.export-detail-manifest-outputs')
+          .findAll('tbody tr')[0]!
+          .get('.export-detail-error')
+          .text(),
+      ).toBe(messages.detail.errors.generic),
+    )
+    expect(saved).toHaveLength(0)
   })
 
   it('does not mistake a JSON result bundle for a manifest', async () => {

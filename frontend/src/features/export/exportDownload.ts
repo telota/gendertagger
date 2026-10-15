@@ -147,6 +147,35 @@ export async function downloadExport(
   }
 }
 
+/**
+ * `GET /exports/{id}/download/{sha256}`: one individual member of a multi-output export (the `tei`
+ * loose-collection case `downloadExport` above can only ever hand back as the manifest). The caller
+ * already has the expected checksum from the manifest listing and compares it itself.
+ */
+export async function downloadExportOutput(
+  client: ApiClient,
+  exportId: string,
+  sha256: string,
+  signal?: AbortSignal,
+): Promise<DownloadedExport> {
+  const pending = client.GET('/api/v1/exports/{export_execution_id}/download/{sha256}', {
+    params: { path: { export_execution_id: exportId, sha256 } },
+    parseAs: 'blob',
+    ...(signal ? { signal } : {}),
+  })
+  const blob = await unwrap(pending)
+  const { response } = await pending
+  const buffer = await blob.arrayBuffer()
+  return {
+    blob,
+    filename: filenameFrom(response, sha256),
+    mediaType: response.headers.get('content-type') ?? blob.type,
+    byteSize: buffer.byteLength,
+    sha256: await sha256Hex(buffer),
+    manifest: null,
+  }
+}
+
 /** Hand the bytes to the browser as a file download. */
 export function saveDownload(download: DownloadedExport): void {
   const url = URL.createObjectURL(download.blob)

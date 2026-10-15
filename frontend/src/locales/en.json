@@ -1576,7 +1576,7 @@
       "size": "Size",
       "bytes": "{size} bytes",
       "checksum": "SHA-256",
-      "manifestReceived": "This export produced several outputs, so the download is its manifest; the outputs are listed in the manifest section above and are not downloadable separately.",
+      "manifestReceived": "This export produced several outputs, so this download is its manifest; each individual output can be downloaded above, from the manifest table.",
       "sourceSnapshot": "Source dataset SHA-256",
       "outputs": "Outputs recorded in the manifest",
       "verifyLabel": "Checksum from the manifest (paste it to compare)",

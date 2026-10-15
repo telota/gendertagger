@@ -181,6 +181,7 @@ PATH_VALUES = {
     "evaluation_id": _ID,
     "export_execution_id": _ID,
     "user_id": _OTHER,
+    "sha256": "a" * 64,
 }
 PROJECT_SCOPED_ROUTES = (
     _ScopedRoute("GET", "/projects/{project_id}", ProjectScope.project, ProjectRole.viewer),
@@ -372,6 +373,12 @@ PROJECT_SCOPED_ROUTES = (
     _ScopedRoute("GET", "/exports/{export_execution_id}", ProjectScope.export, ProjectRole.viewer),
     _ScopedRoute(
         "GET", "/exports/{export_execution_id}/download", ProjectScope.export, ProjectRole.viewer
+    ),
+    _ScopedRoute(
+        "GET",
+        "/exports/{export_execution_id}/download/{sha256}",
+        ProjectScope.export,
+        ProjectRole.viewer,
     ),
     _ScopedRoute(
         "GET", "/exports/{export_execution_id}/manifest", ProjectScope.export, ProjectRole.viewer

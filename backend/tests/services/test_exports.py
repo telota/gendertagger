@@ -35,12 +35,16 @@ AGGREGATION_ID = UUID(int=4)
 ReadExport = Callable[[ExportService, UUID], ExportManifest | ExportDownload]
 
 
-def _artifact(artifact_id: UUID) -> Artifact:
+def _download_known_output(service: ExportService, export_execution_id: UUID) -> ExportDownload:
+    return service.download_output(export_execution_id, "b" * 64)
+
+
+def _artifact(artifact_id: UUID, *, sha256: str = "a" * 64) -> Artifact:
     return Artifact(
         id=artifact_id,
         logical_type="export_manifest" if artifact_id == MANIFEST_ID else "export_output",
         storage_uri=f"local:{artifact_id}",
-        sha256="a" * 64,
+        sha256=sha256,
         byte_size=100,
         media_type="application/json",
         export_execution_id=EXPORT_ID,
@@ -66,6 +70,27 @@ def _manifest() -> ExportManifest:
             ),
         ),
         generated_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+
+
+def _multi_output_manifest() -> ExportManifest:
+    return _manifest().model_copy(
+        update={
+            "outputs": (
+                ExportManifestOutput(
+                    logical_name="member-one.xml",
+                    sha256="b" * 64,
+                    byte_size=10,
+                    media_type="application/tei+xml",
+                ),
+                ExportManifestOutput(
+                    logical_name="member-two.xml",
+                    sha256="c" * 64,
+                    byte_size=20,
+                    media_type="application/tei+xml",
+                ),
+            )
+        }
     )
 
 
@@ -95,7 +120,9 @@ def export_service() -> tuple[ExportService, MagicMock, Mock]:
     return service, unit_of_work, storage
 
 
-@pytest.mark.parametrize("read", [ExportService.get_manifest, ExportService.download_export])
+@pytest.mark.parametrize(
+    "read", [ExportService.get_manifest, ExportService.download_export, _download_known_output]
+)
 def test_export_read_missing_execution_raises_not_found(
     export_service: tuple[ExportService, MagicMock, Mock], read: ReadExport
 ) -> None:
@@ -108,7 +135,9 @@ def test_export_read_missing_execution_raises_not_found(
     storage.open.assert_not_called()
 
 
-@pytest.mark.parametrize("read", [ExportService.get_manifest, ExportService.download_export])
+@pytest.mark.parametrize(
+    "read", [ExportService.get_manifest, ExportService.download_export, _download_known_output]
+)
 def test_export_read_without_manifest_raises_not_found(
     export_service: tuple[ExportService, MagicMock, Mock], read: ReadExport
 ) -> None:
@@ -128,7 +157,9 @@ def test_export_read_without_manifest_raises_not_found(
     storage.open.assert_not_called()
 
 
-@pytest.mark.parametrize("read", [ExportService.get_manifest, ExportService.download_export])
+@pytest.mark.parametrize(
+    "read", [ExportService.get_manifest, ExportService.download_export, _download_known_output]
+)
 def test_export_read_missing_manifest_artifact_raises_not_found(
     export_service: tuple[ExportService, MagicMock, Mock], read: ReadExport
 ) -> None:
@@ -218,3 +249,52 @@ def test_download_multiple_outputs_returns_manifest_bytes_and_metadata(
         media_type=manifest.media_type,
     )
     storage.open.assert_called_once_with(manifest.storage_uri)
+
+
+def test_download_output_returns_the_requested_member_by_checksum(
+    export_service: tuple[ExportService, MagicMock, Mock],
+) -> None:
+    service, unit_of_work, storage = export_service
+    manifest = unit_of_work.artifacts.get_artifact.return_value
+    first = _artifact(UUID(int=6), sha256="b" * 64)
+    second = _artifact(UUID(int=7), sha256="c" * 64)
+    unit_of_work.artifacts.list_artifacts_by_export.return_value = [manifest, first, second]
+    second_content = b"<TEI>member two</TEI>"
+    storage.open.side_effect = [
+        BytesIO(_multi_output_manifest().model_dump_json().encode()),
+        BytesIO(second_content),
+    ]
+
+    download = service.download_output(EXPORT_ID, "c" * 64)
+
+    assert download == ExportDownload(
+        content=second_content,
+        logical_name="member-two.xml",
+        sha256=second.sha256,
+        media_type=second.media_type,
+    )
+    assert storage.open.call_args_list == [call(manifest.storage_uri), call(second.storage_uri)]
+
+
+def test_download_output_rejects_a_checksum_the_manifest_never_listed(
+    export_service: tuple[ExportService, MagicMock, Mock],
+) -> None:
+    service, unit_of_work, storage = export_service
+    storage.open.return_value = BytesIO(_multi_output_manifest().model_dump_json().encode())
+
+    with pytest.raises(ResourceNotFoundError, match="no output with checksum"):
+        service.download_output(EXPORT_ID, "d" * 64)
+
+    unit_of_work.artifacts.list_artifacts_by_export.assert_not_called()
+
+
+def test_download_output_rejects_a_listed_checksum_with_no_matching_artifact(
+    export_service: tuple[ExportService, MagicMock, Mock],
+) -> None:
+    service, unit_of_work, storage = export_service
+    manifest = unit_of_work.artifacts.get_artifact.return_value
+    unit_of_work.artifacts.list_artifacts_by_export.return_value = [manifest]
+    storage.open.return_value = BytesIO(_multi_output_manifest().model_dump_json().encode())
+
+    with pytest.raises(ResourceNotFoundError, match="no output with checksum"):
+        service.download_output(EXPORT_ID, "b" * 64)

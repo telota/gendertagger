@@ -13,7 +13,12 @@ import { useArtifactRouteContext } from '@/composables/useArtifactRouteContext'
 import { useUserPreferences } from '@/composables/useUserPreferences'
 import LifecycleStatus from '@/components/domain/LifecycleStatus.vue'
 
-import { downloadExport, saveDownload, type DownloadedExport } from './exportDownload'
+import {
+  downloadExport,
+  downloadExportOutput,
+  saveDownload,
+  type DownloadedExport,
+} from './exportDownload'
 import { useExport, useExportManifest } from './useExports'
 
 const { t, d, n } = useI18n()
@@ -145,6 +150,51 @@ async function download(): Promise<void> {
     }
   }
 }
+
+// Only the single-output case has the elaborate ownership/race handling above: a multi-output
+// export's own download is always its manifest (above), so each member here is the only way to get
+// the member's actual bytes at all, not an alternative to it.
+const downloadingOutputSha = ref<string | null>(null)
+const outputErrors = ref<Record<string, string>>({})
+let outputController: AbortController | null = null
+
+async function downloadOutput(output: { logical_name: string; sha256: string }): Promise<void> {
+  const current = item.data.value
+  if (!current || downloadingOutputSha.value !== null) return
+  const controller = new AbortController()
+  outputController = controller
+  downloadingOutputSha.value = output.sha256
+  outputErrors.value = { ...outputErrors.value, [output.sha256]: '' }
+  try {
+    const downloaded = await downloadExportOutput(
+      client,
+      current.id,
+      output.sha256,
+      controller.signal,
+    )
+    if (outputController !== controller) return
+    if (downloaded.sha256 !== output.sha256) {
+      outputErrors.value = {
+        ...outputErrors.value,
+        [output.sha256]: t('export.detail.verdict.mismatch'),
+      }
+      return
+    }
+    saveDownload(downloaded)
+  } catch {
+    if (outputController !== controller) return
+    outputErrors.value = {
+      ...outputErrors.value,
+      [output.sha256]: t('export.detail.errors.generic'),
+    }
+  } finally {
+    if (outputController === controller) {
+      downloadingOutputSha.value = null
+      outputController = null
+    }
+  }
+}
+onScopeDispose(() => outputController?.abort())
 
 // The download is checked against the manifest the server persisted for this export: the bytes must
 // have the checksum and size the manifest records for the (one) output. An export with several outputs
@@ -367,6 +417,7 @@ const verdict = computed<Verdict>(() => {
                   <th scope="col">{{ t('export.detail.file') }}</th>
                   <th scope="col">{{ t('export.detail.size') }}</th>
                   <th scope="col">{{ t('export.detail.checksum') }}</th>
+                  <th scope="col">{{ t('export.detail.downloadButton') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -375,6 +426,24 @@ const verdict = computed<Verdict>(() => {
                   <td>{{ t('export.detail.bytes', { size: n(output.byte_size, 'integer') }) }}</td>
                   <td>
                     <code class="export-detail-hash">{{ output.sha256 }}</code>
+                  </td>
+                  <td>
+                    <AppButton
+                      class="export-detail-output-download"
+                      type="button"
+                      variant="ghost"
+                      :disabled="downloadingOutputSha !== null"
+                      @click="downloadOutput(output)"
+                    >
+                      {{
+                        downloadingOutputSha === output.sha256
+                          ? t('export.detail.downloading')
+                          : t('export.detail.downloadButton')
+                      }}
+                    </AppButton>
+                    <p v-if="outputErrors[output.sha256]" role="alert" class="export-detail-error">
+                      {{ outputErrors[output.sha256] }}
+                    </p>
                   </td>
                 </tr>
               </tbody>
@@ -577,6 +646,10 @@ const verdict = computed<Verdict>(() => {
   border-bottom: 1px solid var(--grid);
   text-align: left;
   overflow-wrap: anywhere;
+}
+
+.export-detail-output-download {
+  white-space: nowrap;
 }
 
 .export-detail-caption {

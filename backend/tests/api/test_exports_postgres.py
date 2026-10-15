@@ -300,6 +300,27 @@ def test_queued_export_executes_and_output_round_trips_through_http(
         assert download_response.content == manifest_bytes
         assert checksum == manifest_artifact.sha256
         assert tuple(output.logical_name for output in manifest.outputs) == source_names
+        output_artifacts_by_sha = {
+            artifact.sha256: artifact
+            for artifact in artifacts
+            if artifact.id != manifest_artifact.id
+        }
+        for output in manifest.outputs:
+            member_response = client.get(
+                f"/api/v1/exports/{export_execution_id}/download/{output.sha256}"
+            )
+            assert member_response.status_code == 200
+            assert member_response.headers["x-checksum-sha256"] == output.sha256
+            assert (
+                member_response.headers["content-disposition"]
+                == f'attachment; filename="{output.logical_name}"'
+            )
+            with storage.open(output_artifacts_by_sha[output.sha256].storage_uri) as source:
+                assert member_response.content == source.read()
+        missing_output_response = client.get(
+            f"/api/v1/exports/{export_execution_id}/download/{'f' * 64}"
+        )
+        assert missing_output_response.status_code == 404
 
     missing_download_response = client.get(f"/api/v1/exports/{uuid4()}/download")
     assert missing_download_response.status_code == 404

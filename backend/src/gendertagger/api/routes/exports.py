@@ -5,13 +5,18 @@ from typing import Annotated
 from urllib.parse import quote
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Response, status
 
 from gendertagger.api.authorization import ProjectAccessGuard, get_project_access_guard
 from gendertagger.api.dependencies import get_export_service
 from gendertagger.api.errors import ApiRequestError, invalid_cursor_error
 from gendertagger.models.api import CursorPage
-from gendertagger.models.export import ExportCreateRequest, ExportExecution, ExportManifest
+from gendertagger.models.export import (
+    ExportCreateRequest,
+    ExportDownload,
+    ExportExecution,
+    ExportManifest,
+)
 from gendertagger.models.project import SHA256_PATTERN
 from gendertagger.models.user import ProjectRole
 from gendertagger.services.exports import ExportService
@@ -129,6 +134,48 @@ def download_export(
         download = service.download_export(export_execution_id)
     except ResourceNotFoundError as error:
         raise _not_found() from error
+    return _download_response(download)
+
+
+@router.get(
+    "/exports/{export_execution_id}/download/{sha256}",
+    response_class=Response,
+    responses={
+        200: {
+            "description": "One individual output of a multi-output export.",
+            "content": {
+                media_type: {"schema": {"type": "string", "format": "binary"}}
+                for media_type in ("application/json", "text/csv", "application/tei+xml")
+            },
+            "headers": {
+                "Content-Disposition": {
+                    "description": "Attachment filename from the logical output basename (UTF-8).",
+                    "schema": {"type": "string"},
+                },
+                "X-Checksum-SHA256": {
+                    "description": "Persisted lowercase hexadecimal SHA-256 of the downloaded artifact.",
+                    "schema": {"type": "string", "pattern": SHA256_PATTERN},
+                },
+            },
+        },
+    },
+)
+def download_export_output(
+    export_execution_id: UUID,
+    sha256: Annotated[str, Path(pattern=SHA256_PATTERN)],
+    service: Annotated[ExportService, Depends(get_export_service)],
+    access: Annotated[ProjectAccessGuard, Depends(get_project_access_guard)],
+) -> Response:
+    """Return one individual output of a multi-output export by its manifest checksum."""
+    access.require(ProjectScope.export, export_execution_id, ProjectRole.viewer)
+    try:
+        download = service.download_output(export_execution_id, sha256)
+    except ResourceNotFoundError as error:
+        raise _not_found() from error
+    return _download_response(download)
+
+
+def _download_response(download: ExportDownload) -> Response:
     filename = PurePosixPath(download.logical_name).name
     encoded_filename = quote(filename, safe="")
     disposition = (

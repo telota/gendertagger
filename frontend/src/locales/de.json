@@ -1576,7 +1576,7 @@
       "size": "Größe",
       "bytes": "{size} Bytes",
       "checksum": "SHA-256",
-      "manifestReceived": "Dieser Export hat mehrere Ausgaben erzeugt, deshalb ist der Download sein Manifest; die Ausgaben stehen im Abschnitt Manifest oben und lassen sich nicht getrennt herunterladen.",
+      "manifestReceived": "Dieser Export hat mehrere Ausgaben erzeugt, deshalb ist dieser Download sein Manifest; jede einzelne Ausgabe lässt sich oben in der Manifest-Tabelle herunterladen.",
       "sourceSnapshot": "SHA-256 des Quelldatenstands",
       "outputs": "Im Manifest festgehaltene Ausgaben",
       "verifyLabel": "Prüfsumme aus dem Manifest (zum Vergleichen einfügen)",

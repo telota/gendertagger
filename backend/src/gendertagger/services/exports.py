@@ -126,8 +126,8 @@ class ExportService:
         A single-output export (``json``, ``csv``, or ``tei`` over a
         single-file source) downloads that output directly. A multi-output
         export (``tei`` over a loose collection) downloads its manifest
-        instead -- fetching every individual member output is not yet
-        exposed as a separate resource.
+        instead; :meth:`download_output` fetches one individual member by
+        its manifest-listed checksum.
         """
         manifest = self._get_manifest_artifact(export_execution_id)
         with self._unit_of_work_factory() as unit_of_work:
@@ -150,6 +150,41 @@ class ExportService:
                 logical_name=logical_name,
                 sha256=target.sha256,
                 media_type=target.media_type,
+            )
+
+    def download_output(self, export_execution_id: UUID, sha256: str) -> ExportDownload:
+        """Return one named output of a multi-output export by its manifest-listed checksum.
+
+        The single-output case is already reachable through :meth:`download_export`; this exists
+        for the ``tei`` loose-collection case that leaves there with only the manifest.
+        """
+        manifest = self._get_manifest_artifact(export_execution_id)
+        with self._artifact_storage.open(manifest.storage_uri) as source:
+            outputs = ExportManifest.model_validate_json(source.read()).outputs
+        matched = next((output for output in outputs if output.sha256 == sha256), None)
+        if matched is None:
+            msg = f"export execution {export_execution_id} has no output with checksum {sha256}"
+            raise ResourceNotFoundError(msg)
+        with self._unit_of_work_factory() as unit_of_work:
+            artifact = next(
+                (
+                    candidate
+                    for candidate in unit_of_work.artifacts.list_artifacts_by_export(
+                        export_execution_id
+                    )
+                    if candidate.sha256 == sha256
+                ),
+                None,
+            )
+        if artifact is None:
+            msg = f"export execution {export_execution_id} has no output with checksum {sha256}"
+            raise ResourceNotFoundError(msg)
+        with self._artifact_storage.open(artifact.storage_uri) as source:
+            return ExportDownload(
+                content=source.read(),
+                logical_name=matched.logical_name,
+                sha256=artifact.sha256,
+                media_type=artifact.media_type,
             )
 
     def _get_manifest_artifact(self, export_execution_id: UUID) -> Artifact:
