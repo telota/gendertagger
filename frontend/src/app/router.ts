@@ -65,6 +65,11 @@ const routes: readonly RouteRecordRaw[] = [
     component: () => import('@/features/projects/GenderTaggingView.vue'),
   },
   {
+    path: '/projects/:projectId/gender-statistics',
+    name: 'projectGenderStatistics',
+    component: () => import('@/features/projects/GenderStatisticsView.vue'),
+  },
+  {
     path: '/projects/:projectId/import',
     name: 'projectImport',
     component: () => import('@/features/projects/ImportView.vue'),

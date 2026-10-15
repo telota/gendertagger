@@ -118,10 +118,19 @@ describe.each(['de', 'en'] as const)('review workbench in %s', (locale: AppLocal
     const wrapper = await mountReviewAsGuided(newServer())
     const links = wrapper.findAll(`main a[href="/projects/${PROJECT_ID}/gender-tagging"]`)
     expect(links).toHaveLength(2)
+    // A plain link above the heading (like Export's own "back" link), not a button (D27 follow-up).
     expect(links[0]?.text()).toBe(catalogues[locale].genderTagging.review.goToOverview)
-    expect(links[0]?.classes()).toContain('app-button--ghost')
+    expect(links[0]?.classes()).toEqual(['review-back'])
     expect(links[1]?.text()).toBe(catalogues[locale].genderTagging.review.goToExport)
     expect(links[1]?.classes()).toContain('app-button--solid')
+  })
+
+  it('calls the workbench "Prüfen" in guided mode and "Redigieren" in advanced mode (D27 follow-up)', async () => {
+    const guided = await mountReviewAsGuided(newServer())
+    expect(guided.get('.review-title').text()).toBe(catalogues[locale].genderTagging.review.title)
+
+    const advanced = await mountReview(newServer())
+    expect(advanced.get('.review-title').text()).toBe(catalogues[locale].review.title)
   })
 
   it('opens every review filter from the heading instead of reserving a filter column', async () => {

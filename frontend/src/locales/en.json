@@ -1739,6 +1739,13 @@
       "hint": "Download the reviewed result."
     }
   },
+  "genderStatistics": {
+    "title": "Gender ratio",
+    "noWorkingAggregation": "No automatic suggestions have been generated for this project yet.",
+    "notCompleted": "The automatic suggestions are {status}. The gender ratio appears once they have completed.",
+    "noPeople": "There are no people.",
+    "total": "{count} people in total"
+  },
   "annotation": {
     "chooseLabel": "Choose a label",
     "humanLabel": "Human decision",

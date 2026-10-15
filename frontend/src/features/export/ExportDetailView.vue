@@ -10,6 +10,7 @@ import AppTextField from '@/components/base/AppTextField.vue'
 import { useApiClient } from '@/composables/useApiClient'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
 import { useArtifactRouteContext } from '@/composables/useArtifactRouteContext'
+import { useUserPreferences } from '@/composables/useUserPreferences'
 import LifecycleStatus from '@/components/domain/LifecycleStatus.vue'
 
 import { downloadExport, saveDownload, type DownloadedExport } from './exportDownload'
@@ -18,6 +19,10 @@ import { useExport, useExportManifest } from './useExports'
 const { t, d, n } = useI18n()
 const client = useApiClient()
 const { session, isSignedIn, retrySession } = useRequireSession()
+// Guided mode's Export isn't a stop on the way to a list or an aggregation (D27): both lead
+// somewhere advanced-only, so this page's own "back" link and its aggregation link are mode-aware.
+const preferences = useUserPreferences()
+const isGuided = computed(() => preferences.preferences.value?.interface_mode === 'guided')
 
 const projectId = useRouteParam('projectId')
 const runId = useRouteParam('runId')
@@ -171,9 +176,13 @@ const verdict = computed<Verdict>(() => {
     <RouterLink
       v-if="context.valid.value"
       class="export-detail-back"
-      :to="{ name: 'exports', params: { projectId, runId } }"
+      :to="
+        isGuided
+          ? { name: 'projectGenderTagging', params: { projectId } }
+          : { name: 'exports', params: { projectId, runId } }
+      "
     >
-      {{ t('export.detail.backToList') }}
+      {{ isGuided ? t('genderTagging.review.goToOverview') : t('export.detail.backToList') }}
     </RouterLink>
     <header class="export-detail-page-heading app-page-heading">
       <div class="app-page-heading__copy">
@@ -276,7 +285,7 @@ const verdict = computed<Verdict>(() => {
               <dt>{{ t('aggregations.detail.finished') }}</dt>
               <dd>{{ d(new Date(item.data.value.finished_at), 'timestamp') }}</dd>
             </div>
-            <div class="export-detail-fact app-fact-list__item">
+            <div v-if="!isGuided" class="export-detail-fact app-fact-list__item">
               <dt>{{ t('evaluation.detail.aggregation') }}</dt>
               <dd>
                 <RouterLink

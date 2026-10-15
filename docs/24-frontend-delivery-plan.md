@@ -1734,3 +1734,56 @@ Full suite (1741 passed, same 2 pre-existing Windows symlink failures; the count
 because the three switcher-only tests were removed, not because something stopped being tested),
 `typecheck`, `lint`, `i18n:check` (1377 keys, down from 1381 after removing `projectSwitcher.*`), and
 `unused:check` all clean. Visually verified against the real stack in both presentations.
+
+### Third round of post-review fixes (2026-10-14/15)
+
+Further direct feedback, continuing the two rounds above.
+
+- **A third wording/navigation pass on the guided flow:** the top-of-page link on Export said "Zurück
+  zu den Exporten" even in guided mode; Redigieren's own "Zurück zur Übersicht" was a button, not a
+  plain link like Export's; "Redigieren" reverted to "Prüfen" in guided mode specifically (advanced
+  mode's own tab name stays "Redigieren" — the two presentations are allowed to name the same workbench
+  differently); Schritt 4 is now called "Exportieren" (`genderTagging.export.title`, German only —
+  English's "Export" already doubled as both a noun and the step name); and Export's own "Aggregation
+  öffnen" fact-list row — a link into the advanced-only aggregation detail page — is hidden in guided
+  mode. `ExportDetailView.vue` and `ReviewWorkbench.vue` both read `interface_mode` directly, matching
+  the established per-component pattern.
+- **"Statistik & Methoden" is a gender-ratio pie chart in guided mode, not the Auswertungen list**
+  (decided after discussion: an evaluation is a separate, manually-created benchmark comparison that
+  rarely exists this soon after Schritt 2, so a direct link to "the" evaluation of the current run would
+  often show nothing). New `GenderStatisticsView.vue`/`projectGenderStatistics` route resolves the
+  project's own working aggregation (ADR-0035) and renders an accessible SVG donut (the CSS-Tricks
+  dasharray/dashoffset technique, `aria-hidden`) plus a `<dl>` legend carrying the real counts for
+  assistive technology — reusing `reviewProgress()`/`useReviewSummary` exactly as the advanced
+  dataset-detail page already does, so no new backend endpoint was needed. Guided mode's sidebar now
+  points its "Statistik & Methoden" entry here instead of at `evaluations`; letting this route resolve
+  its own aggregation (rather than reading a `runId` out of the URL) let `useSidebarNavigation.ts` drop
+  the working-aggregation-fallback machinery (`useAggregation`/`useProject` reads and the
+  `needsWorkingAggregationFallback` computed) it had grown for the old evaluations link — a net
+  simplification, not just an addition. Advanced mode's Auswertungen feature is untouched.
+- **Importing a new dataset in guided mode left Schritt 2 permanently blocked.** Root cause: the
+  project's snapshot list (`useSnapshotList`, the source of Schritt 1's "latest ready" dataset) was
+  invalidated exactly once, at upload time, while the new snapshot was still `pending` — nothing ever
+  told it the import had since finished. `useSnapshotStatus` (`useSnapshotImport.ts`) now invalidates
+  the project's snapshot list itself the moment its own poll sees a terminal status, so Schritt 2 picks
+  up the newly ready dataset without a reload.
+- **A working aggregation can outlive the dataset it was built from.** Once a newer snapshot finishes
+  importing, the project's working aggregation still reflects the *previous* one — `isDone` must go back
+  to false in that case, the same as if nothing had been generated yet, resetting Schritt 2's
+  hint/button and re-locking Prüfen/Export. `GenderTaggingView.vue` now also reads the working
+  aggregation's own run (`useRun`) and compares its `dataset_snapshot_id` against the latest ready
+  snapshot; a mismatch counts as not-done. This was discussed as one of three options for handling a
+  second uploaded dataset in guided mode (give it its own picker; choose a dataset at generate time; or
+  always operate on the newest dataset and treat older ones as superseded) — the third was chosen, as
+  the only one that keeps the guided flow a single sequential page with no new decision for the user to
+  make, and the dataset-history/"Anderen Datenstand wählen" picker already exists as an advanced-only
+  concept for anyone who does need it.
+- **`SnapshotImportForm.vue`'s own post-success actions ("Daten anzeigen", "weiteres Register
+  importieren") are hidden in guided mode.** Both lead to, or duplicate, advanced-only navigation —
+  "Daten anzeigen" opens the advanced Datenstand detail page, and Schritt 1's own hint text already
+  shows the done state. `GenderTaggingView.vue` remounts the form (an incrementing key) each time
+  Schritt 1's own toggle is reopened, so guided mode still has a way to start a second import without
+  that button.
+
+Full suite, `typecheck`, `lint`, `i18n:check`, and `unused:check` all clean (same 2 pre-existing Windows
+symlink failures as every prior round). Visually verified against the real stack.

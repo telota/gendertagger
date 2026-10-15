@@ -107,6 +107,8 @@ interface Server {
   listFailures: number
   listRequests: number
   nextListResponse?: Promise<Response>
+  /** D27 follow-up: the export detail page's back link and aggregation link are mode-aware. */
+  interfaceMode: 'guided' | 'advanced'
 }
 
 function newServer(overrides: Partial<Server> = {}): Server {
@@ -123,6 +125,7 @@ function newServer(overrides: Partial<Server> = {}): Server {
     aggregations: true,
     listFailures: 0,
     listRequests: 0,
+    interfaceMode: 'advanced',
     ...overrides,
   }
 }
@@ -135,6 +138,15 @@ function exportClient(server: Server) {
       if (pathname === '/api/v1/me') return jsonResponse(USER)
       if (pathname === '/api/v1/auth/session') {
         return jsonResponse({ must_change_password: false, keep_signed_in: false })
+      }
+      if (pathname === '/api/v1/me/preferences') {
+        return jsonResponse({
+          locale: null,
+          theme: 'system',
+          desktop_sidebar_collapsed: false,
+          interface_mode: server.interfaceMode,
+          revision: 1,
+        })
       }
       if (pathname === `/api/v1/projects/${PROJECT_ID}`) {
         return jsonResponse({
@@ -308,6 +320,28 @@ describe.each(['de', 'en'] as const)('exports in %s', (locale: AppLocale) => {
     await wrapper.get('.export-list-create').trigger('click')
     await waitFor(() => expect(wrapper.find('.new-export').exists()).toBe(true))
   }
+
+  it('links back to the exports list and to the working aggregation in advanced mode', async () => {
+    const wrapper = await mountDetail(newServer())
+    const back = wrapper.get(`main a[href="${list}"]`)
+    expect(back.text()).toBe(messages.detail.backToList)
+    expect(back.classes()).toEqual(['export-detail-back'])
+    const aggregation = wrapper.get(
+      `main a[href="/projects/${PROJECT_ID}/runs/${RUN_ID}/aggregations/${AGG_ID}"]`,
+    )
+    expect(aggregation.text()).toBe(catalogues[locale].evaluation.detail.openAggregation)
+  })
+
+  it('leads back to Gender taggen and hides the aggregation link in guided mode (D27 follow-up)', async () => {
+    const wrapper = await mountDetail(newServer({ interfaceMode: 'guided' }))
+    const back = wrapper.get(`main a[href="/projects/${PROJECT_ID}/gender-tagging"]`)
+    expect(back.text()).toBe(catalogues[locale].genderTagging.review.goToOverview)
+    expect(back.classes()).toEqual(['export-detail-back'])
+    expect(
+      wrapper.find(`main a[href="/projects/${PROJECT_ID}/runs/${RUN_ID}/aggregations/${AGG_ID}"]`)
+        .exists(),
+    ).toBe(false)
+  })
 
   it('retains a newer responsibility statement when a completed submission tries to navigate', async () => {
     let finish!: (response: Response) => void

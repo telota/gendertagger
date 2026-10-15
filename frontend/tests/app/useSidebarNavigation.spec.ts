@@ -13,8 +13,6 @@ const state = vi.hoisted(() => ({
   access: undefined as unknown,
   availability: undefined as unknown,
   preferences: undefined as unknown,
-  projectRecord: undefined as unknown,
-  workingAggregation: undefined as unknown,
 }))
 vi.mock('@/app/useProjectNavigation', () => ({ useProjectNavigation: () => state.project }))
 vi.mock('@/composables/useAdminAccess', () => ({ useAdminAccess: () => state.access }))
@@ -24,8 +22,6 @@ vi.mock('@/features/tasks/useTaskData', () => ({
 vi.mock('@/composables/useUserPreferences', () => ({
   useUserPreferences: () => state.preferences,
 }))
-vi.mock('@/composables/useProjects', () => ({ useProject: () => state.projectRecord }))
-vi.mock('@/composables/useAggregations', () => ({ useAggregation: () => state.workingAggregation }))
 
 const wrappers: ReturnType<typeof mount>[] = []
 afterEach(() => wrappers.splice(0).forEach((wrapper) => wrapper.unmount()))
@@ -59,14 +55,6 @@ async function navigationAt(
   state.availability = availability
   const preferences = { preferences: ref({ interface_mode: interfaceMode }) }
   state.preferences = preferences
-  const projectRecord = {
-    data: ref<{ working_aggregation_execution_id: string | null } | undefined>({
-      working_aggregation_execution_id: null,
-    }),
-  }
-  state.projectRecord = projectRecord
-  const workingAggregation = { data: ref<{ run_id: string } | undefined>(undefined) }
-  state.workingAggregation = workingAggregation
   const router = createAppRouter(createMemoryHistory())
   const path = router.getRoutes().find((route) => route.name === name)?.path ?? ''
   const params = Object.fromEntries(
@@ -85,7 +73,7 @@ async function navigationAt(
       { global: { plugins: [router, createAppI18n('en')] } },
     ),
   )
-  return { groups, project, session, availability, preferences, projectRecord, workingAggregation }
+  return { groups, project, session, availability, preferences }
 }
 
 describe('sidebar route ownership', () => {
@@ -237,6 +225,16 @@ describe('guided mode (D26/D27)', () => {
     expect(ids).not.toContain('exports')
   })
 
+  it('marks the gender-ratio page current while visiting it', async () => {
+    const { groups } = await navigationAt('projectGenderStatistics', 'operator', 'guided')
+    expect(
+      groups.value
+        .flatMap((group) => group.items)
+        .filter((item) => item.current)
+        .map((item) => item.id),
+    ).toEqual(['genderStatistics'])
+  })
+
   it('marks Gender taggen current on the review workbench and the export page it hands off to', async () => {
     for (const route of ['review', 'projectAnnotation', 'exportDetail']) {
       const { groups } = await navigationAt(route, 'operator', 'guided')
@@ -249,23 +247,16 @@ describe('guided mode (D26/D27)', () => {
     }
   })
 
-  it('derives Statistik & Methoden from the project working aggregation when the URL has no run (ADR-0035)', async () => {
-    const { groups, project, projectRecord, workingAggregation } = await navigationAt(
-      'projectGenderTagging',
-      'operator',
-      'guided',
-    )
+  it('shows Statistik & Methoden as its own gender-ratio page, regardless of the URL run (D27 follow-up)', async () => {
+    const { groups, project } = await navigationAt('projectGenderTagging', 'operator', 'guided')
     project.value = { ...project.value!, runId: null }
-    expect(groups.value.some((group) => group.id === 'evaluation')).toBe(false)
-    projectRecord.data.value = { working_aggregation_execution_id: 'aggregation-x' }
-    workingAggregation.data.value = { run_id: 'run-fallback' }
-    const evaluations = groups.value
-      .flatMap((group) => group.items)
-      .find((item) => item.id === 'evaluations')
-    expect(evaluations?.to).toEqual({
-      name: 'evaluations',
-      params: { projectId: 'project-a', runId: 'run-fallback' },
+    const items = groups.value.flatMap((group) => group.items)
+    const statistics = items.find((entry) => entry.id === 'genderStatistics')
+    expect(statistics?.to).toEqual({
+      name: 'projectGenderStatistics',
+      params: { projectId: 'project-a' },
     })
+    expect(items.map((entry) => entry.id)).not.toContain('evaluations')
   })
 
   it('leaves the advanced tab set unchanged', async () => {

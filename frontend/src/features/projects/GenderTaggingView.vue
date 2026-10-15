@@ -43,9 +43,16 @@ const canGenerate = canImport
 
 const importOpen = ref(false)
 const importMounted = ref(false)
+// Guided mode hides the embedded form's own "weiteres Register importieren" (it would just
+// duplicate this toggle, and leads nowhere useful once already imported): reopening the panel
+// remounts a fresh form instead, so this toggle is the only way back to a blank upload.
+const importInstance = ref(0)
 function toggleImport(): void {
   importOpen.value = !importOpen.value
-  if (importOpen.value) importMounted.value = true
+  if (importOpen.value) {
+    importMounted.value = true
+    importInstance.value += 1
+  }
 }
 watch([() => session.user?.id, projectId], () => {
   importOpen.value = false
@@ -74,8 +81,26 @@ const workingAggregation = useAggregation(
   computed(() => workingAggregationId.value ?? ''),
   workingAggregationEnabled,
 )
+// A working aggregation can outlive the dataset it was built from: once a newer snapshot finishes
+// importing, that aggregation reflects the *previous* dataset, not the one Schritt 1 now shows as
+// current. `isDone` must go back to false in that case, resetting Schritt 2's hint/button and
+// re-locking Prüfen/Export, exactly as if nothing had been generated for the current dataset yet.
+const workingRunId = computed(() => workingAggregation.data.value?.run_id ?? null)
+const workingRun = useRun(
+  computed(() => workingRunId.value ?? ''),
+  computed(() => workingRunId.value !== null),
+)
+const workingDatasetStale = computed(
+  () =>
+    workingRun.data.value !== undefined &&
+    latestReady.value !== null &&
+    workingRun.data.value.dataset_snapshot_id !== latestReady.value.id,
+)
 const isDone = computed(
-  () => workingAggregationEnabled.value && workingAggregation.data.value?.status === 'completed',
+  () =>
+    workingAggregationEnabled.value &&
+    workingAggregation.data.value?.status === 'completed' &&
+    !workingDatasetStale.value,
 )
 
 // An active generation in this visit only; it has no effect on `isDone` above, which is read from
@@ -351,7 +376,7 @@ async function submitExport(): Promise<void> {
             <div v-show="importOpen && canImport" class="gender-tagging-import-panel">
               <SnapshotImportForm
                 v-if="importMounted && session.user"
-                :key="`${session.user.id}:${projectId}`"
+                :key="`${session.user.id}:${projectId}:${importInstance}`"
                 :project-id="projectId"
               />
             </div>

@@ -1735,9 +1735,16 @@
       "goToOverview": "Zurück zur Übersicht"
     },
     "export": {
-      "title": "Export",
+      "title": "Exportieren",
       "hint": "Das geprüfte Ergebnis herunterladen."
     }
+  },
+  "genderStatistics": {
+    "title": "Geschlechterverhältnis",
+    "noWorkingAggregation": "Für dieses Projekt wurden noch keine automatischen Vorschläge generiert.",
+    "notCompleted": "Die automatischen Vorschläge haben den Status {status}. Das Geschlechterverhältnis erscheint, sobald sie abgeschlossen sind.",
+    "noPeople": "Es sind keine Personen vorhanden.",
+    "total": "{count} Personen insgesamt"
   },
   "annotation": {
     "chooseLabel": "Label auswählen",

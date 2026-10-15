@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { computed, ref, type Ref } from 'vue'
+import { computed, ref, watch, type Ref } from 'vue'
 
 import { unwrap } from '@/api'
 import type { components } from '@/api/schema'
@@ -66,8 +66,9 @@ export function useSnapshotStatus(
 ) {
   const client = useApiClient()
   const session = useSessionStore()
+  const queryClient = useQueryClient()
 
-  return usePolledQuery({
+  const query = usePolledQuery({
     queryKey: computed(() =>
       snapshotImportStatusKey(session.user?.id, projectId?.value ?? null, snapshotId.value),
     ),
@@ -84,6 +85,21 @@ export function useSnapshotStatus(
     isTerminal: (snapshot) => TERMINAL_STATUSES.has(snapshot.status),
     enabled: computed(() => snapshotId.value !== null && session.canUsePrivateNavigation),
   })
+
+  // The project's snapshot list is only ever invalidated once, at upload time, while this snapshot
+  // is still pending — the list itself is never polled, so without this it would go on showing that
+  // stale pending status (and e.g. hide a now-ready dataset from a generate step reading the list)
+  // until something unrelated happened to refetch it.
+  let invalidatedFor: string | null = null
+  watch(query.data, (snapshot) => {
+    const project = projectId?.value
+    if (!snapshot || !project || !TERMINAL_STATUSES.has(snapshot.status)) return
+    if (invalidatedFor === snapshot.id) return
+    invalidatedFor = snapshot.id
+    void queryClient.invalidateQueries({ queryKey: snapshotListKey(project) })
+  })
+
+  return query
 }
 
 /**

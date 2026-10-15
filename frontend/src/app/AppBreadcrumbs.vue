@@ -58,6 +58,7 @@ const crumbs = computed<Breadcrumb[]>(() => {
     projectMembers: t('projectMembers.title'),
     projectOverview: t('nav.overview'),
     projectGenderTagging: t('nav.genderTagging'),
+    projectGenderStatistics: t('genderStatistics.title'),
     projectImport: t('nav.import'),
     projectSnapshots: t('nav.data'),
     snapshotDetail: t('data.detailTitle'),
@@ -70,7 +71,9 @@ const crumbs = computed<Breadcrumb[]>(() => {
     runDetail: t('runs.detail.title'),
     methodExecutionResults: t('runs.results.title'),
     aggregationDetail: t('aggregations.detail.title'),
-    review: t('review.title'),
+    // Guided mode's own flow calls this step "Prüfen" (D27); the advanced tab calls the same
+    // workbench "Redigieren" — the crumb follows whichever name got you here.
+    review: guided.value ? t('genderTagging.review.title') : t('review.title'),
     game: t('game.title'),
     people: t('review.people.title'),
     evaluations: t('evaluation.title'),

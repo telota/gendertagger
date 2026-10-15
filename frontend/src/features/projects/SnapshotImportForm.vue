@@ -7,6 +7,7 @@ import { RouterLink } from 'vue-router'
 import { ApiError } from '@/api'
 import AppButton from '@/components/base/AppButton.vue'
 import { useDraftRegistration } from '@/composables/useDraftNavigation'
+import { useUserPreferences } from '@/composables/useUserPreferences'
 
 import {
   isPersonRegisterHeader,
@@ -30,6 +31,11 @@ interface ImportMode {
 
 const props = defineProps<{ projectId: string }>()
 const { t, n } = useI18n()
+// Guided mode's own flow (D27) already shows "done" as the Schritt-1 hint text above this form;
+// "Daten anzeigen" leads to the advanced-only Datenstand page, and "weiteres Register importieren"
+// is redundant there too — reopening the panel (GenderTaggingView.vue) remounts this form instead.
+const preferences = useUserPreferences()
+const isGuided = computed(() => preferences.preferences.value?.interface_mode === 'guided')
 const instanceId = useId()
 const titleId = `${instanceId}-title`
 const fileId = `${instanceId}-file`
@@ -704,7 +710,9 @@ async function resetImport(): Promise<void> {
         </p>
         <p v-else role="status">{{ t('projects.import.status.pending') }}</p>
         <div
-          v-if="currentStatus.status === 'ready' || currentStatus.status === 'failed'"
+          v-if="
+            currentStatus.status === 'failed' || (currentStatus.status === 'ready' && !isGuided)
+          "
           class="import-status-actions"
         >
           <RouterLink

@@ -295,9 +295,22 @@ function retryContext(): void {
 
 <template>
   <main class="review app-page-frame app-page-frame--dense">
+    <RouterLink
+      v-if="isGuided && !isPeople"
+      class="review-back"
+      :to="{ name: 'projectGenderTagging', params: { projectId } }"
+    >
+      {{ t('genderTagging.review.goToOverview') }}
+    </RouterLink>
     <header class="review-heading-row app-page-heading">
       <h1 class="review-title app-page-heading__title">
-        {{ isPeople ? t('review.people.title') : t('review.title') }}
+        {{
+          isPeople
+            ? t('review.people.title')
+            : isGuided
+              ? t('genderTagging.review.title')
+              : t('review.title')
+        }}
       </h1>
       <div v-if="isSignedIn" class="app-page-heading__actions">
         <AppButton
@@ -327,13 +340,6 @@ function retryContext(): void {
             :to="{ name: 'exports', params: { projectId, runId } }"
           >
             {{ t('nav.exports') }}
-          </AppButton>
-          <AppButton
-            v-if="isGuided"
-            variant="ghost"
-            :to="{ name: 'projectGenderTagging', params: { projectId } }"
-          >
-            {{ t('genderTagging.review.goToOverview') }}
           </AppButton>
           <AppButton
             v-if="isGuided"
@@ -524,6 +530,13 @@ function retryContext(): void {
 </template>
 
 <style scoped>
+.review-back {
+  display: inline-block;
+  margin-block-end: var(--space-4);
+  color: var(--accent);
+  text-underline-offset: 0.2em;
+}
+
 .review-heading-row {
   margin-block-end: 0;
 }

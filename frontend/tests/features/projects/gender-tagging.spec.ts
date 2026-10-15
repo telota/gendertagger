@@ -3,7 +3,10 @@ import type { AppLocale } from '@/app/i18n'
 import de from '@/locales/de.json'
 import en from '@/locales/en.json'
 
-import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
+// jsdom's own `File` cannot be read by Vitest's Node-`fetch`-compat layer when it ends up inside a
+// `FormData` body (see tests/features/projects/import.spec.ts for the same workaround).
+import { File as NodeFile } from 'node:buffer'
+import { enableAutoUnmount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { mountApplicationAt } from '../../helpers/render'
@@ -25,6 +28,16 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
     headers: { 'content-type': 'application/json' },
     ...init,
   })
+}
+
+function testFile(content: string, name: string, type: string): File {
+  return new NodeFile([content], name, { type }) as unknown as File
+}
+
+function selectFile(wrapper: VueWrapper, selector: string, file: File): void {
+  const input = wrapper.get(selector).element as HTMLInputElement
+  Object.defineProperty(input, 'files', { value: [file], configurable: true })
+  input.dispatchEvent(new Event('change'))
 }
 
 function project(workingAggregationId: string | null) {
@@ -155,6 +168,151 @@ describe.each(['de', 'en'] as const)('GenderTaggingView in %s', (locale: AppLoca
     expect(wrapper.text()).toContain('Editorial team')
     expect(wrapper.find('button[aria-expanded]').exists()).toBe(true)
     // Step 1/2 always show; 3/4 (Prüfen/Export) only once generation has completed, covered below.
+    expect(wrapper.findAll('.overview-section-eyebrow').map((eyebrow) => eyebrow.text())).toEqual([
+      messages.step.replace('{number}', '1'),
+      messages.step.replace('{number}', '2'),
+    ])
+  })
+
+  it('unlocks Schritt 2 as soon as a new import finishes, without a reload, and hides the advanced-only post-import actions (bugfix)', async () => {
+    stubEventSource()
+    const table = routesFor(null)
+    const newSnapshotId = 'c0000000-0000-0000-0000-000000000002'
+    let statusQueried = false
+    const client = createApiClient({
+      fetch: async (request) => {
+        const path = new URL(request.url).pathname
+        if (path === `/api/v1/projects/${PROJECT_ID}`) return jsonResponse(project(null))
+        if (path === `/api/v1/projects/${PROJECT_ID}/snapshots` && request.method === 'POST') {
+          return jsonResponse(
+            {
+              id: newSnapshotId,
+              project_id: PROJECT_ID,
+              status: 'pending',
+              created_at: '2026-01-02T00:00:00Z',
+            },
+            { status: 202 },
+          )
+        }
+        if (path === `/api/v1/snapshots/${newSnapshotId}`) {
+          statusQueried = true
+          return jsonResponse({
+            id: newSnapshotId,
+            project_id: PROJECT_ID,
+            status: 'ready',
+            record_count: 7,
+            created_at: '2026-01-02T00:00:00Z',
+            ready_at: '2026-01-02T00:05:00Z',
+            parser_version: 1,
+            source_sha256: 'z'.repeat(64),
+            import_config: { source_format: 'csv', packaging: 'single' },
+            failure_diagnostic: null,
+          })
+        }
+        if (path === `/api/v1/projects/${PROJECT_ID}/snapshots`) {
+          // The list only ever reflects the new import once its own status poll has resolved —
+          // exactly the gap the fix closes: without it, nothing refetches this list again after
+          // the one-time invalidation at upload time, which happens while still pending.
+          return jsonResponse(
+            statusQueried
+              ? {
+                  items: [{ ...READY_SNAPSHOT, id: newSnapshotId, record_count: 7 }],
+                  has_more: false,
+                  next_cursor: null,
+                }
+              : { items: [], has_more: false, next_cursor: null },
+          )
+        }
+        const route = table.get(path)
+        return jsonResponse(route ?? {}, { status: route === undefined ? 404 : 200 })
+      },
+    })
+    const wrapper = await mountApplicationAt(
+      `/projects/${PROJECT_ID}/gender-tagging`,
+      locale,
+      client,
+    )
+    await waitFor(() => expect(wrapper.get('h1').text()).toBe('Gender Project'))
+    await wrapper.get('main button[aria-expanded]').trigger('click')
+    await flushPromises()
+
+    selectFile(
+      wrapper,
+      '.import-file-input',
+      testFile(
+        'xml:id,persName,birth,death,event,note,idno\nS1,[],,,[],,[]\n',
+        'source.csv',
+        'text/csv',
+      ),
+    )
+    await waitFor(() =>
+      expect(wrapper.get<HTMLButtonElement>('.import-submit').element.disabled).toBe(false),
+    )
+    await wrapper.get('form').trigger('submit')
+
+    await waitFor(() => {
+      const button = wrapper
+        .findAll('button')
+        .find((item) => item.text() === messages.generate.title)
+      expect(button).toBeDefined()
+      expect(button?.attributes('disabled')).toBeUndefined()
+    })
+    expect(wrapper.find('.import-status-data-link').exists()).toBe(false)
+    expect(wrapper.find('.import-another').exists()).toBe(false)
+  })
+
+  it('resets to "not generated yet" once a newer dataset supersedes the working aggregation (bugfix)', async () => {
+    stubEventSource()
+    const newSnapshotId = 'c0000000-0000-0000-0000-000000000002'
+    const newReadySnapshot = {
+      ...READY_SNAPSHOT,
+      id: newSnapshotId,
+      record_count: 9,
+      created_at: '2026-02-01T00:00:00Z',
+    }
+    const table = routesFor(AGGREGATION_ID)
+    const client = createApiClient({
+      fetch: (request) => {
+        const path = new URL(request.url).pathname
+        if (path === `/api/v1/projects/${PROJECT_ID}`) {
+          return Promise.resolve(jsonResponse(project(AGGREGATION_ID)))
+        }
+        if (path === `/api/v1/projects/${PROJECT_ID}/snapshots`) {
+          // Newest first, matching the real list order: the working aggregation's own run (mocked
+          // below) still points at the *older* snapshot, so it no longer reflects Schritt 1's
+          // current dataset.
+          return Promise.resolve(
+            jsonResponse({
+              items: [newReadySnapshot, READY_SNAPSHOT],
+              has_more: false,
+              next_cursor: null,
+            }),
+          )
+        }
+        const route = table.get(path)
+        return Promise.resolve(jsonResponse(route ?? {}, { status: route === undefined ? 404 : 200 }))
+      },
+    })
+    const wrapper = await mountApplicationAt(
+      `/projects/${PROJECT_ID}/gender-tagging`,
+      locale,
+      client,
+    )
+    await waitFor(() => expect(wrapper.get('h1').text()).toBe('Gender Project'))
+
+    await waitFor(() => {
+      const button = wrapper
+        .findAll('button')
+        .find((item) => item.text() === messages.generate.title)
+      expect(button).toBeDefined()
+    })
+    // Schritt 3/4 (Prüfen/Export) only ever show once `isDone`; staleness must keep them hidden.
+    expect(wrapper.findAll('h2').map((heading) => heading.text())).not.toContain(
+      messages.review.title,
+    )
+    expect(wrapper.findAll('h2').map((heading) => heading.text())).not.toContain(
+      messages.export.title,
+    )
     expect(wrapper.findAll('.overview-section-eyebrow').map((eyebrow) => eyebrow.text())).toEqual([
       messages.step.replace('{number}', '1'),
       messages.step.replace('{number}', '2'),

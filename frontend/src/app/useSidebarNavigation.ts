@@ -15,9 +15,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, type RouteLocationRaw } from 'vue-router'
 
 import { useAdminAccess } from '@/composables/useAdminAccess'
-import { useAggregation } from '@/composables/useAggregations'
 import { hasProjectRole } from '@/composables/projectRoles'
-import { useProject } from '@/composables/useProjects'
 import { useUserPreferences } from '@/composables/useUserPreferences'
 import { useProjectDataAvailability } from '@/features/tasks/useTaskData'
 
@@ -74,6 +72,7 @@ const OWNED_ROUTES: Record<string, readonly string[]> = {
   review: ['projectReview', 'review', 'projectAnnotation', 'snapshotAnnotations', 'people'],
   game: ['projectGame', 'game'],
   evaluations: ['evaluations', 'evaluationDetail'],
+  genderStatistics: ['projectGenderStatistics'],
   exports: ['exports', 'exportDetail'],
   administration: ['adminUsers'],
   teams: ['adminTeams'],
@@ -106,29 +105,6 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
         interfaceMode.value !== 'guided',
     ),
   )
-  // Guided mode's one project page (D27) carries no runId of its own: the URL never names a run or
-  // aggregation. "Statistik & Methoden" still needs one to link to, so — guided only — fall back to
-  // the project's working aggregation (ADR-0035) and read the run it was built from. Advanced mode's
-  // runId stays exactly what useProjectNavigation resolves from the URL, unchanged.
-  const needsWorkingAggregationFallback = computed(
-    () => interfaceMode.value === 'guided' && project.value !== null && project.value.runId === null,
-  )
-  const projectRecord = useProject(
-    computed(() => project.value?.projectId ?? ''),
-    needsWorkingAggregationFallback,
-  )
-  const workingAggregationId = computed(
-    () => projectRecord.data.value?.working_aggregation_execution_id ?? null,
-  )
-  const workingAggregation = useAggregation(
-    computed(() => workingAggregationId.value ?? ''),
-    // Gated on the fallback itself, not just a non-null id: `projectRecord` shares its query key
-    // with the project fetch `useProjectIdentity` already runs, so its data can arrive from that
-    // cache even while disabled here — advanced mode must not let that leak into an aggregation
-    // fetch it never needed.
-    computed(() => needsWorkingAggregationFallback.value && workingAggregationId.value !== null),
-  )
-
   function item(
     id: string,
     label: string,
@@ -251,18 +227,31 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
           items: additionalItems,
         })
       }
-      const evaluationsRunId = guided ? (runId ?? workingAggregation.data.value?.run_id ?? null) : runId
-      if (currentUserRole !== null && evaluationsRunId !== null) {
+      if (currentUserRole !== null && guided) {
+        // Guided mode's own "Statistik & Methoden" (D27 follow-up, decided 2026-10-14): a gender-ratio
+        // chart from the project's working aggregation, not the full Auswertungen feature — an
+        // evaluation is a separate, manually-created benchmark comparison that rarely exists this
+        // early, so linking to "the" evaluation of the current run would often have nothing to show.
+        // No runId gate: GenderStatisticsView resolves the working aggregation itself, the same way
+        // GenderTaggingView does.
         groups.push({
           id: 'evaluation',
           label: t('nav.evaluationGroup'),
           items: [
             item(
-              'evaluations',
+              'genderStatistics',
               t('nav.evaluations'),
               PhChartBar,
-              link('evaluations', { projectId, runId: evaluationsRunId }),
+              link('projectGenderStatistics', { projectId }),
             ),
+          ],
+        })
+      } else if (currentUserRole !== null && runId !== null) {
+        groups.push({
+          id: 'evaluation',
+          label: t('nav.evaluationGroup'),
+          items: [
+            item('evaluations', t('nav.evaluations'), PhChartBar, link('evaluations', { projectId, runId })),
           ],
         })
       }

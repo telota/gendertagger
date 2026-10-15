@@ -230,8 +230,12 @@ describe.each(['de', 'en'] as const)('header breadcrumbs in %s', (locale) => {
     expect(wrapper.get('[aria-current="page"]').text()).toBe(NAME)
 
     await router.push(`/projects/${PROJECT}/runs/run-id/aggregations/aggregation-id/review`)
+    // Guided mode's own flow calls this step "Prüfen" (D27 follow-up); the crumb follows that name,
+    // not the advanced tab's "Redigieren" (confirmed separately in the non-guided breadcrumb tests).
     await waitFor(() =>
-      expect(wrapper.get('[aria-current="page"]').text()).toBe(messages.review.title),
+      expect(wrapper.get('[aria-current="page"]').text()).toBe(
+        messages.genderTagging.review.title,
+      ),
     )
     const links = wrapper.findAll('a')
     expect(links[1]?.text()).toBe(NAME)
