@@ -1825,3 +1825,35 @@ Further direct feedback, continuing the two rounds above.
 
 Full suite, `typecheck`, `lint`, `i18n:check`, and `unused:check` all clean (same 2 pre-existing Windows
 symlink failures as every prior round). Visually verified against the real stack.
+
+### Why Schritt 2 still failed after both fixes above, and the resulting `available` field
+
+The resume fix above correctly adopted an orphaned run and tried to create its aggregation — which
+the server then rejected with `409 resource_conflict: "The method execution selection is not
+aggregatable."`, confirmed by replaying the request with curl. The cause is structural, not a bug:
+`reference_v1` (`backend/src/gendertagger/domain/aggregation.py`) requires all 9 of its reference
+methods (`REFERENCE_REQUIRED_METHODS`) to be present in the selection, by design — it reproduces a
+published priority-chain algorithm (parenthetical_qualifier → gnd → an unweighted vote of the
+remaining 7), so a partial method set can never be "aggregatable," no matter which methods actually
+ran. Of the 10 registered methods, 7 need a compiled lookup/model asset or runtime configuration this
+dev deployment has never provisioned (confirmed: `backend/scripts/seed_frontend_development.py`
+fabricates its demo predictions directly in the database — the live generate pipeline had apparently
+never actually completed successfully here before). Provisioning those assets is real data/infra work
+(a CLI for it already exists at `gendertagger.cli.assets`, but it needs real GND/Wikidata/HF source
+data) — out of scope for this session.
+
+Given that, the user asked for a smaller, immediately useful piece instead: an "available" indicator
+on each method in the advanced-mode run form, so an operator sees which methods need configuration
+*before* picking them, rather than finding out from a failed run.
+
+- `GET /api/v1/methods` now returns `RunnableMethod` (`MethodDescriptor` plus `available: bool`),
+  computed as whether `registration.config_model.model_validate({})` succeeds — the exact same
+  validation a real run submission already applies (`MethodRegistry.resolve_run_config`), so it can
+  never disagree with what submitting a run would actually do. Added as a new response model rather
+  than a field on `MethodDescriptor` itself, since that type is also embedded as immutable provenance
+  on persisted run/execution records, where "available" would mean nothing.
+- `NewRunForm.vue` shows a note (`runs.new.needsConfiguration`) next to any method whose `available`
+  is `false`, without disabling its checkbox — an operator who already knows the right JSON to paste
+  into that method's own config box can still select it.
+- Contract change: `contracts/openapi-v1.json` regenerated (`update_openapi_snapshot.py`) and
+  `frontend/src/api/schema.d.ts` regenerated (`npm run api:generate`) to match.
