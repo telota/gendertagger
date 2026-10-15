@@ -75,6 +75,12 @@ function parseConfig(text: string | undefined): ConfigParse {
   return { ok: false }
 }
 
+function selectAllAvailable(): void {
+  for (const method of methods.data.value ?? []) {
+    selected[method.name] = method.available
+  }
+}
+
 const chosen = computed(() => (methods.data.value ?? []).filter((m) => selected[m.name]))
 const invalidConfigFor = (name: string): boolean => !parseConfig(configText[name]).ok
 const hasInvalidConfig = computed(() => chosen.value.some((m) => invalidConfigFor(m.name)))
@@ -146,13 +152,27 @@ async function submit(): Promise<void> {
       <fieldset class="new-run-methods">
         <legend>{{ t('runs.new.methods') }}</legend>
         <p class="new-run-hint">{{ t('runs.new.methodsHint') }}</p>
+        <AppButton
+          class="new-run-select-all"
+          type="button"
+          variant="ghost"
+          @click="selectAllAvailable"
+        >
+          {{ t('runs.new.selectAll') }}
+        </AppButton>
         <ul class="new-run-method-list">
-          <li v-for="method in methods.data.value" :key="method.name" class="new-run-method">
+          <li
+            v-for="method in methods.data.value"
+            :key="method.name"
+            class="new-run-method"
+            :class="{ 'new-run-method--unavailable': !method.available }"
+          >
             <div class="new-run-method-head">
               <input
                 :id="`method-${method.name}`"
                 v-model="selected[method.name]"
                 type="checkbox"
+                :disabled="!method.available"
                 :aria-describedby="
                   method.available
                     ? `method-${method.name}-facts`
@@ -282,6 +302,10 @@ async function submit(): Promise<void> {
   font-size: var(--font-size-small);
 }
 
+.new-run-select-all {
+  margin-block-start: var(--space-2);
+}
+
 .new-run-method-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
@@ -307,6 +331,10 @@ async function submit(): Promise<void> {
   font-weight: var(--weight-semibold);
   overflow-wrap: anywhere;
   padding-block: var(--space-2);
+}
+
+.new-run-method--unavailable .new-run-method-name {
+  color: var(--text-secondary);
 }
 
 .new-run-method-facts {

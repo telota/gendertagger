@@ -303,6 +303,11 @@ const generateErrorText = computed(() => {
   if (error instanceof ApiError && error.code === 'network_error') {
     return t('genderTagging.generate.errors.network')
   }
+  // The aggregation step is always automatic here (D27: no manual selection UI), so this is
+  // always the same "auto" case `AggregationSection.vue` distinguishes from a manual one.
+  if (error instanceof ApiError && error.code === 'resource_conflict') {
+    return t('aggregations.errors.autoNotAggregatable')
+  }
   return t('genderTagging.generate.errors.generic')
 })
 

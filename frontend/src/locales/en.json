@@ -893,6 +893,7 @@
       "methods": "Methods",
       "methodsHint": "Each method runs independently on the dataset. Confidence values are specific to their method and are not comparable between methods.",
       "methodsLoadError": "The available methods could not be loaded.",
+      "selectAll": "Select all methods",
       "needsConfiguration": "Needs its own configuration, which this instance has not set up yet",
       "version": "Version {version}",
       "config": "Method configuration (JSON)",

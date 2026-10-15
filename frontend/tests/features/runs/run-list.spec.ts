@@ -36,6 +36,13 @@ const METHODS = [
     implementation_version: 'local_llm_v1',
     normalization_version: 'local_llm_v1',
     method_confidence_range: { minimum: 0, maximum: 1 },
+    available: true,
+  },
+  {
+    name: 'gnd',
+    implementation_version: 'gnd_v2',
+    normalization_version: 'gnd_v1',
+    method_confidence_range: null,
     available: false,
   },
 ]
@@ -403,7 +410,7 @@ describe.each(['de', 'en'] as const)('run list and new run in %s', (locale: AppL
     const { wrapper } = await mountRuns()
 
     const names = wrapper.findAll('.new-run-method-name').map((label) => label.text())
-    expect(names).toEqual(['gender_guesser', 'local_llm'])
+    expect(names).toEqual(['gender_guesser', 'local_llm', 'gnd'])
     const facts = wrapper.findAll('.new-run-method-facts').map((p) => p.text())
     expect(facts[0]).toContain('gender_guesser_v1')
     expect(facts[0]).not.toMatch(/0[.,]0/)
@@ -415,9 +422,23 @@ describe.each(['de', 'en'] as const)('run list and new run in %s', (locale: AppL
 
     const methodItems = wrapper.findAll('.new-run-method')
     expect(methodItems[0]?.find('.new-run-method-unavailable').exists()).toBe(false)
-    expect(methodItems[1]?.find('.new-run-method-unavailable').text()).toBe(
+    expect(methodItems[1]?.find('.new-run-method-unavailable').exists()).toBe(false)
+    expect(methodItems[2]?.find('.new-run-method-unavailable').text()).toBe(
       messages.new.needsConfiguration,
     )
+    expect(
+      methodItems[2]?.get<HTMLInputElement>('input[type="checkbox"]').element.disabled,
+    ).toBe(true)
+  })
+
+  it('selects every available method and leaves the unavailable one out (D27 follow-up)', async () => {
+    const { wrapper } = await mountRuns()
+
+    await wrapper.get('.new-run-select-all').trigger('click')
+
+    expect(wrapper.get<HTMLInputElement>('#method-gender_guesser').element.checked).toBe(true)
+    expect(wrapper.get<HTMLInputElement>('#method-local_llm').element.checked).toBe(true)
+    expect(wrapper.get<HTMLInputElement>('#method-gnd').element.checked).toBe(false)
   })
 
   it('creates and schedules a run from the chosen methods and their JSON configuration', async () => {

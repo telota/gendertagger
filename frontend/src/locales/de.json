@@ -893,6 +893,7 @@
       "methods": "Methoden",
       "methodsHint": "Die ausgewählten Methoden werden unabhängig auf diesem Datenstand ausgeführt. Konfidenzwerte gelten nur für die jeweilige Methode und sind zwischen Methoden nicht vergleichbar.",
       "methodsLoadError": "Die verfügbaren Methoden konnten nicht geladen werden.",
+      "selectAll": "Alle Methoden auswählen",
       "needsConfiguration": "Benötigt eine eigene Konfiguration, die diese Instanz noch nicht hinterlegt hat",
       "version": "Version {version}",
       "config": "Methodenkonfiguration (JSON)",
