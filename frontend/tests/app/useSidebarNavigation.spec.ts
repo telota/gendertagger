@@ -235,6 +235,31 @@ describe('guided mode (D26/D27)', () => {
     ).toEqual(['genderStatistics'])
   })
 
+  it('hides Statistik & Methoden until a dataset has actually been imported', async () => {
+    const { groups, availability } = await navigationAt(
+      'projectGenderTagging',
+      'operator',
+      'guided',
+    )
+    availability.data.value = {
+      project_id: 'project-a',
+      has_ready_snapshots: false,
+      has_completed_aggregations: false,
+    }
+    expect(groups.value.flatMap((group) => group.items).map((item) => item.id)).not.toContain(
+      'genderStatistics',
+    )
+
+    availability.data.value = {
+      project_id: 'project-a',
+      has_ready_snapshots: true,
+      has_completed_aggregations: false,
+    }
+    expect(groups.value.flatMap((group) => group.items).map((item) => item.id)).toContain(
+      'genderStatistics',
+    )
+  })
+
   it('marks Gender taggen current on the review workbench and the export page it hands off to', async () => {
     for (const route of ['review', 'projectAnnotation', 'exportDetail']) {
       const { groups } = await navigationAt(route, 'operator', 'guided')

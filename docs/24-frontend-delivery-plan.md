@@ -1888,3 +1888,34 @@ distinct `reference_partial_v1` strategy; `reference_v1` itself is untouched). T
   sparse-override save/reset/conflict flow, which this setting has nothing to do with) with a
   checkbox for `allow_partial_reference_aggregation` and a save button, registered as a navigation
   draft like every other unsaved form in this app.
+
+### Statistik & Methoden hidden until a dataset exists (guided mode)
+
+The user's own deferred design question from earlier ("should Auswertung be its own guided tab, or
+contextual to Schritt 2?", recorded in memory) came back as a smaller, concrete ask: the entry should
+not appear at all before any dataset has been imported — there is nothing it could show yet regardless.
+`useSidebarNavigation.ts`'s guided "Statistik & Methoden" entry now also requires
+`availability.data.value?.has_ready_snapshots === true`. That data-availability query was previously
+disabled outright in guided mode (`interfaceMode.value !== 'guided'`) since nothing there needed it
+yet; now fetched unconditionally for any project role, reused rather than queried twice. The broader
+tab-shape question itself remains open and deferred.
+
+### Exports with several outputs could only ever download their manifest
+
+A `tei` export over a loose (multi-file) source produces one output per member — by design, `GET
+/exports/{id}/download` returns the manifest instead of guessing which one output to send, and the
+backend's own docstring recorded that fetching an individual member "is not yet exposed as a separate
+resource." Found directly from real use: a user exporting a multi-file dataset got only
+`manifest.json`, never the actual TEI files.
+
+- Backend (see the commit for the full change): a new `ExportService.download_output(export_execution_id,
+  sha256)` and `GET /exports/{id}/download/{sha256}` return one individual member by its
+  manifest-listed checksum — chosen over a path/query logical name specifically to avoid any
+  path-encoding ambiguity, since the manifest already lists every output's checksum next to its name.
+- `ExportDetailView.vue`'s manifest table gets a fourth column: a small "Herunterladen" button per
+  row, calling the new endpoint directly and comparing the result against that row's own manifest
+  checksum before saving it — independent of the primary "Download" section's own
+  ownership/race-guarded flow above it, since for a multi-output export that primary download was
+  always the manifest anyway, never an alternative route to any one member's bytes.
+- `export.detail.manifestReceived`'s copy changed from "cannot be downloaded separately" to pointing
+  at the table above, now that they can be.

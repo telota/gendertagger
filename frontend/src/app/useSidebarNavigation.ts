@@ -96,14 +96,11 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
   // or failed to load: never hide capability over a transient gap — once it resolves, this follows
   // whatever the account actually has stored.
   const interfaceMode = computed(() => preferences.preferences.value?.interface_mode ?? 'advanced')
+  // Guided mode also needs this for its own "Statistik & Methoden" entry below, which should not
+  // appear before any dataset has been imported — reused rather than fetched twice.
   const availability = useProjectDataAvailability(
     computed(() => project.value?.projectId ?? ''),
-    computed(
-      () =>
-        project.value !== null &&
-        project.value.currentUserRole !== null &&
-        interfaceMode.value !== 'guided',
-    ),
+    computed(() => project.value !== null && project.value.currentUserRole !== null),
   )
   function item(
     id: string,
@@ -227,13 +224,18 @@ export function useSidebarNavigation(): ComputedRef<SidebarNavigationGroup[]> {
           items: additionalItems,
         })
       }
-      if (currentUserRole !== null && guided) {
+      if (
+        currentUserRole !== null &&
+        guided &&
+        availability.data.value?.has_ready_snapshots === true
+      ) {
         // Guided mode's own "Statistik & Methoden" (D27 follow-up, decided 2026-10-14): a gender-ratio
         // chart from the project's working aggregation, not the full Auswertungen feature — an
         // evaluation is a separate, manually-created benchmark comparison that rarely exists this
         // early, so linking to "the" evaluation of the current run would often have nothing to show.
         // No runId gate: GenderStatisticsView resolves the working aggregation itself, the same way
-        // GenderTaggingView does.
+        // GenderTaggingView does. Hidden entirely until a dataset has actually been imported — before
+        // that there is nothing it could ever show.
         groups.push({
           id: 'evaluation',
           label: t('nav.evaluationGroup'),
