@@ -21,7 +21,7 @@ import { useMethodList } from '@/composables/useMethods'
 import { useProject, useSetWorkingAggregation } from '@/composables/useProjects'
 import { useRequireSession, useRouteParam } from '@/composables/useRequireSession'
 import { TERMINAL_RUN_STATUSES, useRun, useRunExecutions } from '@/composables/useRunDetail'
-import { useCreateRun } from '@/composables/useRuns'
+import { useCreateRun, useRunList } from '@/composables/useRuns'
 
 import { useCreateExport, type ExportFormat } from '@/features/export/useExports'
 import { useRunProgress } from '@/features/runs/useRunProgress'
@@ -103,8 +103,12 @@ const isDone = computed(
     !workingDatasetStale.value,
 )
 
-// An active generation in this visit only; it has no effect on `isDone` above, which is read from
-// the project itself. A reload while generating is still in flight simply offers to start again.
+// Tracked only locally while this page stays mounted; a reload (or this component's own real-stack
+// restart, mid-generation, found the hard way) would otherwise lose track of a run that goes on to
+// finish successfully in the background — the button would just offer to start again over a dataset
+// that in fact already has results, with nothing to show for the run that actually worked. The
+// one-shot resume below re-adopts whatever run the server still remembers as this snapshot's most
+// recent before any explicit generate can run, so Schritt 2 catches up instead of orphaning it.
 const activeRunId = ref<string | null>(null)
 const activeRunEnabled = computed(() => activeRunId.value !== null)
 const activeRun = useRun(
@@ -118,6 +122,40 @@ const activeExecutions = useRunExecutions(
 useRunProgress(
   computed(() => activeRunId.value ?? ''),
   activeRunEnabled,
+)
+
+const runListEnabled = computed(
+  () => canGenerate.value && latestReady.value !== null && !isDone.value,
+)
+const runList = useRunList(
+  computed(() => latestReady.value?.id ?? ''),
+  runListEnabled,
+)
+// Settled, not just loaded: `isDone` only means something once the working aggregation (and the run
+// behind it) has either resolved or definitively failed to — otherwise a run already turned into the
+// working aggregation could read as "not done yet" purely because that other query hasn't come back,
+// and get re-adopted into a duplicate aggregation.
+const resumeReady = computed(
+  () =>
+    runList.data.value !== undefined &&
+    project.isSuccess.value &&
+    (!workingAggregationEnabled.value ||
+      workingAggregation.isSuccess.value ||
+      workingAggregation.isError.value) &&
+    (workingRunId.value === null || workingRun.isSuccess.value || workingRun.isError.value),
+)
+let resumeChecked = false
+watch(
+  resumeReady,
+  (ready) => {
+    if (!ready || resumeChecked) return
+    resumeChecked = true
+    const mostRecentRun = runList.data.value?.pages[0]?.items[0] ?? null
+    if (mostRecentRun !== null && activeRunId.value === null && !isDone.value) {
+      activeRunId.value = mostRecentRun.id
+    }
+  },
+  { immediate: true },
 )
 
 const methods = useMethodList(canGenerate)

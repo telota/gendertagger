@@ -391,6 +391,52 @@ describe.each(['de', 'en'] as const)('GenderTaggingView in %s', (locale: AppLoca
     ])
   })
 
+  it('picks up a run that already finished without this page watching it, instead of orphaning it (bugfix)', async () => {
+    stubEventSource()
+    const table = routesFor(null)
+    let aggregationCreated = false
+    const client = createApiClient({
+      fetch: async (request) => {
+        const path = new URL(request.url).pathname
+        if (path === `/api/v1/projects/${PROJECT_ID}`) return jsonResponse(project(table.working))
+        if (path === `/api/v1/snapshots/${SNAPSHOT_ID}/runs`) {
+          // A run this page never saw created (e.g. a reload mid-generation, found the hard way):
+          // it finished successfully in the background, but nothing here ever watched it happen.
+          return jsonResponse({
+            items: [{ id: RUN_ID, dataset_snapshot_id: SNAPSHOT_ID, status: 'completed', created_at: '2026-01-01T00:10:00Z' }],
+            has_more: false,
+            next_cursor: null,
+          })
+        }
+        if (path === `/api/v1/runs/${RUN_ID}/aggregations` && request.method === 'POST') {
+          aggregationCreated = true
+          return jsonResponse(AGGREGATION, { status: 201 })
+        }
+        if (path === `/api/v1/projects/${PROJECT_ID}/working-aggregation` && request.method === 'PUT') {
+          const body = JSON.parse(await request.clone().text()) as { aggregation_execution_id: string | null }
+          table.working = body.aggregation_execution_id
+          return jsonResponse(project(table.working))
+        }
+        const route = table.get(path)
+        return jsonResponse(route ?? {}, { status: route === undefined ? 404 : 200 })
+      },
+    })
+    const wrapper = await mountApplicationAt(
+      `/projects/${PROJECT_ID}/gender-tagging`,
+      locale,
+      client,
+    )
+    await waitFor(() => expect(wrapper.get('h1').text()).toBe('Gender Project'))
+
+    await waitFor(() => expect(aggregationCreated).toBe(true))
+    await waitFor(() => expect(table.working).toBe(AGGREGATION_ID))
+    await waitFor(() =>
+      expect(wrapper.findAll('h2').map((heading) => heading.text())).toContain(
+        messages.review.title,
+      ),
+    )
+  })
+
   it('retries without a method the deployment cannot run yet, instead of failing outright (bugfix)', async () => {
     stubEventSource()
     const table = routesFor(null)

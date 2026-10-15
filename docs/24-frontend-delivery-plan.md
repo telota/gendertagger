@@ -1809,6 +1809,19 @@ Further direct feedback, continuing the two rounds above.
   empty config; the other 7 fail individually.) Advanced mode's own `NewRunForm.vue` already lets a
   user deselect methods and paste per-method JSON config by hand, so it was never broken the same way —
   only guided mode's "select everything automatically" premise was.
+- **Even after the retry fix above, generate still looked broken on a reload mid-run.** Found by
+  checking the database directly: two runs for the same dataset had both completed successfully in the
+  background, with method executions all `completed`, yet no aggregation was ever created for either
+  — `GenderTaggingView.vue` only ever tracked an in-flight run (`activeRunId`) as a local ref, so a page
+  reload (or, in this real-stack testing session, a dev-container restart) while a run was still going
+  silently forgot it; the button went back to offering to start again over a dataset that, moments
+  later, actually had results with nothing watching for them. Added a one-shot resume: once the
+  project, the working aggregation (if any), and its run have all settled, a `useRunList` query for the
+  current dataset's own most recent run adopts it into `activeRunId` if it isn't already reflected by
+  the working aggregation — the same auto-create-aggregation and set-working-aggregation watchers that
+  already existed then just run as if this page had been there to see it live. Gated on full settlement
+  (not just "loaded") specifically to avoid re-adopting an already-aggregated run into a second,
+  duplicate aggregation while `isDone` is still momentarily unsettled right after a reload.
 
 Full suite, `typecheck`, `lint`, `i18n:check`, and `unused:check` all clean (same 2 pre-existing Windows
 symlink failures as every prior round). Visually verified against the real stack.
