@@ -3823,6 +3823,37 @@ export interface components {
          */
         RunStatus: "created" | "queued" | "running" | "completed" | "completed_with_errors" | "failed" | "cancelled";
         /**
+         * RunnableMethod
+         * @description A registered method as the `/methods` listing reports it, with its current readiness.
+         *
+         *     `available` is a deployment fact, not scientific metadata, so it lives here rather than on
+         *     `MethodDescriptor` itself, which run and execution records also embed as immutable provenance.
+         */
+        RunnableMethod: {
+            /**
+             * Available
+             * @description Whether this method can run with no configuration beyond what this deployment already has in place (a lookup/model asset, or a default the adapter itself supplies) — not whether the method name is merely registered.
+             */
+            available: boolean;
+            /**
+             * Implementation Version
+             * @description Version of the adapter implementation used for predictions.
+             */
+            implementation_version: string;
+            /** @description Inclusive range for method-specific confidence values, or null when the method does not report confidence. */
+            method_confidence_range?: components["schemas"]["MethodConfidenceRange"] | null;
+            /**
+             * Name
+             * @description Stable lowercase snake-case method identifier.
+             */
+            name: string;
+            /**
+             * Normalization Version
+             * @description Version of the adapter-owned raw-label normalization behavior.
+             */
+            normalization_version: string;
+        };
+        /**
          * SnapshotAnnotationItem
          * @description Imported person and current human decision, independent of classification results.
          */
@@ -7925,7 +7956,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MethodDescriptor"][];
+                    "application/json": components["schemas"]["RunnableMethod"][];
                 };
             };
             /** @description Invalid request */

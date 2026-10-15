@@ -5761,6 +5761,54 @@
         "title": "RunStatus",
         "type": "string"
       },
+      "RunnableMethod": {
+        "additionalProperties": false,
+        "description": "A registered method as the `/methods` listing reports it, with its current readiness.\n\n`available` is a deployment fact, not scientific metadata, so it lives here rather than on\n`MethodDescriptor` itself, which run and execution records also embed as immutable provenance.",
+        "properties": {
+          "available": {
+            "description": "Whether this method can run with no configuration beyond what this deployment already has in place (a lookup/model asset, or a default the adapter itself supplies) — not whether the method name is merely registered.",
+            "title": "Available",
+            "type": "boolean"
+          },
+          "implementation_version": {
+            "description": "Version of the adapter implementation used for predictions.",
+            "minLength": 1,
+            "title": "Implementation Version",
+            "type": "string"
+          },
+          "method_confidence_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MethodConfidenceRange"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inclusive range for method-specific confidence values, or null when the method does not report confidence."
+          },
+          "name": {
+            "description": "Stable lowercase snake-case method identifier.",
+            "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+            "title": "Name",
+            "type": "string"
+          },
+          "normalization_version": {
+            "description": "Version of the adapter-owned raw-label normalization behavior.",
+            "minLength": 1,
+            "title": "Normalization Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "implementation_version",
+          "normalization_version",
+          "available"
+        ],
+        "title": "RunnableMethod",
+        "type": "object"
+      },
       "SnapshotAnnotationItem": {
         "additionalProperties": false,
         "description": "Imported person and current human decision, independent of classification results.",
@@ -10992,7 +11040,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/MethodDescriptor"
+                    "$ref": "#/components/schemas/RunnableMethod"
                   },
                   "title": "Response List Methods Api V1 Methods Get",
                   "type": "array"

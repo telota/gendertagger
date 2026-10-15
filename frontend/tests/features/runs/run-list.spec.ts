@@ -29,12 +29,14 @@ const METHODS = [
     implementation_version: 'gender_guesser_v1',
     normalization_version: 'gender_guesser_v1',
     method_confidence_range: null,
+    available: true,
   },
   {
     name: 'local_llm',
     implementation_version: 'local_llm_v1',
     normalization_version: 'local_llm_v1',
     method_confidence_range: { minimum: 0, maximum: 1 },
+    available: false,
   },
 ]
 
@@ -406,6 +408,16 @@ describe.each(['de', 'en'] as const)('run list and new run in %s', (locale: AppL
     expect(facts[0]).toContain('gender_guesser_v1')
     expect(facts[0]).not.toMatch(/0[.,]0/)
     expect(facts[1]).toMatch(/0[.,]0.*1[.,]0/)
+  })
+
+  it('flags a method this deployment has not configured yet, next to its own entry (D27 follow-up)', async () => {
+    const { wrapper } = await mountRuns()
+
+    const methodItems = wrapper.findAll('.new-run-method')
+    expect(methodItems[0]?.find('.new-run-method-unavailable').exists()).toBe(false)
+    expect(methodItems[1]?.find('.new-run-method-unavailable').text()).toBe(
+      messages.new.needsConfiguration,
+    )
   })
 
   it('creates and schedules a run from the chosen methods and their JSON configuration', async () => {

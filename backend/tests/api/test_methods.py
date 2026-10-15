@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from uuid import UUID
 
 from fastapi.testclient import TestClient
-from pydantic import SecretStr
+from pydantic import Field, SecretStr, ValidationError
 
 from gendertagger.api.app import create_app
 from gendertagger.api.authentication import require_authenticated_user
@@ -139,6 +139,87 @@ def test_default_registry_routes_every_method_to_the_expected_queue() -> None:
         expected_queue = "llm" if registration.descriptor.name == "local_llm" else "cpu"
         assert registration.queue_name == expected_queue
         assert registration.batch_size > 0
+
+
+def test_methods_endpoint_reports_available_true_for_a_config_that_validates_empty() -> None:
+    registry = MethodRegistry(
+        [
+            _registration(
+                MethodDescriptor(
+                    name="stub_method",
+                    implementation_version="stub_v1",
+                    normalization_version="stub_normalization_v1",
+                )
+            ),
+        ]
+    )
+
+    response = _application_client(registry).get("/api/v1/methods")
+
+    assert response.status_code == 200
+    [method] = response.json()
+    assert method["available"] is True
+
+
+def test_methods_endpoint_reports_available_false_when_the_config_requires_a_field() -> None:
+    class RequiredFieldConfig(MethodConfig):
+        lookup_sha256: str = Field(min_length=1)
+
+    registry = MethodRegistry(
+        [
+            MethodRegistration(
+                descriptor=MethodDescriptor(
+                    name="needs_config",
+                    implementation_version="v1",
+                    normalization_version="normalization_v1",
+                ),
+                config_model=RequiredFieldConfig,
+                adapter=_STUB,
+                queue_name="cpu",
+                batch_size=100,
+            ),
+        ]
+    )
+
+    response = _application_client(registry).get("/api/v1/methods")
+
+    assert response.status_code == 200
+    [method] = response.json()
+    assert method["available"] is False
+
+
+def test_default_registry_reports_only_the_unconfigured_methods_as_unavailable() -> None:
+    # The same registry a real deployment with no lookup/model assets configured gets: exactly
+    # the three methods with no required configuration are available. A snapshot of
+    # *which* methods that is, so adding a new required field to one of them is a visible,
+    # deliberate change here rather than a silent regression.
+    registry = default_method_registry()
+
+    availability = {
+        registration.descriptor.name: _is_available_for_test(registration)
+        for registration in registry.registrations
+    }
+
+    assert availability == {
+        "gender_guesser": True,
+        "gnd": False,
+        "hf_distilbert": False,
+        "hf_genderize": False,
+        "hivoto": False,
+        "hivoto_xgboost": False,
+        "local_llm": False,
+        "nomquamgender": True,
+        "parenthetical_qualifier": True,
+        "wiki_gendersort": False,
+    }
+
+
+def _is_available_for_test(registration: MethodRegistration) -> bool:
+    try:
+        registration.config_model.model_validate({})
+    except ValidationError:
+        return False
+    return True
 
 
 def test_methods_endpoint_returns_descriptors_in_stable_name_order() -> None:

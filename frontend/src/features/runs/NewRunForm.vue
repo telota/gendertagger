@@ -153,7 +153,11 @@ async function submit(): Promise<void> {
                 :id="`method-${method.name}`"
                 v-model="selected[method.name]"
                 type="checkbox"
-                :aria-describedby="`method-${method.name}-facts`"
+                :aria-describedby="
+                  method.available
+                    ? `method-${method.name}-facts`
+                    : `method-${method.name}-facts method-${method.name}-unavailable`
+                "
               />
               <label :for="`method-${method.name}`" class="new-run-method-name">{{
                 method.name
@@ -169,6 +173,13 @@ async function submit(): Promise<void> {
                     })
                   : t('runs.new.version', { version: method.implementation_version })
               }}
+            </p>
+            <p
+              v-if="!method.available"
+              :id="`method-${method.name}-unavailable`"
+              class="new-run-method-unavailable"
+            >
+              {{ t('runs.new.needsConfiguration') }}
             </p>
             <details v-if="selected[method.name]" class="new-run-config">
               <summary>{{ t('runs.new.configureMethod') }}</summary>
@@ -301,6 +312,12 @@ async function submit(): Promise<void> {
 .new-run-method-facts {
   margin: var(--space-1) 0 0;
   color: var(--text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.new-run-method-unavailable {
+  margin: var(--space-1) 0 0;
+  color: var(--critical-text);
   font-size: var(--font-size-small);
 }
 

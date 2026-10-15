@@ -55,3 +55,19 @@ class MethodDescriptor(BaseModel):
             msg = "method versions must not be blank"
             raise ValueError(msg)
         return value
+
+
+class RunnableMethod(MethodDescriptor):
+    """A registered method as the `/methods` listing reports it, with its current readiness.
+
+    `available` is a deployment fact, not scientific metadata, so it lives here rather than on
+    `MethodDescriptor` itself, which run and execution records also embed as immutable provenance.
+    """
+
+    available: bool = Field(
+        description=(
+            "Whether this method can run with no configuration beyond what this deployment "
+            "already has in place (a lookup/model asset, or a default the adapter itself "
+            "supplies) — not whether the method name is merely registered."
+        ),
+    )
