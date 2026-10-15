@@ -604,6 +604,14 @@
         "submit": "Standardwerte verwenden"
       }
     },
+    "aggregation": {
+      "title": "Automatische Vorschläge",
+      "description": "Legt fest, ob Läufe mit weniger als den neun Referenzmethoden trotzdem zusammengeführt werden dürfen.",
+      "toggleLabel": "Zusammenführung mit unvollständigem Methodensatz zulassen",
+      "hint": "Standardmäßig aktiviert: Fehlt dieser Instanz die Konfiguration für einzelne Methoden, wird mit den übrigen zusammengeführt (eigens als „reference_partial_v1“ gekennzeichnet), statt den Lauf ganz abzulehnen. Ausschalten erzwingt wieder den vollständigen Methodensatz.",
+      "save": "Speichern",
+      "saving": "Wird gespeichert …"
+    },
     "deployment": {
       "title": "Vom Deployment verwaltet",
       "description": "Diese Angaben erscheinen ebenfalls öffentlich. Ändern Sie sie in der Deployment-Konfiguration und prüfen Sie sie hier.",

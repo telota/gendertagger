@@ -36,6 +36,9 @@ class SqlAlchemySettingsRepository:
                         exclude_unset=True,
                         mode="json",
                     ),
+                    allow_partial_reference_aggregation=(
+                        settings.allow_partial_reference_aggregation
+                    ),
                     updated_at=func.now(),
                 )
             )
@@ -57,6 +60,7 @@ class SqlAlchemySettingsRepository:
             return DeploymentSettings(
                 revision=row.revision,
                 branding_overrides=BrandingOverrides.model_validate(row.branding_overrides),
+                allow_partial_reference_aggregation=row.allow_partial_reference_aggregation,
             )
         except ValidationError as error:
             raise SettingsUnavailableError("Stored settings are invalid.") from error

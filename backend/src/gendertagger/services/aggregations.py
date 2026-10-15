@@ -4,6 +4,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from uuid import UUID
 
+from gendertagger.config.run import AggregationStrategy
 from gendertagger.models.aggregation import (
     AggregatedResult,
     AggregationCreateRequest,
@@ -28,6 +29,10 @@ from gendertagger.services.ports.persistence_errors import ResourceNotFoundError
 from gendertagger.services.ports.unit_of_work import UnitOfWorkFactory
 
 Clock = Callable[[], UtcDatetime]
+
+
+class PartialAggregationDisabledError(ValueError):
+    """Raised when `reference_partial_v1` is requested while the deployment disallows it (ADR-0051)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,6 +81,11 @@ class AggregationService:
             method_execution_ids=command.method_execution_ids,
         )
         with self._unit_of_work_factory() as unit_of_work:
+            if create.strategy is AggregationStrategy.reference_partial_v1:
+                settings = unit_of_work.settings.get_deployment_settings()
+                if settings is None or not settings.allow_partial_reference_aggregation:
+                    msg = "this deployment does not allow reference_partial_v1 aggregations"
+                    raise PartialAggregationDisabledError(msg)
             existing = unit_of_work.aggregations.find_reusable_aggregation(create)
             if existing is not None:
                 return AggregationCreation(aggregation=existing, created=False)

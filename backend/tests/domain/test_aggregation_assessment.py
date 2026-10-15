@@ -260,3 +260,24 @@ def test_no_vote_has_no_score_and_no_data_tiers() -> None:
     assert result.agreement_score is None
     assert result.agreement_tier is AgreementTier.no_answer
     assert result.certainty_tier is CertaintyTier.no_data
+
+
+def test_partial_strategy_lone_voter_is_found_without_the_other_eight_present() -> None:
+    # ADR-0051: unlike `_complete_predictions()`, nothing pads the other eight reference methods
+    # in as an abstain here — a `reference_partial_v1` selection simply never has entries for
+    # method it did not select, and finding the lone voter must not assume otherwise.
+    result = assess_reference_predictions(
+        {"gender_guesser": _success(CanonicalLabel.male)},
+        require_full_set=False,
+    )
+
+    assert result.agreement_score == 1.0
+    assert result.agreement_tier is AgreementTier.single_rater
+    assert result.certainty_tier is CertaintyTier.uncertain
+
+
+def test_partial_strategy_lone_llm_voter_still_requires_its_self_report() -> None:
+    prediction = PredictionResult(label=CanonicalLabel.female, status=PredictionStatus.success)
+
+    with pytest.raises(ReferenceAssessmentError, match="self_reported_certainty"):
+        assess_reference_predictions({"local_llm": prediction}, require_full_set=False)

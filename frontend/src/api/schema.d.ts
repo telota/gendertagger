@@ -28,6 +28,26 @@ export interface paths {
         patch: operations["update_admin_settings_api_v1_admin_settings_patch"];
         trace?: never;
     };
+    "/api/v1/admin/settings/aggregation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Aggregation Settings
+         * @description Set whether `reference_partial_v1` aggregations may run (ADR-0051).
+         */
+        patch: operations["update_aggregation_settings_api_v1_admin_settings_aggregation_patch"];
+        trace?: never;
+    };
     "/api/v1/admin/settings/reset": {
         parameters: {
             query?: never;
@@ -1497,6 +1517,8 @@ export interface components {
          * @description Administrator-visible effective branding, fallback values, and override metadata.
          */
         AdminSettings: {
+            /** Allow Partial Reference Aggregation */
+            allow_partial_reference_aggregation: boolean;
             branding: components["schemas"]["BrandingInfo"];
             branding_defaults: components["schemas"]["BrandingEditableValues"];
             /** Overridden Fields */
@@ -1737,11 +1759,21 @@ export interface components {
          */
         AggregationOutcome: "decided" | "unresolved_tie" | "no_data";
         /**
+         * AggregationSettingsUpdate
+         * @description Revision-checked request to set whether `reference_partial_v1` may run (ADR-0051).
+         */
+        AggregationSettingsUpdate: {
+            /** Allow Partial Reference Aggregation */
+            allow_partial_reference_aggregation: boolean;
+            /** Expected Revision */
+            expected_revision: number;
+        };
+        /**
          * AggregationStrategy
          * @description Supported versioned aggregation strategies.
          * @enum {string}
          */
-        AggregationStrategy: "reference_v1";
+        AggregationStrategy: "reference_v1" | "reference_partial_v1";
         /**
          * AgreementTier
          * @description Categorical agreement among methods that supplied an answer.
@@ -4310,6 +4342,111 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["AdminSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSettings"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Payload too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Settings storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    update_aggregation_settings_api_v1_admin_settings_aggregation_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AggregationSettingsUpdate"];
             };
         };
         responses: {

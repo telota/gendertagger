@@ -247,3 +247,47 @@ def test_unknown_method_fails_clearly() -> None:
 
     with pytest.raises(ReferenceAggregationError, match="unknown methods: typo_method"):
         aggregate_reference_predictions(predictions)
+
+
+def test_partial_strategy_accepts_a_subset_and_votes_only_over_what_is_present() -> None:
+    # ADR-0051: `reference_partial_v1` — an absent method simply does not vote, never treated as
+    # an implicit abstain (it was never run, so it never abstained from anything).
+    predictions = {
+        "gender_guesser": _success(CanonicalLabel.female),
+        "nomquamgender": _success(CanonicalLabel.female),
+    }
+
+    decision = aggregate_reference_predictions(predictions, require_full_set=False)
+
+    assert decision.outcome is AggregationOutcome.decided
+    assert decision.label is CanonicalLabel.female
+    assert decision.override_source is None
+    assert decision.pooled_vote_counts == VoteCounts(female=2)
+
+
+def test_partial_strategy_still_applies_the_same_override_priority() -> None:
+    predictions = {
+        "parenthetical_qualifier": _success(CanonicalLabel.male),
+        "gender_guesser": _success(CanonicalLabel.female),
+    }
+
+    decision = aggregate_reference_predictions(predictions, require_full_set=False)
+
+    assert decision.label is CanonicalLabel.male
+    assert decision.override_source is OverrideSource.parenthetical_qualifier
+    assert decision.override_comparison_count == 1
+    assert decision.override_agreeing_count == 0
+
+
+def test_partial_strategy_still_rejects_an_unknown_method() -> None:
+    predictions = {"gender_guesser": _success(CanonicalLabel.female), "typo_method": _no_vote()}
+
+    with pytest.raises(ReferenceAggregationError, match="unknown methods: typo_method"):
+        aggregate_reference_predictions(predictions, require_full_set=False)
+
+
+def test_partial_strategy_with_nothing_present_has_no_data() -> None:
+    decision = aggregate_reference_predictions({}, require_full_set=False)
+
+    assert decision.outcome is AggregationOutcome.no_data
+    assert decision.label is None

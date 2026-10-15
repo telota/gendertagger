@@ -11,6 +11,7 @@ from gendertagger.models.admin_settings import (
     AdminSettings,
     AdminSettingsReset,
     AdminSettingsUpdate,
+    AggregationSettingsUpdate,
 )
 from gendertagger.models.api import ApiErrorEnvelope
 from gendertagger.models.user import CurrentUser
@@ -91,6 +92,33 @@ def reset_admin_settings(
     """Remove selected branding overrides under the requested singleton revision."""
     try:
         result = service.reset_settings(
+            command,
+            actor_user_id=administrator.id,
+            request_id=cast(str, request.state.request_id),
+        )
+    except SettingsRevisionConflictError as error:
+        raise _settings_revision_conflict_error(error) from error
+    except SettingsUnavailableError as error:
+        raise _settings_unavailable_error() from error
+    response.headers["Cache-Control"] = "no-store"
+    return result
+
+
+@router.patch(
+    "/admin/settings/aggregation",
+    response_model=AdminSettings,
+    responses=_SETTINGS_UNAVAILABLE_RESPONSE,
+)
+def update_aggregation_settings(
+    command: AggregationSettingsUpdate,
+    request: Request,
+    response: Response,
+    service: Annotated[AdminSettingsService, Depends(get_admin_settings_service)],
+    administrator: Annotated[CurrentUser, Depends(require_admin)],
+) -> AdminSettings:
+    """Set whether `reference_partial_v1` aggregations may run (ADR-0051)."""
+    try:
+        result = service.update_aggregation_settings(
             command,
             actor_user_id=administrator.id,
             request_id=cast(str, request.state.request_id),

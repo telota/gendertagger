@@ -368,6 +368,72 @@ describe.each(['de', 'en'] as const)('GenderTaggingView in %s', (locale: AppLoca
     )
   })
 
+  it('falls back to reference_partial_v1 and still unlocks review once the full set is unavailable (ADR-0051)', async () => {
+    stubEventSource()
+    const table = routesFor(null)
+    const strategiesTried: string[] = []
+    const client = createApiClient({
+      fetch: async (request) => {
+        const path = new URL(request.url).pathname
+        if (path === `/api/v1/projects/${PROJECT_ID}`) return jsonResponse(project(table.working))
+        if (path === '/api/v1/runs' && request.method === 'POST') {
+          return jsonResponse({ id: RUN_ID, dataset_snapshot_id: SNAPSHOT_ID, status: 'created' })
+        }
+        if (path === `/api/v1/runs/${RUN_ID}/executions` && request.method === 'POST') {
+          return jsonResponse({ id: RUN_ID, dataset_snapshot_id: SNAPSHOT_ID, status: 'completed' })
+        }
+        if (path === `/api/v1/runs/${RUN_ID}/aggregations` && request.method === 'POST') {
+          const body = (await request.clone().json()) as { strategy: string }
+          strategiesTried.push(body.strategy)
+          if (body.strategy === 'reference_v1') {
+            return jsonResponse(
+              {
+                error: {
+                  code: 'resource_conflict',
+                  message: 'The method execution selection is not aggregatable.',
+                  details: {},
+                },
+              },
+              { status: 409 },
+            )
+          }
+          return jsonResponse({ ...AGGREGATION, strategy: body.strategy }, { status: 201 })
+        }
+        if (path === `/api/v1/projects/${PROJECT_ID}/working-aggregation` && request.method === 'PUT') {
+          const body = JSON.parse(await request.clone().text()) as {
+            aggregation_execution_id: string | null
+          }
+          table.working = body.aggregation_execution_id
+          return jsonResponse(project(table.working))
+        }
+        const route = table.get(path)
+        return jsonResponse(route ?? {}, { status: route === undefined ? 404 : 200 })
+      },
+    })
+    const wrapper = await mountApplicationAt(
+      `/projects/${PROJECT_ID}/gender-tagging`,
+      locale,
+      client,
+    )
+    await waitFor(() => expect(wrapper.get('h1').text()).toBe('Gender Project'))
+    await waitFor(() => {
+      const button = wrapper.findAll('button').find((item) => item.text() === messages.generate.title)
+      expect(button?.attributes('disabled')).toBeUndefined()
+    })
+    const generate = wrapper
+      .findAll('button')
+      .find((button) => button.text() === messages.generate.title)
+    await generate!.trigger('click')
+
+    await waitFor(() => expect(table.working).toBe(AGGREGATION_ID))
+    expect(strategiesTried).toEqual(['reference_v1', 'reference_partial_v1'])
+    await waitFor(() =>
+      expect(wrapper.findAll('h2').map((heading) => heading.text())).toContain(
+        messages.review.title,
+      ),
+    )
+  })
+
   it('runs the full guided flow: generate sets the working aggregation and unlocks review and export', async () => {
     stubEventSource()
     const table = routesFor(null)

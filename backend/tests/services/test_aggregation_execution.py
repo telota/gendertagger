@@ -6,11 +6,13 @@ from uuid import UUID
 
 import pytest
 
+from gendertagger.config.run import AggregationStrategy
 from gendertagger.domain.aggregation import REFERENCE_REQUIRED_METHODS
 from gendertagger.models.aggregation import (
     AggregationExecution,
     AggregationExecutionCreate,
     AggregationPersonPredictions,
+    AggregationPredictionMatrix,
     AggregationResultWrite,
     AggregationTaskMessage,
 )
@@ -75,10 +77,16 @@ class _UnitOfWorkFactory:
         return cast(UnitOfWork, unit_of_work)
 
 
-def _aggregation(status: AggregationExecutionStatus) -> AggregationExecution:
+def _aggregation(
+    status: AggregationExecutionStatus,
+    *,
+    strategy: AggregationStrategy = AggregationStrategy.reference_v1,
+    method_execution_ids: tuple[UUID, ...] = METHOD_EXECUTION_IDS,
+) -> AggregationExecution:
     command = AggregationExecutionCreate(
         run_id=RUN_ID,
-        method_execution_ids=METHOD_EXECUTION_IDS,
+        strategy=strategy,
+        method_execution_ids=method_execution_ids,
     )
     started_at = NOW if status is not AggregationExecutionStatus.pending else None
     finished_at = (
@@ -126,6 +134,14 @@ def _prediction_matrix(*, omit: str | None = None) -> list[AggregationPersonPred
     ]
 
 
+def _matrix(
+    people: list[AggregationPersonPredictions],
+    *,
+    selected_methods: frozenset[str] = frozenset(REFERENCE_REQUIRED_METHODS),
+) -> AggregationPredictionMatrix:
+    return AggregationPredictionMatrix(selected_methods=selected_methods, people=tuple(people))
+
+
 def _executor(repository: AggregationRepository) -> tuple[AggregationExecutor, _UnitOfWorkFactory]:
     factory = _UnitOfWorkFactory(repository)
     return AggregationExecutor(unit_of_work_factory=factory, clock=lambda: NOW), factory
@@ -134,7 +150,7 @@ def _executor(repository: AggregationRepository) -> tuple[AggregationExecutor, _
 def test_executor_persists_complete_results_with_explicit_abstains_and_errors() -> None:
     repository = Mock(spec=AggregationRepository)
     repository.claim_aggregation.return_value = _aggregation(AggregationExecutionStatus.running)
-    repository.load_prediction_matrix.return_value = _prediction_matrix()
+    repository.load_prediction_matrix.return_value = _matrix(_prediction_matrix())
     repository.mark_aggregation_finished.return_value = _aggregation(
         AggregationExecutionStatus.completed
     )
@@ -158,19 +174,21 @@ def test_executor_persists_complete_results_with_explicit_abstains_and_errors() 
 def test_executor_projects_error_free_evidence_without_a_prediction_error_flag() -> None:
     repository = Mock(spec=AggregationRepository)
     repository.claim_aggregation.return_value = _aggregation(AggregationExecutionStatus.running)
-    repository.load_prediction_matrix.return_value = [
-        _prediction_matrix()[0].model_copy(
-            update={
-                "predictions": {
-                    method_name: PredictionResult(
-                        label=None,
-                        status=PredictionStatus.abstain,
-                    )
-                    for method_name in REFERENCE_REQUIRED_METHODS
+    repository.load_prediction_matrix.return_value = _matrix(
+        [
+            _prediction_matrix()[0].model_copy(
+                update={
+                    "predictions": {
+                        method_name: PredictionResult(
+                            label=None,
+                            status=PredictionStatus.abstain,
+                        )
+                        for method_name in REFERENCE_REQUIRED_METHODS
+                    }
                 }
-            }
-        )
-    ]
+            )
+        ]
+    )
     repository.mark_aggregation_finished.return_value = _aggregation(
         AggregationExecutionStatus.completed
     )
@@ -191,10 +209,9 @@ def test_executor_fails_when_a_required_prediction_row_is_missing() -> None:
     missing_person = _prediction_matrix(omit="gnd")[0].model_copy(
         update={"person_record_id": SECOND_PERSON_ID}
     )
-    repository.load_prediction_matrix.return_value = [
-        *_prediction_matrix(),
-        missing_person,
-    ]
+    repository.load_prediction_matrix.return_value = _matrix(
+        [*_prediction_matrix(), missing_person]
+    )
     repository.mark_aggregation_finished.return_value = _aggregation(
         AggregationExecutionStatus.failed
     )
@@ -210,6 +227,96 @@ def test_executor_fails_when_a_required_prediction_row_is_missing() -> None:
     finish_keywords = repository.mark_aggregation_finished.call_args.kwargs
     assert finish_keywords["failure_class"] == "PermanentAggregationError"
     assert "missing required predictions: gnd" in finish_keywords["failure_diagnostic"]
+    assert factory.units[0].commit_count == 1
+
+
+_PARTIAL_EXECUTION_IDS = (
+    METHOD_EXECUTION_IDS[2],  # gender_guesser
+    METHOD_EXECUTION_IDS[5],  # nomquamgender
+)
+
+
+def test_executor_accepts_a_partial_strategy_selection_missing_required_methods() -> None:
+    # ADR-0051: `reference_partial_v1` requires only its own (smaller) selection, not the full
+    # nine `reference_v1` methods — the whole point of the strategy.
+    repository = Mock(spec=AggregationRepository)
+    repository.claim_aggregation.return_value = _aggregation(
+        AggregationExecutionStatus.running,
+        strategy=AggregationStrategy.reference_partial_v1,
+        method_execution_ids=_PARTIAL_EXECUTION_IDS,
+    )
+    repository.load_prediction_matrix.return_value = _matrix(
+        [
+            AggregationPersonPredictions(
+                person_record_id=PERSON_ID,
+                predictions={
+                    "gender_guesser": PredictionResult(
+                        label=CanonicalLabel.female, status=PredictionStatus.success
+                    ),
+                    "nomquamgender": PredictionResult(
+                        label=CanonicalLabel.female, status=PredictionStatus.success
+                    ),
+                },
+            )
+        ],
+        selected_methods=frozenset({"gender_guesser", "nomquamgender"}),
+    )
+    repository.mark_aggregation_finished.return_value = _aggregation(
+        AggregationExecutionStatus.completed,
+        strategy=AggregationStrategy.reference_partial_v1,
+        method_execution_ids=_PARTIAL_EXECUTION_IDS,
+    )
+    executor, _ = _executor(repository)
+
+    result = executor.execute(
+        AggregationTaskMessage(aggregation_execution_id=AGGREGATION_ID),
+        attempt_count=1,
+    )
+
+    assert result.status is AggregationExecutionStatus.completed
+    writes = cast(list[AggregationResultWrite], repository.add_results.call_args.args[1])
+    assert writes[0].result.label is CanonicalLabel.female
+    assert writes[0].metadata == {"strategy": "reference_partial_v1"}
+
+
+def test_executor_still_fails_partial_strategy_when_its_own_selection_is_incomplete() -> None:
+    # A partial aggregation is lenient about which methods it needs overall, never about whether
+    # every method it did select actually produced a prediction for every person.
+    repository = Mock(spec=AggregationRepository)
+    repository.claim_aggregation.return_value = _aggregation(
+        AggregationExecutionStatus.running,
+        strategy=AggregationStrategy.reference_partial_v1,
+        method_execution_ids=_PARTIAL_EXECUTION_IDS,
+    )
+    repository.load_prediction_matrix.return_value = _matrix(
+        [
+            AggregationPersonPredictions(
+                person_record_id=PERSON_ID,
+                predictions={
+                    "gender_guesser": PredictionResult(
+                        label=CanonicalLabel.female, status=PredictionStatus.success
+                    ),
+                },
+            )
+        ],
+        selected_methods=frozenset({"gender_guesser", "nomquamgender"}),
+    )
+    repository.mark_aggregation_finished.return_value = _aggregation(
+        AggregationExecutionStatus.failed,
+        strategy=AggregationStrategy.reference_partial_v1,
+        method_execution_ids=_PARTIAL_EXECUTION_IDS,
+    )
+    executor, factory = _executor(repository)
+
+    result = executor.execute(
+        AggregationTaskMessage(aggregation_execution_id=AGGREGATION_ID),
+        attempt_count=1,
+    )
+
+    assert result.status is AggregationExecutionStatus.failed
+    repository.add_results.assert_not_called()
+    finish_keywords = repository.mark_aggregation_finished.call_args.kwargs
+    assert "missing required predictions: nomquamgender" in finish_keywords["failure_diagnostic"]
     assert factory.units[0].commit_count == 1
 
 

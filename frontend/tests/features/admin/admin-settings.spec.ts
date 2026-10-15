@@ -58,6 +58,7 @@ const SETTINGS = {
     published_since_year: 2020,
   },
   overridden_fields: ['institution_name', 'institution_url', 'contact_email', 'editors'],
+  allow_partial_reference_aggregation: true,
 }
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {

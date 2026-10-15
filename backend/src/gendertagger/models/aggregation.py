@@ -318,6 +318,20 @@ class AggregationPersonPredictions(BaseModel):
     predictions: dict[str, PredictionResult] = Field(default_factory=dict)
 
 
+class AggregationPredictionMatrix(BaseModel):
+    """One aggregation's selected methods and every snapshot person's present predictions.
+
+    ``selected_methods`` is the stable method identifiers of the aggregation's own selection — the
+    executor's completeness requirement for each person, whether that selection is the full
+    ``reference_v1`` set or a ``reference_partial_v1`` subset (ADR-0051).
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    selected_methods: frozenset[str]
+    people: tuple[AggregationPersonPredictions, ...] = Field(default_factory=tuple)
+
+
 class AggregatedResult(ReferenceAggregationResult):
     """Canonical read model for one immutable persisted aggregation output."""
 

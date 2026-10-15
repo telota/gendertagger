@@ -44,6 +44,7 @@ const SETTINGS = {
     published_since_year: 2025,
   },
   overridden_fields: ['institution_name'],
+  allow_partial_reference_aggregation: true,
 }
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
@@ -157,6 +158,59 @@ describe.each(['de', 'en'] as const)(
           ({ method, pathname }) => method === 'GET' && pathname === '/api/v1/branding',
         ),
       ).toHaveLength(2)
+    })
+
+    it('sends the aggregation setting as its own PATCH, separate from branding (ADR-0051)', async () => {
+      const requests: { method: string; pathname: string; body: unknown }[] = []
+      const client = signedInClient(
+        async (request) => {
+          const url = new URL(request.url)
+          const body =
+            request.method === 'GET' ? null : (JSON.parse(await request.clone().text()) as unknown)
+          requests.push({ method: request.method, pathname: url.pathname, body })
+          if (url.pathname === '/api/v1/admin/settings' && request.method === 'GET') {
+            return jsonResponse(SETTINGS)
+          }
+          if (url.pathname === '/api/v1/admin/settings/aggregation' && request.method === 'PATCH') {
+            return jsonResponse({
+              ...SETTINGS,
+              revision: 4,
+              allow_partial_reference_aggregation: false,
+            })
+          }
+          if (url.pathname === '/api/v1/branding') return jsonResponse({})
+          return jsonResponse({}, { status: 404 })
+        },
+        () => ADMIN_A,
+      )
+      const wrapper = await mountApplicationAt('/admin/settings', locale, client)
+      await waitFor(() => expect(wrapper.find('.admin-settings-editor').exists()).toBe(true))
+      const toggle = wrapper.get<HTMLInputElement>('#allow-partial-reference-aggregation')
+      expect(toggle.element.checked).toBe(true)
+      const saveButton = buttonWithText(wrapper, messages.aggregation.save)
+      expect(saveButton.attributes('disabled')).toBeDefined()
+
+      await toggle.setValue(false)
+      expect(saveButton.attributes('disabled')).toBeUndefined()
+      await saveButton.trigger('click')
+
+      await waitFor(() =>
+        expect(requests).toContainEqual({
+          method: 'PATCH',
+          pathname: '/api/v1/admin/settings/aggregation',
+          body: { expected_revision: 3, allow_partial_reference_aggregation: false },
+        }),
+      )
+      expect(
+        requests.some(
+          (request) => request.method === 'PATCH' && request.pathname === '/api/v1/admin/settings',
+        ),
+      ).toBe(false)
+      await waitFor(() =>
+        expect(
+          wrapper.get<HTMLInputElement>('#allow-partial-reference-aggregation').element.checked,
+        ).toBe(false),
+      )
     })
 
     it('keeps clear and reset distinct, confirms reset fallbacks, and never patches all fields', async () => {

@@ -1,11 +1,12 @@
 """Application orchestration for executable reference aggregations."""
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from datetime import datetime
 from uuid import UUID
 
 from pydantic import ValidationError
 
+from gendertagger.config.run import AggregationStrategy
 from gendertagger.domain.aggregation import (
     REFERENCE_REQUIRED_METHODS,
     ReferenceAggregationError,
@@ -16,7 +17,7 @@ from gendertagger.domain.aggregation_assessment import (
 )
 from gendertagger.models.aggregation import (
     AggregationExecution,
-    AggregationPersonPredictions,
+    AggregationPredictionMatrix,
     AggregationResultWrite,
     AggregationTaskMessage,
 )
@@ -115,7 +116,8 @@ class AggregationExecutor:
 
             try:
                 writes = self._assess_people(
-                    unit_of_work.aggregations.load_prediction_matrix(aggregation.id)
+                    unit_of_work.aggregations.load_prediction_matrix(aggregation.id),
+                    strategy=aggregation.strategy,
                 )
             except (
                 PermanentAggregationError,
@@ -155,11 +157,22 @@ class AggregationExecutor:
 
     @staticmethod
     def _assess_people(
-        prediction_matrix: Sequence[AggregationPersonPredictions],
+        prediction_matrix: AggregationPredictionMatrix,
+        *,
+        strategy: AggregationStrategy,
     ) -> list[AggregationResultWrite]:
         writes: list[AggregationResultWrite] = []
-        required_methods = set(REFERENCE_REQUIRED_METHODS)
-        for person_predictions in prediction_matrix:
+        # `reference_v1` always keeps its own full nine-method requirement regardless of what the
+        # selection happens to contain; `reference_partial_v1` requires only its own selection
+        # (ADR-0051) — never fewer, since every selected method's batch must still have completed
+        # for every person, but never more than what was actually chosen.
+        require_full_set = strategy is AggregationStrategy.reference_v1
+        required_methods = (
+            set(REFERENCE_REQUIRED_METHODS)
+            if require_full_set
+            else set(prediction_matrix.selected_methods)
+        )
+        for person_predictions in prediction_matrix.people:
             missing_methods = sorted(required_methods - person_predictions.predictions.keys())
             if missing_methods:
                 msg = (
@@ -170,12 +183,15 @@ class AggregationExecutor:
             writes.append(
                 AggregationResultWrite(
                     person_record_id=person_predictions.person_record_id,
-                    result=assess_reference_predictions(person_predictions.predictions),
+                    result=assess_reference_predictions(
+                        person_predictions.predictions,
+                        require_full_set=require_full_set,
+                    ),
                     has_prediction_error=any(
                         prediction.status is PredictionStatus.error
                         for prediction in person_predictions.predictions.values()
                     ),
-                    metadata={"strategy": "reference_v1"},
+                    metadata={"strategy": strategy.value},
                 )
             )
         return writes

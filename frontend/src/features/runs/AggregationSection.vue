@@ -98,11 +98,27 @@ async function createFor(ids: readonly string[], kind: 'auto' | 'manual'): Promi
   attempt.value = kind
   lastResult.value = null
   try {
-    const result = await create.mutateAsync({
-      runId: props.run.id,
-      methodExecutionIds: ids,
-      strategy: 'reference_v1',
-    })
+    let result
+    try {
+      result = await create.mutateAsync({
+        runId: props.run.id,
+        methodExecutionIds: ids,
+        strategy: 'reference_v1',
+      })
+    } catch (error) {
+      // A selection short of the full reference set (picked by hand here, or whatever a run
+      // actually completed elsewhere) isn't aggregatable as `reference_v1` — retry it as
+      // `reference_partial_v1` (ADR-0051) rather than stopping at that first rejection. If the
+      // deployment setting disallows partial aggregation too, the retry's own 403 still leaves
+      // `errorText` below reading as "not aggregatable", the one fact that is actually true.
+      if (!(error instanceof ApiError) || error.code !== 'resource_conflict') throw error
+      create.reset()
+      result = await create.mutateAsync({
+        runId: props.run.id,
+        methodExecutionIds: ids,
+        strategy: 'reference_partial_v1',
+      })
+    }
     if (requestGeneration !== generation) return
     lastResult.value = result
     if (kind === 'manual') Object.assign(savedSelection.value, submittedSelection)
@@ -190,7 +206,10 @@ function submitManual(): void {
 const errorText = computed(() => {
   const error = create.error.value
   if (attempt.value === null || !create.isError.value || error === null) return ''
-  if (error instanceof ApiError && error.code === 'resource_conflict') {
+  if (
+    error instanceof ApiError &&
+    (error.code === 'resource_conflict' || error.code === 'partial_aggregation_disabled')
+  ) {
     return attempt.value === 'auto'
       ? t('aggregations.errors.autoNotAggregatable')
       : t('aggregations.errors.notAggregatable')

@@ -224,7 +224,11 @@ describe.each(['de', 'en'] as const)('aggregation in %s', (locale: AppLocale) =>
     await waitFor(() =>
       expect(wrapper.get('.aggregations-error').text()).toBe(messages.errors.autoNotAggregatable),
     )
-    expect(server.posts).toHaveLength(1)
+    // ADR-0051: a `resource_conflict` always retries once as `reference_partial_v1` before giving
+    // up — this deployment rejects that too, so the error shown is still "not aggregatable".
+    expect(server.posts).toHaveLength(2)
+    expect(server.posts[0]?.strategy).toBe('reference_v1')
+    expect(server.posts[1]?.strategy).toBe('reference_partial_v1')
   })
 
   it('separates the working result, method lineage, next action and history', async () => {
@@ -337,7 +341,8 @@ describe.each(['de', 'en'] as const)('aggregation in %s', (locale: AppLocale) =>
     await attempt
     expect(wrapper.vm.$route.path).toBe(runPath)
     expect((wrapper.get(`#aggregate-${EXEC_C}`).element as HTMLInputElement).checked).toBe(true)
-    expect(server.posts).toHaveLength(1)
+    expect(server.posts).toHaveLength(2)
+    expect(server.posts[1]?.strategy).toBe('reference_partial_v1')
     wrapper.unmount()
   })
 

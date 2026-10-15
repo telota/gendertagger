@@ -165,6 +165,9 @@ class DeploymentSettings(BaseModel):
 
     revision: int = Field(ge=0)
     branding_overrides: BrandingOverrides
+    # ADR-0051: default enabled, so a fresh deployment with no compiled method assets can still
+    # complete an aggregation rather than being blocked outright by `reference_v1`'s full set.
+    allow_partial_reference_aggregation: bool = True
 
 
 class AdminSettings(BaseModel):
@@ -176,6 +179,16 @@ class AdminSettings(BaseModel):
     branding: BrandingInfo
     branding_defaults: BrandingEditableValues
     overridden_fields: list[BrandingSettingField]
+    allow_partial_reference_aggregation: bool
+
+
+class AggregationSettingsUpdate(BaseModel):
+    """Revision-checked request to set whether `reference_partial_v1` may run (ADR-0051)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    expected_revision: int = Field(ge=0)
+    allow_partial_reference_aggregation: bool
 
 
 class AdminSettingsUpdate(BaseModel):

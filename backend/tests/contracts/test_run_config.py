@@ -39,10 +39,15 @@ def test_run_config_defaults_are_resolved_and_mutable_values_are_isolated() -> N
 
 @pytest.mark.scientific
 def test_aggregation_strategy_exposes_exact_reference_value() -> None:
+    # ADR-0051: `reference_partial_v1` is a distinct strategy identifier, deliberately never the
+    # same string as `reference_v1` — changing this pin is the point where that distinction gets
+    # reviewed, not an incidental update.
     assert AggregationStrategy.__members__ == {
         "reference_v1": AggregationStrategy.reference_v1,
+        "reference_partial_v1": AggregationStrategy.reference_partial_v1,
     }
     assert AggregationStrategy.reference_v1.value == "reference_v1"
+    assert AggregationStrategy.reference_partial_v1.value == "reference_partial_v1"
 
 
 @pytest.mark.parametrize("strategy", ["REFERENCE_V1", "reference", "weighted_v1"])

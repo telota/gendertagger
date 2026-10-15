@@ -187,6 +187,33 @@ const createdAggregation = useAggregation(
 const aggregationFailed = computed(() => createAggregation.isError.value)
 const aggregationDone = computed(() => createdAggregation.data.value?.status === 'completed')
 
+async function autoCreateAggregation(runId: string, methodExecutionIds: string[]): Promise<void> {
+  try {
+    let result
+    try {
+      result = await createAggregation.mutateAsync({
+        runId,
+        methodExecutionIds,
+        strategy: 'reference_v1',
+      })
+    } catch (error) {
+      // Whatever actually completed may be short of the full reference set (ADR-0051: still
+      // possible even after GenderTaggingView.vue's own retry only selected methods this
+      // deployment can run) — retry once as `reference_partial_v1` rather than stopping here.
+      if (!(error instanceof ApiError) || error.code !== 'resource_conflict') throw error
+      createAggregation.reset()
+      result = await createAggregation.mutateAsync({
+        runId,
+        methodExecutionIds,
+        strategy: 'reference_partial_v1',
+      })
+    }
+    createdAggregationId.value = result.aggregation.id
+  } catch {
+    // createAggregation.isError/.error already reflect this; shown below.
+  }
+}
+
 let autoCreateAttempted = false
 watch(
   [runSucceeded, aggregatable, () => createAggregation.isPending.value],
@@ -196,18 +223,10 @@ watch(
       return
     }
     autoCreateAttempted = true
-    void createAggregation
-      .mutateAsync({
-        runId,
-        methodExecutionIds: available.map((execution) => execution.id),
-        strategy: 'reference_v1',
-      })
-      .then((result) => {
-        createdAggregationId.value = result.aggregation.id
-      })
-      .catch(() => {
-        // createAggregation.isError/.error already reflect this; shown below.
-      })
+    void autoCreateAggregation(
+      runId,
+      available.map((execution) => execution.id),
+    )
   },
 )
 
@@ -305,7 +324,12 @@ const generateErrorText = computed(() => {
   }
   // The aggregation step is always automatic here (D27: no manual selection UI), so this is
   // always the same "auto" case `AggregationSection.vue` distinguishes from a manual one.
-  if (error instanceof ApiError && error.code === 'resource_conflict') {
+  // `partial_aggregation_disabled` (ADR-0051) only ever follows a `resource_conflict` retry here,
+  // so it means the same thing to the operator: the method set is short, with no fallback either.
+  if (
+    error instanceof ApiError &&
+    (error.code === 'resource_conflict' || error.code === 'partial_aggregation_disabled')
+  ) {
     return t('aggregations.errors.autoNotAggregatable')
   }
   return t('genderTagging.generate.errors.generic')

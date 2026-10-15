@@ -28,6 +28,7 @@ from gendertagger.models.aggregation import (
     AggregationExecutionCreate,
     AggregationExecutionListFilter,
     AggregationPersonPredictions,
+    AggregationPredictionMatrix,
     AggregationResultWrite,
     ResultMethodPrediction,
     VoteCounts,
@@ -95,7 +96,7 @@ class SqlAlchemyAggregationRepository:
         if incomplete_method_names:
             msg = f"method executions are not complete: {', '.join(incomplete_method_names)}"
             raise InvalidResourceStateError(msg)
-        self._validate_reference_method_selection(execution_rows)
+        self._validate_reference_method_selection(execution_rows, strategy=command.strategy)
 
         row = AggregationExecutionRow(
             run_id=command.run_id,
@@ -285,8 +286,8 @@ class SqlAlchemyAggregationRepository:
     def load_prediction_matrix(
         self,
         aggregation_execution_id: UUID,
-    ) -> Sequence[AggregationPersonPredictions]:
-        """Load every snapshot person and only persisted selected predictions."""
+    ) -> AggregationPredictionMatrix:
+        """Load the aggregation's own method selection and every person's present predictions."""
         aggregation = self._require_aggregation(aggregation_execution_id)
         self._require_source(
             aggregation_execution_id,
@@ -367,12 +368,15 @@ class SqlAlchemyAggregationRepository:
                     self._prediction_result_from_row(prediction_row)
                 )
 
-        return tuple(
-            AggregationPersonPredictions(
-                person_record_id=person_id,
-                predictions=predictions_by_person[person_id],
-            )
-            for person_id in person_ids
+        return AggregationPredictionMatrix(
+            selected_methods=frozenset(execution_names.values()),
+            people=tuple(
+                AggregationPersonPredictions(
+                    person_record_id=person_id,
+                    predictions=predictions_by_person[person_id],
+                )
+                for person_id in person_ids
+            ),
         )
 
     def add_results(
@@ -714,21 +718,29 @@ class SqlAlchemyAggregationRepository:
     @staticmethod
     def _validate_reference_method_selection(
         execution_rows: Sequence[MethodExecutionRow],
+        *,
+        strategy: AggregationStrategy,
     ) -> None:
         method_names = [row.method_name for row in execution_rows]
         if len(set(method_names)) != len(method_names):
             msg = "an aggregation must select each stable method name exactly once"
             raise InvalidResourceStateError(msg)
         supplied_methods = set(method_names)
-        missing_methods = sorted(set(REFERENCE_REQUIRED_METHODS) - supplied_methods)
         unexpected_methods = sorted(supplied_methods - _REFERENCE_ALLOWED_METHODS)
+        # ADR-0051: `reference_partial_v1` is the same allowed vocabulary without the full-set
+        # requirement — any non-empty subset (already guaranteed by the request schema) is valid.
+        missing_methods = (
+            sorted(set(REFERENCE_REQUIRED_METHODS) - supplied_methods)
+            if strategy is AggregationStrategy.reference_v1
+            else []
+        )
         if missing_methods or unexpected_methods:
             problems: list[str] = []
             if missing_methods:
                 problems.append(f"missing required methods: {', '.join(missing_methods)}")
             if unexpected_methods:
                 problems.append(f"unexpected methods: {', '.join(unexpected_methods)}")
-            msg = "invalid reference_v1 method selection: " + "; ".join(problems)
+            msg = f"invalid {strategy.value} method selection: " + "; ".join(problems)
             raise InvalidResourceStateError(msg)
 
     @staticmethod

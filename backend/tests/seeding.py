@@ -465,7 +465,7 @@ def seed_completed_aggregation(
     if results is None:
         results = [
             _assessed_result(person.person_record_id, person.predictions)
-            for person in aggregations.load_prediction_matrix(aggregation.id)
+            for person in aggregations.load_prediction_matrix(aggregation.id).people
         ]
     aggregations.add_results(aggregation.id, results)
     return aggregations.mark_aggregation_finished(

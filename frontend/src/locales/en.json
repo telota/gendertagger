@@ -604,6 +604,14 @@
         "submit": "Use default values"
       }
     },
+    "aggregation": {
+      "title": "Automatic suggestions",
+      "description": "Controls whether a run may still be aggregated with fewer than the nine reference methods.",
+      "toggleLabel": "Allow aggregating an incomplete method set",
+      "hint": "Enabled by default: if this instance is missing configuration for some methods, it aggregates with the rest instead (marked distinctly as \"reference_partial_v1\"), rather than rejecting the run outright. Turning this off requires the full method set again.",
+      "save": "Save",
+      "saving": "Saving…"
+    },
     "deployment": {
       "title": "Managed by the deployment",
       "description": "These details also appear publicly. Change them in the deployment configuration; verify them here.",

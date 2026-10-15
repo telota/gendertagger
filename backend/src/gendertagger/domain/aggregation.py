@@ -38,27 +38,36 @@ class ReferenceAggregationError(ValueError):
 
 def aggregate_reference_predictions(
     predictions: Mapping[str, PredictionResult],
+    *,
+    require_full_set: bool = True,
 ) -> ReferenceAggregationDecision:
-    """Aggregate one person's complete ``reference_v1`` prediction set.
+    """Aggregate one person's reference prediction set (ADR-0051).
 
     The parenthetical-qualifier result has first priority, including a
     substantive ``unknown`` result. A substantive non-unknown GND result has
-    second priority. Otherwise, the seven pooled methods cast an unweighted
+    second priority. Otherwise, the pooled methods present cast an unweighted
     vote. HIVOTO-XGBoost is accepted as provenance but never enters the vote.
 
     Args:
-        predictions: One result for every required reference method, keyed by
-            stable method identifier. The experimental method is optional.
+        predictions: One result per reference method present, keyed by stable
+            method identifier. Under ``require_full_set``, every required
+            method must be present; otherwise any non-empty subset of the
+            allowed methods is accepted, and an absent method simply does not
+            vote — never treated as abstaining, which it did not do.
+        require_full_set: ``reference_v1``'s own completeness requirement.
+            ``False`` is ``reference_partial_v1`` (ADR-0051).
 
     Returns:
         An immutable decision with complete pooled vote and override evidence.
 
     Raises:
-        ReferenceAggregationError: If a required method is absent or an unknown
-            method is supplied.
+        ReferenceAggregationError: If a required method is absent while
+            ``require_full_set``, or an unknown method is supplied.
     """
     supplied_methods = set(predictions)
-    missing_methods = sorted(set(REFERENCE_REQUIRED_METHODS) - supplied_methods)
+    missing_methods = (
+        sorted(set(REFERENCE_REQUIRED_METHODS) - supplied_methods) if require_full_set else []
+    )
     unknown_methods = sorted(supplied_methods - _ALLOWED_METHODS)
     if missing_methods or unknown_methods:
         problems: list[str] = []
@@ -71,11 +80,18 @@ def aggregate_reference_predictions(
     pooled_labels = [
         label
         for method_name in REFERENCE_POOLED_METHODS
-        if (label := _successful_label(predictions[method_name])) is not None
+        if (prediction := predictions.get(method_name)) is not None
+        and (label := _successful_label(prediction)) is not None
     ]
     pooled_vote_counts = _count_votes(pooled_labels)
-    parenthetical_label = _successful_label(predictions["parenthetical_qualifier"])
-    gnd_label = _successful_label(predictions["gnd"])
+    parenthetical_prediction = predictions.get("parenthetical_qualifier")
+    parenthetical_label = (
+        _successful_label(parenthetical_prediction)
+        if parenthetical_prediction is not None
+        else None
+    )
+    gnd_prediction = predictions.get("gnd")
+    gnd_label = _successful_label(gnd_prediction) if gnd_prediction is not None else None
     substantive_gnd_label = gnd_label if gnd_label is not CanonicalLabel.unknown else None
 
     if parenthetical_label is not None:

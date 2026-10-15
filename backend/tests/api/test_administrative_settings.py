@@ -18,6 +18,7 @@ from gendertagger.models.admin_settings import (
     AdminSettings,
     AdminSettingsReset,
     AdminSettingsUpdate,
+    AggregationSettingsUpdate,
     BrandingEditableValues,
     BrandingOverrides,
     BrandingSettingField,
@@ -67,6 +68,7 @@ def _settings() -> AdminSettings:
         ),
         branding_defaults=defaults,
         overridden_fields=[BrandingSettingField.institution_name],
+        allow_partial_reference_aggregation=True,
     )
 
 
@@ -246,6 +248,30 @@ def test_admin_settings_reset_forwards_validated_command_without_cache(
     )
 
 
+def test_admin_settings_aggregation_patch_forwards_validated_command_without_cache(
+    administrative_settings_application: FastAPI,
+) -> None:
+    service = Mock(spec=AdminSettingsService)
+    settings = _settings()
+    service.update_aggregation_settings.return_value = settings
+    command = AggregationSettingsUpdate(expected_revision=2, allow_partial_reference_aggregation=False)
+
+    with _client(administrative_settings_application, service, user=_admin()) as client:
+        response = client.patch(
+            "/api/v1/admin/settings/aggregation",
+            json={"expected_revision": 2, "allow_partial_reference_aggregation": False},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json() == settings.model_dump(mode="json")
+    service.update_aggregation_settings.assert_called_once_with(
+        command,
+        actor_user_id=USER_ID,
+        request_id="request-123",
+    )
+
+
 @pytest.mark.parametrize(
     ("path", "payload"),
     [
@@ -255,6 +281,11 @@ def test_admin_settings_reset_forwards_validated_command_without_cache(
         (
             "/api/v1/admin/settings/reset",
             {"expected_revision": 2, "fields": ["contact_email", "contact_email"]},
+        ),
+        ("/api/v1/admin/settings/aggregation", {"expected_revision": 2}),
+        (
+            "/api/v1/admin/settings/aggregation",
+            {"expected_revision": 2, "allow_partial_reference_aggregation": "not-a-bool"},
         ),
     ],
 )
@@ -267,14 +298,15 @@ def test_admin_settings_mutations_reject_invalid_commands(
 
     with _client(administrative_settings_application, service, user=_admin()) as client:
         response = (
-            client.patch(path, json=payload)
-            if path.endswith("/settings")
-            else client.post(path, json=payload)
+            client.post(path, json=payload)
+            if path.endswith("/reset")
+            else client.patch(path, json=payload)
         )
 
     assert response.status_code == 422
     service.update_settings.assert_not_called()
     service.reset_settings.assert_not_called()
+    service.update_aggregation_settings.assert_not_called()
 
 
 def test_admin_settings_mutations_enforce_existing_csrf_protection(

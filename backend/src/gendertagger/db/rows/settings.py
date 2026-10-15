@@ -1,8 +1,8 @@
-"""Persistence mapping for the ADR-0040 deployment-settings singleton."""
+"""Persistence mapping for the deployment-settings singleton (ADR-0040, ADR-0051)."""
 
 from typing import Any
 
-from sqlalchemy import CheckConstraint, Integer, text
+from sqlalchemy import Boolean, CheckConstraint, Integer, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -29,4 +29,12 @@ class DeploymentSettingsRow(UpdatedAtMixin, Base):
         nullable=False,
         default=dict,
         server_default=text("'{}'::jsonb"),
+    )
+    # ADR-0051: whether `reference_partial_v1` aggregations may be created at all — unrelated to
+    # branding, kept on this same singleton row rather than a second one-row table.
+    allow_partial_reference_aggregation: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=text("true"),
     )

@@ -9,6 +9,7 @@ import AppFeedback from '@/components/base/AppFeedback.vue'
 import { useAdminAccess } from '@/composables/useAdminAccess'
 
 import AdminSettingsEditor from './AdminSettingsEditor.vue'
+import AggregationSettingsToggle from './AggregationSettingsToggle.vue'
 import { useAdminSettings, type AdminSettings } from './useAdminSettings'
 import {
   useAdminSettingsMutations,
@@ -132,6 +133,12 @@ async function saveSettings(command: components['schemas']['AdminSettingsUpdate'
 
 async function resetSettings(command: components['schemas']['AdminSettingsReset']): Promise<void> {
   await handleMutation(await mutations.reset(command))
+}
+
+async function saveAggregationSettings(
+  command: components['schemas']['AggregationSettingsUpdate'],
+): Promise<void> {
+  await handleMutation(await mutations.updateAggregationSettings(command))
 }
 
 function discardDraft(): void {
@@ -265,6 +272,13 @@ function legalEntityAddress(values: string[] | undefined): string {
             </AppButton>
           </template>
         </AppFeedback>
+
+        <AggregationSettingsToggle
+          :key="editorKey"
+          :settings="data"
+          :is-submitting="mutations.isSubmitting.value"
+          @save="saveAggregationSettings"
+        />
 
         <section
           class="admin-settings-deployment"

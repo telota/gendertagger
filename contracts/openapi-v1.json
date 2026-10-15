@@ -96,6 +96,10 @@
         "additionalProperties": false,
         "description": "Administrator-visible effective branding, fallback values, and override metadata.",
         "properties": {
+          "allow_partial_reference_aggregation": {
+            "title": "Allow Partial Reference Aggregation",
+            "type": "boolean"
+          },
           "branding": {
             "$ref": "#/components/schemas/BrandingInfo"
           },
@@ -119,7 +123,8 @@
           "revision",
           "branding",
           "branding_defaults",
-          "overridden_fields"
+          "overridden_fields",
+          "allow_partial_reference_aggregation"
         ],
         "title": "AdminSettings",
         "type": "object"
@@ -681,10 +686,32 @@
         "title": "AggregationOutcome",
         "type": "string"
       },
+      "AggregationSettingsUpdate": {
+        "additionalProperties": false,
+        "description": "Revision-checked request to set whether `reference_partial_v1` may run (ADR-0051).",
+        "properties": {
+          "allow_partial_reference_aggregation": {
+            "title": "Allow Partial Reference Aggregation",
+            "type": "boolean"
+          },
+          "expected_revision": {
+            "minimum": 0.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "allow_partial_reference_aggregation"
+        ],
+        "title": "AggregationSettingsUpdate",
+        "type": "object"
+      },
       "AggregationStrategy": {
         "description": "Supported versioned aggregation strategies.",
         "enum": [
-          "reference_v1"
+          "reference_v1",
+          "reference_partial_v1"
         ],
         "title": "AggregationStrategy",
         "type": "string"
@@ -6669,6 +6696,128 @@
           }
         },
         "summary": "Update Admin Settings",
+        "tags": [
+          "admin settings"
+        ]
+      }
+    },
+    "/api/v1/admin/settings/aggregation": {
+      "patch": {
+        "description": "Set whether `reference_partial_v1` aggregations may run (ADR-0051).",
+        "operationId": "update_aggregation_settings_api_v1_admin_settings_aggregation_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AggregationSettingsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Payload too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            },
+            "description": "Settings storage unavailable"
+          }
+        },
+        "summary": "Update Aggregation Settings",
         "tags": [
           "admin settings"
         ]

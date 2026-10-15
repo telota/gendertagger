@@ -196,6 +196,19 @@ the AggregationExecution completed in the same transaction. A permanent complete
 leaves no result rows and marks the execution failed. See
 [ADR-0016](decisions/ADR-0016-asynchronous-aggregation-outbox.md).
 
+### Partial reference aggregation
+
+`reference_partial_v1` (ADR-0051) runs the same priority chain and pooled vote below over whichever of
+the nine reference methods an aggregation's own selection actually includes — a deployment missing a
+compiled lookup snapshot or model manifest for some methods can still get a usable result from the
+ones it has, rather than `reference_v1` rejecting the run outright for want of the full nine. An absent
+method simply does not vote; it is never treated as an implicit abstain, which it did not do. Every
+method the selection *does* include must still have a complete result for every person — the
+completeness boundary above still applies, just scoped to that smaller selection instead of the fixed
+nine. A deployment-wide setting gates whether `reference_partial_v1` may run at all
+(`allow_partial_reference_aggregation`, default enabled); `reference_v1` itself, and every existing
+result's provenance, are unaffected either way.
+
 ### Priority chain
 
 For each record:

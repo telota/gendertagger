@@ -16,7 +16,7 @@ from tests.seeding import (
     session_repositories,
 )
 
-from gendertagger.config.run import RunConfig
+from gendertagger.config.run import AggregationStrategy, RunConfig
 from gendertagger.db.repositories.aggregation_repository import SqlAlchemyAggregationRepository
 from gendertagger.db.repositories.dispatch_repository import SqlAlchemyDispatchRepository
 from gendertagger.db.repositories.run_repository import SqlAlchemyRunRepository
@@ -141,6 +141,48 @@ def test_reference_selection_requires_every_stable_method_once(db_session: Sessi
 
 
 @pytest.mark.postgres_rollback
+def test_partial_strategy_accepts_a_selection_missing_required_methods(
+    db_session: Session,
+) -> None:
+    # ADR-0051: the same `execution_ids[:-1]` selection the strict test above rejects for
+    # `reference_v1` is exactly what `reference_partial_v1` exists to accept.
+    run_id, execution_ids, person_id = _seed_reference_run(db_session)
+    repository = SqlAlchemyAggregationRepository(db_session)
+    aggregation = repository.add_aggregation(
+        AggregationExecutionCreate(
+            run_id=run_id,
+            strategy=AggregationStrategy.reference_partial_v1,
+            method_execution_ids=execution_ids[:-1],
+        )
+    )
+    repository.claim_aggregation(aggregation.id, started_at=NOW)
+
+    matrix = repository.load_prediction_matrix(aggregation.id)
+
+    assert matrix.selected_methods == set(REFERENCE_REQUIRED_METHODS) - {"local_llm"}
+    assert len(matrix.people) == 1
+    assert matrix.people[0].person_record_id == person_id
+    assert "local_llm" not in matrix.people[0].predictions
+    result = assess_reference_predictions(matrix.people[0].predictions, require_full_set=False)
+    repository.add_results(
+        aggregation.id,
+        [
+            AggregationResultWrite(
+                person_record_id=person_id,
+                result=result,
+                metadata={"strategy": "reference_partial_v1"},
+            )
+        ],
+    )
+    completed = repository.mark_aggregation_finished(
+        aggregation.id,
+        status=AggregationExecutionStatus.completed,
+        finished_at=NOW,
+    )
+    assert completed.status is AggregationExecutionStatus.completed
+
+
+@pytest.mark.postgres_rollback
 def test_repository_claims_and_completes_exactly_one_full_snapshot_result(
     db_session: Session,
 ) -> None:
@@ -161,18 +203,21 @@ def test_repository_claims_and_completes_exactly_one_full_snapshot_result(
     assert repository.claim_aggregation(aggregation.id, started_at=NOW) is None
 
     matrix = repository.load_prediction_matrix(aggregation.id)
-    assert len(matrix) == 1
-    assert matrix[0].person_record_id == person_id
-    assert set(matrix[0].predictions) == set(REFERENCE_REQUIRED_METHODS)
-    assert matrix[0].predictions["gnd"].status is PredictionStatus.error
-    assert matrix[0].predictions["parenthetical_qualifier"].status is PredictionStatus.abstain
+    assert matrix.selected_methods == set(REFERENCE_REQUIRED_METHODS)
+    assert len(matrix.people) == 1
+    assert matrix.people[0].person_record_id == person_id
+    assert set(matrix.people[0].predictions) == set(REFERENCE_REQUIRED_METHODS)
+    assert matrix.people[0].predictions["gnd"].status is PredictionStatus.error
+    assert (
+        matrix.people[0].predictions["parenthetical_qualifier"].status is PredictionStatus.abstain
+    )
 
     repository.add_results(
         aggregation.id,
         [
             AggregationResultWrite(
                 person_record_id=person_id,
-                result=assess_reference_predictions(matrix[0].predictions),
+                result=assess_reference_predictions(matrix.people[0].predictions),
                 metadata={"strategy": "reference_v1"},
             )
         ],
@@ -392,7 +437,7 @@ def test_deferred_guard_rejects_results_without_aggregation_completion(
         )
     )
     repository.claim_aggregation(aggregation.id, started_at=NOW)
-    (person_predictions,) = repository.load_prediction_matrix(aggregation.id)
+    (person_predictions,) = repository.load_prediction_matrix(aggregation.id).people
     repository.add_results(
         aggregation.id,
         [
@@ -449,7 +494,7 @@ def test_database_rejects_raw_result_insert_after_aggregation_finished(
         )
     )
     repository.claim_aggregation(aggregation.id, started_at=NOW)
-    (person_predictions,) = repository.load_prediction_matrix(aggregation.id)
+    (person_predictions,) = repository.load_prediction_matrix(aggregation.id).people
     result = assess_reference_predictions(person_predictions.predictions)
     repository.mark_aggregation_finished(
         aggregation.id,
@@ -707,7 +752,7 @@ def test_repository_rejects_duplicate_results_and_invalid_finish_commands(
     )
     claimed = repository.claim_aggregation(aggregation.id, started_at=NOW)
     assert claimed is not None
-    (person_predictions,) = repository.load_prediction_matrix(aggregation.id)
+    (person_predictions,) = repository.load_prediction_matrix(aggregation.id).people
     result_write = AggregationResultWrite(
         person_record_id=person_id,
         result=assess_reference_predictions(person_predictions.predictions),

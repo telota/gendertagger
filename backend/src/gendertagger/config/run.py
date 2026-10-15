@@ -21,6 +21,10 @@ class AggregationStrategy(StrEnum):
     """Supported versioned aggregation strategies."""
 
     reference_v1 = "reference_v1"
+    # ADR-0051: the same priority chain and pooled vote, but over whichever of the nine reference
+    # methods a selection actually includes, rather than requiring all nine. Deliberately a distinct
+    # strategy identifier — never silently reinterprets a `reference_v1` result.
+    reference_partial_v1 = "reference_partial_v1"
 
 
 class MethodRunConfig(_ClosedConfigModel):

@@ -35,12 +35,16 @@ class ReferenceAssessmentError(ValueError):
 
 def assess_reference_predictions(
     predictions: Mapping[str, PredictionResult],
+    *,
+    require_full_set: bool = True,
 ) -> ReferenceAggregationResult:
     """Run reference aggregation and derive its agreement and certainty.
 
     Args:
-        predictions: Complete per-person reference method results accepted by
+        predictions: Per-person reference method results accepted by
             :func:`aggregate_reference_predictions`.
+        require_full_set: Forwarded to :func:`aggregate_reference_predictions`
+            (ADR-0051).
 
     Returns:
         A fully assessed immutable reference aggregation result.
@@ -51,7 +55,9 @@ def assess_reference_predictions(
         ReferenceAggregationError: If the reference prediction set is invalid.
     """
     prediction_snapshot = dict(predictions)
-    decision = aggregate_reference_predictions(prediction_snapshot)
+    decision = aggregate_reference_predictions(
+        prediction_snapshot, require_full_set=require_full_set
+    )
     agreement_score, agreement_tier = calculate_reference_agreement(decision)
     certainty_tier = _assign_reference_certainty(
         decision,
@@ -147,7 +153,8 @@ def _find_lone_pooled_voter(predictions: Mapping[str, PredictionResult]) -> str:
     return next(
         method_name
         for method_name in REFERENCE_POOLED_METHODS
-        if predictions[method_name].status is PredictionStatus.success
+        if (prediction := predictions.get(method_name)) is not None
+        and prediction.status is PredictionStatus.success
     )
 
 

@@ -10,6 +10,7 @@ import pytest
 from gendertagger.models.admin_settings import (
     AdminSettingsReset,
     AdminSettingsUpdate,
+    AggregationSettingsUpdate,
     BrandingEditableValues,
     BrandingOverrides,
     BrandingSettingField,
@@ -255,3 +256,94 @@ def test_failed_persistence_does_not_commit_or_emit_success_log(
     assert unit_of_work.commit_count == 0
     assert unit_of_work.rolled_back is True
     assert "settings update" not in caplog.text
+
+
+def test_aggregation_setting_update_advances_revision_and_persists() -> None:
+    # ADR-0051
+    service, repository, unit_of_work = _service(
+        DeploymentSettings(
+            revision=2,
+            branding_overrides=BrandingOverrides(),
+            allow_partial_reference_aggregation=True,
+        )
+    )
+
+    result = service.update_aggregation_settings(
+        AggregationSettingsUpdate(expected_revision=2, allow_partial_reference_aggregation=False),
+        actor_user_id=ACTOR_ID,
+        request_id="request-123",
+    )
+
+    assert result.revision == 3
+    assert result.allow_partial_reference_aggregation is False
+    assert repository.saved[-1].allow_partial_reference_aggregation is False
+    assert unit_of_work.commit_count == 1
+
+
+def test_aggregation_setting_update_is_a_noop_when_value_already_matches() -> None:
+    service, repository, unit_of_work = _service(
+        DeploymentSettings(
+            revision=2,
+            branding_overrides=BrandingOverrides(),
+            allow_partial_reference_aggregation=True,
+        )
+    )
+
+    result = service.update_aggregation_settings(
+        AggregationSettingsUpdate(expected_revision=2, allow_partial_reference_aggregation=True),
+        actor_user_id=ACTOR_ID,
+        request_id="request-123",
+    )
+
+    assert result.revision == 2
+    assert repository.saved == []
+    assert unit_of_work.commit_count == 1
+
+
+def test_aggregation_setting_update_rejects_a_stale_revision() -> None:
+    service, repository, unit_of_work = _service(
+        DeploymentSettings(
+            revision=3,
+            branding_overrides=BrandingOverrides(),
+            allow_partial_reference_aggregation=True,
+        )
+    )
+
+    with pytest.raises(SettingsRevisionConflictError) as error:
+        service.update_aggregation_settings(
+            AggregationSettingsUpdate(
+                expected_revision=2, allow_partial_reference_aggregation=False
+            ),
+            actor_user_id=ACTOR_ID,
+            request_id="request-123",
+        )
+
+    assert error.value.expected_revision == 2
+    assert error.value.current_revision == 3
+    assert repository.saved == []
+    assert unit_of_work.commit_count == 0
+
+
+def test_branding_update_preserves_the_aggregation_setting_unrelated_to_it() -> None:
+    # Regression: an earlier draft of DeploymentSettings' Python default could have let an
+    # unrelated branding update silently reset this back to True.
+    service, repository, unit_of_work = _service(
+        DeploymentSettings(
+            revision=2,
+            branding_overrides=BrandingOverrides(contact_email=None),
+            allow_partial_reference_aggregation=False,
+        )
+    )
+
+    result = service.update_settings(
+        AdminSettingsUpdate(
+            expected_revision=2,
+            branding=BrandingOverrides(institution_name="Updated Institute"),
+        ),
+        actor_user_id=ACTOR_ID,
+        request_id="request-123",
+    )
+
+    assert result.allow_partial_reference_aggregation is False
+    assert repository.saved[-1].allow_partial_reference_aggregation is False
+    assert unit_of_work.commit_count == 1

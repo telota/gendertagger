@@ -9,6 +9,7 @@ import { adminSettingsQueryKey, type AdminSettings } from './useAdminSettings'
 
 export type AdminSettingsUpdateCommand = components['schemas']['AdminSettingsUpdate']
 export type AdminSettingsResetCommand = components['schemas']['AdminSettingsReset']
+export type AggregationSettingsUpdateCommand = components['schemas']['AggregationSettingsUpdate']
 export type AdminSettingsMutationError =
   | 'settings_revision_conflict'
   | 'settings_unavailable'
@@ -133,8 +134,23 @@ export function useAdminSettingsMutations(
     return apply(() => unwrap(client.POST('/api/v1/admin/settings/reset', { body: command })))
   }
 
+  function updateAggregationSettings(
+    command: AggregationSettingsUpdateCommand,
+  ): Promise<AdminSettingsMutationResult> {
+    return apply(() =>
+      unwrap(client.PATCH('/api/v1/admin/settings/aggregation', { body: command })),
+    )
+  }
+
   watch([principalId, canAccessAdmin], clearPrivateState)
   onScopeDispose(clearPrivateState)
 
-  return { isSubmitting, update, reset, refreshBranding, clearPrivateState }
+  return {
+    isSubmitting,
+    update,
+    reset,
+    updateAggregationSettings,
+    refreshBranding,
+    clearPrivateState,
+  }
 }

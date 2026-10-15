@@ -10,7 +10,7 @@ from gendertagger.models.aggregation import (
     AggregationExecution,
     AggregationExecutionCreate,
     AggregationExecutionListFilter,
-    AggregationPersonPredictions,
+    AggregationPredictionMatrix,
     AggregationResultWrite,
     ResultMethodPrediction,
 )
@@ -76,8 +76,8 @@ class AggregationRepository(Protocol):
     def load_prediction_matrix(
         self,
         aggregation_execution_id: UUID,
-    ) -> Sequence[AggregationPersonPredictions]:
-        """Load every snapshot person and its present selected predictions."""
+    ) -> AggregationPredictionMatrix:
+        """Load the aggregation's own method selection and every person's present predictions."""
         ...
 
     def add_results(

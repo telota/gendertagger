@@ -1853,7 +1853,38 @@ on each method in the advanced-mode run form, so an operator sees which methods 
   than a field on `MethodDescriptor` itself, since that type is also embedded as immutable provenance
   on persisted run/execution records, where "available" would mean nothing.
 - `NewRunForm.vue` shows a note (`runs.new.needsConfiguration`) next to any method whose `available`
-  is `false`, without disabling its checkbox — an operator who already knows the right JSON to paste
-  into that method's own config box can still select it.
+  is `false`. Follow-up, same session: the user asked for the checkbox itself to be disabled
+  (greyed out) rather than just annotated, plus a "select all methods" button that selects every
+  *available* method and leaves the rest out — `selectAllAvailable()` sets `selected[name]` from
+  `method.available` directly, so it can never select one the checkbox itself refuses to let a click
+  select.
 - Contract change: `contracts/openapi-v1.json` regenerated (`update_openapi_snapshot.py`) and
   `frontend/src/api/schema.d.ts` regenerated (`npm run api:generate`) to match.
+
+### Partial reference aggregation (ADR-0051)
+
+Investigating why guided mode's generate step, now correctly excluding unconfigured methods from the
+*run*, still never completed led to the real blocker one layer up: `reference_v1`'s aggregation step
+requires the full nine reference methods regardless of what the run actually contains — a deliberate,
+documented rule (`docs/07-methods-and-aggregation.md`), not a bug. The user asked to make running with
+fewer methods possible, settable in administrator settings, defaulting to allowed — see
+[ADR-0051](decisions/ADR-0051-partial-reference-aggregation.md) for the full backend design (a second,
+distinct `reference_partial_v1` strategy; `reference_v1` itself is untouched). The frontend side:
+
+- `AggregationSection.vue` (advanced mode, both the automatic post-run aggregation and the manual
+  checkbox-selection form) and `GenderTaggingView.vue`'s own automatic aggregation step now retry once
+  as `reference_partial_v1` whenever a `reference_v1` attempt comes back `409 resource_conflict` ("not
+  aggregatable") — with the exact same method selection, not a different one. Neither view needs to
+  know ahead of time whether the selection is complete; the server already knows, and already told it.
+  Needs no new read access either: an operator creating an aggregation (not necessarily an admin)
+  cannot call `GET /admin/settings` to check the deployment setting first, so the retry-on-409 shape
+  sidesteps that permission gap entirely rather than needing it.
+- If the deployment setting disallows `reference_partial_v1`, that retry's own `403
+  partial_aggregation_disabled` is mapped to the exact same "needs the full method set" message
+  (`aggregations.errors.autoNotAggregatable` / `notAggregatable`) as the original `409` — from the
+  operator's side, both cases are the same actionable fact, so there's no new error message to add.
+- New admin-settings UI: `AggregationSettingsToggle.vue`, a small standalone card (its own
+  revision-checked `PATCH /admin/settings/aggregation`, independent of the branding editor's own
+  sparse-override save/reset/conflict flow, which this setting has nothing to do with) with a
+  checkbox for `allow_partial_reference_aggregation` and a save button, registered as a navigation
+  draft like every other unsaved form in this app.

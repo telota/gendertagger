@@ -10,6 +10,7 @@ from gendertagger.models.admin_settings import (
     AdminSettings,
     AdminSettingsReset,
     AdminSettingsUpdate,
+    AggregationSettingsUpdate,
     BrandingEditableValues,
     BrandingOverrides,
     BrandingSettingField,
@@ -96,6 +97,50 @@ class AdminSettingsService:
             action="settings reset",
         )
 
+    def update_aggregation_settings(
+        self,
+        command: AggregationSettingsUpdate,
+        *,
+        actor_user_id: UUID,
+        request_id: str,
+    ) -> AdminSettings:
+        """Atomically set whether `reference_partial_v1` may run (ADR-0051)."""
+        try:
+            with self._unit_of_work_factory() as unit_of_work:
+                stored = unit_of_work.settings.get_deployment_settings_for_update()
+                if stored is None:
+                    raise SettingsUnavailableError("The deployment settings singleton is missing.")
+                if stored.revision != command.expected_revision:
+                    raise SettingsRevisionConflictError(
+                        expected_revision=command.expected_revision,
+                        current_revision=stored.revision,
+                    )
+                resulting = stored
+                if stored.allow_partial_reference_aggregation != (
+                    command.allow_partial_reference_aggregation
+                ):
+                    resulting = DeploymentSettings(
+                        revision=stored.revision + 1,
+                        branding_overrides=stored.branding_overrides,
+                        allow_partial_reference_aggregation=(
+                            command.allow_partial_reference_aggregation
+                        ),
+                    )
+                    unit_of_work.settings.save_deployment_settings(resulting)
+                unit_of_work.commit()
+        except SQLAlchemyError as error:
+            raise SettingsUnavailableError("Settings storage is unavailable.") from error
+        result = self._admin_settings_from_stored(resulting)
+        logger.info(
+            "aggregation settings update by user %s (request %s; revision=%d "
+            "allow_partial_reference_aggregation=%s)",
+            actor_user_id,
+            request_id,
+            result.revision,
+            result.allow_partial_reference_aggregation,
+        )
+        return result
+
     def _mutate(
         self,
         *,
@@ -126,6 +171,7 @@ class AdminSettingsService:
                     resulting = DeploymentSettings(
                         revision=stored.revision + 1,
                         branding_overrides=proposed_overrides,
+                        allow_partial_reference_aggregation=stored.allow_partial_reference_aggregation,
                     )
                     unit_of_work.settings.save_deployment_settings(resulting)
                 unit_of_work.commit()
@@ -157,6 +203,7 @@ class AdminSettingsService:
             ),
             branding_defaults=self._branding_defaults,
             overridden_fields=_overridden_fields(stored.branding_overrides),
+            allow_partial_reference_aggregation=stored.allow_partial_reference_aggregation,
         )
 
 

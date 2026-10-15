@@ -19,7 +19,7 @@ from gendertagger.models.aggregation import (
 from gendertagger.models.api import CursorPage
 from gendertagger.models.lifecycle import AggregationExecutionStatus
 from gendertagger.models.user import ProjectRole
-from gendertagger.services.aggregations import AggregationService
+from gendertagger.services.aggregations import AggregationService, PartialAggregationDisabledError
 from gendertagger.services.pagination import InvalidCursorError
 from gendertagger.services.ports.persistence_errors import (
     InvalidResourceStateError,
@@ -62,6 +62,12 @@ def create_aggregation(
             status_code=status.HTTP_409_CONFLICT,
             code="resource_conflict",
             message="The method execution selection is not aggregatable.",
+        ) from error
+    except PartialAggregationDisabledError as error:
+        raise ApiRequestError(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="partial_aggregation_disabled",
+            message="This deployment does not allow reference_partial_v1 aggregations.",
         ) from error
     if not creation.created:
         response.status_code = status.HTTP_200_OK

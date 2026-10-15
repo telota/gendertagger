@@ -388,6 +388,7 @@ GLOBAL_ROUTES = {
     ("GET", "/projects/{project_id}/eligible-users"),
     ("GET", "/teams"),
     ("PATCH", "/admin/settings"),
+    ("PATCH", "/admin/settings/aggregation"),
     ("PATCH", "/admin/teams/{team_id}"),
     ("POST", "/admin/users"),
     ("POST", "/admin/settings/reset"),
